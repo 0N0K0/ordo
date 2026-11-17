@@ -1,3 +1,4 @@
+import { BY_POSITION } from '../src/services/core/ordering';
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
@@ -20,7 +21,7 @@ import {
   localDate,
   TIME_ZONE,
 } from './fixtures/factories';
-import { addDays, DEFAULT_RECURRENCE, emptyTableFilter, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_RECURRENCE, emptyTableFilter, formatDay, parseDay, type Recurrence } from '@ordo/shared';
 import { createAlarm } from '../src/services/tasks/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
 import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/tasks/task-recurrence';
@@ -61,7 +62,7 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_FIXTURES !== 'sta
  * @returns {Promise<{ id: string, name: string, kind: 'PRO' | 'PERSO' }>} Workspace.
  */
 const workspaceOf = async (kind: 'PRO' | 'PERSO', name: string) =>
-  (await unscopedPrisma.workspace.findFirst({ where: { kind }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] })) ?? (await createWorkspace({ name, kind }));
+  (await unscopedPrisma.workspace.findFirst({ where: { kind }, orderBy: BY_POSITION })) ?? (await createWorkspace({ name, kind }));
 
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
@@ -413,9 +414,9 @@ const recurring = async (event: {
         location: event.location ?? null,
         links: [],
         allDay: event.allDay ?? false,
-        startDate: new Date(`${event.start}T00:00:00.000Z`),
+        startDate: parseDay(event.start),
         startTime: event.allDay ? null : clock(event.from),
-        endDate: new Date(`${event.start}T00:00:00.000Z`),
+        endDate: parseDay(event.start),
         endTime: event.allDay ? null : clock(event.to),
         timeZone: TIME_ZONE,
         recurrence: event.recurrence,
@@ -441,17 +442,17 @@ const teamMeeting = await recurring({
 await prisma.calendarEventException.create({
   data: {
     eventId: teamMeeting,
-    date: new Date(`${addDays(monday, 7)}T00:00:00.000Z`),
+    date: parseDay(addDays(monday, 7)),
     title: 'Point équipe (décalé au mardi)',
-    startDate: new Date(`${addDays(monday, 8)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, 8)),
     startTime: '11:00',
-    endDate: new Date(`${addDays(monday, 8)}T00:00:00.000Z`),
+    endDate: parseDay(addDays(monday, 8)),
     endTime: '11:30',
     location: 'Salle Ada',
     links: [],
   },
 });
-await prisma.calendarEventException.create({ data: { eventId: teamMeeting, date: new Date(`${addDays(monday, 21)}T00:00:00.000Z`), cancelled: true } });
+await prisma.calendarEventException.create({ data: { eventId: teamMeeting, date: parseDay(addDays(monday, 21)), cancelled: true } });
 
 const standUp = await recurring({
   title: 'Stand-up',
@@ -533,8 +534,8 @@ for (const [title, offset, days, categoryId] of [
       title,
       links: [],
       allDay: true,
-      startDate: new Date(`${start}T00:00:00.000Z`),
-      endDate: new Date(`${addDays(start, days - 1)}T00:00:00.000Z`),
+      startDate: parseDay(start),
+      endDate: parseDay(addDays(start, days - 1)),
       timeZone: TIME_ZONE,
       reminders: [1440],
       calendarId: calendarOf([categoryId]),
@@ -548,9 +549,9 @@ await prisma.calendarEvent.create({
   data: {
     title: 'Atelier de cadrage (annulé par le client)',
     links: [],
-    startDate: new Date(`${addDays(monday, 3)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, 3)),
     startTime: '14:00',
-    endDate: new Date(`${addDays(monday, 3)}T00:00:00.000Z`),
+    endDate: parseDay(addDays(monday, 3)),
     endTime: '16:00',
     timeZone: TIME_ZONE,
     reminders: [15],
@@ -563,9 +564,9 @@ const postponed = await prisma.calendarEvent.create({
   data: {
     title: 'Rendez-vous comptable',
     links: [],
-    startDate: new Date(`${addDays(monday, 1)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, 1)),
     startTime: '10:00',
-    endDate: new Date(`${addDays(monday, 1)}T00:00:00.000Z`),
+    endDate: parseDay(addDays(monday, 1)),
     endTime: '11:00',
     timeZone: TIME_ZONE,
     reminders: [60],
@@ -578,9 +579,9 @@ await prisma.calendarEvent.create({
   data: {
     title: 'Report de l’évènement « Rendez-vous comptable »',
     links: [],
-    startDate: new Date(`${addDays(monday, 9)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, 9)),
     startTime: '10:00',
-    endDate: new Date(`${addDays(monday, 9)}T00:00:00.000Z`),
+    endDate: parseDay(addDays(monday, 9)),
     endTime: '11:00',
     timeZone: TIME_ZONE,
     reminders: [60],
@@ -597,7 +598,7 @@ const weekly = (weekdays: number[], ranges: { start: string; end: string }[], ev
 const workWeek = await prisma.workSchedule.create({
   data: {
     name: 'Semaine type',
-    startDate: new Date(`${addDays(monday, -56)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, -56)),
     cases: [weekly([1, 2, 3, 4], [range('09:00', '12:30'), range('14:00', '18:00')]), weekly([5], [range('09:00', '12:30')])],
     exceptions: [
       { from: addDays(monday, 38), to: addDays(monday, 42), label: 'Congés', cases: [] },
@@ -609,7 +610,7 @@ const workWeek = await prisma.workSchedule.create({
 await prisma.workSchedule.create({
   data: {
     name: 'Samedis matin',
-    startDate: new Date(`${addDays(monday, -14)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, -14)),
     cases: [weekly([6], [range('09:00', '12:00')], 2)],
     exceptions: [],
   },
@@ -622,7 +623,7 @@ const repeatable = await prisma.task.findMany({
   take: 3,
 });
 for (const [index, task] of repeatable.entries()) {
-  const anchor = task.startDate!.toISOString().slice(0, 10);
+  const anchor = formatDay(task.startDate!);
   const weekday = new Date(`${anchor}T12:00:00Z`).getUTCDay() || 7;
   await setTaskRecurrence(
     task.id,
@@ -632,8 +633,8 @@ for (const [index, task] of repeatable.entries()) {
 await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
 // Past occurrences are mostly done.
 const doneStatus = statuses.find((status) => status.category === 'DONE')!;
-for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: new Date(`${today}T00:00:00.000Z`) } } })) {
-  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${occurrence.occurrenceDate!.toISOString().slice(0, 10)}T17:00:00`) } });
+for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: parseDay(today) } } })) {
+  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T17:00:00`) } });
 }
 
 // --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
@@ -710,7 +711,7 @@ await prisma.workSchedule.create({
   data: {
     name: 'Astreintes',
     typeId: onCall.id,
-    startDate: new Date(`${addDays(monday, 5)}T00:00:00.000Z`),
+    startDate: parseDay(addDays(monday, 5)),
     cases: [weekly([6], [range('10:00', '18:00')], 4)],
     exceptions: [],
   },
@@ -718,9 +719,9 @@ await prisma.workSchedule.create({
 
 // --- Alarms: task alert, reminders at several frequencies, tracking alarms, a disabled one -------------------
 const alarmBase = { note: null, time: '09:00', interval: 1, weekdays: [], endDate: null, minutes: null, projectId: null, taskId: null, enabled: true };
-const alerted = await prisma.task.findFirst({ where: { closedAt: null, deadline: { gte: new Date(`${today}T00:00:00.000Z`) } }, orderBy: { deadline: 'asc' } });
+const alerted = await prisma.task.findFirst({ where: { closedAt: null, deadline: { gte: parseDay(today) } }, orderBy: { deadline: 'asc' } });
 if (alerted) {
-  await createAlarm({ ...alarmBase, title: `Échéance : ${alerted.title}`, type: 'REMINDER', frequency: 'ONCE', startDate: addDays(alerted.deadline!.toISOString().slice(0, 10), -1), time: '10:00', projectId: alerted.projectId, taskId: alerted.id });
+  await createAlarm({ ...alarmBase, title: `Échéance : ${alerted.title}`, type: 'REMINDER', frequency: 'ONCE', startDate: addDays(formatDay(alerted.deadline!), -1), time: '10:00', projectId: alerted.projectId, taskId: alerted.id });
 }
 await createAlarm({ ...alarmBase, title: 'Relancer les devis en attente', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [1], startDate: monday, note: 'Voir l’onglet « Devis » de la facturation.' });
 await createAlarm({ ...alarmBase, title: 'Préparer la déclaration de TVA', type: 'REMINDER', frequency: 'MONTHLY', startDate: addDays(monday, 2), time: '14:00' });

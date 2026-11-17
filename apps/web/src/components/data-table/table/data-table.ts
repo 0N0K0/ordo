@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { collator } from '../../../lib/text';
 
@@ -126,7 +127,7 @@ export function isHidden<R>(column: DataColumn<R>, layout: ColumnLayout): boolea
  * @returns {ShownColumn<R>[]} Columns.
  */
 export function shownColumns<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout): ShownColumn<R>[] {
-  const byId = new Map(columns.map((column) => [column.id, column]));
+  const byId = mapById(columns);
   return columnOrder(columns, layout)
     .map((id) => byId.get(id)!)
     .filter((column) => !isHidden(column, layout))

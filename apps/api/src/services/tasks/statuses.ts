@@ -1,22 +1,9 @@
 import { labelNameSchema, colorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { Prisma, type ProjectStatus } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
-
-/**
- * Converts a unique name violation into a field error.
- * @param {unknown} error Caught error.
- * @returns {never}
- */
-function rethrowNameConflict(error: unknown): never {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    const message = 'Un statut porte déjà ce nom.';
-    throw clientError('CONFLICT', message, { fields: { name: message } });
-  }
-  throw error;
-}
+import { type ProjectStatus } from '../../generated/prisma/client';
+import { notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { nextPositionIn } from '../core/ordering';
 
 /**
  * Creates a status at the end of the list.
@@ -27,11 +14,11 @@ function rethrowNameConflict(error: unknown): never {
  */
 export async function createStatus(input: { name: string; color: string }): Promise<ProjectStatus> {
   const data = parseInput(z.object({ name: labelNameSchema, color: colorSchema }), input);
-  const { _max } = await prisma.projectStatus.aggregate({ _max: { position: true } });
+  const position = await nextPositionIn('projectStatus');
   try {
-    return await prisma.projectStatus.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+    return await prisma.projectStatus.create({ data: { ...data, position } });
   } catch (error) {
-    rethrowNameConflict(error);
+    rethrowUnique(error, 'Un statut porte déjà ce nom.');
   }
 }
 
@@ -47,7 +34,7 @@ export async function updateStatus(
   id: string,
   input: { name?: string | null; color?: string | null },
 ): Promise<ProjectStatus> {
-  if (!(await prisma.projectStatus.findUnique({ where: { id } }))) throw notFound('Statut');
+  await orNotFound(prisma.projectStatus.findUnique({ where: { id } }), 'Statut');
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,
@@ -55,7 +42,7 @@ export async function updateStatus(
   try {
     return await prisma.projectStatus.update({ where: { id }, data });
   } catch (error) {
-    rethrowNameConflict(error);
+    rethrowUnique(error, 'Un statut porte déjà ce nom.');
   }
 }
 
@@ -69,24 +56,3 @@ export async function deleteStatus(id: string): Promise<void> {
   if (count === 0) throw notFound('Statut');
 }
 
-/**
- * Moves a status to a new index in the list.
- * @param {string} id Status id.
- * @param {number} index Target index.
- * @returns {Promise<void>}
- */
-export async function moveStatus(id: string, index: number): Promise<void> {
-  const statuses = await prisma.projectStatus.findMany({
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
-    select: { id: true },
-  });
-  if (!statuses.some((status) => status.id === id)) throw notFound('Statut');
-  const order = moveInOrder(
-    statuses.map((status) => status.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(
-    order.map((statusId, position) => prisma.projectStatus.update({ where: { id: statusId }, data: { position } })),
-  );
-}

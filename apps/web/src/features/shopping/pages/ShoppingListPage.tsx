@@ -1,3 +1,6 @@
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { plural, countOf } from '../../../lib/text';
+import { byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -165,7 +168,7 @@ export function ShoppingListPage() {
     tableKey: 'shopping-list',
     getKey: (item) => item.id,
     columns,
-    rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position),
+    rows: [...(list?.items ?? [])].sort(byPosition),
     title: list?.name ?? 'Liste d’achats',
     first: LIST_VIEWS,
     bulkColumns: [{ id: 'bought', label: 'Acheté' }],
@@ -232,11 +235,7 @@ export function ShoppingListPage() {
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}
             </Title>
-            {closed && (
-              <Badge variant="light" color="gray">
-                Archivée
-              </Badge>
-            )}
+            {closed && <ArchivedBadge feminine />}
           </Group>
           <Group gap="md">
             {tasks.map((task) => (
@@ -251,7 +250,7 @@ export function ShoppingListPage() {
               </Group>
             )}
             <Text size="sm" c="dimmed">
-              {bought} sur {required} acheté(s)
+              {bought} sur {required} {plural(bought, 'acheté')}
               {total > 0 && ` · ${fmt.money(spent)} sur ${fmt.money(total)} estimés`}
             </Text>
           </Group>
@@ -333,15 +332,15 @@ export function ShoppingListPage() {
               ...deleteRowsAction(rows, {
                 label: 'Retirer de la liste',
                 title: 'Retirer les éléments',
-                risks: `${rows.length} élément(s) seront retirés de la liste ; ceux qui ne sont dans aucune référence seront supprimés définitivement.`,
+                risks: `${countOf(rows.length, 'élément')} seront retirés de la liste ; ceux qui ne sont dans aucune référence seront supprimés définitivement.`,
                 remove: (item) => mutations.deleteItem.mutateAsync({ id: item.id }),
-                done: `${rows.length} élément(s) retiré(s).`,
+                done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
                 clear,
               }),
               disabled: closed,
             },
           ]}
-          items={[...list.items].sort((a, b) => a.position - b.position)}
+          items={[...list.items].sort(byPosition)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}
           readOnly={closed}

@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { TRAVEL_MODES } from '@ordo/shared';
 import * as geo from '../../services/core/geo';
 import { iconUrl } from '../../services/core/icons';
@@ -82,17 +83,11 @@ builder.mutationFields((t) => ({
   movePlace: t.boolean({
     description: 'Moves a place among the places, or a zone under another place or zone, at an index among its siblings.',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, parentId, index }) => {
-      await geo.movePlace(String(id), parentId ? String(parentId) : null, index);
-      return true;
-    },
+    resolve: (_root, { id, parentId, index }) => done(geo.movePlace(String(id), parentId ? String(parentId) : null, index)),
   }),
   deletePlace: t.boolean({
     description: 'Deletes a saved place (events keep their address).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await geo.deletePlace(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(geo.deletePlace(id)),
   }),
 }));

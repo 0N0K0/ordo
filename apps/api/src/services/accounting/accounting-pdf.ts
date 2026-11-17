@@ -1,14 +1,5 @@
 import { createRequire } from 'node:module';
-import {
-  addressLines,
-  depositAmount,
-  formatMoney,
-  paidOnReceipt,
-  UNIT_LABELS,
-  type AccountingDocumentType,
-  type Address,
-  type DocumentTotals,
-} from '@ordo/shared';
+import { type AccountingDocumentType, type Address, addressLines, depositAmount, type DocumentTotals, formatMoney, paidOnReceipt, toCents, UNIT_LABELS } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
@@ -510,7 +501,7 @@ function writeLines(
           maximumFractionDigits: 3,
         }),
         unit: line.kind === 'DEDUCTION' ? '' : UNIT_LABELS[line.unit].short,
-        price: money(Math.round(line.unitPrice * 100)),
+        price: money(toCents(line.unitPrice)),
         // A percentage as such, an amount as the amount taken off.
         discount: !total.discount
           ? ''
@@ -1223,7 +1214,7 @@ async function paidInvoicePayments(
   return allocations.map((allocation) => ({
     date: allocation.entry.date,
     method: allocation.entry.method?.name ?? null,
-    amount: Math.round(Number(allocation.amount) * 100),
+    amount: toCents(Number(allocation.amount)),
   }));
 }
 

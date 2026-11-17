@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { ACCOUNTING_DOCUMENT_TYPES } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as parties from '../../services/accounting/client-parties';
@@ -256,10 +257,7 @@ builder.mutationFields((t) => ({
       year: t.arg.int({ required: true }),
       nextNumber: t.arg.int({ required: true }),
     },
-    resolve: async (_root, { type, year, nextNumber }) => {
-      await company.setSequenceStart(type, year, nextNumber);
-      return true;
-    },
+    resolve: (_root, { type, year, nextNumber }) => done(company.setSequenceStart(type, year, nextNumber)),
   }),
   updateClientDetails: t.prismaField({
     type: 'Client',
@@ -318,10 +316,7 @@ builder.mutationFields((t) => ({
   }),
   deleteClientService: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await parties.deleteClientService(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(parties.deleteClientService(id)),
   }),
   createClientContact: t.prismaField({
     type: 'ClientContact',
@@ -365,9 +360,6 @@ builder.mutationFields((t) => ({
   }),
   deleteClientContact: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await parties.deleteClientContact(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(parties.deleteClientContact(id)),
   }),
 }));

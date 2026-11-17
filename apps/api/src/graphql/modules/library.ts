@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as library from '../../services/library/library';
 import { builder } from '../builder';
@@ -53,25 +54,16 @@ builder.mutationFields((t) => ({
   }),
   renameDocumentFolder: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (_root, { id, name }) => {
-      await library.renameFolder(id, name);
-      return true;
-    },
+    resolve: (_root, { id, name }) => done(library.renameFolder(id, name)),
   }),
   moveDocumentFolder: t.boolean({
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id() },
-    resolve: async (_root, { id, parentId }) => {
-      await library.moveFolder(id, parentId ?? null);
-      return true;
-    },
+    resolve: (_root, { id, parentId }) => done(library.moveFolder(id, parentId ?? null)),
   }),
   deleteDocumentFolder: t.boolean({
     description: 'Deletes a folder with its sub-folders and documents.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await library.deleteFolder(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(library.deleteFolder(id)),
   }),
   addLibraryFiles: t.idList({
     args: { folderId: t.arg.id(), files: t.arg({ type: ['File'], required: true }) },
@@ -83,39 +75,24 @@ builder.mutationFields((t) => ({
   }),
   updateLibraryDocument: t.boolean({
     args: { id: t.arg.id({ required: true }), title: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string(), file: t.arg({ type: 'File' }) },
-    resolve: async (_root, { id, title, url, note, file }) => {
-      await library.updateDocument(id, { title, url, note }, file ?? null);
-      return true;
-    },
+    resolve: (_root, { id, title, url, note, file }) => done(library.updateDocument(id, { title, url, note }, file ?? null)),
   }),
   moveLibraryDocuments: t.boolean({
     args: { ids: t.arg.idList({ required: true }), folderId: t.arg.id() },
-    resolve: async (_root, { ids, folderId }) => {
-      await library.moveDocuments(ids, folderId ?? null);
-      return true;
-    },
+    resolve: (_root, { ids, folderId }) => done(library.moveDocuments(ids, folderId ?? null)),
   }),
   reorderDocumentFolder: t.boolean({
     description: 'Moves a folder among the folders of a parent (into that parent first when it is another one).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, parentId, index }) => {
-      await library.reorderFolder(id, parentId ?? null, index);
-      return true;
-    },
+    resolve: (_root, { id, parentId, index }) => done(library.reorderFolder(id, parentId ?? null, index)),
   }),
   reorderLibraryDocument: t.boolean({
     description: 'Moves a document among the documents of a folder (into that folder first when it is another one).',
     args: { id: t.arg.id({ required: true }), folderId: t.arg.id(), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, folderId, index }) => {
-      await library.reorderDocument(id, folderId ?? null, index);
-      return true;
-    },
+    resolve: (_root, { id, folderId, index }) => done(library.reorderDocument(id, folderId ?? null, index)),
   }),
   deleteLibraryDocuments: t.boolean({
     args: { ids: t.arg.idList({ required: true }) },
-    resolve: async (_root, { ids }) => {
-      await library.deleteDocuments(ids);
-      return true;
-    },
+    resolve: (_root, { ids }) => done(library.deleteDocuments(ids)),
   }),
 }));

@@ -1,10 +1,13 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { plural } from '../../../lib/text';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Alert, Badge, Box, Checkbox, Group, Menu, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Checkbox, Group, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
-import { CheckCircleIcon, DotsThreeIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
 import { correspondent, listDate } from '../lib/mail-format';
@@ -66,22 +69,15 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
             }
           }}
           rightSection={
-            <Menu position="bottom-end" shadow="md" withinPortal>
-              <Menu.Target>
-                <ActionIcon size="xs" variant="subtle" color="gray" aria-label={`Actions sur ${search.name}`} onClick={(event) => event.stopPropagation()}>
-                  <DotsThreeIcon weight="bold" aria-hidden />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
-                <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openSearchForm(search)}>
-                  Modifier
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => askDelete(search)}>
-                  Supprimer
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
+            <ActionsMenu
+              name={search.name}
+              size="xs"
+              inRow
+              items={[
+                { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openSearchForm(search) },
+                { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => askDelete(search) },
+              ]}
+            />
           }
         />
       ))}
@@ -133,11 +129,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   // Mails sent from one of these show their recipients.
   const ownAddresses = new Set((accounts ?? []).map((account) => account.email.toLowerCase()));
   if (results.error) {
-    return (
-      <Alert color="red" icon={<ErrorIcon />} m="xs">
-        {results.error.message}
-      </Alert>
-    );
+    return <ErrorAlert m="xs">{results.error.message}</ErrorAlert>;
   }
   if (results.isPending) {
     return <ListSkeleton items={5} dense />;
@@ -178,7 +170,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
           />
         ) : (
           <Text size="xs" c="dimmed">
-            {total} mail{total > 1 ? 's' : ''}
+            {total} {plural(total, 'mail')}
           </Text>
         )}
       </Group>

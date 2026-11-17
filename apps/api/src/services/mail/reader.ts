@@ -1,3 +1,4 @@
+import { collator } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -177,7 +178,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
     };
     return folders
       .filter((folder) => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent'))
-      .sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path, 'fr'))
+      .sort((a, b) => rank(a) - rank(b) || collator.compare(a.path, b.path))
       .map((folder) => ({
         path: folder.path,
         name: folder.path.toUpperCase() === 'INBOX' ? 'Réception' : folder.name,

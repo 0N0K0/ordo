@@ -8,7 +8,7 @@ import { useAccountingDocuments, useImportedDocuments } from '../../accounting/a
 import { useMe } from '../../auth/api';
 import { ChronoCard } from '../components/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../components/FinanceCards';
-import { StatTile } from '../components/HomeCard';
+import { StatTile } from '../../../components/page/StatTile';
 import { billingSummary, useMyTodayTasks, useWeekTime } from '../lib/home-data';
 import { MailCard } from '../components/MailCard';
 import { SortableGrid } from '../components/SortableGrid';

@@ -12,8 +12,9 @@ import {
   type TreasuryEntryInput,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 
@@ -39,9 +40,9 @@ export async function accountBalance(account: TreasuryAccount, date: string): Pr
  */
 export async function createAccount(input: TreasuryAccountInput): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  const { _max } = await prisma.treasuryAccount.aggregate({ _max: { position: true } });
+  const position = await nextPositionIn('treasuryAccount');
   return prisma.treasuryAccount.create({
-    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), position: (_max.position ?? -1) + 1 },
+    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
   });
 }
 
@@ -53,7 +54,7 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
  */
 export async function updateAccount(id: string, input: TreasuryAccountInput & { archived: boolean }): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  if (!(await prisma.treasuryAccount.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Compte');
+  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id }, select: { id: true } }), 'Compte');
   return prisma.treasuryAccount.update({
     where: { id },
     data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), archived: input.archived },
@@ -188,22 +189,20 @@ async function saveLines(tx: Prisma.TransactionClient, entryId: string, lines: r
  */
 async function parseEntry(input: TreasuryEntryInput, id: string | null = null) {
   const entry = parseInput(treasuryEntrySchema, input);
-  if (!(await prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }))) throw notFound('Compte');
+  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }), 'Compte');
   if (entry.projectId && !(await prisma.project.findUnique({ where: { id: entry.projectId }, select: { id: true } }))) throw notFound('Projet');
   if (entry.clientId && !(await prisma.client.findUnique({ where: { id: entry.clientId }, select: { id: true } }))) throw notFound('Client');
   if (entry.counterpartyId && !(await prisma.treasuryCounterparty.findUnique({ where: { id: entry.counterpartyId }, select: { id: true } }))) throw notFound('Tiers');
   const incoming = entry.amount > 0;
   if (entry.categoryId) {
-    const category = await prisma.treasuryCategory.findUnique({ where: { id: entry.categoryId }, select: { direction: true } });
-    if (!category) throw notFound('Catégorie');
+    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: entry.categoryId }, select: { direction: true } }), 'Catégorie');
     if ((category.direction === 'IN') !== incoming) {
       const message = incoming ? 'Choisissez une catégorie d’entrée.' : 'Choisissez une catégorie de sortie.';
       throw clientError('BAD_USER_INPUT', message, { fields: { categoryId: message } });
     }
   }
   if (entry.methodId) {
-    const method = await prisma.treasuryPaymentMethod.findUnique({ where: { id: entry.methodId }, select: { incoming: true, outgoing: true } });
-    if (!method) throw notFound('Moyen de paiement');
+    const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: entry.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
     if (!(incoming ? method.incoming : method.outgoing)) {
       const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
       throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
@@ -311,8 +310,7 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
  * @returns {Promise<TreasuryEntry>} Entry.
  */
 export async function updateEntry(id: string, input: TreasuryEntryInput): Promise<TreasuryEntry> {
-  const previous = await prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } });
-  if (!previous) throw notFound('Mouvement');
+  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } }), 'Mouvement');
   const entry = await parseEntry(input, id);
   if (entry.linkedEntryIds.includes(id)) throw clientError('BAD_USER_INPUT', 'Un mouvement ne peut pas être lié à lui-même.', { fields: { linkedEntryIds: 'Retirez ce mouvement de ses liens.' } });
   const updated = await prisma.$transaction(async (tx) => {
@@ -342,8 +340,7 @@ export async function updateEntry(id: string, input: TreasuryEntryInput): Promis
  * @returns {Promise<void>}
  */
 export async function deleteEntry(id: string): Promise<void> {
-  const previous = await prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } });
-  if (!previous) throw notFound('Mouvement');
+  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } }), 'Mouvement');
   await prisma.treasuryEntry.delete({ where: { id } });
   await syncPaymentStatus(previous.allocations.map((allocation) => allocation.documentId));
 }

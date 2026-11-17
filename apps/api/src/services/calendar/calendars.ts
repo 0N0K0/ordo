@@ -1,14 +1,12 @@
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
-
-const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 /** Calendar of another workspace shown in this one, read only. */
 export interface CalendarSubscriptionView {
@@ -34,8 +32,7 @@ export interface SubscribableCalendar {
  * @returns {Promise<Calendar>} Calendar.
  */
 async function findCalendar(id: string): Promise<Calendar> {
-  const calendar = await prisma.calendar.findUnique({ where: { id } });
-  if (!calendar) throw notFound('Calendrier');
+  const calendar = await orNotFound(prisma.calendar.findUnique({ where: { id } }), 'Calendrier');
   return calendar;
 }
 
@@ -47,7 +44,7 @@ async function findCalendar(id: string): Promise<Calendar> {
  */
 export async function resolveCalendarId(id?: string | null): Promise<string> {
   if (id) return (await findCalendar(id)).id;
-  const first = await prisma.calendar.findFirst({ orderBy: [...byOrder], select: { id: true } });
+  const first = await prisma.calendar.findFirst({ orderBy: BY_POSITION, select: { id: true } });
   if (first) return first.id;
   const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { name: true } });
   return (await prisma.calendar.create({ data: { name: workspace.name, color: DEFAULT_COLOR } })).id;
@@ -60,8 +57,8 @@ export async function resolveCalendarId(id?: string | null): Promise<string> {
  */
 export async function createCalendar(input: CalendarFormValues): Promise<Calendar> {
   const data = parseInput(calendarFormSchema, input);
-  const { _max } = await prisma.calendar.aggregate({ _max: { position: true } });
-  return prisma.calendar.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('calendar');
+  return prisma.calendar.create({ data: { ...data, position } });
 }
 
 /**
@@ -73,22 +70,6 @@ export async function createCalendar(input: CalendarFormValues): Promise<Calenda
 export async function updateCalendar(id: string, input: CalendarFormValues): Promise<Calendar> {
   await findCalendar(id);
   return prisma.calendar.update({ where: { id }, data: parseInput(calendarFormSchema, input) });
-}
-
-/**
- * Moves a calendar in the order of the workspace.
- * @param {string} id Calendar.
- * @param {number} index New index.
- * @returns {Promise<void>}
- */
-export async function moveCalendar(id: string, index: number): Promise<void> {
-  await findCalendar(id);
-  const order = moveInOrder(
-    (await prisma.calendar.findMany({ orderBy: [...byOrder], select: { id: true } })).map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((calendarId, position) => prisma.calendar.update({ where: { id: calendarId }, data: { position } })));
 }
 
 /**
@@ -109,7 +90,7 @@ export async function deleteCalendar(id: string): Promise<void> {
  */
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
-    orderBy: [...byOrder],
+    orderBy: BY_POSITION,
     include: { calendar: { include: { workspace: { select: { id: true, name: true, kind: true } } } } },
   });
   return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, name: calendar.name, color: calendar.color, workspace: calendar.workspace }));
@@ -143,8 +124,8 @@ export async function subscribe(calendarId: string): Promise<void> {
   if (!calendar) throw notFound('Calendrier');
   if (calendar.workspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ce calendrier appartient déjà à cet espace.');
   if (await prisma.calendarSubscription.findFirst({ where: { calendarId }, select: { id: true } })) return;
-  const { _max } = await prisma.calendarSubscription.aggregate({ _max: { position: true } });
-  await prisma.calendarSubscription.create({ data: { calendarId, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('calendarSubscription');
+  await prisma.calendarSubscription.create({ data: { calendarId, position } });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as auth from '../../services/core/auth';
 import { builder } from '../builder';
@@ -30,20 +31,14 @@ builder.mutationFields((t) => ({
 
   logout: t.boolean({
     skipTypeScopes: true,
-    resolve: async (_root, _args, ctx) => {
-      await auth.logout(ctx.res, ctx.session);
-      return true;
-    },
+    resolve: (_root, _args, ctx) => done(auth.logout(ctx.res, ctx.session)),
   }),
 
   requestPasswordReset: t.boolean({
     skipTypeScopes: true,
     description: 'Always returns true, whether or not the account exists.',
     args: { identifier: t.arg.string({ required: true }) },
-    resolve: async (_root, { identifier }, ctx) => {
-      await auth.requestPasswordReset(ctx.req, identifier);
-      return true;
-    },
+    resolve: (_root, { identifier }, ctx) => done(auth.requestPasswordReset(ctx.req, identifier)),
   }),
 
   resetPassword: t.boolean({
@@ -52,20 +47,14 @@ builder.mutationFields((t) => ({
       token: t.arg.string({ required: true }),
       password: t.arg.string({ required: true }),
     },
-    resolve: async (_root, { token, password }) => {
-      await auth.resetPassword(token, password);
-      return true;
-    },
+    resolve: (_root, { token, password }) => done(auth.resetPassword(token, password)),
   }),
 
   confirmEmailChange: t.boolean({
     skipTypeScopes: true,
     description: 'Works without a session: the link may be opened on another device.',
     args: { token: t.arg.string({ required: true }) },
-    resolve: async (_root, { token }) => {
-      await auth.confirmEmailChange(token);
-      return true;
-    },
+    resolve: (_root, { token }) => done(auth.confirmEmailChange(token)),
   }),
 
   changePassword: t.boolean({
@@ -74,10 +63,7 @@ builder.mutationFields((t) => ({
       currentPassword: t.arg.string({ required: true }),
       password: t.arg.string({ required: true }),
     },
-    resolve: async (_root, { currentPassword, password }, ctx) => {
-      await auth.changePassword(requireSession(ctx), currentPassword, password);
-      return true;
-    },
+    resolve: (_root, { currentPassword, password }, ctx) => done(auth.changePassword(requireSession(ctx), currentPassword, password)),
   }),
 
   changeUsername: t.prismaField({

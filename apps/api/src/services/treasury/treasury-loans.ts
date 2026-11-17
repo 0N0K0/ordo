@@ -1,4 +1,4 @@
-import { formatDay, LEVEL } from '@ordo/shared';
+import { formatDay, LEVEL, lineCents } from '@ordo/shared';
 import { prisma } from '../../db';
 
 /** A loan line: money lent or borrowed, or repaid, with a relation. */
@@ -35,9 +35,7 @@ export async function relationLoans(): Promise<RelationLoans[]> {
   });
   const byRelation = new Map<string, RelationLoans>();
   for (const line of lines) {
-    const value = Number(line.value);
-    // A percentage is of the entry amount.
-    const cents = line.mode === 'PERCENT' ? Math.round(Number(line.entry.amount) * value) : Math.round(value * 100);
+    const cents = lineCents(Number(line.entry.amount), { mode: line.mode, value: Number(line.value) });
     const loans = byRelation.get(line.relationId!) ?? { relationId: line.relationId!, balance: 0, out: 0, in: 0, items: [] };
     loans.balance -= cents;
     if (cents < 0) loans.out -= cents;

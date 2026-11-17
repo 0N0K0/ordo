@@ -1,4 +1,4 @@
-import { ListSkeleton, TextSkeleton } from '../../../components/feedback/Skeletons';
+import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Anchor, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { ArrowRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useContext, type ReactNode } from 'react';
@@ -55,69 +55,6 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
         </Group>
         {loading ? <ListSkeleton items={3} dense /> : children}
       </Stack>
-    </Paper>
-  );
-}
-
-interface HomeEmptyProps {
-  icon: ReactNode;
-  children: ReactNode;
-}
-
-/**
- * Empty content of a card.
- * @param {HomeEmptyProps} props Component props.
- * @returns {JSX.Element} Message.
- */
-export function HomeEmpty({ icon, children }: HomeEmptyProps) {
-  return (
-    <Group gap="xs" c="dimmed" wrap="nowrap" py="xs">
-      {icon}
-      <Text size="sm">{children}</Text>
-    </Group>
-  );
-}
-
-interface StatTileProps {
-  label: string;
-  value: ReactNode;
-  /** Detail under the value, in a color (red: something to do). */
-  hint?: ReactNode;
-  hintColor?: string;
-  to?: string;
-  loading?: boolean;
-}
-
-/**
- * Key figure of the home page, linking to its page.
- * @param {StatTileProps} props Component props.
- * @returns {JSX.Element} Tile.
- */
-export function StatTile({ label, value, hint, hintColor = 'dimmed', to, loading }: StatTileProps) {
-  const content = (
-    <Stack gap={2}>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600} truncate>
-        {label}
-      </Text>
-      {loading ? (
-        <TextSkeleton title lines={0} />
-      ) : (
-        <Text fw={700} fz="xl" lh={1.2} truncate>
-          {value}
-        </Text>
-      )}
-      <Text size="xs" c={hintColor} truncate>
-        {loading ? ' ' : (hint ?? ' ')}
-      </Text>
-    </Stack>
-  );
-  return to ? (
-    <Paper withBorder radius="md" p="md" component={Link} to={to} className={classes.tile}>
-      {content}
-    </Paper>
-  ) : (
-    <Paper withBorder radius="md" p="md">
-      {content}
     </Paper>
   );
 }

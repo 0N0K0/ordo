@@ -1,7 +1,8 @@
+import { DragHandle } from '../actions/DragHandle';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Collapse, Group, Paper, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon, TrashIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 
 interface CaseCardProps {
@@ -50,20 +51,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
     >
       <Stack gap={shown ? 'xs' : 0}>
         <Group justify="space-between" wrap="nowrap" gap={4}>
-          {sortable && (
-            <ActionIcon
-              ref={setActivatorNodeRef}
-              variant="subtle"
-              color="gray"
-              size="sm"
-              aria-label={`Déplacer le cas ${index}`}
-              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
-              {...attributes}
-              {...listeners}
-            >
-              <DotsSixVerticalIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          )}
+          {sortable && <DragHandle label={`Déplacer le cas ${index}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} size="sm" />}
           {collapsible ? (
             <UnstyledButton onClick={onToggle} aria-expanded={shown} style={{ minWidth: 0, flex: 1 }}>
               {heading}

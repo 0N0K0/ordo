@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import type { CatalogItemInput as CatalogItemInputData } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as catalog from '../../services/accounting/catalog';
@@ -52,16 +53,10 @@ builder.mutationFields((t) => ({
   }),
   updateCatalogItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CatalogItemInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await catalog.updateCatalogItem(id, itemInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(catalog.updateCatalogItem(id, itemInput(input))),
   }),
   deleteCatalogItem: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await catalog.deleteCatalogItem(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(catalog.deleteCatalogItem(id)),
   }),
 }));

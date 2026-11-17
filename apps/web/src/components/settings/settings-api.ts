@@ -37,11 +37,21 @@ export function useSettingsItemLook() {
 }
 
 /**
- * Puts the items of a flat settings list in the order given; the lists showing them are reloaded.
+ * Puts the items of a flat settings list in the order given (each one's position is its index).
+ * @param {SettingsListKind} kind List.
+ * @param {string[]} ids Items, in their new order.
+ * @returns {Promise<boolean>} Done.
+ */
+export async function reorderSettingsItems(kind: SettingsListKind, ids: string[]): Promise<boolean> {
+  return (await execute(ReorderSettingsItemsDocument, { kind, ids })).reorderSettingsItems;
+}
+
+/**
+ * Puts the items of a flat settings list in the order given, then refreshes every query.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useReorderSettingsItems() {
-  return useInvalidatingMutation(async ({ kind, ids }: { kind: SettingsListKind; ids: string[] }) => (await execute(ReorderSettingsItemsDocument, { kind, ids })).reorderSettingsItems, {
+  return useInvalidatingMutation(({ kind, ids }: { kind: SettingsListKind; ids: string[] }) => reorderSettingsItems(kind, ids), {
     invalidate: [[]],
   });
 }
@@ -74,17 +84,15 @@ interface AsyncMutation<V> {
  * @param {AsyncMutation<{ id: string }>} mutations.remove Deletion.
  * @param {AsyncMutation<{ id: string, index: number }>} [mutations.move] Move in a flat list. Optional.
  * @param {(values: V) => I} [toInput] Input of the list from the form values. Optional. Default = its name and color.
- * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown>, remove: (id: string) => Promise<unknown>, move?: (id: string, parentId: string | null, index: number) => Promise<unknown> }} Props.
+ * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown>, remove: (id: string) => Promise<unknown> }} Props (the list reorders itself).
  */
 export function listMutations<V extends { name: string; color: string }, I = { name: string; color: string }>(
-  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }>; remove: AsyncMutation<{ id: string }>; move?: AsyncMutation<{ id: string; index: number }> },
+  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }>; remove: AsyncMutation<{ id: string }> },
   toInput: (values: V) => I = (values) => ({ name: values.name, color: values.color }) as I,
 ) {
-  const { move } = mutations;
   return {
     create: async (values: V) => createdId(await mutations.create.mutateAsync(toInput(values))),
     update: (id: string, values: V) => mutations.update.mutateAsync({ id, input: toInput(values) }),
     remove: (id: string) => mutations.remove.mutateAsync({ id }),
-    move: move ? (id: string, _parentId: string | null, index: number) => move.mutateAsync({ id, index }) : undefined,
   };
 }

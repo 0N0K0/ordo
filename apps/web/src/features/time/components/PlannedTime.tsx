@@ -1,9 +1,8 @@
 import { Group, Paper, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { addDays, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
+import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
-import { localToday } from '../../../lib/dates';
+import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { scheduleRules, useWorkSchedules } from '../../calendar/api';
-import { localParts } from '../../calendar/lib/event-input';
 import { useTimeEntriesSince } from '../api';
 import { useNow } from '../hooks/use-now';
 import * as fmt from '../../../lib/format';
@@ -41,9 +40,9 @@ export function PlannedTime() {
   // The week of the workspace (it may start another day than Monday, or last 8 days).
   const [monday, after] = weekRange(today, currentWeek());
   const sunday = addDays(after, -1);
-  const length = Math.round((Date.parse(after) - Date.parse(monday)) / 86_400_000);
+  const length = daysBetween(monday, after);
   const { data: schedules } = useWorkSchedules();
-  const entries = useTimeEntriesSince(new Date(`${monday}T00:00:00`).toISOString());
+  const entries = useTimeEntriesSince(localMidnight(monday));
   const running = (entries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   const now = useNow(running);
 

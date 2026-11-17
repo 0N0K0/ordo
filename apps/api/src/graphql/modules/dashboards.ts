@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as dashboards from '../../services/dashboards/dashboards';
 import { builder } from '../builder';
@@ -49,24 +50,15 @@ builder.mutationFields((t) => ({
   }),
   renameDashboard: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (_root, { id, name }) => {
-      await dashboards.renameDashboard(id, name);
-      return true;
-    },
+    resolve: (_root, { id, name }) => done(dashboards.renameDashboard(id, name)),
   }),
   deleteDashboard: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await dashboards.deleteDashboard(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(dashboards.deleteDashboard(id)),
   }),
   moveDashboard: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await dashboards.moveDashboard(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(dashboards.moveDashboard(id, index)),
   }),
   createDashboardChart: t.id({
     args: { dashboardId: t.arg.id({ required: true }), input: t.arg({ type: ChartInput, required: true }) },
@@ -74,10 +66,7 @@ builder.mutationFields((t) => ({
   }),
   updateDashboardChart: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ChartInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await dashboards.updateChart(id, input);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(dashboards.updateChart(id, input)),
   }),
   duplicateDashboardChart: t.id({
     args: { id: t.arg.id({ required: true }) },
@@ -90,16 +79,10 @@ builder.mutationFields((t) => ({
   }),
   deleteDashboardChart: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await dashboards.deleteChart(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(dashboards.deleteChart(id)),
   }),
   moveDashboardChart: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await dashboards.moveChart(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(dashboards.moveChart(id, index)),
   }),
 }));

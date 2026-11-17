@@ -6,7 +6,7 @@ import { listSelectProps } from '../../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
-import { type MouseEvent, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
@@ -23,23 +23,16 @@ import classes from '../../../components/data-table/cells/EditableCells.module.c
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, cellMulti as sharedMulti } from '../../../components/data-table/cells/cell-field';
+import { cellCombobox as sharedCombobox, cellMulti as sharedMulti, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 
-/**
- * Stops the click from reaching the row.
- * @param {MouseEvent} event Click event.
- * @returns {void}
- */
-const stop = (event: MouseEvent) => event.stopPropagation();
-
 /** Select fields of the cells, a click kept from the row. */
-const cellCombobox = { ...sharedCombobox, onClick: stop } as const;
+const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
 
 /** Multi-select fields of the cells, a click kept from the row. */
-const cellMulti = { ...sharedMulti, onClick: stop } as const;
+const cellMulti = { ...sharedMulti, onClick: stopClick } as const;
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -70,7 +63,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
       before={
         <>
           {prefix}
-          <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
+          <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stopClick} style={{ flex: 'none' }}>
             {taskRef(task).trim()}
           </Text>
         </>
@@ -129,14 +122,14 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
           aria-expanded={combobox.dropdownOpened}
           data-expanded={combobox.dropdownOpened || undefined}
           onClick={(event) => {
-            stop(event);
+            stopClick(event);
             combobox.toggleDropdown();
           }}
         >
           {current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>}
         </UnstyledButton>
       </Combobox.Target>
-      <Combobox.Dropdown onClick={stop}>
+      <Combobox.Dropdown onClick={stopClick}>
         <Combobox.Options>
           {labels.length === 0 && <Combobox.Empty>Aucune valeur définie dans les paramètres</Combobox.Empty>}
           {labels.map((label) => (
@@ -357,7 +350,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       variant="unstyled"
       size="xs"
       classNames={{ root: classes.root, input: classes.input, section: classes.section }}
-      onClick={stop}
+      onClick={stopClick}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}
       // A single task keeps a valid range; with several, the API checks every task.
@@ -473,7 +466,7 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
       value={task.parentId}
       // A task is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
-      onClick={stop}
+      onClick={stopClick}
       comboboxProps={{ withinPortal: true }}
     />
   );

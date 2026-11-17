@@ -1,6 +1,6 @@
 import { Checkbox, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { ACCOUNTING_DOCUMENT_TYPES, importedDocumentSchema, type AccountingDocumentType } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
 import { FilePdfIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
@@ -176,7 +176,7 @@ export function ImportedDocumentForm({
               form.setValues({
                 totalNet,
                 totalGross:
-                  Math.round((totalNet + values.totalVat) * 100) / 100,
+                  round2(totalNet + values.totalVat),
               });
             }}
           />
@@ -188,7 +188,7 @@ export function ImportedDocumentForm({
               form.setValues({
                 totalVat,
                 totalGross:
-                  Math.round((values.totalNet + totalVat) * 100) / 100,
+                  round2(values.totalNet + totalVat),
               });
             }}
           />

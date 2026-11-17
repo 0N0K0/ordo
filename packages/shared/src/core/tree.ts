@@ -65,3 +65,54 @@ export function ancestorsOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id
 export function pathOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id: string | null | undefined, label: (item: T) => string): string {
   return lineageOf(byId, id).reverse().map(label).join(LEVEL);
 }
+
+/**
+ * Children of each parent, in the order of the items; an item whose parent is missing comes at the top level (null).
+ * @param {readonly T[]} items Every item of the tree.
+ * @returns {Map<string | null, T[]>} Children by parent.
+ */
+export function childrenByParent<T extends TreeItem>(items: readonly T[]): Map<string | null, T[]> {
+  const ids = new Set(items.map((item) => item.id));
+  const children = new Map<string | null, T[]>();
+  for (const item of items) {
+    const parent = item.parentId && ids.has(item.parentId) ? item.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), item]);
+  }
+  return children;
+}
+
+/**
+ * Whether a target is reached from some starts by following links (a blocking chain, dependencies…), cycles stopping.
+ * @param {(id: string) => readonly string[]} next Ids an id links to.
+ * @param {readonly string[]} starts Ids the walk starts from.
+ * @param {string} target Id looked for.
+ * @returns {boolean} Reached.
+ */
+export function reaches(next: (id: string) => readonly string[], starts: readonly string[], target: string): boolean {
+  const seen = new Set<string>();
+  for (const stack = [...starts]; stack.length;) {
+    const current = stack.pop()!;
+    if (current === target) return true;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    stack.push(...next(current));
+  }
+  return false;
+}
+
+/**
+ * Whether an id is a start or one of its ancestors, following a parent map (cycles stop): moving `id` under `start`
+ * would put it under itself.
+ * @param {ReadonlyMap<string, string | null | undefined>} parentOf Parent of each id.
+ * @param {string} start Id the walk starts from (the new parent).
+ * @param {string} id Id looked for (the item moved).
+ * @returns {boolean} Found.
+ */
+export function isUnderOrSelf(parentOf: ReadonlyMap<string, string | null | undefined>, start: string, id: string): boolean {
+  const seen = new Set<string>();
+  for (let current: string | null | undefined = start; current && !seen.has(current); current = parentOf.get(current)) {
+    if (current === id) return true;
+    seen.add(current);
+  }
+  return false;
+}

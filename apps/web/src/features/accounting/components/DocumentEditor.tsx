@@ -7,8 +7,8 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 
-import { accountingDocumentInputSchema, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type AccountingDocumentInput, type AccountingLineInput } from '@ordo/shared';
-import { useQueryClient } from '@tanstack/react-query';
+import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
+
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -16,7 +16,7 @@ import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
-import { timeQueryKey } from '../../time/api';
+
 import { useWorkspace } from '../../workspace/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
@@ -106,7 +106,6 @@ function Editor({ document }: { document: AccountingDocument }) {
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
   const tracking = useTrackingMutations();
-  const queryClient = useQueryClient();
   // Duration of the time billed on the invoice, saved or just added.
   const [timeSeconds, setTimeSeconds] = useState(() => new Map(document.timeEntries.map((entry) => [entry.id, entry.duration ?? 0])));
   const readOnly = document.status === 'FINAL';
@@ -145,8 +144,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       .mutateAsync({ id: document.id, input: values })
       .then(() => {
         form.resetDirty();
-        // The time billed changed with the draft.
-        void queryClient.invalidateQueries({ queryKey: timeQueryKey });
         if (then) then();
         else notifySuccess(isTemplate ? 'Modèle enregistré.' : 'Brouillon enregistré.');
       })
@@ -227,7 +224,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       id: document.id,
       type: document.type,
       number: document.number,
-      totalGross: Math.round(document.totalGross * 100),
+      totalGross: toCents(document.totalGross),
       currency: document.currency,
       dueDate: document.dueDate ?? null,
       paymentTerms: document.paymentTerms ?? null,
@@ -235,7 +232,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       attachments: document.attachments,
       companyName: company?.name ?? '',
       recipient: { email: contact?.email || service?.email || client?.email || null, firstName: contact?.firstName ?? null },
-      reminder: reminder ? { balance: Math.round((document.balance ?? 0) * 100) } : null,
+      reminder: reminder ? { balance: toCents(document.balance ?? 0) } : null,
       onSent: () =>
         reminder
           ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: onMutationError })
@@ -533,7 +530,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               {billedIds.length > 0 && (
                 <Group gap="xs" justify="space-between">
                   <Text size="xs" c="dimmed">
-                    <ClockIcon aria-hidden /> {billedIds.length} temps facturé{billedIds.length > 1 ? 's' : ''} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}
+                    <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}
                     ) : ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
                   </Text>
                   {canBillTime && (

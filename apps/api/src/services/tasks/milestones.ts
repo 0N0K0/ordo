@@ -1,9 +1,9 @@
-import { dateSchema, markdownSchema, milestoneTitleSchema } from '@ordo/shared';
+import { dateSchema, markdownSchema, milestoneTitleSchema, parseOptionalDay } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { moveInList, nextPositionIn } from '../core/ordering';
 
 /**
  * Loads a milestone or throws NOT_FOUND.
@@ -11,19 +11,8 @@ import { moveInOrder } from '../core/ordering';
  * @returns {Promise<Milestone>} Milestone.
  */
 async function findMilestone(id: string): Promise<Milestone> {
-  const milestone = await prisma.milestone.findUnique({ where: { id } });
-  if (!milestone) throw notFound('Jalon');
+  const milestone = await orNotFound(prisma.milestone.findUnique({ where: { id } }), 'Jalon');
   return milestone;
-}
-
-/**
- * Converts a YYYY-MM-DD date to a UTC Date, keeping null and undefined.
- * @param {string | null | undefined} date Calendar date.
- * @returns {Date | null | undefined} Date at midnight UTC.
- */
-function toDate(date: string | null | undefined): Date | null | undefined {
-  if (date === undefined || date === null) return date;
-  return new Date(`${date}T00:00:00.000Z`);
 }
 
 const fieldsSchema = z.object({
@@ -47,22 +36,21 @@ export async function createMilestone(input: {
   description?: string | null;
   dueDate?: string | null;
 }): Promise<Milestone> {
-  const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { archivedAt: true } });
-  if (!project) throw notFound('Projet');
+  const project = await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { archivedAt: true } }), 'Projet');
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
   const fields = parseInput(fieldsSchema.required({ title: true }), {
     title: input.title,
     description: input.description ?? null,
     dueDate: input.dueDate ?? null,
   });
-  const { _max } = await prisma.milestone.aggregate({ where: { projectId: input.projectId }, _max: { position: true } });
+  const position = await nextPositionIn('milestone', { projectId: input.projectId });
   return prisma.milestone.create({
     data: {
       projectId: input.projectId,
       title: fields.title,
       description: fields.description,
-      dueDate: toDate(fields.dueDate),
-      position: (_max.position ?? -1) + 1,
+      dueDate: parseOptionalDay(fields.dueDate),
+      position,
     },
   });
 }
@@ -88,7 +76,7 @@ export async function updateMilestone(
   });
   return prisma.milestone.update({
     where: { id },
-    data: { title: fields.title, description: fields.description, dueDate: toDate(fields.dueDate) },
+    data: { title: fields.title, description: fields.description, dueDate: parseOptionalDay(fields.dueDate) },
   });
 }
 
@@ -110,17 +98,5 @@ export async function deleteMilestone(id: string): Promise<void> {
  */
 export async function moveMilestone(id: string, index: number): Promise<void> {
   const milestone = await findMilestone(id);
-  const siblings = await prisma.milestone.findMany({
-    where: { projectId: milestone.projectId },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
-    select: { id: true },
-  });
-  const order = moveInOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(
-    order.map((milestoneId, position) => prisma.milestone.update({ where: { id: milestoneId }, data: { position } })),
-  );
+  await moveInList('milestone', id, index, { projectId: milestone.projectId });
 }

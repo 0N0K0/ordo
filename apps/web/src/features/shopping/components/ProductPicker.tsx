@@ -1,3 +1,4 @@
+import { normalize } from '@ordo/shared';
 import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
@@ -5,7 +6,7 @@ import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
 import { shoppingCategoryTree } from '../lib/shopping-format';
-import { collator } from '../../../lib/text';
+import { collator, countOf, plural } from '../../../lib/text';
 
 /**
  * Products of the base lists to add to a list: searched, filtered by base list or missing, checked then added in one go
@@ -25,9 +26,9 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
   const baseLists = data?.shoppingBaseLists ?? [];
   const inList = new Set(list.items.map((item) => item.productId).filter(Boolean));
   const pathOf = new Map(shoppingCategoryTree(data?.shoppingCategories ?? []).map((placed) => [placed.category.id, placed.path]));
-  const needle = search.trim().toLocaleLowerCase('fr');
+  const needle = normalize(search.trim());
   const products = (data?.shoppingProducts ?? [])
-    .filter((product) => (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || product.name.toLocaleLowerCase('fr').includes(needle)))
+    .filter((product) => (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || normalize(product.name).includes(needle)))
     .sort((a, b) => collator.compare(a.name, b.name));
   const addable = products.filter((product) => !inList.has(product.id));
   const groups = baseLists.map((baseList) => ({ baseList, products: products.filter((product) => product.baseListId === baseList.id) })).filter((group) => group.products.length > 0);
@@ -136,7 +137,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
             { listId: list.id, productIds: [...selected] },
             {
               onSuccess: (count) => {
-                notifySuccess(`${count} produit(s) ajouté(s).`);
+                notifySuccess(`${countOf(count, 'produit')} ${plural(count, 'ajouté')}.`);
                 onDone();
               },
               onError: onMutationError,

@@ -1,5 +1,5 @@
 import { Checkbox, Stack, Text, TextInput } from '@mantine/core';
-import { shoppingListNameSchema } from '@ordo/shared';
+import { shoppingListFormSchema } from '@ordo/shared';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -12,7 +12,7 @@ import { taskOptions } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
-const schema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()), baseListIds: z.array(z.string()) });
+const schema = shoppingListFormSchema.extend({ baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
 
 interface NewListFormProps {

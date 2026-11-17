@@ -1,14 +1,19 @@
+import { MailListControls } from '../components/MailListControls';
+import { MAIL_SORTS, type DoneFilter } from '../lib/mail-list';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { useSetParams } from '../../../lib/search-params';
+import { countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { mailSearchCriteriaSchema } from '@ordo/shared';
+import { ActionIcon, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { mapById, mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from '../api';
 import { AccountFolders, type DraggedMails } from '../components/MailFolders';
 import { correspondent, listDate } from '../lib/mail-format';
@@ -25,18 +30,7 @@ import { useMailComposer } from '../hooks/use-mail-composer';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SETTINGS_PARAM, useSettingsOpened } from '../../../app/layout/page-settings';
 
-type DoneFilter = 'all' | 'todo' | 'done';
 
-const SORTS = [
-  { value: 'date-desc', label: 'Plus récents' },
-  { value: 'date-asc', label: 'Plus anciens' },
-  { value: 'correspondent-asc', label: 'Expéditeur (A → Z)' },
-  { value: 'correspondent-desc', label: 'Expéditeur (Z → A)' },
-  { value: 'subject-asc', label: 'Objet (A → Z)' },
-  { value: 'subject-desc', label: 'Objet (Z → A)' },
-  { value: 'size-desc', label: 'Plus lourds' },
-  { value: 'size-asc', label: 'Plus légers' },
-];
 
 /**
  * Mail client: accounts (managed in a dialog, or right in the page without any) and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
@@ -48,7 +42,8 @@ const SORTS = [
  */
 export function MailPage() {
   const { data: accounts, isPending } = useMailAccounts();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const compose = useMailComposer();
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [debouncedSearch] = useDebouncedValue(search, 400);
@@ -70,7 +65,7 @@ export function MailPage() {
     }
   }, [params]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const sortParam = SORTS.find((item) => item.value === params.get('sort'))?.value ?? 'date-desc';
+  const sortParam = MAIL_SORTS.find((item) => item.value === params.get('sort'))?.value ?? 'date-desc';
   const [sortBy, sortDirection] = sortParam.split('-') as [string, string];
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
   const messages = useMailMessages(
@@ -82,7 +77,7 @@ export function MailPage() {
   const { data: labels } = useMailLabels();
   const { data: scheduled } = useScheduledMails();
   const isDrafts = folders?.find((item) => item.path === folder)?.specialUse === '\\Drafts';
-  const labelById = useMemo(() => new Map((labels ?? []).map((label) => [label.id, label])), [labels]);
+  const labelById = useMemo(() => mapById(labels ?? []), [labels]);
   // Mails sent from one of these show their recipients.
   const ownAddresses = useMemo(() => new Set((accounts ?? []).map((account) => account.email.toLowerCase())), [accounts]);
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
@@ -95,11 +90,7 @@ export function MailPage() {
   const { setOpened: setSettingsOpened } = useSettingsOpened();
   const openSettings = () => setSettingsOpened(true);
   useEffect(() => {
-    if (params.get('accounts') !== '1') return;
-    const next = new URLSearchParams(params);
-    next.delete('accounts');
-    next.set(SETTINGS_PARAM, '1');
-    setParams(next, { replace: true });
+    if (params.get('accounts') === '1') setParams({ accounts: null, [SETTINGS_PARAM]: '1' });
   }, [params, setParams]);
   const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
@@ -109,14 +100,7 @@ export function MailPage() {
    * @param {Record<string, string | null>} changes Parameters; null removes one.
    * @returns {void}
    */
-  const update = (changes: Record<string, string | null>) => {
-    const next = new URLSearchParams(params);
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === null) next.delete(key);
-      else next.set(key, value);
-    }
-    setParams(next, { replace: true });
-  };
+  const update = (changes: Record<string, string | null>) => setParams(changes);
 
   if (!isPending && accounts?.length === 0) {
     return (
@@ -296,35 +280,20 @@ export function MailPage() {
                     onManageLabels={openSettings}
                   />
                 ) : (
-                  <Group gap={4} wrap="nowrap">
-                  <Select
-                    size="xs"
-                    w={150}
-                    aria-label="Trier"
-                    data={SORTS}
-                    value={sortParam}
-                    allowDeselect={false}
-                    onChange={(value) => value && update({ sort: value === 'date-desc' ? null : value, page: null })}
+                  <MailListControls
+                    sorts={MAIL_SORTS}
+                    sort={sortParam}
+                    onSort={(value) => update({ sort: value === 'date-desc' ? null : value, page: null })}
+                    done={doneFilter}
+                    onDone={(value) => update({ state: value === 'all' ? null : value, page: null, uid: null })}
                   />
-                  <SegmentedControl
-                    size="xs"
-                    aria-label="Mails traités"
-                    data={[
-                      { value: 'all', label: 'Tous' },
-                      { value: 'todo', label: 'À traiter' },
-                      { value: 'done', label: 'Traités' },
-                    ]}
-                    value={doneFilter}
-                    onChange={(value) => update({ state: value === 'all' ? null : value, page: null, uid: null })}
-                  />
-                  </Group>
                 )}
               </Group>
             </Stack>
             {messages.error ? (
-              <Alert color="red" icon={<ErrorIcon />} m="xs">
+              <ErrorAlert m="xs">
                 {messages.error.message}
-              </Alert>
+              </ErrorAlert>
             ) : messages.isPending && accountId ? (
               <ListSkeleton items={6} lines={2} />
             ) : total === 0 ? (
@@ -352,7 +321,7 @@ export function MailPage() {
                         // The ticked mails, or this one.
                         const uids = ticked ? selected : [message.uid];
                         event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', `${uids.length} mail(s)`);
+                        event.dataTransfer.setData('text/plain', `${countOf(uids.length, 'mail')}`);
                         setDragged({ accountId, folder, uids });
                       }}
                       onDragEnd={() => setDragged(null)}

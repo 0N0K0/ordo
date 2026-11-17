@@ -1,3 +1,4 @@
+import { groupBy } from '@ordo/shared';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task } from '../api';
 
@@ -39,17 +40,12 @@ function revertChanges(tasks: Task[], changes: BulkChanges): { ids: string[]; ch
 }
 
 /**
- * Groups task ids by a key.
+ * Task ids grouped by a key.
  * @param {Task[]} tasks Tasks.
- * @template {string | null} K
  * @param {(task: Task) => K} keyOf Key of a task.
  * @returns {[K, string[]][]} Ids by key.
  */
-function groupBy<K extends string | null>(tasks: Task[], keyOf: (task: Task) => K): [K, string[]][] {
-  const groups = new Map<K, string[]>();
-  for (const task of tasks) groups.set(keyOf(task), [...(groups.get(keyOf(task)) ?? []), task.id]);
-  return [...groups.entries()];
-}
+const idsBy = <K>(tasks: Task[], keyOf: (task: Task) => K): [K, string[]][] => [...groupBy(tasks, keyOf)].map(([key, group]) => [key, group.map((task) => task.id)]);
 
 /**
  * Reverts bulk actions from the snapshot of the tasks taken before them ("Annuler" of the toasts).
@@ -115,7 +111,7 @@ export function useBulkUndo() {
     transfer: (levels: Task[][]) => () =>
       run(
         levels.flatMap((level) =>
-          groupBy(level, (task) => task.projectId).map(([projectId, ids]) => () => transfer.mutateAsync({ ids, projectId })),
+          idsBy(level, (task) => task.projectId).map(([projectId, ids]) => () => transfer.mutateAsync({ ids, projectId })),
         ),
       ),
   };

@@ -1,3 +1,5 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { localDay } from '../../../lib/dates';
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Sparkline } from '@mantine/charts';
 import { addDays, daysBetween } from '@ordo/shared';
@@ -7,10 +9,10 @@ import { Link } from 'react-router';
 import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
 import classes from './Home.module.css';
-import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, localDayOf, type BillingSummary } from '../lib/home-data';
+import { Figure, HomeCard } from './HomeCard';
+import { dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-import { countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 
 const MAX_ROWS = 5;
 
@@ -31,7 +33,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
             <Figure label="Brouillons" value={summary.drafts} />
           </SimpleGrid>
           {overdue.data.length === 0 ? (
-            <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Aucune facture en retard.</HomeEmpty>
+            <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucune facture en retard." />
           ) : (
             <Stack gap={0}>
               <Text size="xs" c="dimmed" fw={600} tt="uppercase">
@@ -71,11 +73,11 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
 export function QuotesCard({ summary, today }: { summary: BillingSummary | null; today: string }) {
   return (
     <HomeCard title="Devis en attente" icon={<FileTextIcon aria-hidden />} to="/accounting" loading={!summary}>
-      {summary && summary.pendingQuotes.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Aucun devis en attente de réponse.</HomeEmpty>}
+      {summary && summary.pendingQuotes.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun devis en attente de réponse." />}
       {summary && summary.pendingQuotes.length > 0 && (
         <Stack gap={0}>
           {summary.pendingQuotes.slice(0, MAX_ROWS).map((quote) => {
-            const sent = quote.sentAt ? localDayOf(quote.sentAt) : quote.issueDate;
+            const sent = quote.sentAt ? localDay(quote.sentAt) : quote.issueDate;
             return (
               <Link key={quote.id} to={`/accounting/${quote.id}`} className={classes.row}>
                 <Group justify="space-between" wrap="nowrap" gap="xs">
@@ -97,7 +99,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
           })}
           {summary.pendingQuotes.length > MAX_ROWS && (
             <Text size="xs" c="dimmed" pt={4}>
-              + {summary.pendingQuotes.length - MAX_ROWS} autre{summary.pendingQuotes.length - MAX_ROWS > 1 ? 's' : ''}
+              + {summary.pendingQuotes.length - MAX_ROWS} {plural(summary.pendingQuotes.length - MAX_ROWS, 'autre')}
             </Text>
           )}
         </Stack>
@@ -145,7 +147,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
             />
           )}
           {data.coming.length === 0 ? (
-            <HomeEmpty icon={<BankIcon aria-hidden />}>Aucun mouvement attendu dans les 30 jours.</HomeEmpty>
+            <EmptyState compact icon={<BankIcon aria-hidden />} message="Aucun mouvement attendu dans les 30 jours." />
           ) : (
             <Stack gap={2}>
               <Text size="xs" c="dimmed" fw={600} tt="uppercase">

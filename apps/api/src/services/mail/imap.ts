@@ -1,7 +1,7 @@
 import { ImapFlow } from 'imapflow';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { clientError, orNotFound } from '../../graphql/errors';
 import { decryptSecret } from './secret';
 
 /** A pooled connection is closed after this idle time. */
@@ -77,8 +77,7 @@ export async function withImap<T>(accountId: string, operation: (client: ImapFlo
   let pooled = pool.get(accountId);
   if (!pooled || !pooled.client.usable) {
     if (pooled) closeImap(accountId);
-    const account = await prisma.mailAccount.findUnique({ where: { id: accountId } });
-    if (!account) throw notFound('Boîte mail');
+    const account = await orNotFound(prisma.mailAccount.findUnique({ where: { id: accountId } }), 'Boîte mail');
     const client = createImapClient(account, decryptSecret(account.imapPassword));
     client.on('error', () => closeImap(accountId));
     client.on('close', () => pool.get(accountId)?.client === client && pool.delete(accountId));

@@ -1,27 +1,23 @@
-import { ActionIcon, Anchor, Badge, Group, NumberInput, Popover, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { stopClick } from '../../../components/data-table/cells/cell-field';
+import { ActionIcon, Badge, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { BellIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { TimeField } from '../../../components/inputs/TimeField';
-import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
+import { treeSelectProps } from '../../../components/tree/tree-select';
 import { onMutationError } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
 import { useRoutineMutations, type Routine } from '../api';
 import { useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
-import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
+import { EditableMultiSelect, EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
-import { opensFits, readOpens } from '@ordo/shared';
+import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { ruleOf } from '../lib/routine-format';
-import { ROUTINE_REMINDERS } from '../lib/routine-format';
-import { routineTreeOptions } from '../lib/routine-format';
-
-/** Cells do not open the routine when used. */
-const stop = (event: React.SyntheticEvent) => event.stopPropagation();
+import { ROUTINE_REMINDERS, routineTreeOptions, ruleOf } from '../lib/routine-format';
 
 /**
  * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
@@ -37,20 +33,9 @@ const hasOwnTimes = (routine: Routine) => !routine.slotCondition && !(routine.ca
  */
 export function ParentRoutineCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
   const { apply } = useRoutineCellEdit(routine, 'parent');
-  const below = new Set([routine.id]);
-  for (let grown = true; grown;) {
-    grown = false;
-    for (const other of routines) {
-      if (other.parentId && below.has(other.parentId) && !below.has(other.id)) {
-        below.add(other.id);
-        grown = true;
-      }
-    }
-  }
-  const options = treeOptions(
-    [...routines].sort((a, b) => a.position - b.position).map((other) => ({ id: other.id, parentId: other.parentId ?? null, label: other.title })),
-    (id) => !below.has(id),
-  );
+  // Neither the routine nor its sub-routines can be its parent.
+  const below = subtreeOf(routines, routine.id);
+  const options = routineTreeOptions(routines, (other) => !below.has(other.id));
   return (
     <Select
       variant="unstyled"
@@ -63,7 +48,7 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
       value={routine.parentId ?? null}
       // A routine is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
-      onClick={stop}
+      onClick={stopClick}
       comboboxProps={{ withinPortal: true }}
     />
   );
@@ -77,7 +62,7 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
 export function SubRoutinesCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
   const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>
         {children.map((child) => (
           <Text key={child.id} size="sm" truncate>
@@ -117,7 +102,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
       aria-label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
       value={routine[field] ?? ''}
       onChange={(value) => value !== (routine[field] ?? '') && apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
-      onClick={stop}
+      onClick={stopClick}
       clearable
     />
   );
@@ -133,26 +118,19 @@ export function LocationCell({ routine }: { routine: Routine }) {
   const [draft, setDraft] = useState<AddressValue | null>(null);
   const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
   return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={360} onClose={() => setDraft(null)}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={routine.location ? undefined : 'dimmed'} onClick={stop} style={{ textAlign: 'left' }} truncate>
-          {routine.location || '—'}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stop}>
-        <AddressInput
-          aria-label={`Lieu de ${routine.title}`}
-          placeholder="Adresse ou lieu enregistré"
-          withinPortal={false}
-          value={draft ?? current}
-          onChange={(value) => {
-            setDraft(value);
-            // Saved once a proposed address is chosen, or when the text is cleared.
-            if (value.point || !value.text.trim()) apply({ location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
-          }}
-        />
-      </Popover.Dropdown>
-    </Popover>
+    <EditablePopoverCell width={360} empty={!routine.location} truncate onClose={() => setDraft(null)} target={routine.location || '—'}>
+      <AddressInput
+        aria-label={`Lieu de ${routine.title}`}
+        placeholder="Adresse ou lieu enregistré"
+        withinPortal={false}
+        value={draft ?? current}
+        onChange={(value) => {
+          setDraft(value);
+          // Saved once a proposed address is chosen, or when the text is cleared.
+          if (value.point || !value.text.trim()) apply({ location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
+        }}
+      />
+    </EditablePopoverCell>
   );
 }
 
@@ -183,7 +161,7 @@ export function TravelCell({ routine, field }: { routine: Routine; field: 'trave
         const minutes = draft === '' ? 0 : Number(draft);
         if (Number.isFinite(minutes) && minutes !== routine[field]) apply({ [field]: minutes });
       }}
-      onClick={stop}
+      onClick={stopClick}
       styles={{ input: { textAlign: 'right' } }}
     />
   );
@@ -198,9 +176,11 @@ export function RemindersCell({ routine }: { routine: Routine }) {
   const { apply } = useRoutineCellEdit(routine, 'alarms');
   const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={280}>
-      <Popover.Target>
-        <Anchor component="button" type="button" onClick={stop} aria-label={`Alertes de ${routine.title}`}>
+    <EditablePopoverCell
+      width={280}
+      label={`Alertes de ${routine.title}`}
+      target={
+        <>
           {routine.reminders.length ? (
             <Badge size="sm" variant="light" color="teal" leftSection={<BellIcon aria-hidden />} tt="none">
               {routine.reminders.length}
@@ -210,30 +190,29 @@ export function RemindersCell({ routine }: { routine: Routine }) {
               —
             </Text>
           )}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stop}>
-        <Stack gap="xs">
-          <BatchMultiSelect
-            label="Alertes"
-            data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
-            value={routine.reminders.map(String)}
-            // On a selection, those added here are added to each routine, those removed here removed.
-            onChange={(values) =>
-              apply((target) => ({
-                reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values)
-                  .map(Number)
-                  .sort((a, b) => a - b),
-              }))
-            }
-            comboboxProps={{ withinPortal: false }}
-          />
-          <Text size="xs" c="dimmed">
-            {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucune alerte.'}
-          </Text>
-        </Stack>
-      </Popover.Dropdown>
-    </Popover>
+        </>
+      }
+    >
+      <Stack gap="xs">
+        <BatchMultiSelect
+          label="Alertes"
+          data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
+          value={routine.reminders.map(String)}
+          // On a selection, those added here are added to each routine, those removed here removed.
+          onChange={(values) =>
+            apply((target) => ({
+              reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values)
+                .map(Number)
+                .sort((a, b) => a - b),
+            }))
+          }
+          comboboxProps={{ withinPortal: false }}
+        />
+        <Text size="xs" c="dimmed">
+          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucune alerte.'}
+        </Text>
+      </Stack>
+    </EditablePopoverCell>
   );
 }
 
@@ -250,26 +229,19 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
   const words = opens ? opensText(opens, frequency) : '';
   const text = words ? fmt.capitalize(words) : '—';
   return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={320}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={words ? undefined : 'dimmed'} onClick={stop}>
-          {text}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stop}>
-        <OpensOnInput
-          frequency={frequency}
-          value={opens}
-          // A day of a month, or of a year: only the routines whose rule it fits take it.
-          onChange={(opensOn) =>
-            apply((target) => {
-              const targetFrequency = ruleOf(target)?.frequency;
-              return hasOwnTimes(target) && targetFrequency && (!opensOn || opensFits(opensOn, targetFrequency)) ? { opensOn } : {};
-            })
-          }
-        />
-      </Popover.Dropdown>
-    </Popover>
+    <EditablePopoverCell width={320} empty={!words} target={text}>
+      <OpensOnInput
+        frequency={frequency}
+        value={opens}
+        // A day of a month, or of a year: only the routines whose rule it fits take it.
+        onChange={(opensOn) =>
+          apply((target) => {
+            const targetFrequency = ruleOf(target)?.frequency;
+            return hasOwnTimes(target) && targetFrequency && (!opensOn || opensFits(opensOn, targetFrequency)) ? { opensOn } : {};
+          })
+        }
+      />
+    </EditablePopoverCell>
   );
 }
 

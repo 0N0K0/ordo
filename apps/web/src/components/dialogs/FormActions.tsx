@@ -1,4 +1,4 @@
-import { Button, Group } from '@mantine/core';
+import { Button, Group, type MantineSize } from '@mantine/core';
 import type { ReactNode } from 'react';
 
 interface FormActionsProps {
@@ -16,6 +16,8 @@ interface FormActionsProps {
   onSubmit?: () => void;
   /** The submit button takes the focus when the dialog opens. Optional. Default = false. */
   autoFocus?: boolean;
+  /** Smaller buttons, for an edit in place (a comment, a description). Optional. Default = the size of the forms. */
+  size?: MantineSize;
 }
 
 /**
@@ -24,15 +26,15 @@ interface FormActionsProps {
  * @param {FormActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
-export function FormActions({ submitLabel = 'Enregistrer', submitIcon, onCancel, loading = false, disabled = false, onSubmit, autoFocus = false }: FormActionsProps) {
+export function FormActions({ submitLabel = 'Enregistrer', submitIcon, onCancel, loading = false, disabled = false, onSubmit, autoFocus = false, size }: FormActionsProps) {
   return (
-    <Group justify="flex-end" gap="sm">
+    <Group justify="flex-end" gap={size === 'xs' ? 'xs' : 'sm'}>
       {onCancel && (
-        <Button variant="default" onClick={onCancel}>
+        <Button variant="default" size={size} onClick={onCancel}>
           Annuler
         </Button>
       )}
-      <Button type={onSubmit ? 'button' : 'submit'} onClick={onSubmit} loading={loading} disabled={disabled} leftSection={submitIcon} data-autofocus={autoFocus || undefined}>
+      <Button type={onSubmit ? 'button' : 'submit'} size={size} onClick={onSubmit} loading={loading} disabled={disabled} leftSection={submitIcon} data-autofocus={autoFocus || undefined}>
         {submitLabel}
       </Button>
     </Group>

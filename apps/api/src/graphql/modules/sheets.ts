@@ -1,9 +1,11 @@
+import { done } from '../errors';
 import type { SheetSource } from '@ordo/shared';
 import { readSheetSources } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
+import { NameColorInput, NameColorPatch } from '../label-inputs';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
 
@@ -132,13 +134,7 @@ const SheetInputRef = builder.inputType('SheetInput', {
   fields: (t) => ({ name: t.string({ required: true }), note: t.string(), projectId: t.id(), categoryIds: t.idList({ required: true }) }),
 });
 
-const SheetCategoryInputRef = builder.inputType('SheetCategoryInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
-});
 
-const SheetCategoryPatchRef = builder.inputType('SheetCategoryPatch', {
-  fields: (t) => ({ name: t.string(), color: t.string() }),
-});
 
 /**
  * Sheet input as the service reads it.
@@ -248,10 +244,7 @@ builder.mutationFields((t) => ({
   }),
   updateSheet: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetInputRef, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await sheets.updateSheet(String(id), sheetInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(sheets.updateSheet(String(id), sheetInput(input))),
   }),
   addSheetItem: t.id({
     args: { sheetId: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
@@ -264,17 +257,11 @@ builder.mutationFields((t) => ({
   }),
   updateSheetItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await sheets.updateSheetItem(String(id), itemInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(sheets.updateSheetItem(String(id), itemInput(input))),
   }),
   deleteSheetItems: t.boolean({
     args: { ids: t.arg.idList({ required: true }) },
-    resolve: async (_root, { ids }) => {
-      await sheets.deleteSheetItems(ids.map(String));
-      return true;
-    },
+    resolve: (_root, { ids }) => done(sheets.deleteSheetItems(ids.map(String))),
   }),
   useSheet: t.field({
     type: SheetUseRef,
@@ -283,37 +270,21 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id, multiplier }) => stock.useSheet(String(id), multiplier),
   }),
   createSheetCategory: t.id({
-    args: { input: t.arg({ type: SheetCategoryInputRef, required: true }) },
+    args: { input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (_root, { input }) => (await sheets.createSheetCategory(input)).id,
   }),
   updateSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetCategoryPatchRef, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await sheets.updateSheetCategory(String(id), { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) });
-      return true;
-    },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
+    resolve: (_root, { id, input }) => done(sheets.updateSheetCategory(String(id), { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) })),
   }),
   deleteSheetCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await sheets.deleteSheetCategory(String(id));
-      return true;
-    },
-  }),
-  moveSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await sheets.moveSheetCategory(String(id), index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(sheets.deleteSheetCategory(String(id))),
   }),
   duplicateSheet: t.id({ args: { id: t.arg.id({ required: true }) }, resolve: async (_root, { id }) => (await sheets.duplicateSheet(String(id))).id }),
   deleteSheet: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await sheets.deleteSheet(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(sheets.deleteSheet(String(id))),
   }),
   addSheetToShoppingList: t.int({
     description: 'Adds a sheet (times a multiplier) to a shopping list, summed with its items; returns the number of items of the sheet.',
@@ -322,10 +293,7 @@ builder.mutationFields((t) => ({
   }),
   removeSheetFromShoppingList: t.boolean({
     args: { listId: t.arg.id({ required: true }), sheetId: t.arg.id({ required: true }) },
-    resolve: async (_root, { listId, sheetId }) => {
-      await sheets.removeSheetFromShoppingList(String(listId), String(sheetId));
-      return true;
-    },
+    resolve: (_root, { listId, sheetId }) => done(sheets.removeSheetFromShoppingList(String(listId), String(sheetId))),
   }),
   setSheetLinks: t.boolean({
     description: 'Sets the sheets of a routine, an event or a task (one of them).',
@@ -341,17 +309,11 @@ builder.mutationFields((t) => ({
   resetChecklist: t.boolean({
     description: 'Makes a checklist again from the sheets of its owner (ticks and changes lost).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await sheets.resetChecklist(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(sheets.resetChecklist(String(id))),
   }),
   addSheetToChecklist: t.boolean({
     args: { id: t.arg.id({ required: true }), sheetId: t.arg.id({ required: true }), multiplier: t.arg.float({ required: true }) },
-    resolve: async (_root, { id, sheetId, multiplier }) => {
-      await sheets.addSheetToChecklist(String(id), String(sheetId), multiplier);
-      return true;
-    },
+    resolve: (_root, { id, sheetId, multiplier }) => done(sheets.addSheetToChecklist(String(id), String(sheetId), multiplier)),
   }),
   addChecklistItem: t.id({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
@@ -359,23 +321,14 @@ builder.mutationFields((t) => ({
   }),
   updateChecklistItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await sheets.updateChecklistItem(String(id), itemInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(sheets.updateChecklistItem(String(id), itemInput(input))),
   }),
   setChecklistItemsChecked: t.boolean({
     args: { ids: t.arg.idList({ required: true }), checked: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { ids, checked }) => {
-      await sheets.setChecklistItemsChecked(ids.map(String), checked);
-      return true;
-    },
+    resolve: (_root, { ids, checked }) => done(sheets.setChecklistItemsChecked(ids.map(String), checked)),
   }),
   deleteChecklistItem: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await sheets.deleteChecklistItem(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(sheets.deleteChecklistItem(String(id))),
   }),
 }));

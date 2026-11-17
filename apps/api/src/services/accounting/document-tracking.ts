@@ -2,7 +2,7 @@ import { documentPaymentSchema, parseDay, SENDING_CHANNELS, toCents, type Docume
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocument } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storeAttachment } from '../core/attachments';
 import { scopeOf, statusOf } from './document-statuses';
 import { parisToday } from '../../today';
@@ -122,8 +122,7 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
  * @returns {Promise<AccountingDocument>} Document.
  */
 async function finalDocument(id: string): Promise<AccountingDocument> {
-  const document = await prisma.accountingDocument.findUnique({ where: { id } });
-  if (!document) throw notFound('Document');
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id } }), 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Le suivi ne concerne que les documents validés.');
   return document;
 }
@@ -184,8 +183,7 @@ export function sendingData(options: { date?: string | null; via?: string | null
  * @returns {Promise<AccountingDocument>} Document.
  */
 export async function markSent(id: string, options: { date?: string | null; via?: string | null; statusId?: string | null } = {}): Promise<AccountingDocument> {
-  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } });
-  if (!document) throw notFound('Document');
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } }), 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
@@ -261,11 +259,10 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const payment = parseInput(documentPaymentSchema, input);
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } });
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
-  if (!(await prisma.treasuryAccount.findUnique({ where: { id: payment.accountId }, select: { id: true } }))) throw notFound('Compte');
+  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: payment.accountId }, select: { id: true } }), 'Compte');
   const refund = document.type === 'CREDIT_NOTE';
   if (payment.methodId) {
-    const method = await prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } });
-    if (!method) throw notFound('Moyen de paiement');
+    const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
     if (!(refund ? method.outgoing : method.incoming)) {
       const message = refund ? 'Ce moyen de paiement ne sert pas aux sorties.' : 'Ce moyen de paiement ne sert pas aux entrées.';
       throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });

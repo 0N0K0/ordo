@@ -1,8 +1,9 @@
+import { PersonRow } from '../../../components/people/PersonOption';
 import { ancestorsOf } from '@ordo/shared';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Anchor, Avatar, Badge, Group, Paper, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Paper, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { PlusIcon, UsersIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -110,17 +111,17 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
               const count = taskCount(contributor);
               return (
                 <Group key={contributor.id} gap="sm" wrap="nowrap">
-                  <Avatar
-                    src={contributor.avatarUrl}
-                    name={contributor.name}
-                    color="initials"
-                  />
-                  <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm" fw={500} truncate>
-                        {context.contributorName(contributor)}
-                      </Text>
-                      {contributor.isMe && (
+                  <PersonRow
+
+                    name={contributor.name} label={context.contributorName(contributor)}
+
+                    avatarUrl={contributor.avatarUrl}
+
+                    badges={
+
+                      <>
+
+                        {contributor.isMe && (
                         <Badge size="xs" variant="light">
                           Tous les projets
                         </Badge>
@@ -138,12 +139,25 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                           </Anchor>
                         </Badge>
                       )}
-                    </Group>
-                    <Text size="xs" c="dimmed">
+
+                      </>
+
+                    }
+
+                    details={
+
+                      <>
+
+                        <Text size="xs" c="dimmed">
                       @{contributor.handle}
                       {count > 0 && ` · ${countOf(count, 'tâche')}`}
                     </Text>
-                  </Stack>
+
+                      </>
+
+                    }
+
+                  />
                   {/* Inherited contributors are detached from their own project; tasks keep their assignees. */}
                   {directIds.includes(contributor.id) && (
                     <Tooltip label="Retirer du projet (ses tâches restent assignées)">

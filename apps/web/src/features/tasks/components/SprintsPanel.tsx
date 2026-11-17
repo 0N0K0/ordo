@@ -1,15 +1,18 @@
+import { PlanCard } from './PlanCard';
+
+import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
 import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Badge, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Badge, Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
-import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
+import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../../components/markdown/MarkdownView';
+
 import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -97,7 +100,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (sprint?: Sprint) => {
     const last = sprints[sprints.length - 1];
-    const length = last ? Math.round((Date.parse(String(last.endDate)) - Date.parse(String(last.startDate))) / 86_400_000) : 13;
+    const length = last ? daysBetween(String(last.startDate), String(last.endDate)) : 13;
     const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
@@ -145,64 +148,38 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
           const late = end < today && done.length < tasks.length;
           return (
             <Paper key={sprint.id} withBorder radius="md" p="md">
-              <Stack gap="sm">
-                <Group justify="space-between" wrap="nowrap" align="flex-start">
-                  <Stack gap={2}>
-                    <Group gap="xs">
-                      <TimerIcon aria-hidden />
-                      <Title order={3} size="h5">
-                        {sprint.name}
-                      </Title>
-                      <Badge size="sm" variant="light" color={state.color}>
-                        {state.label}
+              <PlanCard
+                icon={<TimerIcon aria-hidden />}
+                title={sprint.name}
+                badges={
+                  <>
+                    <Badge size="sm" variant="light" color={state.color}>
+                      {state.label}
+                    </Badge>
+                    {late && (
+                      <Badge size="sm" variant="light" color="red">
+                        {tasks.length - done.length} {plural(tasks.length - done.length, 'tâche')} non {plural(tasks.length - done.length, 'terminée')}
                       </Badge>
-                      {late && (
-                        <Badge size="sm" variant="light" color="red">
-                          {tasks.length - done.length} tâche{tasks.length - done.length > 1 ? 's' : ''} non terminée{tasks.length - done.length > 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      Du {fmt.day(start)} au {fmt.day(end)}
-                    </Text>
-                  </Stack>
-                  <Menu position="bottom-end" withinPortal shadow="md">
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le sprint ${sprint.name}`}>
-                        <DotsThreeIcon weight="bold" aria-hidden />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(sprint)}>
-                        Modifier
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(sprint, tasks.length)}>
-                        Supprimer
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-                <TaskProgress
-                  done={done.length}
-                  total={tasks.length}
-                  label={`Avancement du sprint ${sprint.name}`}
-                  extra={effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
-                />
-                {sprint.goal && (
-                  <MarkdownView
-                    targets={context.targetsFor(sprint.projectId)}
-                    onChange={(goal) =>
-                      update.mutate(
-                        { id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } },
-                        { onError: onMutationError },
-                      )
-                    }
-                  >
-                    {sprint.goal}
-                  </MarkdownView>
-                )}
-              </Stack>
+                    )}
+                  </>
+                }
+                dates={`Du ${fmt.day(start)} au ${fmt.day(end)}`}
+                actions={[
+                  { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
+                  { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
+                ]}
+                progress={
+                  <TaskProgress
+                    done={done.length}
+                    total={tasks.length}
+                    label={`Avancement du sprint ${sprint.name}`}
+                    extra={effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
+                  />
+                }
+                description={sprint.goal}
+                targets={context.targetsFor(sprint.projectId)}
+                onDescription={(goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } }, { onError: onMutationError })}
+              />
             </Paper>
           );
         })

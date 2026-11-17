@@ -1,64 +1,15 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import {
-  ActionIcon,
-  Alert,
-  CloseButton,
-  Box,
-  Group,
-  Menu,
-  NavLink,
-  ScrollArea,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, CloseButton, Box, Group, Menu, NavLink, ScrollArea, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import {
-  AlarmIcon,
-  ArrowsClockwiseIcon,
-  BasketIcon,
-  ClipboardTextIcon,
-  PackageIcon,
-  ArchiveIcon,
-  BankIcon,
-  CalendarBlankIcon,
-  ChartBarIcon,
-  CheckIcon,
-  CheckSquareOffsetIcon,
-  EnvelopeSimpleIcon,
-  FolderOpenIcon,
-  FolderPlusIcon,
-  GearSixIcon,
-  HouseIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  ReceiptIcon,
-  SortAscendingIcon,
-  SquaresFourIcon,
-  TimerIcon,
-  UserPlusIcon,
-  UsersThreeIcon,
-  WalletIcon,
-} from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, BasketIcon, ClipboardTextIcon, PackageIcon, ArchiveIcon, BankIcon, CalendarBlankIcon, ChartBarIcon, CheckIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FolderOpenIcon, FolderPlusIcon, GearSixIcon, HouseIcon, MagnifyingGlassIcon, PlusIcon, ReceiptIcon, SortAscendingIcon, SquaresFourIcon, TimerIcon, UserPlusIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { useWorkspace } from '../api';
-import {
-  buildActiveSection,
-  buildArchiveSection,
-  buildFavoriteSection,
-  countSectionItems,
-  sectionKeys,
-  noClientKeys,
-  subtreeKeys,
-  type SortMode,
-  type TreeSection,
-} from '../lib/tree';
+import { buildActiveSection, buildArchiveSection, buildFavoriteSection, countSectionItems, sectionKeys, noClientKeys, subtreeKeys, type SortMode, type TreeSection } from '../lib/tree';
 import { useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { MailNavBadge } from '../../mail/components/MailNavBadge';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -440,9 +391,9 @@ export function Sidebar() {
       <ScrollArea style={{ flex: 1 }} px="xs" type="scroll">
         {workspace.isPending && <TreeSkeleton />}
         {workspace.isError && (
-          <Alert color="red" icon={<ErrorIcon />} m="xs">
+          <ErrorAlert m="xs">
             {workspace.error.message}
-          </Alert>
+          </ErrorAlert>
         )}
         {data && favorites && active && archives && (
           <>

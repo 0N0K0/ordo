@@ -1,4 +1,5 @@
-import { Badge, type BadgeProps } from '@mantine/core';
+import { Badge, type BadgeProps, type MantineSize } from '@mantine/core';
+import { ArchiveIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from './ItemAvatar';
 
@@ -28,6 +29,19 @@ export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBad
       leftSection={item.iconUrl ? <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
     >
       {item.name}
+    </Badge>
+  );
+}
+
+/**
+ * « Archivé » badge of an archived thing (a task, a project, a list, an account), the same everywhere.
+ * @param {{ feminine?: boolean, size?: MantineSize }} props Agreement with a feminine noun (« Archivée »), size.
+ * @returns {JSX.Element} Badge.
+ */
+export function ArchivedBadge({ feminine = false, size }: { feminine?: boolean; size?: MantineSize }) {
+  return (
+    <Badge color="gray" variant="light" size={size} leftSection={<ArchiveIcon aria-hidden />}>
+      {feminine ? 'Archivée' : 'Archivé'}
     </Badge>
   );
 }

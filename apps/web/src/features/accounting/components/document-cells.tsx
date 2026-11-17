@@ -1,3 +1,4 @@
+import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { ActionIcon, Badge, FileButton, Group, Tooltip } from '@mantine/core';
 import { PaperclipIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -8,9 +9,6 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { openFile } from '../../files/lib/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 
-/** Cells do not open the document when used. */
-const stop = (event: React.SyntheticEvent) => event.stopPropagation();
-
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them).
  * @param {{ document: AccountingDocumentSummary | ImportedDocument, projects: TreeOption[], onSave: (projectId: string | null) => void }} props Component props.
@@ -18,7 +16,7 @@ const stop = (event: React.SyntheticEvent) => event.stopPropagation();
  */
 export function DocumentProjectCell({ document, projects, onSave }: { document: AccountingDocumentSummary | ImportedDocument; projects: TreeOption[]; onSave: (projectId: string | null) => void }) {
   return (
-    <div onClick={stop}>
+    <div onClick={stopClick}>
       <EditableSelect value={document.projectId ?? null} label={`Projet de ${document.number ?? 'ce brouillon'}`} nullable {...treeSelectProps(projects)} onSave={onSave} />
     </div>
   );
@@ -43,7 +41,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
         leftSection={<PaperclipIcon aria-hidden />}
         style={{ cursor: 'pointer' }}
         onClick={(event) => {
-          stop(event);
+          stopClick(event);
           openFile({ url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
         }}
       >
@@ -54,7 +52,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
   const { document } = props;
   const name = document.number ?? 'ce brouillon';
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop}>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick}>
       <StackedValues>
         {document.attachments.map((attachment) => (
           <Badge
@@ -73,7 +71,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
                 color="gray"
                 aria-label={`Retirer ${attachment.name}`}
                 onClick={(event) => {
-                  stop(event);
+                  stopClick(event);
                   confirmDestructive({
                     title: 'Retirer la pièce jointe',
                     risks: `« ${attachment.name} » sera supprimée définitivement de ${name}.`,

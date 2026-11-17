@@ -1,4 +1,9 @@
-import { ancestorsOf } from '@ordo/shared';
+import { SubSection } from '../../../components/page/SubSection';
+import { NO_TARGETS } from '../../../components/markdown/remark-references';
+import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import { MarkdownView } from '../../../components/markdown/MarkdownView';
+import { useSetParams } from '../../../lib/search-params';
+import { ancestorsOf, mapById } from '@ordo/shared';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -6,7 +11,7 @@ import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
 import { ProjectGithubPanel } from '../../github/components/ProjectGithubPanel';
@@ -39,24 +44,6 @@ import * as fmt from '../../../lib/format';
  */
 function formatDate(date: string | null): string {
   return date ? fmt.day(date) : '—';
-}
-
-/**
- * Label / value pair of the project details.
- * @param {object} props Component props.
- * @param {string} props.label Label.
- * @param {ReactNode} props.children Value.
- * @returns {JSX.Element} Detail.
- */
-function Detail({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={2}>
-      <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-        {label}
-      </Text>
-      <div>{children}</div>
-    </Stack>
-  );
 }
 
 /** Sections of the settings tab of a project. */
@@ -122,12 +109,14 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
  * @returns {JSX.Element} Page.
  */
 export function ProjectPage() {
+  const { context: taskContext } = useTaskContext();
   const { id } = useParams();
   const { data, isPending } = useWorkspace();
   const actions = useEntityActions();
   // No invoicing nor clients in a personal workspace.
   const { perso } = useActiveWorkspace();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   // The former tabs of the settings (links, bookmarks) open their section.
   const requested = params.get('tab') ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
@@ -139,7 +128,7 @@ export function ProjectPage() {
   // The former settings tab (and its sections): the settings, in the sidebar.
   useEffect(() => {
     if (!legacy && requested !== 'settings') return;
-    setParams({ [SETTINGS_PARAM]: '1', section }, { replace: true });
+    setParams({ [SETTINGS_PARAM]: '1', section }, { only: true });
   }, [legacy, requested, section, setParams]);
 
   if (isPending) return <EntitySkeleton />;
@@ -149,7 +138,7 @@ export function ProjectPage() {
   const client = data.clients.find((item) => item.id === project.clientId);
   const status = data.projectStatuses.find((item) => item.id === project.statusId);
   // From the root project down to its parent.
-  const ancestors = ancestorsOf(new Map(data.projects.map((item) => [item.id, item])), project.id).reverse();
+  const ancestors = ancestorsOf(mapById(data.projects), project.id).reverse();
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.
@@ -194,14 +183,8 @@ export function ProjectPage() {
         value={tab}
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1', section } : {});
-              if (value && value !== 'overview') next.set('tab', value);
-              return next;
-            },
-            { replace: true },
-          );
+          const settings = params.get(SETTINGS_PARAM);
+          setParams({ [SETTINGS_PARAM]: settings, section: settings ? section : null, tab: value && value !== 'overview' ? value : null }, { only: true });
         }}
         keepMounted={false}
       >
@@ -240,10 +223,10 @@ export function ProjectPage() {
           <Stack gap="xl">
               <Paper withBorder p="lg" radius="md">
                 <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
-                  <Detail label="Statut">
+                  <SubSection title="Statut">
                     <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
-                  </Detail>
-                  <Detail label="Catégories">
+                  </SubSection>
+                  <SubSection title="Catégories">
                     {project.categories.length > 0 ? (
                       <Group gap={4}>
                         {project.categories.map((category) => (
@@ -253,13 +236,13 @@ export function ProjectPage() {
                     ) : (
                       <Text size="sm">—</Text>
                     )}
-                  </Detail>
-                  <Detail label="Début">
+                  </SubSection>
+                  <SubSection title="Début">
                     <Text size="sm">{formatDate(project.startDate)}</Text>
-                  </Detail>
-                  <Detail label="Fin">
+                  </SubSection>
+                  <SubSection title="Fin">
                     <Text size="sm">{formatDate(project.endDate)}</Text>
-                  </Detail>
+                  </SubSection>
                 </SimpleGrid>
               </Paper>
 
@@ -276,9 +259,9 @@ export function ProjectPage() {
                 <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                   Description
                 </Text>
-                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }} c={project.description ? undefined : 'dimmed'}>
-                  {project.description ?? 'Aucune description.'}
-                </Text>
+                <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
+                  {project.description}
+                </MarkdownView>
               </Stack>
 
               <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
@@ -322,14 +305,7 @@ export function ProjectPage() {
           project={project}
           section={section}
           onSection={(next) =>
-            setParams(
-              (current) => {
-                const updated = new URLSearchParams(current);
-                updated.set('section', next);
-                return updated;
-              },
-              { replace: true },
-            )
+            setParams({ section: next })
           }
         />
       </PageSettings>

@@ -1,5 +1,6 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -83,26 +84,15 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
           />
           {!readOnly && (
             <Group gap={0} wrap="nowrap">
-              <Tooltip label="Description">
-                <ActionIcon variant={showDescription ? 'light' : 'subtle'} color="gray" aria-label={`Description de la ligne ${index + 1}`} onClick={() => setShowDescription((value) => !value)}>
-                  <NotePencilIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Monter">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Monter la ligne ${index + 1}`} disabled={index === 0} onClick={() => onMove(-1)}>
-                  <ArrowUpIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Descendre">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Descendre la ligne ${index + 1}`} disabled={index === count - 1} onClick={() => onMove(1)}>
-                  <ArrowDownIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Supprimer la ligne">
-                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer la ligne ${index + 1}`} onClick={onRemove}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <InlineActions
+                name={`la ligne ${index + 1}`}
+                items={[
+                  { label: 'Description', icon: <NotePencilIcon aria-hidden />, onClick: () => setShowDescription((value) => !value) },
+                  { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => onMove(-1) },
+                  { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => onMove(1) },
+                  { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: onRemove },
+                ]}
+              />
             </Group>
           )}
         </Group>

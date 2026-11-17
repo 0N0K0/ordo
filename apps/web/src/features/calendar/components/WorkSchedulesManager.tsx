@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import * as fmt from '../../../lib/format';
@@ -5,14 +6,15 @@ import { listSelectProps } from '../../../components/settings/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import {
+  mapById,
+  DEFAULT_SCHEDULE_DISPLAY,
   DEFAULT_SCHEDULE_KIND_NAME,
   readScheduleCases,
   readScheduleExceptions,
-  workScheduleSchema,
   type ScheduleCase,
   type ScheduleException,
   type WorkScheduleInput,
-  DEFAULT_SCHEDULE_DISPLAY,
+  workScheduleSchema,
 } from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -189,7 +191,7 @@ export function WorkSchedulesManager() {
   const { perso } = useActiveWorkspace();
   const [editing, setEditing] = useState<WorkSchedule | 'new' | { copyOf: WorkSchedule } | null>(null);
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null);
-  const typeById = new Map((types ?? []).map((type) => [type.id, type]));
+  const typeById = mapById(types ?? []);
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
   const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
@@ -320,9 +322,9 @@ export function WorkSchedulesManager() {
           selectionActions={(rows, clear) => [
             deleteRowsAction(rows, {
               title: 'Supprimer les plages',
-              risks: `${rows.length} plage(s) et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
+              risks: `${countOf(rows.length, 'plage')} et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
               remove: ({ schedule }) => remove.mutateAsync(schedule.id),
-              done: `${rows.length} plage(s) supprimée(s).`,
+              done: `${countOf(rows.length, 'plage')} ${plural(rows.length, 'supprimée')}.`,
               clear,
             }),
           ]}
@@ -381,7 +383,7 @@ export function WorkSchedulesManager() {
                         ))}
                       >
                         <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
-                          {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
+                          {exceptions.length} {plural(exceptions.length, 'exception')}
                         </Text>
                       </Tooltip>
                     )}

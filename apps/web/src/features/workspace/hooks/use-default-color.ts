@@ -1,4 +1,4 @@
-import { useColorSwatches } from './use-color-swatches';
+import { useColorSwatches } from '../../../lib/use-color-swatches';
 
 /**
  * Color of a setting created on the fly (from a select): the first of the swatches, as in the settings.

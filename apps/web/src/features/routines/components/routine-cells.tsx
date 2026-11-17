@@ -1,6 +1,7 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
-import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
+import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -157,7 +158,7 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
  */
 export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'requires');
-  const byId = new Map(routines.map((other) => [other.id, other]));
+  const byId = mapById(routines);
   const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
     <StackedMultiCell
@@ -229,9 +230,7 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
     : rule
-      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), new Map((schedules ?? []).map((item) => [item.id, item.name])))]
-          .filter(Boolean)
-          .join(' · ')
+      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), scheduleChoices(schedules).names)].filter(Boolean).join(' · ')
       : '';
   return (
     <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>

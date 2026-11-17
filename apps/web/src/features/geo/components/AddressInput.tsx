@@ -1,3 +1,4 @@
+import { mapById, normalize } from '@ordo/shared';
 import { ActionIcon, Checkbox, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Stack, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -44,17 +45,17 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
   const { data: places } = usePlaces();
   const near = withPlaces && places?.length ? { lat: places[0].lat, lon: places[0].lon } : null;
   const search = useAddressSearch(value.point ? '' : value.text, near);
-  const needle = value.text.trim().toLocaleLowerCase('fr');
+  const needle = normalize(value.text.trim());
   // Typed text filters the places; a chosen address shows them all, to change it.
   // As their tree: each place followed by its zones (a room of the house…).
   const tree = placesInTree(places ?? []);
-  const placeOptions = withPlaces ? tree.filter((place) => value.point || !needle || `${place.path} ${place.address}`.toLocaleLowerCase('fr').includes(needle)) : [];
+  const placeOptions = withPlaces ? tree.filter((place) => value.point || !needle || normalize(`${place.path} ${place.address}`).includes(needle)) : [];
   const suggestions = value.point ? [] : (search.data ?? []);
   // Zones of a place the location is on (several can be ticked).
   const chosen = value.point && places ? zonesOfText(value.text, places) : null;
   // Place chosen (or the place of the zones chosen), its zones ticked under the field.
   const chosenPlace = chosen?.root ?? (value.point ? (places ?? []).find((place) => !place.parentId && value.text === placeText(place)) : undefined);
-  const byId = new Map((places ?? []).map((place) => [place.id, place]));
+  const byId = mapById(places ?? []);
   const placeZones = chosenPlace ? tree.filter((place) => place.parentId && rootPlace(place, byId).id === chosenPlace.id) : [];
 
   /**
@@ -83,7 +84,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
       onChange({ text: placeText(place), point });
       return;
     }
-    const root = rootPlace(place, new Map(places.map((item) => [item.id, item])));
+    const root = rootPlace(place, mapById(places));
     const before = chosen && chosen.root.id === root.id ? chosen.zoneIds : [];
     const ids = before.includes(id) ? before.filter((other) => other !== id) : [...before, id];
     // In the order of the tree; none left: the place itself.

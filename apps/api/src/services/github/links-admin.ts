@@ -1,7 +1,7 @@
-import { ancestorsOf, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { clientError, orNotFound } from '../../graphql/errors';
 import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
 import { githubToken } from './client';
@@ -71,7 +71,7 @@ export interface LinkInput {
  */
 async function relatives(projectId: string): Promise<{ ancestors: string[]; descendants: string[] }> {
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const ancestors = ancestorsOf(new Map(projects.map((project) => [project.id, project])), projectId).map((project) => project.id);
+  const ancestors = ancestorsOf(mapById(projects), projectId).map((project) => project.id);
   return { ancestors, descendants: [...subtreeOf(projects, projectId, false)] };
 }
 
@@ -83,7 +83,7 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
  * @returns {Promise<GithubProjectLink>} Link.
  */
 export async function saveGithubLink(projectId: string, input: LinkInput): Promise<GithubProjectLink> {
-  if (!(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
   const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { title: true } } } });
   if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.title} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
@@ -167,7 +167,7 @@ async function forgetLinks(projectId: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function unlinkGithubProject(projectId: string): Promise<void> {
-  if (!(await prisma.githubProjectLink.findUnique({ where: { projectId } }))) throw notFound('Lien GitHub');
+  await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   await forgetLinks(projectId);
   await prisma.githubProjectLink.delete({ where: { projectId } });
 }
@@ -181,7 +181,7 @@ export async function unlinkGithubProject(projectId: string): Promise<void> {
 export async function setContributorGithubLogin(id: string, login: string | null): Promise<void> {
   const value = login?.trim().replace(/^@/, '') || null;
   if (value && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(value)) throw clientError('BAD_USER_INPUT', 'Login GitHub invalide.');
-  if (!(await prisma.contributor.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Contributeur');
+  await orNotFound(prisma.contributor.findUnique({ where: { id }, select: { id: true } }), 'Contributeur');
   const taken = value ? await prisma.contributor.findFirst({ where: { githubLogin: { equals: value, mode: 'insensitive' }, id: { not: id } }, select: { name: true } }) : null;
   if (taken) throw clientError('CONFLICT', `Ce login GitHub est déjà celui de ${taken.name}.`);
   await prisma.contributor.update({ where: { id }, data: { githubLogin: value } });

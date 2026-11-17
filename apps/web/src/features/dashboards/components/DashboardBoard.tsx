@@ -1,3 +1,6 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { DragHandle } from '../../../components/actions/DragHandle';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -6,7 +9,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Alert, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -19,8 +22,6 @@ import {
   CheckSquareOffsetIcon,
   ReceiptIcon,
   CopyIcon,
-  DotsSixVerticalIcon,
-  DotsThreeIcon,
   FileImageIcon,
   FilePdfIcon,
   PencilSimpleIcon,
@@ -34,7 +35,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
@@ -170,7 +170,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
                 .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.title}`, 'png')))
-                .catch((exportError: Error) => notifyError(exportError.message));
+                .catch(onMutationError);
             }}
           />
         ),
@@ -187,7 +187,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
           charts: [image],
         }),
       )
-      .catch((exportError: Error) => notifyError(exportError.message))
+      .catch(onMutationError)
       .finally(() => setExporting(false));
   };
 
@@ -206,7 +206,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       onConfirm: () => {
         removeChart.mutate(chart.id, {
           onSuccess: () => notifySuccess('Diagramme supprimé.'),
-          onError: (deleteError) => notifyError(deleteError.message),
+          onError: onMutationError,
         });
       },
     });
@@ -230,19 +230,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Tooltip label="Déplacer">
-            <ActionIcon
-              ref={setActivatorNodeRef}
-              variant="subtle"
-              color="gray"
-              aria-label={`Déplacer ${chart.title}`}
-              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
-              {...attributes}
-              {...listeners}
-            >
-              <DotsSixVerticalIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <DragHandle label={`Déplacer ${chart.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}
@@ -252,97 +240,53 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               {data && ` · ${countLabel(config, data.taskCount)}`}
             </Text>
           </Stack>
-          <Menu position="bottom-end" shadow="md" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur ${chart.title}`} loading={exporting}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={onEdit}>
-                Modifier
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<CopyIcon aria-hidden />}
-                onClick={() =>
-                  duplicateChart.mutate(chart.id, {
-                    onError: (copyError) => notifyError(copyError.message),
-                  })
-                }
-              >
-                Dupliquer
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<ArrowsHorizontalIcon aria-hidden />}
-                onClick={() =>
-                  updateChart.mutate(
-                    {
-                      id: chart.id,
-                      input: { title: chart.title, config, wide: !chart.wide },
-                    },
-                    {
-                      onError: (widthError) => notifyError(widthError.message),
-                    },
-                  )
-                }
-              >
-                {chart.wide ? 'Demi-largeur' : 'Pleine largeur'}
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowUpIcon aria-hidden />} disabled={index === 0} onClick={() => moveChart.mutate({ id: chart.id, index: index - 1 })}>
-                Avancer
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === count - 1} onClick={() => moveChart.mutate({ id: chart.id, index: index + 1 })}>
-                Reculer
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<ArrowBendUpRightIcon aria-hidden />}
-                onClick={() => {
+          <ActionsMenu
+            name={chart.title}
+            loading={exporting}
+            items={[
+              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, { onError: onMutationError }) },
+              {
+                label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
+                icon: <ArrowsHorizontalIcon aria-hidden />,
+                onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
+              },
+              { label: 'Avancer', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => moveChart.mutate({ id: chart.id, index: index - 1 }) },
+              { label: 'Reculer', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => moveChart.mutate({ id: chart.id, index: index + 1 }) },
+              {
+                label: 'Déplacer vers…',
+                icon: <ArrowBendUpRightIcon aria-hidden />,
+                onClick: () =>
                   openFormPanel(`Déplacer « ${chart.title} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
                     panelId: `transfer-chart-${chart.id}`,
-                  });
-                }}
-              >
-                Déplacer vers…
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item leftSection={<FileImageIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('png')}>
-                Exporter en image…
-              </Menu.Item>
-              <Menu.Item leftSection={<FilePdfIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('pdf')}>
-                Exporter en PDF
-              </Menu.Item>
-              <Menu.Item leftSection={<TableIcon aria-hidden />} disabled={!data || data.empty} onClick={() => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`)}>
-                Exporter les données (CSV)
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<TableIcon aria-hidden />}
-                disabled={!data || data.empty}
-                onClick={() => {
+                  }),
+              },
+              'divider',
+              { label: 'Exporter en image…', icon: <FileImageIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('png') },
+              { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('pdf') },
+              {
+                label: 'Exporter les données (CSV)',
+                icon: <TableIcon aria-hidden />,
+                disabled: !data || data.empty,
+                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`),
+              },
+              {
+                label: 'Exporter les données (PDF)',
+                icon: <TableIcon aria-hidden />,
+                disabled: !data || data.empty,
+                onClick: () => {
                   if (!data) return;
                   setExporting(true);
                   downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
-                    .catch((exportError: Error) => notifyError(exportError.message))
+                    .catch(onMutationError)
                     .finally(() => setExporting(false));
-                }}
-              >
-                Exporter les données (PDF)
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={confirmDelete}>
-                Supprimer
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+                },
+              },
+              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: confirmDelete },
+            ]}
+          />
         </Group>
-        {error ? (
-          <Alert color="red" icon={<ErrorIcon />}>
-            {error.message}
-          </Alert>
-        ) : isPending || !data ? (
-          <BlockSkeleton height={12} />
-        ) : (
-          <ChartView ref={view} config={config} data={data} height={288} />
-        )}
+        {error ? <ErrorAlert>{error.message}</ErrorAlert> : isPending || !data ? <BlockSkeleton height={12} /> : <ChartView ref={view} config={config} data={data} height={288} />}
         {printSize &&
           data &&
           createPortal(
@@ -387,7 +331,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!current || !over || active.id === over.id) return;
     const index = current.charts.findIndex((chart) => chart.id === over.id);
-    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: (moveError) => notifyError(moveError.message) });
+    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: onMutationError });
   };
 
   /**
@@ -409,13 +353,13 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         return;
       }
       close();
-      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: (renameError) => notifyError(renameError.message) });
+      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: onMutationError });
       else
         mutations.create.mutate(
           { name: result.data, projectId },
           {
             onSuccess: (id) => select(id),
-            onError: (createError) => notifyError(createError.message),
+            onError: onMutationError,
           },
         );
     };
@@ -453,7 +397,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       onConfirm: () => {
         mutations.remove.mutate(dashboard.id, {
           onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
-          onError: (deleteError) => notifyError(deleteError.message),
+          onError: onMutationError,
         });
       },
     });
@@ -515,16 +459,12 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           charts,
         }),
       )
-      .catch((exportError: Error) => notifyError(exportError.message))
+      .catch(onMutationError)
       .finally(() => setExporting(false));
   };
 
   if (error) {
-    return (
-      <Alert color="red" icon={<ErrorIcon />}>
-        {error.message}
-      </Alert>
-    );
+    return <ErrorAlert>{error.message}</ErrorAlert>;
   }
   if (isPending || contextPending || !context) return <BlockSkeleton height={14} />;
 

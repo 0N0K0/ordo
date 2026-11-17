@@ -1,4 +1,4 @@
-import { LEVEL, lineageOf } from '@ordo/shared';
+import { mapById, LEVEL, lineageOf } from '@ordo/shared';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
 import type { GeoPoint, PlaceInput, TravelMode } from '@ordo/shared';
@@ -132,7 +132,7 @@ export function zonesText(root: Place, zones: readonly Place[]): string {
  * @returns {{ root: Place, zoneIds: string[] } | null} Place and zones.
  */
 export function zonesOfText(text: string, places: readonly Place[]): { root: Place; zoneIds: string[] } | null {
-  const byId = new Map(places.map((place) => [place.id, place]));
+  const byId = mapById(places);
   for (const root of places.filter((place) => !place.parentId)) {
     const prefix = `${root.name}${LEVEL}`;
     if (!text.startsWith(prefix)) continue;

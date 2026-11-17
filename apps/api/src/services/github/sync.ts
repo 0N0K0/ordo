@@ -1,7 +1,8 @@
-import { normalize, subtreeOf } from '@ordo/shared';
+import { formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { clientError, orNotFound } from '../../graphql/errors';
 import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
@@ -26,10 +27,9 @@ import {
   type FieldValue,
   type RemoteItem,
 } from './board';
-import { githubToken } from './client';
+import { currentGithubConnection, githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
-import { currentWorkspaceId } from '../../workspace-context';
-import { forEachWorkspace } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspace/workspaces';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -138,7 +138,7 @@ const relatedOf = (task: SyncedTask) => [...task.relationsA.map((relation) => re
  * @returns {number} Hours.
  */
 const trackedHours = (task: SyncedTask) =>
-  Math.round((task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600) * 100) / 100;
+  round2(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600);
 
 /**
  * Whether the type is synchronized for an item: in a field of the board, or as issue type (issues only).
@@ -189,9 +189,9 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     fields.iteration =
       current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
-  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
-  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
-  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? task.deadline.toISOString().slice(0, 10) : null;
+  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? formatDay(task.startDate) : null;
+  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? formatDay(task.endDate) : null;
+  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? formatDay(task.deadline) : null;
   if (usable(link.effortFieldId, maps, type)) fields.effort = task.effort;
   return fields;
 }
@@ -260,7 +260,7 @@ async function subtree(taskId: string): Promise<Set<string>> {
  */
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
-  const day = (value: unknown) => (value ? new Date(`${String(value)}T00:00:00.000Z`) : null);
+  const day = (value: unknown) => (value ? parseDay(String(value)) : null);
   if ('title' in values) data.title = String(values.title).trim().slice(0, 300) || task.title;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
@@ -303,8 +303,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
       let tag = tags.find((item) => item.name.toLowerCase() === key);
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
-        const { _max } = await prisma.taskTag.aggregate({ _max: { position: true } });
-        tag = await prisma.taskTag.create({ data: { name: (label?.name ?? key).slice(0, 60), color: '#868e96', position: (_max.position ?? -1) + 1 } });
+        const position = await nextPositionIn('taskTag');
+        tag = await prisma.taskTag.create({ data: { name: (label?.name ?? key).slice(0, 60), color: '#868e96', position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -328,8 +328,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
 async function milestoneOf(projectId: string, title: string): Promise<string> {
   const found = await prisma.milestone.findFirst({ where: { projectId, title }, select: { id: true } });
   if (found) return found.id;
-  const { _max } = await prisma.milestone.aggregate({ where: { projectId }, _max: { position: true } });
-  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position: (_max.position ?? -1) + 1 }, select: { id: true } })).id;
+  const position = await nextPositionIn('milestone', { projectId });
+  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position }, select: { id: true } })).id;
 }
 
 /**
@@ -508,7 +508,7 @@ async function pushValues(
  */
 async function syncComments(token: string, taskId: string, item: RemoteItem, login: string): Promise<number> {
   const local: TaskComment[] = await prisma.taskComment.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } });
-  const remote = new Map(item.comments.map((comment) => [comment.id, comment]));
+  const remote = mapById(item.comments);
   let changes = 0;
   for (const comment of local) {
     if (!comment.githubCommentId) {
@@ -612,7 +612,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
       changed += 1;
     }
     if (!sprint) {
-      const startDate = new Date(`${iteration.startDate}T00:00:00.000Z`);
+      const startDate = parseDay(iteration.startDate);
       const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
       sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
@@ -669,14 +669,13 @@ const running = new Set<string>();
  * @returns {Promise<SyncSummary>} What changed.
  */
 export async function syncGithubProject(projectId: string): Promise<SyncSummary> {
-  const link = await prisma.githubProjectLink.findUnique({ where: { projectId } });
-  if (!link) throw notFound('Lien GitHub');
+  const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
   const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsSkipped: 0, renumbered: 0, comments: 0 };
   try {
     const token = await githubToken();
-    const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
+    const login = (await currentGithubConnection())?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
     const tree = await projectTree(projectId);
     const iterations = await syncIterations(board, link, tree);
@@ -868,13 +867,14 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
  * @returns {void}
  */
 export function scheduleGithubSync(): void {
-  const run = () =>
-    forEachWorkspace(async () => {
-      if (!(await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { id: true } }))) return;
+  schedulePerWorkspace(
+    'Synchronisation GitHub',
+    async () => {
+      if (!(await currentGithubConnection())) return;
       for (const link of await prisma.githubProjectLink.findMany({ where: { enabled: true }, select: { projectId: true } })) {
         await syncGithubProject(link.projectId).catch((error: unknown) => console.warn('Synchronisation GitHub en échec.', error));
       }
-    });
-  setTimeout(() => void run(), 30_000);
-  setInterval(() => void run(), 10 * 60_000);
+    },
+    { delay: 30_000, interval: 10 * 60_000 },
+  );
 }

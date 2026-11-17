@@ -1,3 +1,4 @@
+import { localDay, localMidnight } from '../../../lib/dates';
 import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
@@ -22,23 +23,6 @@ export function dayLabel(date: string, today: string): string {
   if (date === addDays(today, 1)) return 'Demain';
   if (date === addDays(today, -1)) return 'Hier';
   return fmt.weekday(date);
-}
-
-/**
- * Local midnight of a day, as an ISO date-time.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date-time.
- */
-const localMidnight = (date: string) => new Date(`${date}T00:00:00`).toISOString();
-
-/**
- * Local day of a moment.
- * @param {string} moment ISO date-time.
- * @returns {string} YYYY-MM-DD.
- */
-export function localDayOf(moment: string): string {
-  const date = new Date(moment);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /** Invoicing at a glance. */
@@ -147,7 +131,7 @@ export function useWeekTime(today: string): WeekTime | null {
     for (const entry of entries.data) {
       const seconds = entrySeconds(entry, now);
       time.week += seconds;
-      if (localDayOf(entry.startedAt) === today) time.today += seconds;
+      if (localDay(entry.startedAt) === today) time.today += seconds;
       if (entry.projectId) byProject.set(entry.projectId, (byProject.get(entry.projectId) ?? 0) + seconds);
     }
     time.byProject = [...byProject.entries()].map(([projectId, seconds]) => ({ projectId, seconds })).sort((a, b) => b.seconds - a.seconds);

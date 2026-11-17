@@ -1,3 +1,4 @@
+import { groupBy, timeToMinutes } from '@ordo/shared';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
@@ -182,7 +183,7 @@ export function isoWeek(date: string): number {
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Year.
  */
-function isoWeekYear(date: string): number {
+export function isoWeekYear(date: string): number {
   return Number(addDays(date, 4 - weekdayOf(date)).slice(0, 4));
 }
 
@@ -336,8 +337,7 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
  * @returns {number} Minutes.
  */
 export function slotMinutes(slots: readonly { start: string; end: string; allDay?: boolean }[]): number {
-  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-  return slots.filter((slot) => !slot.allDay).reduce((sum, slot) => sum + minutes(slot.end) - minutes(slot.start), 0);
+  return slots.filter((slot) => !slot.allDay).reduce((sum, slot) => sum + timeToMinutes(slot.end) - timeToMinutes(slot.start), 0);
 }
 
 /**
@@ -397,8 +397,7 @@ const legacyPauseSchema = z.object({ from: isoDate, to: isoDate, label: z.string
 export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: number; slots: unknown; pauses: unknown }): { cases: ScheduleCase[]; exceptions: ScheduleException[] } {
   const slots = z.array(legacySlotSchema).safeParse(legacy.slots);
   const pauses = z.array(legacyPauseSchema).safeParse(legacy.pauses);
-  const byWeekday = new Map<number, z.infer<typeof legacySlotSchema>[]>();
-  for (const slot of slots.success ? slots.data : []) byWeekday.set(slot.weekday, [...(byWeekday.get(slot.weekday) ?? []), slot]);
+  const byWeekday = groupBy(slots.success ? slots.data : [], (slot) => slot.weekday);
   // Weekdays with the same hours (or both whole days) make one case.
   const byHours = new Map<string, { weekdays: number[]; allDay: boolean; ranges: TimeRange[] }>();
   for (const [weekday, daySlots] of [...byWeekday].sort(([a], [b]) => a - b)) {

@@ -1,7 +1,9 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as shopping from '../../services/shopping/shopping';
 import { readSheetSources } from '@ordo/shared';
 import { builder } from '../builder';
+import { NameColorInput, NameColorPatch } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
@@ -148,15 +150,7 @@ const CategoryInput = builder.inputType('ShoppingCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id(), baseListIds: t.idList() }),
 });
 
-const LabelInput = builder.inputType('ShoppingStoreInput', {
-  description: 'Shopping store.',
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
-});
 
-const LabelPatch = builder.inputType('ShoppingStorePatch', {
-  description: 'Changes of a shopping store (omitted fields unchanged).',
-  fields: (t) => ({ name: t.string(), color: t.string() }),
-});
 
 const shoppingFields = (t: Parameters<Parameters<typeof builder.inputType>[1]['fields']>[0]) => ({
   name: t.string({ required: true }),
@@ -260,77 +254,42 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateCategory(String(id), categoryInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(shopping.updateCategory(String(id), categoryInput(input))),
   }),
   moveShoppingCategory: t.boolean({
     description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: async (_root, { id, parentId, index }) => {
-      await shopping.moveCategory(String(id), parentId ? String(parentId) : null, index);
-      return true;
-    },
+    resolve: (_root, { id, parentId, index }) => done(shopping.moveCategory(String(id), parentId ? String(parentId) : null, index)),
   }),
   deleteShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteCategory(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteCategory(String(id))),
   }),
   createShoppingStore: t.id({
-    args: { input: t.arg({ type: LabelInput, required: true }) },
+    args: { input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (_root, { input }) => (await shopping.createStore(input)).id,
   }),
   updateShoppingStore: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateStore(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
-      return true;
-    },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
+    resolve: (_root, { id, input }) => done(shopping.updateStore(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteStore(String(id));
-      return true;
-    },
-  }),
-  moveShoppingStore: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await shopping.moveStore(String(id), index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteStore(String(id))),
   }),
   createShoppingUnit: t.id({
-    args: { input: t.arg({ type: LabelInput, required: true }) },
+    args: { input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (_root, { input }) => (await shopping.createUnit(input)).id,
   }),
   updateShoppingUnit: t.boolean({
     description: 'Renames a unit; the products and items in it follow.',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateUnit(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
-      return true;
-    },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
+    resolve: (_root, { id, input }) => done(shopping.updateUnit(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingUnit: t.boolean({
     description: 'Deletes a unit; the products and items in it are left without one.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteUnit(String(id));
-      return true;
-    },
-  }),
-  moveShoppingUnit: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await shopping.moveUnit(String(id), index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteUnit(String(id))),
   }),
   moveShoppingProducts: t.int({
     description: 'Moves products to another base list (after its own); returns how many moved.',
@@ -338,29 +297,16 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids.map(String), String(baseListId)),
   }),
   createShoppingStorage: t.id({
-    args: { input: t.arg({ type: LabelInput, required: true }) },
+    args: { input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (_root, { input }) => (await shopping.createStorage(input)).id,
   }),
   updateShoppingStorage: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateStorage(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
-      return true;
-    },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
+    resolve: (_root, { id, input }) => done(shopping.updateStorage(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingStorage: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteStorage(String(id));
-      return true;
-    },
-  }),
-  moveShoppingStorage: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await shopping.moveStorage(String(id), index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteStorage(String(id))),
   }),
   createShoppingBaseList: t.id({
     args: { name: t.arg.string({ required: true }) },
@@ -368,25 +314,12 @@ builder.mutationFields((t) => ({
   }),
   renameShoppingBaseList: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (_root, { id, name }) => {
-      await shopping.renameBaseList(String(id), name);
-      return true;
-    },
+    resolve: (_root, { id, name }) => done(shopping.renameBaseList(String(id), name)),
   }),
   deleteShoppingBaseList: t.boolean({
     description: 'Deletes a base list with its products (the lists made from them keep their items).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteBaseList(String(id));
-      return true;
-    },
-  }),
-  moveShoppingBaseList: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await shopping.moveBaseList(String(id), index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteBaseList(String(id))),
   }),
   createShoppingProduct: t.id({
     args: { input: t.arg({ type: ProductInput, required: true }) },
@@ -394,24 +327,15 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingProduct: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProductInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateProduct(String(id), { ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing });
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(shopping.updateProduct(String(id), { ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing })),
   }),
   setShoppingProductsMissing: t.boolean({
     args: { ids: t.arg.idList({ required: true }), missing: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { ids, missing }) => {
-      await shopping.setProductsMissing(ids.map(String), missing);
-      return true;
-    },
+    resolve: (_root, { ids, missing }) => done(shopping.setProductsMissing(ids.map(String), missing)),
   }),
   deleteShoppingProduct: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteProduct(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteProduct(String(id))),
   }),
   createShoppingList: t.id({
     description: 'Creates a list, empty or with the missing products of some base lists.',
@@ -420,17 +344,11 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingList: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }) },
-    resolve: async (_root, { id, name, taskIds }) => {
-      await shopping.updateList(String(id), { name, taskIds: taskIds.map(String) });
-      return true;
-    },
+    resolve: (_root, { id, name, taskIds }) => done(shopping.updateList(String(id), { name, taskIds: taskIds.map(String) })),
   }),
   setShoppingListClosed: t.boolean({
     args: { id: t.arg.id({ required: true }), closed: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { id, closed }) => {
-      await shopping.setListClosed(String(id), closed);
-      return true;
-    },
+    resolve: (_root, { id, closed }) => done(shopping.setListClosed(String(id), closed)),
   }),
   duplicateShoppingList: t.id({
     args: { id: t.arg.id({ required: true }) },
@@ -438,18 +356,12 @@ builder.mutationFields((t) => ({
   }),
   deleteShoppingList: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteList(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteList(String(id))),
   }),
   attachShoppingListEntry: t.boolean({
     description: 'Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).',
     args: { id: t.arg.id({ required: true }), entryId: t.arg.id() },
-    resolve: async (_root, { id, entryId }) => {
-      await shopping.attachListEntry(String(id), entryId ? String(entryId) : null);
-      return true;
-    },
+    resolve: (_root, { id, entryId }) => done(shopping.attachListEntry(String(id), entryId ? String(entryId) : null)),
   }),
   addShoppingItem: t.id({
     description: 'Adds an item of this list only (not from a base list) to a list.',
@@ -463,10 +375,7 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await shopping.updateItem(String(id), itemInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(shopping.updateItem(String(id), itemInput(input))),
   }),
   duplicateShoppingItem: t.id({
     description: 'Adds the same item again to its list, not bought, without date (the same product bought with another date).',
@@ -475,10 +384,7 @@ builder.mutationFields((t) => ({
   }),
   setShoppingItemPurchased: t.boolean({
     args: { id: t.arg.id({ required: true }), purchased: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { id, purchased }) => {
-      await shopping.setItemPurchased(String(id), purchased);
-      return true;
-    },
+    resolve: (_root, { id, purchased }) => done(shopping.setItemPurchased(String(id), purchased)),
   }),
   saveShoppingItemToBase: t.id({
     description: 'Adds an item of a list to a base list; returns the product.',
@@ -487,9 +393,6 @@ builder.mutationFields((t) => ({
   }),
   deleteShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await shopping.deleteItem(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(shopping.deleteItem(String(id))),
   }),
 }));

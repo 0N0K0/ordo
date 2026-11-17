@@ -1,8 +1,8 @@
-import { addDays, formatDay, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
+import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
  * Loads a sprint or throws NOT_FOUND.
@@ -10,8 +10,7 @@ import { clientError, notFound, parseInput } from '../../graphql/errors';
  * @returns {Promise<Sprint>} Sprint.
  */
 async function findSprint(id: string): Promise<Sprint> {
-  const sprint = await prisma.sprint.findUnique({ where: { id } });
-  if (!sprint) throw notFound('Sprint');
+  const sprint = await orNotFound(prisma.sprint.findUnique({ where: { id } }), 'Sprint');
   return sprint;
 }
 
@@ -41,8 +40,8 @@ function sprintData(input: SprintInput) {
   return {
     name: fields.name,
     goal: fields.goal,
-    startDate: new Date(`${fields.startDate}T00:00:00.000Z`),
-    endDate: new Date(`${fields.endDate}T00:00:00.000Z`),
+    startDate: parseDay(fields.startDate),
+    endDate: parseDay(fields.endDate),
   };
 }
 
@@ -53,8 +52,7 @@ function sprintData(input: SprintInput) {
  * @returns {Promise<Sprint>} Created sprint.
  */
 export async function createSprint(projectId: string, input: SprintInput): Promise<Sprint> {
-  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { archivedAt: true } });
-  if (!project) throw notFound('Projet');
+  const project = await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { archivedAt: true } }), 'Projet');
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
   return prisma.sprint.create({ data: { projectId, ...sprintData(input) } });
 }
@@ -103,8 +101,7 @@ export async function sprintTaskStatuses(today: string): Promise<SprintTaskStatu
   const taskIds = [...new Set(ended.flatMap((sprint) => sprint.tasks.map((task) => task.id)))];
   if (!taskIds.length) return [];
   const changes = await prisma.taskStatusChange.findMany({ where: { taskId: { in: taskIds } }, orderBy: { at: 'asc' }, select: { taskId: true, statusId: true, closed: true, at: true } });
-  const byTask = new Map<string, typeof changes>();
-  for (const change of changes) byTask.set(change.taskId, [...(byTask.get(change.taskId) ?? []), change]);
+  const byTask = groupBy(changes, (change) => change.taskId);
   const result: SprintTaskStatus[] = [];
   for (const sprint of ended) {
     // Up to the end of its last day.

@@ -1,4 +1,6 @@
-import { daysBetween } from '@ordo/shared';
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { plural } from '../../../lib/text';
+import { collator, daysBetween, mapById } from '@ordo/shared';
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -9,7 +11,7 @@ import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../../rou
 import { usePostponeRoutine } from '../../routines/hooks/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../../shopping/api';
 import classes from './Home.module.css';
-import { Figure, HomeCard, HomeEmpty } from './HomeCard';
+import { Figure, HomeCard } from './HomeCard';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
 
 const MAX_ROWS = 7;
@@ -25,7 +27,7 @@ export function RoutinesCard({ today }: { today: string }) {
   const postpone = usePostponeRoutine();
   const slotRules = useSlotRules();
   const routines = data?.routines ?? [];
-  const byId = new Map(routines.map((routine) => [routine.id, routine]));
+  const byId = mapById(routines);
   const todo = routines
     .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, slotRules.allowed(routineDoable(routine)))))
     // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
@@ -33,12 +35,12 @@ export function RoutinesCard({ today }: { today: string }) {
       (a, b) =>
         (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
         (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
-        a.title.localeCompare(b.title, 'fr'),
+        collator.compare(a.title, b.title),
     );
 
   return (
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
-      {todo.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Toutes les routines du jour sont faites.</HomeEmpty>}
+      {todo.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Toutes les routines du jour sont faites." />}
       {todo.length > 0 && (
         <Stack gap={0}>
           {todo.slice(0, MAX_ROWS).map((routine) => {
@@ -84,7 +86,7 @@ export function RoutinesCard({ today }: { today: string }) {
           })}
           {todo.length > MAX_ROWS && (
             <Text size="xs" c="dimmed" pt={4}>
-              + {todo.length - MAX_ROWS} autre{todo.length - MAX_ROWS > 1 ? 's' : ''}
+              + {todo.length - MAX_ROWS} {plural(todo.length - MAX_ROWS, 'autre')}
             </Text>
           )}
         </Stack>
@@ -113,7 +115,7 @@ export function ShoppingCard() {
         <Figure label="Listes en cours" value={open.length} />
       </Group>
       {open.length === 0 ? (
-        <HomeEmpty icon={<BasketIcon aria-hidden />}>Aucune liste en cours.</HomeEmpty>
+        <EmptyState compact icon={<BasketIcon aria-hidden />} message="Aucune liste en cours." />
       ) : (
         <Stack gap={0}>
           {open.slice(0, MAX_ROWS).map(({ list, left }) => (

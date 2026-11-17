@@ -1,8 +1,9 @@
-import { addDays, budgetMonths, formatDay, occurrenceDates, parseDay, plannedContext, splitAmounts, treasuryBudgetSchema, type TreasuryBudgetInput } from '@ordo/shared';
+import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, toCents, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
 import { prisma } from '../../db';
+import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 
@@ -35,7 +36,7 @@ export interface BudgetReportRow extends Key {
  */
 async function budgetData(input: TreasuryBudgetInput) {
   const budget = parseInput(treasuryBudgetSchema, input);
-  if (!(await prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }))) throw notFound('Catégorie');
+  await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }), 'Catégorie');
   if (budget.memberId && !(await prisma.contributor.findUnique({ where: { id: budget.memberId }, select: { id: true } }))) throw notFound('Membre');
   if (budget.relationId && !(await prisma.treasuryRelation.findUnique({ where: { id: budget.relationId }, select: { id: true } }))) throw notFound('Relation');
   if (budget.contextId && !(await prisma.treasuryContext.findUnique({ where: { id: budget.contextId }, select: { id: true } }))) throw notFound('Contexte');
@@ -60,7 +61,7 @@ async function budgetData(input: TreasuryBudgetInput) {
 export async function saveBudget(id: string | null, input: TreasuryBudgetInput): Promise<TreasuryBudget> {
   const data = await budgetData(input);
   if (!id) return prisma.treasuryBudget.create({ data });
-  if (!(await prisma.treasuryBudget.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Budget');
+  await orNotFound(prisma.treasuryBudget.findUnique({ where: { id }, select: { id: true } }), 'Budget');
   return prisma.treasuryBudget.update({ where: { id }, data });
 }
 
@@ -82,16 +83,6 @@ export async function deleteBudget(id: string): Promise<void> {
 const monthOf = (day: string) => day.slice(0, 7);
 
 /**
- * Last day of a month.
- * @param {string} month YYYY-MM.
- * @returns {string} YYYY-MM-DD.
- */
-function lastDay(month: string): string {
-  const [year, value] = month.split('-').map(Number);
-  return addDays(`${value === 12 ? year + 1 : year}-${String((value % 12) + 1).padStart(2, '0')}-01`, -1);
-}
-
-/**
  * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
  * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
@@ -102,7 +93,7 @@ function lastDay(month: string): string {
  * @param {string | null} meId Contributor of the app user.
  * @returns {Promise<BudgetReportRow[]>} Rows: budgets first, then what is out of budget.
  */
-export async function budgetReport(from: string, to: string, meId: string | null, today: string = formatDay(new Date())): Promise<BudgetReportRow[]> {
+export async function budgetReport(from: string, to: string, meId: string | null, today: string = parisToday()): Promise<BudgetReportRow[]> {
   const me = meId ?? 'me';
   const [budgets, categories, periods] = await Promise.all([
     prisma.treasuryBudget.findMany({ where: { month: { lte: parseDay(`${to}-01`) } } }),
@@ -129,7 +120,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     for (const month of months) {
       const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };
-      row.budget += Math.round(Number(budget.amount) * 100);
+      row.budget += toCents(Number(budget.amount));
       rows.set(keyOf(month, key), row);
     }
   }
@@ -161,7 +152,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
   };
 
   const first = parseDay(`${from}-01`);
-  const last = parseDay(lastDay(to));
+  const last = parseDay(lastDayOfMonth(to));
   const entries = await prisma.treasuryEntry.findMany({
     where: {
       OR: [
@@ -177,7 +168,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     const start = formatDay(entry.date);
     const rule = entry.status === 'FORECAST' ? storedRecurrence(entry.recurrence) : null;
     // Out of the range, an actual entry only counts by its lines of their own day (the check of `add`).
-    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDay(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
+    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDayOfMonth(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
     const total = Number(entry.amount);
     const lines = entry.lines.map((line) => ({ ...line, value: Number(line.value) }));
     const { amounts, remainder } = splitAmounts(total, lines);
@@ -196,8 +187,8 @@ export async function budgetReport(from: string, to: string, meId: string | null
   // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
   // the categories set for them: forecast of the app user, in the context planned that day (overdue: today).
   const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
-  if (today <= lastDay(to)) {
-    const { items } = await treasuryProjection(today, today, lastDay(to));
+  if (today <= lastDayOfMonth(to)) {
+    const { items } = await treasuryProjection(today, today, lastDayOfMonth(to));
     for (const item of items) {
       if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
       const categoryId = item.amount < 0 ? (company?.creditNoteCategoryId ?? null) : (company?.invoiceCategoryId ?? null);

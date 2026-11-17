@@ -1,7 +1,7 @@
 import { parseDay, statementImportSchema, type StatementImportInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { realizeForecast } from './treasury';
 
 /**
@@ -13,7 +13,7 @@ import { realizeForecast } from './treasury';
  */
 export async function importStatement(input: StatementImportInput): Promise<{ created: number; realized: number }> {
   const data = parseInput(statementImportSchema, input);
-  if (!(await prisma.treasuryAccount.findUnique({ where: { id: data.accountId }, select: { id: true } }))) throw notFound('Compte');
+  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: data.accountId }, select: { id: true } }), 'Compte');
   if (data.mapping) await prisma.treasuryAccount.update({ where: { id: data.accountId }, data: { csvMapping: data.mapping as Prisma.InputJsonValue } });
   let created = 0;
   let realized = 0;

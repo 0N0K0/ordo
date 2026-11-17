@@ -1,3 +1,6 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSetParams } from '../../../lib/search-params';
+import { mapById, byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -98,7 +101,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
   );
   const { options: beneficiaryGroups } = useBeneficiaries();
-  const byId = useMemo(() => new Map(routines.map((routine) => [routine.id, routine])), [routines]);
+  const byId = useMemo(() => mapById(routines), [routines]);
   const doable = useMemo(() => (routine: Routine) => slotRules.allowed(routineDoable(routine)), [slotRules]);
   const columns = useMemo(
     () =>
@@ -110,7 +113,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             context,
             doable,
             comments,
-            slotKinds: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })),
+            slotKinds: scheduleChoices(schedules).options,
             beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
           })
         : [],
@@ -155,7 +158,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     }
     const last = routines
       .filter((routine) => routine.parentId === null && routine.id !== key)
-      .sort((a, b) => a.position - b.position)
+      .sort(byPosition)
       .at(-1);
     if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, { onError });
     else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, { onError });
@@ -292,29 +295,15 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const tab = params.get('tab') === 'history' ? 'history' : 'routines';
 
   return (
     <Stack gap="lg">
       <PageHeader title="Routines" />
       <RoutineSettings />
-      <PageTabs
-        value={tab}
-        onChange={(value) =>
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-              next.delete('routine');
-              if (value === 'history') next.set('tab', 'history');
-              else next.delete('tab');
-              return next;
-            },
-            { replace: true },
-          )
-        }
-        keepMounted={false}
-      >
+      <PageTabs value={tab} onChange={(value) => setParams({ routine: null, tab: value === 'history' ? 'history' : null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines
@@ -327,20 +316,7 @@ export function RoutinesPage() {
           <RoutinesPanel />
         </PageTabs.Panel>
         <PageTabs.Panel value="history">
-          <RoutineHistory
-            routineId={params.get('routine')}
-            onRoutine={(id) =>
-              setParams(
-                (current) => {
-                  const next = new URLSearchParams(current);
-                  if (id) next.set('routine', id);
-                  else next.delete('routine');
-                  return next;
-                },
-                { replace: true },
-              )
-            }
-          />
+          <RoutineHistory routineId={params.get('routine')} onRoutine={(id) => setParams({ routine: id })} />
         </PageTabs.Panel>
       </PageTabs>
     </Stack>

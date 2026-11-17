@@ -1,7 +1,9 @@
+import { openFormPanel } from '../../../components/panels/panels';
+import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
 import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
@@ -142,8 +144,6 @@ const ENTRY_VIEWS: FirstTableView[] = [
  * @returns {JSX.Element} Panel.
  */
 export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProps) {
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
   // Every entry: the views choose their period and account.
   const { data: entries, isPending } = useTreasuryEntries({ from: '1900-01-01', to: '2999-12-31', accountId: null });
   const { deleteEntry } = useTreasuryMutations();
@@ -197,13 +197,22 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             <Switch label="Répartitions dépliées" checked={allExpanded} onChange={(event) => setExpanded(event.currentTarget.checked ? new Set(split.map((entry) => entry.id)) : new Set())} />
           ),
           exports: (
-            <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
+            <ActionButton
+              priority="secondary"
+              icon={<FilePdfIcon aria-hidden />}
+              onClick={() => openFormPanel('Exporter le relevé des mouvements', (close) => <StatementForm accounts={accounts} accountId={null} onDone={close} />)}
+            >
               Relevé de compte (PDF)
             </ActionButton>
           ),
           tools: (
             <>
-              <ActionButton priority="secondary" icon={<FileCsvIcon aria-hidden />} onClick={() => setImporting(true)} disabled={!accounts.some((account) => !account.archived)}>
+              <ActionButton
+                priority="secondary"
+                icon={<FileCsvIcon aria-hidden />}
+                onClick={() => openFormPanel('Importer un relevé bancaire', (close) => <StatementImport accounts={accounts} onDone={close} />, 'lg')}
+                disabled={!accounts.some((account) => !account.archived)}
+              >
                 Importer un relevé
               </ActionButton>
               {actual.length > 0 && (
@@ -282,19 +291,13 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         selectionActions={(rows, clear) => [
           deleteRowsAction(rows, {
             title: 'Supprimer les mouvements',
-            risks: `${rows.length} mouvement(s) seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
+            risks: `${countOf(rows.length, 'mouvement')} seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
             remove: (entry) => deleteEntry.mutateAsync(entry.id),
-            done: `${rows.length} mouvement(s) supprimé(s).`,
+            done: `${countOf(rows.length, 'mouvement')} ${plural(rows.length, 'supprimé')}.`,
             clear,
           }),
         ]}
       />
-      <SidePanel opened={importing} onClose={() => setImporting(false)} title="Importer un relevé bancaire" size="lg">
-        {importing && <StatementImport accounts={accounts} onDone={() => setImporting(false)} />}
-      </SidePanel>
-      <SidePanel opened={exporting} onClose={() => setExporting(false)} title="Exporter le relevé des mouvements">
-        {exporting && <StatementForm accounts={accounts} accountId={null} onDone={() => setExporting(false)} />}
-      </SidePanel>
     </Stack>
   );
 }

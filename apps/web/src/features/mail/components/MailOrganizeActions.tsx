@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
@@ -176,7 +177,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
       risks: (
         <>
           <Text size="sm">
-            {count} mail{count > 1 ? 's seront placés' : ' sera placé'} dans la corbeille de leur boîte (supprimé{count > 1 ? 's' : ''} définitivement s’ils y sont déjà). Leurs copies rattachées à des
+            {count} mail{count > 1 ? 's seront placés' : ' sera placé'} dans la corbeille de leur boîte ({plural(count, 'supprimé')} définitivement s’ils y sont déjà). Leurs copies rattachées à des
             projets sont conservées.
           </Text>
         </>
@@ -195,7 +196,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
   return (
     <Group gap={4} wrap="nowrap" style={{ flex: 1 }} justify="flex-end">
       <Text size="xs" c="dimmed" mr="auto">
-        {count} sélectionné{count > 1 ? 's' : ''}
+        {count} {plural(count, 'sélectionné')}
       </Text>
       <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} noMove={noMove} />
       <Tooltip label="Marquer comme lu">

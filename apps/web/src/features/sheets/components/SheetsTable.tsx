@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { Anchor, Text } from '@mantine/core';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { ClipboardTextIcon, CopyIcon, CookingPotIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -129,12 +130,12 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['fiche', 'fiches'])}
       selectionActions={(rows, clear) => [
-        duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${rows.length} fiche(s) dupliquée(s).` }),
+        duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` }),
         deleteRowsAction(rows, {
           title: 'Supprimer les fiches',
-          risks: `${rows.length} fiche(s) et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
+          risks: `${countOf(rows.length, 'fiche')} et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
           remove: (sheet) => remove.mutateAsync(sheet.id),
-          done: `${rows.length} fiche(s) supprimée(s).`,
+          done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'supprimée')}.`,
           clear,
         }),
       ]}

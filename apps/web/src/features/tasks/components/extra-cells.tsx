@@ -1,4 +1,7 @@
-import { ActionIcon, Anchor, Badge, Group, Menu, Popover, Progress, Text, Tooltip } from '@mantine/core';
+import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
+import { TaskProgress } from './TaskProgress';
+import { stopClick } from '../../../components/data-table/cells/cell-field';
+import { ActionIcon, Anchor, Badge, Group, Menu, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -15,9 +18,6 @@ import { useCellEdit } from '../lib/cell-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { TaskContext } from '../hooks/use-task-context';
 
-/** Cells of a task table do not open the task when used. */
-const stop = (event: React.SyntheticEvent) => event.stopPropagation();
-
 /**
  * « Plages » cell: the slots of the task told in words, changed in a popover.
  * @param {{ task: Task }} props Component props.
@@ -28,17 +28,18 @@ export function SlotsCell({ task }: { task: Task }) {
   const { describe, ruleOf } = useSlotRules();
   const own = readSlotRule(task.slotRule);
   return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={420}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={own ? undefined : 'dimmed'} onClick={stop} style={{ textAlign: 'left' }}>
+    <EditablePopoverCell
+      width={420}
+      empty={!own}
+      target={
+        <>
           {describe(ruleOf(task.slotRule)) ?? 'Partout'}
           {!own && ' (défaut)'}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stop}>
-        <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
-      </Popover.Dropdown>
-    </Popover>
+        </>
+      }
+    >
+      <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
+    </EditablePopoverCell>
   );
 }
 
@@ -60,7 +61,7 @@ export function TimerCell({ task }: { task: Task }) {
         aria-label={on ? `Arrêter le chrono de ${task.title}` : `Lancer un chrono sur ${task.title}`}
         loading={start.isPending || stopTimer.isPending}
         onClick={(event) => {
-          stop(event);
+          stopClick(event);
           if (on) stopTimer.mutate(undefined, onError);
           else start.mutate({ projectId: task.projectId, taskIds: [task.id] }, { onSuccess: () => notifySuccess('Chrono lancé.'), ...onError });
         }}
@@ -79,7 +80,7 @@ export function TimerCell({ task }: { task: Task }) {
 export function TrackedCell({ task }: { task: Task }) {
   if (task.trackedSeconds <= 0) return null;
   return (
-    <Anchor component={Link} to={`/time?task=${task.id}`} size="sm" onClick={stop} style={{ display: 'block', textAlign: 'right' }}>
+    <Anchor component={Link} to={`/time?task=${task.id}`} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
       {formatDuration(task.trackedSeconds)}
     </Anchor>
   );
@@ -93,7 +94,7 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>
         {children.map((child) => (
           <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
@@ -119,12 +120,9 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
   const done = children.filter((child) => child.closed).length;
   return (
     <Tooltip label={`${done} sur ${children.length} sous-tâches fermées`}>
-      <Group gap={6} wrap="nowrap">
-        <Progress value={(done / children.length) * 100} size="sm" style={{ flex: 1 }} aria-label="Avancement des sous-tâches" />
-        <Text size="xs" c="dimmed">
-          {done}/{children.length}
-        </Text>
-      </Group>
+      <div>
+        <TaskProgress done={done} total={children.length} size="sm" unit={false} label="Avancement des sous-tâches" />
+      </div>
     </Tooltip>
   );
 }
@@ -137,7 +135,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
 export function AlarmsCell({ task, context, count }: { task: Task; context: TaskContext; count: number }) {
   const openForm = useAlarmForm(context);
   return (
-    <Group gap={4} wrap="nowrap" onClick={stop}>
+    <Group gap={4} wrap="nowrap" onClick={stopClick}>
       {count > 0 && (
         <Badge size="sm" variant="light" color="orange" leftSection={<AlarmIcon aria-hidden />}>
           {count}
@@ -170,7 +168,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
   const own = lists.filter((list) => list.taskIds.includes(task.id));
   const free = lists.filter((list) => !list.taskIds.includes(task.id) && !list.closed);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>
         {own.map((list) => (
           <Anchor key={list.id} component={Link} to={`/shopping/${list.id}`} size="sm" truncate>

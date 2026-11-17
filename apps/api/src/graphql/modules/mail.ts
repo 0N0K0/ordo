@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as accounts from '../../services/mail/accounts';
 import * as drafts from '../../services/mail/drafts';
@@ -424,10 +425,7 @@ builder.mutationFields((t) => ({
   testMailAccount: t.boolean({
     description: 'Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.',
     args: { input: t.arg({ type: MailAccountInput, required: true }), id: t.arg.id() },
-    resolve: async (_root, { input, id }) => {
-      await accounts.testMailAccount({ ...input, id: id ?? undefined });
-      return true;
-    },
+    resolve: (_root, { input, id }) => done(accounts.testMailAccount({ ...input, id: id ?? undefined })),
   }),
   createMailAccount: t.prismaField({
     type: 'MailAccount',
@@ -449,17 +447,11 @@ builder.mutationFields((t) => ({
   }),
   deleteMailAccount: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await accounts.deleteMailAccount(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(accounts.deleteMailAccount(id)),
   }),
   moveMailAccount: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await accounts.moveMailAccount(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(accounts.moveMailAccount(id, index)),
   }),
   setMailSeen: t.boolean({
     args: {
@@ -468,10 +460,7 @@ builder.mutationFields((t) => ({
       uids: t.arg.intList({ required: true }),
       seen: t.arg.boolean({ required: true }),
     },
-    resolve: async (_root, { accountId, folder, uids, seen }) => {
-      await reader.setSeen(accountId, folder, uids, seen);
-      return true;
-    },
+    resolve: (_root, { accountId, folder, uids, seen }) => done(reader.setSeen(accountId, folder, uids, seen)),
   }),
   markMails: t.boolean({
     description: 'Adds or removes a flag (labelId and on), or sets the done state (done), on mails.',
@@ -483,10 +472,7 @@ builder.mutationFields((t) => ({
       on: t.arg.boolean(),
       done: t.arg.boolean(),
     },
-    resolve: async (_root, { accountId, folder, uids, labelId, on, done }) => {
-      await organize.markMails(accountId, folder, uids, labelId ? { labelId: String(labelId), on: on ?? true } : { done: done ?? true });
-      return true;
-    },
+    resolve: (_root, { accountId, folder, uids, labelId, on, done: isDone }) => done(organize.markMails(accountId, folder, uids, labelId ? { labelId: String(labelId), on: on ?? true } : { done: isDone ?? true })),
   }),
   reportMailSpam: t.string({
     description: 'Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.',
@@ -495,10 +481,7 @@ builder.mutationFields((t) => ({
   }),
   moveMails: t.boolean({
     args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }), target: t.arg.string({ required: true }) },
-    resolve: async (_root, { accountId, folder, uids, target }) => {
-      await organize.moveMails(accountId, folder, uids, target);
-      return true;
-    },
+    resolve: (_root, { accountId, folder, uids, target }) => done(organize.moveMails(accountId, folder, uids, target)),
   }),
   createMailFolder: t.string({
     description: 'Creates a folder (under another one, or at the top); returns its path.',
@@ -518,10 +501,7 @@ builder.mutationFields((t) => ({
   deleteMailFolder: t.boolean({
     description: 'Deletes a folder and its mails.',
     args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }) },
-    resolve: async (_root, { accountId, path }) => {
-      await organize.deleteFolder(accountId, path);
-      return true;
-    },
+    resolve: (_root, { accountId, path }) => done(organize.deleteFolder(accountId, path)),
   }),
   createMailLabel: t.id({
     args: { name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
@@ -529,17 +509,11 @@ builder.mutationFields((t) => ({
   }),
   updateMailLabel: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
-    resolve: async (_root, { id, ...input }) => {
-      await organize.updateLabel(id, input);
-      return true;
-    },
+    resolve: (_root, { id, ...input }) => done(organize.updateLabel(id, input)),
   }),
   deleteMailLabel: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await organize.deleteLabel(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(organize.deleteLabel(id)),
   }),
   createMailSearch: t.id({
     args: { input: t.arg({ type: MailSearchInput, required: true }) },
@@ -547,17 +521,11 @@ builder.mutationFields((t) => ({
   }),
   updateMailSearch: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailSearchInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await searches.updateSearch(id, input as never);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(searches.updateSearch(id, input as never)),
   }),
   deleteMailSearch: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await searches.deleteSearch(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(searches.deleteSearch(id)),
   }),
   scheduleMail: t.id({
     description: 'Schedules a mail (built now, sent at its time); its draft is removed.',
@@ -567,26 +535,17 @@ builder.mutationFields((t) => ({
   sendScheduledMail: t.boolean({
     description: 'Sends a scheduled (or failed) mail now.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await scheduled.sendScheduled(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(scheduled.sendScheduled(id)),
   }),
   cancelScheduledMail: t.boolean({
     description: 'Cancels a scheduled mail: it goes back to the drafts.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await scheduled.cancelScheduled(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(scheduled.cancelScheduled(id)),
   }),
   deleteMails: t.boolean({
     description: 'Moves mails to the trash (deletes them for good from the trash).',
     args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }) },
-    resolve: async (_root, { accountId, folder, uids }) => {
-      await reader.deleteMessages(accountId, folder, uids);
-      return true;
-    },
+    resolve: (_root, { accountId, folder, uids }) => done(reader.deleteMessages(accountId, folder, uids)),
   }),
   linkMail: t.prismaField({
     type: 'MailMessage',
@@ -605,10 +564,7 @@ builder.mutationFields((t) => ({
   }),
   unlinkMail: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await linked.unlinkMail(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(linked.unlinkMail(id)),
   }),
   saveMailDraft: t.field({
     type: SavedDraft,
@@ -619,10 +575,7 @@ builder.mutationFields((t) => ({
   deleteMailDraft: t.boolean({
     description: 'Deletes a draft for good.',
     args: { location: t.arg({ type: MailLocationInput, required: true }) },
-    resolve: async (_root, { location }) => {
-      await drafts.deleteDraft(location.accountId, location.folder, location.uid);
-      return true;
-    },
+    resolve: (_root, { location }) => done(drafts.deleteDraft(location.accountId, location.folder, location.uid)),
   }),
   sendMail: t.idList({
     description: 'Sends a mail; returns the projects it was linked to.',

@@ -2,7 +2,7 @@ import { durationSchema, parseDay, timeDescriptionSchema, subtreeOf } from '@ord
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
  * Error attached to a form field.
@@ -89,8 +89,7 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
  * @returns {Promise<TimeEntry & { tasks: { id: string }[] }>} Time entry with its task ids.
  */
 async function findEntry(id: string) {
-  const entry = await prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } }, document: { select: { number: true, status: true } } } });
-  if (!entry) throw notFound('Temps');
+  const entry = await orNotFound(prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } }, document: { select: { number: true, status: true } } } }), 'Temps');
   return entry;
 }
 

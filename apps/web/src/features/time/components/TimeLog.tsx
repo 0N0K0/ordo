@@ -1,6 +1,7 @@
+import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
-import { entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
+import { collator, entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -25,16 +26,6 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
 
 /**
- * Local day of an instant, YYYY-MM-DD.
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-function dayKey(iso: string): string {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-}
-
-/**
  * Seconds of the finished times (a running timer counts once stopped).
  * @param {readonly TimeEntry[]} entries Times.
  * @returns {number} Seconds.
@@ -56,7 +47,7 @@ const within = (period: string): TableFilterGroup => ({ type: 'group', id: 'root
 function events(entries: readonly TimeEntry[]): { value: string; label: string }[] {
   const byId = new Map<string, string>();
   for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventTitle ?? 'Évènement');
-  return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => collator.compare(a.label, b.label));
 }
 
 /** Views made the first time the times are shown, by day: this week (opened first), this month, every time. */
@@ -85,7 +76,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       locked: true,
       sortValue: (entry) => entry.startedAt,
       text: (entry) => fmt.capitalize(fmt.dayLong(new Date(entry.startedAt))),
-      filter: { kind: 'date', value: (entry) => dayKey(entry.startedAt) },
+      filter: { kind: 'date', value: (entry) => localDay(entry.startedAt) },
       groupable: true,
     },
     {
@@ -93,7 +84,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       label: 'Mois',
       size: 140,
       hiddenByDefault: true,
-      sortValue: (entry) => dayKey(entry.startedAt).slice(0, 7),
+      sortValue: (entry) => localDay(entry.startedAt).slice(0, 7),
       text: (entry) => fmt.capitalize(fmt.month(new Date(entry.startedAt))),
       filter: false,
       groupable: true,

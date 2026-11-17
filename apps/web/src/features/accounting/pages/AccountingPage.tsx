@@ -1,3 +1,5 @@
+import { useSetParams } from '../../../lib/search-params';
+import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -162,9 +164,9 @@ function RecurringList() {
       selectionActions={(rows, clear) => [
         deleteRowsAction(rows, {
           title: 'Supprimer les factures récurrentes',
-          risks: `${rows.length} facture(s) récurrente(s) et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
+          risks: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
           remove: (item) => remove.mutateAsync(item.id),
-          done: `${rows.length} facture(s) récurrente(s) supprimée(s).`,
+          done: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} ${plural(rows.length, 'supprimée')}.`,
           clear,
         }),
       ]}
@@ -189,7 +191,7 @@ function RecurringList() {
                 )}
               </Group>
               <Text size="xs" c="dimmed">
-                {item.issuedCount} facture{item.issuedCount > 1 ? 's' : ''} émise{item.issuedCount > 1 ? 's' : ''}
+                {item.issuedCount} {plural(item.issuedCount, 'facture')} {plural(item.issuedCount, 'émise')}
               </Text>
             </>
           ),
@@ -232,16 +234,13 @@ function RecurringList() {
  * @returns {JSX.Element} Page.
  */
 export function AccountingPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   // Imported documents are now listed with their type.
   const tab = params.get('tab') && params.get('tab') !== 'imported' ? params.get('tab')! : 'QUOTE';
   // The old tab of the tracking statuses: its settings, in the sidebar.
   useEffect(() => {
-    if (params.get('tab') !== 'tracking') return;
-    const next = new URLSearchParams(params);
-    next.delete('tab');
-    next.set(SETTINGS_PARAM, '1');
-    setParams(next, { replace: true });
+    if (params.get('tab') === 'tracking') setParams({ tab: null, [SETTINGS_PARAM]: '1' });
   }, [params, setParams]);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
@@ -252,9 +251,7 @@ export function AccountingPage() {
     const asked = params.get('settingsTab');
     if (!asked) return;
     if (asked === 'zip' || asked === 'statuses' || asked === 'company') setSettingsTab(asked);
-    const next = new URLSearchParams(params);
-    next.delete('settingsTab');
-    setParams(next, { replace: true });
+    setParams({ settingsTab: null });
   }, [params, setParams, setSettingsTab]);
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
@@ -272,12 +269,7 @@ export function AccountingPage() {
    * @param {string | null} value Value; none removes it.
    * @returns {void}
    */
-  const setParam = (key: string, value: string | null) => {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setParams(next, { replace: true });
-  };
+  const setParam = (key: string, value: string | null) => setParams({ [key]: value });
 
   return (
     <Stack gap="lg">

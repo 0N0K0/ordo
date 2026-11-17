@@ -1,13 +1,18 @@
+import { TaskProgress } from './TaskProgress';
+import { SubSection } from '../../../components/page/SubSection';
+import { FormActions } from '../../../components/dialogs/FormActions';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Alert, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Progress, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
@@ -31,24 +36,6 @@ import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { removedLinksNote } from '../lib/bulk-label';
 
-/**
- * Property block of the side column.
- * @param {object} props Component props.
- * @param {string} props.label Property name.
- * @param {ReactNode} props.children Content.
- * @returns {JSX.Element} Block.
- */
-function Property({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={4}>
-      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-        {label}
-      </Text>
-      {children}
-    </Stack>
-  );
-}
-
 interface LinkListProps {
   label: string;
   tasks: Task[];
@@ -67,7 +54,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
   const [adding, setAdding] = useState(false);
   const linked = new Set(tasks.map((task) => task.id));
   return (
-    <Property label={label}>
+    <SubSection title={label}>
       {tasks.length === 0 && !adding && (
         <Text size="sm" c="dimmed">
           Aucune
@@ -105,7 +92,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
           Ajouter
         </Button>
       )}
-    </Property>
+    </SubSection>
   );
 }
 
@@ -278,9 +265,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         <Group gap="xs">
           <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
           {task.archived && (
-            <Badge color="gray" variant="light" leftSection={<ArchiveIcon aria-hidden />}>
-              Archivée
-            </Badge>
+            <ArchivedBadge feminine />
           )}
           <Anchor component={Link} to={`/projects/${task.projectId}`} size="sm">
             {context.projectLabel(task.projectId)}
@@ -323,18 +308,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                     autoFocus
                     onSubmitShortcut={() => save({ description: description || null }, () => setDescription(null))}
                   />
-                  <Group justify="flex-end" gap="xs">
-                    <Button variant="default" size="xs" onClick={() => setDescription(null)}>
-                      Annuler
-                    </Button>
-                    <Button
-                      size="xs"
-                      loading={updateTask.isPending}
-                      onClick={() => save({ description: description || null }, () => setDescription(null))}
-                    >
-                      Enregistrer
-                    </Button>
-                  </Group>
+                  <FormActions
+                    size="xs"
+                    onCancel={() => setDescription(null)}
+                    onSubmit={() => save({ description: description || null }, () => setDescription(null))}
+                    loading={updateTask.isPending}
+                  />
                 </Stack>
               )}
             </Stack>
@@ -364,7 +343,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               </Group>
               {subtasks.length > 0 ? (
                 <>
-                  <Progress value={(doneSubtasks / subtasks.length) * 100} size="sm" aria-label="Avancement des sous-tâches" />
+                  <TaskProgress done={doneSubtasks} total={subtasks.length} size="sm" label="Avancement des sous-tâches" />
                   {subtasks.map((subtask) => (
                     <TaskRef key={subtask.id} task={subtask} blocked={context.isBlocked(subtask)} />
                   ))}
@@ -554,9 +533,9 @@ export function TaskPanel() {
       ) : task && context ? (
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (
-        <Alert color="red" icon={<ErrorIcon />} title="Tâche introuvable">
+        <ErrorAlert title="Tâche introuvable">
           Cette tâche n’existe pas ou a été supprimée.
-        </Alert>
+        </ErrorAlert>
       )}
     </SidePanel>
   );

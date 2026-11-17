@@ -1,22 +1,8 @@
-import {
-  accountingDocumentInputSchema,
-  addDays,
-  computeTotals,
-  documentNumber,
-  dueDateForTerms,
-  fromCents,
-  formatDay,
-  formatMoney,
-  parseDay,
-  toCents,
-  type AccountingDocumentInput,
-  type AccountingDocumentType,
-  type AccountingLineInput,
-} from '@ordo/shared';
+import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, toCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { getCompanyProfile, usedCounter } from './company';
 import { scopeOf, statusOf } from './document-statuses';
@@ -52,7 +38,7 @@ export function lineInput(line: AccountingLine): AccountingLineInput {
  */
 export function documentTotals(document: DocumentWithLines) {
   return computeTotals({
-    lines: [...document.lines].sort((a, b) => a.position - b.position).map(lineInput),
+    lines: [...document.lines].sort(byPosition).map(lineInput),
     globalDiscountType: document.globalDiscountType,
     globalDiscountValue: document.globalDiscountValue === null ? null : Number(document.globalDiscountValue),
     vatApplicable: document.vatApplicable,
@@ -65,8 +51,7 @@ export function documentTotals(document: DocumentWithLines) {
  * @returns {Promise<DocumentWithLines>} Document.
  */
 export async function findDocument(id: string): Promise<DocumentWithLines> {
-  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } });
-  if (!document) throw notFound('Document');
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } }), 'Document');
   return document;
 }
 
@@ -91,7 +76,7 @@ function assertEditable(document: AccountingDocument): void {
  * @returns {Promise<void>}
  */
 async function assertParties({ clientId, serviceId, contactId, projectId }: { clientId: string; serviceId: string | null; contactId: string | null; projectId: string | null }) {
-  if (!(await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }))) throw notFound('Client');
+  await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
   const fieldError = (field: string, message: string) => clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
   if (serviceId && (await prisma.clientService.findUnique({ where: { id: serviceId } }))?.clientId !== clientId) {
     throw fieldError('serviceId', 'Ce service n’appartient pas au client.');
@@ -629,8 +614,8 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
   if (!imported) throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
   if (imported.type !== 'QUOTE') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
   if (!imported.clientId) throw clientError('BAD_USER_INPUT', 'Rattachez d’abord le devis importé à un client.');
-  const totalNet = Math.round(Number(imported.totalNet) * 100);
-  const totalVat = Math.round(Number(imported.totalVat) * 100);
+  const totalNet = toCents(Number(imported.totalNet));
+  const totalVat = toCents(Number(imported.totalVat));
   // The rate of the quote, from its totals, matched to the nearest usual rate.
   const rate = totalNet > 0 ? (totalVat / totalNet) * 100 : 0;
   const vatRate = VAT_RATES.reduce((best, item) => (Math.abs(item - rate) < Math.abs(best - rate) ? item : best), VAT_RATES[0]);
@@ -779,7 +764,7 @@ export async function deductibleDeposits(clientId: string, documentId: string | 
       const credit = line.document.type === 'CREDIT_NOTE';
       if (credit && line.document.status !== 'FINAL') continue;
       const rate = Number(line.vatRate);
-      const amount = Math.round(Number(line.quantity) * Number(line.unitPrice) * 100);
+      const amount = toCents(Number(line.quantity) * Number(line.unitPrice));
       left.set(rate, (left.get(rate) ?? 0) + (credit ? amount : -amount));
     }
     const remaining = [...left.entries()].filter(([, base]) => base > 0).map(([rate, base]) => ({ rate, base }));

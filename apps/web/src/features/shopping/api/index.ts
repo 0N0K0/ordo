@@ -1,7 +1,9 @@
+import { treasuryKey } from '../../treasury/api';
 import type { QueryClient } from '@tanstack/react-query';
-import { useInvalidatingMutation } from '../../../lib/mutation';
+import { reorderSettingsItems } from '../../../components/settings/settings-api';
+import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
 import type { ShoppingDataQuery, ShoppingListsQuery } from '../../../graphql/graphql';
@@ -170,23 +172,18 @@ const MoveCategory = graphql(`
   }
 `);
 const CreateUnit = graphql(`
-  mutation CreateShoppingUnit($input: ShoppingStoreInput!) {
+  mutation CreateShoppingUnit($input: NameColorInput!) {
     createShoppingUnit(input: $input)
   }
 `);
 const UpdateUnit = graphql(`
-  mutation UpdateShoppingUnit($id: ID!, $input: ShoppingStorePatch!) {
+  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {
     updateShoppingUnit(id: $id, input: $input)
   }
 `);
 const DeleteUnit = graphql(`
   mutation DeleteShoppingUnit($id: ID!) {
     deleteShoppingUnit(id: $id)
-  }
-`);
-const MoveUnit = graphql(`
-  mutation MoveShoppingUnit($id: ID!, $index: Int!) {
-    moveShoppingUnit(id: $id, index: $index)
   }
 `);
 const MoveProducts = graphql(`
@@ -196,12 +193,12 @@ const MoveProducts = graphql(`
 `);
 
 const CreateStorage = graphql(`
-  mutation CreateShoppingStorage($input: ShoppingStoreInput!) {
+  mutation CreateShoppingStorage($input: NameColorInput!) {
     createShoppingStorage(input: $input)
   }
 `);
 const UpdateStorage = graphql(`
-  mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {
+  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {
     updateShoppingStorage(id: $id, input: $input)
   }
 `);
@@ -210,34 +207,24 @@ const DeleteStorage = graphql(`
     deleteShoppingStorage(id: $id)
   }
 `);
-const MoveStorage = graphql(`
-  mutation MoveShoppingStorage($id: ID!, $index: Int!) {
-    moveShoppingStorage(id: $id, index: $index)
-  }
-`);
 const DuplicateItem = graphql(`
   mutation DuplicateShoppingItem($id: ID!) {
     duplicateShoppingItem(id: $id)
   }
 `);
 const CreateStore = graphql(`
-  mutation CreateShoppingStore($input: ShoppingStoreInput!) {
+  mutation CreateShoppingStore($input: NameColorInput!) {
     createShoppingStore(input: $input)
   }
 `);
 const UpdateStore = graphql(`
-  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {
+  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {
     updateShoppingStore(id: $id, input: $input)
   }
 `);
 const DeleteStore = graphql(`
   mutation DeleteShoppingStore($id: ID!) {
     deleteShoppingStore(id: $id)
-  }
-`);
-const MoveStore = graphql(`
-  mutation MoveShoppingStore($id: ID!, $index: Int!) {
-    moveShoppingStore(id: $id, index: $index)
   }
 `);
 const CreateBaseList = graphql(`
@@ -253,11 +240,6 @@ const RenameBaseList = graphql(`
 const DeleteBaseList = graphql(`
   mutation DeleteShoppingBaseList($id: ID!) {
     deleteShoppingBaseList(id: $id)
-  }
-`);
-const MoveBaseList = graphql(`
-  mutation MoveShoppingBaseList($id: ID!, $index: Int!) {
-    moveShoppingBaseList(id: $id, index: $index)
   }
 `);
 const CreateProduct = graphql(`
@@ -426,7 +408,6 @@ const cached = (input: ShoppingItemInput) => ({
  * @returns {object} Mutations.
  */
 export function useShoppingMutations() {
-  const queryClient = useQueryClient();
   return {
     createCategory: useShoppingMutation(async (input: ShoppingCategoryInput) => (await execute(CreateCategory, { input })).createShoppingCategory),
     updateCategory: useShoppingMutation(async (variables: { id: string; input: ShoppingCategoryInput }) => (await execute(UpdateCategory, variables)).updateShoppingCategory),
@@ -440,27 +421,23 @@ export function useShoppingMutations() {
     // A renamed or deleted unit changes the products and items in it: the lists are refreshed too.
     updateUnit: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateUnit, variables)).updateShoppingUnit),
     deleteUnit: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteUnit, { id })).deleteShoppingUnit),
-    moveUnit: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveUnit, variables)).moveShoppingUnit),
     moveProducts: useShoppingMutation(async (variables: { ids: string[]; baseListId: string }) => (await execute(MoveProducts, variables)).moveShoppingProducts),
     createStorage: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStorage, { input })).createShoppingStorage),
     updateStorage: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStorage, variables)).updateShoppingStorage),
     deleteStorage: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteStorage, { id })).deleteShoppingStorage),
-    moveStorage: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveStorage, variables)).moveShoppingStorage),
     createStore: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStore, { input })).createShoppingStore),
     updateStore: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStore, variables)).updateShoppingStore),
     deleteStore: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteStore, { id })).deleteShoppingStore),
-    moveStore: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveStore, variables)).moveShoppingStore),
     createBaseList: useShoppingMutation(async ({ name }: { name: string }) => (await execute(CreateBaseList, { name })).createShoppingBaseList),
     renameBaseList: useShoppingMutation(async (variables: { id: string; name: string }) => (await execute(RenameBaseList, variables)).renameShoppingBaseList),
     deleteBaseList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteBaseList, { id })).deleteShoppingBaseList),
     moveBaseList: useOptimisticMutation(
-      async (variables: { id: string; index: number }) => (await execute(MoveBaseList, variables)).moveShoppingBaseList,
+      // The new order of all the base lists (the list moved at its index), saved as the settings lists are.
+      (variables: { id: string; index: number; ids: string[] }) => reorderSettingsItems('SHOPPING_BASE_LIST', variables.ids),
       (client, { id, index }) =>
         client.setQueryData<ShoppingDataQuery>([...shoppingKey, 'data'], (data) => {
-          const moved = data?.shoppingBaseLists.find((baseList) => baseList.id === id);
-          if (!data || !moved) return data;
-          const order = data.shoppingBaseLists.filter((baseList) => baseList.id !== id);
-          order.splice(index, 0, moved);
+          const order = data && moveToIndex(data.shoppingBaseLists, id, index);
+          if (!data || !order) return data;
           return { ...data, shoppingBaseLists: order.map((baseList, position) => ({ ...baseList, position })) };
         }),
     ),
@@ -479,11 +456,9 @@ export function useShoppingMutations() {
     setClosed: useShoppingMutation(async (variables: { id: string; closed: boolean }) => (await execute(SetListClosed, variables)).setShoppingListClosed),
     duplicateList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DuplicateList, { id })).duplicateShoppingList),
     deleteList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteList, { id })).deleteShoppingList),
-    attachEntry: useShoppingMutation(async (variables: { id: string; entryId: string | null }) => {
-      const done = (await execute(AttachEntry, variables)).attachShoppingListEntry;
-      // The entry got lines of split.
-      await queryClient.invalidateQueries({ queryKey: ['accounting', 'treasury'] });
-      return done;
+    // The entry gets lines of split.
+    attachEntry: useInvalidatingMutation(async (variables: { id: string; entryId: string | null }) => (await execute(AttachEntry, variables)).attachShoppingListEntry, {
+      invalidate: [shoppingKey, treasuryKey],
     }),
     addItem: useShoppingMutation(async ({ listId, input }: { listId: string; input: ShoppingItemInput }) => (await execute(AddItem, { listId, input: itemVariables(input) })).addShoppingItem),
     addProducts: useShoppingMutation(async (variables: { listId: string; productIds: string[] }) => (await execute(AddProducts, variables)).addShoppingProducts),

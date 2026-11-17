@@ -1,3 +1,4 @@
+import { colorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { shoppingItemSchema } from './shopping';
@@ -44,7 +45,7 @@ export type SheetInput = z.infer<typeof sheetSchema>;
 /** Category of the sheets: a name and a color. */
 export const sheetCategorySchema = z.object({
   name: requiredText(60),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Couleur attendue (#RRGGBB).'),
+  color: colorSchema,
 });
 export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;
 

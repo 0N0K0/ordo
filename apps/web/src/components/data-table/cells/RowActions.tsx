@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Menu, Tooltip, type ActionIconProps } from '@mantine/core';
 import { DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -57,6 +57,12 @@ interface ActionsMenuProps {
   items: readonly RowMenuEntry[];
   /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
   target?: ReactNode;
+  /** In a clickable row (a folder, a search): its clicks stay in the menu. Optional. */
+  inRow?: boolean;
+  /** Size of the default button. Optional. */
+  size?: ActionIconProps['size'];
+  /** Something runs (an export): the default button spins. Optional. */
+  loading?: boolean;
 }
 
 /**
@@ -65,19 +71,19 @@ interface ActionsMenuProps {
  * @param {ActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu, nothing without action.
  */
-export function ActionsMenu({ name, items, target }: ActionsMenuProps) {
+export function ActionsMenu({ name, items, target, inRow = false, size, loading }: ActionsMenuProps) {
   const menu = menuEntries(items);
   if (menu.length === 0) return null;
   return (
     <Menu position="bottom-end" shadow="md" withinPortal>
       <Menu.Target>
         {target ?? (
-          <ActionIcon variant="subtle" color="gray" aria-label={`Actions de ${name}`}>
+          <ActionIcon variant="subtle" color="gray" size={size} loading={loading} aria-label={`Actions de ${name}`} onClick={inRow ? (event) => event.stopPropagation() : undefined}>
             <DotsThreeVerticalIcon weight="bold" aria-hidden />
           </ActionIcon>
         )}
       </Menu.Target>
-      <Menu.Dropdown>
+      <Menu.Dropdown onClick={inRow ? (event) => event.stopPropagation() : undefined}>
         {menu.map((item, index) =>
           item === 'divider' ? (
             <Menu.Divider key={`divider-${index}`} />
@@ -120,6 +126,34 @@ export function RowActions({ name, primary, items }: RowActionsProps) {
         </Tooltip>
       )}
       <ActionsMenu name={name} items={items} />
+    </Group>
+  );
+}
+
+interface InlineActionsProps {
+  /** What the actions are about (« Modifier … »). */
+  name: string;
+  /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators are left out. */
+  items: readonly RowMenuEntry[];
+}
+
+/**
+ * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere, a menu
+ * gathering them when there are many (`ActionsMenu`).
+ * @param {InlineActionsProps} props Component props.
+ * @returns {JSX.Element} Actions.
+ */
+export function InlineActions({ name, items }: InlineActionsProps) {
+  const actions = items.filter((item): item is RowAction => Boolean(item) && item !== 'divider');
+  return (
+    <Group gap={2} wrap="nowrap">
+      {actions.map((action) => (
+        <Tooltip key={action.label} label={action.hint ?? action.label}>
+          <ActionIcon variant="subtle" color={action.danger ? 'red' : 'gray'} aria-label={`${action.label} ${name}`} disabled={action.disabled} onClick={action.onClick} {...linkProps(action)}>
+            {action.icon}
+          </ActionIcon>
+        </Tooltip>
+      ))}
     </Group>
   );
 }

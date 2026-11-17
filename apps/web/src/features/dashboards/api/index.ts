@@ -1,5 +1,6 @@
+import { tasksQueryKey } from '../../tasks/api';
 import { useQuery } from '@tanstack/react-query';
-import { useInvalidatingMutation } from '../../../lib/mutation';
+import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import type { DashboardsQuery, SprintTaskStatusesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
@@ -31,7 +32,7 @@ const SprintTaskStatusesDocument = graphql(`
 export function useSprintTaskStatuses(today: string, enabled: boolean) {
   return useQuery({
     enabled,
-    queryKey: ['tasks', 'sprint-statuses', today],
+    queryKey: [...tasksQueryKey, 'sprint-statuses', today],
     queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [`${item.sprintId}|${item.taskId}`, item])),
   });
 }
@@ -156,13 +157,7 @@ export function useDashboardMutations() {
 function useMoveDashboard() {
   return useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveDashboard, variables)).moveDashboard, {
     invalidate: [dashboardsKey],
-    optimistic: (queryClient, { id, index }) =>
-      queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) => {
-        const moved = dashboards?.find((dashboard) => dashboard.id === id);
-        if (!dashboards || !moved) return dashboards;
-        const others = dashboards.filter((dashboard) => dashboard.id !== id);
-        return [...others.slice(0, index), moved, ...others.slice(index)];
-      }),
+    optimistic: (queryClient, { id, index }) => queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) => (dashboards && moveToIndex(dashboards, id, index)) ?? dashboards),
   });
 }
 
@@ -176,10 +171,8 @@ function useMoveChart() {
     optimistic: (queryClient, { id, index }) =>
       queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) =>
         dashboards?.map((dashboard) => {
-          const moved = dashboard.charts.find((chart) => chart.id === id);
-          if (!moved) return dashboard;
-          const others = dashboard.charts.filter((chart) => chart.id !== id);
-          return { ...dashboard, charts: [...others.slice(0, index), moved, ...others.slice(index)] };
+          const charts = moveToIndex(dashboard.charts, id, index);
+          return charts ? { ...dashboard, charts } : dashboard;
         }),
       ),
   });

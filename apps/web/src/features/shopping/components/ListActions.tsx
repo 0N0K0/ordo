@@ -1,9 +1,10 @@
+import { countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { shoppingListNameSchema } from '@ordo/shared';
+import { byPosition, shoppingListFormSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
@@ -22,7 +23,7 @@ import classes from './Shopping.module.css';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
-const listSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
+const listSchema = shoppingListFormSchema;
 
 /**
  * Name and tasks of a list.
@@ -153,7 +154,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
    */
   const rows = () =>
     shoppingRows(
-      [...list.items].sort((a, b) => a.position - b.position),
+      [...list.items].sort(byPosition),
       grouping,
       {
         categories: data?.shoppingCategories ?? [],
@@ -213,7 +214,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       icon: <TrashIcon aria-hidden />,
       danger: true,
       onClick: () =>
-        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
+        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
             mutations.deleteList.mutate(
               { id: list.id },
               {
