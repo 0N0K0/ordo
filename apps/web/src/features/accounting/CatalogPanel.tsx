@@ -2,7 +2,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { Badge, Button, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -23,8 +23,6 @@ import { useCommentCounts } from '../comments/api';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { commentColumn } from '../comments/comment-column';
-
-let modalCount = 0;
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
@@ -220,8 +218,7 @@ export function CatalogPanel() {
    * @returns {void}
    */
   const openForm = (item?: CatalogItem) => {
-    const modalId = `catalog-item-${++modalCount}`;
-    openPanel({ panelId: modalId, title: item ? 'Modifier l’article' : 'Nouvel article', children: <CatalogItemForm item={item} onDone={() => closePanel(modalId)} /> });
+    openFormPanel(item ? 'Modifier l’article' : 'Nouvel article', (close) => <CatalogItemForm item={item} onDone={close} />);
   };
 
   /**

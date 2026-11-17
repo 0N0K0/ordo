@@ -1,9 +1,7 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { TaskContext } from '../tasks/use-task-context';
 import { AlarmForm, type AlarmDefaults } from './AlarmForm';
 import type { Alarm } from './api';
-
-let modalCount = 0;
 
 /** Opens the alarm form: a new alarm (optionally pre-filled), an alarm to edit, or one to copy into a new one. */
 export type AlarmFormOpener = (alarm?: Alarm, options?: { copy?: boolean; defaults?: AlarmDefaults }) => void;
@@ -17,11 +15,8 @@ export type AlarmFormOpener = (alarm?: Alarm, options?: { copy?: boolean; defaul
 export function useAlarmForm(context: TaskContext | null): AlarmFormOpener {
   return (alarm, { copy = false, defaults } = {}) => {
     if (!context) return;
-    const modalId = `alarm-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: copy ? 'Dupliquer l’alarme' : alarm ? 'Modifier l’alarme' : 'Nouvelle alarme',
-      children: <AlarmForm context={context} alarm={alarm} copy={copy} defaults={defaults} onDone={() => closePanel(modalId)} />,
-    });
+    openFormPanel(copy ? 'Dupliquer l’alarme' : alarm ? 'Modifier l’alarme' : 'Nouvelle alarme', (close) => (
+      <AlarmForm context={context} alarm={alarm} copy={copy} defaults={defaults} onDone={close} />
+    ));
   };
 }

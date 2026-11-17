@@ -2,15 +2,13 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
 import { FileLink } from '../files/FileLink';
-
-let modalCount = 0;
 
 /**
  * Icon of a link, from its site.
@@ -82,8 +80,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const openForm = (resource?: ProjectResource) => {
-    const modalId = `project-resource-${++modalCount}`;
-    openPanel({ panelId: modalId, title: resource ? 'Modifier' : 'Ajouter un lien', children: <ResourceForm projectId={projectId} resource={resource} onDone={() => closePanel(modalId)} /> });
+    openFormPanel(resource ? 'Modifier' : 'Ajouter un lien', (close) => <ResourceForm projectId={projectId} resource={resource} onDone={close} />);
   };
 
   /**

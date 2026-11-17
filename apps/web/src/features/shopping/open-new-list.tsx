@@ -1,4 +1,4 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { NewListForm } from './NewListForm';
 
 /**
@@ -7,10 +7,5 @@ import { NewListForm } from './NewListForm';
  * @returns {void}
  */
 export function openNewList({ baseListIds = [], taskIds = [], projectIds }: { baseListIds?: string[]; taskIds?: string[]; projectIds?: ReadonlySet<string> } = {}): void {
-  const modalId = 'new-shopping-list';
-  openPanel({
-    panelId: modalId,
-    title: 'Nouvelle liste',
-    children: <NewListForm baseListIds={baseListIds} taskIds={taskIds} projectIds={projectIds} onDone={() => closePanel(modalId)} />,
-  });
+  openFormPanel('Nouvelle liste', (close) => <NewListForm baseListIds={baseListIds} taskIds={taskIds} projectIds={projectIds} onDone={close} />, { panelId: 'new-shopping-list' });
 }

@@ -62,6 +62,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Le constat :** 30 fichiers gardent leur propre compteur (`let modalCount = 0`) avec `openPanel` et `closePanel`, alors que `openFormPanel` existe. Une quinzaine d'entre eux sont des fichiers de 15 à 20 lignes qui ne font qu'ouvrir un panneau.
 - **Cible :** `openFormPanel` partout, et son équivalent pour les fenêtres, `openModal`.
 
+**Fait** : `openFormPanel` (options : largeur, verrouillage, action à la fermeture, identifiant fixe pour un panneau qui se remplace) et `openModal` (`components/panels/open-modal.ts`) ouvrent tous les panneaux et toutes les fenêtres ; plus aucun compteur propre à un fichier. `confirmDestructive` reste la confirmation des actions destructives. Corrigé au passage : le panneau du nom d'un tableau de bord ne se fermait pas à l'enregistrement (il était fermé comme une fenêtre).
+
 ### 7. Boutons de bas de formulaire
 
 - **Le constat :** « Annuler » et le bouton d'envoi, alignés à droite, sont écrits à la main dans environ 45 formulaires, avec des écarts qui varient.

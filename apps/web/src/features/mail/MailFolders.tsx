@@ -1,6 +1,6 @@
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
@@ -44,8 +44,6 @@ interface SelectedFolder {
   accountId: string;
   folder: string;
 }
-
-let modalCount = 0;
 
 /**
  * Name of a folder to create or rename.
@@ -134,45 +132,40 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askMove = (folder: { path: string; name: string }) => {
-    const modalId = `mail-folder-${++modalCount}`;
     const choices = (folders ?? []).filter((item) => item.path !== folder.path && !within(item.path, folder.path));
-    openPanel({
-      panelId: modalId,
-      title: `Déplacer « ${folder.name} »`,
-      children: (
-        <Stack gap="xs">
-          <Text size="sm" c="dimmed">
-            Le dossier, ses sous-dossiers et leurs mails changent de place.
-          </Text>
+    openFormPanel(`Déplacer « ${folder.name} »`, (close) => (
+      <Stack gap="xs">
+        <Text size="sm" c="dimmed">
+          Le dossier, ses sous-dossiers et leurs mails changent de place.
+        </Text>
+        <Button
+          variant="default"
+          justify="flex-start"
+          leftSection={<FolderIcon aria-hidden />}
+          onClick={() => {
+            close();
+            placeFolder(folder, null);
+          }}
+        >
+          Premier niveau
+        </Button>
+        {choices.map((item) => (
           <Button
-            variant="default"
+            key={item.path}
+            variant="subtle"
             justify="flex-start"
             leftSection={<FolderIcon aria-hidden />}
+            style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.depth} * var(--mantine-spacing-md))` }}
             onClick={() => {
-              closePanel(modalId);
-              placeFolder(folder, null);
+              close();
+              placeFolder(folder, item.path);
             }}
           >
-            Premier niveau
+            {item.name}
           </Button>
-          {choices.map((item) => (
-            <Button
-              key={item.path}
-              variant="subtle"
-              justify="flex-start"
-              leftSection={<FolderIcon aria-hidden />}
-              style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.depth} * var(--mantine-spacing-md))` }}
-              onClick={() => {
-                closePanel(modalId);
-                placeFolder(folder, item.path);
-              }}
-            >
-              {item.name}
-            </Button>
-          ))}
-        </Stack>
-      ),
-    });
+        ))}
+      </Stack>
+    ));
   };
   const { move } = useMailActions();
   const [over, setOver] = useState<string | null>(null);
@@ -207,19 +200,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askCreate = (parent: string | null) => {
-    const modalId = `mail-folder-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: parent ? 'Nouveau sous-dossier' : 'Nouveau dossier',
-      children: (
-        <FolderNameForm
-          initial=""
-          label="Créer"
-          onDone={() => closePanel(modalId)}
-          onSubmit={(name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.'))}
-        />
-      ),
-    });
+    openFormPanel(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', (close) => (
+      <FolderNameForm initial="" label="Créer" onDone={close} onSubmit={(name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.'))} />
+    ));
   };
 
   /**
@@ -228,24 +211,19 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askRename = (folder: { path: string; name: string }) => {
-    const modalId = `mail-folder-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: 'Renommer le dossier',
-      children: (
-        <FolderNameForm
-          initial={folder.name}
-          label="Renommer"
-          onDone={() => closePanel(modalId)}
-          onSubmit={(name) =>
-            rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
-              notifySuccess('Dossier renommé.');
-              if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
-            })
-          }
-        />
-      ),
-    });
+    openFormPanel('Renommer le dossier', (close) => (
+      <FolderNameForm
+        initial={folder.name}
+        label="Renommer"
+        onDone={close}
+        onSubmit={(name) =>
+          rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
+            notifySuccess('Dossier renommé.');
+            if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+          })
+        }
+      />
+    ));
   };
 
   /**

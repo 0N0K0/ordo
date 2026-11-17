@@ -1,5 +1,6 @@
 import { openFormPanel } from '../../components/panels/panels';
-import { modals } from '@mantine/modals';
+import { openModal } from '../../components/panels/open-modal';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { notifyWithUndo, onMutationError } from '../../lib/notify';
@@ -17,21 +18,6 @@ export type EntityRef = { type: 'client'; item: Client } | { type: 'project'; it
  */
 export function entityLabel(entity: EntityRef): string {
   return entity.type === 'client' ? entity.item.name : entity.item.title;
-}
-
-let modalCount = 0;
-
-/**
- * Opens a dialog (confirmations: the forms open in the side panel) whose content receives a close callback.
- * @param {string} title Modal title.
- * @param {(close: () => void) => JSX.Element} render Modal content.
- * @param {string} [size] Modal size. Optional.
- * @returns {void}
- */
-function openDialog(title: string, render: (close: () => void) => React.ReactNode, size?: string): void {
-  const modalId = `workspace-modal-${++modalCount}`;
-  const close = () => modals.close(modalId);
-  modals.open({ modalId, title, size, children: render(close) });
 }
 
 /**
@@ -153,7 +139,7 @@ export function useEntityActions() {
       if (entity.type === 'client') {
         const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
         const projectCount = workspace?.projects.filter((project) => project.clientId === entity.item.id).length ?? 0;
-        openDialog('Supprimer le client', (close) => (
+        openModal('Supprimer le client', (close) => (
           <DeleteClientDialog
             client={entity.item}
             projectCount={projectCount}
@@ -166,7 +152,7 @@ export function useEntityActions() {
       } else {
         const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
         const subProjectCount = workspace ? descendantIds(workspace.projects, entity.item.id).size : 0;
-        openDialog('Supprimer le projet', (close) => (
+        openModal('Supprimer le projet', (close) => (
           <DeleteProjectDialog
             project={entity.item}
             subProjectCount={subProjectCount}

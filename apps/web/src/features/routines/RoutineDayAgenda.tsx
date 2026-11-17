@@ -1,4 +1,4 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -275,12 +275,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const item: HistoryItem | undefined = event.extendedProps.item;
     if (!item) return;
     const routine = byId.get(item.routineId);
-    const modalId = `routine-tick-${item.key}`;
-    openPanel({
-      panelId: modalId,
-      title: routine?.title ?? 'Routine supprimée',
-      children: <TickForm item={item} routine={routine} today={today} onDone={() => closePanel(modalId)} />,
-    });
+    openFormPanel(routine?.title ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
   };
 
   return (

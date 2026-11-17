@@ -1,7 +1,8 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { openModal } from '../../components/panels/open-modal';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { Alert, Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
-import { modals } from '@mantine/modals';
+
 import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -110,51 +111,46 @@ export function OverdueInvoicesPanel() {
   const confirmSend = () => {
     if (!account || chosen.length === 0) return;
     const from = accounts?.find((item) => item.id === account);
-    const modalId = 'send-reminders';
-    modals.open({
-      modalId,
-      title: `Relancer ${countOf(chosen.length, 'facture')}`,
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
-            {chosen.length} mail{chosen.length > 1 ? 's partiront' : ' partira'} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture.
-          </Text>
-          <Stack gap={2}>
-            {chosen.map((invoice) => (
-              <Text key={invoice.id} size="xs" c="dimmed">
-                {invoice.number} — {invoice.clientName} → {invoice.billingEmail}
-              </Text>
-            ))}
-          </Stack>
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={() => modals.close(modalId)}>
-              Annuler
-            </Button>
-            <Button
-              leftSection={<PaperPlaneTiltIcon aria-hidden />}
-              onClick={() => {
-                modals.close(modalId);
-                sendReminders.mutate(
-                  { accountId: account, documentIds: chosen.map((invoice) => invoice.id) },
-                  {
-                    onSuccess: (results) => {
-                      const sent = results.filter((result) => !result.error);
-                      const failed = results.filter((result) => result.error);
-                      if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
-                      if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
-                      setSelected(new Set(failed.map((result) => result.documentId)));
-                    },
-                    onError: onMutationError,
-                  },
-                );
-              }}
-            >
-              Envoyer
-            </Button>
-          </Group>
+    openModal(`Relancer ${countOf(chosen.length, 'facture')}`, (close) => (
+      <Stack gap="md">
+        <Text size="sm">
+          {chosen.length} mail{chosen.length > 1 ? 's partiront' : ' partira'} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture.
+        </Text>
+        <Stack gap={2}>
+          {chosen.map((invoice) => (
+            <Text key={invoice.id} size="xs" c="dimmed">
+              {invoice.number} — {invoice.clientName} → {invoice.billingEmail}
+            </Text>
+          ))}
         </Stack>
-      ),
-    });
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={close}>
+            Annuler
+          </Button>
+          <Button
+            leftSection={<PaperPlaneTiltIcon aria-hidden />}
+            onClick={() => {
+              close();
+              sendReminders.mutate(
+                { accountId: account, documentIds: chosen.map((invoice) => invoice.id) },
+                {
+                  onSuccess: (results) => {
+                    const sent = results.filter((result) => !result.error);
+                    const failed = results.filter((result) => result.error);
+                    if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
+                    if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
+                    setSelected(new Set(failed.map((result) => result.documentId)));
+                  },
+                  onError: onMutationError,
+                },
+              );
+            }}
+          >
+            Envoyer
+          </Button>
+        </Group>
+      </Stack>
+    ));
   };
 
   if (isPending) return <TableSkeleton rows={4} />;

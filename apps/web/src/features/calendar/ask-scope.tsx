@@ -1,11 +1,10 @@
 import { Modal } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { openModal } from '../../components/panels/open-modal';
+
 import { useRef, useState } from 'react';
 import type { CalendarEventScope } from './api';
 import { ScopeChoices, type ScopeQuestion } from './ScopeChoices';
 import { scopeTitle } from './scope-title';
-
-let modalCount = 0;
 
 /**
  * Asks which occurrences of a recurring event a change applies to, in a modal of the modal manager.
@@ -16,23 +15,21 @@ let modalCount = 0;
  */
 export function askScope(question: ScopeQuestion): Promise<CalendarEventScope | null> {
   return new Promise((resolve) => {
-    const modalId = `event-scope-${++modalCount}`;
     let answered = false;
-    modals.open({
-      modalId,
-      title: question.title ?? scopeTitle(question.action),
-      onClose: () => !answered && resolve(null),
-      children: (
+    openModal(
+      question.title ?? scopeTitle(question.action),
+      (close) => (
         <ScopeChoices
           {...question}
           onAnswer={(scope) => {
             answered = true;
-            modals.close(modalId);
+            close();
             resolve(scope);
           }}
         />
       ),
-    });
+      { onClose: () => !answered && resolve(null) },
+    );
   });
 }
 

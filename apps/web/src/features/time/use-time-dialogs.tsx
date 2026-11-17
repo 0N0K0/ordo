@@ -1,13 +1,11 @@
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { Text } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry } from './api';
 import { TimeEntryForm } from './TimeEntryForm';
-
-let modalCount = 0;
 
 /**
  * Dialogs of the tracked times: the form adding or editing one, and the confirmation of a deletion.
@@ -26,12 +24,9 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
    */
   const openForm = (entry?: TimeEntry, { copy = false }: { copy?: boolean } = {}) => {
     if (!context) return;
-    const modalId = `time-entry-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: copy ? 'Dupliquer le temps' : entry ? 'Modifier le temps' : 'Ajouter un temps',
-      children: <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={() => closePanel(modalId)} />,
-    });
+    openFormPanel(copy ? 'Dupliquer le temps' : entry ? 'Modifier le temps' : 'Ajouter un temps', (close) => (
+      <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={close} />
+    ));
   };
 
   /**

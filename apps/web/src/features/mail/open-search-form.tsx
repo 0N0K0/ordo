@@ -1,9 +1,7 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { MailSearchCriteria } from '@ordo/shared';
 import type { MailSearch } from './api';
 import { MailSearchForm } from './MailSearchForm';
-
-let modalCount = 0;
 
 /**
  * Opens the form of a search folder.
@@ -13,19 +11,14 @@ let modalCount = 0;
  * @returns {void}
  */
 export function openSearchForm(search: MailSearch | undefined, onCreated?: (id: string) => void, initial?: MailSearchCriteria): void {
-  const modalId = `mail-search-${++modalCount}`;
-  openPanel({
-    panelId: modalId,
-    title: search ? 'Modifier le dossier de recherche' : 'Nouveau dossier de recherche',
-    children: (
-      <MailSearchForm
-        search={search}
-        initial={initial}
-        onDone={(id) => {
-          closePanel(modalId);
-          if (id) onCreated?.(id);
-        }}
-      />
-    ),
-  });
+  openFormPanel(search ? 'Modifier le dossier de recherche' : 'Nouveau dossier de recherche', (close) => (
+    <MailSearchForm
+      search={search}
+      initial={initial}
+      onDone={(id) => {
+        close();
+        if (id) onCreated?.(id);
+      }}
+    />
+  ));
 }

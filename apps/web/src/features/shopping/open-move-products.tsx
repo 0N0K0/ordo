@@ -1,8 +1,6 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { ShoppingBaseList } from './api';
 import { MoveProductsForm } from './MoveProductsForm';
-
-let panelCount = 0;
 
 /**
  * Opens, in the side panel, the form moving products of a base list to another one.
@@ -11,10 +9,5 @@ let panelCount = 0;
  * @returns {void}
  */
 export function openMoveProducts(baseList: ShoppingBaseList, productIds: string[] = []): void {
-  const panelId = `move-products-${++panelCount}`;
-  openPanel({
-    panelId,
-    title: 'Déplacer vers une autre référence',
-    children: <MoveProductsForm baseList={baseList} productIds={productIds} onDone={() => closePanel(panelId)} />,
-  });
+  openFormPanel('Déplacer vers une autre référence', (close) => <MoveProductsForm baseList={baseList} productIds={productIds} onDone={close} />);
 }

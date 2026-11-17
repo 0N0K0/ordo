@@ -1,5 +1,6 @@
-import { closePanel, openPanel } from '../../../components/panels/panels';
-import { modals } from '@mantine/modals';
+import { openFormPanel } from '../../../components/panels/panels';
+import { openModal } from '../../../components/panels/open-modal';
+
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import type { SelectionAction } from '../../../components/data-table/SelectionBar';
@@ -9,9 +10,6 @@ import { useBulkUndo } from './bulk-undo';
 import { BulkDeleteDialog, BulkTransferDialog, CloneTasksDialog, type DialogProps } from './BulkDialogs';
 import { switchRowsAction } from '../../../components/data-table/selection-actions';
 import { tasksLabel } from './bulk-label';
-
-
-let modalCount = 0;
 
 /**
  * Actions on the checked tasks that their columns cannot do, for the bar of the table: close (or reopen), clone,
@@ -37,9 +35,12 @@ export function useTaskSelectionActions(context: TaskContext | null) {
    * @returns {void}
    */
   const openDialog = (title: string, Dialog: (props: DialogProps) => ReactNode, asForm = false) => {
-    const modalId = `bulk-${++modalCount}`;
-    const close = () => (asForm ? closePanel(modalId) : modals.close(modalId));
-    const children = (
+    /**
+     * Content of the dialog, given its closing.
+     * @param {() => void} close Closes it.
+     * @returns {ReactNode} Content.
+     */
+    const render = (close: () => void) => (
       <Dialog
         tasks={tasks}
         context={context!}
@@ -49,8 +50,8 @@ export function useTaskSelectionActions(context: TaskContext | null) {
         }}
       />
     );
-    if (asForm) openPanel({ panelId: modalId, title, children });
-    else modals.open({ modalId, title, children });
+    if (asForm) openFormPanel(title, render);
+    else openModal(title, render);
   };
 
   return [

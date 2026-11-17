@@ -6,7 +6,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -83,13 +83,11 @@ export function BaseLists() {
    * @returns {void}
    */
   const openForm = (baseList?: ShoppingBaseList) => {
-    const modalId = 'shopping-base-list';
     // Id of the list created, selected once the form closes.
     let created: string | null = null;
-    openPanel({
-      panelId: modalId,
-      title: baseList ? 'Modifier la référence' : 'Nouvelle référence',
-      children: (
+    openFormPanel(
+      baseList ? 'Modifier la référence' : 'Nouvelle référence',
+      (close) => (
         <SettingsItemForm<ShoppingBaseList>
           kind="SHOPPING_BASE_LIST"
           item={baseList}
@@ -101,12 +99,13 @@ export function BaseLists() {
           }}
           update={(id, { name }) => mutations.renameBaseList.mutateAsync({ id, name })}
           onDone={() => {
-            closePanel(modalId);
+            close();
             if (created) select(created);
           }}
         />
       ),
-    });
+      { panelId: 'shopping-base-list' },
+    );
   };
 
   /**

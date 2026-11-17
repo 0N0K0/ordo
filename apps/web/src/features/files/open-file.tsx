@@ -1,5 +1,6 @@
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { openModal } from '../../components/panels/open-modal';
+
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
 import type { MouseEvent } from 'react';
 import { FilePreview } from './FilePreview';
@@ -16,25 +17,23 @@ export function openFile(file: { url: string; name: string; mimeType?: string | 
     window.location.href = downloadUrl(file.url);
     return;
   }
-  modals.open({
-    title: (
-      <Group gap="xs" wrap="nowrap">
-        <span>{file.name}</span>
-        <Tooltip label="Ouvrir dans un nouvel onglet">
-          <ActionIcon component="a" href={file.url} target="_blank" rel="noopener" variant="subtle" color="gray" aria-label="Ouvrir dans un nouvel onglet">
-            <ArrowSquareOutIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Télécharger">
-          <ActionIcon component="a" href={downloadUrl(file.url)} variant="subtle" color="gray" aria-label={`Télécharger ${file.name}`}>
-            <DownloadSimpleIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-    ),
-    size: kind === 'pdf' ? '64rem' : 'xl',
-    children: <FilePreview url={file.url} name={file.name} kind={kind} />,
-  });
+  openModal(
+    <Group gap="xs" wrap="nowrap">
+      <span>{file.name}</span>
+      <Tooltip label="Ouvrir dans un nouvel onglet">
+        <ActionIcon component="a" href={file.url} target="_blank" rel="noopener" variant="subtle" color="gray" aria-label="Ouvrir dans un nouvel onglet">
+          <ArrowSquareOutIcon aria-hidden />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label="Télécharger">
+        <ActionIcon component="a" href={downloadUrl(file.url)} variant="subtle" color="gray" aria-label={`Télécharger ${file.name}`}>
+          <DownloadSimpleIcon aria-hidden />
+        </ActionIcon>
+      </Tooltip>
+    </Group>,
+    () => <FilePreview url={file.url} name={file.name} kind={kind} />,
+    { size: kind === 'pdf' ? '64rem' : 'xl' },
+  );
 }
 
 /**

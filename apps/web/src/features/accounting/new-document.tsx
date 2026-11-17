@@ -1,10 +1,8 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { DepositInvoiceForm } from './DepositInvoiceForm';
 import { NEW_DOCUMENT_TITLES } from './labels';
 import { NewDocumentForm } from './NewDocumentForm';
-
-let modalCount = 0;
 
 /**
  * Opens the deposit invoice form, from a quote (of Ordo or imported) or choosing one.
@@ -12,8 +10,7 @@ let modalCount = 0;
  * @returns {void}
  */
 export function openDepositForm(preset: { quoteId?: string; importedQuoteId?: string; clientId?: string | null } = {}): void {
-  const modalId = `new-deposit-${++modalCount}`;
-  openPanel({ panelId: modalId, title: NEW_DOCUMENT_TITLES.DEPOSIT_INVOICE, children: <DepositInvoiceForm {...preset} onDone={() => closePanel(modalId)} /> });
+  openFormPanel(NEW_DOCUMENT_TITLES.DEPOSIT_INVOICE, (close) => <DepositInvoiceForm {...preset} onDone={close} />);
 }
 
 /**
@@ -27,10 +24,5 @@ export function openNewDocument(type: AccountingDocumentType, preset: { clientId
     openDepositForm({ clientId: preset.clientId });
     return;
   }
-  const modalId = `new-document-${++modalCount}`;
-  openPanel({
-    panelId: modalId,
-    title: NEW_DOCUMENT_TITLES[type],
-    children: <NewDocumentForm type={type} {...preset} onDone={() => closePanel(modalId)} />,
-  });
+  openFormPanel(NEW_DOCUMENT_TITLES[type], (close) => <NewDocumentForm type={type} {...preset} onDone={close} />);
 }

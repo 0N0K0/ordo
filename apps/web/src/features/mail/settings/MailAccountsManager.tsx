@@ -1,15 +1,14 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { openModal } from '../../../components/panels/open-modal';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
-
-let modalCount = 0;
 
 /**
  * Settings of the mail accounts: add, edit, signature, remove.
@@ -26,8 +25,7 @@ export function MailAccountsManager() {
    * @returns {void}
    */
   const open = (title: string, render: (close: () => void) => React.ReactNode) => {
-    const modalId = `mail-account-${++modalCount}`;
-    modals.open({ modalId, title, size: 'xl', children: render(() => modals.close(modalId)) });
+    openModal(title, render, { size: 'xl' });
   };
 
   /**

@@ -1,7 +1,5 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ShoppingForm, type ShoppingFormProps } from './ShoppingForm';
-
-let modalCount = 0;
 
 /**
  * Opens the form of a product of a base list or of an item of a list.
@@ -9,11 +7,8 @@ let modalCount = 0;
  * @returns {void}
  */
 export function openShoppingForm(target: ShoppingFormProps['target']): void {
-  const modalId = `shopping-form-${++modalCount}`;
   const editing = target.kind === 'product' ? target.product : target.item;
-  openPanel({
-    panelId: modalId,
-    title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors références',
-    children: <ShoppingForm target={target} onDone={() => closePanel(modalId)} />,
-  });
+  openFormPanel(target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors références', (close) => (
+    <ShoppingForm target={target} onDone={close} />
+  ));
 }

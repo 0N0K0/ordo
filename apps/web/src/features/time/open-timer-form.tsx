@@ -1,4 +1,4 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { TaskContext } from '../tasks/use-task-context';
 import { TimerStartForm } from './TimerCard';
 
@@ -9,10 +9,5 @@ import { TimerStartForm } from './TimerCard';
  * @returns {void}
  */
 export function openTimerForm(context: TaskContext, defaultProjectId?: string): void {
-  const modalId = 'new-timer';
-  openPanel({
-    panelId: modalId,
-    title: 'Nouveau chrono',
-    children: <TimerStartForm context={context} defaultProjectId={defaultProjectId} popover onStarted={() => closePanel(modalId)} />,
-  });
+  openFormPanel('Nouveau chrono', (close) => <TimerStartForm context={context} defaultProjectId={defaultProjectId} popover onStarted={close} />, { panelId: 'new-timer' });
 }

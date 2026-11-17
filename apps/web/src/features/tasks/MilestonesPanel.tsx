@@ -1,7 +1,7 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -84,8 +84,6 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   );
 }
 
-let modalCount = 0;
-
 interface SortableMilestoneProps {
   milestone: Milestone;
   /** Whether it can be dragged (manual order only). */
@@ -164,12 +162,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const openForm = (milestone?: Milestone) => {
-    const modalId = `milestone-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: milestone ? 'Modifier le jalon' : 'Nouveau jalon',
-      children: <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={() => closePanel(modalId)} />,
-    });
+    openFormPanel(milestone ? 'Modifier le jalon' : 'Nouveau jalon', (close) => <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={close} />);
   };
 
   /**

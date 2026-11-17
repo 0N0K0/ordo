@@ -1,7 +1,7 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
@@ -80,8 +80,6 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
   );
 }
 
-let modalCount = 0;
-
 /**
  * Sprints of a project: dates, state (coming, running, over), progress of their tasks in number and effort,
  * goal; create, edit, delete. A new sprint follows the last one, for as long.
@@ -106,12 +104,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     const length = last ? Math.round((Date.parse(String(last.endDate)) - Date.parse(String(last.startDate))) / 86_400_000) : 13;
     const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
-    const modalId = `sprint-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: sprint ? 'Modifier le sprint' : 'Nouveau sprint',
-      children: <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={() => closePanel(modalId)} />,
-    });
+    openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
   };
 
   /**

@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { openModal } from '../../components/panels/open-modal';
 import { openFormPanel } from '../../components/panels/panels';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { RowMenuEntry } from '../../components/data-table/RowActions';
@@ -8,19 +8,6 @@ import { TaskCreateForm } from './TaskCreateForm';
 import { DeleteTaskDialog, TransferTaskDialog } from './TaskDialogs';
 import { CloneTasksDialog } from './views/BulkDialogs';
 import { taskName, type TaskContext } from './use-task-context';
-
-let modalCount = 0;
-
-/**
- * Opens a dialog (a confirmation: the forms open in the side panel) whose content receives a close callback.
- * @param {string} title Dialog title.
- * @param {(close: () => void) => React.ReactNode} render Dialog content.
- * @returns {void}
- */
-function openDialog(title: string, render: (close: () => void) => React.ReactNode): void {
-  const modalId = `task-dialog-${++modalCount}`;
-  modals.open({ modalId, title, children: render(() => modals.close(modalId)) });
-}
 
 /**
  * Actions available on tasks (table, detail panel).
@@ -70,7 +57,7 @@ export function useTaskActions(context: TaskContext | null) {
    * @param {Task} task Task.
    * @returns {void}
    */
-  const remove = (task: Task) => context && openDialog('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />);
+  const remove = (task: Task) => context && openModal('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />);
 
   return {
     archive,

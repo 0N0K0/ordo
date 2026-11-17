@@ -1,10 +1,11 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { openModal } from '../../components/panels/open-modal';
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { modals } from '@mantine/modals';
+
 import { accountingDocumentInputSchema, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type AccountingDocumentInput, type AccountingLineInput } from '@ordo/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
@@ -156,11 +157,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmFinalize = () => {
-    const modalId = `finalize-${document.id}`;
-    modals.open({
-      modalId,
-      title: `Valider ${isQuote ? 'le devis' : document.type === 'CREDIT_NOTE' ? 'l’avoir' : 'la facture'}`,
-      children: (
+    openModal(`Valider ${isQuote ? 'le devis' : document.type === 'CREDIT_NOTE' ? 'l’avoir' : 'la facture'}`, (close) => (
         <Stack gap="md">
           <Text size="sm">
             Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un
@@ -171,7 +168,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             <Button
               leftSection={<SealCheckIcon aria-hidden />}
               onClick={() => {
-                modals.close(modalId);
+                close();
                 save(() =>
                   void mutations.finalize
                     .mutateAsync(document.id)
@@ -182,13 +179,12 @@ function Editor({ document }: { document: AccountingDocument }) {
             >
               Valider
             </Button>
-            <Button variant="default" onClick={() => modals.close(modalId)}>
+            <Button variant="default" onClick={close}>
               Annuler
             </Button>
           </Group>
         </Stack>
-      ),
-    });
+      ));
   };
 
   /**
@@ -269,11 +265,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const openTimeBilling = () => {
-    const modalId = `time-billing-${document.id}`;
-    openPanel({
-      panelId: modalId,
-      title: 'Facturer le temps passé',
-      size: 'lg', children: (
+    openFormPanel('Facturer le temps passé', (close) => (
         <TimeBillingForm
           projectId={values.projectId}
           projects={projectOptions(
@@ -284,9 +276,9 @@ function Editor({ document }: { document: AccountingDocument }) {
           start={values.serviceStart}
           end={values.serviceEnd}
           vatApplicable={values.vatApplicable}
-          onCancel={() => closePanel(modalId)}
+          onCancel={close}
           onAdd={(lines: AccountingLineInput[], time, period) => {
-            closePanel(modalId);
+            close();
             setTimeSeconds((current) => new Map([...current, ...time.map((entry) => [entry.id, entry.seconds] as const)]));
             form.setValues({
               lines: [...values.lines, ...lines],
@@ -297,8 +289,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             notifySuccess(`${countOf(lines.length, 'ligne')} ${plural(lines.length, 'ajoutée')} : enregistrez le brouillon.`);
           }}
         />
-      ),
-    });
+      ), { size: 'lg', panelId: `time-billing-${document.id}` });
   };
 
   const clients = (workspace?.clients ?? []).filter((item) => !item.archived || item.id === values.clientId);

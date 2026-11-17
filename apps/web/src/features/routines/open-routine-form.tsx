@@ -1,7 +1,5 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { RoutineForm, type RoutineFormProps } from './RoutineForm';
-
-let modalCount = 0;
 
 /**
  * Opens the routine form in the side panel.
@@ -9,12 +7,10 @@ let modalCount = 0;
  * @returns {void}
  */
 export function openRoutineForm(props: Omit<RoutineFormProps, 'onDone'> = {}): void {
-  const modalId = `routine-${++modalCount}`;
-  openPanel({
-    panelId: modalId,
-    title: props.routine ? (props.copy ? 'Dupliquer la routine' : 'Modifier la routine') : props.parent ? `Nouvelle sous-routine de « ${props.parent.title} »` : 'Nouvelle routine',
-    // As wide as the task panel, laid out the same.
-    size: 'lg',
-    children: <RoutineForm {...props} onDone={() => closePanel(modalId)} />,
-  });
+  // As wide as the task panel, laid out the same.
+  openFormPanel(
+    props.routine ? (props.copy ? 'Dupliquer la routine' : 'Modifier la routine') : props.parent ? `Nouvelle sous-routine de « ${props.parent.title} »` : 'Nouvelle routine',
+    (close) => <RoutineForm {...props} onDone={close} />,
+    'lg',
+  );
 }

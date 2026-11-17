@@ -7,11 +7,9 @@ import { categoryTree } from '../category-tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';
-import { closePanel, openPanel } from '../panels/panels';
+import { openFormPanel } from '../panels/panels';
 import { useReorderSettingsItems, type SettingsListKind } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type SettingsItemValues } from './SettingsItemForm';
-
-let panelCount = 0;
 
 interface SettingsListProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
@@ -107,28 +105,23 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
    * @returns {void}
    */
   const openForm = ({ item, parentId, initial }: { item?: C; parentId?: string | null; initial?: Partial<SettingsItemValues<E>> } = {}) => {
-    const panelId = `settings-list-${++panelCount}`;
-    openPanel({
-      panelId,
-      title: item ? `Modifier ${noun}` : `Ajouter ${noun}`,
-      children: (
-        <SettingsItemForm<C, E>
-          kind={kind}
-          item={item}
-          parentId={parentId}
-          tree={nested ? items : undefined}
-          withParent={withParent}
-          initial={initial}
-          withColor={withColor}
-          colorRequired={colorRequired}
-          schema={schema}
-          extra={extra}
-          create={create}
-          update={update}
-          onDone={() => closePanel(panelId)}
-        />
-      ),
-    });
+    openFormPanel(item ? `Modifier ${noun}` : `Ajouter ${noun}`, (close) => (
+      <SettingsItemForm<C, E>
+        kind={kind}
+        item={item}
+        parentId={parentId}
+        tree={nested ? items : undefined}
+        withParent={withParent}
+        initial={initial}
+        withColor={withColor}
+        colorRequired={colorRequired}
+        schema={schema}
+        extra={extra}
+        create={create}
+        update={update}
+        onDone={close}
+      />
+    ));
   };
 
   // The opening of a new item with starting values, for the page (a click on its map…).

@@ -1,5 +1,5 @@
 import { confirmDestructive } from '../dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../panels/panels';
+import { openFormPanel } from '../panels/panels';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -72,8 +72,6 @@ function NameForm({ initial, submitLabel, onSubmit, onCancel }: NameFormProps) {
   );
 }
 
-let modalCount = 0;
-
 /**
  * Asks for a view name in the side panel.
  * @param {string} title Modal title.
@@ -83,23 +81,17 @@ let modalCount = 0;
  * @returns {void}
  */
 function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
-  const modalId = `view-name-${++modalCount}`;
-  const close = () => closePanel(modalId);
-  openPanel({
-    panelId: modalId,
-    title,
-    children: (
-      <NameForm
-        initial={initial}
-        submitLabel={submitLabel}
-        onCancel={close}
-        onSubmit={(name) => {
-          close();
-          onSubmit(name);
-        }}
-      />
-    ),
-  });
+  openFormPanel(title, (close) => (
+    <NameForm
+      initial={initial}
+      submitLabel={submitLabel}
+      onCancel={close}
+      onSubmit={(name) => {
+        close();
+        onSubmit(name);
+      }}
+    />
+  ));
 }
 
 /**

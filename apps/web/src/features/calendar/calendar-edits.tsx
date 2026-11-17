@@ -1,4 +1,4 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from '../routines/api';
@@ -6,8 +6,6 @@ import { longDay } from '../routines/use-routine-move';
 import { useWorkScheduleMutations } from './api';
 import { askScope } from './ask-scope';
 import { RoutineOccurrenceForm, SlotEditForm } from './CalendarEditForms';
-
-let modalCount = 0;
 
 /** Time of the day of a routine occurrence shown in the calendar. */
 interface RoutineSlotTimes {
@@ -119,28 +117,22 @@ export function useCalendarEdits() {
    * @returns {void}
    */
   const openSlot = (schedule: WorkScheduleRule, name: string, slot: ScheduleSlotTime) => {
-    const modalId = `slot-edit-${++modalCount}`;
     // The scope question is a modal: this panel closes first.
-    const close = () => closePanel(modalId);
-    openPanel({
-      panelId: modalId,
-      title: `Plage du ${longDay(slot.date)}`,
-      children: (
-        <SlotEditForm
-          name={name}
-          slot={slot}
-          onClose={close}
-          onSave={(change) => {
-            close();
-            void changeSlot(schedule, slot, change);
-          }}
-          onDelete={() => {
-            close();
-            void changeSlot(schedule, slot, null);
-          }}
-        />
-      ),
-    });
+    openFormPanel(`Plage du ${longDay(slot.date)}`, (close) => (
+      <SlotEditForm
+        name={name}
+        slot={slot}
+        onClose={close}
+        onSave={(change) => {
+          close();
+          void changeSlot(schedule, slot, change);
+        }}
+        onDelete={() => {
+          close();
+          void changeSlot(schedule, slot, null);
+        }}
+      />
+    ));
   };
 
   /**
@@ -150,26 +142,20 @@ export function useCalendarEdits() {
    * @returns {void}
    */
   const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    const modalId = `routine-occurrence-${++modalCount}`;
-    const close = () => closePanel(modalId);
-    openPanel({
-      panelId: modalId,
-      title: `« ${occurrence.routine.title} » du ${longDay(occurrence.date)}`,
-      children: (
-        <RoutineOccurrenceForm
-          occurrence={occurrence}
-          onClose={close}
-          onSave={(to, times) => {
-            close();
-            void changeRoutine(occurrence, to, times);
-          }}
-          onDelete={() => {
-            close();
-            void removeRoutine(occurrence, movedFrom);
-          }}
-        />
-      ),
-    });
+    openFormPanel(`« ${occurrence.routine.title} » du ${longDay(occurrence.date)}`, (close) => (
+      <RoutineOccurrenceForm
+        occurrence={occurrence}
+        onClose={close}
+        onSave={(to, times) => {
+          close();
+          void changeRoutine(occurrence, to, times);
+        }}
+        onDelete={() => {
+          close();
+          void removeRoutine(occurrence, movedFrom);
+        }}
+      />
+    ));
   };
 
   return { changeSlot, changeRoutine, openSlot, openRoutine };

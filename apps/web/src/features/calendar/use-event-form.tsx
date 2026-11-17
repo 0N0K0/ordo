@@ -1,10 +1,8 @@
-import { closePanel, openPanel } from '../../components/panels/panels';
+import { openFormPanel } from '../../components/panels/panels';
 import type { CalendarEventInput } from '@ordo/shared';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { EventOccurrence } from './api';
 import { EventForm } from './EventForm';
-
-let modalCount = 0;
 
 /**
  * Opens the event form in the side panel, for a new event or an occurrence.
@@ -20,24 +18,22 @@ export function useEventForm(context: TaskContext | null) {
    */
   const open = ({ occurrence, defaults, copy }: { occurrence?: EventOccurrence; defaults?: Partial<CalendarEventInput>; copy?: boolean } = {}) => {
     if (!context) return;
-    const modalId = `calendar-event-${++modalCount}`;
-    openPanel({
-      panelId: modalId,
-      title: occurrence ? 'Évènement' : copy ? 'Copie de l’évènement' : 'Nouvel évènement',
-      size: 'lg',
-      children: (
+    openFormPanel(
+      occurrence ? 'Évènement' : copy ? 'Copie de l’évènement' : 'Nouvel évènement',
+      (close) => (
         <EventForm
           context={context}
           occurrence={occurrence}
           defaults={defaults}
-          onDone={() => closePanel(modalId)}
+          onDone={close}
           onDuplicate={(fields) => {
-            closePanel(modalId);
+            close();
             open({ defaults: fields, copy: true });
           }}
         />
       ),
-    });
+      { size: 'lg' },
+    );
   };
   return open;
 }

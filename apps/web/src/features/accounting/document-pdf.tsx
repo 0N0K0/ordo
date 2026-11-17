@@ -1,5 +1,6 @@
 import { Box } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { openModal } from '../../components/panels/open-modal';
+
 import { paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../mail/compose-options';
 import { escapeHtml } from '../mail/mail-format';
@@ -27,10 +28,7 @@ export function pdfUrl(id: string, download = false, paid = false): string {
  * @returns {void}
  */
 export function openPdfPreview(id: string, title: string): void {
-  modals.open({
-    title,
-    size: '64rem',
-    children: (
+  openModal(title, () => (
       <Box
         component="iframe"
         src={`${pdfUrl(id)}#view=FitH&t=${Date.now()}`}
@@ -39,8 +37,7 @@ export function openPdfPreview(id: string, title: string): void {
         h="80vh"
         style={{ border: 0, display: 'block' }}
       />
-    ),
-  });
+    ), { size: '64rem' });
 }
 
 /**
