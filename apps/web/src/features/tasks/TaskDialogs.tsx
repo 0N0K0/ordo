@@ -1,60 +1,68 @@
 import { Alert, Checkbox, Radio, Stack, Text } from '@mantine/core';
-import { countSubtasks } from './task-links';
 import { useState } from 'react';
-import { useTaskLink } from './use-task-link';
+import type { TasksDialogProps } from './open-tasks-dialog';
+import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifySuccess, onMutationError } from '../../lib/notify';
+import { outermost } from '../../components/data-table/selection-actions';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
-import { useDeleteTask, useTransferTask, type Task } from './api';
-import { ProjectSelect } from './task-ui';
-import { taskName, taskRef, type TaskContext } from './use-task-context';
-import { countOf, plural } from '../../lib/text';
 import { FormActions } from '../../components/dialogs/FormActions';
-
-interface DialogProps {
-  task: Task;
-  context: TaskContext;
-  onDone: () => void;
-}
+import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../lib/notify';
+import { countOf, plural } from '../../lib/text';
+import { useBulkTaskMutations, useCloneTask } from './api';
+import { countSubtasks } from './task-links';
+import { ProjectSelect } from './task-ui';
+import { taskName, taskRef } from './use-task-context';
+import { TASK_PARAM, useTaskLink } from './use-task-link';
+import { useBulkUndo } from './views/bulk-undo';
+import { removedLinksNote, tasksLabel } from './views/bulk-label';
 
 /**
- * Task deletion confirmation; with sub-tasks, asks whether to keep them (moved up to the parent) or delete them.
- * @param {DialogProps} props Component props.
+ * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
+ * delete them too. The task open in the side panel closes when deleted.
+ * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
-export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
-  const deleteTask = useDeleteTask();
+export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
+  const { remove } = useBulkTaskMutations();
   const link = useTaskLink();
+  const [params] = useSearchParams();
   const [mode, setMode] = useState<'detach' | 'delete'>('detach');
-  const subtasks = countSubtasks(context, task.id);
+  const single = tasks.length === 1 ? tasks[0] : null;
+  const selected = new Set(tasks.map((task) => task.id));
+  const subtasks = single ? countSubtasks(context, single.id) : tasks.filter((task) => context.childrenOf(task.id).some((child) => !selected.has(child.id))).length;
 
   /**
-   * Deletes the task with the chosen mode.
+   * Deletes the tasks with the chosen mode.
    * @returns {void}
    */
-  const handleConfirm = () => {
-    deleteTask.mutate(
-      { id: task.id, deleteSubtasks: mode === 'delete' },
+  const handleConfirm = () =>
+    remove.mutate(
+      { ids: [...selected], deleteSubtasks: mode === 'delete' },
       {
         onSuccess: () => {
-          notifySuccess(`Tâche ${taskName(task)} supprimée.`);
-          onDone();
-          link.close();
+          notifySuccess(single ? `Tâche ${taskName(single)} supprimée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'supprimée')}.`);
+          onDone(true);
+          if (selected.has(params.get(TASK_PARAM) ?? '')) link.close();
         },
         onError: onMutationError,
       },
     );
-  };
 
   return (
     <Stack gap="md">
       <Text size="sm">
-        La tâche <strong>{taskRef(task).trim()} {task.title}</strong> et ses commentaires seront supprimés définitivement. Cette
-        action est irréversible ; pour la retirer des listes sans perdre ses données, archivez-la plutôt.
+        {single ? (
+          <>
+            La tâche <strong>{`${taskRef(single).trim()} ${single.title}`}</strong> et ses commentaires seront supprimés définitivement. Cette action est irréversible ; pour la retirer des listes sans
+            perdre ses données, archivez-la plutôt.
+          </>
+        ) : (
+          `${tasksLabel(tasks.length)} et leurs commentaires seront supprimées définitivement. Cette action est irréversible ; pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
+        )}
       </Text>
       {subtasks > 0 && (
         <Radio.Group
-          label={`Que faire de ses ${countOf(subtasks, 'sous-tâche')} ?`}
+          label={single ? `Que faire de ses ${countOf(subtasks, 'sous-tâche')} ?` : 'Que faire de leurs sous-tâches non sélectionnées ?'}
           value={mode}
           onChange={(value) => setMode(value as 'detach' | 'delete')}
         >
@@ -64,42 +72,62 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
           </Stack>
         </Radio.Group>
       )}
-      <DestructiveActions onConfirm={handleConfirm} onCancel={onDone} loading={deleteTask.isPending} />
+      <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={remove.isPending} />
     </Stack>
   );
 }
 
 /**
- * Transfer to another project, or out of any (no number, milestone, sprint nor GitHub item then); links leaving the
- * project tree are removed, with a warning.
- * @param {DialogProps} props Component props.
+ * Transfer of tasks with their sub-tasks to another project, or out of any (no number, milestone, sprint nor GitHub
+ * item then); links leaving the project tree are removed, with a warning. Undone from its toast when no link was
+ * removed.
+ * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
-export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
-  const transferTask = useTransferTask();
+export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
+  const { transfer } = useBulkTaskMutations();
+  const undo = useBulkUndo();
   const [projectId, setProjectId] = useState<string | null>(null);
   // Out of any project.
   const [none, setNone] = useState(false);
   const target = none ? null : projectId;
   const chosen = none || projectId !== null;
-  const subtasks = countSubtasks(context, task.id);
-  const leavesTree = chosen && context.rootOf(target) !== context.rootOf(task.projectId);
+  const single = tasks.length === 1 ? tasks[0] : null;
+  const subtasks = single ? countSubtasks(context, single.id) : 0;
+  const leavesTree = chosen && tasks.some((task) => context.rootOf(target) !== context.rootOf(task.projectId));
 
   /**
-   * Transfers the task.
+   * Moved tasks (those no other one moved holds), then their sub-tasks level by level, as they are now.
+   * @returns {Task[][]} Levels.
+   */
+  const movedLevels = () => {
+    const levels = [
+      outermost(
+        tasks,
+        (task) => task.id,
+        (id) => context.taskById.get(id)?.parentId,
+      ),
+    ];
+    while (levels[levels.length - 1].length > 0) levels.push(levels[levels.length - 1].flatMap((task) => context.childrenOf(task.id)));
+    return levels.slice(0, -1);
+  };
+
+  /**
+   * Transfers the tasks.
    * @returns {void}
    */
   const handleConfirm = () => {
     if (!chosen) return;
-    transferTask.mutate(
-      { id: task.id, projectId: target },
+    const levels = movedLevels();
+    transfer.mutate(
+      { ids: tasks.map((task) => task.id), projectId: target },
       {
         onSuccess: ({ removedLinks }) => {
-          notifySuccess(
-            `Tâche ${taskName(task)} transférée.` +
-              (removedLinks > 0 ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''),
-          );
-          onDone();
+          const message = single ? `Tâche ${taskName(single)} transférée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
+          // Removed links, milestones and sprints cannot come back: no undo then.
+          if (removedLinks > 0) notifySuccess(message + removedLinksNote(removedLinks));
+          else notifyWithUndo(message, undo.transfer(levels));
+          onDone(true);
         },
         onError: onMutationError,
       },
@@ -109,26 +137,87 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
   return (
     <Stack gap="md">
       <Text size="sm">
-        {subtasks > 0
-          ? `La tâche et ses ${countOf(subtasks, 'sous-tâche')} seront déplacées.`
-          : 'La tâche sera déplacée dans le projet choisi.'}
+        {!single
+          ? `${tasksLabel(tasks.length)} et leurs sous-tâches seront déplacées dans le projet choisi.`
+          : subtasks > 0
+            ? `La tâche et ses ${countOf(subtasks, 'sous-tâche')} seront déplacées.`
+            : 'La tâche sera déplacée dans le projet choisi.'}
       </Text>
       <ProjectSelect context={context} label="Projet de destination" value={projectId} onChange={setProjectId} disabled={none} data-autofocus />
       <Checkbox
         label="Sans projet"
-        description="La tâche perd son numéro, son jalon, ses sprints et son lien GitHub."
+        description={`${single ? 'La tâche perd son numéro, son jalon, ses sprints et son lien GitHub' : 'Les tâches perdent leur numéro, leur jalon, leurs sprints et leur lien GitHub'}.`}
         checked={none}
-        disabled={task.projectId === null}
+        disabled={tasks.every((task) => task.projectId === null)}
         onChange={(event) => setNone(event.currentTarget.checked)}
       />
       {leavesTree && (
         <Alert color="yellow" icon={<ErrorIcon />}>
-          Ce projet n’appartient pas à la même arborescence : la tâche parente, les blocages et les relations avec des
-          tâches restées dans l’arborescence actuelle seront retirés.
+          Ce projet n’appartient pas à la même arborescence : la tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle seront retirés.
         </Alert>
       )}
-      <FormActions onCancel={onDone} submitLabel="Transférer" onSubmit={handleConfirm} disabled={!chosen || target === task.projectId} loading={transferTask.isPending} />
+      <FormActions
+        onCancel={() => onDone(false)}
+        submitLabel="Transférer"
+        onSubmit={handleConfirm}
+        disabled={!chosen || tasks.every((task) => task.projectId === target)}
+        loading={transfer.isPending}
+      />
     </Stack>
   );
 }
 
+/**
+ * Clone of one task or of several, confirmed: each one cloned in turn with its sub-tasks, under its clone (a task under
+ * another one cloned comes with it); all the fields, the assignees and the links copied, not the comments. A single
+ * clone opens.
+ * @param {TasksDialogProps} props Component props.
+ * @returns {JSX.Element} Dialog content.
+ */
+export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
+  const cloneTask = useCloneTask();
+  const link = useTaskLink();
+  const [pending, setPending] = useState(false);
+  const single = tasks.length === 1 ? tasks[0] : null;
+  const subtasks = tasks.reduce((count, task) => count + countSubtasks(context, task.id), 0);
+  return (
+    <Stack gap="md">
+      <Text size="sm">
+        {single ? 'La tâche sera clonée' : `${tasksLabel(tasks.length)} seront clonées`} : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
+      </Text>
+      {subtasks > 0 && (
+        <Text size="sm">
+          {single
+            ? (subtasks === 1 ? 'Sa sous-tâche est clonée' : `Ses ${subtasks} sous-tâches sont clonées`) + ' avec elle, sous le clone.'
+            : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
+        </Text>
+      )}
+      <FormActions
+        onCancel={() => onDone(false)}
+        submitLabel="Cloner"
+        loading={pending}
+        autoFocus
+        onSubmit={async () => {
+          setPending(true);
+          try {
+            // A task already cloned with its parent is not cloned again.
+            const roots = outermost(
+              tasks,
+              (task) => task.id,
+              (id) => context.taskById.get(id)?.parentId,
+            );
+            let last: { id: string; number: number | null } | null = null;
+            for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
+            notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
+            onDone(true);
+            if (single && last) link.open(last.id);
+          } catch (error) {
+            notifyError((error as Error).message);
+          } finally {
+            setPending(false);
+          }
+        }}
+      />
+    </Stack>
+  );
+}

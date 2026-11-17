@@ -192,28 +192,6 @@ const UpdateTaskDocument = graphql(`
   }
 `);
 
-const SetTaskArchivedDocument = graphql(`
-  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
-    setTaskArchived(id: $id, archived: $archived) {
-      id
-    }
-  }
-`);
-
-const DeleteTaskDocument = graphql(`
-  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {
-    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)
-  }
-`);
-
-const TransferTaskDocument = graphql(`
-  mutation TransferTask($id: ID!, $projectId: ID) {
-    transferTask(id: $id, projectId: $projectId) {
-      removedLinks
-    }
-  }
-`);
-
 const CloneTaskDocument = graphql(`
   mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
     cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
@@ -553,16 +531,6 @@ export function useUpdateTask() {
   );
 }
 
-/**
- * Archives or restores a task (with its sub-tasks).
- * @returns {UseMutationResult} Mutation state.
- */
-export function useSetTaskArchived() {
-  return useTasksMutation(
-    async (variables: { id: string; archived: boolean }) => (await execute(SetTaskArchivedDocument, variables)).setTaskArchived,
-  );
-}
-
 const SetTasksClosedDocument = graphql(`
   mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {
     setTasksClosed(ids: $ids, closed: $closed)
@@ -579,26 +547,6 @@ export function useSetTasksClosed() {
     optimistic: (queryClient, { ids, closed }) =>
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({ ...data, tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed } : task)) })),
   });
-}
-
-/**
- * Deletes a task, deleting or detaching its sub-tasks.
- * @returns {UseMutationResult} Mutation state.
- */
-export function useDeleteTask() {
-  return useTasksMutation(
-    async (variables: { id: string; deleteSubtasks: boolean }) => (await execute(DeleteTaskDocument, variables)).deleteTask,
-  );
-}
-
-/**
- * Transfers a task and its sub-tasks to another project.
- * @returns {UseMutationResult} Mutation state, with the number of removed links.
- */
-export function useTransferTask() {
-  return useTasksMutation(
-    async (variables: { id: string; projectId: string | null }) => (await execute(TransferTaskDocument, variables)).transferTask,
-  );
 }
 
 /**

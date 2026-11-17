@@ -13,7 +13,7 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { useSetTasksClosed, useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskInputValues } from './api';
+import { useBulkTaskMutations, useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskAlarms } from '../alarms/TaskAlarms';
 import { TaskShopping } from '../shopping/TaskShopping';
 import { SheetsSection } from '../sheets/SheetsSection';
@@ -29,7 +29,7 @@ import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
-import { countOf, plural } from '../../lib/text';
+import { removedLinksNote } from './views/bulk-label';
 
 /**
  * Property block of the side column.
@@ -122,7 +122,7 @@ interface TaskDetailProps {
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
   const setClosed = useSetTasksClosed();
-  const transferTask = useTransferTask();
+  const { transfer: transferTask } = useBulkTaskMutations();
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
@@ -171,13 +171,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     if (projectId === task.projectId) return;
     const transfer = () =>
       transferTask.mutate(
-        { id: task.id, projectId },
+        { ids: [task.id], projectId },
         {
           onSuccess: ({ removedLinks }) =>
-            notifySuccess(
-              `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.` +
-                (removedLinks > 0 ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''),
-            ),
+            notifySuccess(`Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
           onError: onMutationError,
         },
       );

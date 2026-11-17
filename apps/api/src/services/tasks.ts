@@ -292,7 +292,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
 }
 
 /**
- * Updates a task. The project is changed with `transferTask`.
+ * Updates a task. The project is changed with `bulkTransferTasks`.
  * @param {string} id Task id.
  * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
  * @returns {Promise<Task>} Updated task.

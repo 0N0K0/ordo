@@ -1,6 +1,8 @@
 import { CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../lib/notify';
+import { confirmDestructive } from '../dialogs/confirm-destructive';
+import type { RowMenuEntry } from './RowActions';
 import type { SelectionAction } from './SelectionBar';
 
 /**
@@ -134,4 +136,20 @@ export function duplicateRowsAction<R>(
   { duplicate, done, label = 'Dupliquer', loading }: { duplicate: (row: R) => Promise<unknown>; done: string; label?: string; loading?: boolean },
 ): SelectionAction {
   return { label, icon: <CopyIcon aria-hidden />, loading, onClick: () => void forEachRow(rows, duplicate, done) };
+}
+
+/**
+ * Entry of the menu of a row made of an action of the selection bar (run on that row alone): the same action, its
+ * confirmation included, wherever it is offered.
+ * @param {SelectionAction} action Action.
+ * @returns {RowMenuEntry} Menu entry.
+ */
+export function rowMenuEntry({ label, icon, onClick, destructive, danger, disabled }: SelectionAction): RowMenuEntry {
+  return {
+    label,
+    icon,
+    disabled,
+    danger: danger || !!destructive,
+    onClick: destructive ? () => confirmDestructive({ ...destructive, onConfirm: onClick }) : onClick,
+  };
 }

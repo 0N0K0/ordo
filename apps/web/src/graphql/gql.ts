@@ -248,8 +248,6 @@ type Documents = {
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": typeof types.RemoveRoutineMoveDocument,
-    "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
-    "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": typeof types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetsDocument,
@@ -351,9 +349,6 @@ type Documents = {
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
-    "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": typeof types.SetTaskArchivedDocument,
-    "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.DeleteTaskDocument,
-    "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.TransferTaskDocument,
     "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.CloneTaskDocument,
     "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": typeof types.SetTaskRecurrenceDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": typeof types.MoveTaskDocument,
@@ -725,8 +720,6 @@ const documents: Documents = {
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": types.RemoveRoutineMoveDocument,
-    "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
-    "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetsDocument,
@@ -828,9 +821,6 @@ const documents: Documents = {
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
-    "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": types.SetTaskArchivedDocument,
-    "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n": types.DeleteTaskDocument,
-    "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.TransferTaskDocument,
     "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.CloneTaskDocument,
     "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": types.SetTaskRecurrenceDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": types.MoveTaskDocument,
@@ -1904,14 +1894,6 @@ export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from:
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n"): typeof import('./graphql').SetRoutineArchivedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n"): typeof import('./graphql').DeleteRoutineDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n"): typeof import('./graphql').RoutineChecksDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -2313,18 +2295,6 @@ export function graphql(source: "\n  mutation CreateTask($input: TaskInput!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n"): typeof import('./graphql').UpdateTaskDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetTaskArchivedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n"): typeof import('./graphql').DeleteTaskDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').TransferTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

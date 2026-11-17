@@ -189,18 +189,6 @@ const RemoveRoutineMoveDocument = graphql(`
   }
 `);
 
-const SetRoutineArchivedDocument = graphql(`
-  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {
-    setRoutineArchived(id: $id, archived: $archived)
-  }
-`);
-
-const DeleteRoutineDocument = graphql(`
-  mutation DeleteRoutine($id: ID!) {
-    deleteRoutine(id: $id)
-  }
-`);
-
 const RoutineChecksDocument = graphql(`
   query RoutineChecks($from: Date!, $to: Date!) {
     routineChecks(from: $from, to: $to) {
@@ -569,11 +557,6 @@ export function useRoutineMutations() {
       async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,
     ),
     removeMove: useRoutineMutation(async (variables: { id: string; from: string }) => (await execute(RemoveRoutineMoveDocument, variables)).removeRoutineMove),
-    setArchived: useRoutineMutation(
-      async (variables: { id: string; archived: boolean }) => (await execute(SetRoutineArchivedDocument, variables)).setRoutineArchived,
-      (data, { id, archived }) => patchRoutine(data, id, (routine) => ({ ...routine, archived })),
-    ),
-    remove: useRoutineMutation(async (id: string) => (await execute(DeleteRoutineDocument, { id })).deleteRoutine),
     bulkUpdate: useRoutineMutation(
       async (variables: { ids: string[]; changes: RoutineBulkChanges }) => (await execute(BulkUpdateRoutinesDocument, variables)).bulkUpdateRoutines,
       (data, { ids, changes }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? withBulkChanges(routine, changes) : routine)) }),

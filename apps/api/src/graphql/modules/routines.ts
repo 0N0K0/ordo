@@ -628,18 +628,4 @@ builder.mutationFields((t) => ({
     },
     resolve: async (_root, { id, done, date, slot, doneAt }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null, slot ?? null, doneAt ?? null)),
   }),
-  setRoutineArchived: t.boolean({
-    args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { id, archived }) => {
-      await routines.setRoutineArchived(String(id), archived);
-      return true;
-    },
-  }),
-  deleteRoutine: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await routines.deleteRoutine(String(id));
-      return true;
-    },
-  }),
 }));

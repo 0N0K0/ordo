@@ -1,4 +1,5 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
+import { removedLinksNote } from './bulk-label';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
@@ -8,7 +9,7 @@ import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
-import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useTransferTask, type Task, type TaskLabel } from '../api';
+import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess } from '../../../lib/notify';
 import { TaskSelect } from '../task-ui';
@@ -26,7 +27,6 @@ import { cellCombobox as sharedCombobox, cellMulti as sharedMulti } from '../../
 import { EditableNumber } from '../../../components/data-table/EditableCells';
 import { EditableTitle } from '../../../components/data-table/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
-import { countOf, plural } from '../../../lib/text';
 
 /**
  * Stops the click from reaching the row.
@@ -486,7 +486,6 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
  * @returns {JSX.Element} Cell.
  */
 export function TaskProjectCell({ task, context }: { task: Task; context: TaskContext }) {
-  const transferTask = useTransferTask();
   const { transfer: bulkTransfer } = useBulkTaskMutations();
   const { targets, count } = useCellEdit(task, 'project');
   /**
@@ -498,18 +497,10 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     if (projectId === task.projectId && count < 2) return;
     const moved = targets.map((id) => context.taskById.get(id)).filter((item) => item !== undefined);
     const transfer = () =>
-      count > 1
-        ? bulkTransfer.mutate(
-            { ids: targets, projectId },
-            {
-              onSuccess: ({ removedLinks }) => notifySuccess(`${count} tâches déplacées.${removedLinks ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''}`),
-              onError: onMutationError,
-            },
-          )
-        : transferTask.mutate(
-        { id: task.id, projectId },
+      bulkTransfer.mutate(
+        { ids: targets, projectId },
         {
-          onSuccess: ({ removedLinks }) => notifySuccess(`Tâche déplacée.${removedLinks ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''}`),
+          onSuccess: ({ removedLinks }) => notifySuccess(`${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
           onError: onMutationError,
         },
       );

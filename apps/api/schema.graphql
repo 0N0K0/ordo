@@ -1486,6 +1486,10 @@ type Mutation {
   Ticks or unticks the current occurrence of several routines; returns how many changed.
   """
   bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
+
+  """
+  Archiving cascades to sub-tasks; restoring restores them and the archived parents.
+  """
   bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
 
   """
@@ -1636,7 +1640,6 @@ type Mutation {
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
-  deleteRoutine(id: ID!): Boolean!
   deleteRoutineCategory(id: ID!): Boolean!
 
   """
@@ -1667,11 +1670,6 @@ type Mutation {
   deleteSprint(id: ID!): Boolean!
   deleteStockItem(id: ID!): Boolean!
   deleteStockLocation(id: ID!): Boolean!
-  deleteTask(
-    """false moves the sub-tasks up to the parent."""
-    deleteSubtasks: Boolean!
-    id: ID!
-  ): Boolean!
   deleteTaskComment(id: ID!): Boolean!
   deleteTaskPriority(id: ID!): Boolean!
   deleteTaskStatus(id: ID!): Boolean!
@@ -2001,7 +1999,6 @@ type Mutation {
   """
   setProjectContributors(contributorIds: [ID!]!, projectId: ID!): Boolean!
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
-  setRoutineArchived(archived: Boolean!, id: ID!): Boolean!
 
   """
   Ticks or unticks an occurrence (by default the current one); returns its date.
@@ -2040,11 +2037,6 @@ type Mutation {
   setShoppingOrder(input: ShoppingOrderInput!, listId: ID!): Boolean!
   setShoppingProductsMissing(ids: [ID!]!, missing: Boolean!): Boolean!
   setStockLotExpiry(expiresAt: Date, id: ID!): Boolean!
-
-  """
-  Archiving cascades to sub-tasks; restoring restores them and the archived parents.
-  """
-  setTaskArchived(archived: Boolean!, id: ID!): Task!
 
   """
   Chooses the columns new task views start with; without columns, gives back the app’s.
@@ -2094,11 +2086,6 @@ type Mutation {
   Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
-
-  """
-  Moves the task and its sub-tasks to another project, or out of any (projectId null).
-  """
-  transferTask(id: ID!, projectId: ID): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -3936,7 +3923,7 @@ type TaskType {
 }
 
 """
-Omitted fields are left unchanged; null clears a field. Use transferTask to change the project.
+Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]

@@ -279,7 +279,7 @@ const TaskInput = builder.inputType('TaskInput', {
 });
 
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
-  description: 'Omitted fields are left unchanged; null clears a field. Use transferTask to change the project.',
+  description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
   fields: (t) => ({
     title: t.string(),
     description: t.string(),
@@ -490,29 +490,6 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) => reloadTask(query, (await tasks.updateTask(id, input)).id),
   }),
-  setTaskArchived: t.prismaField({
-    type: 'Task',
-    description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',
-    args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, archived }) =>
-      reloadTask(query, (await tasks.setTaskArchived(id, archived)).id),
-  }),
-  deleteTask: t.boolean({
-    args: {
-      id: t.arg.id({ required: true }),
-      deleteSubtasks: t.arg.boolean({ required: true, description: 'false moves the sub-tasks up to the parent.' }),
-    },
-    resolve: async (_root, { id, deleteSubtasks }) => {
-      await tasks.deleteTask(id, deleteSubtasks);
-      return true;
-    },
-  }),
-  transferTask: t.field({
-    type: TransferResult,
-    description: 'Moves the task and its sub-tasks to another project, or out of any (projectId null).',
-    args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { id, projectId }) => ({ removedLinks: (await tasks.transferTask(id, projectId ?? null)).removedLinks }),
-  }),
   cloneTask: t.prismaField({
     type: 'Task',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
@@ -562,6 +539,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId ?? null) }),
   }),
   bulkSetTasksArchived: t.boolean({
+    description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: async (_root, { ids, archived }) => {
       await tasks.bulkSetTasksArchived(ids, archived);

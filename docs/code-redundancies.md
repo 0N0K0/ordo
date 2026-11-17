@@ -50,6 +50,14 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - les menus d'une ligne construits avec les mêmes actions génériques que la barre de sélection ;
   - les seules mutations groupées.
 
+**Fait** :
+
+- **Dialogues des tâches** : un seul dialogue par action (`DeleteTasksDialog`, `TransferTasksDialog`, `CloneTasksDialog`, dans `TaskDialogs.tsx`), sur une liste de tâches. Une seule tâche garde ses textes au singulier. `BulkDialogs.tsx` est supprimé. Une seule ouverture : `openTasksDialog`.
+- **Gagné au passage** : le transfert d'une seule tâche se défait depuis son message, et celui de plusieurs tâches propose « Sans projet » et prévient quand on quitte l'arborescence.
+- **Menus des lignes** : `useTaskRowsActions` et `useRoutineRowsActions` donnent les actions nommées, les mêmes pour la barre de sélection et pour le menu d'une ligne. `rowMenuEntry` les convertit en entrées de menu, confirmation comprise. Une routine s'archive donc avec annulation et se duplique avec ses sous-routines, depuis son menu comme depuis la barre.
+- **« N liens retirés »** : un seul `removedLinksNote`.
+- **Mutations** : le panneau d'une tâche et la cellule Projet passent par le transfert groupé. Les mutations GraphQL `setTaskArchived`, `deleteTask`, `transferTask`, `setRoutineArchived` et `deleteRoutine` sont supprimées ; les services unitaires restent, appelés par les actions groupées et le seed.
+
 ### 5. Deux modèles de personnes
 
 - **Bénéficiaires :** clés `c:` et `r:` (`features/beneficiaries`).

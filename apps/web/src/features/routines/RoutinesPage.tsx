@@ -1,22 +1,9 @@
 import { PageHeader } from '../../components/actions/PageHeader';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
-import {
-  ArchiveIcon,
-  ArrowBendUpRightIcon,
-  ArrowCounterClockwiseIcon,
-  ArrowsClockwiseIcon,
-  CalendarDotsIcon,
-  ClockCounterClockwiseIcon,
-  CopyIcon,
-  HourglassMediumIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  TrashIcon,
-  TreeViewIcon,
-} from '@phosphor-icons/react';
+import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, HourglassMediumIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
@@ -25,7 +12,7 @@ import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import * as fmt from '../../lib/format';
-import { notifySuccess, onMutationError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
@@ -46,7 +33,8 @@ import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCel
 import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
 import { isDone, movableOccurrence, waitingFor } from './routine-format';
 import { usePostponeRoutine } from './use-routine-move';
-import { useRoutineSelectionActions } from './RoutineBulkBar';
+import { useRoutineRowsActions, useRoutineSelectionActions } from './RoutineBulkBar';
+import { rowMenuEntry } from '../../components/data-table/selection-actions';
 import classes from './Routines.module.css';
 import { plural } from '../../lib/text';
 
@@ -100,9 +88,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const slotRules = useSlotRules();
   const { data: schedules } = useWorkSchedules();
   const { data: running } = useRunningTimer();
-  const { move, patch, setArchived, remove } = useRoutineMutations();
+  const { move, patch } = useRoutineMutations();
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
+  const rowActionsOf = useRoutineRowsActions();
   // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
@@ -243,6 +232,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const actions = (routine: Routine) => {
     if (isDraftRoutine(routine)) return null;
     const readOnly = routine.archived;
+    const rowActions = rowActionsOf([routine]);
     return (
       <RowActions
         name={routine.title}
@@ -253,28 +243,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
-          { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
+          rowMenuEntry(rowActions.duplicate),
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
-          {
-            label: readOnly ? 'Restaurer' : 'Archiver',
-            icon: readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-            onClick: () =>
-              setArchived.mutate(
-                { id: routine.id, archived: !routine.archived },
-                { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: onMutationError },
-              ),
-          },
-          {
-            label: 'Supprimer',
-            icon: <TrashIcon aria-hidden />,
-            danger: true,
-            onClick: () =>
-              confirmDestructive({
-                title: 'Supprimer la routine',
-                risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
-                onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: onMutationError }),
-              }),
-          },
+          rowMenuEntry(rowActions.archive),
+          rowMenuEntry(rowActions.remove),
         ]}
       />
     );

@@ -982,7 +982,7 @@ export type TaskStatusCategory =
   | 'IN_PROGRESS'
   | 'TODO';
 
-/** Omitted fields are left unchanged; null clears a field. Use transferTask to change the project. */
+/** Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project. */
 export type TaskUpdateInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
@@ -2964,21 +2964,6 @@ export type RemoveRoutineMoveMutationVariables = Exact<{
 
 export type RemoveRoutineMoveMutation = { removeRoutineMove: boolean };
 
-export type SetRoutineArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetRoutineArchivedMutation = { setRoutineArchived: boolean };
-
-export type DeleteRoutineMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteRoutineMutation = { deleteRoutine: boolean };
-
 export type RoutineChecksQueryVariables = Exact<{
   from: string;
   to: string;
@@ -3702,30 +3687,6 @@ export type UpdateTaskMutationVariables = Exact<{
 
 
 export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
-
-export type SetTaskArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetTaskArchivedMutation = { setTaskArchived: { id: string } };
-
-export type DeleteTaskMutationVariables = Exact<{
-  id: string | number;
-  deleteSubtasks: boolean;
-}>;
-
-
-export type DeleteTaskMutation = { deleteTask: boolean };
-
-export type TransferTaskMutationVariables = Exact<{
-  id: string | number;
-  projectId?: string | number | null | undefined;
-}>;
-
-
-export type TransferTaskMutation = { transferTask: { removedLinks: number } };
 
 export type CloneTaskMutationVariables = Exact<{
   id: string | number;
@@ -7642,16 +7603,6 @@ export const RemoveRoutineMoveDocument = new TypedDocumentString(`
   removeRoutineMove(id: $id, from: $from)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
-export const SetRoutineArchivedDocument = new TypedDocumentString(`
-    mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {
-  setRoutineArchived(id: $id, archived: $archived)
-}
-    `) as unknown as TypedDocumentString<SetRoutineArchivedMutation, SetRoutineArchivedMutationVariables>;
-export const DeleteRoutineDocument = new TypedDocumentString(`
-    mutation DeleteRoutine($id: ID!) {
-  deleteRoutine(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteRoutineMutation, DeleteRoutineMutationVariables>;
 export const RoutineChecksDocument = new TypedDocumentString(`
     query RoutineChecks($from: Date!, $to: Date!) {
   routineChecks(from: $from, to: $to) {
@@ -8619,25 +8570,6 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   githubNumber
   slotRule
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
-export const SetTaskArchivedDocument = new TypedDocumentString(`
-    mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
-  setTaskArchived(id: $id, archived: $archived) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<SetTaskArchivedMutation, SetTaskArchivedMutationVariables>;
-export const DeleteTaskDocument = new TypedDocumentString(`
-    mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {
-  deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)
-}
-    `) as unknown as TypedDocumentString<DeleteTaskMutation, DeleteTaskMutationVariables>;
-export const TransferTaskDocument = new TypedDocumentString(`
-    mutation TransferTask($id: ID!, $projectId: ID) {
-  transferTask(id: $id, projectId: $projectId) {
-    removedLinks
-  }
-}
-    `) as unknown as TypedDocumentString<TransferTaskMutation, TransferTaskMutationVariables>;
 export const CloneTaskDocument = new TypedDocumentString(`
     mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
   cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
