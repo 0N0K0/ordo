@@ -50,12 +50,7 @@ import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
 import { scheduleRule } from './work-schedules';
 import { assertProjectContributors } from './contributors';
-
-/**
- * Today in Paris, as a calendar date.
- * @returns {string} YYYY-MM-DD.
- */
-export const routineToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+import { parisToday } from '../today';
 
 /**
  * Error attached to a form field.
@@ -305,7 +300,7 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @returns {{ current: string | null, next: string | null }} Due days.
  */
-export function occurrencesOf(routine: RoutineTiming, today = routineToday(), schedules: ScheduleContext = NO_SCHEDULES): { current: string | null; next: string | null } {
+export function occurrencesOf(routine: RoutineTiming, today = parisToday(), schedules: ScheduleContext = NO_SCHEDULES): { current: string | null; next: string | null } {
   // An archived routine has nothing due: nothing computed.
   if (routine.archivedAt) return { current: null, next: null };
   return remember(routine, schedules, `occurrences|${today}`, () => {
@@ -407,7 +402,7 @@ function firstOccurrenceOf(routine: RoutineTiming, schedules: ScheduleContext): 
  * @param {string} today Today.
  * @returns {RoutineDaySlot[]} Times (none: not on that day).
  */
-function ruleSlotsOn(routine: RoutineTiming, due: string, schedules: ScheduleContext, today = routineToday()): RoutineDaySlot[] {
+function ruleSlotsOn(routine: RoutineTiming, due: string, schedules: ScheduleContext, today = parisToday()): RoutineDaySlot[] {
   const span = ruleSpans(routine, due, due, schedules).find((item) => item.end === due) ?? { start: due, end: due };
   const preferred = shownDay(span, today);
   const own = dayMoments(routine, due, preferred, schedules);
@@ -964,7 +959,7 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
   if (!routine) throw notFound('Routine');
   const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
-  if (occurrence > routineToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
+  if (occurrence > parisToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
   if (index < 0 || index >= Math.max(1, slotsOf(routine, occurrence, slots).length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
   if (doneAt && doneAt.getTime() > Date.now()) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être faite dans le futur.', { fields: { doneAt: 'Heure à venir.' } });
@@ -982,7 +977,7 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
  * @returns {Promise<number>} Number of routines changed.
  */
 export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
-  const today = routineToday();
+  const today = parisToday();
   let count = 0;
   const context = await loadScheduleContext();
   for (const routine of await prisma.routine.findMany({ where: { id: { in: ids } } })) {

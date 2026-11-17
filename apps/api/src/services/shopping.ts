@@ -34,12 +34,6 @@ const number = (value: Prisma.Decimal | null) => (value === null ? null : Number
 const day = (value: string | null) => (value === null ? null : new Date(`${value}T00:00:00Z`));
 
 /**
- * Today in France, as a date column holds it.
- * @returns {Date} Today at 00:00 UTC.
- */
-const today = () => new Date(`${new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })}T00:00:00Z`);
-
-/**
  * Checks the members of the team or household and the relations a product or an item is for.
  * @param {string[]} memberIds Members.
  * @param {string[]} relationIds Relations.

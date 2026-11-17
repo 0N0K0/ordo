@@ -12,12 +12,7 @@ import * as team from '../../services/treasury-team';
 import { meContributorId } from '../../services/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
-
-/**
- * Today, on the server.
- * @returns {string} YYYY-MM-DD.
- */
-const today = () => formatDay(new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())));
+import { parisToday } from '../../today';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -465,7 +460,7 @@ builder.prismaObject('TreasuryAccount', {
     archived: t.exposeBoolean('archived'),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
-    balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, today())) }),
+    balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, parisToday())) }),
   }),
 });
 
@@ -508,7 +503,7 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
     description: 'Final invoice still due after its due date, or quote waiting after its validity.',
     select: { trackingStatus: { select: { category: true } } },
     resolve: async (document, _args, ctx) => {
-      if (document.status !== 'FINAL' || !document.dueDate || formatDay(document.dueDate) >= today()) return false;
+      if (document.status !== 'FINAL' || !document.dueDate || formatDay(document.dueDate) >= parisToday()) return false;
       const category = document.trackingStatus?.category;
       if (document.type === 'QUOTE') return category === 'TO_SEND' || category === 'SENT';
       if (document.type === 'CREDIT_NOTE') return false;
@@ -899,7 +894,7 @@ builder.queryFields((t) => ({
     resolve: (query) =>
       prisma.treasuryEntry.findMany({
         ...query,
-        where: { OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(today()) } }] },
+        where: { OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(parisToday()) } }] },
         orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
       }),
   }),

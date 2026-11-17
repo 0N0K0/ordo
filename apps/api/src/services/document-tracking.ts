@@ -5,6 +5,7 @@ import { Prisma, type AccountingDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storeAttachment } from './attachments';
 import { scopeOf, statusOf } from './document-statuses';
+import { parisToday } from '../today';
 
 /** Settlement of a final invoice, deposit invoice or credit note, in cents. */
 export interface DocumentBalance {
@@ -142,7 +143,7 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
     data: {
       trackingStatusId: status.id,
       // Leaving "accepted" forgets the acceptance date.
-      acceptedAt: status.category === 'ACCEPTED' ? (document.acceptedAt ?? parseDay(new Date().toISOString().slice(0, 10))) : null,
+      acceptedAt: status.category === 'ACCEPTED' ? (document.acceptedAt ?? parseDay(parisToday())) : null,
     },
   });
 }
@@ -168,7 +169,7 @@ export async function sentStatus(statusId: string, type: AccountingDocument['typ
 export function sendingData(options: { date?: string | null; via?: string | null }): { sentAt: Date; sentVia: string | null } {
   const via = options.via ? z.enum(SENDING_CHANNELS).safeParse(options.via) : null;
   if (via && !via.success) throw clientError('BAD_USER_INPUT', 'Moyen d’envoi inconnu.');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = parisToday();
   if (options.date && options.date > today) throw clientError('BAD_USER_INPUT', 'La date d’envoi ne peut pas être dans le futur.');
   // A past day is kept at noon (UTC): the same day in every time zone of France.
   return { sentAt: options.date && options.date !== today ? new Date(`${options.date}T12:00:00Z`) : new Date(), sentVia: via?.data ?? null };

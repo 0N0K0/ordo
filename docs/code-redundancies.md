@@ -155,7 +155,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Texte sans accents :** la recherche GitHub (web et API), le code partagé et l'équipe de la trésorerie refont `normalize`.
 - **Cible :** `normalize` et `collator` déplacés dans le code partagé.
 
-**Fait** : `normalize` et `collator` sont dans le code partagé (`text.ts`), utilisés par le web, l'API et GitHub ; un seul `weekdayOfDate` ; une seule liste des noms des jours ; `daysBetween` partagé ; les alias de `fmt.day` et `todayIso` supprimés. Restent : les ordinaux en double, et « aujourd'hui » de l'API calculé de trois façons (à décider : heure du serveur, Europe/Paris ou UTC).
+**Fait** : `normalize` et `collator` sont dans le code partagé (`text.ts`), utilisés par le web, l'API et GitHub ; un seul `weekdayOfDate` ; une seule liste des noms des jours ; `daysBetween` partagé ; les alias de `fmt.day` et `todayIso` supprimés. « Aujourd'hui » de l'API : un seul `parisToday` (`apps/api/src/today.ts`), le jour à Paris quel que soit le fuseau du serveur. Restent les ordinaux en double.
 
 ### 19. Messages d'erreur
 

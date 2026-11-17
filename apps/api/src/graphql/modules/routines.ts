@@ -6,6 +6,7 @@ import * as routines from '../../services/routines';
 import type { Context } from '../context';
 import { builder } from '../builder';
 import { EventScope } from './calendar';
+import { parisToday } from '../../today';
 
 builder.prismaObject('RoutineCategory', {
   description: 'Category of the routines, in a tree.',
@@ -419,7 +420,7 @@ builder.queryFields((t) => ({
         select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);
-      const today = routines.routineToday();
+      const today = parisToday();
       return list.flatMap((routine) => {
         const moves = routines.storedMoves(routine.moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
