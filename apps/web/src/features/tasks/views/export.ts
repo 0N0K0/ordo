@@ -1,31 +1,11 @@
-import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
-import { download, fileName } from '../../../lib/download';
+import { formatDuration, type TaskColumn } from '@ordo/shared';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
-import { COLUMN_LABELS } from './columns-meta';
 import { EVENT_STATES, eventState, eventWhen } from './event-format';
-import type { DisplayRow } from './task-rows';
 import * as fmt from '../../../lib/format';
 import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
 import { taskRef } from '../use-task-context';
-
-export interface ExportRow {
-  kind: 'group' | 'task' | 'event';
-  /** Sub-task level. */
-  depth: number;
-  /** Group the row belongs to (empty without grouping). */
-  group: string;
-  /** Formatted cells, in column order (a group row only has its label). */
-  cells: string[];
-}
-
-export interface ExportTable {
-  title: string;
-  subtitle: string;
-  columns: { id: TaskColumn; label: string }[];
-  rows: ExportRow[];
-}
 
 /**
  * Calendar date (YYYY-MM-DD) as dd/mm/yyyy.
@@ -41,7 +21,7 @@ const printedDay = (day: string | null) => (day ? fmt.exportDay(day) : '');
  * @param {TaskContext} context Task context.
  * @returns {string} Text.
  */
-function taskCell(task: Task, column: TaskColumn, context: TaskContext): string {
+export function taskCell(task: Task, column: TaskColumn, context: TaskContext): string {
   // Linked tasks: "#12" in the project of the task, with their project otherwise (numbers are per project).
   const numbers = (ids: string[]) =>
     ids
@@ -137,7 +117,7 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
  * @param {TaskContext} context Task context.
  * @returns {string} Text.
  */
-function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext): string {
+export function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext): string {
   switch (column) {
     case 'title':
       return event.location ? `${event.title} (${event.location})` : event.title;
@@ -161,77 +141,4 @@ function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskCont
     default:
       return '';
   }
-}
-
-/**
- * Table of a view as exported: its visible columns in order (the title first), and every row of the view,
- * collapsed sub-tasks and groups included.
- * @param {object} options Options.
- * @param {DisplayRow[]} options.rows Rows of the view.
- * @param {TaskViewConfig} options.config View configuration.
- * @param {TaskContext} options.context Task context.
- * @param {string} options.title Title (scope and view).
- * @param {string} options.subtitle Subtitle (what is listed, when).
- * @returns {ExportTable} Table.
- */
-export function exportTable({ rows, config, context, title, subtitle }: { rows: DisplayRow[]; config: TaskViewConfig; context: TaskContext; title: string; subtitle: string }): ExportTable {
-  const order = [...config.columnOrder, ...TASK_COLUMNS.filter((id) => !config.columnOrder.includes(id))];
-  // The title first: it carries the kind of row and the sub-task level.
-  const columns = ['title' as const, ...order.filter((id) => id !== 'title')]
-    .filter((id) => !config.hiddenColumns.includes(id))
-    .map((id) => ({ id, label: COLUMN_LABELS[id] }));
-  const result: ExportRow[] = [];
-  const walk = (items: DisplayRow[], depth: number, group: string) => {
-    for (const item of items) {
-      if (item.kind === 'group') {
-        result.push({ kind: 'group', depth: 0, group: item.label, cells: [item.label] });
-        walk(item.children, 0, item.label);
-      } else if (item.kind === 'event') {
-        result.push({ kind: 'event', depth, group, cells: columns.map((column) => eventCell(item.event, column.id, context)) });
-      } else {
-        result.push({ kind: 'task', depth, group, cells: columns.map((column) => taskCell(item.task, column.id, context)) });
-        walk(item.children, depth + 1, group);
-      }
-    }
-  };
-  walk(rows, 0, '');
-  return { title, subtitle, columns, rows: result };
-}
-
-/**
- * Downloads a table as CSV, for spreadsheets set in French: semicolons, UTF-8 with BOM, one line per task or
- * event with its kind, group and sub-task level.
- * @param {ExportTable} table Table.
- * @returns {void}
- */
-export function downloadCsv(table: ExportTable): void {
-  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
-  const grouped = table.rows.some((row) => row.kind === 'group');
-  const header = ['Nature', ...(grouped ? ['Groupe'] : []), 'Niveau', ...table.columns.map((column) => column.label)];
-  const lines = table.rows
-    .filter((row) => row.kind !== 'group')
-    .map((row) => [row.kind === 'event' ? 'Évènement' : 'Tâche', ...(grouped ? [row.group] : []), String(row.depth), ...row.cells]);
-  const csv = [header, ...lines].map((line) => line.map(quote).join(';')).join('\r\n');
-  download(new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' }), fileName(table.title, 'csv'));
-}
-
-/**
- * Downloads a table as PDF (built by the API).
- * @param {ExportTable} table Table.
- * @returns {Promise<void>}
- */
-export async function downloadPdf(table: ExportTable): Promise<void> {
-  const response = await fetch('/api/exports/table.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: table.title,
-      subtitle: table.subtitle,
-      columns: table.columns.map((column) => column.label),
-      rows: table.rows.map(({ kind, depth, cells }) => ({ kind, depth, cells })),
-    }),
-  });
-  if (!response.ok) throw new Error('Le PDF n’a pas pu être créé.');
-  download(await response.blob(), fileName(table.title, 'pdf'));
 }

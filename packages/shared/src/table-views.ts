@@ -43,6 +43,11 @@ export const tableViewConfigSchema = z.object({
   flat: z.boolean().catch(false).default(false),
   /** Archived rows shown too (a table that has some). */
   includeArchived: z.boolean().catch(false).default(false),
+  /** Options of its own a table keeps in its views (the events listed with the tasks…). */
+  options: z
+    .record(z.string().max(64), z.union([z.string().max(200), z.number(), z.boolean()]))
+    .catch({})
+    .default({}),
   ...columnLayoutSchema.shape,
   /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
   footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),

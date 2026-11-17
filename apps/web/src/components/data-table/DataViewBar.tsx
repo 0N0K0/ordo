@@ -7,7 +7,7 @@ import { notifyError } from '../../lib/notify';
 import { FieldsFilterBuilder } from '../../features/tasks/views/FilterBuilder';
 import { countConditions } from '../../features/tasks/views/filter-meta';
 import { ViewTabs } from '../../features/tasks/views/ViewTabs';
-import { SortPanel } from '../../features/tasks/views/ViewToolbar';
+import { SortPanel } from './SortPanel';
 import { DataColumnsPanel } from './ColumnsPanel';
 import { columnFilter, groupableColumns, tableFilterFields } from './table-engine';
 import { downloadTableCsv, downloadTablePdf, type TableExport } from './table-export';

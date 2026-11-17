@@ -16,7 +16,7 @@ export function TasksPage() {
       <PageSettings title="Paramètres des tâches">
         <TaskSettings />
       </PageSettings>
-      <TaskBoard projectId={null} baseFilter={null} emptyMessage="Aucune tâche." title="Tâches" />
+      <TaskBoard projectId={null} emptyMessage="Aucune tâche." title="Tâches" />
     </Stack>
   );
 }

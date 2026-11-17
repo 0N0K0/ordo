@@ -247,6 +247,15 @@ export function isGroupable<R>(column: DataColumn<R>): boolean {
 function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key: string; label: string; order: string | number | null }[] {
   const none = [{ key: '', label: 'Sans valeur', order: null }];
   const filter = columnFilter(column);
+  if (column.groupValue) {
+    const values = column.groupValue(row);
+    if (!values.length) return none;
+    const options = filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [];
+    return values.map((value) => {
+      const index = options.findIndex((option) => option.value === value);
+      return { key: value, label: options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index };
+    });
+  }
   if (filter?.kind === 'date') {
     const date = filter.value(row);
     if (!date) return none;

@@ -45,6 +45,8 @@ interface DataViewOptions<R> {
   archived?: (row: R) => boolean;
   /** The row is shown whatever the search and the filter (one being created…). Optional. */
   alwaysKept?: (row: R) => boolean;
+  /** Its views, read before its rows (useTableViews). Optional. */
+  views?: SavedViewsState<TableViewConfig>;
 }
 
 /** Saved views of a table, the current one applied to its rows. */
@@ -100,19 +102,31 @@ function parseConfig(config: unknown): TableViewConfig {
 }
 
 /**
- * Saved views of a table, as those of the tasks (tabs, unsaved changes, default one), and the current one applied to
- * its rows: search and filter on its columns, sorts, groups, columns shown, their order and widths.
- * @param {DataViewOptions<R>} options Table.
- * @returns {DataView<R>} View.
+ * Saved views of a table (tabs, unsaved changes, default one), the first ones made once: what a table reads before its
+ * rows when they depend on its view (the events listed with the tasks).
+ * @param {{ tableKey: string, projectId?: string | null, first?: readonly FirstTableView[], ready?: boolean }} options Table, project of the views, first views, whether it makes them.
+ * @returns {SavedViewsState<TableViewConfig>} Views.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived, alwaysKept }: DataViewOptions<R>): DataView<R> {
+export function useTableViews({ tableKey, projectId = null, first, ready = true }: { tableKey: string; projectId?: string | null; first?: readonly FirstTableView[]; ready?: boolean }) {
   const firstKey = JSON.stringify(first ?? null);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
     () => ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ name: 'Toutes' }]).map((view) => ({ name: view.name, config: tableViewConfig(view.config) })),
     [firstKey],
   );
-  const views = useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse: parseConfig, blank: tableViewConfig, first: firstViews, param: `${tableKey}-view` });
+  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse: parseConfig, blank: tableViewConfig, first: firstViews, ready, param: `${tableKey}-view` });
+}
+
+/**
+ * Saved views of a table, as those of the tasks (tabs, unsaved changes, default one), and the current one applied to
+ * its rows: search and filter on its columns, sorts, groups, columns shown, their order and widths.
+ * @param {DataViewOptions<R>} options Table.
+ * @returns {DataView<R>} View.
+ */
+export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived, alwaysKept, views: given }: DataViewOptions<R>): DataView<R> {
+  // Its own views, unless read before by the table (useTableViews).
+  const own = useTableViews({ tableKey, projectId, first, ready: !given });
+  const views = given ?? own;
   const { config } = views;
   const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
   const sorting = config?.sorting ?? [];

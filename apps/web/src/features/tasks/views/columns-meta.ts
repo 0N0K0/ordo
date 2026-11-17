@@ -1,4 +1,4 @@
-import type { TaskColumn, TaskFilterField, TaskGroupBy, TaskSortKey } from '@ordo/shared';
+import type { TaskColumn } from '@ordo/shared';
 
 export const COLUMN_LABELS: Record<TaskColumn, string> = {
   title: 'Label',
@@ -32,32 +32,8 @@ export const COLUMN_LABELS: Record<TaskColumn, string> = {
   updatedAt: 'Modifiée le',
 };
 
-/** Sort keys: the columns, plus the task number. */
-export const SORT_LABELS: Record<TaskSortKey, string> = { ...COLUMN_LABELS, number: 'Numéro' };
-
 /** Columns that cannot be hidden. */
 export const LOCKED_COLUMNS: readonly TaskColumn[] = ['title'];
-
-export const GROUP_BY_LABELS: Record<TaskGroupBy, string> = {
-  state: 'État (ouvertes / fermées)',
-  project: 'Projet',
-  status: 'Statut',
-  priority: 'Priorité',
-  type: 'Type',
-  assignees: 'Assigné',
-  tags: 'Étiquette',
-  parent: 'Tâche parente',
-  milestone: 'Jalon',
-  sprint: 'Sprint',
-  beneficiaries: 'Bénéficiaire',
-  blockedBy: 'Dépend de',
-  blocking: 'Bloque',
-  related: 'Relative à',
-  startDate: 'Mois de début',
-  endDate: 'Mois de fin',
-  minDate: 'Mois de la date min',
-  deadline: 'Mois de la date max',
-};
 
 /** Default width of each column, in px. */
 export const COLUMN_SIZES: Record<TaskColumn, number> = {
@@ -90,58 +66,6 @@ export const COLUMN_SIZES: Record<TaskColumn, number> = {
   shopping: 200,
   createdAt: 150,
   updatedAt: 150,
-};
-
-/** Filter field opened by the "Filtrer" entry of a column menu. */
-export const COLUMN_FILTER_FIELDS: Partial<Record<TaskColumn, TaskFilterField>> = {
-  title: 'title',
-  project: 'project',
-  status: 'status',
-  priority: 'priority',
-  type: 'type',
-  assignees: 'assignees',
-  tags: 'tags',
-  effort: 'effort',
-  startDate: 'startDate',
-  endDate: 'endDate',
-  parent: 'parent',
-  milestone: 'milestone',
-  sprint: 'sprint',
-  blockedBy: 'dependsOn',
-  blocking: 'blocks',
-  related: 'relatedTo',
-  beneficiaries: 'beneficiaries',
-  deadline: 'deadline',
-  minDate: 'minDate',
-  slots: 'slots',
-  trackedTime: 'trackedHours',
-  subtasks: 'hasSubtasks',
-  comments: 'hasComments',
-  alarms: 'hasAlarms',
-  shopping: 'hasShopping',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-};
-
-/** Grouping offered by a column menu. */
-export const COLUMN_GROUP_BY: Partial<Record<TaskColumn, TaskGroupBy>> = {
-  project: 'project',
-  status: 'status',
-  priority: 'priority',
-  type: 'type',
-  assignees: 'assignees',
-  tags: 'tags',
-  parent: 'parent',
-  milestone: 'milestone',
-  sprint: 'sprint',
-  beneficiaries: 'beneficiaries',
-  blockedBy: 'blockedBy',
-  blocking: 'blocking',
-  related: 'related',
-  startDate: 'startDate',
-  endDate: 'endDate',
-  minDate: 'minDate',
-  deadline: 'deadline',
 };
 
 /** Columns whose cells can be selected and edited together. */

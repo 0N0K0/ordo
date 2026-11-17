@@ -422,7 +422,9 @@ export function DataTable<R>({
     if (view.groupColumn && tree) {
       // Grouped by a column of a tree of groups: its values as that tree.
       const filter = columnFilter(view.groupColumn);
+      const groupValue = view.groupColumn.groupValue;
       const groupOf = (row: R): readonly string[] => {
+        if (groupValue) return groupValue(row);
         if (filter?.kind === 'choices') return filter.value(row);
         if (filter?.kind === 'choice') {
           const value = filter.value(row);
