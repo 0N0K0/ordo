@@ -30,7 +30,7 @@ import {
   type ExpandedState,
   type Updater,
 } from '@tanstack/react-table';
-import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { contentWidth } from '../../features/tasks/column-fit';
 import { ColumnHeaderMenu, type ColumnMove } from './ColumnHeaderMenu';
@@ -796,34 +796,6 @@ export function DataTable<R>({
     if (add) entries.push(add);
   }
 
-  // Long tables: only the rows in view are rendered (measured as they show), the others stand as their height.
-  const virtual = entries.length > VIRTUAL_FROM;
-  const virtualizer = useVirtualizer({
-    count: virtual ? entries.length : 0,
-    getScrollElement: () => heightRef.current,
-    estimateSize: () => ROW_ESTIMATE,
-    overscan: 12,
-    getItemKey: (index) => entries[index]?.key ?? index,
-  });
-  const virtualRows = virtualizer.getVirtualItems();
-  const paddingTop = virtual && virtualRows.length ? virtualRows[0].start : 0;
-  const paddingBottom = virtual && virtualRows.length ? virtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0;
-  const body: ReactNode[] = virtual
-    ? [
-        paddingTop > 0 && (
-          <tr key="virtual:top" aria-hidden style={{ height: paddingTop }}>
-            <td colSpan={span} style={{ padding: 0, border: 0 }} />
-          </tr>
-        ),
-        ...virtualRows.map((virtualRow) => entries[virtualRow.index].render({ 'data-index': virtualRow.index, ref: virtualizer.measureElement })),
-        paddingBottom > 0 && (
-          <tr key="virtual:bottom" aria-hidden style={{ height: paddingBottom }}>
-            <td colSpan={span} style={{ padding: 0, border: 0 }} />
-          </tr>
-        ),
-      ]
-    : entries.map((entry, index) => entry.render({ 'data-index': index, ref: () => undefined }));
-
   const headers = table.getHeaderGroups()[0]?.headers ?? [];
   const tableElement = (
     // Scrolling both ways inside its own area, its header sticking to the top of it.
@@ -927,7 +899,9 @@ export function DataTable<R>({
             </SortableContext>
           </Table.Thead>
           <SortableContext items={rowDrag ? dragItems.map((item) => item.id) : []} strategy={verticalListSortingStrategy}>
-            <Table.Tbody>{body}</Table.Tbody>
+            <Table.Tbody>
+              <TableBody entries={entries} scrollRef={heightRef} span={span} />
+            </Table.Tbody>
           </SortableContext>
           {view.config?.footer && (
             <TableFooter shown={shown} rows={view.rows} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={before} after={1} />
@@ -1098,5 +1072,56 @@ function GroupHeading({ id, droppable, attrs, ...heading }: GroupHeadingProps) {
         },
       }}
     />
+  );
+}
+
+/** Measure of a row of a table that is not virtual (nothing measured). */
+const NO_MEASURE = () => undefined;
+
+/**
+ * A row of the body, drawn again only when it changes (not while the table scrolls).
+ * @param {{ entry: Entry, index: number, measure: (element: HTMLTableRowElement | null) => void }} props Row, its index, its measure.
+ * @returns {ReactNode} Row.
+ */
+const EntryRow = memo(function EntryRow({ entry, index, measure }: { entry: Entry; index: number; measure: (element: HTMLTableRowElement | null) => void }) {
+  return entry.render({ 'data-index': index, ref: measure });
+});
+
+/**
+ * Body of a table: its rows, only those in view for a long table (measured as they show, the others standing as their
+ * height). Its own component: scrolling draws it again, not the table, and only the rows that come into view.
+ * @param {{ entries: Entry[], scrollRef: RefObject<HTMLDivElement | null>, span: number }} props Rows, scrolling area, cells of a row.
+ * @returns {JSX.Element} Rows.
+ */
+function TableBody({ entries, scrollRef, span }: { entries: Entry[]; scrollRef: RefObject<HTMLDivElement | null>; span: number }) {
+  const virtual = entries.length > VIRTUAL_FROM;
+  const virtualizer = useVirtualizer({
+    count: virtual ? entries.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: 10,
+    getItemKey: (index) => entries[index]?.key ?? index,
+  });
+  if (!virtual) return entries.map((entry, index) => <EntryRow key={entry.key} entry={entry} index={index} measure={NO_MEASURE} />);
+  const virtualRows = virtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length ? virtualRows[0].start : 0;
+  const paddingBottom = virtualRows.length ? virtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0;
+  return (
+    <>
+      {paddingTop > 0 && (
+        <tr aria-hidden style={{ height: paddingTop }}>
+          <td colSpan={span} style={{ padding: 0, border: 0 }} />
+        </tr>
+      )}
+      {virtualRows.map((virtualRow) => {
+        const entry = entries[virtualRow.index];
+        return <EntryRow key={entry.key} entry={entry} index={virtualRow.index} measure={virtualizer.measureElement} />;
+      })}
+      {paddingBottom > 0 && (
+        <tr aria-hidden style={{ height: paddingBottom }}>
+          <td colSpan={span} style={{ padding: 0, border: 0 }} />
+        </tr>
+      )}
+    </>
   );
 }
