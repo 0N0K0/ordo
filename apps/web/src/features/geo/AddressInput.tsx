@@ -1,7 +1,10 @@
-import { ActionIcon, Combobox, Group, InputBase, Loader, Menu, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
+import { ActionIcon, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
-import { HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';
-import { placesInTree, useAddressSearch, usePlaces } from './api';
+import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon, SquaresFourIcon } from '@phosphor-icons/react';
+import { placesInTree, rootPlace, useAddressSearch, usePlaces, zonesOfText, zonesText } from './api';
+
+/** Height of the lists of places and addresses at most (they scroll beyond). */
+const LIST_HEIGHT = 320;
 
 /** Address typed or chosen: its text, and its point when chosen from a place or a search. */
 export interface AddressValue {
@@ -21,8 +24,9 @@ interface AddressInputProps extends Omit<InputBaseProps, 'value' | 'onChange'> {
 
 /**
  * Address field: free text (a room, a video call…) or, as it is typed, saved places then addresses of OpenStreetMap
- * to choose, which give it its point on the map; the saved places are also listed by a button of the field. Typing
- * again forgets the point.
+ * to choose, which give it its point on the map; the saved places are also listed by a button of the field. Several
+ * zones of a same place can be ticked (« Maison › Cuisine, Salle de bain »), with the point of the place. Typing again
+ * forgets the point.
  * @param {AddressInputProps} props Component props.
  * @returns {JSX.Element} Field.
  */
@@ -37,17 +41,37 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
   const tree = placesInTree(places ?? []);
   const placeOptions = withPlaces ? tree.filter((place) => value.point || !needle || `${place.path} ${place.address}`.toLocaleLowerCase('fr').includes(needle)).slice(0, 12) : [];
   const suggestions = value.point ? [] : (search.data ?? []);
+  // Zones of a place the location is on (several can be ticked).
+  const chosen = value.point && places ? zonesOfText(value.text, places) : null;
 
   /**
-   * Chooses a saved place: its name and address, and its point.
-   * @param {string} id Place.
+   * Chooses a saved place (its name and address, and its point), or ticks or unticks one of its zones: the zones
+   * ticked of a same place, with its point.
+   * @param {string} id Place or zone.
    * @returns {void}
    */
   const choosePlace = (id: string) => {
     const place = places?.find((item) => item.id === id);
-    // A zone: its full name, with the point of the place it is in.
-    if (place) onChange({ text: place.parentId ? place.path : place.address ? `${place.name}, ${place.address}` : place.name, point: { lat: place.lat, lon: place.lon } });
+    if (!place || !places) return;
+    const point = { lat: place.lat, lon: place.lon };
+    if (!place.parentId) {
+      onChange({ text: place.address ? `${place.name}, ${place.address}` : place.name, point });
+      return;
+    }
+    const root = rootPlace(place, new Map(places.map((item) => [item.id, item])));
+    const before = chosen && chosen.root.id === root.id ? chosen.zoneIds : [];
+    const ids = before.includes(id) ? before.filter((other) => other !== id) : [...before, id];
+    // In the order of the tree; none left: the place itself.
+    const zones = tree.filter((item) => ids.includes(item.id));
+    onChange(zones.length ? { text: zonesText(root, zones), point } : { text: root.address ? `${root.name}, ${root.address}` : root.name, point });
   };
+
+  /**
+   * Whether a zone is ticked.
+   * @param {string} id Zone.
+   * @returns {boolean} Ticked.
+   */
+  const ticked = (id: string) => chosen?.zoneIds.includes(id) ?? false;
 
   /**
    * Chooses a place or an address: its text and point.
@@ -56,8 +80,11 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
    */
   const choose = (key: string) => {
     const [kind, id] = key.split(':');
-    if (kind === 'place') choosePlace(id);
-    else {
+    if (kind === 'place') {
+      choosePlace(id);
+      // A zone ticked: the list stays open to tick others.
+      if (places?.find((item) => item.id === id)?.parentId) return;
+    } else {
       const suggestion = suggestions[Number(id)];
       if (suggestion) onChange({ text: suggestion.label, point: { lat: suggestion.lat, lon: suggestion.lon } });
     }
@@ -87,21 +114,27 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>Lieux enregistrés</Menu.Label>
-                  {tree.map((place) => (
-                    <Menu.Item
-                      key={place.id}
-                      leftSection={<HouseIcon aria-hidden />}
-                      onClick={() => choosePlace(place.id)}
-                      style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${place.depth} * var(--mantine-spacing-md))` }}
-                    >
-                      <Text size="sm">{place.name}</Text>
-                      {place.address && !place.parentId && (
-                        <Text size="xs" c="dimmed">
-                          {place.address}
-                        </Text>
-                      )}
-                    </Menu.Item>
-                  ))}
+                  {/* A long list scrolls in the menu. */}
+                  <ScrollArea.Autosize mah={LIST_HEIGHT} type="auto" offsetScrollbars>
+                    {tree.map((place) => (
+                      <Menu.Item
+                        key={place.id}
+                        leftSection={place.parentId ? ticked(place.id) ? <CheckIcon aria-hidden /> : <SquaresFourIcon aria-hidden /> : <HouseIcon aria-hidden />}
+                        // A zone ticked: the menu stays open to tick others.
+                        closeMenuOnClick={!place.parentId}
+                        aria-checked={place.parentId ? ticked(place.id) : undefined}
+                        onClick={() => choosePlace(place.id)}
+                        style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${place.depth} * var(--mantine-spacing-md))` }}
+                      >
+                        <Text size="sm">{place.name}</Text>
+                        {place.address && !place.parentId && (
+                          <Text size="xs" c="dimmed">
+                            {place.address}
+                          </Text>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </ScrollArea.Autosize>
                 </Menu.Dropdown>
               </Menu>
             ) : undefined
@@ -118,42 +151,47 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
       </Combobox.Target>
       <Combobox.Dropdown hidden={empty}>
         <Combobox.Options>
-          {placeOptions.length > 0 && (
-            <Combobox.Group label="Lieux enregistrés">
-              {placeOptions.map((place) => (
-                <Combobox.Option
-                  key={place.id}
-                  value={`place:${place.id}`}
-                  style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
-                >
-                  <Group gap="xs" wrap="nowrap">
-                    <HouseIcon aria-hidden />
-                    <div>
-                      {/* Searched: the full name of a zone; listed: its name under its place. */}
-                      <Text size="sm">{needle && !value.point ? place.path : place.name}</Text>
-                      {place.address && !place.parentId && (
-                        <Text size="xs" c="dimmed">
-                          {place.address}
-                        </Text>
-                      )}
-                    </div>
-                  </Group>
-                </Combobox.Option>
-              ))}
-            </Combobox.Group>
-          )}
-          {suggestions.length > 0 && (
-            <Combobox.Group label="Adresses (OpenStreetMap)">
-              {suggestions.map((suggestion, index) => (
-                <Combobox.Option key={suggestion.label} value={`address:${index}`}>
-                  <Group gap="xs" wrap="nowrap">
-                    <MapPinIcon aria-hidden />
-                    <Text size="sm">{suggestion.label}</Text>
-                  </Group>
-                </Combobox.Option>
-              ))}
-            </Combobox.Group>
-          )}
+          {/* A long list scrolls in the dropdown. */}
+          <ScrollArea.Autosize mah={LIST_HEIGHT} type="auto" offsetScrollbars>
+            {placeOptions.length > 0 && (
+              <Combobox.Group label="Lieux enregistrés">
+                {placeOptions.map((place) => (
+                  <Combobox.Option
+                    key={place.id}
+                    value={`place:${place.id}`}
+                    active={ticked(place.id)}
+                    aria-selected={place.parentId ? ticked(place.id) : undefined}
+                    style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
+                  >
+                    <Group gap="xs" wrap="nowrap">
+                      {place.parentId ? ticked(place.id) ? <CheckIcon aria-label="Zone choisie" /> : <SquaresFourIcon aria-hidden /> : <HouseIcon aria-hidden />}
+                      <div>
+                        {/* Searched: the full name of a zone; listed: its name under its place. */}
+                        <Text size="sm">{needle && !value.point ? place.path : place.name}</Text>
+                        {place.address && !place.parentId && (
+                          <Text size="xs" c="dimmed">
+                            {place.address}
+                          </Text>
+                        )}
+                      </div>
+                    </Group>
+                  </Combobox.Option>
+                ))}
+              </Combobox.Group>
+            )}
+            {suggestions.length > 0 && (
+              <Combobox.Group label="Adresses (OpenStreetMap)">
+                {suggestions.map((suggestion, index) => (
+                  <Combobox.Option key={suggestion.label} value={`address:${index}`}>
+                    <Group gap="xs" wrap="nowrap">
+                      <MapPinIcon aria-hidden />
+                      <Text size="sm">{suggestion.label}</Text>
+                    </Group>
+                  </Combobox.Option>
+                ))}
+              </Combobox.Group>
+            )}
+          </ScrollArea.Autosize>
         </Combobox.Options>
       </Combobox.Dropdown>
     </Combobox>
