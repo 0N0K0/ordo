@@ -36,6 +36,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Ce qui se répète :** la barre entière, avec les onglets, le glisser-déposer horizontal, le menu (renommer, déplacer à gauche ou à droite, supprimer) et l'onglet choisi dans l'URL. Environ 150 lignes.
 - **Cible :** un composant `components/SortableTabs`, avec des emplacements pour le contenu de l'onglet et pour le menu, que `ViewTabs` utiliserait lui aussi.
 
+**Fait** : `SortableTabs` (`components/sortable-tabs/`) porte la barre des vues, des références d'achats et des tableaux de bord. Elle gère les onglets, le glisser-déposer, le menu de l'onglet choisi (ses actions, déplacer à gauche ou à droite, supprimer) et le bouton d'ajout (un clic, ou un menu). `useTabParam` garde l'onglet choisi dans l'URL pour les références et les tableaux de bord ; les vues gardent leur propre sélection, qui retient aussi leurs modifications. Le déplacement d'un tableau de bord par son menu signale maintenant ses erreurs.
+
 ### 4. Actions sur une ligne contre actions sur plusieurs
 
 - **Dialogues des tâches :** `TaskDialogs.tsx` (supprimer, transférer une tâche) double `BulkDialogs.tsx` (les mêmes sur plusieurs tâches). On y retrouve le même choix « Que faire de ses sous-tâches », les mêmes boutons et les mêmes messages.

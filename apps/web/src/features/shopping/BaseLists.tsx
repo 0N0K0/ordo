@@ -1,3 +1,5 @@
+import { SortableTabs } from '../../components/sortable-tabs/SortableTabs';
+import { useTabParam } from '../../components/sortable-tabs/use-tab-param';
 import { ActionsRow } from '../../components/actions/ActionsRow';
 import { createdId } from '../../components/settings/settings-api';
 import { SettingsItemForm } from '../../components/settings/SettingsItemForm';
@@ -7,38 +9,17 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Badge, Group, Menu, Stack, Tabs, Text, Tooltip, type TabsTabProps } from '@mantine/core';
+
+import { Badge, Group, Menu, Stack, Text } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
-import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useSearchParams } from 'react-router';
+import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+
 import { z } from 'zod';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
 import { BaseList } from './BaseList';
-import { useDragSensors } from '../../lib/drag';
-const schema = z.object({ name: shoppingBaseListNameSchema });
 
-/**
- * Tab of a base list dragged along the tab list (a click still selects it: the drag starts after a few pixels), as the
- * tabs of the task views.
- * @param {TabsTabProps & { value: string }} props Tab props.
- * @returns {JSX.Element} Tab.
- */
-function SortableTab(props: TabsTabProps & { value: string }) {
-  // Pointer only: the tab keeps its role and keyboard navigation (its menu moves the base list with the keyboard).
-  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: props.value });
-  return (
-    <Tabs.Tab
-      ref={setNodeRef}
-      {...props}
-      {...listeners}
-      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
-    />
-  );
-}
+const schema = z.object({ name: shoppingBaseListNameSchema });
 
 /**
  * Base lists ("références": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
@@ -48,10 +29,8 @@ function SortableTab(props: TabsTabProps & { value: string }) {
 export function BaseLists() {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
-  const [params, setParams] = useSearchParams();
   const baseLists = data?.shoppingBaseLists ?? [];
-  const current = baseLists.find((baseList) => baseList.id === params.get('base')) ?? baseLists[0];
-  const sensors = useDragSensors();
+  const [current, select] = useTabParam('base', baseLists);
 
   /**
    * Moves a base list among the others.
@@ -60,22 +39,6 @@ export function BaseLists() {
    * @returns {void}
    */
   const move = (id: string, target: number) => mutations.moveBaseList.mutate({ id, index: target }, { onError: onMutationError });
-
-  /**
-   * Shows a base list.
-   * @param {string | null} id Base list id.
-   * @returns {void}
-   */
-  const select = (id: string | null) =>
-    setParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        if (id) next.set('base', id);
-        else next.delete('base');
-        return next;
-      },
-      { replace: true },
-    );
 
   /**
    * Opens the form of a new or renamed base list.
@@ -157,86 +120,36 @@ export function BaseLists() {
     );
   }
 
-  /**
-   * Moves the dropped base list to its new place.
-   * @param {DragEndEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    const target = baseLists.findIndex((baseList) => baseList.id === over.id);
-    if (target >= 0) move(String(active.id), target);
-  };
-
   return (
     <Stack gap="md">
-      <Group gap={0} wrap="nowrap">
-        <Tabs value={current.id} onChange={select} style={{ minWidth: 0 }}>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={baseLists.map((baseList) => baseList.id)} strategy={horizontalListSortingStrategy}>
-              <Tabs.List>
-                {baseLists.map((baseList, position) => {
-                  const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
-                  return (
-                    <SortableTab
-                      key={baseList.id}
-                      value={baseList.id}
-                      leftSection={<EntityAvatar name={baseList.name} iconUrl={baseList.iconUrl ?? null} color={baseList.color ?? 'gray'} size={18} radius="sm" />}
-                      rightSection={
-                        baseList.id === current.id ? (
-                          <Menu position="bottom-end" withinPortal shadow="md">
-                            <Menu.Target>
-                              <ActionIcon
-                                component="span"
-                                variant="subtle"
-                                color="gray"
-                                size="xs"
-                                aria-label={`Actions sur la référence ${baseList.name}`}
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                <CaretDownIcon aria-hidden />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(baseList)}>
-                                Modifier
-                              </Menu.Item>
-                              <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={position === 0} onClick={() => move(baseList.id, position - 1)}>
-                                Déplacer à gauche
-                              </Menu.Item>
-                              <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={position === baseLists.length - 1} onClick={() => move(baseList.id, position + 1)}>
-                                Déplacer à droite
-                              </Menu.Item>
-                              <Menu.Divider />
-                              <Menu.Item color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => confirmDelete(baseList)}>
-                                Supprimer
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        ) : undefined
-                      }
-                    >
-                      <Group gap={6} wrap="nowrap">
-                        {baseList.name}
-                        {missing > 0 && (
-                          <Badge size="xs" variant="light" color="orange" aria-label={`${missing} manquant(s)`}>
-                            {missing}
-                          </Badge>
-                        )}
-                      </Group>
-                    </SortableTab>
-                  );
-                })}
-              </Tabs.List>
-            </SortableContext>
-          </DndContext>
-        </Tabs>
-        <Tooltip label="Nouvelle référence">
-          <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouvelle référence" onClick={() => openForm()}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
+      <SortableTabs
+        items={baseLists}
+        value={current.id}
+        onChange={select}
+        onMove={move}
+        name={(baseList) => `la référence ${baseList.name}`}
+        leftSection={(baseList) => <EntityAvatar name={baseList.name} iconUrl={baseList.iconUrl ?? null} color={baseList.color ?? 'gray'} size={18} radius="sm" />}
+        label={(baseList) => {
+          const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
+          return (
+            <Group gap={6} wrap="nowrap">
+              {baseList.name}
+              {missing > 0 && (
+                <Badge size="xs" variant="light" color="orange" aria-label={`${missing} manquant(s)`}>
+                  {missing}
+                </Badge>
+              )}
+            </Group>
+          );
+        }}
+        actions={(baseList) => (
+          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(baseList)}>
+            Modifier
+          </Menu.Item>
+        )}
+        onDelete={confirmDelete}
+        add={{ label: 'Nouvelle référence', onClick: () => openForm() }}
+      />
       <BaseList key={current.id} baseList={current} />
     </Stack>
   );
