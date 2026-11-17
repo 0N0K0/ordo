@@ -1,9 +1,10 @@
 import { commentBodySchema, dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, subtreeOf, taskTitleSchema } from '@ordo/shared';
 import { z } from 'zod';
+import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
-import { BY_POSITION } from '../core/ordering';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { attachAssignees } from '../workspace/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
@@ -40,8 +41,7 @@ async function loadRootOf(): Promise<(projectId: string | null) => string | null
  * @returns {Promise<Task>} Task.
  */
 async function findTask(id: string): Promise<Task> {
-  const task = await prisma.task.findUnique({ where: { id } });
-  if (!task) throw notFound('Tâche');
+  const task = await orNotFound(prisma.task.findUnique({ where: { id } }), 'Tâche');
   return task;
 }
 
@@ -241,8 +241,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(): Promise<number> {
-  const { _max } = await prisma.task.aggregate({ _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('task');
 }
 
 /**
@@ -382,10 +381,7 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
   }
   await forgetGithubItems([id]);
   await forgetDeletedOccurrences([id]);
-  await prisma.$transaction([
-    prisma.task.updateMany({ where: { parentId: id }, data: { parentId: task.parentId } }),
-    prisma.task.delete({ where: { id } }),
-  ]);
+  await deleteTreeNode('task', task);
 }
 
 /**
@@ -467,8 +463,7 @@ export async function transferTask(id: string, projectId: string | null): Promis
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
   const include = { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
-  const source = await prisma.task.findUnique({ where: { id }, include });
-  if (!source) throw notFound('Tâche');
+  const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
 
   return prisma.$transaction(async (tx) => {
     let position = ((await tx.task.aggregate({ _max: { position: true } }))._max.position ?? -1) + 1;
@@ -631,7 +626,7 @@ export async function addComment(taskId: string, body: string): Promise<TaskComm
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function updateComment(id: string, body: string): Promise<TaskComment> {
-  if (!(await prisma.taskComment.findUnique({ where: { id } }))) throw notFound('Commentaire');
+  await orNotFound(prisma.taskComment.findUnique({ where: { id } }), 'Commentaire');
   const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
   return prisma.taskComment.update({ where: { id }, data: { body: parsed.body } });
 }

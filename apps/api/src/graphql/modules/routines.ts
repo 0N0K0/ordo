@@ -1,7 +1,7 @@
 import { readSlotRule } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
-import { clientError } from '../errors';
+import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { builder } from '../builder';
@@ -456,25 +456,16 @@ builder.mutationFields((t) => ({
   }),
   updateRoutineCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await routines.updateCategory(String(id), { name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) });
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(routines.updateCategory(String(id), { name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) })),
   }),
   moveRoutineCategory: t.boolean({
     description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: async (_root, { id, parentId, index }) => {
-      await routines.moveCategory(String(id), idOrNull(parentId), index);
-      return true;
-    },
+    resolve: (_root, { id, parentId, index }) => done(routines.moveCategory(String(id), idOrNull(parentId), index)),
   }),
   deleteRoutineCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await routines.deleteCategory(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(routines.deleteCategory(String(id))),
   }),
   createRoutine: t.id({
     args: { input: t.arg({ type: RoutineInputType, required: true }) },
@@ -487,10 +478,7 @@ builder.mutationFields((t) => ({
   }),
   updateRoutine: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await routines.updateRoutine(String(id), routineInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(routines.updateRoutine(String(id), routineInput(input))),
   }),
   patchRoutine: t.boolean({
     description: 'Changes some fields of a routine (inline edits).',
@@ -536,10 +524,7 @@ builder.mutationFields((t) => ({
       place: t.arg({ type: RoutinePlaceEnum, required: true }),
       categoryIds: t.arg.idList(),
     },
-    resolve: async (_root, { id, targetId, place, categoryIds }) => {
-      await routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null);
-      return true;
-    },
+    resolve: (_root, { id, targetId, place, categoryIds }) => done(routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null)),
   }),
   bulkUpdateRoutines: t.int({
     description: 'Applies the same changes to several routines; returns how many changed.',
@@ -583,10 +568,7 @@ builder.mutationFields((t) => ({
     description:
       'Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }), times: t.arg({ type: 'JSON' }) },
-    resolve: async (_root, { id, date, to, times }) => {
-      await routines.moveRoutineOccurrence(String(id), date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes));
-      return true;
-    },
+    resolve: (_root, { id, date, to, times }) => done(routines.moveRoutineOccurrence(String(id), date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes))),
   }),
   changeRoutineOccurrence: t.boolean({
     description: 'Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.',
@@ -599,10 +581,7 @@ builder.mutationFields((t) => ({
       fromTime: t.arg.string(),
       dueTime: t.arg.string(),
     },
-    resolve: async (_root, { id, date, scope, to, slot, fromTime, dueTime }) => {
-      await routines.changeRoutineOccurrence(String(id), date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null });
-      return true;
-    },
+    resolve: (_root, { id, date, scope, to, slot, fromTime, dueTime }) => done(routines.changeRoutineOccurrence(String(id), date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null })),
   }),
   deleteRoutineOccurrence: t.boolean({
     description: 'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).',
@@ -615,10 +594,7 @@ builder.mutationFields((t) => ({
   removeRoutineMove: t.boolean({
     description: 'Removes an exception: the occurrence goes back to its own day.',
     args: { id: t.arg.id({ required: true }), from: t.arg({ type: 'Date', required: true }) },
-    resolve: async (_root, { id, from }) => {
-      await routines.removeRoutineMove(String(id), from);
-      return true;
-    },
+    resolve: (_root, { id, from }) => done(routines.removeRoutineMove(String(id), from)),
   }),
   setRoutineDone: t.field({
     type: 'Date',

@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { STOCK_MOVEMENT_KINDS } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as stock from '../../services/shopping/stock';
@@ -249,16 +250,6 @@ builder.queryFields((t) => ({
   }),
 }));
 
-/**
- * Mutation returning true once a service is done.
- * @param {() => Promise<unknown>} run Service.
- * @returns {Promise<boolean>} True.
- */
-const done = async (run: () => Promise<unknown>) => {
-  await run();
-  return true;
-};
-
 builder.mutationFields((t) => ({
   createStockLocation: t.id({
     args: { input: t.arg({ type: LocationInput, required: true }) },
@@ -266,19 +257,19 @@ builder.mutationFields((t) => ({
   }),
   updateStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: LocationInput, required: true }) },
-    resolve: (_root, { id, input }) => done(() => stock.updateLocation(String(id), { name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })),
+    resolve: (_root, { id, input }) => done(stock.updateLocation(String(id), { name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })),
   }),
   moveStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: (_root, { id, parentId, index }) => done(() => stock.moveLocation(String(id), parentId ? String(parentId) : null, index)),
+    resolve: (_root, { id, parentId, index }) => done(stock.moveLocation(String(id), parentId ? String(parentId) : null, index)),
   }),
-  deleteStockLocation: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(() => stock.deleteLocation(String(id))) }),
+  deleteStockLocation: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteLocation(String(id))) }),
   createStockItem: t.id({ args: { input: t.arg({ type: ItemInput, required: true }) }, resolve: async (_root, { input }) => (await stock.createStockItem(itemInput(input))).id }),
   updateStockItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
-    resolve: (_root, { id, input }) => done(() => stock.updateStockItem(String(id), itemInput(input))),
+    resolve: (_root, { id, input }) => done(stock.updateStockItem(String(id), itemInput(input))),
   }),
-  deleteStockItem: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(() => stock.deleteStockItem(String(id))) }),
+  deleteStockItem: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteStockItem(String(id))) }),
   moveStock: t.float({
     description: 'Quantity in or out of an item by hand; returns the quantity moved (signed).',
     args: { input: t.arg({ type: MoveInput, required: true }) },
@@ -294,7 +285,7 @@ builder.mutationFields((t) => ({
   }),
   setStockLotExpiry: t.boolean({
     args: { id: t.arg.id({ required: true }), expiresAt: t.arg({ type: 'Date' }) },
-    resolve: (_root, { id, expiresAt }) => done(() => stock.setLotExpiry(String(id), day(expiresAt))),
+    resolve: (_root, { id, expiresAt }) => done(stock.setLotExpiry(String(id), day(expiresAt))),
   }),
   recordStockCount: t.id({
     args: { input: t.arg({ type: CountInput, required: true }) },
@@ -309,21 +300,19 @@ builder.mutationFields((t) => ({
   }),
   setProductStock: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProductStockInput, required: true }) },
-    resolve: (_root, { id, input }) => done(() => stock.setProductStock(String(id), { ...input, stockLocationId: input.stockLocationId ? String(input.stockLocationId) : null })),
+    resolve: (_root, { id, input }) => done(stock.setProductStock(String(id), { ...input, stockLocationId: input.stockLocationId ? String(input.stockLocationId) : null })),
   }),
   addStockPurchase: t.boolean({
     description: 'Adds an item bought on a shopping list to the stock.',
     args: { input: t.arg({ type: PurchaseInput, required: true }) },
     resolve: (_root, { input }) =>
-      done(() =>
-        stock.addPurchase({ shoppingItemId: String(input.shoppingItemId), quantity: input.quantity, locationId: input.locationId ? String(input.locationId) : null, expiresAt: day(input.expiresAt) }),
+      done(stock.addPurchase({ shoppingItemId: String(input.shoppingItemId), quantity: input.quantity, locationId: input.locationId ? String(input.locationId) : null, expiresAt: day(input.expiresAt) }),
       ),
   }),
   setShoppingOrder: t.boolean({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: OrderInput, required: true }) },
     resolve: (_root, { listId, input }) =>
-      done(() =>
-        stock.setShoppingOrder(String(listId), {
+      done(stock.setShoppingOrder(String(listId), {
           remote: input.remote,
           deliveryAddress: input.deliveryAddress ?? null,
           deliveryLat: input.deliveryLat ?? null,
@@ -337,9 +326,9 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingDelivery: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: DeliveryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(() => stock.updateDelivery(String(id), deliveryInput(input))),
+    resolve: (_root, { id, input }) => done(stock.updateDelivery(String(id), deliveryInput(input))),
   }),
-  deleteShoppingDelivery: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(() => stock.deleteDelivery(String(id))) }),
+  deleteShoppingDelivery: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteDelivery(String(id))) }),
   setShoppingDeliveryReceived: t.idList({
     description: 'Marks a delivery received (its items ticked as bought) or not; returns the items ticked now.',
     args: { id: t.arg.id({ required: true }), received: t.arg.boolean({ required: true }) },

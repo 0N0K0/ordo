@@ -1,8 +1,8 @@
 import { chartConfigSchema, chartTitleSchema, dashboardNameSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 
 /**
  * Loads a dashboard or throws NOT_FOUND.
@@ -10,8 +10,7 @@ import { BY_POSITION, moveInOrder } from '../core/ordering';
  * @returns {Promise<Dashboard>} Dashboard.
  */
 async function findDashboard(id: string): Promise<Dashboard> {
-  const dashboard = await prisma.dashboard.findUnique({ where: { id } });
-  if (!dashboard) throw notFound('Tableau de bord');
+  const dashboard = await orNotFound(prisma.dashboard.findUnique({ where: { id } }), 'Tableau de bord');
   return dashboard;
 }
 
@@ -21,8 +20,7 @@ async function findDashboard(id: string): Promise<Dashboard> {
  * @returns {Promise<DashboardChart>} Chart.
  */
 async function findChart(id: string): Promise<DashboardChart> {
-  const chart = await prisma.dashboardChart.findUnique({ where: { id } });
-  if (!chart) throw notFound('Diagramme');
+  const chart = await orNotFound(prisma.dashboardChart.findUnique({ where: { id } }), 'Diagramme');
   return chart;
 }
 
@@ -34,8 +32,8 @@ async function findChart(id: string): Promise<DashboardChart> {
  */
 export async function createDashboard(name: string, projectId: string | null): Promise<Dashboard> {
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
-  const { _max } = await prisma.dashboard.aggregate({ where: { projectId }, _max: { position: true } });
-  return prisma.dashboard.create({ data: { name: parseInput(dashboardNameSchema, name), projectId, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('dashboard', { projectId });
+  return prisma.dashboard.create({ data: { name: parseInput(dashboardNameSchema, name), projectId, position } });
 }
 
 /**
@@ -67,13 +65,7 @@ export async function deleteDashboard(id: string): Promise<void> {
  */
 export async function moveDashboard(id: string, index: number): Promise<void> {
   const dashboard = await findDashboard(id);
-  const siblings = await prisma.dashboard.findMany({ where: { projectId: dashboard.projectId }, orderBy: BY_POSITION, select: { id: true } });
-  const order = moveInOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((dashboardId, position) => prisma.dashboard.update({ where: { id: dashboardId }, data: { position } })));
+  await moveInList('dashboard', id, index, { projectId: dashboard.projectId });
 }
 
 export interface ChartInput {
@@ -100,8 +92,8 @@ function chartData(input: ChartInput) {
  */
 export async function createChart(dashboardId: string, input: ChartInput): Promise<DashboardChart> {
   await findDashboard(dashboardId);
-  const { _max } = await prisma.dashboardChart.aggregate({ where: { dashboardId }, _max: { position: true } });
-  return prisma.dashboardChart.create({ data: { ...chartData(input), dashboardId, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('dashboardChart', { dashboardId });
+  return prisma.dashboardChart.create({ data: { ...chartData(input), dashboardId, position } });
 }
 
 /**
@@ -146,13 +138,7 @@ export async function deleteChart(id: string): Promise<void> {
  */
 export async function moveChart(id: string, index: number): Promise<void> {
   const chart = await findChart(id);
-  const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
-  const order = moveInOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((chartId, position) => prisma.dashboardChart.update({ where: { id: chartId }, data: { position } })));
+  await moveInList('dashboardChart', id, index, { dashboardId: chart.dashboardId });
 }
 
 /**
@@ -171,7 +157,7 @@ export async function transferChart(id: string, target: { dashboardId: string | 
     dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }
   if (dashboard.id === chart.dashboardId) return dashboard;
-  const { _max } = await prisma.dashboardChart.aggregate({ where: { dashboardId: dashboard.id }, _max: { position: true } });
-  await prisma.dashboardChart.update({ where: { id }, data: { dashboardId: dashboard.id, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('dashboardChart', { dashboardId: dashboard.id });
+  await prisma.dashboardChart.update({ where: { id }, data: { dashboardId: dashboard.id, position } });
   return dashboard;
 }

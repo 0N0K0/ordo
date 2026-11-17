@@ -43,11 +43,19 @@ export async function githubRequest<T>(token: string, query: string, variables: 
 }
 
 /**
+ * GitHub connection of the current workspace, if any.
+ * @returns {Promise<{ login: string } | null>} Connection (its token and login).
+ */
+export function currentGithubConnection() {
+  return prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } });
+}
+
+/**
  * Token of the app, or throws when GitHub is not connected or the token cannot be decrypted.
  * @returns {Promise<string>} Token.
  */
 export async function githubToken(): Promise<string> {
-  const connection = await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } });
+  const connection = await currentGithubConnection();
   if (!connection) throw clientError('BAD_USER_INPUT', 'Connectez d’abord GitHub (Paramètres › GitHub).');
   try {
     return decryptSecret(connection.token);

@@ -2,9 +2,9 @@ import { optionalText, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { ProjectResource } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { moveInList, nextPositionIn } from '../core/ordering';
 
 const linkSchema = z.object({
   title: requiredText(200, 'Le titre est requis.'),
@@ -18,9 +18,8 @@ const linkSchema = z.object({
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(projectId: string): Promise<number> {
-  if (!(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
-  const { _max } = await prisma.projectResource.aggregate({ where: { projectId }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
+  return nextPositionIn('projectResource', { projectId });
 }
 
 /**
@@ -56,8 +55,7 @@ export async function addProjectFiles(projectId: string, files: File[]): Promise
  * @returns {Promise<ProjectResource>} Resource.
  */
 export async function updateProjectResource(id: string, input: { title: string; url?: string | null; note?: string | null }): Promise<ProjectResource> {
-  const resource = await prisma.projectResource.findUnique({ where: { id } });
-  if (!resource) throw notFound('Ressource');
+  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
   const data =
     resource.kind === 'LINK'
       ? parseInput(linkSchema, { title: input.title, url: input.url ?? resource.url ?? '', note: input.note ?? null })
@@ -71,8 +69,7 @@ export async function updateProjectResource(id: string, input: { title: string; 
  * @returns {Promise<void>}
  */
 export async function deleteProjectResource(id: string): Promise<void> {
-  const resource = await prisma.projectResource.findUnique({ where: { id } });
-  if (!resource) throw notFound('Ressource');
+  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
   if (resource.attachmentId) await prisma.attachment.delete({ where: { id: resource.attachmentId } });
   else await prisma.projectResource.delete({ where: { id } });
 }
@@ -84,13 +81,6 @@ export async function deleteProjectResource(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveProjectResource(id: string, index: number): Promise<void> {
-  const resource = await prisma.projectResource.findUnique({ where: { id } });
-  if (!resource) throw notFound('Ressource');
-  const siblings = await prisma.projectResource.findMany({ where: { projectId: resource.projectId }, orderBy: BY_POSITION, select: { id: true } });
-  const order = moveInOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((resourceId, position) => prisma.projectResource.update({ where: { id: resourceId }, data: { position } })));
+  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
+  await moveInList('projectResource', id, index, { projectId: resource.projectId });
 }

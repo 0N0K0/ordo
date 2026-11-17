@@ -6,12 +6,16 @@ import { FONTS } from '../accounting/accounting-pdf';
 type Doc = InstanceType<typeof PDFDocument>;
 
 /** Side margins of the reports. */
-const REPORT_MARGIN = 36;
+export const REPORT_MARGIN = 36;
 /** Band of the header (logo or name, title), above the content of every page. */
 const HEADER_HEIGHT = 30;
 /** Band of the footer (export date, issuer, page number). */
 const FOOTER_HEIGHT = 18;
-const COLORS = { text: '#1d232b', muted: '#66707c', border: '#d0d5dc' };
+/** Text colors of every PDF export: the text, and what is muted (captions, footers). */
+export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
+/** Borders and fills of every PDF table: lines, cell backgrounds, group headings. */
+export const PDF_TABLE = { border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0' };
+const COLORS = { ...PDF_TEXT, border: '#d0d5dc' };
 
 const exportFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
 
@@ -30,10 +34,18 @@ export interface Report {
  * @returns {Promise<{ name: string, logo: Buffer | null }>} Name and logo.
  */
 async function issuer(): Promise<{ name: string; logo: Buffer | null }> {
-  const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true, logoId: true } });
+  const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { logoId: true } });
   const logo = company?.logoId ? await prisma.attachment.findUnique({ where: { id: company.logoId }, select: { data: true } }) : null;
-  const name = company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name || 'Ordo';
-  return { name, logo: logo ? Buffer.from(logo.data) : null };
+  return { name: await issuerName(), logo: logo ? Buffer.from(logo.data) : null };
+}
+
+/**
+ * Name the exports bear: the company (professional workspace), or else the workspace.
+ * @returns {Promise<string>} Name.
+ */
+export async function issuerName(): Promise<string> {
+  const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
+  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name || 'Ordo';
 }
 
 /**

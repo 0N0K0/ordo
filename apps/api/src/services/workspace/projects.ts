@@ -2,9 +2,9 @@ import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -104,8 +104,7 @@ class ProjectTree {
  * @returns {Promise<Project>} Project.
  */
 async function findProject(id: string): Promise<Project> {
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project) throw notFound('Projet');
+  const project = await orNotFound(prisma.project.findUnique({ where: { id } }), 'Projet');
   return project;
 }
 
@@ -125,8 +124,7 @@ function invalidParent(message: string) {
  */
 async function assertAttachableClient(clientId: string | null): Promise<void> {
   if (!clientId) return;
-  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { archivedAt: true } });
-  if (!client) throw notFound('Client');
+  const client = await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { archivedAt: true } }), 'Client');
   if (client.archivedAt) {
     const message = 'Ce client est archivé.';
     throw clientError('BAD_USER_INPUT', message, { fields: { clientId: message } });
@@ -181,8 +179,7 @@ function siblingsWhere(parentId: string | null, clientId: string | null): Prisma
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(parentId: string | null, clientId: string | null): Promise<number> {
-  const { _max } = await prisma.project.aggregate({ where: siblingsWhere(parentId, clientId), _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('project', siblingsWhere(parentId, clientId));
 }
 
 interface ProjectDetailsInput {

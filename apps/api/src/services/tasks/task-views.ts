@@ -2,8 +2,8 @@ import { tableKeySchema, tableViewConfigSchema, taskViewNameSchema } from '@ordo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { moveInList, nextPositionIn } from '../core/ordering';
 
 /**
  * Loads a view or throws NOT_FOUND.
@@ -11,8 +11,7 @@ import { BY_POSITION, moveInOrder } from '../core/ordering';
  * @returns {Promise<TaskView>} View.
  */
 async function findView(id: string): Promise<TaskView> {
-  const view = await prisma.taskView.findUnique({ where: { id } });
-  if (!view) throw notFound('Vue');
+  const view = await orNotFound(prisma.taskView.findUnique({ where: { id } }), 'Vue');
   return view;
 }
 
@@ -65,12 +64,9 @@ export async function createView(input: { name: string; config: unknown; project
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) {
     throw notFound('Projet');
   }
-  const [{ _max }, count] = await Promise.all([
-    prisma.taskView.aggregate({ where: viewScope(projectId, kind, tableKey), _max: { position: true } }),
-    prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) }),
-  ]);
+  const [position, count] = await Promise.all([nextPositionIn('taskView', viewScope(projectId, kind, tableKey)), prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) })]);
   return prisma.taskView.create({
-    data: { name, kind, tableKey, config, projectId, position: (_max.position ?? -1) + 1, isDefault: count === 0 },
+    data: { name, kind, tableKey, config, projectId, position, isDefault: count === 0 },
   });
 }
 
@@ -144,17 +140,5 @@ export async function setDefaultView(id: string): Promise<void> {
  */
 export async function moveView(id: string, index: number): Promise<void> {
   const view = await findView(id);
-  const views = await prisma.taskView.findMany({
-    where: scopeOf(view),
-    orderBy: BY_POSITION,
-    select: { id: true },
-  });
-  const order = moveInOrder(
-    views.map((view) => view.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(
-    order.map((viewId, position) => prisma.taskView.update({ where: { id: viewId }, data: { position } })),
-  );
+  await moveInList('taskView', id, index, scopeOf(view));
 }

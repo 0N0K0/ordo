@@ -54,7 +54,7 @@ export function ShoppingSettings() {
           items={data?.shoppingStores ?? []}
           usage={usageOf((row) => row.storeId, rows)}
           schema={labelFormSchema}
-          {...listMutations({ create: mutations.createStore, update: mutations.updateStore, remove: mutations.deleteStore, move: mutations.moveStore })}
+          {...listMutations({ create: mutations.createStore, update: mutations.updateStore, remove: mutations.deleteStore })}
         />
         <SettingsList
           kind="SHOPPING_UNIT"
@@ -66,7 +66,7 @@ export function ShoppingSettings() {
           usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.name).length]))}
           withColor={false}
           schema={labelFormSchema.pick({ name: true })}
-          {...listMutations({ create: mutations.createUnit, update: mutations.updateUnit, remove: mutations.deleteUnit, move: mutations.moveUnit }, (values) => ({
+          {...listMutations({ create: mutations.createUnit, update: mutations.updateUnit, remove: mutations.deleteUnit }, (values) => ({
             name: values.name,
             color: UNIT_COLOR,
           }))}
@@ -80,7 +80,7 @@ export function ShoppingSettings() {
           items={data?.shoppingStorages ?? []}
           usage={usageOf((row) => row.storageId, rows)}
           schema={labelFormSchema}
-          {...listMutations({ create: mutations.createStorage, update: mutations.updateStorage, remove: mutations.deleteStorage, move: mutations.moveStorage })}
+          {...listMutations({ create: mutations.createStorage, update: mutations.updateStorage, remove: mutations.deleteStorage })}
         />
       </Stack>
     </PageSettings>

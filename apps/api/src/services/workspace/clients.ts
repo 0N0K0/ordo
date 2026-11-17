@@ -2,9 +2,9 @@ import { entityNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from './workspaces';
 
 /**
@@ -13,8 +13,7 @@ import { requirePro } from './workspaces';
  * @returns {Promise<Client>} Client.
  */
 async function findClient(id: string): Promise<Client> {
-  const client = await prisma.client.findUnique({ where: { id } });
-  if (!client) throw notFound('Client');
+  const client = await orNotFound(prisma.client.findUnique({ where: { id } }), 'Client');
   return client;
 }
 
@@ -23,8 +22,7 @@ async function findClient(id: string): Promise<Client> {
  * @returns {Promise<number>} Position.
  */
 async function nextClientPosition(): Promise<number> {
-  const { _max } = await prisma.client.aggregate({ _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('client');
 }
 
 /**
@@ -138,11 +136,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   }
 
   // Detached trees keep their structure; root projects go to the end of the "no client" list.
-  const { _max } = await prisma.project.aggregate({
-    where: { clientId: null, parentId: null },
-    _max: { position: true },
-  });
-  const start = (_max.position ?? -1) + 1;
+  const start = await nextPositionIn('project', { clientId: null, parentId: null });
   const roots = projects.filter((project) => project.parentId === null);
   await prisma.$transaction([
     prisma.project.updateMany({ where: { clientId: id }, data: { clientId: null, archivedByCascade: false } }),
@@ -162,17 +156,5 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
  */
 export async function moveClient(id: string, index: number): Promise<void> {
   await findClient(id);
-  const siblings = await prisma.client.findMany({
-    where: { archivedAt: null },
-    orderBy: BY_POSITION,
-    select: { id: true },
-  });
-  const order = moveInOrder(
-    siblings.map((client) => client.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(
-    order.map((clientId, position) => prisma.client.update({ where: { id: clientId }, data: { position } })),
-  );
+  await moveInList('client', id, index, { archivedAt: null });
 }

@@ -2,8 +2,8 @@ import { mailAccountFormSchema, signatureSchema, type MailAccountFormValues } fr
 import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { moveInList, nextPositionIn } from '../core/ordering';
 import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';
@@ -33,8 +33,7 @@ export function createSmtpTransport(
  * @returns {Promise<MailAccount>} Account.
  */
 export async function findAccount(id: string): Promise<MailAccount> {
-  const account = await prisma.mailAccount.findUnique({ where: { id } });
-  if (!account) throw notFound('Boîte mail');
+  const account = await orNotFound(prisma.mailAccount.findUnique({ where: { id } }), 'Boîte mail');
   return account;
 }
 
@@ -114,9 +113,9 @@ function accountData(input: MailAccountFormValues, creating: boolean) {
  */
 export async function createMailAccount(input: MailAccountFormValues): Promise<MailAccount> {
   const data = accountData(input, true);
-  const { _max } = await prisma.mailAccount.aggregate({ _max: { position: true } });
+  const position = await nextPositionIn('mailAccount');
   return prisma.mailAccount.create({
-    data: { ...data, imapPassword: data.imapPassword!, smtpPassword: data.smtpPassword!, position: (_max.position ?? -1) + 1 },
+    data: { ...data, imapPassword: data.imapPassword!, smtpPassword: data.smtpPassword!, position },
   });
 }
 
@@ -164,11 +163,5 @@ export async function deleteMailAccount(id: string): Promise<void> {
  */
 export async function moveMailAccount(id: string, index: number): Promise<void> {
   await findAccount(id);
-  const accounts = await prisma.mailAccount.findMany({ orderBy: BY_POSITION, select: { id: true } });
-  const order = moveInOrder(
-    accounts.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((accountId, position) => prisma.mailAccount.update({ where: { id: accountId }, data: { position } })));
+  await moveInList('mailAccount', id, index);
 }

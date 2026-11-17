@@ -1,4 +1,5 @@
 import { countOf } from '../../../lib/text';
+import { moveToIndex } from '../../../lib/mutation';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
@@ -39,7 +40,10 @@ export function BaseLists() {
    * @param {number} target Target index.
    * @returns {void}
    */
-  const move = (id: string, target: number) => mutations.moveBaseList.mutate({ id, index: target }, { onError: onMutationError });
+  const move = (id: string, target: number) => {
+    const order = moveToIndex(baseLists, id, target);
+    if (order) mutations.moveBaseList.mutate({ id, index: target, ids: order.map((baseList) => baseList.id) }, { onError: onMutationError });
+  };
 
   /**
    * Opens the form of a new or renamed base list.

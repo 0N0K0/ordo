@@ -1,9 +1,9 @@
-import { addDays, budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, toCents, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
+import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, toCents, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 
@@ -36,7 +36,7 @@ export interface BudgetReportRow extends Key {
  */
 async function budgetData(input: TreasuryBudgetInput) {
   const budget = parseInput(treasuryBudgetSchema, input);
-  if (!(await prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }))) throw notFound('Catégorie');
+  await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }), 'Catégorie');
   if (budget.memberId && !(await prisma.contributor.findUnique({ where: { id: budget.memberId }, select: { id: true } }))) throw notFound('Membre');
   if (budget.relationId && !(await prisma.treasuryRelation.findUnique({ where: { id: budget.relationId }, select: { id: true } }))) throw notFound('Relation');
   if (budget.contextId && !(await prisma.treasuryContext.findUnique({ where: { id: budget.contextId }, select: { id: true } }))) throw notFound('Contexte');
@@ -61,7 +61,7 @@ async function budgetData(input: TreasuryBudgetInput) {
 export async function saveBudget(id: string | null, input: TreasuryBudgetInput): Promise<TreasuryBudget> {
   const data = await budgetData(input);
   if (!id) return prisma.treasuryBudget.create({ data });
-  if (!(await prisma.treasuryBudget.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Budget');
+  await orNotFound(prisma.treasuryBudget.findUnique({ where: { id }, select: { id: true } }), 'Budget');
   return prisma.treasuryBudget.update({ where: { id }, data });
 }
 

@@ -1,7 +1,8 @@
 import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { withImap } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
@@ -55,8 +56,8 @@ function parseSearch(input: MailSearchInput): { name: string; criteria: MailSear
  */
 export async function createSearch(input: MailSearchInput): Promise<MailSearch> {
   const { name, criteria } = parseSearch(input);
-  const { _max } = await prisma.mailSearch.aggregate({ _max: { position: true } });
-  return prisma.mailSearch.create({ data: { name, criteria, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('mailSearch');
+  return prisma.mailSearch.create({ data: { name, criteria, position } });
 }
 
 /**
@@ -67,7 +68,7 @@ export async function createSearch(input: MailSearchInput): Promise<MailSearch> 
  */
 export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
   const { name, criteria } = parseSearch(input);
-  if (!(await prisma.mailSearch.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Dossier de recherche');
+  await orNotFound(prisma.mailSearch.findUnique({ where: { id }, select: { id: true } }), 'Dossier de recherche');
   return prisma.mailSearch.update({ where: { id }, data: { name, criteria } });
 }
 
@@ -165,8 +166,7 @@ async function searchFolder(
  * @returns {Promise<{ messages: MailSearchHit[], total: number }>} Mails and total count.
  */
 export async function searchResults(id: string, page: number): Promise<{ messages: MailSearchHit[]; total: number }> {
-  const search = await prisma.mailSearch.findUnique({ where: { id } });
-  if (!search) throw notFound('Dossier de recherche');
+  const search = await orNotFound(prisma.mailSearch.findUnique({ where: { id } }), 'Dossier de recherche');
   return runSearch(searchCriteria(search), page);
 }
 

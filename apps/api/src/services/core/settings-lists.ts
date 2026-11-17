@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
+import { nextPositionIn, type OrderedModel } from './ordering';
 
 /**
  * Settings lists sharing the same look (color, image, name) and manual order, by their kind: the Prisma model of each.
@@ -98,7 +99,5 @@ export async function reorder(kind: SettingsListKind, ids: string[]): Promise<vo
  * @returns {Promise<number>} Position after the last one.
  */
 export async function nextPosition(kind: SettingsListKind): Promise<number> {
-  const model = (prisma as unknown as Record<string, { aggregate(args: { _max: { position: true } }): Promise<{ _max: { position: number | null } }> }>)[SETTINGS_LISTS[kind]];
-  const { _max } = await model.aggregate({ _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn(SETTINGS_LISTS[kind] as OrderedModel);
 }

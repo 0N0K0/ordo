@@ -273,7 +273,7 @@ const SubscribedCalendarEventsDocument = graphql(`
 `);
 
 const CreateCalendarDocument = graphql(`
-  mutation CreateCalendar($input: CalendarInput!) {
+  mutation CreateCalendar($input: NameColorInput!) {
     createCalendar(input: $input) {
       id
     }
@@ -281,18 +281,13 @@ const CreateCalendarDocument = graphql(`
 `);
 
 const UpdateCalendarDocument = graphql(`
-  mutation UpdateCalendar($id: ID!, $input: CalendarInput!) {
+  mutation UpdateCalendar($id: ID!, $input: NameColorInput!) {
     updateCalendar(id: $id, input: $input) {
       id
     }
   }
 `);
 
-const MoveCalendarDocument = graphql(`
-  mutation MoveCalendar($id: ID!, $index: Int!) {
-    moveCalendar(id: $id, index: $index)
-  }
-`);
 
 const DeleteCalendarDocument = graphql(`
   mutation DeleteCalendar($id: ID!) {
@@ -465,7 +460,6 @@ export function useCalendarMutations() {
   return {
     create: useCalendarMutation(async (input: Input) => (await execute(CreateCalendarDocument, { input })).createCalendar),
     update: useCalendarMutation(async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarDocument, variables)).updateCalendar),
-    move: useCalendarMutation(async (variables: { id: string; index: number }) => (await execute(MoveCalendarDocument, variables)).moveCalendar),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteCalendarDocument, { id })).deleteCalendar),
     subscribe: useCalendarMutation(async (calendarId: string) => (await execute(SubscribeCalendarDocument, { calendarId })).subscribeCalendar),
     unsubscribe: useCalendarMutation(async (calendarId: string) => (await execute(UnsubscribeCalendarDocument, { calendarId })).unsubscribeCalendar),

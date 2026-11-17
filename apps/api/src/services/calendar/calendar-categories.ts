@@ -1,8 +1,9 @@
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
+import { assertTreeParent } from '../core/trees';
 import { prisma } from '../../db';
 import type { CalendarCategory } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { BY_POSITION, saveSiblingOrder } from '../core/ordering';
+import { orNotFound, parseInput } from '../../graphql/errors';
+import { moveInList, nextPositionIn } from '../core/ordering';
 
 /**
  * Loads a category or throws NOT_FOUND.
@@ -10,8 +11,7 @@ import { BY_POSITION, saveSiblingOrder } from '../core/ordering';
  * @returns {Promise<CalendarCategory>} Category.
  */
 async function findCategory(id: string): Promise<CalendarCategory> {
-  const category = await prisma.calendarCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
+  const category = await orNotFound(prisma.calendarCategory.findUnique({ where: { id } }), 'Catégorie');
   return category;
 }
 
@@ -22,16 +22,7 @@ async function findCategory(id: string): Promise<CalendarCategory> {
  * @returns {Promise<void>}
  */
 async function assertParent(parentId: string | null, id: string | null): Promise<void> {
-  if (!parentId) return;
-  const categories = await prisma.calendarCategory.findMany({ select: { id: true, parentId: true } });
-  const parentOf = new Map(categories.map((category) => [category.id, category.parentId]));
-  if (!parentOf.has(parentId)) throw notFound('Catégorie parente');
-  for (let current: string | null | undefined = parentId; current; current = parentOf.get(current)) {
-    if (current === id) {
-      const message = 'Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories.';
-      throw clientError('BAD_USER_INPUT', message, { fields: { parentId: message } });
-    }
-  }
+  await assertTreeParent('calendarCategory', parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories.' });
 }
 
 /**
@@ -40,8 +31,7 @@ async function assertParent(parentId: string | null, id: string | null): Promise
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(parentId: string | null): Promise<number> {
-  const { _max } = await prisma.calendarCategory.aggregate({ where: { parentId }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('calendarCategory', { parentId });
 }
 
 /**
@@ -92,15 +82,5 @@ export async function deleteCalendarCategory(id: string): Promise<void> {
 export async function moveCalendarCategory(id: string, index: number, parentId?: string | null): Promise<void> {
   let category = await findCategory(id);
   if (parentId !== undefined && parentId !== category.parentId) category = await updateCalendarCategory(id, { name: category.name, color: category.color, parentId });
-  const siblings = await prisma.calendarCategory.findMany({
-    where: { parentId: category.parentId },
-    orderBy: BY_POSITION,
-    select: { id: true },
-  });
-  await saveSiblingOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-    (categoryId, position) => prisma.calendarCategory.update({ where: { id: categoryId }, data: { position } }),
-  );
+  await moveInList('calendarCategory', id, index, { parentId: category.parentId });
 }

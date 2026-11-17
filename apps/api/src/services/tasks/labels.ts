@@ -1,8 +1,6 @@
 import { colorSchema, labelNameSchema } from '@ordo/shared';
 import { z } from 'zod';
-import { Prisma } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { notFound, parseInput, rethrowUnique } from '../../graphql/errors';
 
 export interface Label {
   id: string;
@@ -51,10 +49,7 @@ export function createLabelService(
    * @returns {never}
    */
   const rethrowConflict = (error: unknown): never => {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw clientError('CONFLICT', messages.conflict, { fields: { name: messages.conflict } });
-    }
-    throw error;
+    rethrowUnique(error, messages.conflict);
   };
 
   return {
@@ -108,23 +103,6 @@ export function createLabelService(
     async remove(id: string): Promise<void> {
       const { count } = await delegate().deleteMany({ where: { id } });
       if (count === 0) throw notFound(messages.notFound);
-    },
-
-    /**
-     * Moves a label to a new index.
-     * @param {string} id Label id.
-     * @param {number} index Target index.
-     * @returns {Promise<void>}
-     */
-    async move(id: string, index: number): Promise<void> {
-      const labels = await delegate().findMany({ orderBy: BY_POSITION, select: { id: true } });
-      if (!labels.some((label) => label.id === id)) throw notFound(messages.notFound);
-      const order = moveInOrder(
-        labels.map((label) => label.id),
-        id,
-        index,
-      );
-      await transaction(order.map((labelId, position) => delegate().update({ where: { id: labelId }, data: { position } })));
     },
   };
 }

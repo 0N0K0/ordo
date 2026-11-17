@@ -8,6 +8,7 @@ import {
   conditionWindows,
   daysBetween,
   formatDay,
+  isUnderOrSelf,
   MAX_ROUTINE_MOVES,
   movedFrom,
   movedOccurrences,
@@ -15,27 +16,27 @@ import {
   occurrencesBefore,
   opensReach,
   parseDay,
-  type PlannedSlot,
   plannedSlots,
   reaches,
   readOpens,
   readSlotCondition,
-  type Recurrence,
-  type RoutineCase,
   routineCaseOn,
   routineCaseSchema,
   routineCaseSpans,
-  type RoutineCategoryInput,
   routineCategorySchema,
-  type RoutineInput,
-  type RoutineMove,
   routineMoveSchema,
-  type RoutineMoveTimes,
   routineMoveTimesSchema,
   routineOpenDate,
   routineSchema,
-  type RoutineSlot,
   routineSlotSchema,
+  type PlannedSlot,
+  type Recurrence,
+  type RoutineCase,
+  type RoutineCategoryInput,
+  type RoutineInput,
+  type RoutineMove,
+  type RoutineMoveTimes,
+  type RoutineSlot,
   type SlotCondition,
   type TimeWindow,
   weekdayOf,
@@ -44,10 +45,11 @@ import {
   withMovedTimes,
 } from '@ordo/shared';
 import { z } from 'zod';
+import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
-import { BY_POSITION, saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, moveInList, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { assertProjectContributors } from '../workspace/contributors';
@@ -60,22 +62,6 @@ import { parisToday } from '../../today';
  * @returns {GraphQLError} BAD_USER_INPUT error.
  */
 const fieldError = (field: string, message: string) => clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
-
-/**
- * Whether `ancestor` is `id` or one of its parents, following a parent map.
- * @param {Map<string, string | null>} parentOf Parent of each id.
- * @param {string} start Id the walk starts from.
- * @param {string} id Id looked for.
- * @returns {boolean} Found.
- */
-function underOrSelf(parentOf: Map<string, string | null>, start: string, id: string): boolean {
-  const seen = new Set<string>();
-  for (let current: string | null | undefined = start; current && !seen.has(current); current = parentOf.get(current)) {
-    if (current === id) return true;
-    seen.add(current);
-  }
-  return false;
-}
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -458,7 +444,7 @@ async function parseCategory(input: RoutineCategoryInput, id?: string) {
   if (!data.parentId) return data;
   const all = await prisma.routineCategory.findMany({ select: { id: true, parentId: true } });
   if (!all.some((category) => category.id === data.parentId)) throw notFound('Catégorie parente');
-  if (id && underOrSelf(new Map(all.map((category) => [category.id, category.parentId])), data.parentId, id)) {
+  if (id && isUnderOrSelf(new Map(all.map((category) => [category.id, category.parentId])), data.parentId, id)) {
     throw fieldError('parentId', 'Une catégorie ne peut pas être rangée sous elle-même.');
   }
   return data;
@@ -481,10 +467,8 @@ export async function createCategory(input: RoutineCategoryInput): Promise<Routi
  * @returns {Promise<RoutineCategory>} Category.
  */
 export async function updateCategory(id: string, input: RoutineCategoryInput): Promise<RoutineCategory> {
-  const category = await prisma.routineCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
-  const previous = await prisma.routineCategory.findUnique({ where: { id }, select: { parentId: true } });
-  if (!previous) throw notFound('Catégorie');
+  await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
+  const previous = await orNotFound(prisma.routineCategory.findUnique({ where: { id }, select: { parentId: true } }), 'Catégorie');
   const data = await parseCategory(input, id);
   // Under another parent, it goes last.
   const moved = (data.parentId ?? null) !== previous.parentId;
@@ -499,17 +483,10 @@ export async function updateCategory(id: string, input: RoutineCategoryInput): P
  * @returns {Promise<void>}
  */
 export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  const category = await prisma.routineCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
+  const category = await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
   if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, parentId });
   if (index === null || index === undefined) return;
-  const siblings = await prisma.routineCategory.findMany({ where: { parentId }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
-  await saveSiblingOrder(
-    siblings.map((sibling) => sibling.id),
-    id,
-    index,
-    (siblingId, position) => prisma.routineCategory.update({ where: { id: siblingId }, data: { position } }),
-  );
+  await moveInList('routineCategory', id, index, { parentId });
 }
 
 /**
@@ -518,8 +495,7 @@ export async function moveCategory(id: string, parentId: string | null, index?: 
  * @returns {Promise<number>} Position.
  */
 async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
-  const { _max } = await prisma.routineCategory.aggregate({ where: { parentId: parentId ?? null }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('routineCategory', { parentId: parentId ?? null });
 }
 
 /**
@@ -528,9 +504,8 @@ async function nextCategoryPosition(parentId: string | null | undefined): Promis
  * @returns {Promise<void>}
  */
 export async function deleteCategory(id: string): Promise<void> {
-  const category = await prisma.routineCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
-  await prisma.$transaction([prisma.routineCategory.updateMany({ where: { parentId: id }, data: { parentId: category.parentId } }), prisma.routineCategory.delete({ where: { id } })]);
+  const category = await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
+  await deleteTreeNode('routineCategory', category);
 }
 
 // Routines --------------------------------------------------------------------------------------------------------
@@ -581,7 +556,7 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   const known = new Set(all.map((routine) => routine.id));
   if (data.parentId) {
     if (!known.has(data.parentId)) throw fieldError('parentId', 'Routine parente introuvable.');
-    if (id && underOrSelf(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
+    if (id && isUnderOrSelf(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
       throw fieldError('parentId', 'Une routine ne peut pas être rangée sous elle-même.');
     }
   }
@@ -634,7 +609,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
  */
 export async function createRoutine(input: RoutineInput): Promise<Routine> {
   const data = await parseRoutine(input);
-  const position = ((await prisma.routine.aggregate({ where: { parentId: data.parentId }, _max: { position: true } }))._max.position ?? -1) + 1;
+  const position = await nextPositionIn('routine', { parentId: data.parentId });
   return prisma.$transaction(async (tx) => {
     const routine = await tx.routine.create({
       data: {
@@ -686,8 +661,7 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
  * @returns {Promise<Routine>} Routine.
  */
 async function findRoutine(id: string): Promise<Routine> {
-  const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
   return routine;
 }
 
@@ -722,17 +696,19 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
  * @returns {Promise<RoutineInput>} Input.
  */
 async function inputOf(id: string): Promise<RoutineInput> {
-  const routine = await prisma.routine.findUnique({
-    where: { id },
-    include: {
-      assignees: { select: { id: true } },
-      beneficiaries: { select: { id: true } },
-      beneficiaryRelations: { select: { id: true } },
-      categories: { select: { id: true } },
-      requires: { select: { requiredId: true } },
-    },
-  });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(
+    prisma.routine.findUnique({
+      where: { id },
+      include: {
+        assignees: { select: { id: true } },
+        beneficiaries: { select: { id: true } },
+        beneficiaryRelations: { select: { id: true } },
+        categories: { select: { id: true } },
+        requires: { select: { requiredId: true } },
+      },
+    }),
+    'Routine',
+  );
   return {
     title: routine.title,
     description: routine.description,
@@ -772,8 +748,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
  * @returns {Promise<RoutineSlot>} Moment.
  */
 export async function momentOf(id: string): Promise<RoutineSlot> {
-  const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
   return storedMoments(routine)[0] ?? { fromTime: null, dueTime: null, optional: false };
 }
 
@@ -910,7 +885,7 @@ export async function bulkDeleteRoutines(ids: string[]): Promise<number> {
  */
 export async function deleteRoutine(id: string): Promise<void> {
   const routine = await findRoutine(id);
-  await prisma.$transaction([prisma.routine.updateMany({ where: { parentId: id }, data: { parentId: routine.parentId } }), prisma.routine.delete({ where: { id } })]);
+  await deleteTreeNode('routine', routine);
 }
 
 /** Where a routine is dropped, relative to another one. */
@@ -933,9 +908,9 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
   // The parent is checked (no loop) by the regular update.
   if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
   const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: BY_POSITION, select: { id: true } })).map((sibling) => sibling.id);
-  const index = siblings.indexOf(target.id);
-  siblings.splice(place === 'INSIDE' || index === -1 ? siblings.length : place === 'BEFORE' ? index : index + 1, 0, id);
-  await prisma.$transaction(siblings.map((siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } })));
+  const at = siblings.indexOf(target.id);
+  const index = place === 'INSIDE' || at === -1 ? siblings.length : place === 'BEFORE' ? at : at + 1;
+  await saveSiblingOrder(siblings, id, index, (siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } }));
 }
 
 /**
@@ -994,8 +969,7 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
  * @returns {Promise<void>}
  */
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
-  const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
@@ -1026,8 +1000,7 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
  * @returns {Promise<void>}
  */
 export async function removeRoutineMove(id: string, from: string): Promise<void> {
-  const routine = await prisma.routine.findUnique({ where: { id }, select: { moves: true } });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id }, select: { moves: true } }), 'Routine');
   await prisma.routine.update({ where: { id }, data: { moves: storedMoves(routine.moves).filter((move) => move.from !== from) } });
 }
 
@@ -1077,8 +1050,7 @@ const hasBefore = (rule: Recurrence, start: string, date: string) => date > star
  * @returns {Promise<Routine & { schedule: WorkSchedule | null }>} Routine.
  */
 async function changeableOccurrence(id: string, date: string) {
-  const routine = await prisma.routine.findUnique({ where: { id } });
-  if (!routine) throw notFound('Routine');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la changer.');
   }

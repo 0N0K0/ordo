@@ -17,7 +17,6 @@ import {
   useCreateProjectStatus,
   useDeleteProjectCategory,
   useDeleteProjectStatus,
-  useMoveProjectStatus,
   useUpdateProjectCategory,
   useUpdateProjectStatus,
   useWorkspace,
@@ -40,7 +39,6 @@ export function SettingsPage() {
   const createStatus = useCreateProjectStatus();
   const updateStatus = useUpdateProjectStatus();
   const deleteStatus = useDeleteProjectStatus();
-  const moveStatus = useMoveProjectStatus();
 
   const { data: taskData } = useTasksData();
   const [params, setParams] = useSearchParams();
@@ -115,7 +113,7 @@ export function SettingsPage() {
               items={data?.projectStatuses ?? []}
               usage={statusUsage}
               schema={labelFormSchema}
-              {...listMutations({ create: createStatus, update: updateStatus, remove: deleteStatus, move: moveStatus })}
+              {...listMutations({ create: createStatus, update: updateStatus, remove: deleteStatus })}
             />
             <SettingsList
               kind="PROJECT_CATEGORY"

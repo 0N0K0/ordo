@@ -74,11 +74,6 @@ const DeleteStatus = graphql(`
     deleteDocumentStatus(id: $id)
   }
 `);
-const MoveStatus = graphql(`
-  mutation MoveDocumentStatus($id: ID!, $index: Int!) {
-    moveDocumentStatus(id: $id, index: $index)
-  }
-`);
 const SetTrackingStatus = graphql(`
   mutation SetDocumentTrackingStatus($id: ID!, $statusId: ID!) {
     setDocumentTrackingStatus(id: $id, statusId: $statusId)
@@ -157,7 +152,6 @@ export function useDocumentStatusMutations(scope: DocumentStatusScope) {
         (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
     ),
     remove: useAccountingMutation(async ({ id }: { id: string }) => (await execute(DeleteStatus, { id })).deleteDocumentStatus),
-    move: useAccountingMutation(async (variables: { id: string; index: number }) => (await execute(MoveStatus, variables)).moveDocumentStatus),
   };
 }
 

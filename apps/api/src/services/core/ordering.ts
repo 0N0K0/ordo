@@ -28,3 +28,49 @@ export function moveInOrder(orderedIds: string[], id: string, index: number): st
 export async function saveSiblingOrder(orderedIds: string[], id: string, index: number, save: (id: string, position: number) => Prisma.PrismaPromise<unknown>): Promise<void> {
   await prisma.$transaction(moveInOrder(orderedIds, id, index).map((siblingId, position) => save(siblingId, position)));
 }
+
+/** What the ordered models have in common (each delegate of Prisma has these). */
+interface OrderedDelegate {
+  findMany(args: { where?: object; orderBy: typeof BY_POSITION; select: { id: true } }): Promise<{ id: string }[]>;
+  update(args: { where: { id: string }; data: { position: number } }): Prisma.PrismaPromise<unknown>;
+  aggregate(args: { where?: object; _max: { position: true } }): Promise<{ _max: { position: number | null } }>;
+}
+
+/** Name of the delegate of a model with a manual order (`dashboard`, `taskView`…). */
+export type OrderedModel = Uncapitalize<Prisma.ModelName>;
+
+/**
+ * Delegate of an ordered model (scoped to the current workspace, as every model).
+ * @param {OrderedModel} model Model.
+ * @returns {OrderedDelegate} Delegate.
+ */
+const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, OrderedDelegate>)[model];
+
+/**
+ * Moves an item to an index among its siblings (the items matching `where`), all their positions saved at once.
+ * @param {OrderedModel} model Model.
+ * @param {string} id Item moved (one of the siblings).
+ * @param {number} index Its new index.
+ * @param {object} [where] Its siblings: its scope (its project, its dashboard…). Optional. Default = every item.
+ * @returns {Promise<void>}
+ */
+export async function moveInList(model: OrderedModel, id: string, index: number, where: object = {}): Promise<void> {
+  const siblings = await delegate(model).findMany({ where, orderBy: BY_POSITION, select: { id: true } });
+  await saveSiblingOrder(
+    siblings.map((item) => item.id),
+    id,
+    index,
+    (siblingId, position) => delegate(model).update({ where: { id: siblingId }, data: { position } }),
+  );
+}
+
+/**
+ * Position of an item added at the end of a list.
+ * @param {OrderedModel} model Model.
+ * @param {object} [where] Its future siblings: its scope (its parent, its project…). Optional. Default = every item.
+ * @returns {Promise<number>} Position after the last one.
+ */
+export async function nextPositionIn(model: OrderedModel, where: object = {}): Promise<number> {
+  const { _max } = await delegate(model).aggregate({ where, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}

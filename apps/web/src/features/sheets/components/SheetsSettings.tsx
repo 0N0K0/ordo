@@ -36,7 +36,7 @@ export function SheetsSettings() {
           items={sheetCategories ?? []}
           usage={sheetUsage}
           schema={labelFormSchema}
-          {...listMutations({ create: mutations.createCategory, update: mutations.updateCategory, remove: mutations.deleteCategory, move: mutations.moveCategory })}
+          {...listMutations({ create: mutations.createCategory, update: mutations.updateCategory, remove: mutations.deleteCategory })}
         />
         <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usage} />
       </Stack>

@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
@@ -12,6 +13,7 @@ import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
+import { NameColorInput } from '../label-inputs';
 import { parisToday } from '../../today';
 
 // Balances are computed once per request for all documents (lists show many of them).
@@ -624,9 +626,6 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
   }),
 });
 
-const ContextInput = builder.inputType('TreasuryContextInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
-});
 
 const ContextPeriodInput = builder.inputType('TreasuryContextPeriodInput', {
   fields: (t) => ({
@@ -913,10 +912,7 @@ builder.mutationFields((t) => ({
   removeTreasuryMember: t.boolean({
     description: 'Removes a member from the team or household (they stay a contributor).',
     args: { contributorId: t.arg.id({ required: true }) },
-    resolve: async (_root, { contributorId }) => {
-      await team.removeMember(contributorId);
-      return true;
-    },
+    resolve: (_root, { contributorId }) => done(team.removeMember(contributorId)),
   }),
   saveTreasuryBudget: t.id({
     description: 'Creates a budget (without id), or changes one and its repetitions.',
@@ -936,10 +932,7 @@ builder.mutationFields((t) => ({
   deleteTreasuryBudget: t.boolean({
     description: 'Deletes a budget and its repetitions.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await budgets.deleteBudget(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(budgets.deleteBudget(id)),
   }),
   saveTreasuryRelation: t.id({
     description: 'Creates a relation (without id) or changes one.',
@@ -949,10 +942,7 @@ builder.mutationFields((t) => ({
   deleteTreasuryRelation: t.boolean({
     description: 'Deletes a relation: its budgets go with it, its lines become the app user\'s.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await team.deleteRelation(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(team.deleteRelation(id)),
   }),
   importTreasuryStatement: t.field({
     type: 'JSON',
@@ -967,16 +957,13 @@ builder.mutationFields((t) => ({
   }),
   saveTreasuryContext: t.id({
     description: 'Creates a context (without id) or changes one.',
-    args: { id: t.arg.id(), input: t.arg({ type: ContextInput, required: true }) },
+    args: { id: t.arg.id(), input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (_root, { id, input }) => (await team.saveContext(id ?? null, input)).id,
   }),
   deleteTreasuryContext: t.boolean({
     description: 'Deletes a context and its periods; its lines become everyday spending.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await team.deleteContext(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(team.deleteContext(id)),
   }),
   saveTreasuryContextPeriod: t.id({
     description: 'Plans a context between two days (without id), or changes a period. Lines already saved keep their context.',
@@ -985,10 +972,7 @@ builder.mutationFields((t) => ({
   }),
   deleteTreasuryContextPeriod: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await team.deleteContextPeriod(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(team.deleteContextPeriod(id)),
   }),
   createDocumentStatus: t.id({
     args: { scope: t.arg({ type: ScopeEnum, required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }), category: t.arg({ type: CategoryEnum, required: true }) },
@@ -996,53 +980,28 @@ builder.mutationFields((t) => ({
   }),
   updateDocumentStatus: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string(), color: t.arg.string(), category: t.arg({ type: CategoryEnum }) },
-    resolve: async (_root, { id, ...input }) => {
-      await statuses.updateDocumentStatus(id, input);
-      return true;
-    },
+    resolve: (_root, { id, ...input }) => done(statuses.updateDocumentStatus(id, input)),
   }),
   deleteDocumentStatus: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await statuses.deleteDocumentStatus(id);
-      return true;
-    },
-  }),
-  moveDocumentStatus: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await statuses.moveDocumentStatus(id, index);
-      return true;
-    },
+    resolve: (_root, { id }) => done(statuses.deleteDocumentStatus(id)),
   }),
   setDocumentTrackingStatus: t.boolean({
     args: { id: t.arg.id({ required: true }), statusId: t.arg.id({ required: true }) },
-    resolve: async (_root, { id, statusId }) => {
-      await tracking.setTrackingStatus(id, statusId);
-      return true;
-    },
+    resolve: (_root, { id, statusId }) => done(tracking.setTrackingStatus(id, statusId)),
   }),
   markDocumentSent: t.boolean({
     description: 'Notes that a document was sent, now or on a past day (date), how (MAIL, CHORUS, POST, HAND, OTHER), and with which "sent" status.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id() },
-    resolve: async (_root, { id, date, via, statusId }) => {
-      await tracking.markSent(id, { date: date ?? null, via: via ?? null, statusId: statusId ?? null });
-      return true;
-    },
+    resolve: (_root, { id, date, via, statusId }) => done(tracking.markSent(id, { date: date ?? null, via: via ?? null, statusId: statusId ?? null })),
   }),
   acceptQuote: t.boolean({
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), file: t.arg({ type: 'File' }) },
-    resolve: async (_root, { id, date, file }) => {
-      await tracking.acceptQuote(id, date, file ?? null);
-      return true;
-    },
+    resolve: (_root, { id, date, file }) => done(tracking.acceptQuote(id, date, file ?? null)),
   }),
   removeSignedQuote: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await tracking.removeSignedQuote(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(tracking.removeSignedQuote(id)),
   }),
   sendDocumentReminders: t.field({
     type: [ReminderResultRef],
@@ -1052,24 +1011,15 @@ builder.mutationFields((t) => ({
   }),
   addDocumentReminder: t.boolean({
     args: { id: t.arg.id({ required: true }), note: t.arg.string() },
-    resolve: async (_root, { id, note }) => {
-      await tracking.addReminder(id, note ?? null);
-      return true;
-    },
+    resolve: (_root, { id, note }) => done(tracking.addReminder(id, note ?? null)),
   }),
   deleteDocumentReminder: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await tracking.deleteReminder(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(tracking.deleteReminder(id)),
   }),
   recordDocumentPayment: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: PaymentInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await tracking.recordPayment(id, { ...input, methodId: input.methodId ?? null });
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(tracking.recordPayment(id, { ...input, methodId: input.methodId ?? null })),
   }),
   createTreasuryAccount: t.id({
     args: { input: t.arg({ type: AccountInput, required: true }) },
@@ -1077,25 +1027,16 @@ builder.mutationFields((t) => ({
   }),
   updateTreasuryAccount: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: AccountInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await treasury.updateAccount(id, input);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(treasury.updateAccount(id, input)),
   }),
   deleteTreasuryAccount: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await treasury.deleteAccount(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(treasury.deleteAccount(id)),
   }),
   setInvoiceTreasuryCategories: t.boolean({
     description: 'Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.',
     args: { invoiceCategoryId: t.arg.id(), creditNoteCategoryId: t.arg.id() },
-    resolve: async (_root, { invoiceCategoryId, creditNoteCategoryId }) => {
-      await settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null });
-      return true;
-    },
+    resolve: (_root, { invoiceCategoryId, creditNoteCategoryId }) => done(settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null })),
   }),
   createTreasuryCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },
@@ -1103,25 +1044,16 @@ builder.mutationFields((t) => ({
   }),
   updateTreasuryCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await settings.updateCategory(id, input as never);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(settings.updateCategory(id, input as never)),
   }),
   moveTreasuryCategory: t.boolean({
     description: 'Moves a category under another one of the same direction (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: async (_root, { id, parentId, index }) => {
-      await settings.moveCategory(id, parentId ?? null, index);
-      return true;
-    },
+    resolve: (_root, { id, parentId, index }) => done(settings.moveCategory(id, parentId ?? null, index)),
   }),
   deleteTreasuryCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await settings.deleteCategory(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(settings.deleteCategory(id)),
   }),
   createTreasuryPaymentMethod: t.id({
     args: { input: t.arg({ type: PaymentMethodInput, required: true }) },
@@ -1129,17 +1061,11 @@ builder.mutationFields((t) => ({
   }),
   updateTreasuryPaymentMethod: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: PaymentMethodInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await settings.updatePaymentMethod(id, input as never);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(settings.updatePaymentMethod(id, input as never)),
   }),
   deleteTreasuryPaymentMethod: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await settings.deletePaymentMethod(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(settings.deletePaymentMethod(id)),
   }),
   createTreasuryCounterparty: t.id({
     args: { input: t.arg({ type: CounterpartyInput, required: true }) },
@@ -1147,17 +1073,11 @@ builder.mutationFields((t) => ({
   }),
   updateTreasuryCounterparty: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CounterpartyInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await settings.updateCounterparty(id, input as never);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(settings.updateCounterparty(id, input as never)),
   }),
   deleteTreasuryCounterparty: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await settings.deleteCounterparty(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(settings.deleteCounterparty(id)),
   }),
   createTreasuryEntry: t.id({
     args: { input: t.arg({ type: EntryInput, required: true }) },
@@ -1165,17 +1085,11 @@ builder.mutationFields((t) => ({
   }),
   updateTreasuryEntry: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: EntryInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await treasury.updateEntry(id, entryInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(treasury.updateEntry(id, entryInput(input))),
   }),
   deleteTreasuryEntry: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await treasury.deleteEntry(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(treasury.deleteEntry(id)),
   }),
   realizeTreasuryForecast: t.id({
     description: 'Records a forecast (one date of a repeated one) as an actual entry.',

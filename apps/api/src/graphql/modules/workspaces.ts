@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import * as workspaces from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
@@ -73,17 +74,11 @@ builder.mutationFields((t) => ({
   }),
   moveWorkspace: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await workspaces.moveWorkspace(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(workspaces.moveWorkspace(id, index)),
   }),
   deleteWorkspace: t.boolean({
     description: 'Deletes a workspace and everything in it (not the last one).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await workspaces.deleteWorkspace(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(workspaces.deleteWorkspace(id)),
   }),
 }));

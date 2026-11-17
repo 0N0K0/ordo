@@ -546,7 +546,7 @@ const DeleteRelation = graphql(`
 `);
 
 const SaveContext = graphql(`
-  mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {
+  mutation SaveTreasuryContext($id: ID, $input: NameColorInput!) {
     saveTreasuryContext(id: $id, input: $input)
   }
 `);

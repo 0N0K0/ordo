@@ -1,5 +1,6 @@
 import { GraphQLError } from 'graphql';
 import type { z } from 'zod';
+import { Prisma } from '../generated/prisma/client';
 
 type ErrorCode =
   | 'UNAUTHENTICATED'
@@ -18,6 +19,39 @@ type ErrorCode =
  */
 export function notFound(what: string): GraphQLError {
   return clientError('NOT_FOUND', `${what} introuvable.`);
+}
+
+/**
+ * Whether an error is a unique constraint violation (a name, a number… already taken).
+ * @param {unknown} error Caught error.
+ * @returns {boolean} A P2002 error.
+ */
+export function isUniqueConflict(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+/**
+ * Rethrows a caught error, a unique constraint violation turned into an error of the field taken.
+ * @param {unknown} error Caught error.
+ * @param {string} message Message (« Un statut porte déjà ce nom. »).
+ * @param {string} [field] Field taken. Optional. Default = « name ».
+ * @returns {never}
+ */
+export function rethrowUnique(error: unknown, message: string, field = 'name'): never {
+  if (isUniqueConflict(error)) throw clientError('CONFLICT', message, { fields: { [field]: message } });
+  throw error;
+}
+
+/**
+ * Record a query found, or NOT_FOUND when there is none.
+ * @param {PromiseLike<T | null>} query Query (a `findUnique`, a `findFirst`…).
+ * @param {string} what Human-readable name of the record ("Client", "Projet"…).
+ * @returns {Promise<T>} Record.
+ */
+export async function orNotFound<T>(query: PromiseLike<T | null>, what: string): Promise<T> {
+  const record = await query;
+  if (record === null || record === undefined) throw notFound(what);
+  return record;
 }
 
 /**
@@ -65,4 +99,14 @@ export function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.ou
     fields[path] ??= issue.message;
   }
   throw clientError('BAD_USER_INPUT', 'Certains champs sont invalides.', { fields });
+}
+
+/**
+ * Result of a mutation that answers true once its work is done.
+ * @param {Promise<unknown>} work Work.
+ * @returns {Promise<true>} True.
+ */
+export async function done(work: Promise<unknown>): Promise<true> {
+  await work;
+  return true;
 }

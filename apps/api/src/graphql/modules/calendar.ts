@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { EVENT_SCOPES } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as categories from '../../services/calendar/calendar-categories';
@@ -5,6 +6,7 @@ import * as calendars from '../../services/calendar/calendars';
 import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { builder } from '../builder';
+import { NameColorInput } from '../label-inputs';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
@@ -292,9 +294,6 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
   }),
 });
 
-const CalendarInput = builder.inputType('CalendarInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
-});
 
 const CalendarCategoryInput = builder.inputType('CalendarCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }), parentId: t.id() }),
@@ -385,44 +384,28 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createCalendar: t.prismaField({
     type: 'Calendar',
-    args: { input: t.arg({ type: CalendarInput, required: true }) },
+    args: { input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (query, _root, { input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.createCalendar(input)).id } }),
   }),
   updateCalendar: t.prismaField({
     type: 'Calendar',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: CalendarInput, required: true }) },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorInput, required: true }) },
     resolve: async (query, _root, { id, input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.updateCalendar(id, input)).id } }),
-  }),
-  moveCalendar: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await calendars.moveCalendar(id, index);
-      return true;
-    },
   }),
   deleteCalendar: t.boolean({
     description: 'Deletes a calendar with its events (not the last one of the workspace).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await calendars.deleteCalendar(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(calendars.deleteCalendar(id)),
   }),
   subscribeCalendar: t.boolean({
     description: 'Shows a calendar of another workspace in this one (read only).',
     args: { calendarId: t.arg.id({ required: true }) },
-    resolve: async (_root, { calendarId }) => {
-      await calendars.subscribe(calendarId);
-      return true;
-    },
+    resolve: (_root, { calendarId }) => done(calendars.subscribe(calendarId)),
   }),
   unsubscribeCalendar: t.boolean({
     description: 'Stops showing a calendar of another workspace.',
     args: { calendarId: t.arg.id({ required: true }) },
-    resolve: async (_root, { calendarId }) => {
-      await calendars.unsubscribe(calendarId);
-      return true;
-    },
+    resolve: (_root, { calendarId }) => done(calendars.unsubscribe(calendarId)),
   }),
   createCalendarCategory: t.prismaField({
     type: 'CalendarCategory',
@@ -444,18 +427,12 @@ builder.mutationFields((t) => ({
   }),
   deleteCalendarCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await categories.deleteCalendarCategory(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(categories.deleteCalendarCategory(id)),
   }),
   moveCalendarCategory: t.boolean({
     description: 'Moves a category at an index among its siblings; with parentId, under another category first (null: top level).',
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }), parentId: t.arg.id() },
-    resolve: async (_root, { id, index, parentId }) => {
-      await categories.moveCalendarCategory(id, index, parentId === undefined ? undefined : (parentId ?? null));
-      return true;
-    },
+    resolve: (_root, { id, index, parentId }) => done(categories.moveCalendarCategory(id, index, parentId === undefined ? undefined : (parentId ?? null))),
   }),
   createCalendarEvent: t.id({
     args: { input: t.arg({ type: CalendarEventInput, required: true }) },
@@ -480,10 +457,7 @@ builder.mutationFields((t) => ({
       occurrenceDate: t.arg({ type: 'Date' }),
       calledOff: t.arg.boolean({ required: true }),
     },
-    resolve: async (_root, { id, scope, occurrenceDate, calledOff }) => {
-      await events.setEventCalledOff(id, scope, occurrenceDate, calledOff);
-      return true;
-    },
+    resolve: (_root, { id, scope, occurrenceDate, calledOff }) => done(events.setEventCalledOff(id, scope, occurrenceDate, calledOff)),
   }),
   postponeCalendarEvent: t.id({
     description: 'Cancels an event (or one occurrence) and creates its postponement, linked to it.',
@@ -498,18 +472,12 @@ builder.mutationFields((t) => ({
   deleteScheduleType: t.boolean({
     description: 'Deletes a kind of time slots (its schedules stay, without kind).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await schedules.deleteScheduleType(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(schedules.deleteScheduleType(id)),
   }),
   subscribeScheduleKind: t.boolean({
     description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.',
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
-    resolve: async (_root, { workspaceId, typeId }) => {
-      await schedules.subscribeScheduleKind(workspaceId, typeId ?? null);
-      return true;
-    },
+    resolve: (_root, { workspaceId, typeId }) => done(schedules.subscribeScheduleKind(workspaceId, typeId ?? null)),
   }),
   saveDefaultScheduleKind: t.field({
     type: DefaultScheduleKindRef,
@@ -532,10 +500,7 @@ builder.mutationFields((t) => ({
   }),
   unsubscribeScheduleKind: t.boolean({
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
-    resolve: async (_root, { workspaceId, typeId }) => {
-      await schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null);
-      return true;
-    },
+    resolve: (_root, { workspaceId, typeId }) => done(schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null)),
   }),
   createWorkSchedule: t.id({
     args: { input: t.arg({ type: WorkScheduleInput, required: true }) },
@@ -543,23 +508,14 @@ builder.mutationFields((t) => ({
   }),
   updateWorkSchedule: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await schedules.updateWorkSchedule(id, scheduleInput(input));
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(schedules.updateWorkSchedule(id, scheduleInput(input))),
   }),
   deleteWorkSchedule: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await schedules.deleteWorkSchedule(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(schedules.deleteWorkSchedule(id)),
   }),
   deleteCalendarEvent: t.boolean({
     args: { id: t.arg.id({ required: true }), scope: t.arg({ type: EventScope, required: true }), occurrenceDate: t.arg({ type: 'Date' }) },
-    resolve: async (_root, { id, scope, occurrenceDate }) => {
-      await events.deleteCalendarEvent(id, scope, occurrenceDate);
-      return true;
-    },
+    resolve: (_root, { id, scope, occurrenceDate }) => done(events.deleteCalendarEvent(id, scope, occurrenceDate)),
   }),
 }));

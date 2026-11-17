@@ -2,7 +2,7 @@ import { type AccountingDocumentInput, accountingDocumentInputSchema, type Accou
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { getCompanyProfile, usedCounter } from './company';
 import { scopeOf, statusOf } from './document-statuses';
@@ -51,8 +51,7 @@ export function documentTotals(document: DocumentWithLines) {
  * @returns {Promise<DocumentWithLines>} Document.
  */
 export async function findDocument(id: string): Promise<DocumentWithLines> {
-  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } });
-  if (!document) throw notFound('Document');
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } }), 'Document');
   return document;
 }
 
@@ -77,7 +76,7 @@ function assertEditable(document: AccountingDocument): void {
  * @returns {Promise<void>}
  */
 async function assertParties({ clientId, serviceId, contactId, projectId }: { clientId: string; serviceId: string | null; contactId: string | null; projectId: string | null }) {
-  if (!(await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }))) throw notFound('Client');
+  await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
   const fieldError = (field: string, message: string) => clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
   if (serviceId && (await prisma.clientService.findUnique({ where: { id: serviceId } }))?.clientId !== clientId) {
     throw fieldError('serviceId', 'Ce service n’appartient pas au client.');

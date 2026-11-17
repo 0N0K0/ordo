@@ -99,3 +99,20 @@ export function reaches(next: (id: string) => readonly string[], starts: readonl
   }
   return false;
 }
+
+/**
+ * Whether an id is a start or one of its ancestors, following a parent map (cycles stop): moving `id` under `start`
+ * would put it under itself.
+ * @param {ReadonlyMap<string, string | null | undefined>} parentOf Parent of each id.
+ * @param {string} start Id the walk starts from (the new parent).
+ * @param {string} id Id looked for (the item moved).
+ * @returns {boolean} Found.
+ */
+export function isUnderOrSelf(parentOf: ReadonlyMap<string, string | null | undefined>, start: string, id: string): boolean {
+  const seen = new Set<string>();
+  for (let current: string | null | undefined = start; current && !seen.has(current); current = parentOf.get(current)) {
+    if (current === id) return true;
+    seen.add(current);
+  }
+  return false;
+}

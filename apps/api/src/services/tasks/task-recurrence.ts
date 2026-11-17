@@ -1,8 +1,8 @@
 import { addDays, daysBetween, formatDay, groupBy, isTaskCases, parseDay, type TaskRepetition, taskRepetitionDates, taskRepetitionSchema, withDeletedDates } from '@ordo/shared';
 import { prisma } from '../../db';
-import { BY_POSITION } from '../core/ordering';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
  * Stored repetition of a task series (a rule, or cases), or null.
@@ -32,8 +32,7 @@ function anchorOf(task: Pick<Task, 'startDate' | 'endDate'>): string | null {
  * @returns {Promise<Task>} First task of the series.
  */
 export async function setTaskRecurrence(id: string, recurrence: unknown): Promise<Task> {
-  const found = await prisma.task.findUnique({ where: { id } });
-  if (!found) throw notFound('Tâche');
+  const found = await orNotFound(prisma.task.findUnique({ where: { id } }), 'Tâche');
   const task = found.seriesId ? ((await prisma.task.findUnique({ where: { id: found.seriesId } })) ?? found) : found;
 
   if (recurrence === null) {
@@ -66,7 +65,7 @@ export async function materializeTaskOccurrences(from: string, to: string): Prom
   });
   if (series.length === 0) return 0;
   const status = await prisma.taskStatus.findFirst({ where: { category: 'TODO' }, orderBy: BY_POSITION });
-  let position = ((await prisma.task.aggregate({ _max: { position: true } }))._max.position ?? -1) + 1;
+  let position = await nextPositionIn('task');
   let created = 0;
 
   for (const task of series) {

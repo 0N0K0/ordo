@@ -1,4 +1,4 @@
-import { formatDay, LEVEL, lineCents, toCents } from '@ordo/shared';
+import { formatDay, LEVEL, lineCents } from '@ordo/shared';
 import { prisma } from '../../db';
 
 /** A loan line: money lent or borrowed, or repaid, with a relation. */

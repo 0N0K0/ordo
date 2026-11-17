@@ -49,6 +49,18 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `moveInList(modèle, id, index, where?)` et `nextPosition(modèle, where?)` dans `ordering.ts` ;
   - suppression des mutations de déplacement que `reorderSettingsItems` couvre déjà.
 
+**Fait** :
+
+- **Outils :** `moveInList(modèle, id, index, where)` et `nextPositionIn(modèle, where)` dans `ordering.ts`. La version des listes paramétrables (`nextPosition`) repose sur le second.
+- **Remplacés :**
+  - les déplacements des tableaux de bord, des graphiques, des vues, des jalons, des comptes mail, des clients et des ressources ;
+  - ceux des espaces et des routines, sur `moveInOrder` et `saveSiblingOrder` ;
+  - une quarantaine de calculs de position suivante.
+- **Supprimées :** les 12 mutations en double (statuts de projet et de documents, catégories de fiches, calendriers, magasins, unités, conservations, références, libellés des tâches) et leurs services. Le web réordonne ces listes par `reorderSettingsItems`, onglets des références compris.
+- **Restent à part :**
+  - le déplacement des projets, qui change aussi le parent et le client ;
+  - les positions calculées dans une transaction ouverte (`tx`).
+
 ### 4. API : arbres
 
 - **Détection de cycle :**
@@ -59,6 +71,15 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Cible :**
   - `assertNotUnder` dans `tree.ts` (partagé) ;
   - `moveInTree` et `deleteTreeNode` dans `ordering.ts`.
+
+**Fait** :
+
+- `isUnderOrSelf` dans `tree.ts` (partagé) ;
+- dans `core/trees.ts` : `assertTreeParent`, qui vérifie qu'un parent existe et n'est pas sous l'élément, et `deleteTreeNode`, qui fait remonter les enfants puis supprime ;
+- les déplacements dans un arbre passent par `moveInList` avec le parent ;
+- toutes les vérifications de parent et toutes les suppressions recopiées sont remplacées.
+
+Reste à part : `ProjectTree`, la vue en mémoire des projets.
 
 ### 5. API : CRUD des listes simples (nom et couleur)
 
@@ -77,11 +98,21 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `LabelInput` et `LabelPatch` communs ;
   - `rethrowUnique` et `done()` dans `graphql/`.
 
+**Fait** :
+
+- `rethrowUnique` et `isUniqueConflict` (`graphql/errors.ts`) remplacent toutes les conversions de l'erreur P2002, avec un seul code (`CONFLICT`) ;
+- `done()` remplace 171 résolveurs `await …; return true;` ;
+- `NameColorInput` et `NameColorPatch` (`graphql/label-inputs.ts`) remplacent 10 types d'entrée identiques ; les documents du web sont mis à jour.
+
+Restent : la généralisation de `createLabelService` à toutes les listes nom + couleur, et une fabrique de mutations pour elles.
+
 ### 6. API : chercher, sinon « introuvable »
 
 - `findUnique`, puis `if (!x) throw notFound(…)`, est écrit environ 146 fois. Les plus gros fichiers : achats (14), routines (9), stock (7), trésorerie, fiches.
 - S'y ajoutent une vingtaine de `findX` locaux et une quinzaine de vérifications d'existence `select: { id: true }`.
 - **Cible :** `findOrThrow(modèle, id, libellé)` et `assertExists`, dans `services/core/lookup.ts`.
+
+**Fait** : `orNotFound(requête, libellé)` (`graphql/errors.ts`), qui garde le type de la requête, remplace 136 copies. Les autres `notFound` sont des cas à part : décomptes, suppressions groupées, recherches en mémoire.
 
 ### 7. Web : panneaux et fenêtres ouverts à la main
 
@@ -234,11 +265,15 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Thème :** couleurs, marges et tailles sont redéclarées dans 5 fichiers.
 - **Cible :** `issuer()`, le thème et un `tableWriter` exportés par `pdf-report.ts`. Environ 80 lignes.
 
+**Fait** : `issuerName()`, `PDF_TEXT`, `PDF_TABLE` et `REPORT_MARGIN` sont exportés par `pdf-report.ts` et repris par les PDF de trésorerie, des tableaux, des graphiques et de l'agenda. Reste à part la mise en page commune des tableaux (`tableWriter`) : sans essai visuel, elle n'a pas été touchée.
+
 ### 20. API : tâches de fond
 
 - La boucle « pour chaque espace, au démarrage puis à intervalle » est recopiée 4 fois : factures récurrentes, GitHub, mails liés, mails programmés.
 - La connexion GitHub de l'espace courant est cherchée 4 fois.
 - **Cible :** `schedulePerWorkspace` et `currentGithubConnection`.
+
+**Fait** : `schedulePerWorkspace` (`workspaces.ts`) lance les 4 tâches de fond, et `currentGithubConnection` cherche la connexion GitHub de l'espace courant.
 
 ### 21. Autres champs et badges
 

@@ -5,7 +5,7 @@ import * as imported from '../../services/accounting/imported-documents';
 import * as recurring from '../../services/accounting/recurring-invoices';
 import * as resources from '../../services/workspace/project-resources';
 import { builder } from '../builder';
-import { clientError } from '../errors';
+import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
 
@@ -407,10 +407,7 @@ builder.mutationFields((t) => ({
   }),
   deleteAccountingDocument: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await docs.deleteDocument(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(docs.deleteDocument(id)),
   }),
   finalizeAccountingDocument: t.string({
     description: 'Makes a draft final; returns its number.',
@@ -433,33 +430,21 @@ builder.mutationFields((t) => ({
   }),
   addAccountingAttachments: t.boolean({
     args: { id: t.arg.id({ required: true }), files: t.arg({ type: ['File'], required: true }) },
-    resolve: async (_root, { id, files }) => {
-      await docs.addDocumentAttachments(id, files);
-      return true;
-    },
+    resolve: (_root, { id, files }) => done(docs.addDocumentAttachments(id, files)),
   }),
   setAccountingDocumentProject: t.boolean({
     description: 'Moves a document (draft or final) to a project, or out of any.',
     args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { id, projectId }) => {
-      await docs.setDocumentProject(id, projectId ?? null);
-      return true;
-    },
+    resolve: (_root, { id, projectId }) => done(docs.setDocumentProject(id, projectId ?? null)),
   }),
   setImportedDocumentProject: t.boolean({
     description: 'Moves an imported document to a project, or out of any.',
     args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { id, projectId }) => {
-      await imported.setImportedProject(id, projectId ?? null);
-      return true;
-    },
+    resolve: (_root, { id, projectId }) => done(imported.setImportedProject(id, projectId ?? null)),
   }),
   removeAccountingAttachment: t.boolean({
     args: { attachmentId: t.arg.id({ required: true }) },
-    resolve: async (_root, { attachmentId }) => {
-      await docs.removeDocumentAttachment(attachmentId);
-      return true;
-    },
+    resolve: (_root, { attachmentId }) => done(docs.removeDocumentAttachment(attachmentId)),
   }),
   createRecurringInvoice: t.id({
     args: { documentId: t.arg.id({ required: true }), input: t.arg({ type: RecurringInput, required: true }) },
@@ -480,10 +465,7 @@ builder.mutationFields((t) => ({
   }),
   deleteRecurringInvoice: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await recurring.deleteRecurringInvoice(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(recurring.deleteRecurringInvoice(id)),
   }),
   issueDueRecurringInvoices: t.int({
     description: 'Issues the recurring invoices due today (also done every hour).',
@@ -496,67 +478,40 @@ builder.mutationFields((t) => ({
   }),
   updateImportedDocument: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ImportedDocumentInput, required: true }), file: t.arg({ type: 'File' }) },
-    resolve: async (_root, { id, input, file }) => {
-      await imported.updateImportedDocument(id, importedInput(input), file ?? null);
-      return true;
-    },
+    resolve: (_root, { id, input, file }) => done(imported.updateImportedDocument(id, importedInput(input), file ?? null)),
   }),
   markImportedDocumentSent: t.boolean({
     description: 'Notes that an imported document was sent, on a day (none: now) and how, with a "sent" status.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id({ required: true }) },
-    resolve: async (_root, { id, date, via, statusId }) => {
-      await imported.markImportedSent(id, { date: date ?? null, via: via ?? null, statusId });
-      return true;
-    },
+    resolve: (_root, { id, date, via, statusId }) => done(imported.markImportedSent(id, { date: date ?? null, via: via ?? null, statusId })),
   }),
   setImportedDocumentTrackingStatus: t.boolean({
     description: 'Sets the tracking status of an imported document by hand (none: clears it).',
     args: { id: t.arg.id({ required: true }), statusId: t.arg.id() },
-    resolve: async (_root, { id, statusId }) => {
-      await imported.setImportedTrackingStatus(id, statusId ?? null);
-      return true;
-    },
+    resolve: (_root, { id, statusId }) => done(imported.setImportedTrackingStatus(id, statusId ?? null)),
   }),
   deleteImportedDocument: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await imported.deleteImportedDocument(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(imported.deleteImportedDocument(id)),
   }),
   addProjectLink: t.boolean({
     args: { projectId: t.arg.id({ required: true }), title: t.arg.string({ required: true }), url: t.arg.string({ required: true }), note: t.arg.string() },
-    resolve: async (_root, { projectId, title, url, note }) => {
-      await resources.addProjectLink(projectId, { title, url, note: note ?? null });
-      return true;
-    },
+    resolve: (_root, { projectId, title, url, note }) => done(resources.addProjectLink(projectId, { title, url, note: note ?? null })),
   }),
   addProjectFiles: t.boolean({
     args: { projectId: t.arg.id({ required: true }), files: t.arg({ type: ['File'], required: true }) },
-    resolve: async (_root, { projectId, files }) => {
-      await resources.addProjectFiles(projectId, files);
-      return true;
-    },
+    resolve: (_root, { projectId, files }) => done(resources.addProjectFiles(projectId, files)),
   }),
   updateProjectResource: t.boolean({
     args: { id: t.arg.id({ required: true }), title: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string() },
-    resolve: async (_root, { id, title, url, note }) => {
-      await resources.updateProjectResource(id, { title, url, note });
-      return true;
-    },
+    resolve: (_root, { id, title, url, note }) => done(resources.updateProjectResource(id, { title, url, note })),
   }),
   deleteProjectResource: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await resources.deleteProjectResource(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(resources.deleteProjectResource(id)),
   }),
   moveProjectResource: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await resources.moveProjectResource(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(resources.moveProjectResource(id, index)),
   }),
 }));

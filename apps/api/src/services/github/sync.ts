@@ -1,7 +1,8 @@
 import { formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { clientError, orNotFound } from '../../graphql/errors';
 import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
@@ -26,10 +27,9 @@ import {
   type FieldValue,
   type RemoteItem,
 } from './board';
-import { githubToken } from './client';
+import { currentGithubConnection, githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
-import { currentWorkspaceId } from '../../workspace-context';
-import { forEachWorkspace } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspace/workspaces';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -303,8 +303,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
       let tag = tags.find((item) => item.name.toLowerCase() === key);
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
-        const { _max } = await prisma.taskTag.aggregate({ _max: { position: true } });
-        tag = await prisma.taskTag.create({ data: { name: (label?.name ?? key).slice(0, 60), color: '#868e96', position: (_max.position ?? -1) + 1 } });
+        const position = await nextPositionIn('taskTag');
+        tag = await prisma.taskTag.create({ data: { name: (label?.name ?? key).slice(0, 60), color: '#868e96', position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -328,8 +328,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
 async function milestoneOf(projectId: string, title: string): Promise<string> {
   const found = await prisma.milestone.findFirst({ where: { projectId, title }, select: { id: true } });
   if (found) return found.id;
-  const { _max } = await prisma.milestone.aggregate({ where: { projectId }, _max: { position: true } });
-  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position: (_max.position ?? -1) + 1 }, select: { id: true } })).id;
+  const position = await nextPositionIn('milestone', { projectId });
+  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position }, select: { id: true } })).id;
 }
 
 /**
@@ -669,14 +669,13 @@ const running = new Set<string>();
  * @returns {Promise<SyncSummary>} What changed.
  */
 export async function syncGithubProject(projectId: string): Promise<SyncSummary> {
-  const link = await prisma.githubProjectLink.findUnique({ where: { projectId } });
-  if (!link) throw notFound('Lien GitHub');
+  const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
   const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsSkipped: 0, renumbered: 0, comments: 0 };
   try {
     const token = await githubToken();
-    const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
+    const login = (await currentGithubConnection())?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
     const tree = await projectTree(projectId);
     const iterations = await syncIterations(board, link, tree);
@@ -868,13 +867,14 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
  * @returns {void}
  */
 export function scheduleGithubSync(): void {
-  const run = () =>
-    forEachWorkspace(async () => {
-      if (!(await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { id: true } }))) return;
+  schedulePerWorkspace(
+    'Synchronisation GitHub',
+    async () => {
+      if (!(await currentGithubConnection())) return;
       for (const link of await prisma.githubProjectLink.findMany({ where: { enabled: true }, select: { projectId: true } })) {
         await syncGithubProject(link.projectId).catch((error: unknown) => console.warn('Synchronisation GitHub en échec.', error));
       }
-    });
-  setTimeout(() => void run(), 30_000);
-  setInterval(() => void run(), 10 * 60_000);
+    },
+    { delay: 30_000, interval: 10 * 60_000 },
+  );
 }

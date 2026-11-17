@@ -320,11 +320,6 @@ const LabelDocuments = {
         deleteTaskStatus(id: $id)
       }
     `),
-    move: graphql(`
-      mutation MoveTaskStatus($id: ID!, $index: Int!) {
-        moveTaskStatus(id: $id, index: $index)
-      }
-    `),
   },
   priority: {
     create: graphql(`
@@ -344,11 +339,6 @@ const LabelDocuments = {
     remove: graphql(`
       mutation DeleteTaskPriority($id: ID!) {
         deleteTaskPriority(id: $id)
-      }
-    `),
-    move: graphql(`
-      mutation MoveTaskPriority($id: ID!, $index: Int!) {
-        moveTaskPriority(id: $id, index: $index)
       }
     `),
   },
@@ -372,11 +362,6 @@ const LabelDocuments = {
         deleteTaskType(id: $id)
       }
     `),
-    move: graphql(`
-      mutation MoveTaskType($id: ID!, $index: Int!) {
-        moveTaskType(id: $id, index: $index)
-      }
-    `),
   },
   tag: {
     create: graphql(`
@@ -396,11 +381,6 @@ const LabelDocuments = {
     remove: graphql(`
       mutation DeleteTaskTag($id: ID!) {
         deleteTaskTag(id: $id)
-      }
-    `),
-    move: graphql(`
-      mutation MoveTaskTag($id: ID!, $index: Int!) {
-        moveTaskTag(id: $id, index: $index)
       }
     `),
   },
@@ -669,7 +649,6 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
     create: TypedDocumentString<unknown, { input: LabelInput }>;
     update: TypedDocumentString<unknown, { id: string; input: Partial<LabelInput> }>;
     remove: TypedDocumentString<unknown, { id: string }>;
-    move: TypedDocumentString<unknown, { id: string; index: number }>;
   };
   return {
     create: useTasksMutation(async (input: LabelInput) => execute(documents.create, { input })),
@@ -677,7 +656,6 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
       execute(documents.update, variables),
     ),
     remove: useTasksMutation(async (variables: { id: string }) => execute(documents.remove, variables)),
-    move: useTasksMutation(async (variables: { id: string; index: number }) => execute(documents.move, variables)),
   };
 }
 

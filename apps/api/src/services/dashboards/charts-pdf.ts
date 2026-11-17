@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { startReport } from '../core/pdf-report';
+import { PDF_TEXT, REPORT_MARGIN, startReport } from '../core/pdf-report';
 
 const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
 
@@ -21,8 +21,8 @@ const chartsPdfSchema = z.object({
 });
 type ChartsPdfInput = z.input<typeof chartsPdfSchema>;
 
-const COLORS = { text: '#1d232b', muted: '#66707c' };
-const MARGIN = 36;
+const COLORS = PDF_TEXT;
+const MARGIN = REPORT_MARGIN;
 
 /**
  * PDF (A4 landscape) of charts: one per page (the image shows its title) with its description, the first page

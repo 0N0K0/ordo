@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { RecurringInvoice } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
 import { storedRecurrence } from '../calendar/calendar-events';
-import { forEachWorkspace } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspace/workspaces';
 import { requirePro } from '../workspace/workspaces';
 
 const settingsSchema = z.object({
@@ -66,7 +66,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
  * @returns {Promise<RecurringInvoice>} Recurring invoice.
  */
 export async function updateRecurringInvoice(id: string, input: RecurringSettings, today: string): Promise<RecurringInvoice> {
-  if (!(await prisma.recurringInvoice.findUnique({ where: { id } }))) throw notFound('Facture récurrente');
+  await orNotFound(prisma.recurringInvoice.findUnique({ where: { id } }), 'Facture récurrente');
   const settings = parseInput(settingsSchema, input);
   const next = nextIssueDate(settings.recurrence, settings.startDate, today > settings.startDate ? today : settings.startDate);
   return prisma.recurringInvoice.update({
@@ -81,8 +81,7 @@ export async function updateRecurringInvoice(id: string, input: RecurringSetting
  * @returns {Promise<void>}
  */
 export async function deleteRecurringInvoice(id: string): Promise<void> {
-  const recurring = await prisma.recurringInvoice.findUnique({ where: { id } });
-  if (!recurring) throw notFound('Facture récurrente');
+  const recurring = await orNotFound(prisma.recurringInvoice.findUnique({ where: { id } }), 'Facture récurrente');
   await prisma.accountingDocument.delete({ where: { id: recurring.templateId } });
 }
 
@@ -123,10 +122,5 @@ export async function issueDueInvoices(today: string): Promise<number> {
  * @returns {void}
  */
 export function scheduleRecurringInvoices(): void {
-  const run = () =>
-    void forEachWorkspace(() => issueDueInvoices(parisToday()), { kind: 'PRO' }).catch((error: unknown) =>
-      console.warn('Factures récurrentes en échec.', error),
-    );
-  setTimeout(run, 20_000);
-  setInterval(run, 3_600_000);
+  schedulePerWorkspace('Factures récurrentes', () => issueDueInvoices(parisToday()), { delay: 20_000, interval: 3_600_000, kind: 'PRO' });
 }

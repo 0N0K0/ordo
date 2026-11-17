@@ -1,7 +1,7 @@
 import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
  * Validates an alarm and the project or task it points to.
@@ -42,7 +42,7 @@ export async function createAlarm(input: AlarmInput): Promise<Alarm> {
  * @returns {Promise<Alarm>} Updated alarm.
  */
 export async function updateAlarm(id: string, input: AlarmInput): Promise<Alarm> {
-  if (!(await prisma.alarm.findUnique({ where: { id } }))) throw notFound('Alarme');
+  await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
   return prisma.alarm.update({ where: { id }, data: { ...(await parseAlarm(input)), lastFiredAt: new Date() } });
 }
 
@@ -53,8 +53,7 @@ export async function updateAlarm(id: string, input: AlarmInput): Promise<Alarm>
  * @returns {Promise<Alarm>} Updated alarm.
  */
 export async function markAlarmFired(id: string, at: Date): Promise<Alarm> {
-  const alarm = await prisma.alarm.findUnique({ where: { id } });
-  if (!alarm) throw notFound('Alarme');
+  const alarm = await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
   if (at.getTime() > Date.now() + 60_000) throw clientError('BAD_USER_INPUT', 'Moment invalide.');
   if (alarm.lastFiredAt && alarm.lastFiredAt >= at) return alarm;
   return prisma.alarm.update({ where: { id }, data: { lastFiredAt: at } });
@@ -66,6 +65,6 @@ export async function markAlarmFired(id: string, at: Date): Promise<Alarm> {
  * @returns {Promise<void>}
  */
 export async function deleteAlarm(id: string): Promise<void> {
-  if (!(await prisma.alarm.findUnique({ where: { id } }))) throw notFound('Alarme');
+  await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
   await prisma.alarm.delete({ where: { id } });
 }
