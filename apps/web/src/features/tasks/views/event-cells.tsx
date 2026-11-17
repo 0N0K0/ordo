@@ -2,11 +2,12 @@ import { Avatar, Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@manti
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
-import { useContext, useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { applyDiff } from '../../../components/data-table/bulk-edit';
-import { CellSelectionContext, EventRowsContext } from './cell-edit';
+import { bulkTargets, useBulkTable } from '../../../components/data-table/bulk-edit';
+import { eventKey, type TaskTableRow } from '../task-columns';
 import type { TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
@@ -79,11 +80,11 @@ const cellField = { variant: 'unstyled', size: 'xs', classNames: { root: cellCla
  */
 function useEventSave(event: EventOccurrence, column: TaskColumn) {
   const { update } = useCalendarEventMutations();
-  const selection = useContext(CellSelectionContext);
-  const events = useContext(EventRowsContext);
+  const table = useBulkTable<TaskTableRow>();
   return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
-    const keys = selection?.column === column && selection.eventKeys?.includes(event.key) ? selection.eventKeys : [event.key];
-    const targets = keys.length > 1 ? events.filter((item) => keys.includes(item.key)) : [event];
+    // The events of the selection of the table (on this column), else this one.
+    const events = (table?.rows ?? []).flatMap((row) => (row.kind === 'event' ? [row.event] : []));
+    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventKey, rows: events }, column, event);
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
       const chosen = await askScope({ action: 'update' });

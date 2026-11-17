@@ -45,6 +45,7 @@ import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from './RowCheck';
 import { SelectionBar, type SelectionAction } from './SelectionBar';
 import { selectedLabel } from './selection-label';
 import { useTableHeight } from './table-height';
+import { BulkTableContext } from './bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from './use-data-view';
 
@@ -411,6 +412,7 @@ export function DataTable<R>({
       : rows;
   // Check boxes of the rows, to act on several (a table without its own leading cell).
   const checks = view.rowSelection;
+  const bulkTable = useMemo(() => ({ selection: view.selection, keyOf: getKey as (row: unknown) => string, rows: view.rows as readonly unknown[] }), [view.selection, getKey, view.rows]);
   const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn || groupTree) : draggable;
   const leadWidth = (rowDrag || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0);
   const hasLead = leadWidth > 0;
@@ -939,11 +941,14 @@ export function DataTable<R>({
    */
   const clear = () => checks?.check(checks.keys, false);
   return (
-    <Stack gap="sm">
-      {toolbar && <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />}
-      {content()}
-      {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
-    </Stack>
+    // Its cells save their edits on its selection (useBulkTable).
+    <BulkTableContext.Provider value={bulkTable}>
+      <Stack gap="sm">
+        {toolbar && <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />}
+        {content()}
+        {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
+      </Stack>
+    </BulkTableContext.Provider>
   );
 }
 

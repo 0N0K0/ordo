@@ -1,14 +1,13 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { Alert, Group, Select, Switch, Text, Tooltip } from '@mantine/core';
-import { addDays, EVENT_PERIODS, filterPeriod, TASK_GROUP_BY, type EventPeriod, type TaskColumn, type TaskGroupBy } from '@ordo/shared';
+import { addDays, EVENT_PERIODS, filterPeriod, TASK_GROUP_BY, type EventPeriod, type TaskGroupBy } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { DataTable, type RowMove } from '../../components/data-table/DataTable';
 import { RowActions } from '../../components/data-table/RowActions';
-import { ALL_COLUMNS } from '../../components/data-table/bulk-selection';
 import { useDataView, useTableViews, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
@@ -26,7 +25,6 @@ import { useTaskActions } from './use-task-actions';
 import { taskName, useTaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { useTaskSelectionActions } from './views/BulkBar';
-import { CellSelectionContext, EventRowsContext, type CellSelection } from './views/cell-edit';
 import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './views/event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './views/extra-cells';
 import {
@@ -168,16 +166,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     'EVENT',
     eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
   );
-  const shownEvents = useMemo(() => view.rows.flatMap((row) => (row.kind === 'event' ? [row.event] : [])), [view.rows]);
-
-  // The cells of the selection (or the tasks checked), for the edits of the cells of the tasks and events.
-  const cellSelection = useMemo((): CellSelection | null => {
-    const selection = view.selection;
-    if (!selection) return null;
-    const taskIds = selection.keys.filter((key) => !key.startsWith('e:'));
-    const eventKeys = selection.keys.filter((key) => key.startsWith('e:')).map((key) => key.slice(2));
-    return { column: selection.column === ALL_COLUMNS ? '*' : (selection.column as TaskColumn), rowIds: selection.keys, taskIds, eventKeys };
-  }, [view.selection]);
 
   /**
    * Saves a task dragged to another place or level (before the task now following it, under its new parent), or into
@@ -302,103 +290,101 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const groupBy = view.groupColumn && (TASK_GROUP_BY as readonly string[]).includes(view.groupColumn.id) ? (view.groupColumn.id as TaskGroupBy) : null;
 
   return (
-    <CellSelectionContext.Provider value={cellSelection}>
-      <EventRowsContext.Provider value={shownEvents}>
-        {(error ?? view.views.error) && (
-          <Alert color="red" icon={<ErrorIcon />} mb="sm">
-            {(error ?? view.views.error)?.message}
-          </Alert>
-        )}
-        <DataTable
-          view={view}
-          getKey={(row) => row.key}
-          loading={isPending || tasksPending || !context}
-          framed
-          verticalSpacing={4}
-          className={classes.table}
-          bar={{
-            searchLabel: 'Rechercher (titre, numéro, description)',
-            manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
-            actions: (
-              <Group gap="sm" wrap="nowrap">
-                {header}
-                {canCreate && (
-                  <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => taskActions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
-                    Nouvelle tâche
-                  </ActionButton>
-                )}
-              </Group>
-            ),
-            displayOptions: config && (
-              <>
-                <Switch
-                  label="Afficher les évènements"
-                  checked={showEvents}
-                  onChange={(event) => {
-                    const events = event.currentTarget.checked;
-                    view.change((current) => ({ ...current, options: { ...current.options, events } }));
-                  }}
-                />
-                {showEvents && !eventRange && (
-                  <Select
-                    label="Période des évènements"
-                    data={EVENT_PERIODS.map((value) => ({ value, label: EVENT_PERIOD_LABELS[value] }))}
-                    value={period}
-                    allowDeselect={false}
-                    comboboxProps={{ withinPortal: false }}
-                    onChange={(eventPeriod) => eventPeriod && view.change((current) => ({ ...current, options: { ...current.options, eventPeriod } }))}
-                  />
-                )}
-                {showEvents && range && (
-                  <Text size="xs" c="dimmed">
-                    Du {fmt.dayShort(range.from)} au {fmt.dayShort(range.to)}
-                  </Text>
-                )}
-              </>
-            ),
-          }}
-          empty={<EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={canCreate ? emptyMessage : 'Créez d’abord un projet : chaque tâche appartient à un projet.'} />}
-          parentKey={(row) => (row.kind === 'task' ? (row.task.parentId ?? null) : null)}
-          onMoveRow={handleMove}
-          readOnly={(row) => row.kind === 'event'}
-          isActive={(row) => row.kind === 'task' && row.task.id === openId}
-          isArchived={(row) => row.kind === 'task' && row.task.archived}
-          rowProps={() => ({ className: classes.row })}
-          cells={cells}
-          actions={(row) =>
-            row.kind === 'task' && (
-              <RowActions
-                name={`la tâche ${taskName(row.task)}`}
-                primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
-                items={[
-                  { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
-                  'divider',
-                  ...taskActions.menu(row.task),
-                ]}
+    <>
+      {(error ?? view.views.error) && (
+        <Alert color="red" icon={<ErrorIcon />} mb="sm">
+          {(error ?? view.views.error)?.message}
+        </Alert>
+      )}
+      <DataTable
+        view={view}
+        getKey={(row) => row.key}
+        loading={isPending || tasksPending || !context}
+        framed
+        verticalSpacing={4}
+        className={classes.table}
+        bar={{
+          searchLabel: 'Rechercher (titre, numéro, description)',
+          manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
+          actions: (
+            <Group gap="sm" wrap="nowrap">
+              {header}
+              {canCreate && (
+                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => taskActions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
+                  Nouvelle tâche
+                </ActionButton>
+              )}
+            </Group>
+          ),
+          displayOptions: config && (
+            <>
+              <Switch
+                label="Afficher les évènements"
+                checked={showEvents}
+                onChange={(event) => {
+                  const events = event.currentTarget.checked;
+                  view.change((current) => ({ ...current, options: { ...current.options, events } }));
+                }}
               />
-            )
-          }
-          addRow={
-            context && canCreate
-              ? (group) => (
-                  <AddTaskRow
-                    context={context}
-                    defaults={group && groupBy ? groupDefaults(groupBy, group.key || 'none', context) : {}}
-                    projectId={createProjectId}
-                    onOpenForm={(defaults) => taskActions.create({ projectId: defaults.projectId, parentId: defaults.parentId ?? undefined })}
-                  />
-                )
-              : undefined
-          }
-          selectionLabel={(count) => `${count} tâche${count > 1 ? 's' : ''} sélectionnée${count > 1 ? 's' : ''}`}
-          selectionActions={(checked, clear) =>
-            selectionActions(
-              checked.flatMap((row): Task[] => (row.kind === 'task' ? [row.task] : [])),
-              clear,
-            )
-          }
-        />
-      </EventRowsContext.Provider>
-    </CellSelectionContext.Provider>
+              {showEvents && !eventRange && (
+                <Select
+                  label="Période des évènements"
+                  data={EVENT_PERIODS.map((value) => ({ value, label: EVENT_PERIOD_LABELS[value] }))}
+                  value={period}
+                  allowDeselect={false}
+                  comboboxProps={{ withinPortal: false }}
+                  onChange={(eventPeriod) => eventPeriod && view.change((current) => ({ ...current, options: { ...current.options, eventPeriod } }))}
+                />
+              )}
+              {showEvents && range && (
+                <Text size="xs" c="dimmed">
+                  Du {fmt.dayShort(range.from)} au {fmt.dayShort(range.to)}
+                </Text>
+              )}
+            </>
+          ),
+        }}
+        empty={<EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={canCreate ? emptyMessage : 'Créez d’abord un projet : chaque tâche appartient à un projet.'} />}
+        parentKey={(row) => (row.kind === 'task' ? (row.task.parentId ?? null) : null)}
+        onMoveRow={handleMove}
+        readOnly={(row) => row.kind === 'event'}
+        isActive={(row) => row.kind === 'task' && row.task.id === openId}
+        isArchived={(row) => row.kind === 'task' && row.task.archived}
+        rowProps={() => ({ className: classes.row })}
+        cells={cells}
+        actions={(row) =>
+          row.kind === 'task' && (
+            <RowActions
+              name={`la tâche ${taskName(row.task)}`}
+              primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
+              items={[
+                { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
+                'divider',
+                ...taskActions.menu(row.task),
+              ]}
+            />
+          )
+        }
+        addRow={
+          context && canCreate
+            ? (group) => (
+                <AddTaskRow
+                  context={context}
+                  defaults={group && groupBy ? groupDefaults(groupBy, group.key || 'none', context) : {}}
+                  projectId={createProjectId}
+                  onOpenForm={(defaults) => taskActions.create({ projectId: defaults.projectId, parentId: defaults.parentId ?? undefined })}
+                />
+              )
+            : undefined
+        }
+        selectionLabel={(count) => `${count} tâche${count > 1 ? 's' : ''} sélectionnée${count > 1 ? 's' : ''}`}
+        selectionActions={(checked, clear) =>
+          selectionActions(
+            checked.flatMap((row): Task[] => (row.kind === 'task' ? [row.task] : [])),
+            clear,
+          )
+        }
+      />
+    </>
   );
 }

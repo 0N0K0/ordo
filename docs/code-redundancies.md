@@ -16,7 +16,7 @@ Le même rôle est codé trois fois ; les tableaux des tâches et des routines p
 | Tâches (`useCellEdit`, `CellSelectionContext`)                 | `features/tasks/views/cell-edit.ts`      | cellules des tâches                |
 | Routines (`useRoutineCellEdit`, `RoutineCellSelectionContext`) | `features/routines/routine-cell-edit.ts` | cellules des routines              |
 
-À faire : tout ramener à `bulkSaver`.
+**Fait** : `DataTable` partage sa sélection avec ses cellules (`BulkTableContext`, `useBulkTable`) ; `useCellEdit` et `useRoutineCellEdit` ne sont plus que des couches sur `bulkSaver` (avec leur requête groupée et son annulation), les contextes propres aux tâches et aux routines et leurs adaptateurs sont supprimés.
 
 ### 2. Deux moteurs de filtres
 

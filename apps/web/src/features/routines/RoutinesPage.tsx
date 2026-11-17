@@ -22,7 +22,6 @@ import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
 import { DataTable, type RowMove } from '../../components/data-table/DataTable';
 import { RowActions } from '../../components/data-table/RowActions';
-import { ALL_COLUMNS } from '../../components/data-table/bulk-selection';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import * as fmt from '../../lib/format';
@@ -40,7 +39,7 @@ import { commentTotal } from '../comments/comment-column';
 import { useBeneficiaries } from '../beneficiaries/use-beneficiaries';
 import { useRunningTimer } from '../time/api';
 import { routineColumns } from './routine-columns';
-import { RoutineCellSelectionContext, routinesLabel, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
+import { routinesLabel } from './routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from './routine-table-cells';
 import { RoutineDoneToggles } from './DoneToggle';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, TitleCell } from './routine-cells';
@@ -49,28 +48,6 @@ import { isDone, movableOccurrence, waitingFor } from './routine-format';
 import { usePostponeRoutine } from './use-routine-move';
 import { useRoutineSelectionActions } from './RoutineBulkBar';
 import classes from './Routines.module.css';
-
-/** Columns of the table edited together, with the column of their cell edit. */
-const CELL_COLUMNS: Record<string, RoutineColumn> = {
-  title: 'title',
-  currentDate: 'repetition',
-  repetition: 'repetition',
-  fromTime: 'fromTime',
-  dueTime: 'dueTime',
-  opensOn: 'opensOn',
-  location: 'location',
-  travelBefore: 'travelBefore',
-  travelAfter: 'travelAfter',
-  alarms: 'alarms',
-  beneficiaries: 'beneficiaries',
-  blocks: 'blocks',
-  parent: 'parent',
-  estimate: 'estimate',
-  assignees: 'assignees',
-  categories: 'categories',
-  requires: 'requires',
-  project: 'project',
-};
 
 /** Views made the first time: those to do, all, the archived ones; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -163,13 +140,6 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     // One being created shows at once (its occurrences, computed once saved, may then take it out of the view).
     alwaysKept: isDraftRoutine,
   });
-  // The cells of the selection (or the routines checked), for the edits of the cells of the routines.
-  const cellSelection = useMemo((): RoutineCellSelection | null => {
-    const selection = view.selection;
-    if (!selection) return null;
-    const column = selection.column === ALL_COLUMNS ? '*' : CELL_COLUMNS[selection.column];
-    return column ? { column, rowKeys: selection.keys, routineIds: selection.keys } : null;
-  }, [view.selection]);
   const groupedByCategory = view.groupColumn?.id === 'categories';
 
   /**
@@ -310,38 +280,36 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   };
 
   return (
-    <RoutineCellSelectionContext.Provider value={cellSelection}>
-      <DataTable
-        view={view}
-        getKey={(routine) => routine.id}
-        loading={isLoading || !context}
-        verticalSpacing={4}
-        className={classes.table}
-        bar={{
-          searchLabel: 'Rechercher (label, description, lieu)',
-          actions: (
-            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
-              Nouvelle routine
-            </ActionButton>
-          ),
-        }}
-        empty={<EmptyState icon={<ArrowsClockwiseIcon aria-hidden />} message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
-        parentKey={(routine) => routine.parentId ?? null}
-        onMoveRow={handleMove}
-        readOnly={isDraftRoutine}
-        isArchived={(routine) => routine.archived}
-        rowProps={(routine) => ({ className: classes.row, 'data-done': isDone(routine) || undefined })}
-        cells={cells}
-        actions={actions}
-        addRow={
-          !view.groupColumn || groupedByCategory
-            ? (group) => <AddRoutineRow categoryId={groupedByCategory && group?.key ? group.key : null} projectId={projectId ?? null} groupName={group?.label ?? 'les routines'} />
-            : undefined
-        }
-        selectionLabel={(count) => `${routinesLabel(count)} sélectionnée${count > 1 ? 's' : ''}`}
-        selectionActions={selectionActions}
-      />
-    </RoutineCellSelectionContext.Provider>
+    <DataTable
+      view={view}
+      getKey={(routine) => routine.id}
+      loading={isLoading || !context}
+      verticalSpacing={4}
+      className={classes.table}
+      bar={{
+        searchLabel: 'Rechercher (label, description, lieu)',
+        actions: (
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
+            Nouvelle routine
+          </ActionButton>
+        ),
+      }}
+      empty={<EmptyState icon={<ArrowsClockwiseIcon aria-hidden />} message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
+      parentKey={(routine) => routine.parentId ?? null}
+      onMoveRow={handleMove}
+      readOnly={isDraftRoutine}
+      isArchived={(routine) => routine.archived}
+      rowProps={(routine) => ({ className: classes.row, 'data-done': isDone(routine) || undefined })}
+      cells={cells}
+      actions={actions}
+      addRow={
+        !view.groupColumn || groupedByCategory
+          ? (group) => <AddRoutineRow categoryId={groupedByCategory && group?.key ? group.key : null} projectId={projectId ?? null} groupName={group?.label ?? 'les routines'} />
+          : undefined
+      }
+      selectionLabel={(count) => `${routinesLabel(count)} sélectionnée${count > 1 ? 's' : ''}`}
+      selectionActions={selectionActions}
+    />
   );
 }
 

@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { notifySuccess } from '../../lib/notify';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
@@ -7,6 +8,44 @@ export interface BulkTable<R> {
   keyOf: ((row: R) => string) | null;
   /** Rows shown. */
   rows: readonly R[];
+}
+
+/** Selection of the table a cell is in, given by DataTable to its cells (their edits apply to it). */
+export const BulkTableContext = createContext<BulkTable<unknown> | null>(null);
+
+/**
+ * Selection of the table a cell is in (its column selection or its rows checked), with the key and the order of its
+ * rows; null out of a table.
+ * @returns {BulkTable<R> | null} Table.
+ */
+export function useBulkTable<R>(): BulkTable<R> | null {
+  return useContext(BulkTableContext) as BulkTable<R> | null;
+}
+
+/** Columns a cell answers for: one, or several (a cell shown in two columns…). */
+type Columns = string | readonly string[];
+
+/**
+ * Whether the bulk selection is on a column of a cell (or on whole rows).
+ * @param {BulkSelection} selection Selection.
+ * @param {Columns} column Columns of the cell.
+ * @returns {boolean} On it.
+ */
+const onColumn = (selection: BulkSelection, column: Columns) => selection.column === ALL_COLUMNS || (typeof column === 'string' ? selection.column === column : column.includes(selection.column));
+
+/**
+ * Rows a change in a cell applies to: those of the bulk selection of its column (or the rows checked) when the row is
+ * one of them, else the row alone.
+ * @param {BulkTable<R>} view Table.
+ * @param {Columns} column Columns of the cell.
+ * @param {R} row Row.
+ * @returns {R[]} Rows, in the order of the table.
+ */
+export function bulkTargets<R>(view: BulkTable<R>, column: Columns, row: R): R[] {
+  const { selection, keyOf } = view;
+  const key = keyOf?.(row);
+  if (!keyOf || !selection || !onColumn(selection, column) || key === undefined || !selection.keys.includes(key) || selection.keys.length < 2) return [row];
+  return view.rows.filter((item) => selection.keys.includes(keyOf(item)));
 }
 
 /** Change made in a cell: the same for every row, or made for each row (its own date kept…). */
@@ -26,35 +65,40 @@ export const changeOf = <R, C>(change: BulkChange<R, C>, row: R): C => (typeof c
  * @param {BulkTable<R>} view Table (its selection, a data view…).
  * @param {(row: R, change: C) => void} save Saves a change of one row.
  * @param {(rows: R[], change: (row: R) => C) => void} [saveMany] Saves the change of several rows at once (lines of a
- *   same entry…). Optional. Default = each row saved.
- * @returns {(column: string) => (row: R, change: BulkChange<R, C>) => void} Saving of a column.
+ *   same entry, one request for all…). Optional. Default = each row saved.
+ * @param {{ label?: (count: number) => string, notify?: boolean }} [options] Rows told in the message (« 3 tâches »), and
+ *   whether the message is given here (false: saveMany tells it, with an undo…). Optional.
+ * @returns {(column: string | readonly string[]) => (row: R, change: BulkChange<R, C>) => void} Saving of a column (or of
+ *   a cell answering for several).
  */
-export function bulkSaver<R, C>(view: BulkTable<R>, save: (row: R, change: C) => void, saveMany?: (rows: R[], change: (row: R) => C) => void) {
-  return (column: string) =>
+export function bulkSaver<R, C>(
+  view: BulkTable<R>,
+  save: (row: R, change: C) => void,
+  saveMany?: (rows: R[], change: (row: R) => C) => void,
+  { label = (count: number) => `${count} lignes`, notify = true }: { label?: (count: number) => string; notify?: boolean } = {},
+) {
+  return (column: Columns) =>
     (row: R, change: BulkChange<R, C>): void => {
-      const { selection, keyOf } = view;
-      const key = keyOf?.(row);
-      if (!keyOf || !selection || (selection.column !== column && selection.column !== ALL_COLUMNS) || key === undefined || !selection.keys.includes(key) || selection.keys.length < 2) {
+      const rows = bulkTargets(view, column, row);
+      if (rows.length < 2) {
         save(row, changeOf(change, row));
         return;
       }
-      const rows = view.rows.filter((item) => selection.keys.includes(keyOf(item)));
       if (saveMany) saveMany(rows, (item) => changeOf(change, item));
       else for (const item of rows) save(item, changeOf(change, item));
-      notifySuccess(`Modification appliquée à ${rows.length} lignes.`);
+      if (notify) notifySuccess(`Modification appliquée à ${label(rows.length)}.`);
     };
 }
 
 /**
  * Number of rows a change in a cell would change (to tell it in its label).
  * @param {BulkTable<R>} view View of the table.
- * @param {string} column Column.
+ * @param {string | readonly string[]} column Columns of the cell.
  * @param {R} row Row.
  * @returns {number} Rows.
  */
-export function bulkCount<R>(view: BulkTable<R>, column: string, row: R): number {
-  const key = view.keyOf?.(row);
-  return (view.selection?.column === column || view.selection?.column === ALL_COLUMNS) && key !== undefined && view.selection.keys.includes(key) ? view.selection.keys.length : 1;
+export function bulkCount<R>(view: BulkTable<R>, column: Columns, row: R): number {
+  return bulkTargets(view, column, row).length;
 }
 
 /**

@@ -1,45 +1,32 @@
 import type { TaskColumn } from '@ordo/shared';
-import { createContext, useContext } from 'react';
-import type { EventOccurrence } from '../../calendar/api';
-import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
+import { bulkSaver, bulkTargets, useBulkTable, type BulkTable } from '../../../components/data-table/bulk-edit';
+import { notifyError, notifyWithUndo } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
+import { tasksLabel } from './bulk-label';
 
-/** Cells selected in one column, by row id (only rows shown by the view can be selected). */
-export interface CellSelection {
-  /** Column, or '*' for tasks checked (every column edited in bulk). */
-  column: TaskColumn | '*';
-  rowIds: string[];
-  /** Tasks of the selected rows (a task can appear on several rows when grouped by assignee). */
-  taskIds: string[];
-  /** Events of the selected rows (event rows of the views), by occurrence key. Optional. */
-  eventKeys?: string[];
-}
-
-export const CellSelectionContext = createContext<CellSelection | null>(null);
-
-/** Events shown in the rows of the table (for a change applied to the selected ones). */
-export const EventRowsContext = createContext<EventOccurrence[]>([]);
-
-/** Columns of the event rows edited in bulk (several selected events at once). */
-export const EVENT_BULK_COLUMNS: readonly TaskColumn[] = ['assignees', 'beneficiaries', 'startDate', 'endDate'];
+/** Change of a task made in one of its cells. */
+type TaskChange = Omit<TaskInputValues, 'projectId'>;
 
 /**
- * Saves a cell edit: on a cell of the column selection, the change applies to every selected task of the
- * column; otherwise to the edited task only.
+ * Saves a cell edit of a task, on the selection of its table (bulkSaver): on a cell of the column selection (or of the
+ * tasks checked), the change applies to every task of it — in one bulk request when given, with its undo —, otherwise
+ * to the edited task only.
  * @param {Task} task Edited task.
  * @param {TaskColumn} column Edited column.
- * @returns {{ apply: (single: Omit<TaskInputValues, 'projectId'>, bulk?: BulkChanges) => void, count: number }}
- *   Saver, and the number of tasks an edit would change.
+ * @returns {{ apply: (single: TaskChange | ((task: Task) => TaskChange), bulk?: BulkChanges) => void, count: number, targets: string[] }}
+ *   Saver, the number of tasks an edit would change and their ids.
  */
 export function useCellEdit(task: Task, column: TaskColumn) {
-  const selection = useContext(CellSelectionContext);
+  const table = useBulkTable();
   const updateTask = useUpdateTask();
   const { update } = useBulkTaskMutations();
   const undo = useBulkUndo();
   const { data } = useTasksData();
-  const targets =
-    selection && (selection.column === column || selection.column === '*') && selection.taskIds.includes(task.id) ? selection.taskIds : [task.id];
+  // The tasks of the table, by the keys of its rows (a task's row key is its id; the events have their own).
+  const view: BulkTable<Task> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: data?.tasks ?? [] };
+  const targets = bulkTargets(view, column, task).map((item) => item.id);
+  const onError = (error: Error) => notifyError(error.message);
 
   return {
     count: targets.length,
@@ -47,34 +34,24 @@ export function useCellEdit(task: Task, column: TaskColumn) {
     targets,
 
     /**
-     * Saves the edit: on several tasks, in one bulk change when given, else task by task (the change made for each).
-     * @param {Omit<TaskInputValues, 'projectId'> | ((task: Task) => Omit<TaskInputValues, 'projectId'>)} single Change of the edited task (or of each).
+     * Saves the edit: on several tasks, in one bulk change when given (with its undo), else task by task (the change
+     * made for each).
+     * @param {TaskChange | ((task: Task) => TaskChange)} single Change of the edited task (or of each).
      * @param {BulkChanges} [bulk] Same change for several tasks at once. Optional.
      * @returns {void}
      */
-    apply: (single: Omit<TaskInputValues, 'projectId'> | ((task: Task) => Omit<TaskInputValues, 'projectId'>), bulk?: BulkChanges) => {
-      const changeFor = (item: Task) => (typeof single === 'function' ? single(item) : single);
-      if (!bulk && targets.length > 1) {
-        for (const item of (data?.tasks ?? []).filter((other) => targets.includes(other.id))) {
-          const change = changeFor(item);
-          if (Object.keys(change).length) updateTask.mutate({ id: item.id, input: change }, { onError: (error) => notifyError(error.message) });
-        }
-        notifySuccess(`Modification appliquée à ${targets.length} tâches.`);
-        return;
-      }
-      if (bulk && targets.length > 1) {
-        // Snapshot taken before the change, for the undo.
-        const before = (data?.tasks ?? []).filter((item) => targets.includes(item.id));
-        update.mutate(
-          { ids: targets, changes: bulk },
-          {
-            onSuccess: () => notifyWithUndo(`Modification appliquée à ${targets.length} tâches.`, undo.changes(before, bulk)),
-            onError: (error) => notifyError(error.message),
-          },
-        );
-        return;
-      }
-      updateTask.mutate({ id: task.id, input: changeFor(task) }, { onError: (error) => notifyError(error.message) });
-    },
+    apply: (single: TaskChange | ((task: Task) => TaskChange), bulk?: BulkChanges) =>
+      bulkSaver<Task, TaskChange>(
+        view,
+        (item, change) => Object.keys(change).length > 0 && updateTask.mutate({ id: item.id, input: change }, { onError }),
+        bulk
+          ? (rows) => {
+              // Snapshot taken before the change, for the undo.
+              const ids = rows.map((item) => item.id);
+              update.mutate({ ids, changes: bulk }, { onSuccess: () => notifyWithUndo(`Modification appliquée à ${tasksLabel(ids.length)}.`, undo.changes(rows, bulk)), onError });
+            }
+          : undefined,
+        { label: tasksLabel, notify: !bulk },
+      )(column)(task, single),
   };
 }
