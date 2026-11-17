@@ -1,4 +1,5 @@
 import { Checkbox, Text } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { DataTable } from '../../components/data-table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
@@ -91,7 +92,10 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       filter: {
         kind: 'choice',
         value: (row) => row.line.contextId ?? ME,
-        options: [{ value: ME, label: EVERYDAY_CONTEXT }, ...(env.settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))],
+        options: [
+          { value: ME, label: EVERYDAY_CONTEXT },
+          ...(env.settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl })),
+        ],
       },
       groupable: true,
     },
@@ -249,7 +253,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={line.contextId}
               label={`Contexte de ${name}`}
               nullable
-              data={(env.settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
+              {...listSelectProps(env.settings?.treasuryContexts ?? [])}
               onSave={(contextId) => saveLine('context', row, { contextId })}
             />
           ),

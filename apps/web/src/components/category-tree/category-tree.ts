@@ -75,7 +75,7 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
  */
 export function categoryOptions(categories: readonly TreeCategory[], exclude?: string, offered?: (id: string) => boolean): TreeOption[] {
   return treeOptions(
-    categoryTree(categories).map(({ category, color }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color })),
+    categoryTree(categories).map(({ category, color }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color, iconUrl: category.iconUrl })),
     offered,
     new Set(exclude ? [exclude] : []),
   );

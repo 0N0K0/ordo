@@ -1,4 +1,5 @@
 import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
@@ -232,7 +233,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
   if (step === 'file' || !mapping) {
     return (
       <Stack gap="sm">
-        <Select label="Compte" required data={open.map((item) => ({ value: item.id, label: item.name }))} value={accountId} onChange={setAccountId} allowDeselect={false} />
+        <Select label="Compte" required {...listSelectProps(open)} value={accountId} onChange={setAccountId} allowDeselect={false} />
         <FileInput
           label="Relevé (CSV)"
           placeholder="Choisir le fichier exporté par la banque"

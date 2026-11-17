@@ -1,12 +1,6 @@
-import {
-  ColorSwatch,
-  Combobox,
-  Group,
-  Select,
-  Text,
-  UnstyledButton,
-  useCombobox,
-} from '@mantine/core';
+import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
+import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
@@ -188,19 +182,13 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       label={fieldLabel('Étiquettes', task, count)}
       items={task.tagIds.flatMap((id) => {
         const tag = context.tagById.get(id);
-        return tag ? [{ id, label: tag.name, icon: <ColorSwatch color={tag.color} size={8} style={{ flexShrink: 0 }} /> }] : [];
+        return tag ? [{ id, label: tag.name, icon: <ItemAvatar name={tag.name} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Étiquettes', task, count)}
-          data={context.tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-          renderOption={({ option }) => (
-            <Group gap="xs" wrap="nowrap">
-              <ColorSwatch color={context.tagById.get(option.value)?.color ?? 'gray'} size={10} />
-              {option.label}
-            </Group>
-          )}
+          {...listSelectProps(context.tags)}
           value={task.tagIds}
           onChange={(tagIds) => {
             const added = tagIds.filter((id) => !task.tagIds.includes(id));

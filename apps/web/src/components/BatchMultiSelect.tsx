@@ -1,6 +1,8 @@
-import { Anchor, ColorSwatch, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
+import { Anchor, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
 import type { MouseEvent } from 'react';
 import { MAX_STACKED, stackedCount } from './data-table/stacked';
+import { ItemAvatar } from './settings/ItemAvatar';
+import { hasAvatar } from './settings/item-look';
 import { notifyError } from '../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
@@ -126,11 +128,15 @@ export function BatchMultiSelect({
         const folded = shownValues.length > MAX_STACKED;
         // Beyond those shown: the first one hidden gives its place to « X de plus ».
         if (index >= shown) return index === shown ? toggleButton : null;
-        const color = option && 'color' in option && typeof option.color === 'string' ? option.color : null;
+        const look = (option ?? {}) as { color?: string | null; iconUrl?: string | null; name?: string };
         return (
           <>
             <Pill withRemoveButton={!props.readOnly && !disabled && !option?.disabled} onRemove={onRemove} disabled={disabled} className={classes.pill}>
-              {color && <ColorSwatch color={color} size={8} className={classes.swatch} />}
+              {hasAvatar(look) && (
+                <span className={classes.swatch}>
+                  <ItemAvatar name={look.name ?? option?.label ?? ''} iconUrl={look.iconUrl} color={look.color} size={14} />
+                </span>
+              )}
               {option?.label ?? String(pill)}
             </Pill>
             {folded && expanded && index === shownValues.length - 1 && toggleButton}

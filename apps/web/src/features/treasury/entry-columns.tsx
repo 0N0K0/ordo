@@ -1,4 +1,5 @@
 import { Text } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../components/data-table/EditableCells';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -67,7 +68,11 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       size: 150,
       sortValue: (row) => entryOf(row)?.accountName ?? null,
       text: (row) => entryOf(row)?.accountName ?? '',
-      filter: { kind: 'choice', value: (row) => entryOf(row)?.accountId ?? null, options: env.accounts.map((account) => ({ value: account.id, label: account.name })) },
+      filter: {
+        kind: 'choice',
+        value: (row) => entryOf(row)?.accountId ?? null,
+        options: env.accounts.map((account) => ({ value: account.id, label: account.name, color: account.color ?? 'gray', iconUrl: account.iconUrl })),
+      },
       groupable: true,
     },
     {
@@ -132,7 +137,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choice',
         value: (row) => entryOf(row)?.methodId ?? null,
-        options: (env.settings?.treasuryPaymentMethods ?? []).map((method) => ({ value: method.id, label: method.name })),
+        options: (env.settings?.treasuryPaymentMethods ?? []).map((method) => ({ value: method.id, label: method.name, color: method.color ?? 'gray', iconUrl: method.iconUrl })),
       },
       groupable: true,
     },
@@ -232,7 +237,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       <EditableSelect
         value={entry.accountId}
         label={`Compte de ${entry.label}`}
-        data={env.accounts.filter((account) => !account.archived || account.id === entry.accountId).map((account) => ({ value: account.id, label: account.name }))}
+        {...listSelectProps(env.accounts.filter((account) => !account.archived || account.id === entry.accountId))}
         onSave={(accountId) => accountId && save('account')(entry, { accountId })}
       />
     ),
@@ -257,7 +262,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
         value={entry.methodId ?? null}
         label={`Moyen de paiement de ${entry.label}`}
         nullable
-        data={methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId).map((method) => ({ value: method.id, label: method.name }))}
+        {...listSelectProps(methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId))}
         onSave={(methodId) =>
           save('method')(entry, (row) => {
             const method = methods.find((item) => item.id === methodId);

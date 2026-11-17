@@ -1,15 +1,6 @@
-import {
-  ActionIcon,
-  Button,
-  ColorInput,
-  ColorSwatch,
-  Group,
-  Popover,
-  Select,
-  Stack,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Button, ColorInput, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../components/settings/item-look';
 import { labelFormSchema, type LabelFormValues } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -17,21 +8,6 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { useCreateProjectCategory, useCreateProjectStatus, type ProjectCategory, type ProjectStatus } from './api';
 import { useColorSwatches } from './use-color-swatches';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-
-/**
- * Option renderer showing the label color.
- * @param {object} props Option props.
- * @param {{ label: string, color?: string }} props.option Option.
- * @returns {JSX.Element} Option content.
- */
-function LabelOption({ option }: { option: { label: string; color?: string } }) {
-  return (
-    <Group gap="xs" wrap="nowrap">
-      <ColorSwatch color={option.color ?? 'transparent'} size={12} />
-      {option.label}
-    </Group>
-  );
-}
 
 interface CreateLabelPopoverProps {
   kind: 'category' | 'status';
@@ -111,8 +87,7 @@ export function CategoriesInput({ categories, value, onChange, error }: Categori
       <BatchMultiSelect
         label="Catégories"
         placeholder={value.length ? undefined : 'Aucune'}
-        data={categories.map((category) => ({ value: category.id, label: category.name, color: category.color }))}
-        renderOption={({ option }) => <LabelOption option={option as { label: string; color?: string }} />}
+        {...listSelectProps(categories)}
         value={value}
         onChange={onChange}
         error={error}
@@ -144,11 +119,8 @@ export function StatusInput({ statuses, value, onChange, error }: StatusInputPro
       <Select
         label="Statut"
         placeholder="Aucun"
-        data={[...statuses]
-          .sort((a, b) => a.position - b.position)
-          .map((status) => ({ value: status.id, label: status.name, color: status.color }))}
-        renderOption={({ option }) => <LabelOption option={option as { label: string; color?: string }} />}
-        leftSection={current ? <ColorSwatch color={current.color} size={12} /> : undefined}
+        {...listSelectProps([...statuses].sort((a, b) => a.position - b.position))}
+        leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
         value={value}
         onChange={onChange}
         error={error}

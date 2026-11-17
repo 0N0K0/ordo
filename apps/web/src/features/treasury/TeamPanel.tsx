@@ -1,10 +1,12 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { listSelectProps } from '../../components/settings/item-look';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { createdId } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -99,7 +101,7 @@ export function TeamMembers() {
             placeholder={others.length ? 'Ajouter un contributeur…' : 'Tous les contributeurs sont membres'}
             disabled={!others.length}
             searchable
-            data={others.map((contributor) => ({ value: contributor.id, label: contributor.name }))}
+            data={others.map((item) => ({ value: item.id, label: item.name }))}
             value={null}
             onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, { onSuccess: () => notifySuccess('Membre ajouté.'), onError })}
           />
@@ -193,7 +195,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
       )}
     >
       <Stack gap="sm">
-        <Select label="Contexte" required allowDeselect={false} data={contexts.map((item) => ({ value: item.id, label: item.name }))} {...form.getInputProps('contextId')} />
+        <Select label="Contexte" required allowDeselect={false} {...listSelectProps(contexts)} {...form.getInputProps('contextId')} />
         <SimpleGrid cols={2} spacing="sm">
           <DatePickerInput
             label="Du"
@@ -288,7 +290,7 @@ function Contexts() {
                   <Table.Tr key={period.id}>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
-                        <ColorSwatch color={item?.color ?? 'gray'} size={14} />
+                        {item && <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} />}
                         <Text size="sm">{item?.name}</Text>
                       </Group>
                       {period.note && (
@@ -392,7 +394,7 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
           placeholder="Aucun"
           clearable
           searchable
-          data={contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))}
+          data={contributors.map((item) => ({ value: item.id, label: item.name }))}
           {...form.getInputProps('contributorId')}
           onChange={(contributorId) => {
             const chosen = contributors.find((contributor) => contributor.id === contributorId);

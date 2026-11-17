@@ -1,4 +1,5 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { Badge, Button, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import {
@@ -106,7 +107,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               clearable
               searchable
               onCreate={(name) => saveType.mutateAsync({ id: null, input: { name, color, ...DEFAULT_SCHEDULE_DISPLAY } })}
-              data={(types ?? []).map((type) => ({ value: type.id, label: type.name }))}
+              {...listSelectProps(types ?? [])}
               {...form.getInputProps('typeId')}
             />
           </Group>
@@ -212,7 +213,7 @@ export function WorkSchedulesManager() {
       filter: {
         kind: 'choice',
         value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))],
+        options: [{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name, color: type.color ?? 'gray', iconUrl: type.iconUrl }))],
       },
       groupable: true,
     },
@@ -343,7 +344,7 @@ export function WorkSchedulesManager() {
                   value={schedule.typeId ?? NO_KIND}
                   label={`Type de ${schedule.name}`}
                   leftSection={<ColorSwatch size={10} color={color} />}
-                  data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name }))]}
+                  data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl }))]}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),

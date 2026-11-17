@@ -1,5 +1,7 @@
-import { ColorSwatch, Group, Text, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { Group, Text, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import type { ReactNode } from 'react';
+import { ItemAvatar } from '../settings/ItemAvatar';
+import { hasAvatar } from '../settings/item-look';
 
 /** Node of a tree offered in a select. */
 export interface TreeNode {
@@ -9,6 +11,8 @@ export interface TreeNode {
   label: string;
   /** Color shown before the label. Optional. */
   color?: string | null;
+  /** Image shown as its avatar (with its color: its initials on it). Optional. */
+  iconUrl?: string | null;
   /** A grouping of the list (« Sans client », « Sans projet »), left out of the paths of the nodes under it. Optional. */
   pathless?: boolean;
 }
@@ -28,6 +32,7 @@ export interface TreeOption extends ComboboxItem {
   /** Value of the parent option, null at the top level. */
   parent: string | null;
   color?: string | null;
+  iconUrl?: string | null;
 }
 
 /**
@@ -59,7 +64,7 @@ export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) =>
       if (excluded.has(node.id)) continue;
       const at = options.length;
       const selectable = offered(node.id);
-      options.push({ value: node.id, label: [...path, node.label].join(LEVEL), name: node.label, depth, parent, color: node.color, ...(!selectable && { disabled: true }) });
+      options.push({ value: node.id, label: [...path, node.label].join(LEVEL), name: node.label, depth, parent, color: node.color, iconUrl: node.iconUrl, ...(!selectable && { disabled: true }) });
       const below = visit(node.id, depth + 1, node.pathless ? path : [...path, node.label]);
       // A parent without anything to select below it is of no use.
       if (!selectable && !below) options.splice(at, 1);
@@ -100,7 +105,7 @@ export function treeSelectProps(options: TreeOption[]): {
       const tree = byValue.get(option.value);
       return (
         <Group gap="xs" wrap="nowrap" style={{ paddingLeft: `calc(${tree?.depth ?? 0} * var(--mantine-spacing-md))` }}>
-          {tree?.color && <ColorSwatch color={tree.color} size={10} style={{ flexShrink: 0 }} />}
+          {tree && hasAvatar(tree) && <ItemAvatar name={tree.name} iconUrl={tree.iconUrl} color={tree.color} />}
           <Text size="sm" fw={option.disabled ? 600 : undefined} c={option.disabled ? 'dimmed' : undefined} truncate>
             {tree?.name ?? option.label}
           </Text>

@@ -1,4 +1,5 @@
 import { DatePickerInput } from '@mantine/dates';
+import { listSelectProps } from '../../components/settings/item-look';
 import { Anchor, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
@@ -128,15 +129,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               .
             </Text>
           )}
-          {target.kind === 'product' && (
-            <Select
-              label="Référence"
-              required
-              allowDeselect={false}
-              data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
-              {...form.getInputProps('baseListId')}
-            />
-          )}
+          {target.kind === 'product' && <Select label="Référence" required allowDeselect={false} {...listSelectProps(data?.shoppingBaseLists ?? [])} {...form.getInputProps('baseListId')} />}
           <SimpleGrid cols={{ base: 1, xs: 2 }}>
             <CreatableSelect
               label="Catégorie"
@@ -155,7 +148,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               clearable
               searchable
               onCreate={(name) => mutations.createStore.mutateAsync({ name, color })}
-              data={(data?.shoppingStores ?? []).map((item) => ({ value: item.id, label: item.name }))}
+              {...listSelectProps(data?.shoppingStores ?? [])}
               {...form.getInputProps('storeId')}
             />
           </SimpleGrid>
@@ -201,7 +194,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 clearable
                 searchable
                 onCreate={(name) => mutations.createStorage.mutateAsync({ name, color })}
-                data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
+                {...listSelectProps(data?.shoppingStorages ?? [])}
                 {...form.getInputProps('storageId')}
               />
               <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />

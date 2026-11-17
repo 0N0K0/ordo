@@ -9,6 +9,7 @@ import {
   type GroupPeriod,
   type TableSort,
 } from '@ordo/shared';
+import { hasAvatar, itemRenderOption } from '../settings/item-look';
 import type { FilterFields } from '../../features/tasks/views/FilterBuilder';
 import type { ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../lib/week';
@@ -74,7 +75,9 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
       // Choices of a tree (categories, projects, tasks…) offered as their tree.
       return options.some((option) => option.depth !== undefined)
         ? treeSelectProps(options.map((option) => ({ ...option, name: option.name ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
-        : { data: options };
+        : options.some(hasAvatar)
+          ? { data: options, renderOption: itemRenderOption(options) }
+          : { data: options };
     },
     isComplete: (condition) => Boolean(schema?.safeParse(condition).success),
     emptyText: 'Aucun filtre : toutes les lignes sont affichées.',

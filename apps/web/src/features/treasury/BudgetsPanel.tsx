@@ -1,4 +1,5 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -222,13 +223,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
               error={form.errors.memberId}
             />
-            <Select
-              label="Contexte"
-              placeholder={EVERYDAY_CONTEXT}
-              clearable
-              data={(settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
-              {...form.getInputProps('contextId')}
-            />
+            <Select label="Contexte" placeholder={EVERYDAY_CONTEXT} clearable {...listSelectProps(settings?.treasuryContexts ?? [])} {...form.getInputProps('contextId')} />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <Select

@@ -1,4 +1,5 @@
 import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { FloppyDiskIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
@@ -77,7 +78,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             size="xs"
             label="Drapeaux (l’un d’eux)"
             placeholder={criteria.labelIds.length ? undefined : 'Peu importe'}
-            data={(labels ?? []).map((label) => ({ value: label.id, label: label.name }))}
+            {...listSelectProps(labels ?? [])}
             value={criteria.labelIds}
             onChange={(labelIds) => set({ labelIds })}
             clearable

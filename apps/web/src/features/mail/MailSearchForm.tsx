@@ -1,4 +1,5 @@
 import { Button, Divider, Group, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -94,7 +95,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           label="Drapeaux"
           description="Les mails ayant l’un de ces drapeaux."
           placeholder={values.labelIds.length ? undefined : 'Peu importe'}
-          data={(labels ?? []).map((label) => ({ value: label.id, label: label.name }))}
+          {...listSelectProps(labels ?? [])}
           clearable
           {...form.getInputProps('labelIds')}
         />

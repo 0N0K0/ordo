@@ -16,7 +16,7 @@ export function useAgendaLayerOptions() {
       ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}` })),
     ],
     calendars: [
-      ...(calendars?.calendars ?? []).map((calendar) => ({ value: calendar.id, label: calendar.name })),
+      ...(calendars?.calendars ?? []).map((calendar) => ({ value: calendar.id, label: calendar.name, color: calendar.color ?? 'gray', iconUrl: calendar.iconUrl })),
       ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.name} · ${subscription.workspace.name}` })),
     ],
   };

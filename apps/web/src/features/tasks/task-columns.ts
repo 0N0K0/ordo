@@ -154,15 +154,23 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'project':
         return { kind: 'choices', value: (row) => withParents(row.kind === 'task' ? row.task.projectId : row.event.projectId), options: projectChoices };
       case 'status':
-        return { kind: 'choice', value: (row) => task(row)?.statusId ?? null, options: context.statuses.map((status) => ({ value: status.id, label: status.name })) };
+        return {
+          kind: 'choice',
+          value: (row) => task(row)?.statusId ?? null,
+          options: context.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color, iconUrl: status.iconUrl })),
+        };
       case 'priority':
-        return { kind: 'choice', value: (row) => task(row)?.priorityId ?? null, options: context.priorities.map((priority) => ({ value: priority.id, label: priority.name })) };
+        return {
+          kind: 'choice',
+          value: (row) => task(row)?.priorityId ?? null,
+          options: context.priorities.map((priority) => ({ value: priority.id, label: priority.name, color: priority.color, iconUrl: priority.iconUrl })),
+        };
       case 'type':
-        return { kind: 'choice', value: (row) => task(row)?.typeId ?? null, options: context.types.map((type) => ({ value: type.id, label: type.name })) };
+        return { kind: 'choice', value: (row) => task(row)?.typeId ?? null, options: context.types.map((type) => ({ value: type.id, label: type.name, color: type.color, iconUrl: type.iconUrl })) };
       case 'assignees':
         return { kind: 'choices', value: (row) => withMe(row.kind === 'task' ? row.task.assigneeIds : row.event.contributorIds), options: people };
       case 'tags':
-        return { kind: 'choices', value: (row) => task(row)?.tagIds ?? [], options: context.tags.map((tag) => ({ value: tag.id, label: tag.name })) };
+        return { kind: 'choices', value: (row) => task(row)?.tagIds ?? [], options: context.tags.map((tag) => ({ value: tag.id, label: tag.name, color: tag.color, iconUrl: tag.iconUrl })) };
       case 'milestone':
         return { kind: 'choice', value: (row) => task(row)?.milestoneId ?? null, options: context.milestones.map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) })) };
       case 'sprint':

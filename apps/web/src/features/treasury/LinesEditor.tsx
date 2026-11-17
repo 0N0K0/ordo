@@ -98,7 +98,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     );
   };
 
-  const contextOptions = contexts.map((item) => ({ value: item.id, label: item.name }));
+  const contextOptions = contexts.map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl }));
   // For whom: a member (none: me), or a relation (loan, gift…).
   const whomOptions = [
     { group: 'Membres', items: members.map((member) => ({ value: `m:${member.id}`, label: member.isMe ? `${member.name} (moi)` : member.name })) },

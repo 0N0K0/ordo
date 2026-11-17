@@ -1,7 +1,9 @@
 import { PICKER_FORMATS } from '../../lib/format';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../components/settings/item-look';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
-import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, type Recurrence, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
@@ -145,7 +147,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { data: treasury } = useTreasurySettings();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
-  const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -459,18 +460,15 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <Select
             label="Calendrier"
             description={recurring ? 'Pour toute la série.' : undefined}
-            data={calendars.map((calendar) => ({ value: calendar.id, label: calendar.name }))}
+            {...listSelectProps(calendars)}
             // Without a choice, the event goes into the first calendar.
             value={values.calendarId ?? calendars[0]?.id ?? null}
             onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
             allowDeselect={false}
-            leftSection={<ColorSwatch size={12} color={colorOfCalendar.get(values.calendarId ?? calendars[0]?.id ?? '') ?? 'transparent'} />}
-            renderOption={({ option }) => (
-              <Group gap="xs" wrap="nowrap">
-                <ColorSwatch size={12} color={colorOfCalendar.get(option.value) ?? 'transparent'} />
-                {option.label}
-              </Group>
-            )}
+            leftSection={(() => {
+              const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? calendars[0]?.id));
+              return current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined;
+            })()}
           />
           <ProjectSelect
             context={context}

@@ -168,9 +168,9 @@ export function projectOptions(workspace: Workspace | undefined, projects: Proje
 export function projectNodes(workspace: Workspace): TreeNode[] {
   const byOrder = <T extends { archived: boolean; position: number }>(a: T, b: T) => Number(a.archived) - Number(b.archived) || a.position - b.position;
   return [
-    ...[...workspace.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name })),
+    ...[...workspace.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
     { id: 'client:none', parentId: null, label: 'Sans client', pathless: true },
-    ...[...workspace.projects].sort(byOrder).map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.title })),
+    ...[...workspace.projects].sort(byOrder).map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.title, color: project.color, iconUrl: project.iconUrl })),
   ];
 }
 

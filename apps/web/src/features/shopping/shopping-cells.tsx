@@ -1,4 +1,6 @@
-import { ActionIcon, ColorSwatch, Group, Select, Tooltip } from '@mantine/core';
+import { ActionIcon, Select, Tooltip } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -40,7 +42,7 @@ interface StoreCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function StoreCell({ value, stores, label, readOnly = false, onSave }: StoreCellProps) {
-  const color = stores.find((store) => store.id === value)?.color;
+  const current = stores.find((store) => store.id === value);
   return (
     <Select
       {...cellCombobox}
@@ -49,14 +51,8 @@ export function StoreCell({ value, stores, label, readOnly = false, onSave }: St
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      data={stores.map((store) => ({ value: store.id, label: store.name }))}
-      renderOption={({ option }) => (
-        <Group gap="xs" wrap="nowrap">
-          <ColorSwatch color={stores.find((store) => store.id === option.value)?.color ?? 'gray'} size={10} />
-          {option.label}
-        </Group>
-      )}
-      leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
+      {...listSelectProps(stores)}
+      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       nothingFoundMessage="Aucun magasin (ajoutez-en dans les paramètres)"
       value={value}
       onChange={(storeId) => storeId !== value && onSave(storeId)}
@@ -129,28 +125,17 @@ interface ConservationCellProps {
  */
 export function ConservationCell({ perishable, storageId, storages, label, readOnly = false, onSave }: ConservationCellProps) {
   const value = !perishable ? LASTING : (storageId ?? PERISHABLE);
-  const color = perishable ? storages.find((storage) => storage.id === storageId)?.color : undefined;
+  const current = perishable ? storages.find((storage) => storage.id === storageId) : undefined;
+  const storageLook = listSelectProps(storages);
   return (
     <Select
       {...cellCombobox}
       aria-label={label}
       readOnly={readOnly}
       allowDeselect={false}
-      data={[
-        { value: LASTING, label: 'Non périssable' },
-        { value: PERISHABLE, label: 'Périssable' },
-        ...(storages.length ? [{ group: 'Périssable, à conserver', items: storages.map((storage) => ({ value: storage.id, label: storage.name })) }] : []),
-      ]}
-      renderOption={({ option }) => {
-        const swatch = storages.find((storage) => storage.id === option.value)?.color;
-        return (
-          <Group gap="xs" wrap="nowrap">
-            {swatch && <ColorSwatch color={swatch} size={10} />}
-            {option.label}
-          </Group>
-        );
-      }}
-      leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
+      data={[{ value: LASTING, label: 'Non périssable' }, { value: PERISHABLE, label: 'Périssable' }, ...(storages.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : [])]}
+      renderOption={storageLook.renderOption}
+      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={(next) => {
         if (!next || next === value) return;
@@ -210,7 +195,7 @@ interface CategoryCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function CategoryCell({ value, categories, label, readOnly = false, onSave }: CategoryCellProps) {
-  const color = value ? shoppingCategoryTree(categories).find((placed) => placed.category.id === value)?.color : undefined;
+  const placed = value ? shoppingCategoryTree(categories).find((item) => item.category.id === value) : undefined;
   return (
     <Select
       {...cellCombobox}
@@ -220,7 +205,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       clearable={!readOnly}
       searchable
       {...treeSelectProps(shoppingCategoryOptions(categories))}
-      leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
+      leftSection={placed ? <ItemAvatar name={placed.category.name} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}
       onChange={(categoryId) => categoryId !== value && onSave(categoryId)}

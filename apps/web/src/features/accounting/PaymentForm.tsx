@@ -1,4 +1,5 @@
 import { FormSkeleton } from '../../components/feedback/Skeletons';
+import { listSelectProps } from '../../components/settings/item-look';
 import { Alert, Anchor, Button, Group, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
@@ -96,14 +97,14 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
       )}
     >
       <Stack gap="sm">
-        <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
+        <Select label="Compte" required {...listSelectProps(open)} allowDeselect={false} {...form.getInputProps('accountId')} />
         <DatePickerInput label="Date" required {...form.getInputProps('date')} />
         <AmountInput label="Montant" required min={0} suffix=" €" {...form.getInputProps('amount')} />
         <Select
           label="Moyen de paiement"
           clearable
           placeholder={methods.length ? '—' : 'Aucun : ajoutez-en dans les paramètres de la trésorerie'}
-          data={methods.map((method) => ({ value: method.id, label: method.name }))}
+          {...listSelectProps(methods)}
           {...form.getInputProps('methodId')}
         />
         <Group justify="flex-end">

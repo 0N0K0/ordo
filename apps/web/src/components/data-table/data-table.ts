@@ -12,6 +12,8 @@ export interface ColumnChoice {
   /** Value of its parent in the tree. Optional. */
   parent?: string | null;
   color?: string | null;
+  /** Image shown as its avatar (with its color). Optional. */
+  iconUrl?: string | null;
   /** A parent shown greyed out (its children offered, not it). Optional. */
   disabled?: boolean;
 }

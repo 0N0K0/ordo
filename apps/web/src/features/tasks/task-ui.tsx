@@ -1,16 +1,6 @@
-import {
-  Anchor,
-  Box,
-  Avatar,
-  Badge,
-  ColorSwatch,
-  Group,
-  Select,
-  Text,
-  Tooltip,
-  type ComboboxItem,
-  type SelectProps,
-} from '@mantine/core';
+import { Anchor, Box, Avatar, Badge, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../components/settings/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from './use-task-link';
@@ -30,7 +20,7 @@ import { useDefaultColor } from '../workspace/use-default-color';
 export function LabelBadge({ label }: { label: TaskLabel | undefined }) {
   if (!label) return null;
   return (
-    <Badge variant="light" color={label.color} radius="sm" style={{ textTransform: 'none' }}>
+    <Badge variant="light" color={label.color} radius="sm" style={{ textTransform: 'none' }} leftSection={label.iconUrl ? <ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} size={14} /> : undefined}>
       {label.name}
     </Badge>
   );
@@ -81,21 +71,6 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
   );
 }
 
-/**
- * Option renderer showing the label color.
- * @param {{ option: ComboboxItem }} props Option props.
- * @returns {JSX.Element} Option.
- */
-function ColorOption({ option }: { option: ComboboxItem }) {
-  const color = (option as ComboboxItem & { color?: string }).color;
-  return (
-    <Group gap="xs" wrap="nowrap">
-      {color && <ColorSwatch color={color} size={10} />}
-      {option.label}
-    </Group>
-  );
-}
-
 interface LabelSelectProps extends Omit<SelectProps, 'data'> {
   labels: TaskLabel[];
   /** Kind of label: given, what is typed and is none of them can be created. Optional. */
@@ -127,9 +102,8 @@ export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSe
   return (
     <CreatableSelect
       onCreate={kind ? create : undefined}
-      data={labels.map((label) => ({ value: label.id, label: label.name, color: label.color }))}
-      renderOption={({ option }) => <ColorOption option={option} />}
-      leftSection={current ? <ColorSwatch color={current.color} size={10} /> : undefined}
+      {...listSelectProps(labels)}
+      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={onChange}
       clearable
@@ -157,13 +131,7 @@ export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
       onCreate={create}
       label="Étiquettes"
       placeholder={value.length ? undefined : 'Aucune'}
-      data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-      renderOption={({ option }) => (
-        <Group gap="xs" wrap="nowrap">
-          <ColorSwatch color={tags.find((tag) => tag.id === option.value)?.color ?? 'gray'} size={10} />
-          <Text size="sm">{option.label}</Text>
-        </Group>
-      )}
+      {...listSelectProps(tags)}
       value={value}
       onChange={onChange}
       searchable

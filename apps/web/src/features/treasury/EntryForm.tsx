@@ -1,4 +1,5 @@
 import { SidePanel } from '../../components/panels/SidePanel';
+import { listSelectProps } from '../../components/settings/item-look';
 import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
@@ -194,7 +195,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
           />
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
+            <Select label="Compte" required {...listSelectProps(open)} allowDeselect={false} {...form.getInputProps('accountId')} />
             <DatePickerInput
               label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
               required
@@ -247,13 +248,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               </WithCreate>
             )}
             <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
-              <Select
-                label="Moyen de paiement"
-                clearable
-                placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
-                data={methods.map((method) => ({ value: method.id, label: method.name }))}
-                {...form.getInputProps('methodId')}
-              />
+              <Select label="Moyen de paiement" clearable placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'} {...listSelectProps(methods)} {...form.getInputProps('methodId')} />
             </WithCreate>
           </SimpleGrid>
           <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>

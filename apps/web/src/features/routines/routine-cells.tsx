@@ -1,5 +1,6 @@
 import { TimeField } from '../../components/TimeField';
-import { ColorSwatch, Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
 import { describeSlotCondition } from './slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -219,7 +220,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
-        .map((item) => ({ id: item.category.id, label: item.path, icon: item.color ? <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} /> : undefined }))}
+        .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.name} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}

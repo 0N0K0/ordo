@@ -1,6 +1,8 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../components/settings/item-look';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Alert, Button, ColorSwatch, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
@@ -134,16 +136,10 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
     <Section title="Suivi">
       <Select
         label="Statut"
-        data={scoped.map((status) => ({ value: status.id, label: status.name }))}
+        {...listSelectProps(scoped)}
         value={document.trackingStatus?.id ?? null}
         allowDeselect={false}
-        leftSection={document.trackingStatus ? <ColorSwatch color={document.trackingStatus.color} size={12} /> : undefined}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            <ColorSwatch color={scoped.find((status) => status.id === option.value)?.color ?? 'gray'} size={12} />
-            {option.label}
-          </Group>
-        )}
+        leftSection={document.trackingStatus ? <ItemAvatar name={document.trackingStatus.name} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} /> : undefined}
         onChange={(statusId) => {
           if (!statusId) return;
           // A "sent" status asks when and how it was sent.

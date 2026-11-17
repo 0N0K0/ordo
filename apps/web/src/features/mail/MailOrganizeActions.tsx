@@ -1,5 +1,6 @@
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, ColorSwatch, Group, Menu, Text, Tooltip } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrashIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from './api';
@@ -74,7 +75,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
             return (
               <Menu.Item
                 key={label.id}
-                leftSection={<ColorSwatch color={label.color} size={12} withShadow={false} />}
+                leftSection={<ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} />}
                 rightSection={on ? <CheckCircleIcon weight="fill" aria-hidden /> : null}
                 onClick={() => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onError)}
               >

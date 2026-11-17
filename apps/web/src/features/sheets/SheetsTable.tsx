@@ -1,4 +1,5 @@
 import { Anchor, Text } from '@mantine/core';
+import { listSelectProps } from '../../components/settings/item-look';
 import { ClipboardTextIcon, CopyIcon, CookingPotIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../components/actions/ActionButton';
@@ -48,7 +49,11 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       bulk: true,
       sortValue: (sheet) => categoryText(sheet) || null,
       text: categoryText,
-      filter: { kind: 'choices', value: (sheet) => sheet.categoryIds, options: categories.map((category) => ({ value: category.id, label: category.name })) },
+      filter: {
+        kind: 'choices',
+        value: (sheet) => sheet.categoryIds,
+        options: categories.map((category) => ({ value: category.id, label: category.name, color: category.color ?? 'gray', iconUrl: category.iconUrl })),
+      },
       groupable: true,
     },
     {
@@ -162,7 +167,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
             <EditableMultiSelect
               value={sheet.categoryIds}
               label={`Catégories de ${sheet.name}`}
-              data={(categories ?? []).map((category) => ({ value: category.id, label: category.name }))}
+              {...listSelectProps(categories ?? [])}
               onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
             />
           </div>
