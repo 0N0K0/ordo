@@ -1,6 +1,6 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Button, Checkbox, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatDuration, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
 import { useState } from 'react';
@@ -11,6 +11,9 @@ import { timeLines, type BillableTime, type TimeGrouping } from './time-lines';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
+import { useDataView } from '../../components/data-table/use-data-view';
 
 /**
  * Local day of an instant, YYYY-MM-DD.
@@ -21,6 +24,20 @@ function localDay(iso: string): string {
   const date = new Date(iso);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
+
+/**
+ * What a time was spent on: its tasks, then its description.
+ * @param {BillableTime} entry Time.
+ * @returns {string} Text.
+ */
+const workOf = (entry: BillableTime) => [entry.tasks.join(', '), entry.description].filter(Boolean).join(' — ');
+
+/** Columns of the time to bill. */
+const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
+  { id: 'day', label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
+  { id: 'work', label: 'Temps', size: 320, locked: true, sortValue: workOf, text: workOf },
+  { id: 'duration', label: 'Durée', size: 100, numeric: true, sortValue: (entry) => entry.seconds, text: (entry) => formatDuration(entry.seconds), formatTotal: (seconds) => formatDuration(Math.round(seconds)) },
+];
 
 interface TimeBillingFormProps {
   /** Project of the invoice, preselected. */
@@ -75,6 +92,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, title: title.trim() || 'Prestation', roundQuarter });
   const total = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice * 100), 0);
   const days = selected.map((entry) => entry.day).sort();
+  const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
 
   return (
     <Stack gap="sm">
@@ -93,58 +111,59 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
       ) : billable.length === 0 ? (
         <EmptyState compact message={`Aucun temps à facturer sur ce projet ${from || to ? 'pour cette période' : ''} : tout le temps terminé est déjà facturé.`} />
       ) : (
-        <ScrollArea.Autosize mah={240} type="auto">
-          <Table verticalSpacing={4} withRowBorders={false}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={32}>
-                  <Checkbox
-                    aria-label="Tout sélectionner"
-                    checked={unchecked.size === 0}
-                    indeterminate={unchecked.size > 0 && selected.length > 0}
-                    onChange={() => setUnchecked(unchecked.size === 0 ? new Set(billable.map((entry) => entry.id)) : new Set())}
-                  />
-                </Table.Th>
-                <Table.Th>Jour</Table.Th>
-                <Table.Th>Temps</Table.Th>
-                <Table.Th ta="right">Durée</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {billable.map((entry) => (
-                <Table.Tr key={entry.id}>
-                  <Table.Td>
-                    <Checkbox
-                      aria-label={`Facturer le temps du ${entry.day}`}
-                      checked={!unchecked.has(entry.id)}
-                      onChange={() =>
-                        setUnchecked((current) => {
-                          const next = new Set(current);
-                          if (next.has(entry.id)) next.delete(entry.id);
-                          else next.add(entry.id);
-                          return next;
-                        })
-                      }
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{fmt.dayShort(entry.day)}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" lineClamp={1}>
-                      {[entry.tasks.join(', '), entry.description].filter(Boolean).join(' — ') || <Text span c="dimmed" fs="italic">Sans description</Text>}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Text size="sm" ff="monospace" style={{ whiteSpace: 'nowrap' }}>
-                      {formatDuration(entry.seconds)}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea.Autosize>
+        <DataTable
+          view={view}
+          getKey={(entry) => entry.id}
+          toolbar={false}
+          maxHeight={240}
+          verticalSpacing={4}
+          leading={{
+            width: 36,
+            header: (
+              <Checkbox
+                size="xs"
+                aria-label="Tout sélectionner"
+                checked={unchecked.size === 0}
+                indeterminate={unchecked.size > 0 && selected.length > 0}
+                onChange={() => setUnchecked(unchecked.size === 0 ? new Set(billable.map((entry) => entry.id)) : new Set())}
+              />
+            ),
+            cell: (entry) => (
+              <Checkbox
+                size="xs"
+                aria-label={`Facturer le temps du ${entry.day}`}
+                checked={!unchecked.has(entry.id)}
+                onChange={() =>
+                  setUnchecked((current) => {
+                    const next = new Set(current);
+                    if (next.has(entry.id)) next.delete(entry.id);
+                    else next.add(entry.id);
+                    return next;
+                  })
+                }
+              />
+            ),
+          }}
+          cells={(entry) => ({
+            day: <Text size="sm">{fmt.dayShort(entry.day)}</Text>,
+            work: (
+              <Text size="sm" lineClamp={1}>
+                {workOf(entry) || (
+                  <Text span c="dimmed" fs="italic">
+                    Sans description
+                  </Text>
+                )}
+              </Text>
+            ),
+            duration: (
+              <Text size="sm" ff="monospace" style={{ whiteSpace: 'nowrap' }}>
+                {formatDuration(entry.seconds)}
+              </Text>
+            ),
+          })}
+          actions={() => null}
+          actionsWidth={8}
+        />
       )}
 
       {rates.length > 0 && (

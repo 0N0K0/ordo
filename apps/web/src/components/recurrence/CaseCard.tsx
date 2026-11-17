@@ -1,5 +1,7 @@
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Collapse, Group, Paper, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CaretRightIcon, TrashIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 
 interface CaseCardProps {
@@ -13,16 +15,21 @@ interface CaseCardProps {
   onToggle: () => void;
   /** Removes the case; none: it cannot be. Optional. */
   onRemove?: () => void;
+  /** Its key among the cases, dragged by its handle to reorder them (within a sortable list). */
+  sortId: string;
+  /** It can be moved (several cases). */
+  sortable: boolean;
   children: ReactNode;
 }
 
 /**
- * One case of a repetition (routine, schedule): « Cas 2 · its summary », folded or unfolded when there are several,
- * removable.
+ * One case of a repetition (routine, schedule…): « Cas 2 · its summary », folded or unfolded when there are several,
+ * moved by its handle (pointer or keyboard: the first one that fits a day wins), removable.
  * @param {CaseCardProps} props Component props.
  * @returns {JSX.Element} Case.
  */
-export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemove, children }: CaseCardProps) {
+export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemove, sortId, sortable, children }: CaseCardProps) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: sortId, disabled: !sortable });
   const shown = !collapsible || opened;
   const heading = (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -33,9 +40,30 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
     </Group>
   );
   return (
-    <Paper withBorder radius="sm" p="sm">
+    <Paper
+      ref={setNodeRef}
+      withBorder
+      radius="sm"
+      p="sm"
+      shadow={isDragging ? 'md' : undefined}
+      style={{ transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined }}
+    >
       <Stack gap={shown ? 'xs' : 0}>
-        <Group justify="space-between" wrap="nowrap">
+        <Group justify="space-between" wrap="nowrap" gap={4}>
+          {sortable && (
+            <ActionIcon
+              ref={setActivatorNodeRef}
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label={`Déplacer le cas ${index}`}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
+              {...attributes}
+              {...listeners}
+            >
+              <DotsSixVerticalIcon weight="bold" aria-hidden />
+            </ActionIcon>
+          )}
           {collapsible ? (
             <UnstyledButton onClick={onToggle} aria-expanded={shown} style={{ minWidth: 0, flex: 1 }}>
               {heading}

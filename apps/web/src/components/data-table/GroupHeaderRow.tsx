@@ -1,5 +1,5 @@
 import { EmptyState } from '../feedback/EmptyState';
-import { ActionIcon, Badge, Button, Group, Table, Text } from '@mantine/core';
+import { ActionIcon, Badge, Button, ColorSwatch, Group, Table, Text } from '@mantine/core';
 import { CaretRightIcon, FunnelSimpleIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { emptyTableFilter } from '@ordo/shared';
@@ -15,6 +15,12 @@ interface GroupHeaderRowProps {
   span: number;
   collapsed: boolean;
   onToggle: () => void;
+  /** Color of the group (a category). Optional. */
+  color?: string | null;
+  /** Depth in a tree of groups (indented). Optional. Default = 0. */
+  depth?: number;
+  /** Props of its row (measured, a drop target…). Optional. */
+  trProps?: Record<string, unknown>;
 }
 
 /**
@@ -22,15 +28,16 @@ interface GroupHeaderRowProps {
  * @param {GroupHeaderRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggle }: GroupHeaderRowProps) {
+export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggle, color = null, depth = 0, trProps }: GroupHeaderRowProps) {
   return (
-    <Table.Tr className={classes.groupRow}>
-      <Table.Td colSpan={span}>
+    <Table.Tr {...trProps} className={classes.groupRow} data-depth={depth}>
+      <Table.Td colSpan={span} style={depth ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` } : undefined}>
         <Group gap="xs" wrap="nowrap">
           <ActionIcon variant="subtle" color="gray" size="sm" aria-label={collapsed ? `Déplier ${label}` : `Replier ${label}`} aria-expanded={!collapsed} onClick={onToggle}>
             <CaretRightIcon className={classes.chevron} data-expanded={!collapsed || undefined} aria-hidden />
           </ActionIcon>
-          <Text size="sm" fw={600}>
+          {color && <ColorSwatch color={color} size={12} />}
+          <Text size="sm" fw={depth === 0 ? 700 : 600}>
             {label}
           </Text>
           <Badge size="sm" variant="light" color="gray">

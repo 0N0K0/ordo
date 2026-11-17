@@ -147,7 +147,7 @@ export function describeCase<T>(item: RepetitionCase<T>, start: string, options:
     period && fmt.capitalize(period),
     item.rule ? describeRecurrence(item.rule, ruleStart, options.weekly !== false) : 'Ne se répète pas',
     item.rule?.duration ? describeDuration(item.rule.duration) : '',
-    options.times?.describe(item.times),
+    options.times?.describe(item.times, item.rule),
   ]
     .filter(Boolean)
     .join(' · ');

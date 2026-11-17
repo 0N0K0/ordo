@@ -1,64 +1,113 @@
 import { PageHeader } from '../../components/actions/PageHeader';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Group, Stack } from '@mantine/core';
-import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
-import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
-import { useMemo, useState } from 'react';
-import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
-import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
-import { shownColumns } from '../../components/data-table/data-table';
-import { ExportButtons } from '../../components/data-table/DataViewBar';
-import { newConditionFor } from '../tasks/views/filter-meta';
-import { ROUTINE_COLUMNS } from './routine-columns';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import {
+  ArchiveIcon,
+  ArrowBendUpRightIcon,
+  ArrowCounterClockwiseIcon,
+  ArrowsClockwiseIcon,
+  CalendarDotsIcon,
+  ClockCounterClockwiseIcon,
+  CopyIcon,
+  HourglassMediumIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon,
+  TreeViewIcon,
+} from '@phosphor-icons/react';
+import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
+import { DataTable, type RowMove } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
+import { ALL_COLUMNS } from '../../components/data-table/bulk-selection';
+import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
+import * as fmt from '../../lib/format';
+import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useRoutinesData, type Routine } from './api';
+import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
+import { openRoutineMove } from './open-routine-move';
 import { useWorkSchedules } from '../calendar/api';
 import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
-import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
-import { RoutineViewToolbar } from './RoutineViewToolbar';
-import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
 import { RoutineSettings } from './RoutineSettings';
-import { RoutineTable } from './RoutineTable';
 import { useCommentCounts } from '../comments/api';
+import { commentTotal } from '../comments/comment-column';
 import { useBeneficiaries } from '../beneficiaries/use-beneficiaries';
+import { useRunningTimer } from '../time/api';
+import { routineColumns } from './routine-columns';
+import { RoutineCellSelectionContext, routinesLabel, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
+import { AddRoutineRow, ChronoCell, StateCell } from './routine-table-cells';
+import { RoutineDoneToggles } from './DoneToggle';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, TitleCell } from './routine-cells';
+import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
+import { isDone, movableOccurrence, waitingFor } from './routine-format';
+import { usePostponeRoutine } from './use-routine-move';
+import { useRoutineSelectionActions } from './RoutineBulkBar';
+import classes from './Routines.module.css';
 
-/** Groups offered from the menu of a column. */
-const COLUMN_GROUP_BY: Partial<Record<string, RoutineGroupBy>> = { categories: 'category', project: 'project', assignees: 'assignees', repetition: 'repetition' };
+/** Columns of the table edited together, with the column of their cell edit. */
+const CELL_COLUMNS: Record<string, RoutineColumn> = {
+  title: 'title',
+  currentDate: 'repetition',
+  repetition: 'repetition',
+  fromTime: 'fromTime',
+  dueTime: 'dueTime',
+  opensOn: 'opensOn',
+  location: 'location',
+  travelBefore: 'travelBefore',
+  travelAfter: 'travelAfter',
+  alarms: 'alarms',
+  beneficiaries: 'beneficiaries',
+  blocks: 'blocks',
+  parent: 'parent',
+  estimate: 'estimate',
+  assignees: 'assignees',
+  categories: 'categories',
+  requires: 'requires',
+  project: 'project',
+};
+
+/** Views made the first time: those to do, all, the archived ones; grouped by category. */
+const ROUTINE_VIEWS: FirstTableView[] = [
+  {
+    name: 'À faire',
+    config: { groupBy: 'categories', filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'todo', field: 'state', operator: 'in', value: ['late', 'due'] }] } },
+  },
+  { name: 'Toutes', config: { groupBy: 'categories' } },
+  {
+    name: 'Archivées',
+    config: {
+      groupBy: 'categories',
+      includeArchived: true,
+      filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
+    },
+  },
+];
 
 /**
- * Filter and group actions of a routine column, in its menu (as on the tasks).
- * @param {string} id Column.
- * @param {RoutineViewConfig} config View.
- * @param {(change: (config: RoutineViewConfig) => RoutineViewConfig) => void} change View updater.
- * @param {() => void} openFilter Opens the filters.
- * @returns {ColumnMenuExtras} Actions.
+ * Categories of a routine moved from a category to another: the one it leaves is replaced by the one it goes to (none:
+ * without any category).
+ * @param {string[]} categoryIds Its categories.
+ * @param {string | null} from Category it leaves.
+ * @param {string | null} to Category it goes to.
+ * @returns {string[]} New categories.
  */
-function routineColumnExtras(id: string, config: RoutineViewConfig, change: (change: (config: RoutineViewConfig) => RoutineViewConfig) => void, openFilter: () => void): ColumnMenuExtras {
-  const field = id in ROUTINE_FILTER_FIELDS ? (id as RoutineFilterField) : null;
-  const groupBy = COLUMN_GROUP_BY[id];
-  return {
-    onFilter: field
-      ? () => {
-          change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(ROUTINE_FILTER_FIELDS, field)] } }));
-          openFilter();
-        }
-      : undefined,
-    group: groupBy ? { active: config.groupBy === groupBy, onToggle: () => change((current) => ({ ...current, groupBy: current.groupBy === groupBy ? null : groupBy })) } : undefined,
-  };
+function movedCategories(categoryIds: string[], from: string | null, to: string | null): string[] {
+  if (to === null) return [];
+  return [...new Set([...categoryIds.filter((id) => id !== from), to])];
 }
 
 /**
- * Routines through saved views, as the tasks: tabs of views, each with its search, filters, sorts and groups (by
- * category by default, sub-routines under their parent); « À faire », « Toutes » and « Archivées » are made at first.
- * On a project page, only the routines of the project (and of its sub-projects), with the views of the project, those
- * added there going to the project.
+ * Routines, the data table of every table: tabs of views (« À faire », « Toutes » and « Archivées » made at first,
+ * grouped by category as their tree), sub-routines under their parent, each field changed in place (or on a selection of
+ * cells, or on the routines checked), moved by drag and drop (to another place or level, or category), a row adding one
+ * at the end of each category. On a project page, only the routines of the project (and of its sub-projects), with the
+ * views of the project, those added there going to the project.
  * @param {{ projectId?: string, projectIds?: ReadonlySet<string> }} props Component props.
  * @param {string} [props.projectId] Project of the page, given to the routines added. Optional.
  * @param {ReadonlySet<string>} [props.projectIds] Projects whose routines are shown (the project and its sub-projects). Optional.
@@ -67,121 +116,232 @@ function routineColumnExtras(id: string, config: RoutineViewConfig, change: (cha
 export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data, isLoading } = useRoutinesData();
   const { context } = useTaskContext();
-  const state = useRoutineView(projectId ?? null);
-  const { config } = state;
-  const [filterOpened, setFilterOpened] = useState(false);
-  const columnLayout = config ? { columnOrder: config.columnOrder, hiddenColumns: config.hiddenColumns, columnSizing: config.columnSizing } : null;
   const today = localToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
   const { data: schedules } = useWorkSchedules();
+  const { data: running } = useRunningTimer();
+  const { move, patch, setArchived, remove } = useRoutineMutations();
+  const postpone = usePostponeRoutine();
+  const selectionActions = useRoutineSelectionActions();
+  // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
-    routines.map((routine) => routine.id),
+    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
   );
   const { options: beneficiaryGroups } = useBeneficiaries();
-  const env = useMemo(
+  const byId = useMemo(() => new Map(routines.map((routine) => [routine.id, routine])), [routines]);
+  const doable = useMemo(() => (routine: Routine) => slotRules.allowed(routineDoable(routine)), [slotRules]);
+  const columns = useMemo(
     () =>
       context
-        ? {
+        ? routineColumns({
             today,
-            byId: new Map(routines.map((routine) => [routine.id, routine])),
+            byId,
             categories,
             context,
-            doable: (routine: Routine) => slotRules.allowed(routineDoable(routine)),
+            doable,
             comments,
             slotKinds: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })),
             beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
-          }
-        : null,
-    [today, routines, categories, context, slotRules, comments, beneficiaryGroups, schedules],
+          })
+        : [],
+    [today, byId, categories, context, doable, comments, schedules, beneficiaryGroups],
   );
+  // Of the project on a project page; in their manual order.
+  const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
+  const view = useDataView({
+    tableKey: 'routines',
+    projectId: projectId ?? null,
+    columns,
+    rows,
+    title: 'Routines',
+    first: ROUTINE_VIEWS,
+    getKey: (routine) => routine.id,
+    archived: (routine) => routine.archived,
+    // One being created shows at once (its occurrences, computed once saved, may then take it out of the view).
+    alwaysKept: isDraftRoutine,
+  });
+  // The cells of the selection (or the routines checked), for the edits of the cells of the routines.
+  const cellSelection = useMemo((): RoutineCellSelection | null => {
+    const selection = view.selection;
+    if (!selection) return null;
+    const column = selection.column === ALL_COLUMNS ? '*' : CELL_COLUMNS[selection.column];
+    return column ? { column, rowKeys: selection.keys, routineIds: selection.keys } : null;
+  }, [view.selection]);
+  const groupedByCategory = view.groupColumn?.id === 'categories';
 
   /**
-   * Whether a routine is shown: of the project (on a project page) and kept by the view.
-   * @param {Routine} routine Routine.
-   * @returns {boolean} Shown.
+   * Saves a routine dragged to another place or level (before the routine that now follows it, under its new parent,
+   * or last at the top), or into another category.
+   * @param {RowMove} drop Drop.
+   * @returns {void}
    */
-  const keep = (routine: Routine) => {
-    if (projectIds && !(routine.projectId && projectIds.has(routine.projectId))) return false;
-    return Boolean(config && env && keptByView(config, routine, env));
+  const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
+    const moved = byId.get(key);
+    if (!moved || isDraftRoutine(moved)) return;
+    const onError = (error: Error) => notifyError(error.message);
+    const categoryIds = groupedByCategory && groupKey !== undefined ? movedCategories(moved.categoryIds, fromGroupKey || null, groupKey || null) : null;
+    const parent = parentKey !== undefined ? parentKey : (moved.parentId ?? null);
+    const before = beforeKey ? byId.get(beforeKey) : undefined;
+    if (before && before.id !== key && (before.parentId ?? null) === parent) {
+      move.mutate({ id: key, targetId: before.id, place: 'BEFORE', categoryIds }, { onError });
+      return;
+    }
+    if (parent) {
+      move.mutate({ id: key, targetId: parent, place: 'INSIDE', categoryIds }, { onError });
+      return;
+    }
+    const last = routines
+      .filter((routine) => routine.parentId === null && routine.id !== key)
+      .sort((a, b) => a.position - b.position)
+      .at(-1);
+    if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, { onError });
+    else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, { onError });
   };
-  const count = routines.filter(keep).length;
-  const ordered = config && env ? sortRoutines(routines, config.sorting, env) : routines;
-  // Flat: each routine a row of its own.
-  const layout = config?.flat ? ordered.map((routine) => ({ ...routine, parentId: null })) : ordered;
-  const groupBy = config?.groupBy ?? null;
+
+  /**
+   * Cells of a routine, each edited in place.
+   * @param {Routine} routine Routine.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const cells = (routine: Routine): Record<string, ReactNode> => {
+    if (!context) return {};
+    const waiting = waitingFor(routine, byId);
+    const done = isDone(routine);
+    // Being created: nothing to change on it until it is saved (the server does not know it yet).
+    const readOnly = routine.archived || isDraftRoutine(routine);
+    return {
+      ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(routine)])),
+      title: (
+        <Group gap={4} wrap="nowrap">
+          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? fmt.weekday(routine.currentDate) : undefined} disabled={readOnly} />
+          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+            <TitleCell routine={routine} readOnly={readOnly} />
+            <RepetitionText routine={routine} />
+          </Stack>
+          {waiting.length > 0 && !done && (
+            <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
+              <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
+            </Tooltip>
+          )}
+        </Group>
+      ),
+      currentDate: (
+        <RepetitionCell routine={routine} readOnly={readOnly}>
+          <StateCell routine={routine} today={today} doable={doable(routine)} />
+        </RepetitionCell>
+      ),
+      repetition: <RepetitionText routine={routine} />,
+      estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
+      fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
+      dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
+      opensOn: <OpensOnCell routine={routine} />,
+      location: <LocationCell routine={routine} />,
+      travelBefore: <TravelCell routine={routine} field="travelBefore" />,
+      travelAfter: <TravelCell routine={routine} field="travelAfter" />,
+      alarms: <RemindersCell routine={routine} />,
+      blocks: <BlocksCell routine={routine} routines={routines} />,
+      parent: <ParentRoutineCell routine={routine} routines={routines} />,
+      subRoutines: <SubRoutinesCell routine={routine} routines={routines} />,
+      trackedTime: <ChronoCell routine={routine} running={running} />,
+      assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
+      beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
+      categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
+      requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
+      project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
+      comments: (
+        <Text size="sm" c="dimmed" ta="right">
+          {commentTotal(comments, routine.id, routine.description) || ''}
+        </Text>
+      ),
+      lastDoneAt: routine.lastDoneAt ? (
+        <Text size="sm" className={classes.nowrap}>
+          {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
+        </Text>
+      ) : null,
+    };
+  };
+
+  /**
+   * Actions of a routine, in its menu.
+   * @param {Routine} routine Routine.
+   * @returns {ReactNode} Menu.
+   */
+  const actions = (routine: Routine) => {
+    if (isDraftRoutine(routine)) return null;
+    const readOnly = routine.archived;
+    return (
+      <RowActions
+        name={routine.title}
+        primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
+        items={[
+          !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
+          !readOnly && movableOccurrence(routine) && 'divider',
+          !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
+          !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
+          'divider',
+          { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
+          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
+          {
+            label: readOnly ? 'Restaurer' : 'Archiver',
+            icon: readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+            onClick: () =>
+              setArchived.mutate(
+                { id: routine.id, archived: !routine.archived },
+                { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: (error) => notifyError(error.message) },
+              ),
+          },
+          {
+            label: 'Supprimer',
+            icon: <TrashIcon aria-hidden />,
+            danger: true,
+            onClick: () =>
+              confirmDestructive({
+                title: 'Supprimer la routine',
+                risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
+                onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }),
+              }),
+          },
+        ]}
+      />
+    );
+  };
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" gap="sm" wrap="nowrap" align="flex-end">
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <ViewTabs state={state} />
-        </div>
-        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
-          Nouvelle routine
-        </ActionButton>
-      </Group>
-      {config && env && columnLayout && (
-        <RoutineViewToolbar
-          config={config}
-          change={state.change}
-          fields={routineFilterFields(env)}
-          dirty={state.dirty}
-          onSave={state.save}
-          onRevert={state.revert}
-          filterOpened={filterOpened}
-          onFilterOpenedChange={setFilterOpened}
-          columns={<DataColumnsPanel columns={ROUTINE_COLUMNS} layout={columnLayout} onLayoutChange={(next) => state.change((current) => ({ ...current, ...next }))} />}
-          exports={
-            <ExportButtons
-              disabled={count === 0}
-              table={() => {
-                const texts = routineTexts(env);
-                return {
-                  title: 'Routines',
-                  subtitle: state.current?.name ?? '',
-                  columns: shownColumns(ROUTINE_COLUMNS, columnLayout).map((column) => ({ ...column, text: texts[column.id] })),
-                  groups: [{ key: '', label: '', rows: layout.filter(keep) }],
-                  grouped: false,
-                };
-              }}
-            />
-          }
-        />
-      )}
-      {isLoading || !context || !config || !env ? (
-        <TableSkeleton rows={4} />
-      ) : count === 0 && routines.length > 0 ? (
-        <EmptyState
-          icon={<ArrowsClockwiseIcon aria-hidden />}
-          message={projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
-        />
-      ) : (
-        <Stack gap="xs">
-          {routines.length === 0 && <EmptyState compact message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
-          <RoutineTable
-            routines={routines}
-            layout={layout}
-            categories={categories}
-            context={context}
-            keep={keep}
-            grouping={routineGrouping(groupBy, env)}
-            reorderable={config.sorting.length === 0 && !config.flat}
-            groupDrop={groupBy === 'category'}
-            addable={groupBy === 'category' || groupBy === null}
-            projectId={projectId ?? null}
-            columns={columnLayout!}
-            footer={config.footer && env ? { totals: config.footer, texts: routineTexts(env), onChange: (totals) => state.change((current) => ({ ...current, footer: totals })) } : null}
-            onColumnsChange={(next) => state.change((current) => ({ ...current, ...next }))}
-            sorting={config.sorting}
-            onSortingChange={(sorting) => state.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
-            columnExtras={(id) => routineColumnExtras(id, config, state.change, () => setFilterOpened(true))}
-          />
-        </Stack>
-      )}
-    </Stack>
+    <RoutineCellSelectionContext.Provider value={cellSelection}>
+      <DataTable
+        view={view}
+        getKey={(routine) => routine.id}
+        loading={isLoading || !context}
+        verticalSpacing={4}
+        className={classes.table}
+        bar={{
+          searchLabel: 'Rechercher (label, description, lieu)',
+          actions: (
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
+              Nouvelle routine
+            </ActionButton>
+          ),
+        }}
+        empty={<EmptyState icon={<ArrowsClockwiseIcon aria-hidden />} message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
+        parentKey={(routine) => routine.parentId ?? null}
+        onMoveRow={handleMove}
+        readOnly={isDraftRoutine}
+        isArchived={(routine) => routine.archived}
+        rowProps={(routine) => ({ className: classes.row, 'data-done': isDone(routine) || undefined })}
+        cells={cells}
+        actions={actions}
+        addRow={
+          !view.groupColumn || groupedByCategory
+            ? (group) => <AddRoutineRow categoryId={groupedByCategory && group?.key ? group.key : null} projectId={projectId ?? null} groupName={group?.label ?? 'les routines'} />
+            : undefined
+        }
+        selectionLabel={(count) => `${routinesLabel(count)} sélectionnée${count > 1 ? 's' : ''}`}
+        selectionActions={selectionActions}
+      />
+    </RoutineCellSelectionContext.Provider>
   );
 }
 

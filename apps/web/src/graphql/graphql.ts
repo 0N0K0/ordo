@@ -560,17 +560,25 @@ export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
   addRequiredIds?: Array<string | number> | null | undefined;
+  /** Cases (with recurrence: its whole repetition); empty: its rule. */
+  cases?: unknown;
   /** HH:MM; null: no limit. */
   dueTime?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
   /** HH:MM; null: no limit. */
   fromTime?: string | null | undefined;
+  /** Times of the day following its rule. */
+  moments?: unknown;
+  /** « À partir du » of its rule; null: none. */
+  opensOn?: unknown;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
   removeCategoryIds?: Array<string | number> | null | undefined;
   removeRequiredIds?: Array<string | number> | null | undefined;
+  /** On or out of calendar schedules, following its rule; null: any time. */
+  slotCondition?: unknown;
   startDate?: string | null | undefined;
 };
 
@@ -601,8 +609,8 @@ export type RoutineInput = {
   locationLon?: number | null | undefined;
   /** Times of the day, [{ fromTime, dueTime, optional }]. */
   moments?: unknown;
-  /** Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly). */
-  opensOn?: string | null | undefined;
+  /** « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  opensOn?: unknown;
   parentId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
@@ -621,6 +629,8 @@ export type RoutinePatch = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
   beneficiaryRelationIds?: Array<string | number> | null | undefined;
+  /** Cases (with recurrence: its whole repetition); empty: its rule. */
+  cases?: unknown;
   categoryIds?: Array<string | number> | null | undefined;
   /** HH:MM; null: no limit. */
   dueTime?: string | null | undefined;
@@ -631,8 +641,10 @@ export type RoutinePatch = {
   location?: string | null | undefined;
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
-  /** « À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none. */
-  opensOn?: string | null | undefined;
+  /** Times of the day following its rule. */
+  moments?: unknown;
+  /** « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  opensOn?: unknown;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
@@ -641,6 +653,8 @@ export type RoutinePatch = {
   /** Minutes before its moment. */
   reminders?: Array<number> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
+  /** On or out of calendar schedules, following its rule; null: any time. */
+  slotCondition?: unknown;
   startDate?: string | null | undefined;
   title?: string | null | undefined;
   /** Minutes to come back. */
@@ -2740,7 +2754,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2852,6 +2866,7 @@ export type MoveRoutineOccurrenceMutationVariables = Exact<{
   id: string | number;
   date: string;
   to: string;
+  times?: unknown;
 }>;
 
 
@@ -7508,8 +7523,8 @@ export const SetRoutineDoneDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetRoutineDoneMutation, SetRoutineDoneMutationVariables>;
 export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {
-  moveRoutineOccurrence(id: $id, date: $date, to: $to)
+    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {
+  moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`

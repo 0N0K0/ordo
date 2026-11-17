@@ -18,6 +18,15 @@ export type ColumnFilter<R> =
   | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[] }
   | { kind: 'choices'; value: (row: R) => string[]; options: ColumnChoice[] };
 
+/** Group of a tree of groups of a table (categories with sub-categories…). */
+export interface TreeGroup {
+  key: string;
+  label: string;
+  color?: string | null;
+  /** Its parent group (null: at the top). */
+  parentKey: string | null;
+}
+
 /** Column of a data table. */
 export interface DataColumn<R> {
   id: string;
@@ -38,8 +47,18 @@ export interface DataColumn<R> {
   text?: (row: R) => string;
   /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */
   filter?: ColumnFilter<R> | false;
-  /** The rows can be grouped by its values (its text, in the order of its sort value). Optional. Default = false. */
+  /**
+   * The rows can be grouped by its values (those of its filter: a date by period, each of several values; else its
+   * text). Optional. Default = every column but the label (locked); false: not.
+   */
   groupable?: boolean;
+  /**
+   * Groups of its values as a tree (categories): grouped by it, the rows show under their group, each under its parent.
+   * Optional (its values grouped side by side without).
+   */
+  groupTree?: readonly TreeGroup[];
+  /** Values the rows are grouped by, when not those of its filter (a filter keeping sub-projects…). Optional. */
+  groupValue?: (row: R) => readonly string[];
   /**
    * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),
    * a change made in one of them applies to all. Optional. Default = false.

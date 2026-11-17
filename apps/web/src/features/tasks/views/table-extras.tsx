@@ -1,4 +1,4 @@
-import { Table, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Text, TextInput, UnstyledButton } from '@mantine/core';
 import { taskTitleSchema } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -9,10 +9,6 @@ import type { NewTaskDefaults } from './new-task-defaults';
 import classes from './table-extras.module.css';
 
 interface AddTaskRowProps {
-  /** Number of visible columns, the select column included. */
-  columnCount: number;
-  /** Index of the title column among the visible ones. */
-  titleIndex: number;
   context: TaskContext;
   defaults: NewTaskDefaults;
   /** Project of new tasks when the group gives none; without it, the creation form opens. */
@@ -21,12 +17,12 @@ interface AddTaskRowProps {
 }
 
 /**
- * Empty row at the end of the table or of a group: type a title and press Enter to add a task.
+ * Field of the add row at the end of the table or of a group: type a title and press Enter to add a task.
  * Without a project to create it in (home page), the row opens the creation form.
  * @param {AddTaskRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function AddTaskRow({ columnCount, titleIndex, context, defaults, projectId, onOpenForm }: AddTaskRowProps) {
+export function AddTaskRow({ context, defaults, projectId, onOpenForm }: AddTaskRowProps) {
   const createTask = useCreateTask();
   const setClosed = useSetTasksClosed();
   const [title, setTitle] = useState('');
@@ -53,37 +49,32 @@ export function AddTaskRow({ columnCount, titleIndex, context, defaults, project
     );
   };
 
-  const cells = Array.from({ length: columnCount }, (_, index) => {
-    if (index !== titleIndex) return <Table.Td key={index} />;
-    return (
-      <Table.Td key={index}>
-        {targetProject ? (
-          <TextInput
-            variant="unstyled"
-            size="xs"
-            classNames={{ input: classes.addInput }}
-            leftSection={<PlusIcon aria-hidden />}
-            placeholder="Ajouter une tâche (Entrée pour valider)"
-            aria-label="Titre de la nouvelle tâche"
-            value={title}
-            disabled={createTask.isPending}
-            onChange={(event) => setTitle(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') submit();
-              if (event.key === 'Escape') setTitle('');
-            }}
-          />
-        ) : (
-          <UnstyledButton className={classes.addButton} onClick={() => onOpenForm(defaults)}>
-            <PlusIcon aria-hidden />
-            <Text span size="sm">
-              Ajouter une tâche
-            </Text>
-          </UnstyledButton>
-        )}
-      </Table.Td>
-    );
-  });
-
-  return <Table.Tr className={classes.addRow}>{cells}</Table.Tr>;
+  return (
+    <>
+      {targetProject ? (
+        <TextInput
+          variant="unstyled"
+          size="xs"
+          classNames={{ input: classes.addInput }}
+          leftSection={<PlusIcon aria-hidden />}
+          placeholder="Ajouter une tâche (Entrée pour valider)"
+          aria-label="Titre de la nouvelle tâche"
+          value={title}
+          disabled={createTask.isPending}
+          onChange={(event) => setTitle(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submit();
+            if (event.key === 'Escape') setTitle('');
+          }}
+        />
+      ) : (
+        <UnstyledButton className={classes.addButton} onClick={() => onOpenForm(defaults)}>
+          <PlusIcon aria-hidden />
+          <Text span size="sm">
+            Ajouter une tâche
+          </Text>
+        </UnstyledButton>
+      )}
+    </>
+  );
 }

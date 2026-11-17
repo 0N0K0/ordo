@@ -7,6 +7,8 @@ import {
   routineCaseOn,
   routineCaseSpans,
   routineOpenDate,
+  opensReach,
+  readOpens,
   caseSpans,
   plannedSlots,
   conditionScheduleIds,
@@ -25,6 +27,8 @@ import {
   daysBetween,
   caseStart,
   routineSlotSchema,
+  routineMoveTimesSchema,
+  type RoutineMoveTimes,
   withMovedTimes,
   weekdayOf,
   type PlannedSlot,
@@ -279,22 +283,21 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
   const first = from < start ? start : from;
   if (first > to) return [];
   const spans = new Map<string, RoutineSpan>();
-  {
-    const cases = storedCases(routine.cases);
-    if (cases.length) {
+  const cases = storedCases(routine.cases);
+  const rule = cases.length ? null : storedRule(routine);
+  // Its cases, else its rule: each with its « à partir du ».
+  const sources = cases.length
+    ? cases.map((item) => ({ frequency: item.recurrence.frequency, opens: item.opens, spans: (last: string) => routineCaseSpans(item, start, first, last) }))
+    : rule
+      ? [{ frequency: rule.frequency, opens: readOpens(routine.opensOn), spans: (last: string) => caseSpans({ since: null, until: null, anchor: null, rule, times: null }, start, first, last) }]
+      : [];
+  for (const { frequency, opens, spans: spansTo } of sources) {
+    // An occurrence opening (« à partir du ») within the period may be due after it.
+    for (const span of spansTo(addDays(to, opensReach(opens)))) {
+      const opened = routineOpenDate(span.end, opens, frequency);
+      const open = opened < span.start ? opened : span.start;
       // A day due in several cases follows the first one.
-      for (const item of cases) for (const span of routineCaseSpans(item, start, first, to)) if (!spans.has(span.end)) spans.set(span.end, span);
-    } else {
-      const rule = storedRule(routine);
-      const opensOn = routine.opensOn ?? null;
-      if (rule) {
-        // An occurrence opening (« à partir du ») within the period may be due after it.
-        const last = opensOn ? addDays(to, LOOK_DAYS) : to;
-        for (const span of caseSpans({ since: null, until: null, anchor: null, rule, times: null }, start, first, last)) {
-          const open = opensOn ? routineOpenDate(span.end, opensOn) : span.start;
-          if (open <= to && span.end >= first) spans.set(span.end, { start: open < start ? start : open, end: span.end });
-        }
-      }
+      if (open <= to && span.end >= first && !spans.has(span.end)) spans.set(span.end, { start: open < start ? start : open, end: span.end });
     }
   }
   return [...spans.values()].filter((span) => doable(routine, span, schedules)).sort((a, b) => a.end.localeCompare(b.end));
@@ -631,7 +634,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   moments: data.moments,
   slotCondition: data.slotCondition ? (data.slotCondition as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
-  opensOn: data.opensOn,
+  opensOn: data.opensOn ?? Prisma.DbNull,
   slotRule: data.slotRule ?? Prisma.DbNull,
   cases: data.cases as Prisma.InputJsonValue,
   location: data.location,
@@ -736,7 +739,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
     reminders: routine.reminders,
-    opensOn: routine.opensOn,
+    opensOn: readOpens(routine.opensOn),
     slotRule: null,
     cases: storedCases(routine.cases),
     location: routine.location,
@@ -790,6 +793,11 @@ export interface RoutineBulkChanges {
   dueTime?: string | null;
   startDate?: string;
   recurrence?: unknown;
+  /** Whole repetition (with recurrence): its cases, moments, condition and « à partir du »; undefined: unchanged. */
+  cases?: unknown;
+  moments?: unknown;
+  slotCondition?: unknown;
+  opensOn?: unknown;
 }
 
 /**
@@ -835,6 +843,10 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
         ...(changes.startDate !== undefined && { startDate: changes.startDate }),
         ...(changes.recurrence !== undefined && { recurrence: changes.recurrence as RoutineInput['recurrence'] }),
+        ...(changes.cases !== undefined && { cases: changes.cases as RoutineInput['cases'] }),
+        ...(changes.moments !== undefined && { moments: changes.moments as RoutineInput['moments'] }),
+        ...(changes.slotCondition !== undefined && { slotCondition: changes.slotCondition as RoutineInput['slotCondition'] }),
+        ...(changes.opensOn !== undefined && { opensOn: changes.opensOn as RoutineInput['opensOn'] }),
       };
       return { id, input };
     }),
@@ -962,22 +974,36 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
 }
 
 /**
- * Moves an occurrence of a routine to another day (postponed or brought forward): an exception to its rule. Moving it
- * back to its own day removes the exception. A ticked occurrence is not moved.
+ * Moves an occurrence of a routine to another day (postponed or brought forward) and / or other times: an exception
+ * to its rule. Back to its own day and times, the exception is removed. A ticked occurrence is not moved.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (its day now).
- * @param {string} to New day.
+ * @param {string} to New day (its day: other times only).
+ * @param {RoutineMoveTimes} [times] Times of each of its times of the day (null: those of its rule); none given: those it had kept. Optional.
  * @returns {Promise<void>}
  */
-export async function moveRoutineOccurrence(id: string, date: string, to: string): Promise<void> {
-  const routine = await prisma.routine.findUnique({ where: { id }, select: { startDate: true, moves: true } });
+export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
+  const routine = await prisma.routine.findUnique({ where: { id } });
   if (!routine) throw notFound('Routine');
-  const move = parseInput(routineMoveSchema, { from: date, to });
-  if (move.to && move.to < formatDay(routine.startDate)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
-  const moves = withMove(storedMoves(routine.moves), move.from, move.to);
+  const stored = storedMoves(routine.moves);
+  let changed: RoutineMoveTimes | undefined;
+  if (times !== undefined) {
+    // Only the times that differ from those of its rule are kept.
+    const parsed = parseInput(routineMoveTimesSchema, times);
+    const base = ruleSlotsOn(routine, movedFrom(stored, date), await loadScheduleContext());
+    const slots = base.length ? base : [{ fromTime: null, dueTime: null }];
+    for (const item of parsed ?? []) if (item) parseInput(routineSlotSchema, { ...item, optional: false });
+    changed = slots.map((slot, index) => {
+      const value = parsed?.[index] ?? null;
+      return value && (value.fromTime !== slot.fromTime || value.dueTime !== slot.dueTime) ? value : null;
+    });
+  }
+  const move = parseInput(routineMoveSchema, { from: date, to, times: changed?.some(Boolean) ? changed : null });
+  if (move.to && move.to < formatDay(routine.startDate)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+  const moves = withMove(stored, move.from, move.to, changed);
   if (moves.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
   await prisma.routine.update({ where: { id }, data: { moves } });
 }

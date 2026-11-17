@@ -134,15 +134,6 @@ export function operatorsFor<F extends string>(kinds: Record<F, FilterFieldKind>
 }
 
 /**
- * Operators of a task field.
- * @param {TaskFilterField} field Field.
- * @returns {readonly FilterOperator[]} Operators.
- */
-export function operatorsOf(field: TaskFilterField): readonly FilterOperator[] {
-  return operatorsFor(TASK_FILTER_FIELDS, field);
-}
-
-/**
  * Random id for a new filter node.
  * @returns {string} Id.
  */
@@ -189,15 +180,6 @@ export function defaultValue(field: TaskFilterField, operator: FilterOperator): 
 export function newConditionFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): FilterConditionOf<F> {
   const operator = operatorsFor(kinds, field)[0];
   return { type: 'condition', id: nodeId(), field, operator, value: defaultValueFor(kinds[field], operator) };
-}
-
-/**
- * New task condition on a field, with its first operator.
- * @param {TaskFilterField} [field='title'] Field. Optional. Default = 'title'.
- * @returns {FilterCondition} Condition.
- */
-export function newCondition(field: TaskFilterField = 'title'): FilterCondition {
-  return newConditionFor(TASK_FILTER_FIELDS, field);
 }
 
 /**

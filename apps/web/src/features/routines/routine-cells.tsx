@@ -1,14 +1,12 @@
 import { TimeField } from '../../components/TimeField';
-import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { readSlotCondition, routineSchema, type Recurrence, type RoutineCase } from '@ordo/shared';
+import { Avatar, ColorSwatch, Group, NumberInput, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
 import { describeSlotCondition } from './slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
@@ -17,8 +15,9 @@ import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import type { Routine, RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { applyDiff } from '../../components/data-table/bulk-edit';
-import { DAILY, describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
+import { describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
+import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesCell } from '../beneficiaries/BeneficiariesSelect';
 
@@ -451,75 +450,37 @@ export function RepetitionText({ routine }: { routine: Routine }) {
 }
 
 /**
- * "Quand" cell: where the routine stands today (its content); a click edits its repetition: its first date and rule in
- * place, or its form for cases and calendar schedules. On a column selection, the rule applies to every selected
- * routine.
+ * "Quand" cell: where the routine stands today (its content); a click opens every setting of its repetition (one rule
+ * or cases, moments, schedules, « à partir du ») in the common modal. On a selection, the repetition applies to every
+ * routine selected.
  * @param {CellProps & { children: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function RepetitionCell({ routine, readOnly = false, children }: CellProps & { children: ReactNode }) {
   const { apply, count } = useRoutineCellEdit(routine, 'repetition');
   const [opened, setOpened] = useState(false);
-  const [startDate, setStartDate] = useState(routine.startDate);
-  const [rule, setRule] = useState<Recurrence>(ruleOf(routine) ?? DAILY);
-  const current = ruleOf(routine);
-
-  /**
-   * Opens the editor on the current values.
-   * @returns {void}
-   */
-  const open = () => {
-    setStartDate(routine.startDate);
-    setRule(current ?? DAILY);
-    setOpened(true);
-  };
-
-  if ((routine.cases as RoutineCase[]).length) {
-    return (
-      <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}`}>
+  return (
+    <>
+      <UnstyledButton onClick={() => setOpened(true)} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`}>
         {children}
       </UnstyledButton>
-    );
-  }
-
-  return (
-    <Popover opened={opened} onChange={setOpened} position="bottom-start" width={420} shadow="md" trapFocus withinPortal>
-      <Popover.Target>
-        <UnstyledButton onClick={open} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`}>
-          {children}
-        </UnstyledButton>
-      </Popover.Target>
-      <Popover.Dropdown>
-        <Stack gap="sm">
-          {count > 1 && (
-            <Text size="xs" c="dimmed">
-              S’applique à {routinesLabel(count)}.
-            </Text>
-          )}
-          <DatePickerInput label="Première fois" size="xs" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
-          <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
-          <Group justify="space-between" gap="sm">
-            <Button size="xs" variant="subtle" onClick={() => (setOpened(false), openRoutineForm({ routine }))}>
-              Plusieurs cas, plage…
-            </Button>
-            <Group gap="sm">
-              <Button size="xs" variant="default" onClick={() => setOpened(false)}>
-                Annuler
-              </Button>
-              <Button
-                size="xs"
-                onClick={() => {
-                  setOpened(false);
-                  apply({ startDate, recurrence: rule }, { startDate, recurrence: rule });
-                }}
-              >
-                Enregistrer
-              </Button>
-            </Group>
-          </Group>
-        </Stack>
-      </Popover.Dropdown>
-    </Popover>
+      {/* Mounted when opened: its draft starts from the routine as it is then. */}
+      {opened && (
+        <RoutineRepetitionModal
+          routine={routine}
+          opened
+          onClose={() => setOpened(false)}
+          header={
+            count > 1 && (
+              <Text size="sm" c="dimmed">
+                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, plages, « à partir du »).
+              </Text>
+            )
+          }
+          onApply={(repetition) => apply(repetition, repetition)}
+        />
+      )}
+    </>
   );
 }
 
