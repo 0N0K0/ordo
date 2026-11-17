@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
 import type { ShoppingDataQuery, ShoppingListsQuery } from '../../graphql/graphql';
@@ -15,7 +16,8 @@ export type ShoppingProduct = ShoppingDataQuery['shoppingProducts'][number];
 export type ShoppingList = ShoppingListsQuery['shoppingLists'][number];
 export type ShoppingItem = ShoppingList['items'][number];
 
-const shoppingKey = ['shopping'] as const;
+/** Key of every query of the shopping (lists, products, settings), refreshed by what changes them. */
+export const shoppingKey = ['shopping'] as const;
 
 const ShoppingDataDocument = graphql(`
   query ShoppingData {
@@ -362,11 +364,7 @@ export function useShoppingLists(taskId: string | null = null) {
  * @returns {UseMutationResult<R, Error, V>} Mutation.
  */
 function useShoppingMutation<V, R>(fn: (variables: V) => Promise<R>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: shoppingKey }),
-  });
+  return useInvalidatingMutation(fn, { invalidate: [shoppingKey] });
 }
 
 /**
@@ -376,18 +374,7 @@ function useShoppingMutation<V, R>(fn: (variables: V) => Promise<R>) {
  * @returns {UseMutationResult<R, Error, V>} Mutation.
  */
 function useOptimisticMutation<V, R>(fn: (variables: V) => Promise<R>, patch: (queryClient: QueryClient, variables: V) => void) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onMutate: async (variables: V) => {
-      await queryClient.cancelQueries({ queryKey: shoppingKey });
-      const previous = queryClient.getQueriesData({ queryKey: shoppingKey });
-      patch(queryClient, variables);
-      return { previous };
-    },
-    onError: (_error, _variables, context) => context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: shoppingKey }),
-  });
+  return useInvalidatingMutation(fn, { invalidate: [shoppingKey], optimistic: patch });
 }
 
 /**

@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type { TimeEntryFieldsFragment } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -141,16 +142,7 @@ export function useRunningTimer() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useTimeMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: timeQueryKey }),
-        queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
-      ]);
-    },
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [timeQueryKey, tasksQueryKey] });
 }
 
 export interface TimeEntryValues {

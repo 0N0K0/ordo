@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type { LibraryQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -100,8 +101,7 @@ export function useLibrary() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useLibraryMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: libraryKey }) });
+  return useInvalidatingMutation(mutationFn, { invalidate: [libraryKey] });
 }
 
 /**

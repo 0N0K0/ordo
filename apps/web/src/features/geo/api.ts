@@ -1,5 +1,6 @@
 import { LEVEL, lineageOf } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
+import { useQuery } from '@tanstack/react-query';
 import type { GeoPoint, PlaceInput, TravelMode } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type { PlacesQuery, SearchAddressesQuery } from '../../graphql/graphql';
@@ -200,14 +201,10 @@ export async function travelTime(from: GeoPoint, to: GeoPoint, mode: TravelMode)
  * @returns {object} Mutations.
  */
 export function usePlaceMutations() {
-  const queryClient = useQueryClient();
-  const onSettled = () => queryClient.invalidateQueries({ queryKey: placesKey });
+  const invalidate = [placesKey];
   return {
-    save: useMutation({ mutationFn: async (variables: { id: string | null; input: PlaceInput }) => (await execute(SavePlaceDocument, variables)).savePlace, onSettled }),
-    remove: useMutation({ mutationFn: async (id: string) => (await execute(DeletePlaceDocument, { id })).deletePlace, onSettled }),
-    move: useMutation({
-      mutationFn: async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MovePlaceDocument, variables)).movePlace,
-      onSettled,
-    }),
+    save: useInvalidatingMutation(async (variables: { id: string | null; input: PlaceInput }) => (await execute(SavePlaceDocument, variables)).savePlace, { invalidate }),
+    remove: useInvalidatingMutation(async (id: string) => (await execute(DeletePlaceDocument, { id })).deletePlace, { invalidate }),
+    move: useInvalidatingMutation(async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MovePlaceDocument, variables)).movePlace, { invalidate }),
   };
 }

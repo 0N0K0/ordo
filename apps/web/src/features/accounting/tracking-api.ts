@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope, SendingChannel } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type { DocumentStatusesQuery, OverdueInvoicesQuery } from '../../graphql/graphql';
@@ -137,8 +138,7 @@ export function useOverdueInvoices(today: string) {
  * @returns {UseMutationResult} Mutation state.
  */
 function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: accountingQueryKey }) });
+  return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
 /**

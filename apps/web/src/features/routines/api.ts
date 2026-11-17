@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { patchQuery, useInvalidatingMutation } from '../../lib/mutation';
 import {
   readSlotCondition,
   type Recurrence,
@@ -10,7 +10,7 @@ import {
   type RoutineSlot,
   type SlotCondition,
 } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
 import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../graphql/graphql';
@@ -287,21 +287,11 @@ export function useRoutinesData() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (data: RoutinesDataQuery, variables: V) => RoutinesDataQuery) {
-  const queryClient: QueryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onMutate: async (variables: V) => {
-      if (!patch) return { previous: undefined };
-      await queryClient.cancelQueries({ queryKey: routinesKey });
-      const previous = queryClient.getQueryData<RoutinesDataQuery>(routinesKey);
-      if (previous) queryClient.setQueryData(routinesKey, patch(previous, variables));
-      return { previous };
-    },
-    onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(routinesKey, context.previous),
+  return useInvalidatingMutation(fn, {
+    invalidate: [routinesKey],
+    optimistic: patch && ((queryClient, variables) => patchQuery<RoutinesDataQuery>(queryClient, routinesKey, (data) => patch(data, variables))),
     // Refreshed in the background: the change (shown at once) is not held up by the reload of every routine.
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: routinesKey });
-    },
+    background: true,
   });
 }
 

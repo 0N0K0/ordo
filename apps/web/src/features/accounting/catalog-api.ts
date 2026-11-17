@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import type { CatalogItemInput } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type { CatalogItemsQuery } from '../../graphql/graphql';
@@ -54,8 +55,7 @@ export function useCatalogItems() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useCatalogMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: catalogKey }) });
+  return useInvalidatingMutation(mutationFn, { invalidate: [catalogKey] });
 }
 
 /**

@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type {
   AccountingDocumentType,
@@ -234,12 +235,7 @@ export function useClientBilling(id: string) {
 function useAccountingMutation<TVariables, TResult>(
   mutationFn: (variables: TVariables) => Promise<TResult>,
 ) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: accountingQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
 /**

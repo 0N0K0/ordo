@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type { SettingsListKind } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -29,12 +29,11 @@ interface SettingsItemLook {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSettingsItemLook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ kind, id, input }: { kind: SettingsListKind; id: string; input: SettingsItemLook }) => (await execute(SetSettingsItemLookDocument, { kind, id, input })).setSettingsItemLook,
-    // The item shows in many lists (selects, tables, filters…): all of them are reloaded.
-    onSuccess: () => queryClient.invalidateQueries(),
-  });
+  // The item shows in many lists (selects, tables, filters…): all of them are reloaded.
+  return useInvalidatingMutation(
+    async ({ kind, id, input }: { kind: SettingsListKind; id: string; input: SettingsItemLook }) => (await execute(SetSettingsItemLookDocument, { kind, id, input })).setSettingsItemLook,
+    { invalidate: [[]] },
+  );
 }
 
 /**
@@ -42,10 +41,8 @@ export function useSettingsItemLook() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useReorderSettingsItems() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ kind, ids }: { kind: SettingsListKind; ids: string[] }) => (await execute(ReorderSettingsItemsDocument, { kind, ids })).reorderSettingsItems,
-    onSettled: () => queryClient.invalidateQueries(),
+  return useInvalidatingMutation(async ({ kind, ids }: { kind: SettingsListKind; ids: string[] }) => (await execute(ReorderSettingsItemsDocument, { kind, ids })).reorderSettingsItems, {
+    invalidate: [[]],
   });
 }
 

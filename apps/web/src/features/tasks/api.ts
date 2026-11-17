@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { patchQuery, useInvalidatingMutation } from '../../lib/mutation';
 import { readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type {
@@ -502,11 +503,7 @@ export function useTaskComments(id: string) {
  * @returns {UseMutationResult<TResult, Error, TVariables>} Mutation state.
  */
 function useTasksMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [tasksQueryKey] });
 }
 
 export interface TaskInputValues {
@@ -577,24 +574,10 @@ const SetTasksClosedDocument = graphql(`
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetTasksClosed() {
-  const queryClient = useQueryClient();
-  return useMutation<boolean, Error, { ids: string[]; closed: boolean }, { previous?: TasksData }>({
-    mutationFn: async (variables) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed,
-    onMutate: async ({ ids, closed }) => {
-      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
-      const previous = queryClient.getQueryData<TasksData>(tasksQueryKey);
-      if (previous) {
-        queryClient.setQueryData<TasksData>(tasksQueryKey, {
-          ...previous,
-          tasks: previous.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed } : task)),
-        });
-      }
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(tasksQueryKey, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+  return useInvalidatingMutation(async (variables: { ids: string[]; closed: boolean }) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed, {
+    invalidate: [tasksQueryKey],
+    optimistic: (queryClient, { ids, closed }) =>
+      patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({ ...data, tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed } : task)) })),
   });
 }
 
@@ -635,36 +618,18 @@ export function useCloneTask() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useMoveTask() {
-  const queryClient = useQueryClient();
-  return useMutation<
-    boolean,
-    Error,
-    { id: string; beforeId: string | null; parentId?: string | null },
-    { previous?: TasksData }
-  >({
-    mutationFn: async (variables) => (await execute(MoveTaskDocument, variables)).moveTask,
-    onMutate: async ({ id, beforeId, parentId }) => {
-      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
-      const previous = queryClient.getQueryData<TasksData>(tasksQueryKey);
-      if (previous) {
-        const ordered = [...previous.tasks].sort((a, b) => a.position - b.position);
+  return useInvalidatingMutation(async (variables: { id: string; beforeId: string | null; parentId?: string | null }) => (await execute(MoveTaskDocument, variables)).moveTask, {
+    invalidate: [tasksQueryKey],
+    optimistic: (queryClient, { id, beforeId, parentId }) =>
+      patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
+        const ordered = [...data.tasks].sort((a, b) => a.position - b.position);
         const moved = ordered.find((task) => task.id === id);
         const others = ordered.filter((task) => task.id !== id);
         const index = beforeId ? others.findIndex((task) => task.id === beforeId) : others.length;
-        if (moved && index >= 0) {
-          const order = [...others.slice(0, index), parentId === undefined ? moved : { ...moved, parentId }, ...others.slice(index)];
-          queryClient.setQueryData<TasksData>(tasksQueryKey, {
-            ...previous,
-            tasks: order.map((task, position) => ({ ...task, position })),
-          });
-        }
-      }
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(tasksQueryKey, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+        if (!moved || index < 0) return data;
+        const order = [...others.slice(0, index), parentId === undefined ? moved : { ...moved, parentId }, ...others.slice(index)];
+        return { ...data, tasks: order.map((task, position) => ({ ...task, position })) };
+      }),
   });
 }
 
@@ -901,11 +866,7 @@ export function useDoableTaskIds(enabled: boolean) {
  * @returns {UseMutationResult<TResult, Error, TVariables>} Mutation state.
  */
 function useViewMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: taskViewsQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [taskViewsQueryKey] });
 }
 
 /**
@@ -913,7 +874,6 @@ function useViewMutation<TVariables, TResult>(mutationFn: (variables: TVariables
  * @returns {object} View mutations.
  */
 export function useTaskViewMutations() {
-  const queryClient = useQueryClient();
   return {
     create: useViewMutation(
       async (input: { name: string; config: unknown; projectId: string | null; kind?: ViewKind; tableKey?: string | null }) =>
@@ -930,10 +890,10 @@ export function useTaskViewMutations() {
     setDefault: useViewMutation(
       async (variables: { id: string }) => (await execute(SetDefaultTaskViewDocument, variables)).setDefaultTaskView,
     ),
-    move: useMutation<boolean, Error, { id: string; index: number }>({
-      mutationFn: async (variables) => (await execute(MoveTaskViewDocument, variables)).moveTaskView,
+    move: useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveTaskViewDocument, variables)).moveTaskView, {
+      invalidate: [taskViewsQueryKey],
       // The tab stays where it was dropped while the server reorders.
-      onMutate: ({ id, index }) => {
+      optimistic: (queryClient, { id, index }) => {
         for (const [key, views] of queryClient.getQueriesData<TaskViewRecord[]>({ queryKey: taskViewsQueryKey })) {
           if (!views?.some((view) => view.id === id)) continue;
           const order = views.filter((view) => view.id !== id);
@@ -941,7 +901,6 @@ export function useTaskViewMutations() {
           queryClient.setQueryData(key, order);
         }
       },
-      onSettled: () => queryClient.invalidateQueries({ queryKey: taskViewsQueryKey }),
     }),
   };
 }
@@ -1047,30 +1006,16 @@ export function useMilestoneMutations() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useMoveMilestone() {
-  const queryClient = useQueryClient();
-  return useMutation<boolean, Error, { id: string; index: number }, { previous?: TasksData }>({
-    mutationFn: async (variables) => (await execute(MoveMilestoneDocument, variables)).moveMilestone,
-    onMutate: async ({ id, index }) => {
-      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
-      const previous = queryClient.getQueryData<TasksData>(tasksQueryKey);
-      const moved = previous?.milestones.find((milestone) => milestone.id === id);
-      if (previous && moved) {
-        const others = previous.milestones
-          .filter((milestone) => milestone.projectId === moved.projectId && milestone.id !== id)
-          .sort((a, b) => a.position - b.position);
-        const order = [...others.slice(0, index), moved, ...others.slice(index)];
-        const positions = new Map(order.map((milestone, position) => [milestone.id, position]));
-        queryClient.setQueryData<TasksData>(tasksQueryKey, {
-          ...previous,
-          milestones: previous.milestones.map((milestone) => ({ ...milestone, position: positions.get(milestone.id) ?? milestone.position })),
-        });
-      }
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(tasksQueryKey, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+  return useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveMilestoneDocument, variables)).moveMilestone, {
+    invalidate: [tasksQueryKey],
+    optimistic: (queryClient, { id, index }) =>
+      patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
+        const moved = data.milestones.find((milestone) => milestone.id === id);
+        if (!moved) return data;
+        const others = data.milestones.filter((milestone) => milestone.projectId === moved.projectId && milestone.id !== id).sort((a, b) => a.position - b.position);
+        const positions = new Map([...others.slice(0, index), moved, ...others.slice(index)].map((milestone, position) => [milestone.id, position]));
+        return { ...data, milestones: data.milestones.map((milestone) => ({ ...milestone, position: positions.get(milestone.id) ?? milestone.position })) };
+      }),
   });
 }
 

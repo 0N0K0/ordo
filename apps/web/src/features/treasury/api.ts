@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import type { TreasuryCategoryInput, TreasuryCounterpartyInput, TreasuryEntryInput, TreasuryPaymentMethodInput } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type {
@@ -477,8 +478,7 @@ export function useTreasuryProjection(variables: { today: string; from: string; 
  * @returns {UseMutationResult} Mutation state.
  */
 function useTreasuryMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: accountingQueryKey }) });
+  return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
 export interface AccountValues {

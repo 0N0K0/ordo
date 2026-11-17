@@ -1,5 +1,6 @@
 import { subtreeOf } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { patchQuery, useInvalidatingMutation } from '../../lib/mutation';
+import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type {
   ClientFieldsFragment,
@@ -251,20 +252,9 @@ function useWorkspaceMutation<TVariables, TResult>({
   mutationFn: (variables: TVariables) => Promise<TResult>;
   optimistic?: (workspace: Workspace, variables: TVariables) => Workspace;
 }) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables, { previous?: Workspace }>({
-    mutationFn,
-    onMutate: async (variables) => {
-      if (!optimistic) return {};
-      await queryClient.cancelQueries({ queryKey: workspaceQueryKey });
-      const previous = queryClient.getQueryData<Workspace>(workspaceQueryKey);
-      if (previous) queryClient.setQueryData(workspaceQueryKey, optimistic(previous, variables));
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(workspaceQueryKey, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: workspaceQueryKey }),
+  return useInvalidatingMutation(mutationFn, {
+    invalidate: [workspaceQueryKey],
+    optimistic: optimistic && ((queryClient, variables) => patchQuery<Workspace>(queryClient, workspaceQueryKey, (workspace) => optimistic(workspace, variables))),
   });
 }
 

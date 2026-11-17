@@ -1,5 +1,7 @@
 import type { NewStockItemInput, ProductStockInput, ShoppingDeliveryInput, ShoppingOrderInput, StockCountInput, StockLocationInput, StockMoveInput, StockPurchaseInput } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
+import { shoppingKey } from '../shopping/api';
+import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { StockCountsQuery, StockItemsQuery, StockLocationsQuery, StockMovementsQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -227,14 +229,7 @@ export function useProductStock(): Map<string, number> {
  * @returns {object} Mutation.
  */
 function useStockMutation<V, R>(fn: (variables: V) => Promise<R>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: stockKey });
-      await queryClient.invalidateQueries({ queryKey: ['shopping'] });
-    },
-  });
+  return useInvalidatingMutation(fn, { invalidate: [stockKey, shoppingKey] });
 }
 
 /**

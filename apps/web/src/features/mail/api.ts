@@ -1,4 +1,5 @@
 import { keepPreviousData, useIsFetching, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type {
   LinkedMailFieldsFragment,
@@ -743,11 +744,7 @@ export function useProjectMails(projectId: string, enabled = true) {
  * @returns {UseMutationResult} Mutation state.
  */
 function useMailMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: mailQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [mailQueryKey] });
 }
 
 /**

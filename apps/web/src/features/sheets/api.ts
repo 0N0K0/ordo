@@ -1,5 +1,7 @@
 import type { SheetCategoryInput, SheetInput, SheetItemInput, SheetLinkInput } from '@ordo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
+import { shoppingKey } from '../shopping/api';
+import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { ChecklistQuery, SheetCategoriesQuery, SheetLinksQuery, SheetQuery, SheetsQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -314,14 +316,7 @@ export function useChecklist(owner: (SheetOwner & { occurrenceDate?: string | nu
  * @returns {object} Mutation.
  */
 function useSheetMutation<V, R>(fn: (variables: V) => Promise<R>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: sheetsKey });
-      await queryClient.invalidateQueries({ queryKey: ['shopping'] });
-    },
-  });
+  return useInvalidatingMutation(fn, { invalidate: [sheetsKey, shoppingKey] });
 }
 
 /**

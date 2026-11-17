@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { useMemo } from 'react';
 import { graphql } from '../../graphql';
 import type { AlarmFieldsFragment, AlarmInput } from '../../graphql/graphql';
@@ -94,11 +95,7 @@ export function useTaskAlarmCounts(): Map<string, number> {
  * @returns {UseMutationResult} Mutation state.
  */
 function useAlarmMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: alarmsQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [alarmsQueryKey] });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../graphql/graphql';
@@ -452,11 +453,7 @@ export function useSubscribedCalendarEvents(range: { from: string; to: string } 
  * @returns {UseMutationResult} Mutation state.
  */
 function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: calendarQueryKey }),
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [calendarQueryKey] });
 }
 
 /**

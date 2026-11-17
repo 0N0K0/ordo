@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type { GithubBoardQuery, GithubProjectLinkQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -160,13 +161,7 @@ export function useGithubLink(projectId: string) {
  * @returns {UseMutationResult} Mutation state.
  */
 function useGithubMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({
-    mutationFn,
-    onSettled: async () => {
-      await Promise.all([queryClient.invalidateQueries({ queryKey: githubKey }), queryClient.invalidateQueries({ queryKey: tasksQueryKey })]);
-    },
-  });
+  return useInvalidatingMutation(mutationFn, { invalidate: [githubKey, tasksQueryKey] });
 }
 
 export interface LinkValues {

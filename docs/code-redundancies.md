@@ -16,6 +16,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Styles mélangés :** `workspace/api.ts` a un hook par mutation, quand les autres fonctionnalités les regroupent dans un `useXMutations()`.
 - **Cible :** `lib/mutation.ts`, avec une `useInvalidatingMutation(clés, fn, { optimiste? })`. La version de `workspace/api.ts` a déjà la bonne forme.
 
+**Fait** : `useInvalidatingMutation` et `patchQuery` dans `lib/mutation.ts`. Toutes les enveloppes des fonctionnalités et les mises à jour optimistes écrites à la main reposent dessus : clôture et déplacement des tâches, des jalons, des vues, des tableaux de bord et de leurs graphiques. Le retour arrière en cas d'erreur est le même partout. La clé des achats est exportée au lieu d'être écrite en dur. Restent à part : les espaces de travail (ils rafraîchissent tout au succès), l'invalidation conditionnelle du calendrier, les contributeurs de la trésorerie, le test d'un compte mail, et les colonnes par défaut des tâches, remplies avec la réponse du serveur. Le style des hooks (un par mutation ou un `useXMutations()`) n'est pas harmonisé.
+
 ### 2. API : déplacement, position suivante et CRUD recopiés liste par liste
 
 - **Déplacement dans une liste plate :** une vingtaine de fonctions `moveX(id, index)`, toutes bâties sur `moveInOrder`. Elles se trouvent dans `clients`, `calendars`, `statuses`, `document-statuses`, `milestones`, `dashboards`, `task-views`, `project-resources`, `labels`, `mail/accounts`, `workspaces`, `shopping` (magasins, modes de conservation, listes de base, unités) et `sheets`.

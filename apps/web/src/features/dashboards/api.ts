@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { graphql } from '../../graphql';
 import type { DashboardsQuery, SprintTaskStatusesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -120,8 +121,7 @@ export function useDashboards(projectId: string | null) {
  * @returns {UseMutationResult} Mutation state.
  */
 function useDashboardMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }) });
+  return useInvalidatingMutation(mutationFn, { invalidate: [dashboardsKey] });
 }
 
 interface ChartValues {
@@ -154,24 +154,15 @@ export function useDashboardMutations() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useMoveDashboard() {
-  const queryClient = useQueryClient();
-  return useMutation<boolean, Error, { id: string; index: number }, { previous: [readonly unknown[], Dashboard[] | undefined][] }>({
-    mutationFn: async (variables) => (await execute(MoveDashboard, variables)).moveDashboard,
-    onMutate: async ({ id, index }) => {
-      await queryClient.cancelQueries({ queryKey: dashboardsKey });
-      const previous = queryClient.getQueriesData<Dashboard[]>({ queryKey: dashboardsKey });
+  return useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveDashboard, variables)).moveDashboard, {
+    invalidate: [dashboardsKey],
+    optimistic: (queryClient, { id, index }) =>
       queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) => {
         const moved = dashboards?.find((dashboard) => dashboard.id === id);
         if (!dashboards || !moved) return dashboards;
         const others = dashboards.filter((dashboard) => dashboard.id !== id);
         return [...others.slice(0, index), moved, ...others.slice(index)];
-      });
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }),
+      }),
   });
 }
 
@@ -180,12 +171,9 @@ function useMoveDashboard() {
  * @returns {UseMutationResult} Mutation state.
  */
 function useMoveChart() {
-  const queryClient = useQueryClient();
-  return useMutation<boolean, Error, { id: string; index: number }, { previous: [readonly unknown[], Dashboard[] | undefined][] }>({
-    mutationFn: async (variables) => (await execute(MoveChart, variables)).moveDashboardChart,
-    onMutate: async ({ id, index }) => {
-      await queryClient.cancelQueries({ queryKey: dashboardsKey });
-      const previous = queryClient.getQueriesData<Dashboard[]>({ queryKey: dashboardsKey });
+  return useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveChart, variables)).moveDashboardChart, {
+    invalidate: [dashboardsKey],
+    optimistic: (queryClient, { id, index }) =>
       queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) =>
         dashboards?.map((dashboard) => {
           const moved = dashboard.charts.find((chart) => chart.id === id);
@@ -193,12 +181,6 @@ function useMoveChart() {
           const others = dashboard.charts.filter((chart) => chart.id !== id);
           return { ...dashboard, charts: [...others.slice(0, index), moved, ...others.slice(index)] };
         }),
-      );
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }),
+      ),
   });
 }

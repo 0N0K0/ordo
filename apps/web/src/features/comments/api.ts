@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../lib/mutation';
 import { useMemo } from 'react';
 import { graphql } from '../../graphql';
 import type { CommentTarget } from '../../graphql/graphql';
@@ -86,11 +87,10 @@ export function useCommentCounts(target: CommentTarget, ids: readonly string[]):
  * @returns {object} Mutations.
  */
 export function useCommentMutations() {
-  const queryClient = useQueryClient();
-  const onSettled = () => queryClient.invalidateQueries({ queryKey: commentsKey });
+  const invalidate = [commentsKey];
   return {
-    add: useMutation({ mutationFn: (variables: { target: CommentTarget; id: string; body: string }) => execute(AddCommentDocument, variables), onSettled }),
-    update: useMutation({ mutationFn: (variables: { id: string; body: string }) => execute(UpdateCommentDocument, variables), onSettled }),
-    remove: useMutation({ mutationFn: (id: string) => execute(DeleteCommentDocument, { id }), onSettled }),
+    add: useInvalidatingMutation((variables: { target: CommentTarget; id: string; body: string }) => execute(AddCommentDocument, variables), { invalidate }),
+    update: useInvalidatingMutation((variables: { id: string; body: string }) => execute(UpdateCommentDocument, variables), { invalidate }),
+    remove: useInvalidatingMutation((id: string) => execute(DeleteCommentDocument, { id }), { invalidate }),
   };
 }
