@@ -18,9 +18,11 @@ import {
   type RoutineSortKey,
   type RoutineViewConfig,
   conditionScheduleIds,
+  readOpens,
   readSlotCondition,
   type RoutineCase,
 } from '@ordo/shared';
+import { opensText } from './opens-format';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 import { localDay } from '../../lib/dates';
@@ -33,6 +35,18 @@ import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
 import { beneficiaryNames } from '../beneficiaries/use-beneficiaries';
 import { commentTotal } from '../comments/comment-column';
+
+/**
+ * « À partir du » of the rule of a routine in words (« Le 15 du mois »); null without one.
+ * @param {Routine} routine Routine.
+ * @returns {string | null} Words.
+ */
+function opensWords(routine: Routine): string | null {
+  const opens = readOpens(routine.opensOn);
+  const frequency = ruleOf(routine)?.frequency;
+  const words = opens && frequency ? opensText(opens, frequency) : '';
+  return words ? fmt.capitalize(words) : null;
+}
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -244,7 +258,7 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
     case 'hasReminders':
       return routine.reminders.length > 0;
     case 'opensOn':
-      return routine.opensOn ?? null;
+      return opensWords(routine);
     case 'slots':
       return [...conditionScheduleIds(readSlotCondition(routine.slotCondition)), ...(routine.cases as RoutineCase[]).flatMap((item) => conditionScheduleIds(item.condition ?? null))];
     case 'blocks':
@@ -478,8 +492,11 @@ export function routineGrouping(groupBy: RoutineGroupBy | null, env: RoutineEnv)
     case 'opensOn':
       return valueGrouping(
         env,
-        (routine) => (routine.opensOn ? [routine.opensOn] : []),
-        (value) => (value.includes('-') ? `Le ${value.slice(3)}/${value.slice(0, 2)}` : `Le ${Number(value)} du mois`),
+        (routine) => {
+          const words = opensWords(routine);
+          return words ? [words] : [];
+        },
+        (value) => value,
         'Sans « à partir du »',
       );
     case 'requires':

@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Checkbox, Group, NumberInput, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { routineSchedule, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensFits, readOpens, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, CarIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -14,6 +14,7 @@ import { useWorkSchedules } from '../calendar/api';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
+import { opensText } from './opens-format';
 import { SlotConditionBuilder } from './SlotConditionBuilder';
 import { describeSlotCondition } from './slot-condition-text';
 import { DAILY, ROUTINE_REMINDERS, windowText } from './routine-format';
@@ -27,7 +28,7 @@ export interface RoutineScheduleValues {
   slotCondition: SlotCondition | null;
   /** Times of the day following its rule. */
   moments: RoutineSlot[];
-  opensOn: string | null;
+  opensOn: RoutineOpens | null;
   reminders: number[];
   estimate: number | null;
   location: string;
@@ -40,10 +41,11 @@ export interface RoutineScheduleValues {
 /** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « à partir du ». */
 type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
 
-/** Times of a rule or a case of a routine: its moments, and its condition on calendar schedules. */
+/** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « à partir du ». */
 interface RoutineTimes {
   moments: RoutineSlot[];
   condition: SlotCondition | null;
+  opens: RoutineOpens | null;
 }
 
 /** Lengths of an occurrence of a routine: a day, days (the weekend), weeks, months, up to a day, a week or a month. */
@@ -121,14 +123,18 @@ const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment
  * @returns {RepetitionTimes<RoutineTimes>} Times.
  */
 const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
-  render: (times, onChange, index) => (
+  render: (times, onChange, index, rule) => (
     <Stack gap="sm">
       <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
       <SlotConditionBuilder value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
+      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} />
     </Stack>
   ),
-  describe: (times) => [describeMoments(times.moments), describeSlotCondition(times.condition, names)].filter(Boolean).join(' · '),
-  empty: () => ({ moments: [ANY_TIME], condition: null }),
+  describe: (times, rule) =>
+    [describeMoments(times.moments), describeSlotCondition(times.condition, names), times.opens && rule && opensText(times.opens, rule.frequency) && `dès ${opensText(times.opens, rule.frequency)}`]
+      .filter(Boolean)
+      .join(' · '),
+  empty: () => ({ moments: [ANY_TIME], condition: null, opens: null }),
 });
 
 /**
@@ -138,9 +144,17 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
  */
 function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes>[] {
   if (value.mode === 'CASES')
-    return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null } }));
-  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition } }];
+    return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) } }));
+  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } }];
 }
+
+/**
+ * « À partir du » kept while it fits the frequency of its rule (dropped when the repetition changed).
+ * @param {RoutineOpens | null} opens « À partir du ».
+ * @param {Recurrence | null} rule Rule.
+ * @returns {RoutineOpens | null} « À partir du ».
+ */
+const fittingOpens = (opens: RoutineOpens | null, rule: Recurrence | null) => (opens && rule && opensFits(opens, rule.frequency) ? opens : null);
 
 /**
  * Repetition with the cases of the common editor.
@@ -149,8 +163,13 @@ function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes
  * @returns {RoutineRepetitionValue} Repetition.
  */
 function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<RoutineTimes>[]): RoutineRepetitionValue {
-  if (value.mode === 'CASES') return { ...value, cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times.moments, condition: item.times.condition })) };
-  return { ...value, recurrence: cases[0]?.rule ?? value.recurrence, moments: cases[0]?.times.moments ?? value.moments, slotCondition: cases[0]?.times.condition ?? null };
+  if (value.mode === 'CASES')
+    return {
+      ...value,
+      cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times.moments, condition: item.times.condition, opens: fittingOpens(item.times.opens, item.rule) })),
+    };
+  const recurrence = cases[0]?.rule ?? value.recurrence;
+  return { ...value, recurrence, moments: cases[0]?.times.moments ?? value.moments, slotCondition: cases[0]?.times.condition ?? null, opensOn: fittingOpens(cases[0]?.times.opens ?? null, recurrence) };
 }
 
 /**
@@ -161,7 +180,6 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
  */
 function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string> }) {
   const start = draft.startDate || localToday();
-  const frequency = draft.recurrence.frequency;
   return (
     <Stack gap="md">
       <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: String(date) })} />
@@ -172,9 +190,16 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
             ...draft,
             mode,
             // Cases start from the rule; back to one rule keeps the first case.
-            cases: mode === 'CASES' ? (draft.cases.length ? draft.cases : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition }]) : [],
+            cases:
+              mode === 'CASES'
+                ? draft.cases.length
+                  ? draft.cases
+                  : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition, opens: draft.opensOn }]
+                : [],
             moments: mode === 'CASES' ? [] : draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME]),
             slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
+            // Its « à partir du » goes to the first case, and back.
+            opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
           })
         }
         cases={editedCases(draft)}
@@ -184,11 +209,6 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
         allowNone={false}
         durations={ROUTINE_DURATIONS}
         times={routineTimes(names)}
-        footer={
-          draft.mode === 'RULE' && (frequency === 'MONTHLY' || frequency === 'YEARLY') ? (
-            <OpensOnInput frequency={frequency} value={draft.opensOn} onChange={(opensOn) => setDraft({ ...draft, opensOn })} />
-          ) : undefined
-        }
       />
     </Stack>
   );

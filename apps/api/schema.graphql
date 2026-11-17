@@ -2729,9 +2729,9 @@ type Routine {
   nextDate: Date
 
   """
-  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
   """
-  opensOn: String
+  opensOn: JSON
   parentId: ID
   position: Int!
   projectId: ID
@@ -2876,9 +2876,9 @@ input RoutineInput {
   moments: JSON
 
   """
-  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
   """
-  opensOn: String
+  opensOn: JSON
   parentId: ID
   projectId: ID
   recurrence: JSON!
@@ -2933,8 +2933,10 @@ input RoutinePatch {
   locationLat: Float
   locationLon: Float
 
-  """« À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none."""
-  opensOn: String
+  """
+  « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
+  """
+  opensOn: JSON
 
   """Null: top level."""
   parentId: ID

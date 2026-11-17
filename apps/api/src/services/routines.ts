@@ -7,6 +7,8 @@ import {
   routineCaseOn,
   routineCaseSpans,
   routineOpenDate,
+  opensReach,
+  readOpens,
   caseSpans,
   plannedSlots,
   conditionScheduleIds,
@@ -279,22 +281,21 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
   const first = from < start ? start : from;
   if (first > to) return [];
   const spans = new Map<string, RoutineSpan>();
-  {
-    const cases = storedCases(routine.cases);
-    if (cases.length) {
+  const cases = storedCases(routine.cases);
+  const rule = cases.length ? null : storedRule(routine);
+  // Its cases, else its rule: each with its « à partir du ».
+  const sources = cases.length
+    ? cases.map((item) => ({ frequency: item.recurrence.frequency, opens: item.opens, spans: (last: string) => routineCaseSpans(item, start, first, last) }))
+    : rule
+      ? [{ frequency: rule.frequency, opens: readOpens(routine.opensOn), spans: (last: string) => caseSpans({ since: null, until: null, anchor: null, rule, times: null }, start, first, last) }]
+      : [];
+  for (const { frequency, opens, spans: spansTo } of sources) {
+    // An occurrence opening (« à partir du ») within the period may be due after it.
+    for (const span of spansTo(addDays(to, opensReach(opens)))) {
+      const opened = routineOpenDate(span.end, opens, frequency);
+      const open = opened < span.start ? opened : span.start;
       // A day due in several cases follows the first one.
-      for (const item of cases) for (const span of routineCaseSpans(item, start, first, to)) if (!spans.has(span.end)) spans.set(span.end, span);
-    } else {
-      const rule = storedRule(routine);
-      const opensOn = routine.opensOn ?? null;
-      if (rule) {
-        // An occurrence opening (« à partir du ») within the period may be due after it.
-        const last = opensOn ? addDays(to, LOOK_DAYS) : to;
-        for (const span of caseSpans({ since: null, until: null, anchor: null, rule, times: null }, start, first, last)) {
-          const open = opensOn ? routineOpenDate(span.end, opensOn) : span.start;
-          if (open <= to && span.end >= first) spans.set(span.end, { start: open < start ? start : open, end: span.end });
-        }
-      }
+      if (open <= to && span.end >= first && !spans.has(span.end)) spans.set(span.end, { start: open < start ? start : open, end: span.end });
     }
   }
   return [...spans.values()].filter((span) => doable(routine, span, schedules)).sort((a, b) => a.end.localeCompare(b.end));
@@ -631,7 +632,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   moments: data.moments,
   slotCondition: data.slotCondition ? (data.slotCondition as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
-  opensOn: data.opensOn,
+  opensOn: data.opensOn ?? Prisma.DbNull,
   slotRule: data.slotRule ?? Prisma.DbNull,
   cases: data.cases as Prisma.InputJsonValue,
   location: data.location,
@@ -736,7 +737,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
     reminders: routine.reminders,
-    opensOn: routine.opensOn,
+    opensOn: readOpens(routine.opensOn),
     slotRule: null,
     cases: storedCases(routine.cases),
     location: routine.location,

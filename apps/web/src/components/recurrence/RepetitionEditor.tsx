@@ -1,6 +1,6 @@
 import { Button, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type RepetitionCase } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
@@ -11,10 +11,10 @@ import { useCaseFolds } from './use-case-folds';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
-  /** Editor of the times of a case. */
-  render: (times: T, onChange: (times: T) => void, index: number) => ReactNode;
-  /** Times as text, for the summary (empty: none told). */
-  describe: (times: T) => string;
+  /** Editor of the times of a case (its rule given: settings that depend on it). */
+  render: (times: T, onChange: (times: T) => void, index: number, rule: Recurrence | null) => ReactNode;
+  /** Times as text, for the summary (empty: none told); its rule given. */
+  describe: (times: T, rule: Recurrence | null) => string;
   /** Times of a new case. */
   empty: () => T;
 }
@@ -116,7 +116,7 @@ function CaseFields<T>({
       {props.durations && props.durations.length > 0 && item.rule && (
         <DurationFields value={item.rule.duration ?? ONE_DAY} onChange={(duration) => item.rule && onChange({ rule: { ...item.rule, duration } })} units={props.durations} />
       )}
-      {props.times?.render(item.times, (times) => onChange({ times }), index)}
+      {props.times?.render(item.times, (times) => onChange({ times }), index, item.rule)}
     </Stack>
   );
 }

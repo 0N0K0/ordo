@@ -1,5 +1,5 @@
 import { readSlotRule } from '@ordo/shared';
-import { daysBetween, formatDay, parseDay, type RoutineInput } from '@ordo/shared';
+import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../errors';
 import * as routines from '../../services/routines';
@@ -120,7 +120,12 @@ builder.prismaObject('Routine', {
     }),
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
     reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
-    opensOn: t.exposeString('opensOn', { nullable: true, description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
+    opensOn: t.field({
+      type: 'JSON',
+      nullable: true,
+      description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.',
+      resolve: (routine) => readOpens(routine.opensOn),
+    }),
     slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.', resolve: (routine) => readSlotRule(routine.slotRule) }),
     windowFrom: t.string({
       nullable: true,
@@ -234,7 +239,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     moments: t.field({ type: 'JSON', description: 'Times of the day, [{ fromTime, dueTime, optional }].' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
     reminders: t.intList(),
-    opensOn: t.string({ description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
+    opensOn: t.field({ type: 'JSON', description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     location: t.string(),
     locationLat: t.float(),
@@ -267,7 +272,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     travelBefore: t.int({ description: 'Minutes to get there.' }),
     travelAfter: t.int({ description: 'Minutes to come back.' }),
     reminders: t.intList({ description: 'Minutes before its moment.' }),
-    opensOn: t.string({ description: '« À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none.' }),
+    opensOn: t.field({ type: 'JSON', description: '« À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
     dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
@@ -321,7 +326,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   slotCondition: (input.slotCondition ?? null) as RoutineInput['slotCondition'],
   moments: (input.moments ?? []) as RoutineInput['moments'],
   reminders: input.reminders ?? [],
-  opensOn: input.opensOn ?? null,
+  opensOn: (input.opensOn ?? null) as RoutineInput['opensOn'],
   slotRule: null,
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
@@ -492,7 +497,7 @@ builder.mutationFields((t) => ({
       if (input.travelBefore !== undefined && input.travelBefore !== null) changes.travelBefore = input.travelBefore;
       if (input.travelAfter !== undefined && input.travelAfter !== null) changes.travelAfter = input.travelAfter;
       if (input.reminders) changes.reminders = input.reminders;
-      if (input.opensOn !== undefined) changes.opensOn = input.opensOn ?? null;
+      if (input.opensOn !== undefined) changes.opensOn = (input.opensOn ?? null) as RoutineInput['opensOn'];
       // A repetition of its own: it no longer follows its cases.
       if (input.recurrence !== undefined && input.recurrence !== null) Object.assign(changes, { cases: [] });
       // Times of its own: a single moment.
