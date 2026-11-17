@@ -1,92 +1,195 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { Accordion, Badge, Group, Stack, Table, Text } from '@mantine/core';
-import { HandCoinsIcon } from '@phosphor-icons/react';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { Badge, Group, Stack, Text } from '@mantine/core';
+import { ChatCircleIcon, HandCoinsIcon } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
+import { RowActions } from '../../components/data-table/RowActions';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { useTreasuryLoans, useTreasurySettings } from './api';
 import * as fmt from '../../lib/format';
 import { Comments } from '../comments/Comments';
 
+/** Row of the loans: a relation (what it owes or is owed), or one of its loan lines under it. */
+type LoanRow =
+  | { kind: 'relation'; key: string; relationId: string; name: string; balance: number; out: number; in: number }
+  | { kind: 'line'; key: string; relationId: string; name: string; date: string; label: string; amount: number };
+
 /**
- * Loans with the relations, both ways: for each relation, who owes whom (what went out to it, lent or debts repaid,
- * against what came in from it, borrowed or loans repaid back), and the history of its loan lines. A line is a
- * loan when marked so in the split of an entry.
+ * Balance of a relation, told: soldé, it owes you, you owe it.
+ * @param {{ balance: number }} props Component props.
+ * @returns {JSX.Element} Badge.
+ */
+function BalanceBadge({ balance }: { balance: number }) {
+  if (balance === 0)
+    return (
+      <Badge variant="light" color="gray">
+        Soldé
+      </Badge>
+    );
+  return balance > 0 ? (
+    <Badge variant="light" color="green">
+      Vous doit {fmt.money(balance)}
+    </Badge>
+  ) : (
+    <Badge variant="light" color="red">
+      Vous lui devez {fmt.money(-balance)}
+    </Badge>
+  );
+}
+
+const COLUMNS: DataColumn<LoanRow>[] = [
+  {
+    id: 'name',
+    label: 'Relation / ligne',
+    size: 260,
+    locked: true,
+    sortValue: (row) => (row.kind === 'relation' ? row.name : row.label),
+    text: (row) => (row.kind === 'relation' ? row.name : row.label),
+  },
+  {
+    id: 'balance',
+    label: 'Solde',
+    size: 170,
+    numeric: true,
+    sortValue: (row) => (row.kind === 'relation' ? row.balance : null),
+    text: (row) => (row.kind === 'relation' ? fmt.money(row.balance) : ''),
+    filter: { kind: 'number', value: (row) => (row.kind === 'relation' ? row.balance : null) },
+    formatTotal: fmt.money,
+  },
+  {
+    id: 'out',
+    label: 'Sorti vers elle',
+    size: 140,
+    numeric: true,
+    sortValue: (row) => (row.kind === 'relation' ? row.out : null),
+    text: (row) => (row.kind === 'relation' ? fmt.money(row.out) : ''),
+    formatTotal: fmt.money,
+  },
+  {
+    id: 'in',
+    label: 'Reçu d’elle',
+    size: 140,
+    numeric: true,
+    sortValue: (row) => (row.kind === 'relation' ? row.in : null),
+    text: (row) => (row.kind === 'relation' ? fmt.money(row.in) : ''),
+    formatTotal: fmt.money,
+  },
+  {
+    id: 'date',
+    label: 'Date',
+    size: 120,
+    sortValue: (row) => (row.kind === 'line' ? row.date : null),
+    text: (row) => (row.kind === 'line' ? fmt.day(row.date) : ''),
+    filter: { kind: 'date', value: (row) => (row.kind === 'line' ? row.date.slice(0, 10) : null) },
+  },
+  {
+    id: 'amount',
+    label: 'Montant',
+    size: 130,
+    numeric: true,
+    sortValue: (row) => (row.kind === 'line' ? row.amount : null),
+    text: (row) => (row.kind === 'line' ? fmt.money(row.amount) : ''),
+    filter: { kind: 'number', value: (row) => (row.kind === 'line' ? row.amount : null) },
+    formatTotal: fmt.money,
+  },
+];
+
+/**
+ * Loans with the relations, both ways: a row for each relation, who owes whom (what went out to it, lent or debts
+ * repaid, against what came in from it, borrowed or loans repaid back), its loan lines under it. A line is a loan when
+ * marked so in the split of an entry.
  * @returns {JSX.Element} Panel.
  */
 export function LoansPanel() {
   const { data: loans, isPending } = useTreasuryLoans();
   const { data: settings } = useTreasurySettings();
-  const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
-  const owedToMe = (loans ?? []).filter((item) => item.balance > 0).reduce((sum, item) => sum + item.balance, 0);
-  const iOwe = -(loans ?? []).filter((item) => item.balance < 0).reduce((sum, item) => sum + item.balance, 0);
-
-  if (isPending) return <ListSkeleton items={2} lines={3} />;
-  if (!loans?.length) {
-    return (
-      <EmptyState
-        icon={<HandCoinsIcon aria-hidden />}
-        message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
-      />
-    );
-  }
+  const [commented, setCommented] = useState<{ id: string; name: string } | null>(null);
+  const rows = useMemo((): LoanRow[] => {
+    const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
+    return (loans ?? []).flatMap((item) => {
+      const name = nameOf.get(item.relationId) ?? 'Relation supprimée';
+      return [
+        { kind: 'relation' as const, key: item.relationId, relationId: item.relationId, name, balance: item.balance, out: item.out, in: item.in },
+        ...item.items.map((line) => ({
+          kind: 'line' as const,
+          key: `${item.relationId}:${line.lineId}`,
+          relationId: item.relationId,
+          name,
+          date: String(line.date),
+          label: line.label,
+          amount: line.amount,
+        })),
+      ];
+    });
+  }, [loans, settings]);
+  const view = useDataView({ tableKey: 'treasury-loans', columns: COLUMNS, rows, title: 'Prêts', getKey: (row) => row.key });
+  const relations = (loans ?? []).map((item) => item.balance);
+  const owedToMe = relations.filter((balance) => balance > 0).reduce((sum, balance) => sum + balance, 0);
+  const iOwe = -relations.filter((balance) => balance < 0).reduce((sum, balance) => sum + balance, 0);
 
   return (
     <Stack gap="md">
-      <Group gap="xl">
-        <Text size="sm">
-          On vous doit <strong>{fmt.money(owedToMe)}</strong>
-        </Text>
-        <Text size="sm">
-          Vous devez <strong>{fmt.money(iOwe)}</strong>
-        </Text>
-      </Group>
-      <Accordion variant="separated" multiple>
-        {loans.map((item) => (
-          <Accordion.Item key={item.relationId} value={item.relationId}>
-            <Accordion.Control>
-              <Group justify="space-between" wrap="nowrap" pr="sm">
-                <Text fw={600}>{nameOf.get(item.relationId) ?? 'Relation supprimée'}</Text>
-                {item.balance === 0 ? (
-                  <Badge variant="light" color="gray">
-                    Soldé
-                  </Badge>
-                ) : item.balance > 0 ? (
-                  <Badge variant="light" color="green">
-                    Vous doit {fmt.money(item.balance)}
-                  </Badge>
-                ) : (
-                  <Badge variant="light" color="red">
-                    Vous lui devez {fmt.money(-item.balance)}
-                  </Badge>
-                )}
-              </Group>
-              <Text size="xs" c="dimmed">
-                Sorti vers elle {fmt.money(item.out)} · Reçu d’elle {fmt.money(item.in)}
-              </Text>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Table verticalSpacing={4}>
-                <Table.Tbody>
-                  {item.items.map((line) => (
-                    <Table.Tr key={line.lineId}>
-                      <Table.Td w={120}>
-                        <Text size="sm">{fmt.day(line.date)}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{line.label}</Text>
-                      </Table.Td>
-                      <Table.Td ta="right" ff="monospace" c={line.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                        {line.amount > 0 ? '+' : ''}
-                        {fmt.money(line.amount)}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-              <Comments target="RELATION" id={item.relationId} />
-            </Accordion.Panel>
-          </Accordion.Item>
-        ))}
-      </Accordion>
+      {rows.length > 0 && (
+        <Group gap="xl">
+          <Text size="sm">
+            On vous doit <strong>{fmt.money(owedToMe)}</strong>
+          </Text>
+          <Text size="sm">
+            Vous devez <strong>{fmt.money(iOwe)}</strong>
+          </Text>
+        </Group>
+      )}
+      <DataTable
+        view={view}
+        getKey={(row) => row.key}
+        loading={isPending}
+        framed
+        verticalSpacing={4}
+        parentKey={(row) => (row.kind === 'line' ? row.relationId : null)}
+        empty={
+          <EmptyState
+            icon={<HandCoinsIcon aria-hidden />}
+            message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
+          />
+        }
+        cells={(row) =>
+          row.kind === 'relation'
+            ? {
+                name: (
+                  <Text size="sm" fw={600} truncate>
+                    {row.name}
+                  </Text>
+                ),
+                balance: <BalanceBadge balance={row.balance} />,
+                out: fmt.money(row.out),
+                in: fmt.money(row.in),
+              }
+            : {
+                name: (
+                  <Text size="sm" truncate>
+                    {row.label}
+                  </Text>
+                ),
+                date: fmt.day(row.date),
+                amount: (
+                  <Text span size="sm" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
+                    {row.amount > 0 ? '+' : ''}
+                    {fmt.money(row.amount)}
+                  </Text>
+                ),
+              }
+        }
+        actions={(row) =>
+          row.kind === 'relation' && (
+            <RowActions name={row.name} primary={{ label: 'Commentaires', icon: <ChatCircleIcon aria-hidden />, onClick: () => setCommented({ id: row.relationId, name: row.name }) }} items={[]} />
+          )
+        }
+      />
+      <SidePanel opened={commented !== null} onClose={() => setCommented(null)} title={`Commentaires · ${commented?.name ?? ''}`}>
+        {commented && <Comments target="RELATION" id={commented.id} />}
+      </SidePanel>
     </Stack>
   );
 }

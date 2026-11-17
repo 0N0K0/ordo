@@ -43,6 +43,8 @@ interface DataViewOptions<R> {
   bulkColumns?: readonly { id: string; label: string }[];
   /** The row is archived: left out unless the view includes them (its option « Inclure les archivées »). Optional. */
   archived?: (row: R) => boolean;
+  /** The row is shown whatever the search and the filter (one being created…). Optional. */
+  alwaysKept?: (row: R) => boolean;
 }
 
 /** Saved views of a table, the current one applied to its rows. */
@@ -103,7 +105,7 @@ function parseConfig(config: unknown): TableViewConfig {
  * @param {DataViewOptions<R>} options Table.
  * @returns {DataView<R>} View.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived }: DataViewOptions<R>): DataView<R> {
+export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived, alwaysKept }: DataViewOptions<R>): DataView<R> {
   const firstKey = JSON.stringify(first ?? null);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
@@ -116,7 +118,9 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
   const sorting = config?.sorting ?? [];
   // The archived rows, unless the view includes them.
   const pool = archived && !config?.includeArchived ? rows.filter((row) => !archived(row)) : rows;
-  const kept = config ? sortRows(filterRows(pool, columns, config, localToday()), sorting, columns) : [];
+  const matched = config ? filterRows(pool, columns, config, localToday()) : [];
+  const forced = alwaysKept ? new Set(matched) : null;
+  const kept = config ? sortRows(forced ? pool.filter((row) => forced.has(row) || alwaysKept!(row)) : matched, sorting, columns) : [];
   const [filterOpened, setFilterOpened] = useState(false);
   const fields = tableFilterFields(columns);
   const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && isGroupable(column))) || null;

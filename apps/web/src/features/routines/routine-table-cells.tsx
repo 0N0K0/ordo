@@ -1,0 +1,194 @@
+import { ActionIcon, Badge, Group, Text, TextInput, Tooltip } from '@mantine/core';
+import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
+import { ArrowBendUpRightIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { localToday } from '../../lib/dates';
+import * as fmt from '../../lib/format';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import { useNow } from '../time/use-now';
+import { useStopTimer } from '../time/use-stop-timer';
+import { useTimeMutations, type TimeEntry } from '../time/api';
+import addClasses from '../tasks/views/table-extras.module.css';
+import { useRoutineMutations, type Routine } from './api';
+import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from './routine-format';
+import classes from './Routines.module.css';
+
+/**
+ * Short date of a calendar date: "lun. 10 nov.".
+ * @param {string} date YYYY-MM-DD.
+ * @returns {string} Text.
+ */
+const dayText = (date: string) => fmt.weekday(date);
+
+/**
+ * Badge of a routine due today: past its latest time (late), time to leave (its way there has started), or its time window
+ * (grey before it opens).
+ * @param {{ routine: Routine }} props Component props.
+ * @returns {JSX.Element} Badge.
+ */
+function DueBadge({ routine }: { routine: Routine }) {
+  const now = new Date().toTimeString().slice(0, 5);
+  const { fromTime, dueTime } = windowOf(routine);
+  const { leaveAt } = scheduleOf(routine);
+  if (dueTime && now > dueTime) {
+    return (
+      <Badge variant="light" color="red" tt="none">
+        Après {dueTime}
+      </Badge>
+    );
+  }
+  if (leaveAt && now >= leaveAt) {
+    return (
+      <Badge variant="filled" color="orange" tt="none">
+        Partir maintenant
+      </Badge>
+    );
+  }
+  const window = windowText({ fromTime, dueTime });
+  return (
+    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined} tt="none">
+      Aujourd’hui{window ? ` ${window}` : ''}
+    </Badge>
+  );
+}
+
+/**
+ * Where a routine stands today: due, late since a date, done, or its next date.
+ * @param {{ routine: Routine, today: string, doable: boolean }} props Component props: `doable` when its slots allow now.
+ * @returns {JSX.Element} Badge or text.
+ */
+export function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
+  const state = stateOf(routine, today, doable);
+  const next = routine.nextDate ? `Prochaine fois : ${dayText(routine.nextDate)}` : 'Plus d’occurrence à venir';
+  // The occurrence shown comes from another day (an exception).
+  const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
+  const label = moved ? `${next} · ${moved.to > moved.from ? 'reportée' : 'avancée'} (prévue le ${dayText(moved.from)})` : next;
+  return (
+    <Tooltip label={label}>
+      <span className={classes.nowrap}>
+        {moved && <ArrowBendUpRightIcon aria-label={moved.to > moved.from ? 'Reportée' : 'Avancée'} style={{ verticalAlign: 'middle', marginRight: 4 }} />}
+        {state === 'done' && (
+          <Badge variant="light" color="green" tt="none">
+            Fait
+          </Badge>
+        )}
+        {state === 'due' && <DueBadge routine={routine} />}
+        {state === 'late' && (
+          <Badge variant="light" color="orange" tt="none">
+            Depuis {dayText(routine.currentDate!)}
+          </Badge>
+        )}
+        {state === 'upcoming' && (
+          <Text size="xs" c="dimmed" className={classes.nowrap}>
+            {routine.nextDate ? dayText(routine.nextDate) : '—'}
+          </Text>
+        )}
+      </span>
+    </Tooltip>
+  );
+}
+
+/**
+ * Chrono of a routine: its tracked time, and a button starting the timer on it (or stopping it while it runs on it).
+ * @param {{ routine: Routine, running: TimeEntry | null | undefined }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function ChronoCell({ routine, running }: { routine: Routine; running: TimeEntry | null | undefined }) {
+  const { start } = useTimeMutations();
+  const { stopTimer, isPending } = useStopTimer();
+  const mine = running?.routineId === routine.id ? running : null;
+  const now = useNow(Boolean(mine) && !mine?.pausedAt);
+  return (
+    <Group gap={4} wrap="nowrap">
+      {mine ? (
+        <Tooltip label="Arrêter le chrono">
+          <ActionIcon variant="light" color="red" size="sm" loading={isPending} aria-label={`Arrêter le chrono de ${routine.title}`} onClick={() => stopTimer(mine)}>
+            <StopIcon weight="fill" aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      ) : (
+        <Tooltip label={running ? 'Démarrer le chrono (celui en cours s’arrête)' : 'Démarrer le chrono'}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            loading={start.isPending}
+            disabled={routine.archived}
+            aria-label={`Démarrer le chrono de ${routine.title}`}
+            onClick={() => start.mutate({ routineId: routine.id, taskIds: [] }, { onSuccess: () => notifySuccess('Chrono démarré.'), onError: (error) => notifyError(error.message) })}
+          >
+            <PlayIcon weight="fill" aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      )}
+      <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
+        {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
+      </Text>
+    </Group>
+  );
+}
+
+/**
+ * Field of the add row at the end of a category (or of the table): a title typed then Enter adds a routine in it, every
+ * day from today.
+ * @param {{ categoryId: string | null, projectId: string | null, groupName: string }} props Component props (the category
+ *   and the project of the routines added, the name of the group).
+ * @returns {JSX.Element} Row.
+ */
+export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId: string | null; projectId: string | null; groupName: string }) {
+  const { create } = useRoutineMutations();
+  const [title, setTitle] = useState('');
+
+  /**
+   * Creates the typed routine, then stays ready for the next one.
+   * @returns {void}
+   */
+  const submit = () => {
+    const result = routineSchema.shape.title.safeParse(title);
+    if (!result.success) {
+      if (title.trim()) notifyError(result.error.issues[0]?.message ?? 'Titre invalide.');
+      return;
+    }
+    // Cleared at once (the routine shows as typed): the next one can be typed while it is saved.
+    setTitle('');
+    create.mutate(
+      {
+        title: result.data,
+        description: null,
+        categoryIds: categoryId ? [categoryId] : [],
+        parentId: null,
+        startDate: localToday(),
+        recurrence: DAILY,
+        estimate: null,
+        projectId,
+        assigneeIds: [],
+        requiredIds: [],
+      },
+      {
+        onError: (error) => {
+          setTitle(result.data);
+          notifyError(error.message);
+        },
+      },
+    );
+  };
+
+  return (
+    <TextInput
+      variant="unstyled"
+      size="xs"
+      classNames={{ input: addClasses.addInput }}
+      leftSection={<PlusIcon aria-hidden />}
+      placeholder="Ajouter une routine (tous les jours ; Entrée pour valider)"
+      aria-label={`Ajouter une routine dans ${groupName}`}
+      value={title}
+      onChange={(event) => setTitle(event.currentTarget.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') submit();
+        if (event.key === 'Escape') setTitle('');
+      }}
+      w={420}
+      maw="100%"
+    />
+  );
+}

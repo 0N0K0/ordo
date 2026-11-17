@@ -34,7 +34,8 @@ import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'r
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { contentWidth } from '../../features/tasks/column-fit';
 import { ColumnHeaderMenu, type ColumnMove } from './ColumnHeaderMenu';
-import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn } from './data-table';
+import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
+import { columnFilter } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from './DataViewBar';
 import { GroupHeaderRow, NoMatch } from './GroupHeaderRow';
 import { ROW_ACTIONS_WIDTH } from './RowActions';
@@ -52,6 +53,8 @@ export interface LeadingCell<R> {
   header: ReactNode;
   cell: (row: R) => ReactNode;
   width: number;
+  /** Its id in the bulk selection: its cells selected and edited together (a toggle). Optional. */
+  id?: string;
 }
 
 /** Where a dragged row goes: before a row (null: last), under a parent (tree tables, when its level changed). */
@@ -60,8 +63,10 @@ export interface RowMove {
   beforeKey: string | null;
   /** New parent (null: top level); undefined: unchanged. */
   parentKey?: string | null;
-  /** Group it was dropped in (the key of its value), when it changed; undefined: the same. */
+  /** Group it was dropped in (the key of its value, '' the one without), when it changed; undefined: the same. */
   groupKey?: string;
+  /** Group it was dragged from, when it changed group. */
+  fromGroupKey?: string;
 }
 
 interface DataTableProps<R> extends Omit<TableProps, 'children'> {
@@ -107,6 +112,14 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   isArchived?: (row: R) => boolean;
   /** The row is read only (shown among the others: no drag, no check, no cell selection). Optional. */
   readOnly?: (row: R) => boolean;
+  /** Rows still loading: a skeleton in place of the table. Optional. Default = false. */
+  loading?: boolean;
+  /** Tabs of the views and toolbar shown (none in a form: a list to tick…). Optional. Default = true. */
+  toolbar?: boolean;
+  /** Height of its scrolling area at most, in place of the room of the page (a table in a form). Optional. */
+  maxHeight?: number | string;
+  /** Groups of its own (a tree: categories…), used when the view does not group by a column. Optional. */
+  groupTree?: GroupTree<R>;
 }
 
 /** Props given to each row of the body: its index and its measure (the rows shown are those in view). */
@@ -127,12 +140,32 @@ const VIRTUAL_FROM = 80;
 const ROW_ESTIMATE = 37;
 
 /** A row of the table: a heading of a group, or a row of data (with its sub-rows). */
-type Item<R> = { kind: 'group'; id: string; group: RowGroup<R>; children: Item<R>[] } | { kind: 'row'; id: string; row: R; children: Item<R>[] };
+type Item<R> =
+  | { kind: 'group'; id: string; level: number; color: string | null; group: RowGroup<R>; own: R[]; children: Item<R>[] }
+  | { kind: 'row'; id: string; key: string; level: number; row: R; children: Item<R>[] };
+
+/** Groups of its own a table puts its rows in (when the view does not group them by a column). */
+export interface GroupTree<R> {
+  groups: readonly TreeGroup[];
+  /** Groups of a row (several: shown in each; none: the group without, last). */
+  groupOf: (row: R) => readonly string[];
+  /** Name of the group without. */
+  noneLabel: string;
+  /** The groups without rows show too (they always do while a row is dragged). Optional. Default = false. */
+  showEmpty?: boolean;
+}
+
+/** Key of the group without. */
+const NO_GROUP = '';
+/** Between the group and the key of a row in the id of its row (a row may be in several groups). */
+const ROW_SEPARATOR = '\u0000';
 
 const features = tableFeatures({ columnSizingFeature, columnResizingFeature, rowExpandingFeature, expandedRowModel: createExpandedRowModel() });
 
 /** Column of the cells before the columns (drag handle, check box, leading cell) and of the row actions. */
 const LEAD_COLUMN = '__lead';
+/** Column of the cell of its own a table puts before its columns. */
+const LEADING_COLUMN = '__leading';
 const ACTIONS_COLUMN = '__actions';
 /** Drag ids of the columns (the rows have theirs). */
 const COLUMN_PREFIX = 'col:';
@@ -230,18 +263,79 @@ function getProjection(items: DragItem[], activeId: string, overId: string, offs
  * @param {R[]} rows Rows, in order.
  * @param {(row: R) => string} getKey Key of a row.
  * @param {((row: R) => string | null) | undefined} parentKey Parent of a row (none: flat).
+ * @param {number} [level] Groups it is in. Optional. Default = 0.
+ * @param {string} [prefix] Start of the ids of its rows (a row in several groups has an id in each). Optional. Default = ''.
  * @returns {Item<R>[]} Items.
  */
-function treeOf<R>(rows: R[], getKey: (row: R) => string, parentKey: ((row: R) => string | null) | undefined): Item<R>[] {
-  const items = rows.map((row): Item<R> => ({ kind: 'row', id: getKey(row), row, children: [] }));
+function treeOf<R>(rows: R[], getKey: (row: R) => string, parentKey: ((row: R) => string | null) | undefined, level = 0, prefix = ''): Item<R>[] {
+  const items = rows.map((row): Extract<Item<R>, { kind: 'row' }> => ({ kind: 'row', id: `${prefix}${getKey(row)}`, key: getKey(row), level, row, children: [] }));
   if (!parentKey) return items;
-  const byKey = new Map(items.map((item) => [item.id, item]));
+  const byKey = new Map(items.map((item) => [item.key, item]));
   const roots: Item<R>[] = [];
   for (const item of items) {
-    const parent = parentKey((item as Extract<Item<R>, { kind: 'row' }>).row);
-    const holder = parent !== null && parent !== item.id ? byKey.get(parent) : undefined;
+    const parent = parentKey(item.row);
+    const holder = parent !== null && parent !== item.key ? byKey.get(parent) : undefined;
     if (holder) holder.children.push(item);
     else roots.push(item);
+  }
+  return roots;
+}
+
+/**
+ * Rows in a tree of groups: each group with its own rows (as a tree) then its sub-groups, the group without last; the
+ * groups without rows left out unless asked.
+ * @param {R[]} rows Rows, in order.
+ * @param {GroupTree<R>} tree Groups.
+ * @param {(row: R) => string} getKey Key of a row.
+ * @param {((row: R) => string | null) | undefined} parentKey Parent of a row (none: flat).
+ * @param {boolean} showAll The groups without rows show.
+ * @returns {Item<R>[]} Items.
+ */
+function groupTreeOf<R>(rows: R[], tree: GroupTree<R>, getKey: (row: R) => string, parentKey: ((row: R) => string | null) | undefined, showAll: boolean): Item<R>[] {
+  const known = new Set(tree.groups.map((group) => group.key));
+  const byGroup = new Map<string, R[]>();
+  for (const row of rows) {
+    const keys = tree.groupOf(row).filter((key) => known.has(key));
+    for (const at of keys.length ? keys : [NO_GROUP]) byGroup.set(at, [...(byGroup.get(at) ?? []), row]);
+  }
+  const children = new Map<string | null, TreeGroup[]>();
+  for (const group of tree.groups) {
+    const parent = group.parentKey !== null && known.has(group.parentKey) ? group.parentKey : null;
+    children.set(parent, [...(children.get(parent) ?? []), group]);
+  }
+  /**
+   * Item of a group, with its rows and sub-groups; null when empty (and not shown).
+   * @param {TreeGroup} group Group.
+   * @param {number} level Its depth.
+   * @returns {Item<R> | null} Item.
+   */
+  const make = (group: TreeGroup, level: number): Item<R> | null => {
+    const own = byGroup.get(group.key) ?? [];
+    const subs = (children.get(group.key) ?? []).flatMap((child) => make(child, level + 1) ?? []);
+    const all = [...own, ...subs.flatMap((sub) => (sub.kind === 'group' ? sub.group.rows : []))];
+    if (!all.length && !showAll) return null;
+    return {
+      kind: 'group',
+      id: `${GROUP_PREFIX}${group.key}`,
+      level,
+      color: group.color ?? null,
+      own,
+      group: { key: group.key, label: group.label, rows: all },
+      children: [...treeOf(own, getKey, parentKey, level + 1, `${group.key}${ROW_SEPARATOR}`), ...subs],
+    };
+  };
+  const roots = (children.get(null) ?? []).flatMap((group) => make(group, 0) ?? []);
+  const none = byGroup.get(NO_GROUP) ?? [];
+  if (none.length || showAll) {
+    roots.push({
+      kind: 'group',
+      id: `${GROUP_PREFIX}${NO_GROUP}`,
+      level: 0,
+      color: null,
+      own: none,
+      group: { key: NO_GROUP, label: tree.noneLabel, rows: none },
+      children: treeOf(none, getKey, parentKey, 1, `${NO_GROUP}${ROW_SEPARATOR}`),
+    });
   }
   return roots;
 }
@@ -278,6 +372,10 @@ export function DataTable<R>({
   isActive,
   isArchived,
   readOnly,
+  loading = false,
+  toolbar = true,
+  maxHeight: ownHeight,
+  groupTree,
   className,
   style,
   ...tableProps
@@ -309,28 +407,56 @@ export function DataTable<R>({
           .map((item) => item.row)
       : rows;
   // Check boxes of the rows, to act on several (a table without its own leading cell).
-  const checks = leading ? null : view.rowSelection;
-  const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn) : draggable;
-  const leadWidth = (rowDrag || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0) + (leading?.width ?? 0);
+  const checks = view.rowSelection;
+  const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn || groupTree) : draggable;
+  const leadWidth = (rowDrag || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0);
   const hasLead = leadWidth > 0;
-  const before = hasLead ? 1 : 0;
+  const before = (hasLead ? 1 : 0) + (leading ? 1 : 0);
   const span = shown.length + 1 + before;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
+  // The empty groups show while a row is dragged (to drop it there).
+  const dragging = drag !== null && !drag.activeId.startsWith(COLUMN_PREFIX);
   const items = useMemo((): Item<R>[] => {
-    if (!view.groupColumn) return treeOf(inOrder(view.rows), getKey, treeKey);
-    return view.groups.map((group) => ({ kind: 'group', id: `${GROUP_PREFIX}${group.key}`, group, children: treeOf(inOrder(group.rows), getKey, treeKey) }));
+    const tree = view.groupColumn?.groupTree;
+    if (view.groupColumn && tree) {
+      // Grouped by a column of a tree of groups: its values as that tree.
+      const filter = columnFilter(view.groupColumn);
+      const groupOf = (row: R): readonly string[] => {
+        if (filter?.kind === 'choices') return filter.value(row);
+        if (filter?.kind === 'choice') {
+          const value = filter.value(row);
+          return value ? [value] : [];
+        }
+        return [];
+      };
+      return groupTreeOf(inOrder(view.rows), { groups: tree, groupOf, noneLabel: 'Sans valeur' }, getKey, treeKey, dragging);
+    }
+    if (view.groupColumn) {
+      return view.groups.map((group) => ({
+        kind: 'group',
+        id: `${GROUP_PREFIX}${group.key}`,
+        level: 0,
+        color: null,
+        group,
+        own: group.rows,
+        children: treeOf(inOrder(group.rows), getKey, treeKey, 1),
+      }));
+    }
+    if (groupTree) return groupTreeOf(inOrder(view.rows), groupTree, getKey, treeKey, Boolean(groupTree.showEmpty) || dragging);
+    return treeOf(inOrder(view.rows), getKey, treeKey);
     // inOrder reads the manual order (rank) and the sort: both in its deps through them.
-  }, [view.rows, view.groups, view.groupColumn, getKey, treeKey, rank, manual, onMoveRow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view.rows, view.groups, view.groupColumn, getKey, treeKey, rank, manual, onMoveRow, groupTree, dragging]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => {
     const helper = createColumnHelper<typeof features, Item<R>>();
     return helper.columns([
       ...(hasLead ? [helper.display({ id: LEAD_COLUMN, size: leadWidth, enableResizing: false, header: () => null, cell: () => null })] : []),
+      ...(leading ? [helper.display({ id: LEADING_COLUMN, size: leading.width, enableResizing: false, header: () => null, cell: () => null })] : []),
       ...shown.map((column) => helper.display({ id: column.id, header: column.label, size: column.width, minSize: MIN_WIDTH, maxSize: MAX_WIDTH, cell: () => null })),
       helper.display({ id: ACTIONS_COLUMN, size: actionsWidth, enableResizing: false, header: () => null, cell: () => null }),
     ]);
-  }, [hasLead, leadWidth, shown, actionsWidth]);
+  }, [hasLead, leadWidth, leading, shown, actionsWidth]);
   const columnSizing = useMemo(() => Object.fromEntries(shown.map((column) => [column.id, column.width])), [shown]);
 
   const table = useTable({
@@ -354,12 +480,25 @@ export function DataTable<R>({
   const visibleRows = table.getRowModel().rows;
   const dataRows = visibleRows.filter((row) => row.original.kind === 'row');
   // While a row is dragged, its unfolded sub-rows are hidden: they move with it.
-  const grouped = Boolean(view.groupColumn);
+  /**
+   * Groups a row is in (its level), to indent it by its own level only.
+   * @param {{ original: Item<R> }} row Row.
+   * @returns {number} Level.
+   */
+  const levelOf = (row: { original: Item<R> }) => (row.original.kind === 'row' ? row.original.level : 0);
   const allDragItems: DragItem[] = dataRows.map((row) => ({
     id: row.id,
-    depth: row.depth - (grouped ? 1 : 0),
+    depth: row.depth - levelOf(row),
     parentId: row.parentId && !row.parentId.startsWith(GROUP_PREFIX) ? row.parentId : null,
   }));
+  // Key of the data of each row shown (a row in several groups has a row in each).
+  const keyOfId = new Map(dataRows.map((row) => [row.id, (row.original as Extract<Item<R>, { kind: 'row' }>).key]));
+  /**
+   * Key of the data of a row shown.
+   * @param {string} id Row id.
+   * @returns {string} Key.
+   */
+  const keyOf = (id: string) => keyOfId.get(id) ?? id;
   const dragItems = drag ? withoutDescendants(allDragItems, drag.activeId) : allDragItems;
   const draggedAlong = new Set(drag ? allDragItems.filter((item) => !dragItems.includes(item)).map((item) => item.id) : []);
   const projection = drag?.overId ? getProjection(dragItems, drag.activeId, drag.overId, drag.offsetX, tree && Boolean(onMoveRow)) : null;
@@ -424,7 +563,9 @@ export function DataTable<R>({
     // Dropped on the heading of a group: first in it.
     if (overId.startsWith(GROUP_PREFIX)) {
       const groupKey = overId.slice(GROUP_PREFIX.length);
-      if (groupKey !== groupOfRow.get(activeId)) onMoveRow?.({ key: activeId, beforeKey: firstOfGroup.get(groupKey) ?? null, groupKey });
+      const fromGroupKey = groupOfRow.get(activeId);
+      const first = firstOfGroup.get(groupKey);
+      if (groupKey !== fromGroupKey) onMoveRow?.({ key: keyOf(activeId), beforeKey: first ? keyOf(first) : null, groupKey, ...(fromGroupKey !== undefined && { fromGroupKey }) });
       return;
     }
     if (!projection) return;
@@ -438,7 +579,7 @@ export function DataTable<R>({
     if (!reparented && over.id === activeId) return;
     if (!onMoveRow) {
       // Saved in the view: the rows hidden by the filters keep their place after.
-      const keys = moved.map((item) => item.id);
+      const keys = [...new Set(moved.map((item) => keyOf(item.id)))];
       const others = (view.config?.manualOrder ?? []).filter((key) => !keys.includes(key));
       view.change((current) => ({ ...current, manualOrder: [...keys, ...others] }));
       return;
@@ -449,10 +590,10 @@ export function DataTable<R>({
     const next = moved[index + 1];
     const groupKey = groupOfRow.get(overId);
     onMoveRow({
-      key: activeId,
-      beforeKey: next?.id ?? null,
-      ...(reparented && { parentKey: projection.parentId }),
-      ...(groupKey !== undefined && groupKey !== groupOfRow.get(activeId) && { groupKey }),
+      key: keyOf(activeId),
+      beforeKey: next ? keyOf(next.id) : null,
+      ...(reparented && { parentKey: projection.parentId ? keyOf(projection.parentId) : null }),
+      ...(groupKey !== undefined && groupKey !== groupOfRow.get(activeId) && { groupKey, fromGroupKey: groupOfRow.get(activeId) }),
     });
     // The new parent opens to show its new sub-row.
     if (projection.parentId) {
@@ -465,10 +606,12 @@ export function DataTable<R>({
   const groupOfRow = new Map<string, string>();
   const firstOfGroup = new Map<string, string>();
   {
-    let current: string | null = null;
+    const path: { key: string; depth: number }[] = [];
     for (const row of visibleRows) {
-      if (row.original.kind === 'group') current = row.original.group.key;
-      else if (current !== null) {
+      while (path.length && path[path.length - 1].depth >= row.depth) path.pop();
+      if (row.original.kind === 'group') path.push({ key: row.original.group.key, depth: row.depth });
+      else if (path.length) {
+        const current = path[path.length - 1].key;
         groupOfRow.set(row.id, current);
         if (!firstOfGroup.has(current)) firstOfGroup.set(current, row.id);
       }
@@ -488,7 +631,7 @@ export function DataTable<R>({
       key,
       render: (attrs) => (
         <Table.Tr key={key} {...attrs} className={classes.addRow}>
-          {hasLead && <Table.Td />}
+          {before > 0 && <Table.Td colSpan={before} />}
           <Table.Td colSpan={shown.length + 1}>{content}</Table.Td>
         </Table.Tr>
       ),
@@ -496,27 +639,35 @@ export function DataTable<R>({
   };
 
   const entries: Entry[] = [];
-  let openGroup: RowGroup<R> | null = null;
+  // Groups open (unfolded), the innermost last: each ends with its add row and its totals.
+  const open: { item: Extract<Item<R>, { kind: 'group' }>; depth: number }[] = [];
   /**
-   * Closes the group open: its add row and its totals.
+   * Closes the groups open at a depth or deeper.
+   * @param {number} depth Depth.
    * @returns {void}
    */
-  const closeGroup = () => {
-    if (!openGroup) return;
-    const group: RowGroup<R> = openGroup;
+  const closeTo = (depth: number) => {
+    while (open.length && open[open.length - 1].depth >= depth) closeGroup(open.pop()!.item);
+  };
+  /**
+   * Closes a group: its add row and the totals of its own rows.
+   * @param {Extract<Item<R>, { kind: 'group' }>} item Group.
+   * @returns {void}
+   */
+  const closeGroup = (item: Extract<Item<R>, { kind: 'group' }>) => {
+    const group = item.group;
     const add = addRowOf(group);
     if (add) entries.push(add);
     const footer = view.config?.footer;
     if (footer && shown.some((column) => footer[column.id])) {
       const key = `footer:${group.key}`;
-      entries.push({ key, render: (attrs) => <GroupFooter key={key} trProps={{ ...attrs }} shown={shown} rows={group.rows} totals={footer} label={group.label} before={before} after={1} /> });
+      entries.push({ key, render: (attrs) => <GroupFooter key={key} trProps={{ ...attrs }} shown={shown} rows={item.own} totals={footer} label={group.label} before={before} after={1} /> });
     }
-    openGroup = null;
   };
   for (const row of visibleRows) {
     const item = row.original;
+    closeTo(row.depth);
     if (item.kind === 'group') {
-      closeGroup();
       const expandedGroup = row.getIsExpanded();
       entries.push({
         key: row.id,
@@ -527,6 +678,8 @@ export function DataTable<R>({
             droppable={rowDrag && Boolean(onMoveRow)}
             attrs={attrs}
             label={item.group.label}
+            color={item.color}
+            depth={item.level}
             count={item.group.rows.length}
             summary={groupSummary?.(item.group.rows)}
             span={span}
@@ -535,25 +688,25 @@ export function DataTable<R>({
           />
         ),
       });
-      if (expandedGroup) openGroup = item.group;
+      if (expandedGroup) open.push({ item, depth: row.depth });
       continue;
     }
     if (draggedAlong.has(row.id)) continue;
     const data = item.row;
-    const key = item.id;
+    const key = item.key;
     const locked = readOnly?.(data) ?? false;
-    const depth = row.id === drag?.activeId && projection ? projection.depth : row.depth - (grouped ? 1 : 0);
+    const depth = row.id === drag?.activeId && projection ? projection.depth : row.depth - levelOf(row);
     entries.push({
-      key,
+      key: row.id,
       render: (attrs) => {
         const content = cells(data);
         return (
           <DataRow
-            key={key}
-            id={key}
+            key={row.id}
+            id={row.id}
             attrs={attrs}
             draggable={rowDrag && !locked}
-            dropTarget={projection?.parentId === key}
+            dropTarget={projection?.parentId === row.id}
             active={isActive?.(data) ?? false}
             archived={isArchived?.(data) ?? false}
             checked={checks?.isChecked(key) ?? false}
@@ -566,8 +719,12 @@ export function DataTable<R>({
                     <Group gap={2} wrap="nowrap">
                       {(rowDrag || tree) && handle}
                       {checks && (locked ? <span style={{ width: ROW_CHECK_WIDTH - 8, flex: 'none' }} /> : <RowCheck selection={checks} rowKey={key} label={shown[0]?.text?.(data) || 'la ligne'} />)}
-                      {leading?.cell(data)}
                     </Group>
+                  </Table.Td>
+                )}
+                {leading && (
+                  <Table.Td px={4} {...(leading.id && !locked ? view.cellProps(leading.id, key) : {})}>
+                    {leading.cell(data)}
                   </Table.Td>
                 )}
                 {shown.map((column, index) => {
@@ -617,7 +774,7 @@ export function DataTable<R>({
     });
     const unfolded = details?.(data);
     if (unfolded) {
-      const detailsKey = `details:${key}`;
+      const detailsKey = `details:${row.id}`;
       entries.push({
         key: detailsKey,
         render: (attrs) => (
@@ -630,8 +787,9 @@ export function DataTable<R>({
       });
     }
   }
-  closeGroup();
-  if (!grouped) {
+  closeTo(0);
+  // The end of the table adds one without group (when the group without is not shown).
+  if (!view.groupColumn && !(groupTree && visibleRows.some((row) => row.id === `${GROUP_PREFIX}${NO_GROUP}`))) {
     const add = addRowOf(null);
     if (add) entries.push(add);
   }
@@ -667,7 +825,7 @@ export function DataTable<R>({
   const headers = table.getHeaderGroups()[0]?.headers ?? [];
   const tableElement = (
     // Scrolling both ways inside its own area, its header sticking to the top of it.
-    <div ref={heightRef} className={classes.scroller} style={{ maxHeight }}>
+    <div ref={heightRef} className={classes.scroller} style={{ maxHeight: ownHeight ?? maxHeight }}>
       {/* The drag context renders accessibility nodes: it wraps the table, not sits inside it. */}
       <DndContext
         sensors={sensors}
@@ -704,8 +862,14 @@ export function DataTable<R>({
                         <Group gap={2} wrap="nowrap">
                           {(rowDrag || tree) && <span className={classes.handleSpacer} />}
                           {checks && <AllRowsCheck selection={checks} />}
-                          {leading?.header}
                         </Group>
+                      </Table.Th>
+                    );
+                  }
+                  if (id === LEADING_COLUMN) {
+                    return (
+                      <Table.Th key={header.id} px={4} style={{ width: header.column.getSize() }}>
+                        {leading?.header}
                       </Table.Th>
                     );
                   }
@@ -776,7 +940,7 @@ export function DataTable<R>({
    * @returns {ReactNode} Content.
    */
   const content = () => {
-    if (!view.config) return <TableSkeleton />;
+    if (!view.config || loading) return <TableSkeleton />;
     if (empty !== undefined && view.total === 0) return empty;
     if (view.rows.length === 0) return <NoMatch view={view} />;
     return framed ? (
@@ -797,7 +961,7 @@ export function DataTable<R>({
   const clear = () => checks?.check(checks.keys, false);
   return (
     <Stack gap="sm">
-      <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />
+      {toolbar && <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />}
       {content()}
       {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
     </Stack>
@@ -903,6 +1067,9 @@ interface GroupHeadingProps {
   droppable: boolean;
   attrs: RowAttrs;
   label: string;
+  color: string | null;
+  /** Its depth in a tree of groups. */
+  depth: number;
   count: number;
   summary?: ReactNode;
   span: number;

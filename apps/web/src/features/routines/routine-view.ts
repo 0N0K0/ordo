@@ -41,7 +41,7 @@ import { commentTotal } from '../comments/comment-column';
  * @param {Routine} routine Routine.
  * @returns {string | null} Words.
  */
-function opensWords(routine: Routine): string | null {
+export function opensWords(routine: Routine): string | null {
   const opens = readOpens(routine.opensOn);
   const frequency = ruleOf(routine)?.frequency;
   const words = opens && frequency ? opensText(opens, frequency) : '';
