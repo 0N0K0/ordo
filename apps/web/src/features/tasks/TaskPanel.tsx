@@ -507,7 +507,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Select
               label="Jalon"
               placeholder="Aucun"
-              data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: milestone.title }))}
+              data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
               value={task.milestoneId}
               onChange={(milestoneId) => save({ milestoneId })}
               clearable
@@ -517,7 +517,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <BatchMultiSelect
               label="Sprints"
               placeholder={task.sprintIds.length ? undefined : 'Aucun'}
-              data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+              data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
               value={task.sprintIds}
               onChange={(sprintIds) => save({ sprintIds })}
               clearable

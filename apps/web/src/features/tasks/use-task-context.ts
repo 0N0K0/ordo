@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../components/markdown/remark-references';
 import { useWorkspace, type Project } from '../workspace/api';
-import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
-import { projectNodes, projectOptions, projectPath } from '../workspace/tree';
+import { LEVEL, treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
+import { projectFullPath, projectNodes, projectOptions } from '../workspace/tree';
 import { useMe } from '../auth/api';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from './api';
@@ -31,10 +31,14 @@ export interface TaskContext {
   meId: string | null;
   taskById: Map<string, Task>;
   /**
-   * Label of a task: "#12 Titre" in its own project, "Client › Projet #12 Titre" seen from elsewhere (its number is
-   * only unique in its project), "Titre" for a task of no project seen among them, "Sans projet › Titre" elsewhere.
+   * Label of a task, its full path: "#3 Parent › #12 Titre" in its own project, "Client › Projet › #3 Parent › #12 Titre"
+   * seen from elsewhere (its number is only unique in its project), "Titre" alone for a task of no project.
    */
   taskLabel: (task: Task, fromProjectId?: string | null) => string;
+  /** Full path of a milestone: "Client › Projet › Jalon". */
+  milestoneLabel: (milestone: { projectId: string; title: string }) => string;
+  /** Full path of a sprint: "Client › Projet › Sprint". */
+  sprintLabel: (sprint: { projectId: string; name: string }) => string;
   statusById: Map<string, TaskStatus>;
   priorityById: Map<string, TaskLabel>;
   typeById: Map<string, TaskLabel>;
@@ -134,12 +138,26 @@ export function useTaskContext() {
     /**
      * Client and project path of a project.
      * @param {string | null} projectId Project; none: « Sans projet ».
-     * @returns {string} "Client › Projet › Sous-projet".
+     * @returns {string} "Client › Projet › Sous-projet" (without client: "Projet › Sous-projet").
      */
     const placeOf = (projectId: string | null) => {
       if (projectId === null) return NO_PROJECT_LABEL;
       const project = projectById.get(projectId);
-      return project ? `${projectPath(workspace, project)} › ${project.title}` : 'Projet inconnu';
+      return project ? projectFullPath(workspace, project) : 'Projet inconnu';
+    };
+    const taskIndex = new Map(tasks.map((task) => [task.id, task]));
+
+    /**
+     * Full path of a task: its project path (unless it is the one given), its parent tasks, then itself (« #12 Titre »;
+     * a task of no project: its title alone).
+     * @param {Task} task Task.
+     * @param {string | null} [fromProjectId] Project the task is seen from (left out of the path). Optional.
+     * @returns {string} "Client › Projet › #3 Parent › #12 Titre".
+     */
+    const taskPath = (task: Task, fromProjectId: string | null = null) => {
+      const names: string[] = [];
+      for (let current: Task | undefined = task; current; current = current.parentId ? taskIndex.get(current.parentId) : undefined) names.unshift(`${taskRef(current)}${current.title}`);
+      return [...(task.projectId && task.projectId !== fromProjectId ? [placeOf(task.projectId)] : []), ...names].join(LEVEL);
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
     const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, title: task.title, place: placeOf(task.projectId) }));
@@ -176,7 +194,9 @@ export function useTaskContext() {
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: new Map(tasks.map((task) => [task.id, task])),
-      taskLabel: (task, fromProjectId = null) => `${task.projectId === fromProjectId ? '' : task.projectId ? `${placeOf(task.projectId)} ` : `${NO_PROJECT_LABEL} › `}${taskRef(task)}${task.title}`,
+      taskLabel: taskPath,
+      milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.title}`,
+      sprintLabel: (sprint) => `${placeOf(sprint.projectId)}${LEVEL}${sprint.name}`,
       statusById,
       priorityById: new Map(data.taskPriorities.map((priority) => [priority.id, priority])),
       typeById: new Map(data.taskTypes.map((type) => [type.id, type])),
@@ -191,7 +211,7 @@ export function useTaskContext() {
         const taskNodes = [...new Map([...tasks, ...offered].map((task) => [task.id, task])).values()]
           .sort((a, b) => a.position - b.position)
           .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.title}` }));
-        const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL }] : [];
+        const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL, pathless: true }] : [];
         return treeOptions([...projectNodes(workspace), ...withoutProject, ...taskNodes], (id) => ids.has(id));
       },
       rootOf,

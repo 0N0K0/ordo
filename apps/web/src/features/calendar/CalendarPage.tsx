@@ -493,8 +493,8 @@ export function CalendarPage() {
         // Its dates, from start to end or to today; its latest acceptable date apart, today when late.
         const { span, deadline, overdue } = taskPlacement(task, today);
         const color = (task.projectId ? context.projectById.get(task.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
-        // Its number is only unique in its project: the project comes with it (without « Sans client »).
-        const label = `${context.projectLabel(task.projectId).replace(/^Sans client › /, '')} #${task.number} ${task.title}`;
+        // Its number is only unique in its project: its full path (a task of no project: its title alone).
+        const label = context.taskLabel(task);
         const look = {
           allDay: true,
           backgroundColor: 'transparent',

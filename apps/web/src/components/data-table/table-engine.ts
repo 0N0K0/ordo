@@ -73,7 +73,7 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
       const options = filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [];
       // Choices of a tree (categories, projects, tasks…) offered as their tree.
       return options.some((option) => option.depth !== undefined)
-        ? treeSelectProps(options.map((option) => ({ ...option, depth: option.depth ?? 0, parent: option.parent ?? null })))
+        ? treeSelectProps(options.map((option) => ({ ...option, name: option.name ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
         : { data: options };
     },
     isComplete: (condition) => Boolean(schema?.safeParse(condition).success),

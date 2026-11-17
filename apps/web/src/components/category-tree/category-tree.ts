@@ -1,4 +1,4 @@
-import { treeOptions, type TreeOption } from '../tree-select/tree-select';
+import { LEVEL, treeOptions, type TreeOption } from '../tree-select/tree-select';
 
 /** Category of a tree (shopping, routines…): a name, an optional color and a parent. */
 export interface TreeCategory {
@@ -54,7 +54,7 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
    */
   const visit = (parent: string | null, depth: number, prefix: string, inherited: string | null) => {
     for (const category of [...(children.get(parent) ?? [])].sort(bySiblingOrder)) {
-      const path = prefix ? `${prefix} › ${category.name}` : category.name;
+      const path = prefix ? `${prefix}${LEVEL}${category.name}` : category.name;
       const color = category.color ?? inherited;
       placed.push({ category, depth, path, color });
       visit(category.id, depth + 1, path, color);
@@ -77,6 +77,35 @@ export function categoryOptions(categories: readonly TreeCategory[], exclude?: s
     offered,
     new Set(exclude ? [exclude] : []),
   );
+}
+
+/**
+ * Full path of each category, by id.
+ * @param {readonly TreeCategory[]} categories All categories.
+ * @returns {Map<string, string>} "Parent › Enfant", by id.
+ */
+export function categoryPaths(categories: readonly TreeCategory[]): Map<string, string> {
+  return new Map(categoryTree(categories).map((placed) => [placed.category.id, placed.path]));
+}
+
+/**
+ * A category and all its sub-categories.
+ * @param {readonly TreeCategory[]} categories All categories.
+ * @param {string} id Category.
+ * @returns {Set<string>} Ids.
+ */
+export function categorySubtree(categories: readonly TreeCategory[], id: string): Set<string> {
+  const result = new Set([id]);
+  for (let added = true; added;) {
+    added = false;
+    for (const category of categories) {
+      if (category.parentId && result.has(category.parentId) && !result.has(category.id)) {
+        result.add(category.id);
+        added = true;
+      }
+    }
+  }
+  return result;
 }
 
 /** Where a dragged category is dropped on another one: before it, after it or under it (last). */

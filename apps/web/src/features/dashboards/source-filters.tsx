@@ -5,8 +5,8 @@ import { useDocumentStatuses } from '../accounting/tracking-api';
 import { useTreasuryAccounts, useTreasurySettings } from '../treasury/api';
 import { useWorkspace } from '../workspace/api';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { treeOptions, treeSelectProps, type TreeNode } from '../../components/tree-select/tree-select';
-import { categoryTree } from '../treasury/categories';
+import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
+import { categoryPaths, categoryTree } from '../treasury/categories';
 
 /**
  * Filters of a document chart: types, clients, tracking statuses, drafts, imported documents, credit notes.
@@ -63,17 +63,20 @@ export function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 
 export function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: (changes: Partial<ChartConfig>) => void }) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  // By name (a category also keeps the movements of its sub-categories), in tree order under Recettes and Dépenses; a
-  // name used twice shows once, where it comes first.
+  // By full path (a category also keeps the movements of its sub-categories), in tree order under Recettes and Dépenses.
   const all = settings?.treasuryCategories ?? [];
-  const byId = new Map(all.map((category) => [category.id, category]));
-  const named = new Map<string, TreeNode>();
-  for (const { category } of categoryTree(all)) {
-    const parent = category.parentId ? byId.get(category.parentId) : undefined;
-    if (!named.has(category.name)) named.set(category.name, { id: category.name, parentId: parent ? parent.name : `direction:${category.direction}`, label: category.name, color: category.color });
-  }
+  const paths = categoryPaths(all);
   const categories = treeOptions(
-    [{ id: 'direction:IN', parentId: null, label: 'Recettes' }, { id: 'direction:OUT', parentId: null, label: 'Dépenses' }, ...named.values()],
+    [
+      { id: 'direction:IN', parentId: null, label: 'Recettes', pathless: true },
+      { id: 'direction:OUT', parentId: null, label: 'Dépenses', pathless: true },
+      ...categoryTree(all).map(({ category, path }) => ({
+        id: path,
+        parentId: category.parentId ? (paths.get(category.parentId) ?? null) : `direction:${category.direction}`,
+        label: category.name,
+        color: category.color,
+      })),
+    ],
     (id) => !id.startsWith('direction:'),
   );
   const filter = config.treasury;

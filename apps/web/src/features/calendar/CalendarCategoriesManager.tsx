@@ -10,7 +10,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useCalendarCategories, useCalendarCategoryMutations, type CalendarCategory } from './api';
-import { categoryOptions, categorySubtree } from './category-tree';
+import { categoryOptions, categorySubtree } from '../../components/category-tree/category-tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 let modalCount = 0;
@@ -38,7 +38,6 @@ function CategoryForm({ categories, category, parentId, onDone }: CategoryFormPr
     },
     schema: calendarCategoryFormSchema,
   });
-  const excluded = category ? categorySubtree(categories, category.id) : new Set<string>();
 
   const handleSubmit = form.onSubmit((values) => {
     const callbacks = {
@@ -62,7 +61,7 @@ function CategoryForm({ categories, category, parentId, onDone }: CategoryFormPr
           placeholder="Aucune (catégorie principale)"
           clearable
           searchable
-          {...treeSelectProps(categoryOptions(categories, excluded))}
+          {...treeSelectProps(categoryOptions(categories, category?.id))}
           {...form.getInputProps('parentId')}
         />
         <Group justify="flex-end" gap="sm">

@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
 import { notifyError } from '../../lib/notify';
-import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
+import { taskRef, useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { EditableText } from '../../components/data-table/EditableCells';
 import { applyDiff, bulkSaver } from '../../components/data-table/bulk-edit';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -69,7 +69,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   const { context } = env;
   const taskLabel = (id: string) => {
     const task = context?.taskById.get(id);
-    return task ? (context?.taskLabel(task) ?? `#${task.number} ${task.title}`) : '';
+    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.title}`) : '';
   };
   const stateOf = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
@@ -295,7 +295,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
             <TasksCell
               label={`Tâches de la liste ${list.name}`}
               readOnly={closedOf(list) || !context}
-              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
+              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.title}` }))}
               options={taskOptions(context, list.taskIds)}
               value={list.taskIds}
               onSave={(taskIds) => bulk('tasks')(list, (target) => ({ taskIds: applyDiff(target.taskIds, list.taskIds, taskIds) }))}

@@ -164,7 +164,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'tags':
         return { kind: 'choices', value: (row) => task(row)?.tagIds ?? [], options: context.tags.map((tag) => ({ value: tag.id, label: tag.name })) };
       case 'milestone':
-        return { kind: 'choice', value: (row) => task(row)?.milestoneId ?? null, options: context.milestones.map((milestone) => ({ value: milestone.id, label: milestone.title })) };
+        return { kind: 'choice', value: (row) => task(row)?.milestoneId ?? null, options: context.milestones.map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) })) };
       case 'sprint':
         return {
           kind: 'choices',
@@ -172,7 +172,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
             const ids = task(row)?.sprintIds ?? [];
             return [...ids, ...Object.entries(relative).flatMap(([token, set]) => (ids.some((sprintId) => set.has(sprintId)) ? [token] : []))];
           },
-          options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name }))],
+          options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))],
         };
       case 'parent':
         // Its parent and those above it: a filter on a task keeps its sub-tasks at every level.
@@ -282,7 +282,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       hiddenByDefault: true,
       groupable: false,
       sortValue: (row) => (row.kind === 'task' ? row.task.number : null),
-      text: (row) => (row.kind === 'task' ? `#${row.task.number}` : ''),
+      text: (row) => (row.kind === 'task' && row.task.number !== null ? `#${row.task.number}` : ''),
       filter: { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.number : null) },
     },
     {

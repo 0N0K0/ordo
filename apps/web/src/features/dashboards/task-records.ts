@@ -4,7 +4,6 @@ import type { TaskContext } from '../tasks/use-task-context';
 import type { SprintTaskStatus } from './api';
 import { aggregate, localDay, none, round, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../lib/format';
-import { NO_PROJECT_LABEL } from '../tasks/use-task-context';
 
 const CATEGORY_LABELS: Record<string, string> = {
   TODO: 'À faire',
@@ -48,10 +47,9 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
       const sprints = task.sprintIds.map((id) => context.sprintById.get(id)).filter((sprint) => sprint !== undefined);
       if (sprints.length === 0) return none('Sans sprint');
       return sprints.map((sprint) => {
-        const shared = context.sprints.some((other) => other.name === sprint.name && other.projectId !== sprint.projectId);
         return {
           key: sprint.id,
-          label: shared ? `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}` : sprint.name,
+          label: context.sprintLabel(sprint),
           order: `${sprint.startDate} ${sprint.name}`,
         };
       });
@@ -59,8 +57,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
     case 'milestone': {
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
       if (!milestone) return none('Sans jalon');
-      const shared = context.milestones.some((other) => other.title === milestone.title && other.projectId !== milestone.projectId);
-      const label = shared ? `${milestone.title} — ${context.projectById.get(milestone.projectId)?.title ?? ''}` : milestone.title;
+      const label = context.milestoneLabel(milestone);
       return [
         {
           key: milestone.id,
@@ -73,7 +70,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
       return [
         {
           key: task.projectId ?? 'none',
-          label: task.projectId ? (context.projectById.get(task.projectId)?.title ?? '') : NO_PROJECT_LABEL,
+          label: context.projectLabel(task.projectId),
           order: context.projectLabel(task.projectId),
         },
       ];

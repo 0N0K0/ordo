@@ -1,5 +1,5 @@
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
-import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
+import { categoryOptions, categoryPaths, categoryTree } from '../../components/category-tree/category-tree';
 import type { DataColumn } from '../../components/data-table/data-table';
 import * as fmt from '../../lib/format';
 import { commentTotal } from '../comments/comment-column';
@@ -35,7 +35,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const routines = [...byId.values()];
   const routineOptions = routineTreeOptions(routines);
   const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
-  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryName = categoryPaths(categories);
   const categoryRank = new Map(categoryTree(categories).map((item, index) => [item.category.id, index]));
   const scheduleName = new Map((env.slotKinds ?? []).map((kind) => [kind.value, kind.label]));
   const beneficiaryName = new Map((env.beneficiaries ?? []).map((person) => [person.value, person.label]));

@@ -128,7 +128,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           disabled={!form.values.projectId}
           data={(form.values.projectId ? context.milestonesFor(form.values.projectId) : []).map((milestone) => ({
             value: milestone.id,
-            label: milestone.title,
+            label: context.milestoneLabel(milestone),
           }))}
           clearable
           searchable
@@ -139,7 +139,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           label="Sprints"
           placeholder={!form.values.projectId ? 'Aucun (tâche sans projet)' : form.values.sprintIds.length ? undefined : 'Aucun'}
           disabled={!form.values.projectId}
-          data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+          data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
           clearable
           searchable
           nothingFoundMessage="Aucun sprint dans ce projet"

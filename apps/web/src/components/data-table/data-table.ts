@@ -3,7 +3,10 @@ import type { ColumnLayout, TableSort } from '@ordo/shared';
 /** Choice of a column filtered by its values. */
 export interface ColumnChoice {
   value: string;
+  /** Label (of a tree: its full path). */
   label: string;
+  /** Name alone of a choice of a tree, shown indented in its list. Optional. Default = its label. */
+  name?: string;
   /** Depth in a tree (categories, projects…): the choices are offered as their tree. Optional. */
   depth?: number;
   /** Value of its parent in the tree. Optional. */

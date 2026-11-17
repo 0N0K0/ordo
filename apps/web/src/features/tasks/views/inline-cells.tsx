@@ -166,7 +166,7 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
     <Select
       {...cellCombobox}
       aria-label={fieldLabel('Jalon', task, count)}
-      data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: milestone.title }))}
+      data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
       onChange={(milestoneId) => apply({ milestoneId }, { milestoneId })}
       placeholder="—"
@@ -231,13 +231,13 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
       label={fieldLabel('Sprints', task, count)}
       items={task.sprintIds.flatMap((id) => {
         const sprint = sprints.find((item) => item.id === id) ?? context.sprints.find((item) => item.id === id);
-        return sprint ? [{ id, label: sprint.name }] : [];
+        return sprint ? [{ id, label: context.sprintLabel(sprint) }] : [];
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Sprints', task, count)}
-          data={sprints.map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+          data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
           value={task.sprintIds}
           onChange={(sprintIds) => {
             const added = sprintIds.filter((id) => !task.sprintIds.includes(id));
@@ -299,8 +299,8 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
           ? [
               {
                 id,
-                label: `${taskName(blocker)} ${blocker.title}`,
-                title: `${taskName(blocker)} ${blocker.title}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
+                label: `${context.taskLabel(blocker, task.projectId)}`,
+                title: `${context.taskLabel(blocker, task.projectId)}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
                 icon: blocker.closed ? (
                   <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
                 ) : (
@@ -314,7 +314,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
         <BatchMultiSelect
           {...cellMulti}
           aria-label={label}
-          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
+          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
           value={task.blockedByIds}
           onChange={(ids) => {
             // On a selection, each selected task gets (or loses) the same blockers.
@@ -442,13 +442,13 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
       label={label}
       items={ids.flatMap((id) => {
         const other = context.taskById.get(id);
-        return other ? [{ id, label: `${taskName(other)} ${other.title}`, title: `${taskName(other)} ${other.title}${other.closed ? ' (fermée)' : ''}` }] : [];
+        return other ? [{ id, label: `${context.taskLabel(other, task.projectId)}`, title: `${context.taskLabel(other, task.projectId)}${other.closed ? ' (fermée)' : ''}` }] : [];
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}
           aria-label={label}
-          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
+          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
           value={ids}
           onChange={(next) => {
             for (const id of next.filter((item) => !ids.includes(item))) link(id, true);

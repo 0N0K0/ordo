@@ -166,12 +166,16 @@ export function MarkdownEditor({
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
           key: `t${task.id}`,
-          reference: `[#${task.number}](${taskReferenceUrl(task.id)})`,
+          reference: `[${task.number === null ? task.title : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
-              <Text span size="sm" c="dimmed" ff="monospace">
-                {referenceLabel(task, suggestions.projectId)}
-              </Text>{' '}
+              {task.number !== null && (
+                <>
+                  <Text span size="sm" c="dimmed" ff="monospace">
+                    {referenceLabel(task, suggestions.projectId)}
+                  </Text>{' '}
+                </>
+              )}
               <Text span size="sm">
                 {task.title}
               </Text>

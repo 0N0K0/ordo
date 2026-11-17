@@ -74,6 +74,14 @@ Restent propres à leur domaine les cellules sans équivalent générique : stat
 
 La trésorerie et le calendrier pourraient reposer sur le générique avec un filtre.
 
+**En cours** (étape 1 sur 4, l'affichage) :
+
+- La trésorerie et le calendrier reposent sur l'arbre générique. Les chemins et les sous-arbres sont dans `category-tree.ts`, et la copie du calendrier est supprimée.
+- Toute option d'arbre porte son chemin complet (« Client › Projet », « Maison › Cuisine »), qui s'affiche une fois choisie ; la liste déroulante garde le nom seul, indenté.
+- « Sans client » et « Sans projet » ne figurent plus dans les chemins, et les tâches sans numéro n'affichent plus « #null ».
+
+Restent : les items choisis empilés dans les multi-selects, un modèle unique de liste paramétrable (couleur, image, nom, glisser-déposer), et les lieux sur ce modèle.
+
 ### 7. Actions de sélection et dialogues dupliqués
 
 - `useTaskSelectionActions` et `useRoutineSelectionActions` refont les actions groupées (fermer ou cocher, dupliquer, archiver, supprimer) à côté des actions génériques `deleteRowsAction` et `duplicateRowsAction`.

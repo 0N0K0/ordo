@@ -3,7 +3,7 @@ import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../treasury/api';
-import { categoryLineage } from '../treasury/categories';
+import { categoryLineage, categoryPathLineage } from '../treasury/categories';
 import { aggregate, bucketLabel, bucketOf, localDay, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
@@ -270,7 +270,7 @@ interface ChartMovement {
   date: string;
   amount: number;
   category: string | null;
-  /** Names of its category and of the parents of it (filters keep sub-categories). */
+  /** Paths (then names, of filters saved before the paths) of its category and of its parents (filters keep sub-categories). */
   lineage: string[];
   accountId: string | null;
   projectId: string | null;
@@ -365,7 +365,12 @@ export function treasuryChartData({
   for (const entry of actual) {
     const date = String(entry.date);
     const base = { date, accountId: entry.accountId, forecast: false };
-    const category = (categoryId: string | null) => ({ category: categoryId ? (categoryById.get(categoryId)?.name ?? null) : null, lineage: categoryLineage(categoryById, categoryId) });
+    // By its full path (two sub-categories of the same name stay apart); the filters match a path of it or, saved before
+    // the paths, a name of it.
+    const category = (categoryId: string | null) => {
+      const paths = categoryPathLineage(categoryById, categoryId);
+      return { category: paths[0] ?? null, lineage: [...paths, ...categoryLineage(categoryById, categoryId)] };
+    };
     const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,

@@ -15,7 +15,7 @@ import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import type { Routine, RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { applyDiff } from '../../components/data-table/bulk-edit';
-import { describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
+import { describeRoutineCase, routinePath, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
@@ -219,7 +219,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
-        .map((item) => ({ id: item.category.id, label: item.category.name, title: item.path, icon: item.color ? <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} /> : undefined }))}
+        .map((item) => ({ id: item.category.id, label: item.path, icon: item.color ? <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} /> : undefined }))}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}
@@ -282,8 +282,8 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
           ? [
               {
                 id,
-                label: required.title,
-                title: waiting.has(id) ? `${required.title} (pas encore faite)` : required.title,
+                label: routinePath(required, byId),
+                title: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
                 icon: waiting.has(id) ? (
                   <HourglassMediumIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ flexShrink: 0 }} />
                 ) : (

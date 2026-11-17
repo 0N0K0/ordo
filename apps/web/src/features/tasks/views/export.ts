@@ -27,11 +27,11 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     ids
       .map((id) => context.taskById.get(id))
       .filter((other) => other !== undefined)
-      .map((other) => (other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
+      .map((other) => (other.number === null ? other.title : other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
       .join(', ');
   switch (column) {
     case 'title':
-      return `#${task.number} ${task.title}`;
+      return `${taskRef(task)}${task.title}`;
     case 'project':
       return context.projectLabel(task.projectId);
     case 'status':
@@ -85,11 +85,16 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       return parent ? context.taskLabel(parent, task.projectId) : '';
     }
-    case 'milestone':
-      return (task.milestoneId && context.milestoneById.get(task.milestoneId)?.title) || '';
+    case 'milestone': {
+      const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
+      return milestone ? context.milestoneLabel(milestone) : '';
+    }
     case 'sprint':
       return task.sprintIds
-        .map((id) => context.sprintById.get(id)?.name)
+        .map((id) => {
+          const sprint = context.sprintById.get(id);
+          return sprint ? context.sprintLabel(sprint) : undefined;
+        })
         .filter(Boolean)
         .join(', ');
     case 'blockedBy':

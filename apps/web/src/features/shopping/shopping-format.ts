@@ -1,6 +1,6 @@
 import { categoryOptions, categoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
 import { useTreasurySettings } from '../treasury/api';
-import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
+import { taskRef, useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from './api';
 import * as fmt from '../../lib/format';
@@ -380,7 +380,7 @@ export function usePeople(projectIds: string[] = [], keep: string[] = []) {
  */
 export function taskChoices(context: TaskContext | null) {
   const tasks = (context?.tasks ?? []).filter((task) => !task.closed && !task.archived);
-  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `#${task.number} ${task.title}`;
+  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `${taskRef(task)}${task.title}`;
   return { tasks, labelOf };
 }
 

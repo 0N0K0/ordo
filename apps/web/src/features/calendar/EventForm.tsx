@@ -21,7 +21,7 @@ import { TravelCalculator } from '../geo/TravelCalculator';
 import { useTreasurySettings } from '../treasury/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
-import { categoryOptions } from './category-tree';
+import { categoryOptions } from '../../components/category-tree/category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-input';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
