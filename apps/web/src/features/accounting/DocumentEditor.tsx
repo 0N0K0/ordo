@@ -526,7 +526,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   readOnly={readOnly}
                   // Not before the latest document of its type (models of recurring invoices are dated later).
                   minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
-                  description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${printedDay(latestDate)}, date du dernier document de ce type.` : undefined}
+                  description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${fmt.day(latestDate)}, date du dernier document de ce type.` : undefined}
                   {...form.getInputProps('issueDate')}
                 />
                 <DatePickerInput
@@ -829,13 +829,6 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
     </Section>
   );
 }
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} "09/11/2026".
- */
-const printedDay = (date: string) => fmt.day(date);
 
 /**
  * Accounting document page: editable draft (or recurring model), read-only final document with the

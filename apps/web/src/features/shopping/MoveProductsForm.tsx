@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+import { collator } from '../../lib/text';
 
 interface MoveProductsFormProps {
   /** Base list the products leave. */

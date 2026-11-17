@@ -21,6 +21,7 @@ import { NO_CLIENT, type ProjectNode, type TreeSection } from '../tree';
 import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
+import { suppressClickAfterDrop } from '../../../lib/drag';
 
 /** Horizontal offset of one tree level, in px (matches the row indentation). */
 const INDENT = 20;
@@ -185,19 +186,6 @@ const collisionDetection: CollisionDetection = (args) => {
       : args.droppableContainers,
   });
 };
-
-/**
- * Swallows the click fired by releasing the pointer at the end of a drag (it would open the row's page).
- * @returns {void}
- */
-function suppressClickAfterDrop(): void {
-  const swallow = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  window.addEventListener('click', swallow, { capture: true, once: true });
-  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 100);
-}
 
 interface SortableRowProps {
   item: FlatItem;

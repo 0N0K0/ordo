@@ -1,4 +1,4 @@
-import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterCondition, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
+import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {
   text: {
@@ -84,9 +84,9 @@ export function nodeId(): string {
  * Starting value of a condition for a kind of field and an operator.
  * @param {FilterFieldKind} kind Kind of the field.
  * @param {FilterOperator} operator Operator.
- * @returns {FilterCondition['value']} Value.
+ * @returns {FilterConditionOf<string>['value']} Value.
  */
-export function defaultValueFor(kind: FilterFieldKind, operator: FilterOperator): FilterCondition['value'] {
+export function defaultValueFor(kind: FilterFieldKind, operator: FilterOperator): FilterConditionOf<string>['value'] {
   if (VALUELESS_OPERATORS.includes(operator)) return null;
   switch (kind) {
     case 'text':

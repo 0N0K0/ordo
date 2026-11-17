@@ -7,6 +7,7 @@ import type { TaskContext } from './use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './views/columns-meta';
 import { eventCell, taskCell } from './views/export';
 import { eventSortValue, sortValue } from './views/task-rows';
+import { localDay } from '../../lib/dates';
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -67,16 +68,6 @@ const SPRINT_TOKENS: ColumnChoice[] = [
   { value: 'past', label: 'Sprints passés' },
   { value: 'future', label: 'Sprints à venir' },
 ];
-
-/**
- * Local day of an instant, YYYY-MM-DD.
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-const localDay = (iso: string) => {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
 
 /**
  * Columns of the task table, as on every table: shown, sorted, filtered (as the former views of the tasks: « Moi », a

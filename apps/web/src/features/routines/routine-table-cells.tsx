@@ -13,13 +13,6 @@ import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from './rout
 import classes from './Routines.module.css';
 
 /**
- * Short date of a calendar date: "lun. 10 nov.".
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Text.
- */
-const dayText = (date: string) => fmt.weekday(date);
-
-/**
  * Badge of a routine due today: past its latest time (late), time to leave (its way there has started), or its time window
  * (grey before it opens).
  * @param {{ routine: Routine }} props Component props.
@@ -58,10 +51,10 @@ function DueBadge({ routine }: { routine: Routine }) {
  */
 export function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
   const state = stateOf(routine, today, doable);
-  const next = routine.nextDate ? `Prochaine fois : ${dayText(routine.nextDate)}` : 'Plus d’occurrence à venir';
+  const next = routine.nextDate ? `Prochaine fois : ${fmt.weekday(routine.nextDate)}` : 'Plus d’occurrence à venir';
   // The occurrence shown comes from another day (an exception).
   const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
-  const label = moved ? `${next} · ${moved.to > moved.from ? 'reportée' : 'avancée'} (prévue le ${dayText(moved.from)})` : next;
+  const label = moved ? `${next} · ${moved.to > moved.from ? 'reportée' : 'avancée'} (prévue le ${fmt.weekday(moved.from)})` : next;
   return (
     <Tooltip label={label}>
       <span className={classes.nowrap}>
@@ -74,12 +67,12 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
         {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
           <Badge variant="light" color="orange" tt="none">
-            Depuis {dayText(routine.currentDate!)}
+            Depuis {fmt.weekday(routine.currentDate!)}
           </Badge>
         )}
         {state === 'upcoming' && (
           <Text size="xs" c="dimmed" className={classes.nowrap}>
-            {routine.nextDate ? dayText(routine.nextDate) : '—'}
+            {routine.nextDate ? fmt.weekday(routine.nextDate) : '—'}
           </Text>
         )}
       </span>

@@ -1,5 +1,6 @@
 import { useLocalStorage } from '@mantine/hooks';
 import type { Milestone } from './api';
+import { collator } from '../../lib/text';
 
 /** How milestones are ordered: by due date, by title, or in their manual order. */
 export type MilestoneOrder = 'dueDate' | 'title' | 'manual';
@@ -9,8 +10,6 @@ export const MILESTONE_ORDER_OPTIONS: { value: MilestoneOrder; label: string }[]
   { value: 'title', label: 'Titre' },
   { value: 'manual', label: 'Manuel' },
 ];
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
  * Milestone order chosen by the user, remembered in this browser.

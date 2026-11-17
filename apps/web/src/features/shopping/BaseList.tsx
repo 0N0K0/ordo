@@ -29,8 +29,7 @@ import { useStockLocations, useStockMutations } from '../stock/api';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { locationOptions, locationPaths } from '../stock/stock-format';
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+import { collator } from '../../lib/text';
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [

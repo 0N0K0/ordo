@@ -1,4 +1,5 @@
 import type { ColumnLayout, TableSort } from '@ordo/shared';
+import { collator } from '../../lib/text';
 
 /** Choice of a column filtered by its values. */
 export interface ColumnChoice {
@@ -170,8 +171,6 @@ export function withOrder<R>(columns: readonly DataColumn<R>[], layout: ColumnLa
 export function hiddenIds<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout): string[] {
   return columns.filter((column) => isHidden(column, layout)).map((column) => column.id);
 }
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
  * Rows sorted by the sorts of a table (in priority order, empty values last), else left in their order.

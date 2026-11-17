@@ -1,4 +1,4 @@
-import { addDays, entrySeconds, filterPeriod, translateTaskFilter } from '@ordo/shared';
+import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import type { Task } from '../tasks/api';
@@ -121,7 +121,7 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
   const columns = useTaskColumns(context, today, { doable: false });
   return useMemo(() => {
     if (!context) return { tasks: null, overdue: 0 };
-    const tasks = matchTasks(context.tasks, columns, { filter: translateTaskFilter(myTasksFilter('today')) }, today);
+    const tasks = matchTasks(context.tasks, columns, { filter: myTasksFilter('today') }, today);
     // Overdue: past its "Date max".
     const late = (task: Task) => task.deadline !== null && task.deadline < today;
     tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));

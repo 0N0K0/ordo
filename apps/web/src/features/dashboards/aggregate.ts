@@ -1,6 +1,7 @@
 import { addDays, calendarRange, CALENDAR_PERIOD, filterPeriod, isTimeDimension, type CalendarScale, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, weekStartOf } from '@ordo/shared';
 import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
+import { collator } from '../../lib/text';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -141,11 +142,6 @@ export interface ChartRecord {
 }
 
 export const NONE_ORDER = '￿';
-const collator = new Intl.Collator('fr', {
-  numeric: true,
-  sensitivity: 'base',
-});
-
 /**
  * "None" value of a field.
  * @param {string} label Label.
@@ -154,16 +150,6 @@ const collator = new Intl.Collator('fr', {
 export const none = (label: string): Key[] => [{ key: 'none', label, order: NONE_ORDER, color: 'gray.5' }];
 
 export const round = (value: number) => Math.round(value * 100) / 100;
-
-/**
- * Local day of an instant (YYYY-MM-DD).
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-export function localDay(iso: string): string {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-}
 
 /**
  * Bucket of a day: the day, the Monday of its week, the first of its month, quarter or year.

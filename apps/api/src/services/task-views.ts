@@ -1,8 +1,8 @@
-import { routineViewConfigSchema, shoppingListViewConfigSchema, tableKeySchema, tableViewConfigSchema, taskViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
+import { tableKeySchema, tableViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { Prisma, TaskView, ViewKind } from '../generated/prisma/client';
-import { notFound, parseInput } from '../graphql/errors';
+import { clientError, notFound, parseInput } from '../graphql/errors';
 import { moveInOrder } from './ordering';
 
 /**
@@ -17,14 +17,15 @@ async function findView(id: string): Promise<TaskView> {
 }
 
 /**
- * Validates a view configuration (filters, sorting, columns…) of its kind, filling missing settings with defaults.
- * @param {ViewKind} kind Tasks, routines or shopping lists.
+ * Validates a view configuration (filters, sorting, columns…), filling missing settings with defaults: only the views
+ * of a table (the former kinds — tasks, routines, shopping lists — are kept as they are, no longer changed).
+ * @param {ViewKind} kind Kind of the view.
  * @param {unknown} config Raw configuration.
  * @returns {Prisma.InputJsonObject} Configuration, ready to store.
  */
 function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
-  const schema = { ROUTINES: routineViewConfigSchema, SHOPPING_LISTS: shoppingListViewConfigSchema, TABLE: tableViewConfigSchema, TASKS: taskViewConfigSchema }[kind];
-  return parseInput(z.object({ config: schema }), { config }).config as unknown as Prisma.InputJsonObject;
+  if (kind !== 'TABLE') throw clientError('BAD_USER_INPUT', 'Ce type de vue n’existe plus : les vues sont celles des tableaux.');
+  return parseInput(z.object({ config: tableViewConfigSchema }), { config }).config as unknown as Prisma.InputJsonObject;
 }
 
 /**
@@ -51,13 +52,13 @@ const scopeOf = (view: TaskView) => viewScope(view.projectId, view.kind, view.ta
  * @param {string} input.name Name.
  * @param {unknown} input.config Configuration.
  * @param {string | null} [input.projectId] Project, or null / omitted for the home page. Optional.
- * @param {ViewKind | null} [input.kind] Tasks (default), routines, shopping lists or another table. Optional.
+ * @param {ViewKind | null} [input.kind] Kind of the view: the rows of a table (default; the former kinds are no longer made). Optional.
  * @param {string | null} [input.tableKey] Table of a view of kind TABLE (required for it). Optional.
  * @returns {Promise<TaskView>} Created view.
  */
 export async function createView(input: { name: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
   const { name } = parseInput(z.object({ name: taskViewNameSchema }), input);
-  const kind = input.kind ?? 'TASKS';
+  const kind = input.kind ?? 'TABLE';
   const tableKey = kind === 'TABLE' ? parseInput(z.object({ tableKey: tableKeySchema }), { tableKey: input.tableKey }).tableKey : null;
   const config = parseConfig(kind, input.config);
   const projectId = input.projectId ?? null;

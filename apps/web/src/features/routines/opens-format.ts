@@ -1,18 +1,9 @@
+import { MONTHS, ofMonth } from '../../components/recurrence/describe-recurrence';
 import { opensFits, type Recurrence, type RoutineOpens } from '@ordo/shared';
 
-export const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+export const MONTH_NAMES = MONTHS;
 export const WEEKDAY_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 export const POSITION_NAMES: Record<number, string> = { 1: 'premier', 2: 'deuxième', 3: 'troisième', 4: 'quatrième', [-1]: 'dernier' };
-
-/**
- * « de » before a month, elided before a vowel (« de mars », « d’avril »).
- * @param {number} month Month (1-12).
- * @returns {string} Words.
- */
-const ofMonth = (month: number) => {
-  const name = MONTH_NAMES[month - 1] ?? '';
-  return /^[aeiouéè]/.test(name) ? `d’${name}` : `de ${name}`;
-};
 
 /**
  * Ordinal of a number in French (« 1er », « 3e »).

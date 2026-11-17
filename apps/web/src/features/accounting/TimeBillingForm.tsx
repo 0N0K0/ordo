@@ -14,16 +14,7 @@ import { AmountInput } from '../../components/AmountInput';
 import { DataTable } from '../../components/data-table/DataTable';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useDataView } from '../../components/data-table/use-data-view';
-
-/**
- * Local day of an instant, YYYY-MM-DD.
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-function localDay(iso: string): string {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-}
+import { localDay } from '../../lib/dates';
 
 /**
  * What a time was spent on: its tasks, then its description.

@@ -1,4 +1,4 @@
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { DestructiveButton } from '../dialogs/DestructiveActions';
 import {
   ActionIcon,
   Button,
@@ -25,7 +25,7 @@ import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
-import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+import { BatchMultiSelect } from '../BatchMultiSelect';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -287,7 +287,7 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
   /**
    * Replaces a child.
    * @param {number} index Child index.
-   * @param {FilterGroup['children'][number] | null} child New child, or null to remove it.
+   * @param {FilterGroupOf<F>['children'][number] | null} child New child, or null to remove it.
    * @returns {void}
    */
   const setChild = (index: number, child: FilterGroupOf<F>['children'][number] | null) =>

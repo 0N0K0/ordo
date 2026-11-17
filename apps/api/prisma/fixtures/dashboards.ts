@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, documentChartFilterSchema, emptyFilter } from '@ordo/shared';
+import { addDays, chartConfigSchema, documentChartFilterSchema, emptyTableFilter } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma, Project } from '../../src/generated/prisma/client';
@@ -11,7 +11,7 @@ type DocumentChartFilterInput = z.input<typeof documentChartFilterSchema>;
  * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes (defaults filled by the schema).
  * @returns {Prisma.InputJsonValue} Stored configuration.
  */
-const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
 
 /**
  * Sprints and dashboards: four two-week sprints per active root project (two over, one running, one coming)
@@ -77,12 +77,12 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     {
       title: 'Vélocité par sprint (effort)',
       wide: true,
-      config: chart({ type: 'stackedBar', dimension: 'sprint', measure: 'effort', series: 'state', filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
+      config: chart({ type: 'stackedBar', dimension: 'sprint', measure: 'effort', series: 'state', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
     },
     {
       title: 'Charge ouverte par assigné',
       wide: false,
-      config: chart({ type: 'bar', dimension: 'assignees', measure: 'effort', series: 'priority', filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } }),
+      config: chart({ type: 'bar', dimension: 'assignees', measure: 'effort', series: 'priority', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } }),
     },
     { title: 'Répartition par statut', wide: false, config: chart({ type: 'donut', dimension: 'status' }) },
     { title: 'Tâches créées (cumul mensuel)', wide: true, config: chart({ type: 'area', dimension: 'createdAt', bucket: 'month', period: 'past:365', cumulative: true, series: 'type' }) },
@@ -192,7 +192,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
           position: 1,
           wide: false,
           title: 'Tâches par sprint et statut',
-          config: chart({ type: 'stackedBar', dimension: 'sprint', series: 'status', filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
+          config: chart({ type: 'stackedBar', dimension: 'sprint', series: 'status', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
         },
         { dashboardId: sprintBoard.id, position: 2, wide: false, title: 'Effort livré (cumul)', config: chart({ type: 'line', dimension: 'closedAt', bucket: 'week', period: 'past:91', measure: 'effort', cumulative: true }) },
       ],

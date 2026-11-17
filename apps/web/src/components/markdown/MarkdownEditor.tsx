@@ -40,6 +40,7 @@ import {
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
 import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
+import { normalize } from '../../lib/text';
 
 export interface MarkdownSuggestions {
   /** Project of the text: its tasks come first and show without their project. */
@@ -106,18 +107,6 @@ const COMMANDS: { label: string; key?: string; icon: ReactNode; edit: Edit; divi
 ];
 // List item prefixes continued on Enter: "- ", "* ", "1. ", "- [ ] ", "> ".
 const LIST_ITEM = /^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)\. |> )/;
-
-/**
- * Lowercases and strips accents, for accent-insensitive matching.
- * @param {string} value Text.
- * @returns {string} Normalized text.
- */
-function normalize(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
-}
 
 /**
  * GitHub-like markdown field: "Écrire" / "Aperçu" tabs, formatting toolbar, keyboard shortcuts,

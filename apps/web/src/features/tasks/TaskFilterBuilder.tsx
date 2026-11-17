@@ -4,7 +4,7 @@ import { localToday } from '../../lib/dates';
 import { filterUses } from './task-columns';
 import { useTaskColumns } from './use-task-columns';
 import type { TaskContext } from './use-task-context';
-import { FieldsFilterBuilder } from './views/FilterBuilder';
+import { FieldsFilterBuilder } from '../../components/filters/FilterBuilder';
 
 /**
  * Filter of tasks out of their table (a chart of a dashboard…), in the words of the task table: its columns, the same

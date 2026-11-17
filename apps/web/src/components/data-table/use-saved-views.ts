@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { notifyError } from '../../../lib/notify';
-import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from '../api';
+import { notifyError } from '../../lib/notify';
+import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from '../../features/tasks/api';
 
 /** Saved view with its configuration parsed. */
 export interface SavedView<C> extends Omit<TaskViewRecord, 'config'> {

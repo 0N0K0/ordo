@@ -10,11 +10,12 @@ import {
   type TableSort,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../settings/item-look';
-import type { FilterFields } from '../../features/tasks/views/FilterBuilder';
+import type { FilterFields } from '../filters/FilterBuilder';
 import type { ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../lib/week';
 import * as fmt from '../../lib/format';
 import { treeSelectProps } from '../tree-select/tree-select';
+import { collator } from '../../lib/text';
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -189,8 +190,6 @@ export interface RowGroup<R> {
   label: string;
   rows: R[];
 }
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
  * ISO week of a day: its year (that of its Thursday) and its number.

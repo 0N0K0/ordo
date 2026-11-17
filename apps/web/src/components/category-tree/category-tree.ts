@@ -1,4 +1,5 @@
 import { LEVEL, treeOptions, type TreeOption } from '../tree-select/tree-select';
+import { collator } from '../../lib/text';
 
 /** Category of a tree (shopping, routines…): a name, an optional color and a parent. */
 export interface TreeCategory {
@@ -22,8 +23,6 @@ export interface PlacedCategory<C extends TreeCategory> {
   /** Its color, or the one of its closest parent with one. */
   color: string | null;
 }
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
  * Order of siblings: manual position, then name.

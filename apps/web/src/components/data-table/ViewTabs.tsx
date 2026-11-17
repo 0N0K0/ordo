@@ -1,5 +1,5 @@
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { closePanel, openPanel } from '../../../components/panels/panels';
+import { confirmDestructive } from '../dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -8,7 +8,7 @@ import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
-import { usePublishedHeight } from '../../../lib/published-height';
+import { usePublishedHeight } from '../../lib/published-height';
 
 interface NameFormProps {
   initial: string;

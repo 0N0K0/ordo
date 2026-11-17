@@ -1,8 +1,9 @@
 import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
+import { localDay } from '../../lib/dates';
 import type { Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { SprintTaskStatus } from './api';
-import { aggregate, localDay, none, round, type ChartData, type Key } from './aggregate';
+import { aggregate, none, round, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../lib/format';
 
 const CATEGORY_LABELS: Record<string, string> = {

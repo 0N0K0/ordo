@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Group, Table } from '@mantine/core';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { contentWidth } from '../../features/tasks/column-fit';
+import { contentWidth } from './column-fit';
 import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from './ColumnHeaderMenu';
 import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';

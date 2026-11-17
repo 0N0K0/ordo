@@ -1,38 +1,39 @@
-import type { FilterCondition, FilterGroup } from '@ordo/shared';
-import { ME } from '@ordo/shared';
+import { ME, type TableFilterGroup } from '@ordo/shared';
 
 export type MyTasksPeriod = 'today' | 'tomorrow' | 'week';
 
+type Condition = Extract<TableFilterGroup['children'][number], { type: 'condition' }>;
+
 /**
- * Filter condition.
- * @param {FilterCondition['field']} field Field.
+ * Filter condition, on a column of the task table.
+ * @param {string} field Column.
  * @param {string} operator Operator.
- * @param {FilterCondition['value']} [value] Value. Optional.
- * @returns {FilterCondition} Condition.
+ * @param {Condition['value']} [value] Value. Optional.
+ * @returns {Condition} Condition.
  */
-function condition(field: FilterCondition['field'], operator: string, value?: FilterCondition['value']): FilterCondition {
-  return { type: 'condition', id: `${field}-${operator}`, field, operator, value: value ?? null };
+function condition(field: string, operator: string, value?: Condition['value']): Condition {
+  return { type: 'condition', id: `${field}-${operator}`, field, operator, value: value ?? null } as Condition;
 }
 
 /**
  * Filter group.
  * @param {'and' | 'or'} combinator Combinator.
- * @param {FilterGroup['children']} children Children.
- * @returns {FilterGroup} Group.
+ * @param {TableFilterGroup['children']} children Children.
+ * @returns {TableFilterGroup} Group.
  */
-function group(combinator: 'and' | 'or', children: FilterGroup['children']): FilterGroup {
+function group(combinator: 'and' | 'or', children: TableFilterGroup['children']): TableFilterGroup {
   return { type: 'group', id: `${combinator}-${children.length}`, combinator, children };
 }
 
 /**
- * "My tasks" of a period: open tasks assigned to me or to nobody that are overdue (past their "Date max"),
- * in progress, or ending, starting, running or reaching their "Date max" during the period.
+ * "My tasks" of a period, in the words of the task table: open tasks assigned to me or to nobody that are overdue
+ * (past their "Date max"), in progress, or ending, starting, running or reaching their "Date max" during the period.
  * @param {MyTasksPeriod} period Period.
- * @returns {FilterGroup} Filter.
+ * @returns {TableFilterGroup} Filter.
  */
-export function myTasksFilter(period: MyTasksPeriod): FilterGroup {
+export function myTasksFilter(period: MyTasksPeriod): TableFilterGroup {
   const day = period === 'tomorrow' ? 'today+1' : 'today';
-  const onPeriod: FilterCondition[] =
+  const onPeriod: Condition[] =
     period === 'week'
       ? [condition('endDate', 'within', 'thisWeek'), condition('startDate', 'within', 'thisWeek'), condition('deadline', 'within', 'thisWeek')]
       : [condition('endDate', 'is', day), condition('startDate', 'is', day), condition('deadline', 'is', day)];
@@ -41,7 +42,7 @@ export function myTasksFilter(period: MyTasksPeriod): FilterGroup {
     condition('closed', 'isFalse'),
     group('or', [
       condition('overdue', 'isTrue'),
-      condition('statusCategory', 'in', ['IN_PROGRESS']),
+      condition('statusCategory', 'anyOf', ['IN_PROGRESS']),
       ...onPeriod,
       // Running on that day: started before and ending after.
       group('and', [condition('startDate', 'onOrBefore', day), condition('endDate', 'onOrAfter', day)]),

@@ -10,7 +10,7 @@ import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../service
 import * as taskViews from '../../services/task-views';
 import * as taskRecurrence from '../../services/task-recurrence';
 import * as tasks from '../../services/tasks';
-import { TASK_STATUS_CATEGORIES, readSlotRule, taskFilterSchema } from '@ordo/shared';
+import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
 import * as workspaces from '../../services/workspaces';

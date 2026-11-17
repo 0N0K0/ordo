@@ -1,10 +1,10 @@
 import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableSort, type TableViewConfig } from '@ordo/shared';
 import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from './bulk-selection';
-import { newConditionFor } from '../../features/tasks/views/filter-meta';
+import { newConditionFor } from '../filters/filter-meta';
 import type { ColumnMenuExtras } from './ColumnHeaderMenu';
 import { localToday } from '../../lib/dates';
-import { useSavedViews, type SavedViewsState } from '../../features/tasks/views/use-saved-views';
+import { useSavedViews, type SavedViewsState } from './use-saved-views';
 import { shownColumns, sortRows, type DataColumn, type ShownColumn } from './data-table';
 import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from './table-engine';
 

@@ -1,10 +1,11 @@
 import { addDays, EVERYDAY_CONTEXT, offsetLinkedMovements, plannedContext, splitAmounts, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
+import { localDay } from '../../lib/dates';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../treasury/api';
 import { categoryLineage, categoryPathLineage } from '../treasury/categories';
-import { aggregate, bucketLabel, bucketOf, localDay, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
+import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
 const TYPE_COLORS: Record<string, string> = {

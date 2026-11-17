@@ -20,7 +20,7 @@ import {
   localDate,
   TIME_ZONE,
 } from './fixtures/factories';
-import { addDays, DEFAULT_RECURRENCE, emptyFilter, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_RECURRENCE, emptyTableFilter, type Recurrence } from '@ordo/shared';
 import { createAlarm } from '../src/services/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar-events';
 import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/task-recurrence';
@@ -734,14 +734,16 @@ await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
 
 // --- Task views (home page and a project) ------------------------------------------------------------------
 const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });
-const filter = (...children: ReturnType<typeof condition>[]) => ({ ...emptyFilter(), children });
-await createView({ name: 'Toutes les tâches', config: { filter: emptyFilter() } });
-if (meId) await createView({ name: 'Mes tâches', config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] } });
-await createView({ name: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
-await createView({ name: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', flat: true, events: { show: true, period: 'next:30' } } });
+const filter = (...children: ReturnType<typeof condition>[]) => ({ ...emptyTableFilter(), children });
+// Views of the task table (as the app makes them).
+const tasksView = { kind: 'TABLE' as const, tableKey: 'tasks' };
+await createView({ ...tasksView, name: 'Toutes les tâches', config: { filter: emptyTableFilter() } });
+if (meId) await createView({ ...tasksView, name: 'Mes tâches', config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] } });
+await createView({ ...tasksView, name: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
+await createView({ ...tasksView, name: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', options: { events: true, eventPeriod: 'next:30' } } });
 if (activeRoots[0]) {
-  await createView({ name: 'Tableau', projectId: activeRoots[0].id, config: { filter: emptyFilter(), groupBy: 'status' } });
-  await createView({ name: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'current')), groupBy: 'assignees' } });
+  await createView({ ...tasksView, name: 'Tableau', projectId: activeRoots[0].id, config: { filter: emptyTableFilter(), groupBy: 'status' } });
+  await createView({ ...tasksView, name: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'anyOf', ['current'])), groupBy: 'assignees' } });
 }
 
 // --- Accounting -------------------------------------------------------------------------------------------

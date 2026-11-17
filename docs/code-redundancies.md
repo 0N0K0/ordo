@@ -120,6 +120,8 @@ Restent propres à chaque domaine : le report au lendemain des routines, le tran
 | `normalize`                                    | 3                            | `lib/`                   |
 | `dayText`, `suppressClickAfterDrop`, `ofMonth` | 2 chacune                    | `lib/`                   |
 
+**Fait** : `lib/text.ts` (`collator`, `normalize`), `lib/drag.ts` (`suppressClickAfterDrop`), `localDay` de `lib/dates` (qui prend aussi une chaîne), `ofMonth` et les noms des mois de `describe-recurrence`. Les recopies de `dayText` et de `printedDay` qui ne faisaient qu'appeler `fmt` sont supprimées ; les autres `printedDay` sont des formats différents.
+
 ### 10. Code commun rangé chez les tâches
 
 `components/data-table` importe depuis `features/tasks/…` des pièces communes à tous les tableaux, qui devraient vivre dans `components/` :
@@ -129,10 +131,14 @@ Restent propres à chaque domaine : le report au lendemain des routines, le tran
 - `ViewTabs` ;
 - `use-saved-views`.
 
+**Fait** : `column-fit`, `ViewTabs` et `use-saved-views` sont dans `components/data-table`, `FilterBuilder` et `filter-meta` dans `components/filters`. `components/` n'importe plus de `features/tasks` que l'API des vues enregistrées.
+
 ### 11. Code mort depuis les vues génériques
 
 - Côté serveur et code partagé, les schémas des vues `TASKS`, `ROUTINES` et `SHOPPING_LISTS` (`routineViewConfigSchema`, `shoppingListViewConfigSchema`, `taskViewConfigSchema`) ne servent plus qu'à valider d'anciennes vues.
 - `firstRoutineViews` et `firstShoppingListViews` ne sont plus utilisés nulle part.
+
+**Fait** : les anciens schémas de vues (`taskViewConfigSchema`, `routineViewConfigSchema`, `shoppingListViewConfigSchema`) et l'ancien langage de filtres des tâches (`TASK_FILTER_FIELDS`, `taskFilterSchema`…) sont supprimés. L'API n'accepte plus que des vues de tableau ; les anciennes vues restent en base, telles quelles. Le filtre « Mes tâches » de l'accueil est écrit directement dans le langage générique. Restent la mécanique de filtres commune (`filterConditionSchemaFor`, `filterPeriod`…), à ranger un jour hors de `task-filters.ts`, et la traduction des anciens filtres des graphiques.
 
 ## Plan proposé
 

@@ -6,16 +6,7 @@ import { commentTotal } from '../comments/comment-column';
 import type { Routine } from './api';
 import { isDone, routineTreeOptions, stateOf, waitingFor } from './routine-format';
 import { opensWords, REPETITION_LABELS, repetitionOf, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
-
-/**
- * Local day of an instant, YYYY-MM-DD.
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-const localDay = (iso: string) => {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
+import { localDay } from '../../lib/dates';
 
 /**
  * Short date of a calendar date: "lun. 10 nov.".

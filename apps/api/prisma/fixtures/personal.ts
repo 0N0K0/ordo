@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyFilter, occurrenceDates, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, occurrenceDates, type Recurrence } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
@@ -57,7 +57,7 @@ const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRE
  * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes.
  * @returns {Prisma.InputJsonValue} Stored configuration.
  */
-const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
 
 /**
  * PDF of the fixtures.
@@ -182,10 +182,12 @@ export async function seedPersonal({
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
     await createView({
+      kind: 'TABLE',
+      tableKey: 'tasks',
       name: 'Mes tâches',
-      config: { filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
+      config: { filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
     });
-  await createView({ name: 'Par étiquette', config: { filter: emptyFilter(), groupBy: 'tags' } });
+  await createView({ kind: 'TABLE', tableKey: 'tasks', name: 'Par étiquette', config: { filter: emptyTableFilter(), groupBy: 'tags' } });
 
   // --- Places --------------------------------------------------------------------------------------------
   const home = await savePlace(null, { name: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });

@@ -851,7 +851,7 @@ const BulkDeleteTasksDocument = graphql(`
 export interface TaskViewRecord {
   id: string;
   name: string;
-  /** Raw configuration, parsed with taskViewConfigSchema. */
+  /** Raw configuration (of a table view: parsed with tableViewConfigSchema). */
   config: unknown;
   isDefault: boolean;
   position: number;

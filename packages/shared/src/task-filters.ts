@@ -1,61 +1,12 @@
 import { z } from 'zod';
-import { TABLE_AGGREGATES } from './aggregates';
 import { DEFAULT_WEEK, weekRange, type WeekSpan } from './weeks';
 
 /** Fixed meaning of a task status. */
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
 export type TaskStatusCategory = (typeof TASK_STATUS_CATEGORIES)[number];
 
-/** Categories of a closed task (not "open", never overdue). */
-export const CLOSED_STATUS_CATEGORIES: readonly TaskStatusCategory[] = ['DONE', 'CANCELLED'];
-
 /** Kind of value a filter field holds; it decides the available operators. */
 export type FilterFieldKind = 'text' | 'number' | 'date' | 'reference' | 'multiReference' | 'sprint' | 'boolean' | 'category';
-
-/** Filterable task fields and their kind. */
-export const TASK_FILTER_FIELDS = {
-  title: 'text',
-  description: 'text',
-  number: 'number',
-  effort: 'number',
-  project: 'reference',
-  status: 'reference',
-  statusCategory: 'category',
-  priority: 'reference',
-  type: 'reference',
-  parent: 'reference',
-  milestone: 'reference',
-  sprint: 'sprint',
-  assignees: 'multiReference',
-  tags: 'multiReference',
-  startDate: 'date',
-  endDate: 'date',
-  deadline: 'date',
-  minDate: 'date',
-  createdAt: 'date',
-  updatedAt: 'date',
-  overdue: 'boolean',
-  blocked: 'boolean',
-  hasSubtasks: 'boolean',
-  closed: 'boolean',
-  archived: 'boolean',
-  /** Open and allowed now by its slot rule (else the default of the workspace). */
-  doableNow: 'boolean',
-  /** Contributors (« c:<id> ») or relations (« r:<id> ») it is for. */
-  beneficiaries: 'multiReference',
-  /** Kinds of slots its rule names (during or out of). */
-  slots: 'multiReference',
-  /** Tasks it depends on, those it blocks, those it is related to. */
-  dependsOn: 'multiReference',
-  blocks: 'multiReference',
-  relatedTo: 'multiReference',
-  /** Time tracked on it, in hours. */
-  trackedHours: 'number',
-  hasShopping: 'boolean',
-  hasAlarms: 'boolean',
-  hasComments: 'boolean',
-} as const satisfies Record<string, FilterFieldKind>;
-export type TaskFilterField = keyof typeof TASK_FILTER_FIELDS;
 
 /** Operators available for each field kind. */
 export const FILTER_OPERATORS = {
@@ -79,10 +30,6 @@ export const ME = '@me';
 /** Operators that take no value. */
 export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse', 'current', 'previous', 'next', 'past', 'future'];
 
-/** Sprint operators relative to the calendar. */
-export const RELATIVE_SPRINT_OPERATORS = ['current', 'previous', 'next', 'past', 'future'] as const;
-export type RelativeSprintOperator = (typeof RELATIVE_SPRINT_OPERATORS)[number];
-
 /**
  * Relative date tokens: `today`, `today+3`, `today-7` (days from today),
  * or a period for `within`: `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisYear`, `lastYear`, `nextYear`,
@@ -94,18 +41,11 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const relativeDay = /^today([+-]\d{1,4})?$/;
 const rollingPeriod = /^(past|next):\d{1,4}$/;
 
-/** A day: YYYY-MM-DD or `today±N`. */
-export const filterDaySchema = z
-  .string()
-  .refine((value) => isoDate.test(value) || relativeDay.test(value), 'Date invalide.');
+/** A day of a date condition: a calendar date, today, or N days before or after it. */
+const filterDaySchema = z.string().refine((value) => isoDate.test(value) || relativeDay.test(value), 'Date invalide.');
 
 /** A period, for the `within` operator. */
-export const filterPeriodSchema = z
-  .string()
-  .refine(
-    (value) => (DATE_PERIODS as readonly string[]).includes(value) || rollingPeriod.test(value),
-    'Période invalide.',
-  );
+const filterPeriodSchema = z.string().refine((value) => (DATE_PERIODS as readonly string[]).includes(value) || rollingPeriod.test(value), 'Période invalide.');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -247,15 +187,8 @@ export function filterGroupSchemaFor<F extends string>(condition: z.ZodType<Filt
   return group;
 }
 
-export const filterConditionSchema = filterConditionSchemaFor(TASK_FILTER_FIELDS, { statusCategory: TASK_STATUS_CATEGORIES });
-export type FilterCondition = FilterConditionOf<TaskFilterField>;
-
-export type FilterGroup = FilterGroupOf<TaskFilterField>;
-
 /** Maximum nesting of filter groups. */
 export const MAX_FILTER_DEPTH = 5;
-
-export const filterGroupSchema: z.ZodType<FilterGroup> = filterGroupSchemaFor(filterConditionSchema);
 
 /**
  * Nesting depth of a filter tree (1 for a group of conditions).
@@ -264,23 +197,6 @@ export const filterGroupSchema: z.ZodType<FilterGroup> = filterGroupSchemaFor(fi
  */
 export function filterDepth<F extends string>(group: FilterGroupOf<F>): number {
   return 1 + Math.max(0, ...group.children.map((child) => (child.type === 'group' ? filterDepth(child) : 0)));
-}
-
-/**
- * Root filter: a group, limited in depth. The app may wrap a view filter in a context filter
- * (project, home period), hence two extra levels over what the builder allows.
- */
-export const taskFilterSchema = filterGroupSchema.refine(
-  (group) => filterDepth(group) <= MAX_FILTER_DEPTH + 2,
-  `Les groupes de filtres sont limités à ${MAX_FILTER_DEPTH} niveaux.`,
-);
-
-/**
- * Empty root filter (matches every task).
- * @returns {FilterGroup} Filter.
- */
-export function emptyFilter(): FilterGroup {
-  return { type: 'group', id: 'root', combinator: 'and', children: [] };
 }
 
 /** Columns of the task table (the number is shown before the title). */
@@ -317,10 +233,6 @@ export const TASK_COLUMNS = [
 ] as const;
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 
-/** Sort keys: the columns, plus the task number. */
-export const TASK_SORT_KEYS = [...TASK_COLUMNS, 'number'] as const;
-export type TaskSortKey = (typeof TASK_SORT_KEYS)[number];
-
 /** Periods of the events listed with the tasks. */
 export const EVENT_PERIODS = ['thisWeek', 'nextWeek', 'thisMonth', 'nextMonth', 'next:7', 'next:30', 'next:90', 'past:30'] as const;
 export type EventPeriod = (typeof EVENT_PERIODS)[number];
@@ -349,48 +261,6 @@ export const TASK_GROUP_BY = [
 ] as const;
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
-const columnSchema = z.enum(TASK_COLUMNS);
-
-/**
- * List of columns that drops unknown ids, so views saved with a removed column stay valid.
- * @returns {z.ZodType<TaskColumn[]>} Schema.
- */
-const columnListSchema = () =>
-  z.preprocess(
-    (value) => (Array.isArray(value) ? value.filter((id) => (TASK_COLUMNS as readonly unknown[]).includes(id)) : value),
-    z.array(columnSchema),
-  );
-
-export const taskViewConfigSchema = z.object({
-  filter: taskFilterSchema,
-  /** Quick text search, combined with the filter. */
-  search: z.string().max(200).default(''),
-  includeArchived: z.boolean().default(false),
-  /** Multi-sort, in priority order. Empty: manual order (drag and drop enabled). */
-  sorting: z
-    .preprocess(
-      (value) =>
-        Array.isArray(value)
-          ? value.filter((sort) => (TASK_SORT_KEYS as readonly unknown[]).includes((sort as { id?: unknown })?.id))
-          : value,
-      z.array(z.object({ id: z.enum(TASK_SORT_KEYS), desc: z.boolean() })).max(TASK_SORT_KEYS.length),
-    )
-    .default([]),
-  columnOrder: columnListSchema().default([...TASK_COLUMNS]),
-  hiddenColumns: columnListSchema().default([]),
-  columnSizing: z.record(z.string(), z.number().min(40).max(1200)).default({}),
-  groupBy: z.enum(TASK_GROUP_BY).nullable().default(null),
-  /** Show sub-tasks as a flat list instead of expandable rows. */
-  flat: z.boolean().default(false),
-  /** Calendar events listed with the tasks, over a period (a `within` period token). */
-  events: z
-    .object({ show: z.boolean().default(false), period: z.enum(EVENT_PERIODS).catch('next:30').default('next:30') })
-    .default({ show: false, period: 'next:30' }),
-  /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
-  footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),
-});
-export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
-
 /** Columns of the views made by the app, unless the workspace chose its own. */
 export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
 
@@ -416,19 +286,6 @@ export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
 export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
   const parsed = taskColumnDefaultsSchema.safeParse(stored ?? {});
   return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
-}
-
-/**
- * Configuration of a new view: every task, manual order, the default columns (of the workspace when given).
- * @param {TaskColumnDefaults} [columns] Columns chosen for the workspace. Optional.
- * @returns {TaskViewConfig} Config.
- */
-export function defaultTaskViewConfig(columns?: TaskColumnDefaults): TaskViewConfig {
-  return taskViewConfigSchema.parse({
-    filter: emptyFilter(),
-    columnOrder: columns?.columnOrder.length ? columns.columnOrder : [...TASK_COLUMNS],
-    hiddenColumns: columns?.columnOrder.length ? columns.hiddenColumns : DEFAULT_HIDDEN_COLUMNS,
-  });
 }
 
 export const taskViewNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.');

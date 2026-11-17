@@ -1,7 +1,7 @@
 import { Stack, Text } from '@mantine/core';
 import { SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { useWorkSchedules } from '../calendar/api';
-import { FieldsFilterBuilder, type FilterFields } from '../tasks/views/FilterBuilder';
+import { FieldsFilterBuilder, type FilterFields } from '../../components/filters/FilterBuilder';
 import { emptySlotCondition } from './slot-condition-text';
 
 const OPERATOR_LABELS: Record<SlotConditionField, Record<string, string>> = {

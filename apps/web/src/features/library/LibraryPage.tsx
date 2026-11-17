@@ -54,7 +54,7 @@ import { EditableText } from '../../components/data-table/EditableCells';
 import { GroupHeaderRow } from '../../components/data-table/GroupHeaderRow';
 import { groupRows } from '../../components/data-table/table-engine';
 import { useDataView } from '../../components/data-table/use-data-view';
-import { countConditions } from '../tasks/views/filter-meta';
+import { countConditions } from '../../components/filters/filter-meta';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
 import { sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { localDay } from '../../lib/dates';

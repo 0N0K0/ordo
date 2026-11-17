@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { shoppingCategoryTree } from './shopping-format';
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+import { collator } from '../../lib/text';
 
 /**
  * Products of the base lists to add to a list: searched, filtered by base list or missing, checked then added in one go

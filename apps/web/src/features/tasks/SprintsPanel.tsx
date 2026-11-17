@@ -15,13 +15,6 @@ import { useSprintMutations, type Sprint } from './api';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import * as fmt from '../../lib/format';
 
-/**
- * Printed day.
- * @param {string} day YYYY-MM-DD.
- * @returns {string} "3 novembre 2026".
- */
-const printedDay = (day: string) => fmt.day(day);
-
 interface SprintFormProps {
   projectId: string;
   sprint?: Sprint;
@@ -181,7 +174,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                       )}
                     </Group>
                     <Text size="sm" c="dimmed">
-                      Du {printedDay(start)} au {printedDay(end)}
+                      Du {fmt.day(start)} au {fmt.day(end)}
                     </Text>
                   </Stack>
                   <Menu position="bottom-end" withinPortal shadow="md">

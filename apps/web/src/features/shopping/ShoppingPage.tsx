@@ -28,16 +28,7 @@ import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { deleteRowsAction, duplicateRowsAction, forEachRow } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
-
-/**
- * Local day of an instant, YYYY-MM-DD.
- * @param {string} iso Instant.
- * @returns {string} Day.
- */
-const localDay = (iso: string) => {
-  const date = new Date(iso);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
+import { localDay } from '../../lib/dates';
 
 /** Views made the first time: the lists in progress, the archived ones. */
 const LIST_VIEWS: FirstTableView[] = [

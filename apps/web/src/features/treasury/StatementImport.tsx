@@ -1,4 +1,5 @@
 import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { normalize } from '../../lib/text';
 import { listSelectProps } from '../../components/settings/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
@@ -39,7 +40,6 @@ function guessMapping(text: string, encoding: StatementMapping['encoding']): Sta
   const sample = text.split(/\r?\n/).slice(0, 20).join('\n');
   const separator = ([';', ',', '\t'] as const).reduce((best, candidate) => (sample.split(candidate).length > sample.split(best).length ? candidate : best), ';' as StatementMapping['separator']);
   const rows = parseCsv(text, separator);
-  const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const headerIndex = Math.max(
     0,
     rows.slice(0, 20).findIndex((cells) => cells.some((cell) => /date/.test(normalize(cell))) && cells.some((cell) => /libel|montant|debit|credit/.test(normalize(cell)))),

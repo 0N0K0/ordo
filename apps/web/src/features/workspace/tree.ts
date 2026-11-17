@@ -1,6 +1,8 @@
 import { LEVEL, treeOptions, type TreeNode, type TreeOption } from '../../components/tree-select/tree-select';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, Workspace } from './api';
+import { collator } from '../../lib/text';
+import { normalize } from '../../lib/text';
 
 export type SortMode = 'manual' | 'name';
 
@@ -26,21 +28,6 @@ export interface TreeSection {
    * project), as `c:<clientId>` and `p:<projectId>` keys.
    */
   context?: Set<string>;
-}
-
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
-
-/**
- * Lowercases and strips accents, for accent-insensitive search.
- * @param {string} value Text to normalize.
- * @returns {string} Normalized text.
- */
-function normalize(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
 }
 
 /**

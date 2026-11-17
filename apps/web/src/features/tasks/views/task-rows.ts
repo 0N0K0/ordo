@@ -1,10 +1,12 @@
-import type { TaskSortKey } from '@ordo/shared';
+import type { TaskColumn } from '@ordo/shared';
+
+/** What a task is sorted by: a column, or its number. */
+type TaskSortKey = TaskColumn | 'number';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
-
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+import { collator } from '../../../lib/text';
 
 type SortValue = string | number | null;
 

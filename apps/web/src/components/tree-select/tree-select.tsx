@@ -2,6 +2,7 @@ import { Group, Text, type ComboboxItem, type ComboboxLikeRenderOptionInput, typ
 import type { ReactNode } from 'react';
 import { ItemAvatar } from '../settings/ItemAvatar';
 import { hasAvatar } from '../settings/item-look';
+import { normalize } from '../../lib/text';
 
 /** Node of a tree offered in a select. */
 export interface TreeNode {
@@ -75,17 +76,6 @@ export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) =>
   visit(null, 0, []);
   return options;
 }
-
-/**
- * Text compared by the search: lower case, without accents.
- * @param {string} text Text.
- * @returns {string} Normalized text.
- */
-const normalize = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
 
 /**
  * Props of a Select or MultiSelect of a tree: the options by their name, indented under their parent (their full path

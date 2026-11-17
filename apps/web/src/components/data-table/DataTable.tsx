@@ -32,7 +32,7 @@ import {
 } from '@tanstack/react-table';
 import { memo, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { contentWidth } from '../../features/tasks/column-fit';
+import { contentWidth } from './column-fit';
 import { ColumnHeaderMenu, type ColumnMove } from './ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
 import { columnFilter } from './table-engine';
@@ -48,6 +48,7 @@ import { useTableHeight } from './table-height';
 import { BulkTableContext } from './bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from './use-data-view';
+import { suppressClickAfterDrop } from '../../lib/drag';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 export interface LeadingCell<R> {
@@ -188,19 +189,6 @@ const HANDLE_WIDTH = 26;
  */
 function apply<T>(updater: Updater<T>, current: T): T {
   return typeof updater === 'function' ? (updater as (old: T) => T)(current) : updater;
-}
-
-/**
- * Swallows the click fired by releasing the pointer at the end of a drag (it would sort or open a row).
- * @returns {void}
- */
-function suppressClickAfterDrop(): void {
-  const swallow = (event: globalThis.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  window.addEventListener('click', swallow, { capture: true, once: true });
-  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 100);
 }
 
 // Columns only meet columns (the header under the pointer: widths vary a lot), rows only meet rows.
