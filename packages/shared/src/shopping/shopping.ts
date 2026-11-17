@@ -1,3 +1,4 @@
+import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
 import { colorSchema, dateSchema, labelNameSchema, optionalColorSchema } from '../core/workspace';
@@ -61,13 +62,16 @@ export const shoppingBaseListNameSchema = requiredText(80);
 
 export const shoppingListNameSchema = requiredText(120);
 
+/** Name and tasks of a shopping list, as its forms edit them. */
+export const shoppingListFormSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
+
 /**
  * Estimated cost of a product or an item: its quantity (1 without) times its unit price.
  * @param {{ quantity: number | null, unitPrice: number | null }} item Product or item.
  * @returns {number | null} Cost, null without price.
  */
 export function shoppingCost({ quantity, unitPrice }: { quantity: number | null; unitPrice: number | null }): number | null {
-  return unitPrice === null ? null : Math.round((quantity ?? 1) * unitPrice * 100) / 100;
+  return unitPrice === null ? null : round2((quantity ?? 1) * unitPrice);
 }
 
 /**
@@ -85,7 +89,7 @@ export function shoppingShares(items: readonly { quantity: number | null; unitPr
   const relations = new Map<string, number>();
   let total = 0;
   for (const item of items) {
-    const cents = Math.round((shoppingCost(item) ?? 0) * 100);
+    const cents = toCents(shoppingCost(item) ?? 0);
     total += cents;
     const people = item.memberIds.length + item.relationIds.length;
     if (!cents || !people) continue;

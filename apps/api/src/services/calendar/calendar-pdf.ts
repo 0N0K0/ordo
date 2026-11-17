@@ -1,15 +1,15 @@
-import { addDays, daysBetween } from '@ordo/shared';
+import { addDays, colorSchema, daysBetween, parseDay, timeToMinutes } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { startReport } from '../core/pdf-report';
+import { PDF_TEXT, startReport } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
 const isoDate = z.iso.date();
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/);
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const hexColor = colorSchema;
 
 /** A view of the calendar, as displayed (filters applied), to print. */
 const calendarPdfSchema = z
@@ -42,17 +42,10 @@ const calendarPdfSchema = z
 type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
 type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 
-const COLORS = { text: '#1d232b', muted: '#66707c', border: '#d5dae0', light: '#f2f4f6', work: '#e6f4ea', today: '#fff8db' };
+const COLORS = { ...PDF_TEXT, border: '#d5dae0', light: '#f2f4f6', work: '#e6f4ea', today: '#fff8db' };
 const MARGIN = 28;
 const WEEKDAYS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
 const dayTitle = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-
-/**
- * Minutes of a "HH:MM" time.
- * @param {string} time Time.
- * @returns {number} Minutes since midnight.
- */
-const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /**
  * Color mixed with white.
@@ -110,7 +103,7 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
   const headerHeight = 16;
   days.forEach((day, index) => {
     if (day === today) doc.rect(columnX(index), area.y, columnWidth, headerHeight).fill(COLORS.today);
-    clippedText(doc, dayTitle.format(new Date(`${day}T00:00:00Z`)), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
+    clippedText(doc, dayTitle.format(parseDay(day)), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
   });
   let y = area.y + headerHeight;
 
@@ -147,8 +140,8 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
 
   // Hours: those of the items, 8 h to 19 h at least.
   const timed = view.items.filter((item) => !item.allDay);
-  const startHour = Math.min(8, ...timed.map((item) => (item.start.slice(0, 10) < item.end.slice(0, 10) ? 0 : Math.floor(minutesOf(item.start.slice(11)) / 60))));
-  const endHour = Math.max(19, ...timed.map((item) => (item.end.slice(0, 10) > item.start.slice(0, 10) ? 24 : Math.ceil(minutesOf(item.end.slice(11)) / 60))));
+  const startHour = Math.min(8, ...timed.map((item) => (item.start.slice(0, 10) < item.end.slice(0, 10) ? 0 : Math.floor(timeToMinutes(item.start.slice(11)) / 60))));
+  const endHour = Math.max(19, ...timed.map((item) => (item.end.slice(0, 10) > item.start.slice(0, 10) ? 24 : Math.ceil(timeToMinutes(item.end.slice(11)) / 60))));
   const gridTop = y;
   const hourHeight = (area.y + area.height - gridTop) / (endHour - startHour);
   const yOf = (minutes: number) => gridTop + ((Math.min(Math.max(minutes, startHour * 60), endHour * 60) - startHour * 60) / 60) * hourHeight;
@@ -164,8 +157,8 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
         const startDay = item.start.slice(0, 10);
         const endDay = item.end.slice(0, 10);
         if (day < startDay || day > endDay) return null;
-        const start = day === startDay ? minutesOf(item.start.slice(11)) : 0;
-        const end = day === endDay ? minutesOf(item.end.slice(11)) : 24 * 60;
+        const start = day === startDay ? timeToMinutes(item.start.slice(11)) : 0;
+        const end = day === endDay ? timeToMinutes(item.end.slice(11)) : 24 * 60;
         return end > start || item.kind === 'time' ? { item, index, start, end: Math.max(end, start + 15) } : null;
       })
       .filter((piece) => piece !== null),

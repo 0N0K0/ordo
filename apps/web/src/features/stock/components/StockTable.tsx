@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, usePeople } from '../../shopping/lib/shopping-format';
 import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -16,7 +17,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryTree } from '../../../components/tree/category-tree';
 import { localToday } from '../../../lib/dates';
-import { addDays } from '@ordo/shared';
+import { addDays, mapById, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
@@ -55,7 +56,7 @@ export function StockTable() {
   const places = locationPaths(locations ?? []);
   const categories = shopping?.shoppingCategories ?? [];
   const categoryPaths = new Map(categoryTree(categories).map((item) => [item.category.id, item.path]));
-  const products = new Map((shopping?.shoppingProducts ?? []).map((product) => [product.id, product]));
+  const products = mapById(shopping?.shoppingProducts ?? []);
   const comments = useCommentCounts(
     'STOCK_ITEM',
     (items ?? []).map((item) => item.id),
@@ -63,7 +64,7 @@ export function StockTable() {
   const whom = (item: StockItem) => [...item.memberIds.map((id) => people.members.get(id) ?? ''), ...item.relationIds.map((id) => people.relations.get(id) ?? '')].filter(Boolean);
   const value = (item: StockItem) => {
     const price = item.productId ? products.get(item.productId)?.lastPrice : null;
-    return price === null || price === undefined ? null : Math.round(price * item.quantity * 100) / 100;
+    return price === null || price === undefined ? null : round2(price * item.quantity);
   };
   const columns: DataColumn<StockItem>[] = [
     { id: 'label', label: 'Article', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
@@ -200,9 +201,9 @@ export function StockTable() {
       selectionActions={(rows, clear) => [
         deleteRowsAction(rows, {
           title: 'Supprimer les articles',
-          risks: `${rows.length} article(s) seront supprimés du stock avec leurs lots et leur historique. Cette action est irréversible.`,
+          risks: `${countOf(rows.length, 'article')} seront supprimés du stock avec leurs lots et leur historique. Cette action est irréversible.`,
           remove: (item) => mutations.deleteItem.mutateAsync(item.id),
-          done: `${rows.length} article(s) supprimé(s).`,
+          done: `${countOf(rows.length, 'article')} ${plural(rows.length, 'supprimé')}.`,
           clear,
         }),
       ]}

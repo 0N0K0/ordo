@@ -1,8 +1,9 @@
+import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { Badge, Group, Stack, Text } from '@mantine/core';
 import { ChatCircleIcon, HandCoinsIcon } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -105,7 +106,6 @@ const COLUMNS: DataColumn<LoanRow>[] = [
 export function LoansPanel() {
   const { data: loans, isPending } = useTreasuryLoans();
   const { data: settings } = useTreasurySettings();
-  const [commented, setCommented] = useState<{ id: string; name: string } | null>(null);
   const rows = useMemo((): LoanRow[] => {
     const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
     return (loans ?? []).flatMap((item) => {
@@ -183,13 +183,18 @@ export function LoansPanel() {
         }
         actions={(row) =>
           row.kind === 'relation' && (
-            <RowActions name={row.name} primary={{ label: 'Commentaires', icon: <ChatCircleIcon aria-hidden />, onClick: () => setCommented({ id: row.relationId, name: row.name }) }} items={[]} />
+            <RowActions
+              name={row.name}
+              primary={{
+                label: 'Commentaires',
+                icon: <ChatCircleIcon aria-hidden />,
+                onClick: () => openFormPanel(`Commentaires · ${row.name}`, () => <Comments target="RELATION" id={row.relationId} />),
+              }}
+              items={[]}
+            />
           )
         }
       />
-      <SidePanel opened={commented !== null} onClose={() => setCommented(null)} title={`Commentaires · ${commented?.name ?? ''}`}>
-        {commented && <Comments target="RELATION" id={commented.id} />}
-      </SidePanel>
     </Stack>
   );
 }

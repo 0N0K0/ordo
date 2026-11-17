@@ -1,4 +1,4 @@
-import { subtreeOf, LEVEL } from '@ordo/shared';
+import { childrenByParent, LEVEL, mapById, subtreeOf } from '@ordo/shared';
 import { treeOptions, type TreeOption } from './tree-select';
 import { collator } from '../../lib/text';
 
@@ -39,12 +39,7 @@ const bySiblingOrder = (a: TreeCategory, b: TreeCategory) => (a.position ?? 0) -
  * @returns {PlacedCategory<C>[]} Placed categories.
  */
 export function categoryTree<C extends TreeCategory>(categories: readonly C[]): PlacedCategory<C>[] {
-  const ids = new Set(categories.map((category) => category.id));
-  const children = new Map<string | null, C[]>();
-  for (const category of categories) {
-    const parent = category.parentId && ids.has(category.parentId) ? category.parentId : null;
-    children.set(parent, [...(children.get(parent) ?? []), category]);
-  }
+  const children = childrenByParent(categories);
   const placed: PlacedCategory<C>[] = [];
   /**
    * Adds the sub-categories of a parent, recursively.
@@ -113,7 +108,7 @@ export type TreePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
  * @returns {{ parentId: string | null, index: number } | null} Destination.
  */
 export function treeDestination(categories: readonly TreeCategory[], id: string, targetId: string, place: TreePlace): { parentId: string | null; index: number } | null {
-  const byId = new Map(categories.map((category) => [category.id, category]));
+  const byId = mapById(categories);
   const moved = byId.get(id);
   const target = byId.get(targetId);
   if (!moved || !target) return null;

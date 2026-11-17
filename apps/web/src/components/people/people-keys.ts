@@ -57,3 +57,24 @@ export function memberOrRelation(key: string | null): { memberId: string | null;
  */
 export const memberOrRelationKey = ({ memberId, relationId }: { memberId?: string | null; relationId?: string | null }): string | null =>
   relationId ? personKey('relation', relationId) : memberId ? personKey('member', memberId) : null;
+
+/**
+ * Options of a select of members and relations, grouped (« Membres », « Relations »; an empty group left out).
+ * @param {readonly { id: string, name: string, isMe: boolean }[]} members Members of the team or household.
+ * @param {readonly { id: string, name: string }[]} relations Relations.
+ * @param {{ withMe?: boolean }} [options] The user among the members (« … (moi) »). Optional. Default = true.
+ * @returns {{ group: string, items: { value: string, label: string }[] }[]} Options.
+ */
+export function memberRelationOptions(
+  members: readonly { id: string; name: string; isMe: boolean }[],
+  relations: readonly { id: string; name: string }[],
+  { withMe = true }: { withMe?: boolean } = {},
+): { group: string; items: { value: string; label: string }[] }[] {
+  return [
+    {
+      group: 'Membres',
+      items: members.filter((member) => withMe || !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })),
+    },
+    { group: 'Relations', items: relations.map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
+  ].filter((group) => group.items.length > 0);
+}

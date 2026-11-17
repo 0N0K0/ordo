@@ -1,3 +1,4 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useMemo } from 'react';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useTaskAlarmCounts } from '../../alarms/api';
@@ -23,7 +24,7 @@ export function useTaskColumns(context: TaskContext | null, today: string, { doa
   return useMemo(() => {
     if (!context) return [];
     const shoppingTaskIds = new Set((lists ?? []).flatMap((list) => list.taskIds));
-    const slotKinds = (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name }));
+    const slotKinds = scheduleChoices(schedules).options;
     return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotKinds });
   }, [context, today, doableIds, lists, alarmCounts, schedules]);
 }

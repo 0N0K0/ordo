@@ -1,15 +1,20 @@
+import { PeriodNav } from '../../../components/page/PeriodNav';
+import { StatTile } from '../../../components/page/StatTile';
+import { openFormPanel } from '../../../components/panels/panels';
+import { useSetParams } from '../../../lib/search-params';
+import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from '../lib/entry-values';
-import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+
+import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, calendarEnd, calendarStart, shiftCalendar, type CalendarScale } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -168,26 +173,12 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
 }
 
 /**
- * Key figure of the treasury.
+ * Key figure of the treasury: an amount (red below zero).
  * @param {{ label: string, value: number, hint?: string, color?: string }} props Component props.
- * @returns {JSX.Element} Card.
+ * @returns {JSX.Element} Tile.
  */
 function Figure({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
-  return (
-    <Paper withBorder radius="md" p="md">
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-        {label}
-      </Text>
-      <Text size="xl" fw={700} ff="monospace" c={color ?? (value < 0 ? 'red' : undefined)}>
-        {fmt.money(value)}
-      </Text>
-      {hint && (
-        <Text size="xs" c="dimmed">
-          {hint}
-        </Text>
-      )}
-    </Paper>
-  );
+  return <StatTile label={label} value={fmt.money(value)} hint={hint} valueColor={color ?? (value < 0 ? 'red' : undefined)} />;
 }
 
 type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
@@ -200,19 +191,19 @@ type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: '
  */
 export function TreasuryPage() {
   const today = localToday();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   // The old settings and accounts tabs: in the settings sidebar.
   const asked = params.get('tab') ?? 'forecast';
   const moved = asked === 'settings' || asked === 'accounts';
   const tab = moved ? 'forecast' : asked;
   useEffect(() => {
-    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
+    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { only: true });
   }, [moved, setParams]);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<CalendarScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
   const [picking, setPicking] = useState(false);
-  const [dialog, setDialog] = useState<Dialog>(null);
   const from = periodFirst;
   const periodLast = calendarEnd(scale, periodFirst);
   // The forecast (expected movements) always reaches a year ahead, whatever the period shown.
@@ -224,7 +215,7 @@ export function TreasuryPage() {
   const saveEntry = useEntryCellSave();
 
   const env = useEntryEnv(accounts ?? NO_ACCOUNTS);
-  const forecastById = new Map((forecasts ?? []).map((entry) => [entry.id, entry]));
+  const forecastById = mapById(forecasts ?? []);
   const forecastOf = ({ item }: ForecastRow) => (item.entryId ? forecastById.get(item.entryId) : undefined);
   // Rows whose splits are unfolded.
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
@@ -273,7 +264,28 @@ export function TreasuryPage() {
         const entry = forecastOf(target);
         return entry ? changeOf(change, entry) : {};
       });
-  const close = () => setDialog(null);
+  /**
+   * Opens the form of an entry (new, changed, copied) or the realization of a forecast.
+   * @param {NonNullable<Dialog>} dialog Form.
+   * @returns {void}
+   */
+  const openDialog = (dialog: NonNullable<Dialog>) =>
+    openFormPanel(
+      dialog.kind === 'realize'
+        ? 'Réaliser la prévision'
+        : dialog.entry && dialog.copy
+          ? dialog.entry.status === 'FORECAST'
+            ? 'Dupliquer la prévision'
+            : 'Dupliquer le mouvement'
+          : dialog.entry
+            ? 'Modifier le mouvement'
+            : dialog.status === 'FORECAST'
+              ? 'Nouvelle prévision'
+              : 'Nouveau mouvement',
+      (close) => (dialog.kind === 'entry' ? <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} /> : <RealizeForm item={dialog.item} onDone={close} />),
+      // An entry has a table of lines (its split).
+      dialog.kind === 'entry' ? 'lg' : 'md',
+    );
   const onError = onMutationError;
 
   if (accountsPending) return <DetailSkeleton />;
@@ -289,8 +301,8 @@ export function TreasuryPage() {
         ) : (
           <ActionButton
             icon={<PlusIcon aria-hidden />}
-            onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}
-            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', status: 'FORECAST' }) }]}
+            onClick={() => openDialog({ kind: 'entry', status: 'ACTUAL' })}
+            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', status: 'FORECAST' }) }]}
           >
             Nouveau mouvement
           </ActionButton>
@@ -299,37 +311,11 @@ export function TreasuryPage() {
     />
   );
 
-  const dialogs = (
-    <SidePanel
-      opened={dialog !== null}
-      onClose={close}
-      // An entry has a table of lines (its split).
-      size={dialog?.kind === 'entry' ? 'lg' : 'md'}
-      title={
-        dialog?.kind === 'realize'
-          ? 'Réaliser la prévision'
-          : dialog?.kind === 'entry' && dialog.entry && dialog.copy
-            ? dialog.entry.status === 'FORECAST'
-              ? 'Dupliquer la prévision'
-              : 'Dupliquer le mouvement'
-            : dialog?.kind === 'entry' && dialog.entry
-              ? 'Modifier le mouvement'
-              : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
-                ? 'Nouvelle prévision'
-                : 'Nouveau mouvement'
-      }
-    >
-      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
-      {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
-    </SidePanel>
-  );
-
   if (!accounts?.length) {
     return (
       <Stack gap="md">
         {header}
         <EmptyState icon={<BankIcon aria-hidden />} message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là." />
-        {dialogs}
       </Stack>
     );
   }
@@ -356,7 +342,12 @@ export function TreasuryPage() {
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
         <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
-        <Figure label="En retard" value={late.reduce((sum, item) => sum + item.amount, 0)} hint={`${late.length} échéance(s) dépassée(s)`} color={late.length ? 'red' : undefined} />
+        <Figure
+          label="En retard"
+          value={late.reduce((sum, item) => sum + item.amount, 0)}
+          hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
+          color={late.length ? 'red' : undefined}
+        />
         <Figure
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
           value={end?.balance ?? 0}
@@ -368,15 +359,12 @@ export function TreasuryPage() {
         <Group justify="space-between" mb="sm">
           <Text fw={600}>Évolution du solde</Text>
           <Group gap="xs">
-            <Button size="xs" variant="default" disabled={periodFirst === calendarStart(scale, today)} onClick={() => setPeriodFirst(calendarStart(scale, today))}>
-              Aujourd’hui
-            </Button>
-            <Group gap={2} wrap="nowrap">
-              <Tooltip label="Période précédente">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période précédente" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, -1))}>
-                  <CaretLeftIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+            <PeriodNav
+              current={periodFirst === calendarStart(scale, today)}
+              onToday={() => setPeriodFirst(calendarStart(scale, today))}
+              onPrevious={() => setPeriodFirst(shiftCalendar(scale, periodFirst, -1))}
+              onNext={() => setPeriodFirst(shiftCalendar(scale, periodFirst, 1))}
+            >
               <Popover opened={picking} onChange={setPicking} position="bottom" shadow="md" withArrow>
                 <Popover.Target>
                   <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodLabel(scale, periodFirst)})`}>
@@ -404,12 +392,7 @@ export function TreasuryPage() {
                   )}
                 </Popover.Dropdown>
               </Popover>
-              <Tooltip label="Période suivante">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période suivante" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, 1))}>
-                  <CaretRightIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
+            </PeriodNav>
             <SegmentedControl
               size="xs"
               aria-label="Durée de la période"
@@ -450,14 +433,7 @@ export function TreasuryPage() {
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1' } : {});
-              if (value && value !== 'forecast') next.set('tab', value);
-              return next;
-            },
-            { replace: true },
-          )
+          setParams({ [SETTINGS_PARAM]: params.get(SETTINGS_PARAM), tab: value && value !== 'forecast' ? value : null }, { only: true })
         }
         keepMounted={false}
       >
@@ -487,9 +463,9 @@ export function TreasuryPage() {
                 {
                   ...deleteRowsAction(entries, {
                     title: 'Supprimer les prévisions',
-                    risks: `${entries.length} prévision(s) et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
+                    risks: `${countOf(entries.length, 'prévision')} et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
                     remove: (entry) => deleteEntry.mutateAsync(entry.id),
-                    done: `${entries.length} prévision(s) supprimée(s).`,
+                    done: `${countOf(entries.length, 'prévision')} ${plural(entries.length, 'supprimée')}.`,
                     clear,
                   }),
                   disabled: entries.length === 0,
@@ -596,12 +572,12 @@ export function TreasuryPage() {
                   name={item.label}
                   primary={
                     forecast
-                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => setDialog({ kind: 'realize', item }) }
-                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) }
+                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
+                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
                   }
                   items={[
-                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) },
-                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry, copy: true }) },
+                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) },
+                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry, copy: true }) },
                     {
                       label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
                       icon: <TrashIcon aria-hidden />,
@@ -627,7 +603,7 @@ export function TreasuryPage() {
         </PageTabs.Panel>
 
         <PageTabs.Panel value="entries">
-          <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} onDuplicate={(entry) => setDialog({ kind: 'entry', entry, copy: true })} />
+          <EntriesPanel accounts={accounts} onEdit={(entry) => openDialog({ kind: 'entry', entry })} onDuplicate={(entry) => openDialog({ kind: 'entry', entry, copy: true })} />
         </PageTabs.Panel>
 
         <PageTabs.Panel value="budgets">
@@ -642,7 +618,6 @@ export function TreasuryPage() {
       <PageSettings title="Paramètres de la trésorerie">
         <SettingsPanel />
       </PageSettings>
-      {dialogs}
     </Stack>
   );
 }

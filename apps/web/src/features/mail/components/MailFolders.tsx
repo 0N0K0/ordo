@@ -1,14 +1,14 @@
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, NavLink, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
   ArrowsOutCardinalIcon,
   CaretDownIcon,
   CaretRightIcon,
-  DotsThreeIcon,
   EnvelopeSimpleIcon,
   FileIcon,
   FolderIcon,
@@ -20,7 +20,7 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -116,7 +116,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
           notifySuccess(parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`);
           if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
         },
-        onError: (failure) => notifyError(failure.message),
+        onError: onMutationError,
       },
     );
 
@@ -241,7 +241,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               notifySuccess('Dossier supprimé.');
               if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
             },
-            onError: (failure) => notifyError(failure.message),
+            onError: onMutationError,
           },
         );
       },
@@ -332,28 +332,17 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                     </Badge>
                   </Tooltip>
                 )}
-                <Menu position="bottom-end" shadow="md" withinPortal>
-                  <Menu.Target>
-                    <ActionIcon size="xs" variant="subtle" color="gray" aria-label={`Actions sur le dossier ${folder.name}`} onClick={(event) => event.stopPropagation()}>
-                      <DotsThreeIcon weight="bold" aria-hidden />
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
-                    <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => askCreate(folder.path)}>
-                      Nouveau sous-dossier
-                    </Menu.Item>
-                    <Menu.Item leftSection={<ArrowsOutCardinalIcon aria-hidden />} disabled={special} onClick={() => askMove(folder)}>
-                      Déplacer vers…
-                    </Menu.Item>
-                    <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} disabled={special} onClick={() => askRename(folder)}>
-                      Renommer
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" disabled={special} onClick={() => askDelete(folder)}>
-                      Supprimer
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
+                <ActionsMenu
+                  name={`le dossier ${folder.name}`}
+                  size="xs"
+                  inRow
+                  items={[
+                    { label: 'Nouveau sous-dossier', icon: <FolderPlusIcon aria-hidden />, onClick: () => askCreate(folder.path) },
+                    { label: 'Déplacer vers…', icon: <ArrowsOutCardinalIcon aria-hidden />, disabled: special, onClick: () => askMove(folder) },
+                    { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, disabled: special, onClick: () => askRename(folder) },
+                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: special, onClick: () => askDelete(folder) },
+                  ]}
+                />
               </Group>
             }
             active={(selected?.accountId === account.id && selected.folder === folder.path) || over === folder.path}
@@ -404,7 +393,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                     notifySuccess(`${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`);
                     onDropped();
                   },
-                  onError: (failure) => notifyError(failure.message),
+                  onError: onMutationError,
                 },
               );
             }}

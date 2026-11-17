@@ -1,8 +1,9 @@
-import { ColorInput, Select, Stack, TextInput } from '@mantine/core';
+import { ColorField } from '../inputs/ColorField';
+import { Select, Stack, TextInput } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
 import { IconField, type IconValue } from '../../features/workspace/components/IconField';
-import { useColorSwatches } from '../../features/workspace/hooks/use-color-swatches';
+import { useColorSwatches } from '../../lib/use-color-swatches';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
@@ -116,17 +117,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        {withColor && (
-          <ColorInput
-            label="Couleur"
-            required={colorRequired}
-            description={colorRequired ? undefined : 'Vide : celle de son parent.'}
-            format="hex"
-            swatches={swatches}
-            swatchesPerRow={9}
-            {...form.getInputProps('color')}
-          />
-        )}
+        {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
         <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.name} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (
           <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />

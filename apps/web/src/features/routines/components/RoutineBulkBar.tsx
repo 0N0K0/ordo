@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import { ArchiveIcon, ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
 
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
@@ -33,7 +34,7 @@ export function useRoutineRowsActions() {
     const allArchived = routines.every((routine) => routine.archived);
     const allDone = routines.every((routine) => routine.currentDate === null || isDone(routine));
     const movable = routines.filter((routine) => !routine.archived && movableOccurrence(routine));
-    const byId = new Map((data?.routines ?? []).map((routine) => [routine.id, routine]));
+    const byId = mapById(data?.routines ?? []);
 
     const single = routines.length === 1 ? routines[0] : null;
     return {
@@ -43,7 +44,7 @@ export function useRoutineRowsActions() {
         icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: bulkDone.isPending,
         apply: (done) => bulkDone.mutateAsync({ ids, done }),
-        done: (done) => `${label} ${done ? 'cochée' : 'décochée'}${ids.length > 1 ? 's' : ''}.`,
+        done: (done) => `${label} ${plural(ids.length, done ? 'cochée' : 'décochée')}.`,
       }),
       postpone: {
         label: 'Reporter au lendemain',
@@ -75,7 +76,7 @@ export function useRoutineRowsActions() {
         icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: bulkArchive.isPending,
         apply: (archived) => bulkArchive.mutateAsync({ ids, archived }),
-        done: (archived) => `${label} ${archived ? 'archivée' : 'restaurée'}${ids.length > 1 ? 's' : ''}.`,
+        done: (archived) => `${label} ${plural(ids.length, archived ? 'archivée' : 'restaurée')}.`,
         clear: onClear,
       }),
       remove: deleteRowsAction(routines, {

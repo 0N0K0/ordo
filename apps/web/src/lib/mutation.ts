@@ -47,3 +47,17 @@ export function patchQuery<D>(queryClient: QueryClient, queryKey: QueryKey, patc
   const data = queryClient.getQueryData<D>(queryKey);
   if (data !== undefined) queryClient.setQueryData(queryKey, patch(data));
 }
+
+/**
+ * List with an item moved to an index (the optimistic order of a drag and drop), null when the item is not in it.
+ * @param {readonly T[]} list Items in their order.
+ * @param {string} id Item moved.
+ * @param {number} index Its new index.
+ * @returns {T[] | null} New order.
+ */
+export function moveToIndex<T extends { id: string }>(list: readonly T[], id: string, index: number): T[] | null {
+  const moved = list.find((item) => item.id === id);
+  if (!moved) return null;
+  const others = list.filter((item) => item.id !== id);
+  return [...others.slice(0, index), moved, ...others.slice(index)];
+}

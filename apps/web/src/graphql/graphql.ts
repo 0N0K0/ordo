@@ -174,11 +174,6 @@ export type CalendarEventScope =
   | 'FOLLOWING'
   | 'THIS';
 
-export type CalendarInput = {
-  color: string;
-  name: string;
-};
-
 export type CalendarLinkInput = {
   label: string;
   url: string;
@@ -472,6 +467,18 @@ export type MilestoneUpdateInput = {
   title?: string | null | undefined;
 };
 
+/** Name and color of an item of a simple list. */
+export type NameColorInput = {
+  color: string;
+  name: string;
+};
+
+/** Changes of an item of a simple list (omitted fields unchanged). */
+export type NameColorPatch = {
+  color?: string | null | undefined;
+  name?: string | null | undefined;
+};
+
 /** Kind of notification a workspace can give while another one is open. */
 export type NotificationSource =
   | 'ALARMS'
@@ -496,16 +503,6 @@ export type ProductStockInput = {
   stockTracked: boolean;
 };
 
-export type ProjectCategoryInput = {
-  color: string;
-  name: string;
-};
-
-export type ProjectCategoryUpdateInput = {
-  color?: string | null | undefined;
-  name?: string | null | undefined;
-};
-
 export type ProjectInput = {
   categoryIds?: Array<string | number> | null | undefined;
   /** Client of a root project; a sub-project inherits the client of its parent. */
@@ -523,16 +520,6 @@ export type ProjectInput = {
 export type ProjectResourceKind =
   | 'FILE'
   | 'LINK';
-
-export type ProjectStatusInput = {
-  color: string;
-  name: string;
-};
-
-export type ProjectStatusUpdateInput = {
-  color?: string | null | undefined;
-  name?: string | null | undefined;
-};
 
 export type ProjectUpdateInput = {
   categoryIds?: Array<string | number> | null | undefined;
@@ -759,16 +746,6 @@ export type SettingsListKind =
   | 'TREASURY_COUNTERPARTY'
   | 'TREASURY_PAYMENT_METHOD';
 
-export type SheetCategoryInput = {
-  color: string;
-  name: string;
-};
-
-export type SheetCategoryPatch = {
-  color?: string | null | undefined;
-  name?: string | null | undefined;
-};
-
 export type SheetInput = {
   categoryIds: Array<string | number>;
   name: string;
@@ -859,18 +836,6 @@ export type ShoppingProductInput = {
   unit?: string | null | undefined;
   unitPrice?: number | null | undefined;
   url?: string | null | undefined;
-};
-
-/** Shopping store. */
-export type ShoppingStoreInput = {
-  color: string;
-  name: string;
-};
-
-/** Changes of a shopping store (omitted fields unchanged). */
-export type ShoppingStorePatch = {
-  color?: string | null | undefined;
-  name?: string | null | undefined;
 };
 
 export type SprintInput = {
@@ -1099,11 +1064,6 @@ export type TreasuryCategoryInput = {
   direction: TreasuryDirection;
   name: string;
   parentId?: string | number | null | undefined;
-};
-
-export type TreasuryContextInput = {
-  color: string;
-  name: string;
 };
 
 export type TreasuryContextPeriodInput = {
@@ -1688,14 +1648,6 @@ export type DeleteDocumentStatusMutationVariables = Exact<{
 
 export type DeleteDocumentStatusMutation = { deleteDocumentStatus: boolean };
 
-export type MoveDocumentStatusMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveDocumentStatusMutation = { moveDocumentStatus: boolean };
-
 export type SetDocumentTrackingStatusMutationVariables = Exact<{
   id: string | number;
   statusId: string | number;
@@ -1998,7 +1950,7 @@ export type SubscribedCalendarEventsQueryVariables = Exact<{
 export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarMutationVariables = Exact<{
-  input: CalendarInput;
+  input: NameColorInput;
 }>;
 
 
@@ -2006,19 +1958,11 @@ export type CreateCalendarMutation = { createCalendar: { id: string } };
 
 export type UpdateCalendarMutationVariables = Exact<{
   id: string | number;
-  input: CalendarInput;
+  input: NameColorInput;
 }>;
 
 
 export type UpdateCalendarMutation = { updateCalendar: { id: string } };
-
-export type MoveCalendarMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveCalendarMutation = { moveCalendar: boolean };
 
 export type DeleteCalendarMutationVariables = Exact<{
   id: string | number;
@@ -3073,7 +3017,7 @@ export type UseSheetMutationVariables = Exact<{
 export type UseSheetMutation = { useSheet: { taken: number, short: Array<string> } };
 
 export type CreateSheetCategoryMutationVariables = Exact<{
-  input: SheetCategoryInput;
+  input: NameColorInput;
 }>;
 
 
@@ -3081,7 +3025,7 @@ export type CreateSheetCategoryMutation = { createSheetCategory: string };
 
 export type UpdateSheetCategoryMutationVariables = Exact<{
   id: string | number;
-  input: SheetCategoryPatch;
+  input: NameColorPatch;
 }>;
 
 
@@ -3093,14 +3037,6 @@ export type DeleteSheetCategoryMutationVariables = Exact<{
 
 
 export type DeleteSheetCategoryMutation = { deleteSheetCategory: boolean };
-
-export type MoveSheetCategoryMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveSheetCategoryMutation = { moveSheetCategory: boolean };
 
 export type DuplicateSheetMutationVariables = Exact<{
   id: string | number;
@@ -3234,7 +3170,7 @@ export type MoveShoppingCategoryMutationVariables = Exact<{
 export type MoveShoppingCategoryMutation = { moveShoppingCategory: boolean };
 
 export type CreateShoppingUnitMutationVariables = Exact<{
-  input: ShoppingStoreInput;
+  input: NameColorInput;
 }>;
 
 
@@ -3242,7 +3178,7 @@ export type CreateShoppingUnitMutation = { createShoppingUnit: string };
 
 export type UpdateShoppingUnitMutationVariables = Exact<{
   id: string | number;
-  input: ShoppingStorePatch;
+  input: NameColorPatch;
 }>;
 
 
@@ -3255,14 +3191,6 @@ export type DeleteShoppingUnitMutationVariables = Exact<{
 
 export type DeleteShoppingUnitMutation = { deleteShoppingUnit: boolean };
 
-export type MoveShoppingUnitMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveShoppingUnitMutation = { moveShoppingUnit: boolean };
-
 export type MoveShoppingProductsMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   baseListId: string | number;
@@ -3272,7 +3200,7 @@ export type MoveShoppingProductsMutationVariables = Exact<{
 export type MoveShoppingProductsMutation = { moveShoppingProducts: number };
 
 export type CreateShoppingStorageMutationVariables = Exact<{
-  input: ShoppingStoreInput;
+  input: NameColorInput;
 }>;
 
 
@@ -3280,7 +3208,7 @@ export type CreateShoppingStorageMutation = { createShoppingStorage: string };
 
 export type UpdateShoppingStorageMutationVariables = Exact<{
   id: string | number;
-  input: ShoppingStorePatch;
+  input: NameColorPatch;
 }>;
 
 
@@ -3293,14 +3221,6 @@ export type DeleteShoppingStorageMutationVariables = Exact<{
 
 export type DeleteShoppingStorageMutation = { deleteShoppingStorage: boolean };
 
-export type MoveShoppingStorageMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveShoppingStorageMutation = { moveShoppingStorage: boolean };
-
 export type DuplicateShoppingItemMutationVariables = Exact<{
   id: string | number;
 }>;
@@ -3309,7 +3229,7 @@ export type DuplicateShoppingItemMutationVariables = Exact<{
 export type DuplicateShoppingItemMutation = { duplicateShoppingItem: string };
 
 export type CreateShoppingStoreMutationVariables = Exact<{
-  input: ShoppingStoreInput;
+  input: NameColorInput;
 }>;
 
 
@@ -3317,7 +3237,7 @@ export type CreateShoppingStoreMutation = { createShoppingStore: string };
 
 export type UpdateShoppingStoreMutationVariables = Exact<{
   id: string | number;
-  input: ShoppingStorePatch;
+  input: NameColorPatch;
 }>;
 
 
@@ -3329,14 +3249,6 @@ export type DeleteShoppingStoreMutationVariables = Exact<{
 
 
 export type DeleteShoppingStoreMutation = { deleteShoppingStore: boolean };
-
-export type MoveShoppingStoreMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveShoppingStoreMutation = { moveShoppingStore: boolean };
 
 export type CreateShoppingBaseListMutationVariables = Exact<{
   name: string;
@@ -3359,14 +3271,6 @@ export type DeleteShoppingBaseListMutationVariables = Exact<{
 
 
 export type DeleteShoppingBaseListMutation = { deleteShoppingBaseList: boolean };
-
-export type MoveShoppingBaseListMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveShoppingBaseListMutation = { moveShoppingBaseList: boolean };
 
 export type CreateShoppingProductMutationVariables = Exact<{
   input: ShoppingProductInput;
@@ -3820,14 +3724,6 @@ export type DeleteTaskStatusMutationVariables = Exact<{
 
 export type DeleteTaskStatusMutation = { deleteTaskStatus: boolean };
 
-export type MoveTaskStatusMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskStatusMutation = { moveTaskStatus: boolean };
-
 export type CreateTaskPriorityMutationVariables = Exact<{
   input: TaskLabelInput;
 }>;
@@ -3849,14 +3745,6 @@ export type DeleteTaskPriorityMutationVariables = Exact<{
 
 
 export type DeleteTaskPriorityMutation = { deleteTaskPriority: boolean };
-
-export type MoveTaskPriorityMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskPriorityMutation = { moveTaskPriority: boolean };
 
 export type CreateTaskTypeMutationVariables = Exact<{
   input: TaskLabelInput;
@@ -3880,14 +3768,6 @@ export type DeleteTaskTypeMutationVariables = Exact<{
 
 export type DeleteTaskTypeMutation = { deleteTaskType: boolean };
 
-export type MoveTaskTypeMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskTypeMutation = { moveTaskType: boolean };
-
 export type CreateTaskTagMutationVariables = Exact<{
   input: TaskLabelInput;
 }>;
@@ -3909,14 +3789,6 @@ export type DeleteTaskTagMutationVariables = Exact<{
 
 
 export type DeleteTaskTagMutation = { deleteTaskTag: boolean };
-
-export type MoveTaskTagMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskTagMutation = { moveTaskTag: boolean };
 
 export type TaskColumnDefaultsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4364,7 +4236,7 @@ export type DeleteTreasuryRelationMutation = { deleteTreasuryRelation: boolean }
 
 export type SaveTreasuryContextMutationVariables = Exact<{
   id?: string | number | null | undefined;
-  input: TreasuryContextInput;
+  input: NameColorInput;
 }>;
 
 
@@ -4538,7 +4410,7 @@ export type MoveProjectMutationVariables = Exact<{
 export type MoveProjectMutation = { moveProject: boolean };
 
 export type CreateProjectCategoryMutationVariables = Exact<{
-  input: ProjectCategoryInput;
+  input: NameColorInput;
 }>;
 
 
@@ -4546,7 +4418,7 @@ export type CreateProjectCategoryMutation = { createProjectCategory: { id: strin
 
 export type UpdateProjectCategoryMutationVariables = Exact<{
   id: string | number;
-  input: ProjectCategoryUpdateInput;
+  input: NameColorPatch;
 }>;
 
 
@@ -4560,7 +4432,7 @@ export type DeleteProjectCategoryMutationVariables = Exact<{
 export type DeleteProjectCategoryMutation = { deleteProjectCategory: boolean };
 
 export type CreateProjectStatusMutationVariables = Exact<{
-  input: ProjectStatusInput;
+  input: NameColorInput;
 }>;
 
 
@@ -4568,7 +4440,7 @@ export type CreateProjectStatusMutation = { createProjectStatus: { id: string, n
 
 export type UpdateProjectStatusMutationVariables = Exact<{
   id: string | number;
-  input: ProjectStatusUpdateInput;
+  input: NameColorPatch;
 }>;
 
 
@@ -4580,14 +4452,6 @@ export type DeleteProjectStatusMutationVariables = Exact<{
 
 
 export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
-
-export type MoveProjectStatusMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
 
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -6028,11 +5892,6 @@ export const DeleteDocumentStatusDocument = new TypedDocumentString(`
   deleteDocumentStatus(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteDocumentStatusMutation, DeleteDocumentStatusMutationVariables>;
-export const MoveDocumentStatusDocument = new TypedDocumentString(`
-    mutation MoveDocumentStatus($id: ID!, $index: Int!) {
-  moveDocumentStatus(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveDocumentStatusMutation, MoveDocumentStatusMutationVariables>;
 export const SetDocumentTrackingStatusDocument = new TypedDocumentString(`
     mutation SetDocumentTrackingStatus($id: ID!, $statusId: ID!) {
   setDocumentTrackingStatus(id: $id, statusId: $statusId)
@@ -6505,24 +6364,19 @@ export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
   trackedSeconds
 }`) as unknown as TypedDocumentString<SubscribedCalendarEventsQuery, SubscribedCalendarEventsQueryVariables>;
 export const CreateCalendarDocument = new TypedDocumentString(`
-    mutation CreateCalendar($input: CalendarInput!) {
+    mutation CreateCalendar($input: NameColorInput!) {
   createCalendar(input: $input) {
     id
   }
 }
     `) as unknown as TypedDocumentString<CreateCalendarMutation, CreateCalendarMutationVariables>;
 export const UpdateCalendarDocument = new TypedDocumentString(`
-    mutation UpdateCalendar($id: ID!, $input: CalendarInput!) {
+    mutation UpdateCalendar($id: ID!, $input: NameColorInput!) {
   updateCalendar(id: $id, input: $input) {
     id
   }
 }
     `) as unknown as TypedDocumentString<UpdateCalendarMutation, UpdateCalendarMutationVariables>;
-export const MoveCalendarDocument = new TypedDocumentString(`
-    mutation MoveCalendar($id: ID!, $index: Int!) {
-  moveCalendar(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveCalendarMutation, MoveCalendarMutationVariables>;
 export const DeleteCalendarDocument = new TypedDocumentString(`
     mutation DeleteCalendar($id: ID!) {
   deleteCalendar(id: $id)
@@ -7790,12 +7644,12 @@ export const UseSheetDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UseSheetMutation, UseSheetMutationVariables>;
 export const CreateSheetCategoryDocument = new TypedDocumentString(`
-    mutation CreateSheetCategory($input: SheetCategoryInput!) {
+    mutation CreateSheetCategory($input: NameColorInput!) {
   createSheetCategory(input: $input)
 }
     `) as unknown as TypedDocumentString<CreateSheetCategoryMutation, CreateSheetCategoryMutationVariables>;
 export const UpdateSheetCategoryDocument = new TypedDocumentString(`
-    mutation UpdateSheetCategory($id: ID!, $input: SheetCategoryPatch!) {
+    mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {
   updateSheetCategory(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<UpdateSheetCategoryMutation, UpdateSheetCategoryMutationVariables>;
@@ -7804,11 +7658,6 @@ export const DeleteSheetCategoryDocument = new TypedDocumentString(`
   deleteSheetCategory(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteSheetCategoryMutation, DeleteSheetCategoryMutationVariables>;
-export const MoveSheetCategoryDocument = new TypedDocumentString(`
-    mutation MoveSheetCategory($id: ID!, $index: Int!) {
-  moveSheetCategory(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveSheetCategoryMutation, MoveSheetCategoryMutationVariables>;
 export const DuplicateSheetDocument = new TypedDocumentString(`
     mutation DuplicateSheet($id: ID!) {
   duplicateSheet(id: $id)
@@ -8022,12 +7871,12 @@ export const MoveShoppingCategoryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveShoppingCategoryMutation, MoveShoppingCategoryMutationVariables>;
 export const CreateShoppingUnitDocument = new TypedDocumentString(`
-    mutation CreateShoppingUnit($input: ShoppingStoreInput!) {
+    mutation CreateShoppingUnit($input: NameColorInput!) {
   createShoppingUnit(input: $input)
 }
     `) as unknown as TypedDocumentString<CreateShoppingUnitMutation, CreateShoppingUnitMutationVariables>;
 export const UpdateShoppingUnitDocument = new TypedDocumentString(`
-    mutation UpdateShoppingUnit($id: ID!, $input: ShoppingStorePatch!) {
+    mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {
   updateShoppingUnit(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<UpdateShoppingUnitMutation, UpdateShoppingUnitMutationVariables>;
@@ -8036,23 +7885,18 @@ export const DeleteShoppingUnitDocument = new TypedDocumentString(`
   deleteShoppingUnit(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteShoppingUnitMutation, DeleteShoppingUnitMutationVariables>;
-export const MoveShoppingUnitDocument = new TypedDocumentString(`
-    mutation MoveShoppingUnit($id: ID!, $index: Int!) {
-  moveShoppingUnit(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveShoppingUnitMutation, MoveShoppingUnitMutationVariables>;
 export const MoveShoppingProductsDocument = new TypedDocumentString(`
     mutation MoveShoppingProducts($ids: [ID!]!, $baseListId: ID!) {
   moveShoppingProducts(ids: $ids, baseListId: $baseListId)
 }
     `) as unknown as TypedDocumentString<MoveShoppingProductsMutation, MoveShoppingProductsMutationVariables>;
 export const CreateShoppingStorageDocument = new TypedDocumentString(`
-    mutation CreateShoppingStorage($input: ShoppingStoreInput!) {
+    mutation CreateShoppingStorage($input: NameColorInput!) {
   createShoppingStorage(input: $input)
 }
     `) as unknown as TypedDocumentString<CreateShoppingStorageMutation, CreateShoppingStorageMutationVariables>;
 export const UpdateShoppingStorageDocument = new TypedDocumentString(`
-    mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {
+    mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {
   updateShoppingStorage(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<UpdateShoppingStorageMutation, UpdateShoppingStorageMutationVariables>;
@@ -8061,23 +7905,18 @@ export const DeleteShoppingStorageDocument = new TypedDocumentString(`
   deleteShoppingStorage(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteShoppingStorageMutation, DeleteShoppingStorageMutationVariables>;
-export const MoveShoppingStorageDocument = new TypedDocumentString(`
-    mutation MoveShoppingStorage($id: ID!, $index: Int!) {
-  moveShoppingStorage(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveShoppingStorageMutation, MoveShoppingStorageMutationVariables>;
 export const DuplicateShoppingItemDocument = new TypedDocumentString(`
     mutation DuplicateShoppingItem($id: ID!) {
   duplicateShoppingItem(id: $id)
 }
     `) as unknown as TypedDocumentString<DuplicateShoppingItemMutation, DuplicateShoppingItemMutationVariables>;
 export const CreateShoppingStoreDocument = new TypedDocumentString(`
-    mutation CreateShoppingStore($input: ShoppingStoreInput!) {
+    mutation CreateShoppingStore($input: NameColorInput!) {
   createShoppingStore(input: $input)
 }
     `) as unknown as TypedDocumentString<CreateShoppingStoreMutation, CreateShoppingStoreMutationVariables>;
 export const UpdateShoppingStoreDocument = new TypedDocumentString(`
-    mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {
+    mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {
   updateShoppingStore(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<UpdateShoppingStoreMutation, UpdateShoppingStoreMutationVariables>;
@@ -8086,11 +7925,6 @@ export const DeleteShoppingStoreDocument = new TypedDocumentString(`
   deleteShoppingStore(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteShoppingStoreMutation, DeleteShoppingStoreMutationVariables>;
-export const MoveShoppingStoreDocument = new TypedDocumentString(`
-    mutation MoveShoppingStore($id: ID!, $index: Int!) {
-  moveShoppingStore(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveShoppingStoreMutation, MoveShoppingStoreMutationVariables>;
 export const CreateShoppingBaseListDocument = new TypedDocumentString(`
     mutation CreateShoppingBaseList($name: String!) {
   createShoppingBaseList(name: $name)
@@ -8106,11 +7940,6 @@ export const DeleteShoppingBaseListDocument = new TypedDocumentString(`
   deleteShoppingBaseList(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteShoppingBaseListMutation, DeleteShoppingBaseListMutationVariables>;
-export const MoveShoppingBaseListDocument = new TypedDocumentString(`
-    mutation MoveShoppingBaseList($id: ID!, $index: Int!) {
-  moveShoppingBaseList(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveShoppingBaseListMutation, MoveShoppingBaseListMutationVariables>;
 export const CreateShoppingProductDocument = new TypedDocumentString(`
     mutation CreateShoppingProduct($input: ShoppingProductInput!) {
   createShoppingProduct(input: $input)
@@ -8696,11 +8525,6 @@ export const DeleteTaskStatusDocument = new TypedDocumentString(`
   deleteTaskStatus(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTaskStatusMutation, DeleteTaskStatusMutationVariables>;
-export const MoveTaskStatusDocument = new TypedDocumentString(`
-    mutation MoveTaskStatus($id: ID!, $index: Int!) {
-  moveTaskStatus(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskStatusMutation, MoveTaskStatusMutationVariables>;
 export const CreateTaskPriorityDocument = new TypedDocumentString(`
     mutation CreateTaskPriority($input: TaskLabelInput!) {
   createTaskPriority(input: $input) {
@@ -8720,11 +8544,6 @@ export const DeleteTaskPriorityDocument = new TypedDocumentString(`
   deleteTaskPriority(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTaskPriorityMutation, DeleteTaskPriorityMutationVariables>;
-export const MoveTaskPriorityDocument = new TypedDocumentString(`
-    mutation MoveTaskPriority($id: ID!, $index: Int!) {
-  moveTaskPriority(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskPriorityMutation, MoveTaskPriorityMutationVariables>;
 export const CreateTaskTypeDocument = new TypedDocumentString(`
     mutation CreateTaskType($input: TaskLabelInput!) {
   createTaskType(input: $input) {
@@ -8744,11 +8563,6 @@ export const DeleteTaskTypeDocument = new TypedDocumentString(`
   deleteTaskType(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTaskTypeMutation, DeleteTaskTypeMutationVariables>;
-export const MoveTaskTypeDocument = new TypedDocumentString(`
-    mutation MoveTaskType($id: ID!, $index: Int!) {
-  moveTaskType(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskTypeMutation, MoveTaskTypeMutationVariables>;
 export const CreateTaskTagDocument = new TypedDocumentString(`
     mutation CreateTaskTag($input: TaskLabelInput!) {
   createTaskTag(input: $input) {
@@ -8768,11 +8582,6 @@ export const DeleteTaskTagDocument = new TypedDocumentString(`
   deleteTaskTag(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTaskTagMutation, DeleteTaskTagMutationVariables>;
-export const MoveTaskTagDocument = new TypedDocumentString(`
-    mutation MoveTaskTag($id: ID!, $index: Int!) {
-  moveTaskTag(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskTagMutation, MoveTaskTagMutationVariables>;
 export const TaskColumnDefaultsDocument = new TypedDocumentString(`
     query TaskColumnDefaults {
   taskColumnDefaults {
@@ -9446,7 +9255,7 @@ export const DeleteTreasuryRelationDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteTreasuryRelationMutation, DeleteTreasuryRelationMutationVariables>;
 export const SaveTreasuryContextDocument = new TypedDocumentString(`
-    mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {
+    mutation SaveTreasuryContext($id: ID, $input: NameColorInput!) {
   saveTreasuryContext(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<SaveTreasuryContextMutation, SaveTreasuryContextMutationVariables>;
@@ -9784,7 +9593,7 @@ export const MoveProjectDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveProjectMutation, MoveProjectMutationVariables>;
 export const CreateProjectCategoryDocument = new TypedDocumentString(`
-    mutation CreateProjectCategory($input: ProjectCategoryInput!) {
+    mutation CreateProjectCategory($input: NameColorInput!) {
   createProjectCategory(input: $input) {
     ...LabelFields
   }
@@ -9797,7 +9606,7 @@ export const CreateProjectCategoryDocument = new TypedDocumentString(`
   iconUrl
 }`) as unknown as TypedDocumentString<CreateProjectCategoryMutation, CreateProjectCategoryMutationVariables>;
 export const UpdateProjectCategoryDocument = new TypedDocumentString(`
-    mutation UpdateProjectCategory($id: ID!, $input: ProjectCategoryUpdateInput!) {
+    mutation UpdateProjectCategory($id: ID!, $input: NameColorPatch!) {
   updateProjectCategory(id: $id, input: $input) {
     ...LabelFields
   }
@@ -9815,7 +9624,7 @@ export const DeleteProjectCategoryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteProjectCategoryMutation, DeleteProjectCategoryMutationVariables>;
 export const CreateProjectStatusDocument = new TypedDocumentString(`
-    mutation CreateProjectStatus($input: ProjectStatusInput!) {
+    mutation CreateProjectStatus($input: NameColorInput!) {
   createProjectStatus(input: $input) {
     ...ProjectStatusFields
   }
@@ -9828,7 +9637,7 @@ export const CreateProjectStatusDocument = new TypedDocumentString(`
   position
 }`) as unknown as TypedDocumentString<CreateProjectStatusMutation, CreateProjectStatusMutationVariables>;
 export const UpdateProjectStatusDocument = new TypedDocumentString(`
-    mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {
+    mutation UpdateProjectStatus($id: ID!, $input: NameColorPatch!) {
   updateProjectStatus(id: $id, input: $input) {
     ...ProjectStatusFields
   }
@@ -9845,11 +9654,6 @@ export const DeleteProjectStatusDocument = new TypedDocumentString(`
   deleteProjectStatus(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteProjectStatusMutation, DeleteProjectStatusMutationVariables>;
-export const MoveProjectStatusDocument = new TypedDocumentString(`
-    mutation MoveProjectStatus($id: ID!, $index: Int!) {
-  moveProjectStatus(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {

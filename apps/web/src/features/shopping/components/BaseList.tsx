@@ -29,7 +29,7 @@ import { useStockLocations, useStockMutations } from '../../stock/api';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { locationOptions, locationPaths } from '../../stock/lib/stock-format';
-import { collator } from '../../../lib/text';
+import { collator, countOf, plural } from '../../../lib/text';
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [
@@ -247,9 +247,9 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             deleteRowsAction(rows, {
               label: 'Retirer',
               title: 'Retirer les produits',
-              risks: `${rows.length} produit(s) seront retirés de « ${baseList.name} » ; les listes déjà faites les gardent.`,
+              risks: `${countOf(rows.length, 'produit')} seront retirés de « ${baseList.name} » ; les listes déjà faites les gardent.`,
               remove: (product) => mutations.deleteProduct.mutateAsync({ id: product.id }),
-              done: `${rows.length} produit(s) retiré(s).`,
+              done: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'retiré')}.`,
               clear,
             }),
           ]}

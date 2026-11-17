@@ -1,5 +1,7 @@
+import { MailListControls } from './MailListControls';
+import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { ActionIcon, Box, Button, Grid, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Grid, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
@@ -16,18 +18,7 @@ import { openSearchForm } from '../lib/open-search-form';
 import panel from './ProjectMailsPanel.module.css';
 import { useMailComposer } from '../hooks/use-mail-composer';
 
-type DoneFilter = 'all' | 'todo' | 'done';
 type SortBy = 'date' | 'correspondent' | 'subject';
-
-/** Orders of the mails of the boxes (those of the page Mails, but the size: unknown across folders). */
-const SORTS = [
-  { value: 'date-desc', label: 'Plus récents' },
-  { value: 'date-asc', label: 'Plus anciens' },
-  { value: 'correspondent-asc', label: 'Expéditeur (A → Z)' },
-  { value: 'correspondent-desc', label: 'Expéditeur (Z → A)' },
-  { value: 'subject-asc', label: 'Objet (A → Z)' },
-  { value: 'subject-desc', label: 'Objet (Z → A)' },
-];
 
 /**
  * Mails of a project read live in the boxes (every folder, the sent ones too: those whose copy is in the
@@ -131,37 +122,23 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                   onSave={(next) => openSearchForm(undefined, () => notifySuccess('Dossier de recherche créé (page Mails).'), { ...next, projectId })}
                 />
               )}
-              <Group gap={4} wrap="nowrap" justify="flex-end">
-                <Select
-                  size="xs"
-                  w={150}
-                  aria-label="Trier"
-                  data={SORTS}
-                  value={sortParam}
-                  allowDeselect={false}
-                  onChange={(value) => {
-                    if (!value) return;
-                    setSortParam(value);
-                    setPage(1);
-                  }}
-                />
-                {!advanced && (
-                  <SegmentedControl
-                    size="xs"
-                    aria-label="Mails traités"
-                    data={[
-                      { value: 'all', label: 'Tous' },
-                      { value: 'todo', label: 'À traiter' },
-                      { value: 'done', label: 'Traités' },
-                    ]}
-                    value={doneFilter}
-                    onChange={(value) => {
-                      setDoneFilter(value as DoneFilter);
-                      reset();
-                    }}
-                  />
-                )}
-              </Group>
+              <MailListControls
+                sorts={MAIL_SORTS_ACROSS}
+                sort={sortParam}
+                onSort={(value) => {
+                  setSortParam(value);
+                  setPage(1);
+                }}
+                done={doneFilter}
+                onDone={
+                  advanced
+                    ? undefined
+                    : (value) => {
+                        setDoneFilter(value);
+                        reset();
+                      }
+                }
+              />
             </Stack>
             <MailSearchList
               query={{ criteria, sort: sortBy, ascending: direction === 'asc' }}

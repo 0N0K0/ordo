@@ -246,7 +246,7 @@ export function SheetPage() {
       </Anchor>
       <PageHeader
         title={sheet.name}
-        description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${sheet.usedBy} routine(s), évènement(s) ou tâche(s)` : ''}`}
+        description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
         actions={
           <ActionButton
             priority="secondary"
@@ -265,7 +265,7 @@ export function SheetPage() {
                 onClick: () =>
                   confirmDestructive({
                     title: 'Supprimer la fiche',
-                    risks: `« ${sheet.name} » et ses ${sheet.items.length} élément(s) seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
+                    risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
                     onConfirm: () => mutations.remove.mutate(sheet.id, { onSuccess: () => (notifySuccess('Fiche supprimée.'), navigate('/sheets')), ...onError }),
                   }),
               },
@@ -285,9 +285,9 @@ export function SheetPage() {
           deleteRowsAction([rows], {
             label: 'Retirer',
             title: 'Retirer les éléments',
-            risks: `${rows.length} élément(s) seront retirés de la fiche.`,
+            risks: `${countOf(rows.length, 'élément')} seront retirés de la fiche.`,
             remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
-            done: `${rows.length} élément(s) retiré(s).`,
+            done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
             clear,
           }),
         ]}

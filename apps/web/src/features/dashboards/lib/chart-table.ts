@@ -1,4 +1,4 @@
-import { isTimeDimension, type ChartConfig } from '@ordo/shared';
+import { type ChartConfig, isTimeDimension, round2 } from '@ordo/shared';
 import { DIMENSION_LABELS, MONEY_MEASURES, type ChartData } from './aggregate';
 import { downloadCsv, postTablePdf } from '../../../lib/download';
 import * as fmt from '../../../lib/format';
@@ -33,9 +33,7 @@ export function chartTable(data: ChartData, config: ChartConfig): ChartTable {
   }
   const percent = [false, ...data.series.map((serie) => serie.yAxisId === 'right')];
   const rows = data.rows.map((row) => [String(row.x), ...data.series.map((serie) => (typeof row[serie.name] === 'number' ? (row[serie.name] as number) : null))]);
-  const total = summable
-    ? [null, ...data.series.map((_, index) => (percent[index + 1] ? null : Math.round(rows.reduce((sum, row) => sum + ((row[index + 1] as number | null) ?? 0), 0) * 100) / 100))]
-    : null;
+  const total = summable ? [null, ...data.series.map((_, index) => (percent[index + 1] ? null : round2(rows.reduce((sum, row) => sum + ((row[index + 1] as number | null) ?? 0), 0))))] : null;
   return { columns: [axis, ...data.series.map((serie) => serie.name)], rows, percent, total, money };
 }
 

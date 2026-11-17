@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Stack, Tabs, Text, Title } from '@mantine/core';
@@ -46,7 +47,7 @@ export function ClientPage() {
         entity={{ type: 'client', item: client }}
         subtitle={
           <Text size="sm" c="dimmed">
-            {projects.length} projet{projects.length > 1 ? 's' : ''}
+            {projects.length} {plural(projects.length, 'projet')}
           </Text>
         }
         extraActions={

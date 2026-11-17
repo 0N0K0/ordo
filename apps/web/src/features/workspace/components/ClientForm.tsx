@@ -1,11 +1,12 @@
-import { ColorInput, Stack, TextInput } from '@mantine/core';
+import { ColorField } from '../../../components/inputs/ColorField';
+import { Stack, TextInput } from '@mantine/core';
 import { clientFormSchema, type ClientFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useCreateClient, useUpdateClient, type Client } from '../api';
 import { IconField, type IconValue } from './IconField';
-import { useColorSwatches } from '../hooks/use-color-swatches';
+
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface ClientFormProps {
@@ -25,7 +26,6 @@ interface ClientFormProps {
 export function ClientForm({ client, onDone }: ClientFormProps) {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
-  const swatches = useColorSwatches();
   const [icon, setIcon] = useState<IconValue>({ file: null, remove: false });
   const form = useAppForm<ClientFormValues>({
     initialValues: { name: client?.name ?? '', color: client?.color ?? '' },
@@ -57,13 +57,9 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
-        <ColorInput
-          label="Couleur"
+        <ColorField
           placeholder="Aucune"
-          swatches={swatches}
-          swatchesPerRow={7}
-          {...form.getInputProps('color')}
-        />
+          {...form.getInputProps('color')} />
         <IconField
           value={icon}
           onChange={setIcon}

@@ -1,4 +1,4 @@
-import { subtreeOf } from '@ordo/shared';
+import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
@@ -176,7 +176,7 @@ const MoveProjectDocument = graphql(`
 `);
 
 const CreateProjectCategoryDocument = graphql(`
-  mutation CreateProjectCategory($input: ProjectCategoryInput!) {
+  mutation CreateProjectCategory($input: NameColorInput!) {
     createProjectCategory(input: $input) {
       ...LabelFields
     }
@@ -184,7 +184,7 @@ const CreateProjectCategoryDocument = graphql(`
 `);
 
 const UpdateProjectCategoryDocument = graphql(`
-  mutation UpdateProjectCategory($id: ID!, $input: ProjectCategoryUpdateInput!) {
+  mutation UpdateProjectCategory($id: ID!, $input: NameColorPatch!) {
     updateProjectCategory(id: $id, input: $input) {
       ...LabelFields
     }
@@ -198,7 +198,7 @@ const DeleteProjectCategoryDocument = graphql(`
 `);
 
 const CreateProjectStatusDocument = graphql(`
-  mutation CreateProjectStatus($input: ProjectStatusInput!) {
+  mutation CreateProjectStatus($input: NameColorInput!) {
     createProjectStatus(input: $input) {
       ...ProjectStatusFields
     }
@@ -206,7 +206,7 @@ const CreateProjectStatusDocument = graphql(`
 `);
 
 const UpdateProjectStatusDocument = graphql(`
-  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {
+  mutation UpdateProjectStatus($id: ID!, $input: NameColorPatch!) {
     updateProjectStatus(id: $id, input: $input) {
       ...ProjectStatusFields
     }
@@ -219,11 +219,6 @@ const DeleteProjectStatusDocument = graphql(`
   }
 `);
 
-const MoveProjectStatusDocument = graphql(`
-  mutation MoveProjectStatus($id: ID!, $index: Int!) {
-    moveProjectStatus(id: $id, index: $index)
-  }
-`);
 
 export const workspaceQueryKey = ['workspace'] as const;
 
@@ -394,7 +389,7 @@ export function useMoveClient() {
       if (!moved) return workspace;
       const siblings = workspace.clients
         .filter((client) => !client.archived)
-        .sort((a, b) => a.position - b.position);
+        .sort(byPosition);
       return { ...workspace, clients: reposition(workspace.clients, siblings, moved, index) };
     },
   });
@@ -513,7 +508,7 @@ export function useMoveProject() {
           parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId,
         )
         .filter((item) => !item.archived)
-        .sort((a, b) => a.position - b.position);
+        .sort(byPosition);
       const descendants = descendantIds(workspace.projects, id);
       const projects = reposition(
         workspace.projects,
@@ -592,19 +587,3 @@ export function useDeleteProjectStatus() {
   });
 }
 
-/**
- * Moves a project status in the list.
- * @returns {UseMutationResult} Mutation state.
- */
-export function useMoveProjectStatus() {
-  return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; index: number }) =>
-      (await execute(MoveProjectStatusDocument, variables)).moveProjectStatus,
-    optimistic: (workspace, { id, index }) => {
-      const moved = workspace.projectStatuses.find((status) => status.id === id);
-      if (!moved) return workspace;
-      const siblings = [...workspace.projectStatuses].sort((a, b) => a.position - b.position);
-      return { ...workspace, projectStatuses: reposition(workspace.projectStatuses, siblings, moved, index) };
-    },
-  });
-}

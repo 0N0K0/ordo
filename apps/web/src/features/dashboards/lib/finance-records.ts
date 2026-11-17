@@ -1,11 +1,11 @@
-import { addDays, EVERYDAY_CONTEXT, offsetLinkedMovements, plannedContext, splitAmounts, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
-import { localDay } from '../../../lib/dates';
+import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, EVERYDAY_CONTEXT, mapById, offsetLinkedMovements, plannedContext, round2, splitAmounts } from '@ordo/shared';
+import { localDay, localToday } from '../../../lib/dates';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../../treasury/api';
 import { categoryLineage, categoryPathLineage } from '../../treasury/lib/categories';
-import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
+import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, type ChartData, type ChartRecord, type Key } from './aggregate';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
 const TYPE_COLORS: Record<string, string> = {
@@ -114,7 +114,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         totalGross: document.totalGross,
         paid: document.paid ?? 0,
         balance: document.balance ?? 0,
-        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && String(document.dueDate) < new Date().toISOString().slice(0, 10)),
+        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && String(document.dueDate) < localToday()),
       }))
     : [];
   return [...own, ...before].filter(
@@ -352,7 +352,7 @@ export function treasuryChartData({
             forecast: true,
           }))
       : [];
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryById = mapById(categories);
   const actual = entries.filter((entry) => entry.status === 'ACTUAL');
   /** A part of an actual entry: one of its lines, or what they leave (the whole entry when it has none). */
   interface Part {
@@ -420,10 +420,10 @@ export function treasuryChartData({
       (!filter.categories.length || movement.lineage.some((name) => filter.categories.includes(name))) &&
       (!projects || (movement.projectId !== null && projects.has(movement.projectId))),
   );
-  const accountById = new Map(accounts.map((account) => [account.id, account]));
-  const memberById = new Map(members.map((member) => [member.id, member]));
-  const relationById = new Map(relations.map((relation) => [relation.id, relation]));
-  const contextById = new Map(contexts.map((item) => [item.id, item]));
+  const accountById = mapById(accounts);
+  const memberById = mapById(members);
+  const relationById = mapById(relations);
+  const contextById = mapById(contexts);
   const records: ChartRecord[] = movements.map((movement) => ({
     day: () => movement.date,
     keys: (dimension: ChartGroupDimension): Key[] => {
@@ -507,8 +507,8 @@ function balanceChartData(projection: TreasuryProjection | null, config: ChartCo
     const forecast = start > today;
     rows.push({
       x: bucketLabel(start, config.bucket),
-      Réel: forecast ? null : last === null ? null : round(last),
-      Prévu: forecast && last !== null ? round(last) : null,
+      Réel: forecast ? null : last === null ? null : round2(last),
+      Prévu: forecast && last !== null ? round2(last) : null,
     });
   }
   // The forecast line starts where the actual one ends.

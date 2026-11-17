@@ -1,3 +1,4 @@
+import { countBy } from '@ordo/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { useMemo } from 'react';
@@ -83,9 +84,7 @@ export function useAlarms() {
 export function useTaskAlarmCounts(): Map<string, number> {
   const { data } = useAlarms();
   return useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const alarm of data ?? []) if (alarm.enabled && alarm.taskId) counts.set(alarm.taskId, (counts.get(alarm.taskId) ?? 0) + 1);
-    return counts;
+    return countBy(data ?? [], (alarm) => (alarm.enabled ? alarm.taskId : null));
   }, [data]);
 }
 

@@ -1,3 +1,5 @@
+import { countBy } from '@ordo/shared';
+import { useSetParams } from '../../../lib/search-params';
 import { Stack } from '@mantine/core';
 import { ArchiveIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
@@ -71,8 +73,7 @@ function CountsTable() {
  */
 function StockSettings() {
   const { data: items } = useStockItems();
-  const usage = new Map<string, number>();
-  for (const item of items ?? []) if (item.locationId) usage.set(item.locationId, (usage.get(item.locationId) ?? 0) + 1);
+  const usage = countBy(items ?? [], (item) => item.locationId);
   return (
     <PageSettings title="Paramètres de l’inventaire">
       <Stack gap="md">
@@ -88,12 +89,13 @@ function StockSettings() {
  * @returns {JSX.Element} Page.
  */
 export function StockPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const tab = params.get('tab') ?? 'stock';
   return (
     <Stack gap="lg">
       <PageHeader title="Inventaire" />
-      <PageTabs value={tab} onChange={(value) => setParams(value && value !== 'stock' ? { tab: value } : {})} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setParams({ tab: value && value !== 'stock' ? value : null }, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="stock" leftSection={<ArchiveIcon aria-hidden />}>
             Stock

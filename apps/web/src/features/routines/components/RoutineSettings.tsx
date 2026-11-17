@@ -1,5 +1,5 @@
 import { Stack } from '@mantine/core';
-import { routineCategorySchema } from '@ordo/shared';
+import { countBy, routineCategorySchema } from '@ordo/shared';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { PageSettings } from '../../../app/layout/PageSettings';
@@ -13,8 +13,7 @@ export function RoutineSettings() {
   const { data } = useRoutinesData();
   const { createCategory, updateCategory, moveCategory, deleteCategory } = useRoutineMutations();
   const categories = data?.routineCategories ?? [];
-  const usage = new Map<string, number>();
-  for (const routine of data?.routines ?? []) for (const id of routine.categoryIds) usage.set(id, (usage.get(id) ?? 0) + 1);
+  const usage = countBy(data?.routines ?? [], (routine) => routine.categoryIds);
   /**
    * Input of a category from the form values.
    * @param {{ name: string, color: string, parentId: string | null }} values Values.

@@ -2,7 +2,7 @@ import { commentBodySchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
 
 /** Items that take comments (tasks have their own), and their column on a comment. */
 export const COMMENT_TARGETS = {
@@ -90,7 +90,7 @@ export async function addComment(target: CommentTarget, id: string, body: string
  */
 export async function updateComment(id: string, body: string): Promise<Comment> {
   const data = parseInput(z.object({ body: commentBodySchema }), { body });
-  if (!(await prisma.comment.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Commentaire');
+  await orNotFound(prisma.comment.findUnique({ where: { id }, select: { id: true } }), 'Commentaire');
   return prisma.comment.update({ where: { id }, data: { body: data.body } });
 }
 
@@ -100,6 +100,6 @@ export async function updateComment(id: string, body: string): Promise<Comment> 
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
-  if (!(await prisma.comment.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Commentaire');
+  await orNotFound(prisma.comment.findUnique({ where: { id }, select: { id: true } }), 'Commentaire');
   await prisma.comment.delete({ where: { id } });
 }

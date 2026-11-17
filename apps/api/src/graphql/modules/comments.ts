@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { prisma } from '../../db';
 import * as comments from '../../services/core/comments';
 import { builder } from '../builder';
@@ -49,9 +50,6 @@ builder.mutationFields((t) => ({
   }),
   deleteComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await comments.deleteComment(String(id));
-      return true;
-    },
+    resolve: (_root, { id }) => done(comments.deleteComment(String(id))),
   }),
 }));

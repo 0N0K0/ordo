@@ -1,3 +1,4 @@
+import { dayInMonth, minutesToTime, timeToMinutes } from '@ordo/shared';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
@@ -206,18 +207,6 @@ export const routineSchema = z
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /**
- * Date of a day of a month, kept within it (the 31st of a 30-day month is its 30th).
- * @param {number} year Year.
- * @param {number} month Month (1-12).
- * @param {number} day Day (1-31).
- * @returns {string} YYYY-MM-DD.
- */
-const monthDate = (year: number, month: number, day: number) => {
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(Math.max(day, 1), last)).padStart(2, '0')}`;
-};
-
-/**
  * Day of a month an « à partir du » points to (its month for a yearly one).
  * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « À partir du ».
  * @param {number} year Year.
@@ -225,16 +214,16 @@ const monthDate = (year: number, month: number, day: number) => {
  * @returns {string} YYYY-MM-DD.
  */
 function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>, year: number, month: number): string {
-  const first = monthDate(year, month, 1);
-  if (opens.mode === 'DAY') return monthDate(year, month, opens.day);
+  const first = dayInMonth(year, month, 1);
+  if (opens.mode === 'DAY') return dayInMonth(year, month, opens.day);
   if (opens.mode === 'WEEKDAY') {
     const firstOne = 1 + ((opens.weekday - weekdayOfDate(first) + 7) % 7);
-    if (opens.position > 0) return monthDate(year, month, firstOne + 7 * (opens.position - 1));
+    if (opens.position > 0) return dayInMonth(year, month, firstOne + 7 * (opens.position - 1));
     const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    return monthDate(year, month, last - ((weekdayOfDate(monthDate(year, month, last)) - opens.weekday + 7) % 7));
+    return dayInMonth(year, month, last - ((weekdayOfDate(dayInMonth(year, month, last)) - opens.weekday + 7) % 7));
   }
   // Weeks from Monday, the first one that of the 1st; kept within the month.
-  return monthDate(year, month, 2 - weekdayOfDate(first) + 7 * (opens.week - 1) + opens.weekday - 1);
+  return dayInMonth(year, month, 2 - weekdayOfDate(first) + 7 * (opens.week - 1) + opens.weekday - 1);
 }
 
 /**
@@ -340,9 +329,7 @@ export function routineState(current: string | null, done: boolean, today: strin
  * @returns {string} HH:MM.
  */
 export function shiftTime(time: string, minutes: number): string {
-  const [hours, mins] = time.split(':').map(Number);
-  const total = (((hours * 60 + mins + minutes) % 1440) + 1440) % 1440;
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  return minutesToTime((((timeToMinutes(time) + minutes) % 1440) + 1440) % 1440);
 }
 
 /**

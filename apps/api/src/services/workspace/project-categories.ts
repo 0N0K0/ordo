@@ -2,21 +2,8 @@ import { labelNameSchema, colorSchema } from '@ordo/shared';
 import { nextPosition } from '../core/settings-lists';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { Prisma, type ProjectCategory } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-
-/**
- * Converts a unique name violation into a field error.
- * @param {unknown} error Caught error.
- * @returns {never}
- */
-function rethrowNameConflict(error: unknown): never {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    const message = 'Une catégorie porte déjà ce nom.';
-    throw clientError('CONFLICT', message, { fields: { name: message } });
-  }
-  throw error;
-}
+import { type ProjectCategory } from '../../generated/prisma/client';
+import { notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 
 /**
  * Creates a project category.
@@ -30,7 +17,7 @@ export async function createProjectCategory(input: { name: string; color: string
   try {
     return await prisma.projectCategory.create({ data: { ...data, position: await nextPosition('PROJECT_CATEGORY') } });
   } catch (error) {
-    rethrowNameConflict(error);
+    rethrowUnique(error, 'Une catégorie porte déjà ce nom.');
   }
 }
 
@@ -46,7 +33,7 @@ export async function updateProjectCategory(
   id: string,
   input: { name?: string | null; color?: string | null },
 ): Promise<ProjectCategory> {
-  if (!(await prisma.projectCategory.findUnique({ where: { id } }))) throw notFound('Catégorie');
+  await orNotFound(prisma.projectCategory.findUnique({ where: { id } }), 'Catégorie');
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,
@@ -54,7 +41,7 @@ export async function updateProjectCategory(
   try {
     return await prisma.projectCategory.update({ where: { id }, data });
   } catch (error) {
-    rethrowNameConflict(error);
+    rethrowUnique(error, 'Une catégorie porte déjà ce nom.');
   }
 }
 

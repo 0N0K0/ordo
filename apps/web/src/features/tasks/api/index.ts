@@ -1,6 +1,7 @@
+import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
+import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
+import { byPosition, readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -320,11 +321,6 @@ const LabelDocuments = {
         deleteTaskStatus(id: $id)
       }
     `),
-    move: graphql(`
-      mutation MoveTaskStatus($id: ID!, $index: Int!) {
-        moveTaskStatus(id: $id, index: $index)
-      }
-    `),
   },
   priority: {
     create: graphql(`
@@ -344,11 +340,6 @@ const LabelDocuments = {
     remove: graphql(`
       mutation DeleteTaskPriority($id: ID!) {
         deleteTaskPriority(id: $id)
-      }
-    `),
-    move: graphql(`
-      mutation MoveTaskPriority($id: ID!, $index: Int!) {
-        moveTaskPriority(id: $id, index: $index)
       }
     `),
   },
@@ -372,11 +363,6 @@ const LabelDocuments = {
         deleteTaskType(id: $id)
       }
     `),
-    move: graphql(`
-      mutation MoveTaskType($id: ID!, $index: Int!) {
-        moveTaskType(id: $id, index: $index)
-      }
-    `),
   },
   tag: {
     create: graphql(`
@@ -396,11 +382,6 @@ const LabelDocuments = {
     remove: graphql(`
       mutation DeleteTaskTag($id: ID!) {
         deleteTaskTag(id: $id)
-      }
-    `),
-    move: graphql(`
-      mutation MoveTaskTag($id: ID!, $index: Int!) {
-        moveTaskTag(id: $id, index: $index)
       }
     `),
   },
@@ -570,7 +551,7 @@ export function useMoveTask() {
     invalidate: [tasksQueryKey],
     optimistic: (queryClient, { id, beforeId, parentId }) =>
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
-        const ordered = [...data.tasks].sort((a, b) => a.position - b.position);
+        const ordered = [...data.tasks].sort(byPosition);
         const moved = ordered.find((task) => task.id === id);
         const others = ordered.filter((task) => task.id !== id);
         const index = beforeId ? others.findIndex((task) => task.id === beforeId) : others.length;
@@ -639,9 +620,10 @@ export function useContributorMutations() {
         input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] };
       }) => (await execute(UpdateContributorDocument, variables)).updateContributor,
     ),
-    remove: useTasksMutation(
-      async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor,
-    ),
+    // Members and relations (treasury) follow: a relation loses its contributor.
+    remove: useInvalidatingMutation(async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor, {
+      invalidate: [tasksQueryKey, accountingQueryKey],
+    }),
     setProjectContributors: useTasksMutation(
       async (variables: { projectId: string; contributorIds: string[] }) =>
         (await execute(SetProjectContributorsDocument, variables)).setProjectContributors,
@@ -669,7 +651,6 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
     create: TypedDocumentString<unknown, { input: LabelInput }>;
     update: TypedDocumentString<unknown, { id: string; input: Partial<LabelInput> }>;
     remove: TypedDocumentString<unknown, { id: string }>;
-    move: TypedDocumentString<unknown, { id: string; index: number }>;
   };
   return {
     create: useTasksMutation(async (input: LabelInput) => execute(documents.create, { input })),
@@ -677,7 +658,6 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
       execute(documents.update, variables),
     ),
     remove: useTasksMutation(async (variables: { id: string }) => execute(documents.remove, variables)),
-    move: useTasksMutation(async (variables: { id: string; index: number }) => execute(documents.move, variables)),
   };
 }
 
@@ -843,10 +823,8 @@ export function useTaskViewMutations() {
       // The tab stays where it was dropped while the server reorders.
       optimistic: (queryClient, { id, index }) => {
         for (const [key, views] of queryClient.getQueriesData<TaskViewRecord[]>({ queryKey: taskViewsQueryKey })) {
-          if (!views?.some((view) => view.id === id)) continue;
-          const order = views.filter((view) => view.id !== id);
-          order.splice(index, 0, views.find((view) => view.id === id)!);
-          queryClient.setQueryData(key, order);
+          const order = views && moveToIndex(views, id, index);
+          if (order) queryClient.setQueryData(key, order);
         }
       },
     }),
@@ -960,8 +938,8 @@ function useMoveMilestone() {
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
         const moved = data.milestones.find((milestone) => milestone.id === id);
         if (!moved) return data;
-        const others = data.milestones.filter((milestone) => milestone.projectId === moved.projectId && milestone.id !== id).sort((a, b) => a.position - b.position);
-        const positions = new Map([...others.slice(0, index), moved, ...others.slice(index)].map((milestone, position) => [milestone.id, position]));
+        const siblings = data.milestones.filter((milestone) => milestone.projectId === moved.projectId).sort(byPosition);
+        const positions = new Map((moveToIndex(siblings, id, index) ?? []).map((milestone, position) => [milestone.id, position]));
         return { ...data, milestones: data.milestones.map((milestone) => ({ ...milestone, position: positions.get(milestone.id) ?? milestone.position })) };
       }),
   });

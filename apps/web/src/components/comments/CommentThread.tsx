@@ -1,3 +1,4 @@
+import { FormActions } from '../dialogs/FormActions';
 import { ActionIcon, Button, Group, Menu, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { DotsThreeIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -126,14 +127,7 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
         ) : (
           <Stack gap="xs">
             <MarkdownEditor value={draft} onChange={setDraft} suggestions={suggestions} minRows={3} autoFocus onSubmitShortcut={save} />
-            <Group justify="flex-end" gap="xs">
-              <Button variant="default" size="xs" onClick={() => setDraft(null)}>
-                Annuler
-              </Button>
-              <Button size="xs" onClick={save} loading={actions.updating} disabled={!draft.trim()}>
-                Enregistrer
-              </Button>
-            </Group>
+            <FormActions size="xs" onCancel={() => setDraft(null)} onSubmit={save} loading={actions.updating} disabled={!draft.trim()} />
           </Stack>
         )}
       </div>

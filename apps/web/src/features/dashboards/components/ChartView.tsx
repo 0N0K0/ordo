@@ -1,5 +1,6 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { AreaChart, BarChart, CompositeChart, DonutChart, LineChart } from '@mantine/charts';
-import { Center, ColorSwatch, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Center, ColorSwatch, Group, Paper, Stack, Text } from '@mantine/core';
 import type { ChartConfig } from '@ordo/shared';
 import { ChartBarIcon } from '@phosphor-icons/react';
 import { forwardRef } from 'react';
@@ -54,14 +55,11 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
   if (data.empty) {
     return (
       <Center h={height} ref={ref}>
-        <Stack align="center" gap="xs">
-          <ThemeIcon size="lg" radius="xl" variant="light" color="gray">
-            <ChartBarIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            {config.type === 'burndown' && !config.sprintId ? 'Choisissez le sprint suivi.' : 'Aucune donnée ne correspond à ce diagramme.'}
-          </Text>
-        </Stack>
+        <EmptyState
+          plain
+          icon={<ChartBarIcon aria-hidden />}
+          message={config.type === 'burndown' && !config.sprintId ? 'Choisissez le sprint suivi.' : 'Aucune donnée ne correspond à ce diagramme.'}
+        />
       </Center>
     );
   }

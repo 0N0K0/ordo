@@ -3,7 +3,7 @@ import { openModal } from '../../../components/panels/open-modal';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Alert, Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 
-import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
+import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel, toCents } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -17,7 +17,7 @@ import { useMailAccounts } from '../../mail/api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from '../api/tracking';
 import * as fmt from '../../../lib/format';
-import { countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
@@ -31,9 +31,7 @@ const REMIND_AFTER_DAYS = 7;
  */
 function daysSinceReminder(invoice: OverdueInvoice, today: string): number | null {
   if (!invoice.lastReminderAt) return null;
-  const date = new Date(invoice.lastReminderAt);
-  const day = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-  return daysBetween(day, today);
+  return daysBetween(localDay(invoice.lastReminderAt), today);
 }
 
 /** Columns of the overdue invoices. */
@@ -154,7 +152,7 @@ export function OverdueInvoicesPanel() {
     return <EmptyState icon={<CheckCircleIcon aria-hidden />} iconColor="green" message={<>Aucune facture à relancer : celles envoyées depuis {REMINDER_DELAY_DAYS} jours ou plus sont réglées.</>} />;
   }
 
-  const total = view.rows.reduce((sum, invoice) => sum + Math.round((invoice.balance ?? 0) * 100), 0);
+  const total = view.rows.reduce((sum, invoice) => sum + toCents(invoice.balance ?? 0), 0);
   return (
     <Stack gap="sm">
       {accounts && accounts.length === 0 && (
@@ -174,7 +172,7 @@ export function OverdueInvoicesPanel() {
           tools: (
             <>
               <Text size="sm">
-                {view.rows.length} facture{view.rows.length > 1 ? 's' : ''} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
+                {view.rows.length} {plural(view.rows.length, 'facture')} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
               </Text>
               <Group gap="sm" ml="auto" wrap="wrap">
                 <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
@@ -246,7 +244,7 @@ export function OverdueInvoicesPanel() {
                   )}
                 </Text>
                 <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
-                  Envoyée il y a {sentSince} jour{sentSince > 1 ? 's' : ''}
+                  Envoyée il y a {sentSince} {plural(sentSince, 'jour')}
                 </Badge>
                 {invoice.dueDate && (
                   <Text size="xs" c="dimmed">
@@ -262,7 +260,7 @@ export function OverdueInvoicesPanel() {
                   <>
                     <Text size="sm">{fmt.day(new Date(invoice.lastReminderAt))}</Text>
                     <Text size="xs" c="dimmed">
-                      {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since && since > 1 ? 's' : ''}`} · {invoice.reminderCount} relance{invoice.reminderCount > 1 ? 's' : ''}
+                      {since === 0 ? 'aujourd’hui' : `il y a ${since} ${plural(since ?? 0, 'jour')}`} · {invoice.reminderCount} {plural(invoice.reminderCount, 'relance')}
                     </Text>
                   </>
                 ) : (

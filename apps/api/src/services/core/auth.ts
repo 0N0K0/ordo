@@ -19,8 +19,8 @@ import {
 } from '../../auth/session';
 import { prisma } from '../../db';
 import { env } from '../../env';
-import { Prisma, type User } from '../../generated/prisma/client';
-import { clientError, parseInput } from '../../graphql/errors';
+import { type User } from '../../generated/prisma/client';
+import { clientError, isUniqueConflict, parseInput } from '../../graphql/errors';
 import type { Mail } from '../../mail/mailer';
 import { sendMail } from '../../mail/mailer';
 import {
@@ -42,15 +42,6 @@ const INVALID_TOKEN_MESSAGE = 'Ce lien est invalide ou a expiré.';
  */
 function sendInBackground(mail: Mail): void {
   sendMail(mail).catch((error: unknown) => console.error('Mail delivery failed:', error));
-}
-
-/**
- * Whether a Prisma error is a unique constraint violation.
- * @param {unknown} error Caught error.
- * @returns {boolean} True for a P2002 error.
- */
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 /**
@@ -217,7 +208,7 @@ export async function changeUsername(session: SessionInfo, currentPassword: stri
   try {
     return await prisma.user.update({ where: { id: user.id }, data: { username } });
   } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
+    if (!isUniqueConflict(error)) throw error;
     const message = 'Cet identifiant est déjà utilisé.';
     throw clientError('CONFLICT', message, { fields: { username: message } });
   }
@@ -294,7 +285,7 @@ export async function confirmEmailChange(token: string): Promise<void> {
       prisma.authToken.deleteMany({ where: { userId: user.id } }),
     ]);
   } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
+    if (!isUniqueConflict(error)) throw error;
     throw clientError('CONFLICT', 'Cette adresse est déjà utilisée.');
   }
   sendInBackground(emailChangedNoticeMail(user.email, email));

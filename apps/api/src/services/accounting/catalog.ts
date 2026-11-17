@@ -1,7 +1,7 @@
 import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CatalogItem } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { requirePro } from '../workspace/workspaces';
 
 /**
@@ -36,7 +36,7 @@ export function createCatalogItem(input: CatalogItemInput): Promise<CatalogItem>
  * @returns {Promise<CatalogItem>} Item.
  */
 export async function updateCatalogItem(id: string, input: CatalogItemInput): Promise<CatalogItem> {
-  if (!(await prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Article');
+  await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }), 'Article');
   return prisma.catalogItem.update({ where: { id }, data: itemData(input) });
 }
 
@@ -46,6 +46,6 @@ export async function updateCatalogItem(id: string, input: CatalogItemInput): Pr
  * @returns {Promise<void>}
  */
 export async function deleteCatalogItem(id: string): Promise<void> {
-  if (!(await prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Article');
+  await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }), 'Article');
   await prisma.catalogItem.delete({ where: { id } });
 }

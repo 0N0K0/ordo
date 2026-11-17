@@ -18,7 +18,7 @@ export interface TreeNode {
   pathless?: boolean;
 }
 
-import { LEVEL } from '@ordo/shared';
+import { childrenByParent, LEVEL } from '@ordo/shared';
 
 /**
  * Option of a select of a tree: its full path as its label (shown once chosen, in pills, cells…), its own name indented
@@ -44,12 +44,7 @@ export interface TreeOption extends ComboboxItem {
  * @returns {TreeOption[]} Options.
  */
 export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) => boolean = () => true, excluded: ReadonlySet<string> = new Set()): TreeOption[] {
-  const ids = new Set(nodes.map((node) => node.id));
-  const children = new Map<string | null, TreeNode[]>();
-  for (const node of nodes) {
-    const parent = node.parentId && ids.has(node.parentId) ? node.parentId : null;
-    children.set(parent, [...(children.get(parent) ?? []), node]);
-  }
+  const children = childrenByParent(nodes);
   const options: TreeOption[] = [];
   /**
    * Adds the options of the children of a parent, recursively; true when one of them is offered.

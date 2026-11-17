@@ -1,7 +1,9 @@
-import { ActionIcon, Button, Checkbox, Group, NumberInput, SimpleGrid, Stack, Text } from '@mantine/core';
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { TravelField } from '../../geo/components/TravelField';
+import { ActionIcon, Button, Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
-import { BellIcon, CarIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { BellIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { TimeField } from '../../../components/inputs/TimeField';
@@ -267,7 +269,7 @@ const validRepetition = (draft: RoutineRepetitionValue) => Boolean(draft.startDa
  */
 export function RoutineRepetitionModal({ routine, opened, onClose, onApply, header }: { routine: Routine; opened: boolean; onClose: () => void; onApply: (repetition: RoutineRepetition) => void; header?: ReactNode }) {
   const { data: schedules } = useWorkSchedules();
-  const names = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.name]));
+  const names = scheduleChoices(schedules).names;
   const [draft, setDraft] = useState<RoutineRepetitionValue>(() => repetitionOf(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
@@ -308,7 +310,7 @@ interface RoutineScheduleProps {
  */
 export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
   const { data: schedules } = useWorkSchedules();
-  const names = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.name]));
+  const names = scheduleChoices(schedules).names;
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
@@ -341,32 +343,8 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         onChange={(value) => onChange({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
       />
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-        <NumberInput
-          label="Trajet aller"
-          description="Pour y aller"
-          leftSection={<CarIcon aria-hidden />}
-          suffix=" min"
-          min={0}
-          max={24 * 60}
-          step={5}
-          allowDecimal={false}
-          value={values.travelBefore}
-          onChange={(value) => onChange({ travelBefore: Number(value) || 0 })}
-          error={errors.travelBefore}
-        />
-        <NumberInput
-          label="Trajet retour"
-          description="Pour en revenir"
-          leftSection={<CarIcon aria-hidden />}
-          suffix=" min"
-          min={0}
-          max={24 * 60}
-          step={5}
-          allowDecimal={false}
-          value={values.travelAfter}
-          onChange={(value) => onChange({ travelAfter: Number(value) || 0 })}
-          error={errors.travelAfter}
-        />
+        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} error={errors.travelBefore} />
+        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} error={errors.travelAfter} />
         <Stack justify="flex-end">
           <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })} />
         </Stack>

@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { normalize } from '@ordo/shared';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
@@ -412,7 +413,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 </Badge>
               </Group>
               <Text size="sm" c="dimmed">
-                {link.linkedTaskCount} tâche{link.linkedTaskCount > 1 ? 's' : ''} liée{link.linkedTaskCount > 1 ? 's' : ''}
+                {link.linkedTaskCount} {plural(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
                 {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(new Date(link.lastSyncAt))}`}
               </Text>

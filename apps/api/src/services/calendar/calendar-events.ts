@@ -18,7 +18,7 @@ import {
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
 import { assertProjectContributors } from '../workspace/contributors';
@@ -251,8 +251,7 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
  * @returns {Promise<CalendarEvent>} Event.
  */
 async function findEvent(id: string): Promise<CalendarEvent> {
-  const event = await prisma.calendarEvent.findUnique({ where: { id } });
-  if (!event) throw notFound('Évènement');
+  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id } }), 'Évènement');
   return event;
 }
 
@@ -619,8 +618,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
  * @returns {Promise<EventWithRelations>} Event.
  */
 async function findEventWithRelations(id: string): Promise<EventWithRelations> {
-  const event = await prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude });
-  if (!event) throw notFound('Évènement');
+  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude }), 'Évènement');
   return event;
 }
 

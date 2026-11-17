@@ -3,11 +3,11 @@ import type { ParsedMail } from 'mailparser';
 import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
-import { notFound } from '../../graphql/errors';
+import { orNotFound } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { withImap } from './imap';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
-import { forEachWorkspace } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspace/workspaces';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -83,8 +83,7 @@ export async function copyToProject(
  * @returns {Promise<MailMessage>} Copy.
  */
 export async function linkMessage(accountId: string, folder: string, uid: number, projectId: string): Promise<MailMessage> {
-  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
-  if (!project) throw notFound('Projet');
+  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
   const parsed = await fetchParsed(accountId, folder, uid);
   return copyToProject(parsed, { projectId, accountId, sent: false });
 }
@@ -95,7 +94,7 @@ export async function linkMessage(accountId: string, folder: string, uid: number
  * @returns {Promise<void>}
  */
 export async function unlinkMail(id: string): Promise<void> {
-  if (!(await prisma.mailMessage.findUnique({ where: { id } }))) throw notFound('Mail');
+  await orNotFound(prisma.mailMessage.findUnique({ where: { id } }), 'Mail');
   await prisma.mailMessage.delete({ where: { id } });
 }
 
@@ -219,8 +218,6 @@ async function followConversations(): Promise<void> {
  * @returns {void}
  */
 export function scheduleConversationFollowUp(intervalMs = 5 * 60_000): void {
-  const run = () => void forEachWorkspace(() => followConversations()).catch((error: unknown) => console.warn('Suivi des conversations en échec.', error));
-  setTimeout(run, 30_000);
-  setInterval(run, intervalMs);
+  schedulePerWorkspace('Suivi des conversations', () => followConversations(), { delay: 30_000, interval: intervalMs });
 }
 

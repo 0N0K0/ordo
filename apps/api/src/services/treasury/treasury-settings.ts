@@ -7,10 +7,11 @@ import {
   type TreasuryPaymentMethodInput,
 } from '@ordo/shared';
 import { nextPosition } from '../core/settings-lists';
+import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
-import { saveSiblingOrder } from '../core/ordering';
+import { moveInList, nextPositionIn } from '../core/ordering';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
 
 /**
@@ -23,18 +24,11 @@ import { getCompanyProfile } from '../accounting/company';
 async function parseCategory(input: TreasuryCategoryInput, id?: string) {
   const data = parseInput(treasuryCategorySchema, input);
   if (!data.parentId) return data;
-  const parent = await prisma.treasuryCategory.findUnique({ where: { id: data.parentId } });
-  if (!parent) throw notFound('Catégorie parente');
+  const parent = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: data.parentId } }), 'Catégorie parente');
   if (parent.direction !== data.direction) {
     throw clientError('BAD_USER_INPUT', 'La catégorie parente doit être du même sens.', { fields: { parentId: 'La catégorie parente doit être du même sens.' } });
   }
-  if (id) {
-    const all = await prisma.treasuryCategory.findMany({ select: { id: true, parentId: true } });
-    const parentOf = new Map(all.map((category) => [category.id, category.parentId]));
-    for (let current: string | null | undefined = data.parentId; current; current = parentOf.get(current)) {
-      if (current === id) throw clientError('BAD_USER_INPUT', 'Une catégorie ne peut pas être rangée sous elle-même.', { fields: { parentId: 'Choisissez une autre catégorie parente.' } });
-    }
-  }
+  await assertTreeParent('treasuryCategory', data.parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' });
   return data;
 }
 
@@ -56,8 +50,7 @@ export async function createCategory(input: TreasuryCategoryInput): Promise<Trea
  * @returns {Promise<TreasuryCategory>} Category.
  */
 export async function updateCategory(id: string, input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  const previous = await prisma.treasuryCategory.findUnique({ where: { id } });
-  if (!previous) throw notFound('Catégorie');
+  const previous = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id } }), 'Catégorie');
   const parsed = await parseCategory(input, id);
   // Under another parent, it goes last.
   const data = { ...parsed, ...((parsed.parentId ?? null) !== previous.parentId && { position: await nextCategoryPosition(parsed.parentId) }) };
@@ -90,17 +83,10 @@ export async function updateCategory(id: string, input: TreasuryCategoryInput): 
  * @returns {Promise<void>}
  */
 export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  const category = await prisma.treasuryCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
+  const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id } }), 'Catégorie');
   if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, direction: category.direction, parentId });
   if (index === null || index === undefined) return;
-  const siblings = await prisma.treasuryCategory.findMany({ where: { parentId, direction: category.direction }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
-  await saveSiblingOrder(
-    siblings.map((sibling) => sibling.id),
-    id,
-    index,
-    (siblingId, position) => prisma.treasuryCategory.update({ where: { id: siblingId }, data: { position } }),
-  );
+  await moveInList('treasuryCategory', id, index, { parentId, direction: category.direction });
 }
 
 /**
@@ -109,8 +95,7 @@ export async function moveCategory(id: string, parentId: string | null, index?: 
  * @returns {Promise<number>} Position.
  */
 async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
-  const { _max } = await prisma.treasuryCategory.aggregate({ where: { parentId: parentId ?? null }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('treasuryCategory', { parentId: parentId ?? null });
 }
 
 /**
@@ -119,9 +104,8 @@ async function nextCategoryPosition(parentId: string | null | undefined): Promis
  * @returns {Promise<void>}
  */
 export async function deleteCategory(id: string): Promise<void> {
-  const category = await prisma.treasuryCategory.findUnique({ where: { id } });
-  if (!category) throw notFound('Catégorie');
-  await prisma.$transaction([prisma.treasuryCategory.updateMany({ where: { parentId: id }, data: { parentId: category.parentId } }), prisma.treasuryCategory.delete({ where: { id } })]);
+  const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id } }), 'Catégorie');
+  await deleteTreeNode('treasuryCategory', category);
 }
 
 /**
@@ -141,7 +125,7 @@ export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Pr
  */
 export async function updatePaymentMethod(id: string, input: TreasuryPaymentMethodInput): Promise<TreasuryPaymentMethod> {
   const data = parseInput(treasuryPaymentMethodSchema, input);
-  if (!(await prisma.treasuryPaymentMethod.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Moyen de paiement');
+  await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id }, select: { id: true } }), 'Moyen de paiement');
   if (!data.incoming && (await prisma.treasuryEntry.count({ where: { methodId: id, amount: { gt: 0 } } }))) {
     throw clientError('BAD_USER_INPUT', 'Des entrées utilisent ce moyen de paiement.', { fields: { incoming: 'Des entrées l’utilisent.' } });
   }
@@ -178,7 +162,7 @@ export async function createCounterparty(input: TreasuryCounterpartyInput): Prom
  */
 export async function updateCounterparty(id: string, input: TreasuryCounterpartyInput): Promise<TreasuryCounterparty> {
   const data = parseInput(treasuryCounterpartySchema, input);
-  if (!(await prisma.treasuryCounterparty.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Tiers');
+  await orNotFound(prisma.treasuryCounterparty.findUnique({ where: { id }, select: { id: true } }), 'Tiers');
   return prisma.treasuryCounterparty.update({ where: { id }, data });
 }
 
@@ -204,8 +188,7 @@ export async function setInvoiceCategories(input: { invoiceCategoryId: string | 
     [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
   ] as const) {
     if (!id) continue;
-    const category = await prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } });
-    if (!category) throw notFound('Catégorie');
+    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } }), 'Catégorie');
     if (category.direction !== direction) {
       const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
       throw clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });

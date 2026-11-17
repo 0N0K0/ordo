@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
@@ -12,8 +13,6 @@ import { ensureDocumentStatuses } from '../accounting/document-statuses';
 /** Cookie (and header) naming the workspace the app shows. */
 const WORKSPACE_COOKIE = 'ordo_workspace';
 const WORKSPACE_HEADER = 'x-ordo-workspace';
-
-const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 const workspaceInputSchema = z.object({
   name: requiredText(60),
@@ -25,7 +24,7 @@ const workspaceInputSchema = z.object({
  * @returns {Promise<Workspace[]>} Workspaces.
  */
 export function listWorkspaces(): Promise<Workspace[]> {
-  return unscopedPrisma.workspace.findMany({ orderBy: [...byOrder] });
+  return unscopedPrisma.workspace.findMany({ orderBy: BY_POSITION });
 }
 
 /**
@@ -38,7 +37,7 @@ async function requestedWorkspace(req: Request): Promise<Workspace> {
   const wanted = (typeof header === 'string' && header) || parseCookie(req.headers.cookie ?? '')[WORKSPACE_COOKIE];
   const found = wanted ? await unscopedPrisma.workspace.findUnique({ where: { id: wanted } }) : null;
   if (found) return found;
-  const first = await unscopedPrisma.workspace.findFirst({ orderBy: [...byOrder] });
+  const first = await unscopedPrisma.workspace.findFirst({ orderBy: BY_POSITION });
   return first ?? unscopedPrisma.workspace.create({ data: { name: 'Pro', kind: 'PRO' } });
 }
 
@@ -61,7 +60,7 @@ export async function workspaceMiddleware(req: Request, _res: Response, next: Ne
  * @returns {Promise<void>}
  */
 export async function forEachWorkspace(job: (workspace: Workspace) => Promise<unknown>, options: { kind?: WorkspaceKind } = {}): Promise<void> {
-  const workspaces = await unscopedPrisma.workspace.findMany({ where: options.kind ? { kind: options.kind } : {}, orderBy: [...byOrder] });
+  const workspaces = await unscopedPrisma.workspace.findMany({ where: options.kind ? { kind: options.kind } : {}, orderBy: BY_POSITION });
   for (const workspace of workspaces) {
     try {
       await runInWorkspace(workspace, () => job(workspace));
@@ -69,6 +68,20 @@ export async function forEachWorkspace(job: (workspace: Workspace) => Promise<un
       console.error(`Workspace « ${workspace.name} »:`, error);
     }
   }
+}
+
+/**
+ * Runs a background job in every workspace (of a kind) a while after the start, then at an interval; a failure is
+ * logged, the next run comes anyway.
+ * @param {string} label What fails, in the log (« Envois programmés »).
+ * @param {(workspace: Workspace) => Promise<unknown>} job Job, run in each workspace.
+ * @param {{ delay: number, interval: number, kind?: WorkspaceKind }} timing First run (ms after the start), interval (ms), workspaces of a kind only.
+ * @returns {void}
+ */
+export function schedulePerWorkspace(label: string, job: (workspace: Workspace) => Promise<unknown>, { delay, interval, kind }: { delay: number; interval: number; kind?: WorkspaceKind }): void {
+  const run = () => void forEachWorkspace(job, { kind }).catch((error: unknown) => console.warn(`${label} en échec.`, error));
+  setTimeout(run, delay);
+  setInterval(run, interval);
 }
 
 /**
@@ -182,10 +195,9 @@ export async function setWorkspaceWeek(id: string, week: WeekSpan): Promise<Work
  * @returns {Promise<void>}
  */
 export async function moveWorkspace(id: string, index: number): Promise<void> {
-  const ids = (await listWorkspaces()).map((workspace) => workspace.id).filter((item) => item !== id);
-  if (ids.length === (await unscopedPrisma.workspace.count())) throw notFound('Espace');
-  ids.splice(Math.max(0, Math.min(index, ids.length)), 0, id);
-  await unscopedPrisma.$transaction(ids.map((item, position) => unscopedPrisma.workspace.update({ where: { id: item }, data: { position } })));
+  const ids = (await listWorkspaces()).map((workspace) => workspace.id);
+  if (!ids.includes(id)) throw notFound('Espace');
+  await unscopedPrisma.$transaction(moveInOrder(ids, id, index).map((item, position) => unscopedPrisma.workspace.update({ where: { id: item }, data: { position } })));
 }
 
 /**

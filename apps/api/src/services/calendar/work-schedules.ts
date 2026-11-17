@@ -1,3 +1,4 @@
+import { rethrowUnique } from '../../graphql/errors';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
   defaultScheduleKindSchema,
@@ -17,7 +18,7 @@ import {
   type WorkScheduleInput,
   type WorkScheduleRule,
 } from "@ordo/shared";
-import { z } from "zod";
+import { nextPositionIn } from '../core/ordering';
 import { prisma, unscopedPrisma } from "../../db";
 import {
   Prisma,
@@ -147,22 +148,11 @@ export async function saveScheduleType(
     throw notFound("Type de plage");
   try {
     if (id) return await prisma.scheduleType.update({ where: { id }, data });
-    const { _max } = await prisma.scheduleType.aggregate({
-      _max: { position: true },
-    });
     return await prisma.scheduleType.create({
-      data: { ...data, position: (_max.position ?? -1) + 1 },
+      data: { ...data, position: await nextPositionIn('scheduleType') },
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      throw clientError("BAD_USER_INPUT", "Un type porte déjà ce nom.", {
-        fields: { name: "Un type porte déjà ce nom." },
-      });
-    }
-    throw error;
+    rethrowUnique(error, "Un type porte déjà ce nom.");
   }
 }
 

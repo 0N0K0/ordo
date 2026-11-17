@@ -12,6 +12,8 @@ interface EmptyStateProps {
   action?: ReactNode;
   /** Inside a section or a panel: on one line, without frame. Optional. Default = false (a framed block, centered). */
   compact?: boolean;
+  /** Centered without a frame (in a chart, a sidebar section). Optional. Default = false. */
+  plain?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface EmptyStateProps {
  * @param {EmptyStateProps} props Component props.
  * @returns {JSX.Element} Empty state.
  */
-export function EmptyState({ message, icon, iconColor = 'gray', action, compact = false }: EmptyStateProps) {
+export function EmptyState({ message, icon, iconColor = 'gray', action, compact = false, plain = false }: EmptyStateProps) {
   if (compact) {
     return (
       <Group gap="xs" wrap="nowrap" c="dimmed">
@@ -33,20 +35,25 @@ export function EmptyState({ message, icon, iconColor = 'gray', action, compact 
       </Group>
     );
   }
-  return (
+  const content = (
+    <Stack align="center" gap="sm">
+      {icon && (
+        <ThemeIcon size="xl" radius="xl" variant="light" color={iconColor}>
+          {icon}
+        </ThemeIcon>
+      )}
+      <Text size="sm" c="dimmed" ta="center">
+        {message}
+      </Text>
+      {/* Only an action given nowhere else (« Retour… », « Effacer les filtres »): a « Nouveau… » is in the header, on the right. */}
+      {action}
+    </Stack>
+  );
+  return plain ? (
+    content
+  ) : (
     <Paper withBorder radius="md" p="xl">
-      <Stack align="center" gap="sm">
-        {icon && (
-          <ThemeIcon size="xl" radius="xl" variant="light" color={iconColor}>
-            {icon}
-          </ThemeIcon>
-        )}
-        <Text size="sm" c="dimmed" ta="center">
-          {message}
-        </Text>
-        {/* Only an action given nowhere else (« Retour… », « Effacer les filtres »): a « Nouveau… » is in the header, on the right. */}
-        {action}
-      </Stack>
+      {content}
     </Paper>
   );
 }

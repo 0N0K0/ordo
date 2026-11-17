@@ -1,6 +1,6 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { parisToday } from '../../src/today';
-import { addDays, DEFAULT_RECURRENCE, type Recurrence, type RoutineInput } from '@ordo/shared';
+import { addDays, DEFAULT_RECURRENCE, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/core/geo';
@@ -32,7 +32,7 @@ export async function tickRoutines(today: string): Promise<{ routineId: string; 
         const hour = faker.number.int({ min: 8, max: 20 });
         checks.push({
           routineId: routine.id,
-          date: new Date(`${date}T00:00:00.000Z`),
+          date: parseDay(date),
           slot,
           doneAt: new Date(`${date}T${String(hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`),
         });

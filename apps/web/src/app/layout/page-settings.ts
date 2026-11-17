@@ -1,5 +1,5 @@
+import { useSearchParam } from '../../lib/search-params';
 import { createContext, useContext } from 'react';
-import { useSearchParams } from 'react-router';
 
 /** Settings of the page shown, in the sidebar on the right: their title, and where they are drawn. */
 interface PageSettingsState {
@@ -21,20 +21,8 @@ export const SETTINGS_PARAM = 'settings';
  * @returns {{ opened: boolean, setOpened: (opened: boolean) => void }} State.
  */
 export function useSettingsOpened(): { opened: boolean; setOpened: (opened: boolean) => void } {
-  const [params, setParams] = useSearchParams();
-  return {
-    opened: params.get(SETTINGS_PARAM) === '1',
-    setOpened: (opened) =>
-      setParams(
-        (current) => {
-          const next = new URLSearchParams(current);
-          if (opened) next.set(SETTINGS_PARAM, '1');
-          else next.delete(SETTINGS_PARAM);
-          return next;
-        },
-        { replace: true },
-      ),
-  };
+  const [opened, setOpened] = useSearchParam(SETTINGS_PARAM);
+  return { opened: opened === '1', setOpened: (open) => setOpened(open ? '1' : null) };
 }
 
 /**

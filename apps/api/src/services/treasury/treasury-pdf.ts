@@ -1,11 +1,11 @@
-import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, splitAmounts, toCents, pathOf } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, splitAmounts, toCents } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
-import { prisma, unscopedPrisma } from '../../db';
+import { prisma } from '../../db';
+import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
-import { currentWorkspaceId } from '../../workspace-context';
-import { startReport } from '../core/pdf-report';
+import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -21,8 +21,8 @@ const statementSchema = z
   .refine((period) => period.to <= addDays(period.from, 366 * 10), { path: ['to'], message: 'Dix ans au plus.' });
 type StatementInput = z.input<typeof statementSchema>;
 
-const COLORS = { text: '#1d232b', muted: '#66707c', border: '#dfe3e8', fill: '#f2f4f6', month: '#e7ebf0', in: '#2b8a3e', out: '#c92a2a' };
-const MARGIN = 36;
+const COLORS = { ...PDF_TEXT, ...PDF_TABLE, month: PDF_TABLE.group, in: '#2b8a3e', out: '#c92a2a' };
+const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 7.5;
 
@@ -35,7 +35,7 @@ const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'num
  * @param {string} day YYYY-MM-DD.
  * @returns {string} DD/MM/YYYY.
  */
-const printed = (day: string) => dateFormat.format(new Date(`${day}T00:00:00Z`));
+const printed = (day: string) => dateFormat.format(parseDay(day));
 
 /**
  * Printed amount.
@@ -63,12 +63,11 @@ interface Column {
  */
 export async function treasuryStatementPdf(input: StatementInput): Promise<{ name: string; content: Buffer }> {
   const { from, to, accountId } = parseInput(statementSchema, input);
-  const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+  const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: BY_POSITION });
   if (accountId && !accounts.length) throw notFound('Compte');
   if (!accounts.length) throw clientError('BAD_USER_INPUT', 'Aucun compte.');
-  const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
   // Without a company (personal workspace), the statement bears the name of the workspace.
-  const owner = company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name;
+  const owner = await issuerName();
   const entries = await prisma.treasuryEntry.findMany({
     where: { status: 'ACTUAL', accountId: { in: accounts.map((account) => account.id) }, date: { gte: parseDay(from), lte: parseDay(to) } },
     include: {
@@ -103,7 +102,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
 
   // Category paths ("Parent › Enfant").
   const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, parentId: true } });
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryById = mapById(categories);
   /**
    * Full path of a category.
    * @param {string | null} id Category id.

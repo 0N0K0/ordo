@@ -1,28 +1,32 @@
 import {
+  formatDay,
+  mapById,
+  type NewStockItemInput,
   newStockItemSchema,
+  parseDay,
+  type ProductStockInput,
   productStockSchema,
   sheetMultiplierSchema,
-  shoppingDeliverySchema,
-  shoppingOrderSchema,
-  stockCountSchema,
-  stockItemSchema,
-  stockLocationSchema,
-  stockMoveSchema,
-  stockPurchaseSchema,
-  type NewStockItemInput,
-  type ProductStockInput,
   type ShoppingDeliveryInput,
+  shoppingDeliverySchema,
   type ShoppingOrderInput,
+  shoppingOrderSchema,
   type StockCountInput,
+  stockCountSchema,
   type StockItemInput,
+  stockItemSchema,
   type StockLocationInput,
+  stockLocationSchema,
   type StockMoveInput,
+  stockMoveSchema,
   type StockPurchaseInput,
+  stockPurchaseSchema,
 } from '@ordo/shared';
+import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { saveSiblingOrder } from '../core/ordering';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { moveInList, nextPositionIn } from '../core/ordering';
 
 type Tx = Prisma.TransactionClient;
 
@@ -45,7 +49,7 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
  * @param {string | null} day YYYY-MM-DD.
  * @returns {Date | null} Date.
  */
-const dayOf = (day: string | null) => (day ? new Date(`${day}T00:00:00.000Z`) : null);
+const dayOf = (day: string | null) => (day ? parseDay(day) : null);
 
 // Places ---------------------------------------------------------------------------------------------------------
 
@@ -58,13 +62,7 @@ const dayOf = (day: string | null) => (day ? new Date(`${day}T00:00:00.000Z`) : 
 async function parseLocation(input: StockLocationInput, id?: string): Promise<StockLocationInput> {
   const data = parseInput(stockLocationSchema, input);
   if (!data.parentId) return data;
-  if (!(await prisma.stockLocation.findUnique({ where: { id: data.parentId }, select: { id: true } }))) throw notFound('Emplacement parent');
-  if (id) {
-    const parentOf = new Map((await prisma.stockLocation.findMany({ select: { id: true, parentId: true } })).map((place) => [place.id, place.parentId]));
-    for (let current: string | null | undefined = data.parentId; current; current = parentOf.get(current)) {
-      if (current === id) throw clientError('BAD_USER_INPUT', 'Un emplacement ne peut pas être rangé sous lui-même.', { fields: { parentId: 'Choisissez un autre emplacement parent.' } });
-    }
-  }
+  await assertTreeParent('stockLocation', data.parentId, id, { missing: 'Emplacement parent', loop: 'Un emplacement ne peut pas être rangé sous lui-même.' });
   return data;
 }
 
@@ -75,8 +73,8 @@ async function parseLocation(input: StockLocationInput, id?: string): Promise<St
  */
 export async function createLocation(input: StockLocationInput): Promise<StockLocation> {
   const data = await parseLocation(input);
-  const { _max } = await prisma.stockLocation.aggregate({ where: { parentId: data.parentId }, _max: { position: true } });
-  return prisma.stockLocation.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('stockLocation', { parentId: data.parentId });
+  return prisma.stockLocation.create({ data: { ...data, position } });
 }
 
 /**
@@ -86,7 +84,7 @@ export async function createLocation(input: StockLocationInput): Promise<StockLo
  * @returns {Promise<StockLocation>} Place.
  */
 export async function updateLocation(id: string, input: StockLocationInput): Promise<StockLocation> {
-  if (!(await prisma.stockLocation.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Emplacement');
+  await orNotFound(prisma.stockLocation.findUnique({ where: { id }, select: { id: true } }), 'Emplacement');
   return prisma.stockLocation.update({ where: { id }, data: await parseLocation(input, id) });
 }
 
@@ -98,17 +96,10 @@ export async function updateLocation(id: string, input: StockLocationInput): Pro
  * @returns {Promise<void>}
  */
 export async function moveLocation(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  const place = await prisma.stockLocation.findUnique({ where: { id } });
-  if (!place) throw notFound('Emplacement');
+  const place = await orNotFound(prisma.stockLocation.findUnique({ where: { id } }), 'Emplacement');
   if (parentId !== place.parentId) await updateLocation(id, { name: place.name, color: place.color, parentId });
   if (index === null || index === undefined) return;
-  const siblings = await prisma.stockLocation.findMany({ where: { parentId }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
-  await saveSiblingOrder(
-    siblings.map((sibling) => sibling.id),
-    id,
-    index,
-    (siblingId, position) => prisma.stockLocation.update({ where: { id: siblingId }, data: { position } }),
-  );
+  await moveInList('stockLocation', id, index, { parentId });
 }
 
 /**
@@ -117,9 +108,8 @@ export async function moveLocation(id: string, parentId: string | null, index?: 
  * @returns {Promise<void>}
  */
 export async function deleteLocation(id: string): Promise<void> {
-  const place = await prisma.stockLocation.findUnique({ where: { id } });
-  if (!place) throw notFound('Emplacement');
-  await prisma.$transaction([prisma.stockLocation.updateMany({ where: { parentId: id }, data: { parentId: place.parentId } }), prisma.stockLocation.delete({ where: { id } })]);
+  const place = await orNotFound(prisma.stockLocation.findUnique({ where: { id } }), 'Emplacement');
+  await deleteTreeNode('stockLocation', place);
 }
 
 // Items ----------------------------------------------------------------------------------------------------------
@@ -171,8 +161,7 @@ const people = (data: StockItemInput, mode: 'connect' | 'set') => ({
  * @returns {Promise<StockItem>} Item.
  */
 async function findItem(id: string): Promise<StockItem> {
-  const item = await prisma.stockItem.findUnique({ where: { id } });
-  if (!item) throw notFound('Article');
+  const item = await orNotFound(prisma.stockItem.findUnique({ where: { id } }), 'Article');
   return item;
 }
 
@@ -184,9 +173,9 @@ async function findItem(id: string): Promise<StockItem> {
 export async function createStockItem(input: NewStockItemInput): Promise<StockItem> {
   const data = parseInput(newStockItemSchema, input);
   await assertItemRefs(data);
-  const { _max } = await prisma.stockItem.aggregate({ _max: { position: true } });
+  const position = await nextPositionIn('stockItem');
   return prisma.$transaction(async (tx) => {
-    const item = await tx.stockItem.create({ data: { ...itemFields(data), position: (_max.position ?? -1) + 1, ...people(data, 'connect') } });
+    const item = await tx.stockItem.create({ data: { ...itemFields(data), position, ...people(data, 'connect') } });
     if (data.quantity) await addIn(tx, item, data.quantity, data.perishable ? data.expiresAt : null, null, { kind: 'COUNT', note: 'Quantité de départ' });
     return item;
   });
@@ -304,7 +293,7 @@ export async function moveStock(input: StockMoveInput): Promise<number> {
  * @returns {Promise<void>}
  */
 export async function setLotExpiry(id: string, expiresAt: string | null): Promise<void> {
-  if (!(await prisma.stockLot.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Lot');
+  await orNotFound(prisma.stockLot.findUnique({ where: { id }, select: { id: true } }), 'Lot');
   await prisma.stockLot.update({ where: { id }, data: { expiresAt: dayOf(expiresAt) } });
 }
 
@@ -319,7 +308,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
   if (data.locationId && !(await prisma.stockLocation.findUnique({ where: { id: data.locationId }, select: { id: true } }))) throw notFound('Emplacement');
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
-  const byId = new Map(items.map((item) => [item.id, item]));
+  const byId = mapById(items);
   return prisma.$transaction(async (tx) => {
     const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note?.trim() || null } });
     for (const line of data.lines) {
@@ -330,7 +319,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
       // More than expected: into the latest lot (a new one without date when there is none).
       if (difference > 0) {
         const latest = [...item.lots].sort((a, b) => (b.expiresAt?.getTime() ?? Infinity) - (a.expiresAt?.getTime() ?? Infinity))[0];
-        await addIn(tx, item, difference, latest?.expiresAt ? latest.expiresAt.toISOString().slice(0, 10) : null, latest?.id ?? null, source);
+        await addIn(tx, item, difference, latest?.expiresAt ? formatDay(latest.expiresAt) : null, latest?.id ?? null, source);
       } else if (difference < 0) await takeOut(tx, item.id, -difference, null, source);
     }
     return count;
@@ -347,7 +336,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
  */
 export async function setProductStock(id: string, input: ProductStockInput): Promise<void> {
   const data = parseInput(productStockSchema, input);
-  if (!(await prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Référence');
+  await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true } }), 'Référence');
   if (data.stockLocationId && !(await prisma.stockLocation.findUnique({ where: { id: data.stockLocationId }, select: { id: true } }))) throw notFound('Emplacement');
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });
 }
@@ -425,7 +414,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
     },
     locationId,
   );
-  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? bought.expiresAt.toISOString().slice(0, 10) : null), null, { kind: 'PURCHASE', shoppingItemId });
+  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? formatDay(bought.expiresAt) : null), null, { kind: 'PURCHASE', shoppingItemId });
 }
 
 /**
@@ -507,8 +496,7 @@ async function consumeProduct(tx: Tx, productId: string, quantity: number, sourc
  */
 export async function useSheet(sheetId: string, multiplier: number): Promise<{ taken: number; short: string[] }> {
   const times = parseInput(sheetMultiplierSchema, multiplier);
-  const sheet = await prisma.sheet.findUnique({ where: { id: sheetId }, include: { items: { orderBy: { position: 'asc' } } } });
-  if (!sheet) throw notFound('Fiche');
+  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id: sheetId }, include: { items: { orderBy: { position: 'asc' } } } }), 'Fiche');
   return prisma.$transaction(async (tx) => {
     let taken = 0;
     const short: string[] = [];
@@ -549,7 +537,7 @@ export async function syncChecklistStock(tx: Tx, ids: string[], checked: boolean
  */
 export async function setShoppingOrder(listId: string, input: ShoppingOrderInput): Promise<void> {
   const data = parseInput(shoppingOrderSchema, input);
-  if (!(await prisma.shoppingList.findUnique({ where: { id: listId }, select: { id: true } }))) throw notFound('Liste');
+  await orNotFound(prisma.shoppingList.findUnique({ where: { id: listId }, select: { id: true } }), 'Liste');
   await prisma.shoppingList.update({ where: { id: listId }, data: { ...data, deliveryAddress: data.deliveryAddress || null } });
 }
 
@@ -592,10 +580,10 @@ async function assignItems(tx: Tx, listId: string, deliveryId: string, itemIds: 
  */
 export async function createDelivery(listId: string, input: ShoppingDeliveryInput): Promise<ShoppingDelivery> {
   const data = parseInput(shoppingDeliverySchema, input);
-  if (!(await prisma.shoppingList.findUnique({ where: { id: listId }, select: { id: true } }))) throw notFound('Liste');
-  const { _max } = await prisma.shoppingDelivery.aggregate({ where: { listId }, _max: { position: true } });
+  await orNotFound(prisma.shoppingList.findUnique({ where: { id: listId }, select: { id: true } }), 'Liste');
+  const position = await nextPositionIn('shoppingDelivery', { listId });
   return prisma.$transaction(async (tx) => {
-    const delivery = await tx.shoppingDelivery.create({ data: { ...deliveryFields(data), listId, position: (_max.position ?? -1) + 1 } });
+    const delivery = await tx.shoppingDelivery.create({ data: { ...deliveryFields(data), listId, position } });
     await assignItems(tx, listId, delivery.id, data.itemIds);
     return delivery;
   });
@@ -608,8 +596,7 @@ export async function createDelivery(listId: string, input: ShoppingDeliveryInpu
  * @returns {Promise<ShoppingDelivery>} Delivery.
  */
 export async function updateDelivery(id: string, input: ShoppingDeliveryInput): Promise<ShoppingDelivery> {
-  const delivery = await prisma.shoppingDelivery.findUnique({ where: { id } });
-  if (!delivery) throw notFound('Livraison');
+  const delivery = await orNotFound(prisma.shoppingDelivery.findUnique({ where: { id } }), 'Livraison');
   const data = parseInput(shoppingDeliverySchema, input);
   return prisma.$transaction(async (tx) => {
     await assignItems(tx, delivery.listId, id, data.itemIds);
@@ -634,8 +621,7 @@ export async function deleteDelivery(id: string): Promise<void> {
  * @returns {Promise<string[]>} Items ticked now (to propose adding them to the stock).
  */
 export async function setDeliveryReceived(id: string, received: boolean): Promise<string[]> {
-  const delivery = await prisma.shoppingDelivery.findUnique({ where: { id }, include: { items: { where: { purchasedAt: null }, select: { id: true } } } });
-  if (!delivery) throw notFound('Livraison');
+  const delivery = await orNotFound(prisma.shoppingDelivery.findUnique({ where: { id }, include: { items: { where: { purchasedAt: null }, select: { id: true } } } }), 'Livraison');
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     await tx.shoppingDelivery.update({ where: { id }, data: { receivedAt: received ? (delivery.receivedAt ?? now) : null } });

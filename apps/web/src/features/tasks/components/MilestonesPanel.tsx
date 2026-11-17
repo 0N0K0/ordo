@@ -1,19 +1,22 @@
+import { PlanCard } from './PlanCard';
+import { DragHandle } from '../../../components/actions/DragHandle';
+
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
 import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Group, Menu, Paper, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Group, Paper, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { DotsSixVerticalIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../../components/markdown/MarkdownView';
+
 import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -105,17 +108,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
     >
       <Group gap="sm" wrap="nowrap" align="flex-start">
         {sortable && (
-          <ActionIcon
-            ref={setActivatorNodeRef}
-            variant="subtle"
-            color="gray"
-            aria-label={`Déplacer le jalon ${milestone.title}`}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-            {...attributes}
-            {...listeners}
-          >
-            <DotsSixVerticalIcon weight="bold" aria-hidden />
-          </ActionIcon>
+          <DragHandle label={`Déplacer le jalon ${milestone.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
@@ -200,44 +193,20 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
               const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
               return (
                 <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable}>
-                  <Stack gap="sm">
-                    <Group justify="space-between" wrap="nowrap" align="flex-start">
-                      <Stack gap={2}>
-                        <Group gap="xs">
-                          <FlagIcon aria-hidden />
-                          <Title order={3} size="h5">
-                            {milestone.title}
-                          </Title>
-                        </Group>
-                        <Text size="sm" c={late ? 'red' : 'dimmed'} fw={late ? 600 : undefined}>
-                          {milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}
-                          {late && ' — en retard'}
-                        </Text>
-                      </Stack>
-                      <Menu position="bottom-end" withinPortal shadow="md">
-                        <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le jalon ${milestone.title}`}>
-                            <DotsThreeIcon weight="bold" aria-hidden />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(milestone)}>
-                            Modifier
-                          </Menu.Item>
-                          <Menu.Divider />
-                          <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(milestone, tasks.length)}>
-                            Supprimer
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
-                    </Group>
-                    <TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />
-                    {milestone.description && (
-                  <MarkdownView targets={context.targetsFor(milestone.projectId)} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}>
-                    {milestone.description}
-                  </MarkdownView>
-                )}
-                  </Stack>
+                  <PlanCard
+                    icon={<FlagIcon aria-hidden />}
+                    title={milestone.title}
+                    dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
+                    datesColor={late ? 'red' : undefined}
+                    actions={[
+                      { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
+                      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
+                    ]}
+                    progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
+                    description={milestone.description}
+                    targets={context.targetsFor(milestone.projectId)}
+                    onDescription={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}
+                  />
                 </SortableMilestone>
               );
             })}

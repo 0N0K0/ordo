@@ -1,3 +1,4 @@
+import { timeQueryKey } from '../../time/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { AccountingDocumentInput } from '@ordo/shared';
@@ -425,9 +426,10 @@ export function useDocumentMutations() {
       async (variables: { type: AccountingDocumentType; input: AccountingDocumentInput }) =>
         (await execute(CreateDocument, variables as never)).createAccountingDocument,
     ),
-    update: useAccountingMutation(
-      async (variables: { id: string; input: AccountingDocumentInput }) => (await execute(UpdateDocument, variables as never)).updateAccountingDocument,
-    ),
+    // The time billed changes with the draft.
+    update: useInvalidatingMutation(async (variables: { id: string; input: AccountingDocumentInput }) => (await execute(UpdateDocument, variables as never)).updateAccountingDocument, {
+      invalidate: [accountingQueryKey, timeQueryKey],
+    }),
     remove: useMutation<boolean, Error, string>({
       mutationFn: async (id) => (await execute(DeleteDocument, { id })).deleteAccountingDocument,
       // The deleted document is not fetched again: its page would show « introuvable » before leaving.

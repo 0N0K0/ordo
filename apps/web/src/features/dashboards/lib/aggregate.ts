@@ -1,7 +1,7 @@
-import { addDays, calendarRange, CALENDAR_PERIOD, filterPeriod, isTimeDimension, type CalendarScale, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, weekStartOf } from '@ordo/shared';
+import { addDays, CALENDAR_PERIOD, calendarRange, type CalendarScale, calendarStart, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, filterPeriod, isTimeDimension, round2, shiftCalendar, weekStartOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
-import { collator } from '../../../lib/text';
+import { collator, countOf } from '../../../lib/text';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -80,7 +80,7 @@ export function measureLabel(source: ChartSource, measure: ChartMeasure): string
  */
 export function countLabel(config: ChartConfig, count: number): string {
   const noun = config.source === 'tasks' ? 'tâche' : config.source === 'documents' ? 'document' : config.measure === 'balance' ? 'point' : 'mouvement';
-  return `${count} ${noun}${count > 1 ? 's' : ''}`;
+  return countOf(count, noun);
 }
 
 /** Title of a new chart, by source. */
@@ -149,7 +149,6 @@ const NONE_ORDER = '￿';
  */
 export const none = (label: string): Key[] => [{ key: 'none', label, order: NONE_ORDER, color: 'gray.5' }];
 
-export const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
  * Bucket of a day: the day, the Monday of its week, the first of its month, quarter or year.
@@ -159,9 +158,7 @@ export const round = (value: number) => Math.round(value * 100) / 100;
  */
 export function bucketOf(day: string, bucket: ChartBucket): string {
   if (bucket === 'day') return day;
-  if (bucket === 'month') return `${day.slice(0, 7)}-01`;
-  if (bucket === 'year') return `${day.slice(0, 4)}-01-01`;
-  if (bucket === 'quarter') return `${day.slice(0, 4)}-${String(Math.floor((Number(day.slice(5, 7)) - 1) / 3) * 3 + 1).padStart(2, '0')}-01`;
+  if (bucket !== 'week') return calendarStart(bucket, day);
   // Weeks from the first day of those of the workspace (7 days each: buckets do not overlap).
   return weekStartOf(day, currentWeek());
 }
@@ -175,9 +172,7 @@ export function bucketOf(day: string, bucket: ChartBucket): string {
 export function nextBucket(start: string, bucket: ChartBucket): string {
   if (bucket === 'day') return addDays(start, 1);
   if (bucket === 'week') return addDays(start, 7);
-  const date = new Date(`${start}T00:00:00Z`);
-  const months = bucket === 'month' ? 1 : bucket === 'quarter' ? 3 : 12;
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1)).toISOString().slice(0, 10);
+  return shiftCalendar(bucket, start, 1);
 }
 
 /**
@@ -314,7 +309,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
         value += running.get(serie.key) ?? 0;
         running.set(serie.key, value);
       }
-      row[names.get(serie.key)!] = round(value);
+      row[names.get(serie.key)!] = round2(value);
     }
     return row;
   });
@@ -325,7 +320,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
   const slices = xs
     .map((x, index) => ({
       name: x.label,
-      value: round(series.reduce((sum, serie) => sum + (cells.get(`${x.key}|${serie.key}`) ?? 0), 0)),
+      value: round2(series.reduce((sum, serie) => sum + (cells.get(`${x.key}|${serie.key}`) ?? 0), 0)),
       color: x.color ?? PALETTE[index % PALETTE.length],
     }))
     .filter((slice) => slice.value !== 0);

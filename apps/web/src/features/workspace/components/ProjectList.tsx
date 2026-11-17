@@ -1,7 +1,7 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
-import { ActionIcon, Badge, Group, Paper, Text, UnstyledButton } from '@mantine/core';
-import { MAX_PROJECT_DEPTH, lineageOf } from '@ordo/shared';
+import { ArchivedBadge, ItemBadge } from '../../../components/settings/ItemBadge';
+import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
+import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -88,11 +88,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
             {project.title}
           </Text>
           <ItemBadge item={status} />
-          {project.archived && (
-            <Badge variant="light" color="gray">
-              Archivé
-            </Badge>
-          )}
+          {project.archived && <ArchivedBadge />}
         </Group>
       </UnstyledButton>
     </Group>
@@ -107,14 +103,14 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
  * @returns {JSX.Element} List.
  */
 export function ProjectList({ projects, allProjects, rootParentId, clientId, statuses }: ProjectListProps) {
-  const statusById = new Map(statuses.map((status) => [status.id, status]));
+  const statusById = mapById(statuses);
   const moveProject = useMoveProject();
   const [folded, toggle] = useFolded(`projects-${rootParentId ?? clientId ?? 'none'}`);
   const [dragged, setDragged] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; place: TreePlace } | null>(null);
   const sensors = useDragSensors('plain');
 
-  const byId = new Map(projects.map((project) => [project.id, project]));
+  const byId = mapById(projects);
   const rows: { project: Project; depth: number; parent: boolean }[] = [];
 
   /**

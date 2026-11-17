@@ -1,6 +1,7 @@
+import { SubSection } from '../../../components/page/SubSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Anchor, Badge, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Select, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -24,17 +25,17 @@ export function TaskShopping({ task }: { task: Task }) {
   const free = (lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed);
 
   return (
-    <Stack gap="xs">
-      <Group justify="space-between" gap="xs">
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          Achats
-        </Text>
-        {!task.archived && (
+    <SubSection
+      title="Achats"
+      gap="xs"
+      action={
+        !task.archived && (
           <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
             Nouvelle liste
           </ActionButton>
-        )}
-      </Group>
+        )
+      }
+    >
       {own.length === 0 ? (
         <EmptyState compact message="Aucune liste d’achats." />
       ) : (
@@ -74,6 +75,6 @@ export function TaskShopping({ task }: { task: Task }) {
           aria-label="Rattacher une liste d’achats existante"
         />
       )}
-    </Stack>
+    </SubSection>
   );
 }

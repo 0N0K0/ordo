@@ -1,6 +1,9 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { plural } from '../../../lib/text';
+import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
-import { addDays, formatDuration, nextOccurrence, daysBetween } from '@ordo/shared';
+import { addDays, daysBetween, formatDuration, groupBy, nextOccurrence } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -10,8 +13,8 @@ import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import classes from './Home.module.css';
-import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, localDayOf, type WeekTime } from '../lib/home-data';
+import { Figure, HomeCard } from './HomeCard';
+import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 
 const MAX_ROWS = 7;
@@ -32,7 +35,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
   const link = useTaskLink();
   return (
     <HomeCard title="Mes tâches du jour" icon={<CheckSquareOffsetIcon aria-hidden />} to="/tasks" loading={!tasks || !context}>
-      {tasks && context && tasks.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Rien à faire aujourd’hui.</HomeEmpty>}
+      {tasks && context && tasks.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Rien à faire aujourd’hui." />}
       {tasks && context && tasks.length > 0 && (
         <Stack gap={0}>
           {tasks.slice(0, MAX_ROWS).map((task) => {
@@ -63,7 +66,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
           })}
           {tasks.length > MAX_ROWS && (
             <Text size="xs" c="dimmed" pt={4}>
-              + {tasks.length - MAX_ROWS} autre{tasks.length - MAX_ROWS > 1 ? 's' : ''}
+              + {tasks.length - MAX_ROWS} {plural(tasks.length - MAX_ROWS, 'autre')}
             </Text>
           )}
         </Stack>
@@ -97,27 +100,25 @@ export function AgendaCard({ today }: { today: string }) {
     for (const event of events.data) {
       if (!event.allDay && event.end && Date.parse(String(event.end)) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(String(event.start));
-      list.push({ key: event.key, day: start ? localDayOf(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
+      list.push({ key: event.key, day: start ? localDay(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
     }
     for (const alarm of alarms.data) {
       if (!alarm.enabled || alarm.type === 'TRACKING_DURATION') continue;
       const next = nextOccurrence(alarm, now);
       if (!next) continue;
-      const day = localDayOf(next.toISOString());
+      const day = localDay(next.toISOString());
       if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.title, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events.data, alarms.data, today]);
 
   const days = useMemo(() => {
-    const groups = new Map<string, AgendaItem[]>();
-    for (const item of (items ?? []).slice(0, MAX_ROWS + 1)) groups.set(item.day, [...(groups.get(item.day) ?? []), item]);
-    return [...groups.entries()];
+    return [...groupBy((items ?? []).slice(0, MAX_ROWS + 1), (item) => item.day)];
   }, [items]);
 
   return (
     <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to="/calendar" linkLabel="Ouvrir l’agenda" loading={!items}>
-      {items && items.length === 0 && <HomeEmpty icon={<CalendarBlankIcon aria-hidden />}>Rien de prévu cette semaine.</HomeEmpty>}
+      {items && items.length === 0 && <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Rien de prévu cette semaine." />}
       {days.map(([day, list]) => (
         <Stack key={day} gap={2}>
           <Text size="xs" c="dimmed" fw={600} tt="uppercase">
@@ -161,7 +162,7 @@ export function TimeCard({ context, time }: TimeCardProps) {
             <Figure label="Cette semaine" value={formatDuration(time.week)} />
           </SimpleGrid>
           {time.byProject.length === 0 ? (
-            <HomeEmpty icon={<ClockIcon aria-hidden />}>Aucun temps saisi cette semaine.</HomeEmpty>
+            <EmptyState compact icon={<ClockIcon aria-hidden />} message="Aucun temps saisi cette semaine." />
           ) : (
             time.byProject.slice(0, 4).map((item) => (
               <Link key={item.projectId} to={`/projects/${item.projectId}?tab=time`} className={classes.row}>

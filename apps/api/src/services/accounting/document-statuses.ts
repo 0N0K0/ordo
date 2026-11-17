@@ -2,8 +2,8 @@ import { colorSchema, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE, type Document
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -70,7 +70,7 @@ export async function ensureDocumentStatuses(client: Client = prisma): Promise<v
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
-  const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+  const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION });
   return status ?? createDefaultStatus(scope, category, client);
 }
 
@@ -84,18 +84,6 @@ function assertCategory(scope: DocumentStatusScope, category: DocumentStatusCate
   if (!STATUS_CATEGORIES_BY_SCOPE[scope].some((item) => item.value === category)) {
     throw clientError('BAD_USER_INPUT', 'Catégorie invalide pour ce type de document.', { fields: { category: 'Catégorie invalide.' } });
   }
-}
-
-/**
- * Converts a duplicate name into a field error.
- * @param {unknown} error Caught error.
- * @returns {never}
- */
-function rethrowConflict(error: unknown): never {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    throw clientError('CONFLICT', 'Un statut porte déjà ce nom.', { fields: { name: 'Un statut porte déjà ce nom.' } });
-  }
-  throw error;
 }
 
 /**
@@ -120,11 +108,11 @@ async function assertNotLast(status: DocumentStatus): Promise<void> {
 export async function createDocumentStatus(input: { scope: DocumentStatusScope; name: string; color: string; category: DocumentStatusCategory }): Promise<DocumentStatus> {
   const data = parseInput(z.object({ name: labelNameSchema, color: colorSchema }), input);
   assertCategory(input.scope, input.category);
-  const { _max } = await prisma.documentStatus.aggregate({ where: { scope: input.scope }, _max: { position: true } });
+  const position = await nextPositionIn('documentStatus', { scope: input.scope });
   try {
-    return await prisma.documentStatus.create({ data: { ...data, scope: input.scope, category: input.category, position: (_max.position ?? -1) + 1 } });
+    return await prisma.documentStatus.create({ data: { ...data, scope: input.scope, category: input.category, position } });
   } catch (error) {
-    return rethrowConflict(error);
+    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
   }
 }
 
@@ -141,8 +129,7 @@ export async function updateDocumentStatus(
   id: string,
   input: { name?: string | null; color?: string | null; category?: DocumentStatusCategory | null },
 ): Promise<DocumentStatus> {
-  const status = await prisma.documentStatus.findUnique({ where: { id } });
-  if (!status) throw notFound('Statut');
+  const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,
@@ -154,7 +141,7 @@ export async function updateDocumentStatus(
   try {
     return await prisma.documentStatus.update({ where: { id }, data: { ...data, category: input.category ?? undefined } });
   } catch (error) {
-    return rethrowConflict(error);
+    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
   }
 }
 
@@ -164,13 +151,12 @@ export async function updateDocumentStatus(
  * @returns {Promise<void>}
  */
 export async function deleteDocumentStatus(id: string): Promise<void> {
-  const status = await prisma.documentStatus.findUnique({ where: { id } });
-  if (!status) throw notFound('Statut');
+  const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
   await assertNotLast(status);
   await prisma.$transaction(async (tx) => {
     const replacement = await tx.documentStatus.findFirstOrThrow({
       where: { scope: status.scope, category: status.category, id: { not: id } },
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: BY_POSITION,
     });
     await tx.accountingDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
     await tx.importedDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
@@ -178,20 +164,3 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
   });
 }
 
-/**
- * Moves a status inside its scope.
- * @param {string} id Status id.
- * @param {number} index Target index.
- * @returns {Promise<void>}
- */
-export async function moveDocumentStatus(id: string, index: number): Promise<void> {
-  const status = await prisma.documentStatus.findUnique({ where: { id } });
-  if (!status) throw notFound('Statut');
-  const siblings = await prisma.documentStatus.findMany({ where: { scope: status.scope }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
-  const order = moveInOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-  );
-  await prisma.$transaction(order.map((statusId, position) => prisma.documentStatus.update({ where: { id: statusId }, data: { position } })));
-}

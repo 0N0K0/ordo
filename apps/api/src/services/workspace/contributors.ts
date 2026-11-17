@@ -1,22 +1,9 @@
 import { contributorNameSchema, handleSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { Prisma, type Contributor } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { type Contributor } from '../../generated/prisma/client';
+import { clientError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-
-/**
- * Converts a unique handle violation into a field error.
- * @param {unknown} error Caught error.
- * @returns {never}
- */
-function rethrowHandleConflict(error: unknown): never {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    const message = 'Cet identifiant est déjà utilisé.';
-    throw clientError('CONFLICT', message, { fields: { handle: message } });
-  }
-  throw error;
-}
 
 /**
  * Creates a contributor.
@@ -42,7 +29,7 @@ export async function createContributor(input: {
     });
   } catch (error) {
     await deleteOrphanIcons([iconId]);
-    return rethrowHandleConflict(error);
+    return rethrowUnique(error, 'Cet identifiant est déjà utilisé.', 'handle');
   }
 }
 
@@ -67,8 +54,7 @@ export async function updateContributor(
     projectIds?: string[] | null;
   },
 ): Promise<Contributor> {
-  const contributor = await prisma.contributor.findUnique({ where: { id } });
-  if (!contributor) throw notFound('Contributeur');
+  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id } }), 'Contributeur');
   if (input.projectIds) await assertProjects(input.projectIds);
   const data = parseInput(z.object({ name: contributorNameSchema.optional(), handle: handleSchema.optional() }), {
     name: input.name ?? undefined,
@@ -84,7 +70,7 @@ export async function updateContributor(
     return updated;
   } catch (error) {
     if (iconId) await deleteOrphanIcons([iconId]);
-    return rethrowHandleConflict(error);
+    return rethrowUnique(error, 'Cet identifiant est déjà utilisé.', 'handle');
   }
 }
 
@@ -94,8 +80,7 @@ export async function updateContributor(
  * @returns {Promise<void>}
  */
 export async function deleteContributor(id: string): Promise<void> {
-  const contributor = await prisma.contributor.findUnique({ where: { id }, include: { user: { select: { id: true } } } });
-  if (!contributor) throw notFound('Contributeur');
+  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id }, include: { user: { select: { id: true } } } }), 'Contributeur');
   if (contributor.user) throw clientError('BAD_USER_INPUT', 'Votre propre profil ne peut pas être supprimé.');
   await prisma.contributor.delete({ where: { id } });
   await deleteOrphanIcons([contributor.iconId]);

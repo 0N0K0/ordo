@@ -11,7 +11,7 @@ import {
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { createContributor } from '../workspace/contributors';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
@@ -59,7 +59,7 @@ async function freeHandle(name: string): Promise<string> {
  */
 export async function addMember(input: { contributorId?: string | null; name?: string | null }): Promise<Contributor> {
   if (input.contributorId) {
-    if (!(await prisma.contributor.findUnique({ where: { id: input.contributorId }, select: { id: true } }))) throw notFound('Contributeur');
+    await orNotFound(prisma.contributor.findUnique({ where: { id: input.contributorId }, select: { id: true } }), 'Contributeur');
     // A contributor is a member or a relation, not both.
     const relation = await prisma.treasuryRelation.findFirst({ where: { contributorId: input.contributorId }, select: { name: true } });
     if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
@@ -76,8 +76,7 @@ export async function addMember(input: { contributorId?: string | null; name?: s
  * @returns {Promise<void>}
  */
 export async function removeMember(contributorId: string): Promise<void> {
-  const contributor = await prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } });
-  if (!contributor) throw notFound('Membre');
+  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } }), 'Membre');
   if (contributor.userId) throw clientError('BAD_USER_INPUT', 'Vous êtes toujours membre de votre équipe ou de votre foyer.');
   await prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: false } });
 }
@@ -98,10 +97,7 @@ export async function saveContext(id: string | null, input: TreasuryContextInput
       return tx.treasuryContext.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw clientError('BAD_USER_INPUT', 'Un contexte porte déjà ce nom.', { fields: { name: 'Un contexte porte déjà ce nom.' } });
-    }
-    throw error;
+    rethrowUnique(error, 'Un contexte porte déjà ce nom.');
   }
 }
 
@@ -123,10 +119,10 @@ export async function deleteContext(id: string): Promise<void> {
  */
 export async function saveContextPeriod(id: string | null, input: TreasuryContextPeriodInput): Promise<TreasuryContextPeriod> {
   const data = parseInput(treasuryContextPeriodSchema, input);
-  if (!(await prisma.treasuryContext.findUnique({ where: { id: data.contextId }, select: { id: true } }))) throw notFound('Contexte');
+  await orNotFound(prisma.treasuryContext.findUnique({ where: { id: data.contextId }, select: { id: true } }), 'Contexte');
   const fields = { contextId: data.contextId, startDate: parseDay(data.startDate), endDate: parseDay(data.endDate), note: data.note };
   if (!id) return prisma.treasuryContextPeriod.create({ data: fields });
-  if (!(await prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Période');
+  await orNotFound(prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { id: true } }), 'Période');
   return prisma.treasuryContextPeriod.update({ where: { id }, data: fields });
 }
 
@@ -151,8 +147,7 @@ export async function saveRelation(id: string | null, input: TreasuryRelationInp
   const parsed = parseInput(treasuryRelationSchema, input);
   if (id && !(await prisma.treasuryRelation.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Relation');
   if (parsed.contributorId) {
-    const contributor = await prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } });
-    if (!contributor) throw notFound('Contributeur');
+    const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
     if (isMember(contributor)) {
       const message = 'Ce contributeur est membre : il n’est pas une relation.';
       throw clientError('BAD_USER_INPUT', message, { fields: { contributorId: message } });
@@ -162,7 +157,7 @@ export async function saveRelation(id: string | null, input: TreasuryRelationInp
   try {
     return id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (isUniqueConflict(error)) {
       const contributor = String(error.meta?.target ?? '').includes('contributorId') || JSON.stringify(error.meta ?? {}).includes('contributorId');
       const message = contributor ? 'Ce contributeur est déjà une relation.' : 'Une relation porte déjà ce nom.';
       throw clientError('BAD_USER_INPUT', message, { fields: { [contributor ? 'contributorId' : 'name']: message } });

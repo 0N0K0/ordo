@@ -1,10 +1,12 @@
-import { personKey, memberOrRelation, memberOrRelationKey } from '../../../components/people/people-keys';
+import { openFormPanel } from '../../../components/panels/panels';
+import { plural, countOf } from '../../../lib/text';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
@@ -217,10 +219,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
               searchable
-              data={[
-                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })) },
-                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
-              ].filter((group) => group.items.length)}
+              data={memberRelationOptions(members, settings?.treasuryRelations ?? [], { withMe: false })}
               value={memberOrRelationKey(values)}
               onChange={(key) => form.setValues(memberOrRelation(key))}
               error={form.errors.memberId}
@@ -271,7 +270,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
 }
 
 // A copy is a new budget with the values of another one.
-type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?: boolean } | null;
+type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?: boolean };
 
 /**
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
@@ -312,7 +311,6 @@ export function BudgetsPanel() {
       },
       { onError: onMutationError },
     );
-  const [dialog, setDialog] = useState<Dialog>(null);
   const categories = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(categories);
   const directionOf = new Map(categories.map((category) => [category.id, category.direction]));
@@ -323,7 +321,15 @@ export function BudgetsPanel() {
   const rows = data?.treasuryBudgetReport ?? [];
   const budgeted = rows.filter((row) => row.budgeted);
   const outside = rows.filter((row) => !row.budgeted);
-  const close = () => setDialog(null);
+  /**
+   * Opens the form of a new, changed or copied budget.
+   * @param {Dialog} dialog Budget changed, or the values of a new one.
+   * @returns {void}
+   */
+  const openBudget = (dialog: Dialog) =>
+    openFormPanel(dialog.budget ? 'Modifier le budget' : dialog.copy ? 'Dupliquer le budget' : 'Nouveau budget', (close) => (
+      <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />
+    ));
 
   /**
    * What a row used of its budget: money out for a category of money out, money in otherwise.
@@ -559,7 +565,7 @@ export function BudgetsPanel() {
     <Stack gap="md">
       <Group justify="space-between">
         <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(String(value).slice(0, 7))} w={200} />
-        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ defaults: { month } })} disabled={!categories.length}>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openBudget({ defaults: { month } })} disabled={!categories.length}>
           Nouveau budget
         </ActionButton>
       </Group>
@@ -650,7 +656,7 @@ export function BudgetsPanel() {
                     label: 'Créer le budget',
                     icon: <PlusIcon aria-hidden />,
                     onClick: () =>
-                      setDialog({
+                      openBudget({
                         defaults: {
                           month,
                           memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
@@ -682,9 +688,9 @@ export function BudgetsPanel() {
             selectionActions={(rows, clear) => [
               deleteRowsAction(rows, {
                 title: 'Supprimer les budgets',
-                risks: `${rows.length} budget(s) et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                risks: `${countOf(rows.length, 'budget')} et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
                 remove: (budget) => remove.mutateAsync(budget.id),
-                done: `${rows.length} budget(s) supprimé(s).`,
+                done: `${countOf(rows.length, 'budget')} ${plural(rows.length, 'supprimé')}.`,
                 clear,
               }),
             ]}
@@ -768,14 +774,14 @@ export function BudgetsPanel() {
             actions={(budget) => (
               <RowActions
                 name="le budget"
-                primary={{ label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ budget }) }}
+                primary={{ label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                 items={[
                   {
                     label: 'Dupliquer',
                     icon: <CopyIcon aria-hidden />,
                     onClick: () =>
                       // A new budget with its values, to change (month, category…) before it is saved.
-                      setDialog({
+                      openBudget({
                         copy: true,
                         defaults: {
                           month: budget.month,
@@ -806,10 +812,6 @@ export function BudgetsPanel() {
           />
         )}
       </Paper>
-
-      <SidePanel opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
-        {dialog && <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />}
-      </SidePanel>
     </Stack>
   );
 }

@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, documentChartFilterSchema, emptyTableFilter } from '@ordo/shared';
+import { addDays, chartConfigSchema, documentChartFilterSchema, emptyTableFilter, parseDay } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma, Project } from '../../src/generated/prisma/client';
@@ -48,8 +48,8 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
           projectId: root.id,
           name: `Sprint ${index + 1}`,
           goal: index === 2 ? 'Livrer la version bêta et corriger les retours de recette.' : null,
-          startDate: new Date(`${start}T00:00:00.000Z`),
-          endDate: new Date(`${addDays(start, 13)}T00:00:00.000Z`),
+          startDate: parseDay(start),
+          endDate: parseDay(addDays(start, 13)),
         },
       });
       if (index === 2 && !running) running = sprint.id;

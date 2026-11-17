@@ -1,5 +1,5 @@
 import { ActionIcon, Avatar, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
-import { MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import {
   AtIcon,
   CheckSquareIcon,
@@ -137,7 +137,7 @@ export function MarkdownEditor({
   const targets: ReferenceTargets = useMemo(
     () => ({
       projectId: suggestions.projectId,
-      taskById: new Map(suggestions.tasks.map((task) => [task.id, task])),
+      taskById: mapById(suggestions.tasks),
       taskByNumber: new Map(suggestions.tasks.map((task) => [`${task.projectId}:${task.number}`, task])),
       handles: new Set(suggestions.contributors.map((contributor) => contributor.handle)),
     }),

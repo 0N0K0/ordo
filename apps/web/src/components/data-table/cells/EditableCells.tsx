@@ -1,4 +1,4 @@
-import { ActionIcon, Checkbox, Group, NumberInput, Select, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { ActionIcon, Anchor, Checkbox, Popover, Group, NumberInput, Select, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -311,4 +311,55 @@ export function EditableMultiSelect({ value, label, data, items, renderOption, f
  */
 export function EditableCheck({ value, label, readOnly = false, onSave }: { value: boolean; label: string; readOnly?: boolean; onSave: (value: boolean) => void }) {
   return <Checkbox size="xs" aria-label={label} checked={value} disabled={readOnly} onChange={(event) => onSave(event.currentTarget.checked)} onClick={stopClick} />;
+}
+
+interface EditablePopoverCellProps {
+  /** What the cell shows (« — » when empty). */
+  target: ReactNode;
+  /** The cell is empty: shown dimmed. Optional. Default = false. */
+  empty?: boolean;
+  /** Accessible name of the cell. Optional. */
+  label?: string;
+  /** Width of the editor. */
+  width: number;
+  /** Long values are cut. Optional. Default = false. */
+  truncate?: boolean;
+  /** Its editor is open (controlled). Optional. */
+  opened?: boolean;
+  onOpenedChange?: (opened: boolean) => void;
+  /** After the editor closes. Optional. */
+  onClose?: () => void;
+  /** Editor. */
+  children: ReactNode;
+}
+
+/**
+ * Cell whose value opens its editor in a popover (a place, alerts, a rule): the value as a link, dimmed when empty, its
+ * clicks kept from the row.
+ * @param {EditablePopoverCellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function EditablePopoverCell({ target, empty = false, label, width, truncate = false, opened, onOpenedChange, onClose, children }: EditablePopoverCellProps) {
+  return (
+    <Popover opened={opened} onChange={onOpenedChange} onClose={onClose} position="bottom-start" withinPortal shadow="md" width={width}>
+      <Popover.Target>
+        <Anchor
+          component="button"
+          type="button"
+          size="sm"
+          c={empty ? 'dimmed' : undefined}
+          aria-label={label}
+          onClick={(event) => {
+            stopClick(event);
+            if (onOpenedChange) onOpenedChange(!opened);
+          }}
+          style={{ textAlign: 'left' }}
+          truncate={truncate}
+        >
+          {target}
+        </Anchor>
+      </Popover.Target>
+      <Popover.Dropdown onClick={stopClick}>{children}</Popover.Dropdown>
+    </Popover>
+  );
 }

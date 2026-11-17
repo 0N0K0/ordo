@@ -1,9 +1,11 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
+
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from '../api';
 import { switchWorkspace } from '../lib/switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
@@ -41,7 +43,6 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
   const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
   const week = readWeek(workspace);
   const [name, setName] = useState(workspace.name);
-  const [confirming, setConfirming] = useState(false);
   const onError = onMutationError;
 
   /**
@@ -65,29 +66,6 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
     );
   };
 
-  if (confirming) {
-    return (
-      <Stack gap="xs">
-        <Text size="sm">
-          L’espace « {workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie
-          {workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.
-        </Text>
-        <DestructiveActions
-          loading={remove.isPending}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() =>
-            remove.mutate(workspace.id, {
-              onSuccess: () => {
-                notifySuccess('Espace supprimé.');
-                if (current && fallbackId) switchWorkspace(fallbackId);
-              },
-              onError,
-            })
-          }
-        />
-      </Stack>
-    );
-  }
   return (
     <Stack gap={4}>
       <Group gap="xs" wrap="nowrap">
@@ -109,29 +87,35 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           rightSectionWidth={current ? 64 : undefined}
         />
         <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
-        <Tooltip label="Monter">
-          <ActionIcon variant="subtle" color="gray" aria-label={`Monter ${workspace.name}`} disabled={index === 0} onClick={() => move.mutate({ id: workspace.id, index: index - 1 }, { onError })}>
-            <ArrowUpIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Descendre">
+        <InlineActions
+          name={workspace.name}
+          items={[
+            { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: workspace.id, index: index - 1 }, { onError }) },
+            { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => move.mutate({ id: workspace.id, index: index + 1 }, { onError }) },
+            { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
+          ]}
+        />
+        <Tooltip label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}>
           <ActionIcon
             variant="subtle"
-            color="gray"
-            aria-label={`Descendre ${workspace.name}`}
-            disabled={index === count - 1}
-            onClick={() => move.mutate({ id: workspace.id, index: index + 1 }, { onError })}
+            color="red"
+            aria-label={`Supprimer ${workspace.name}`}
+            disabled={count === 1}
+            onClick={() =>
+              confirmDestructive({
+                title: 'Supprimer l’espace',
+                risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.`,
+                onConfirm: () =>
+                  remove.mutate(workspace.id, {
+                    onSuccess: () => {
+                      notifySuccess('Espace supprimé.');
+                      if (current && fallbackId) switchWorkspace(fallbackId);
+                    },
+                    onError,
+                  }),
+              })
+            }
           >
-            <ArrowDownIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Ouvrir">
-          <ActionIcon variant="subtle" color="gray" aria-label={`Ouvrir ${workspace.name}`} disabled={current} onClick={() => switchWorkspace(workspace.id)}>
-            <ArrowSquareOutIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}>
-          <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${workspace.name}`} disabled={count === 1} onClick={() => setConfirming(true)}>
             <TrashIcon aria-hidden />
           </ActionIcon>
         </Tooltip>

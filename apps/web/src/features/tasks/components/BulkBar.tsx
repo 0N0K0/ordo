@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { switchRowsAction } from '../../../components/data-table/selection/selection-actions';
@@ -29,7 +30,7 @@ export function useTaskRowsActions(context: TaskContext | null) {
   const undo = useBulkUndo();
   return (tasks: Task[], onClear?: () => void): TaskRowsActions => {
     const ids = tasks.map((task) => task.id);
-    const plural = tasks.length > 1;
+    const several = tasks.length > 1;
     const label = tasksLabel(ids.length);
     /**
      * Opens a dialog on the tasks; a success clears the selection.
@@ -46,22 +47,22 @@ export function useTaskRowsActions(context: TaskContext | null) {
         icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: setClosed.isPending,
         apply: (closed) => setClosed.mutateAsync({ ids, closed }),
-        done: (closed) => `${label} ${closed ? 'fermée' : 'rouverte'}${plural ? 's' : ''}.`,
+        done: (closed) => `${label} ${plural(ids.length, closed ? 'fermée' : 'rouverte')}.`,
         undo: (closed) => undo.closed(tasks, closed),
       }),
-      clone: { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => open(plural ? 'Cloner les tâches' : 'Cloner la tâche', CloneTasksDialog) },
-      transfer: { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => open(plural ? 'Transférer les tâches' : 'Transférer la tâche', TransferTasksDialog, true) },
+      clone: { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => open(several ? 'Cloner les tâches' : 'Cloner la tâche', CloneTasksDialog) },
+      transfer: { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => open(several ? 'Transférer les tâches' : 'Transférer la tâche', TransferTasksDialog, true) },
       archive: switchRowsAction({
         on: tasks.every((task) => task.archived),
         labels: ['Archiver', 'Désarchiver'],
         icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: archive.isPending,
         apply: (archived) => archive.mutateAsync({ ids, archived }),
-        done: (archived) => `${label} ${archived ? 'archivée' : 'désarchivée'}${plural ? 's' : ''}.`,
+        done: (archived) => `${label} ${plural(ids.length, archived ? 'archivée' : 'désarchivée')}.`,
         undo: (archived) => undo.archived(tasks, archived),
         clear: onClear,
       }),
-      remove: { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => open(plural ? 'Supprimer les tâches' : 'Supprimer la tâche', DeleteTasksDialog) },
+      remove: { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => open(several ? 'Supprimer les tâches' : 'Supprimer la tâche', DeleteTasksDialog) },
     };
   };
 }

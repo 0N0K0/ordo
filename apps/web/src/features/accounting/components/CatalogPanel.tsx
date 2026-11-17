@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
@@ -244,9 +245,9 @@ export function CatalogPanel() {
       selectionActions={(rows, clear) => [
         deleteRowsAction(rows, {
           title: 'Supprimer les articles',
-          risks: `${rows.length} article(s) seront supprimés du catalogue ; les documents qui les utilisent gardent leurs lignes.`,
+          risks: `${countOf(rows.length, 'article')} seront supprimés du catalogue ; les documents qui les utilisent gardent leurs lignes.`,
           remove: (item) => remove.mutateAsync(item.id),
-          done: `${rows.length} article(s) supprimé(s).`,
+          done: `${countOf(rows.length, 'article')} ${plural(rows.length, 'supprimé')}.`,
           clear,
         }),
       ]}

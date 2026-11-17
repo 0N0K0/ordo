@@ -1,5 +1,5 @@
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
-import { MAX_PROJECT_DEPTH, LEVEL } from '@ordo/shared';
+import { mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, Workspace } from '../api';
 import { collator } from '../../../lib/text';
 import { normalize } from '../../../lib/text';
@@ -251,7 +251,7 @@ function buildContextSection(
   search: string,
   { clientIds, projectIds, keep }: ContextSeeds,
 ): TreeSection {
-  const byId = new Map(workspace.projects.map((project) => [project.id, project]));
+  const byId = mapById(workspace.projects);
   const childrenOf = new Map<string, Project[]>();
   for (const project of workspace.projects) {
     if (!project.parentId) continue;

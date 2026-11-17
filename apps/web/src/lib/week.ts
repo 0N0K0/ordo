@@ -1,3 +1,4 @@
+import { workspacesQueryKey } from '../features/workspaces/api';
 import { DEFAULT_WEEK, readWeek, type WeekSpan } from '@ordo/shared';
 import type { WorkspacesQuery } from '../graphql/graphql';
 import { queryClient } from './query-client';
@@ -8,7 +9,7 @@ import { queryClient } from './query-client';
  * @returns {WeekSpan} Week.
  */
 export function currentWeek(): WeekSpan {
-  const data = queryClient.getQueryData<WorkspacesQuery>(['workspaces']);
+  const data = queryClient.getQueryData<WorkspacesQuery>(workspacesQueryKey);
   const workspace = data?.workspaces.find((item) => item.id === data.currentWorkspaceId);
   return workspace ? readWeek(workspace) : DEFAULT_WEEK;
 }

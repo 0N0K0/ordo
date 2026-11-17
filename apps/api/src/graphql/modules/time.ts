@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { ALARM_FREQUENCIES, ALARM_TYPES, type AlarmInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as alarms from '../../services/tasks/alarms';
@@ -223,10 +224,7 @@ builder.mutationFields((t) => ({
   }),
   deleteTimeEntry: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await timeEntries.deleteTimeEntry(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(timeEntries.deleteTimeEntry(id)),
   }),
 
   createAlarm: t.prismaField({
@@ -244,16 +242,10 @@ builder.mutationFields((t) => ({
   markAlarmFired: t.boolean({
     description: 'Records that an alarm rang for the occurrence at `at`.',
     args: { id: t.arg.id({ required: true }), at: t.arg({ type: 'DateTime', required: true }) },
-    resolve: async (_root, { id, at }) => {
-      await alarms.markAlarmFired(id, at);
-      return true;
-    },
+    resolve: (_root, { id, at }) => done(alarms.markAlarmFired(id, at)),
   }),
   deleteAlarm: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await alarms.deleteAlarm(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(alarms.deleteAlarm(id)),
   }),
 }));

@@ -1,6 +1,7 @@
-import { ColorInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { ColorField } from '../../../components/inputs/ColorField';
+import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { projectFormSchema, type ProjectFormValues } from '@ordo/shared';
+import { byPosition, projectFormSchema, type ProjectFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
@@ -10,7 +11,7 @@ import { IconField, type IconValue } from './IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectDepth, projectHeight, projectOptions } from '../lib/tree';
-import { useColorSwatches } from '../hooks/use-color-swatches';
+
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -37,7 +38,6 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const { perso } = useActiveWorkspace();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
-  const swatches = useColorSwatches();
   const [icon, setIcon] = useState<IconValue>({ file: null, remove: false });
   const form = useAppForm<ProjectFormValues>({
     initialValues: {
@@ -68,7 +68,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   // Archived clients cannot receive projects, except the one the project already belongs to.
   const clientOptions = (workspace?.clients ?? [])
     .filter((client) => !client.archived || client.id === project?.clientId)
-    .sort((a, b) => a.position - b.position)
+    .sort(byPosition)
     .map((client) => ({ value: client.id, label: client.name }));
 
   const handleSubmit = form.onSubmit((values) => {
@@ -134,13 +134,9 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
             onChange={(value) => form.setFieldValue('statusId', value)}
             error={form.errors.statusId as string | undefined}
           />
-          <ColorInput
-            label="Couleur"
+          <ColorField
             placeholder="Aucune"
-            swatches={swatches}
-            swatchesPerRow={7}
-            {...form.getInputProps('color')}
-          />
+            {...form.getInputProps('color')} />
         </SimpleGrid>
         <CategoriesInput
           categories={workspace?.projectCategories ?? []}

@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
@@ -532,16 +533,16 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             ...duplicateRowsAction(ordo, {
               label: 'Dupliquer en brouillon',
               duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
-              done: `${ordo.length} document(s) dupliqué(s) en brouillon.`,
+              done: `${countOf(ordo.length, 'document')} ${plural(ordo.length, 'dupliqué')} en brouillon.`,
             }),
             disabled: ordo.length === 0,
           },
           {
             ...deleteRowsAction(importedRows, {
               title: 'Supprimer les documents importés',
-              risks: `${importedRows.length} document(s) importé(s) et leur fichier seront supprimés définitivement d’Ordo (les documents d’Ordo sélectionnés ne le sont pas). Cette action est irréversible.`,
+              risks: `${countOf(importedRows.length, 'document')} ${plural(importedRows.length, 'importé')} et leur fichier seront supprimés définitivement d’Ordo (les documents d’Ordo sélectionnés ne le sont pas). Cette action est irréversible.`,
               remove: (document) => remove.mutateAsync(document.id),
-              done: `${importedRows.length} document(s) importé(s) supprimé(s).`,
+              done: `${countOf(importedRows.length, 'document')} ${plural(importedRows.length, 'importé')} ${plural(importedRows.length, 'supprimé')}.`,
               clear,
             }),
             disabled: importedRows.length === 0,

@@ -1,3 +1,5 @@
+import { ColorField } from '../../../components/inputs/ColorField';
+import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PersonOption } from '../../../components/people/PersonOption';
 import { listSelectProps } from '../../../components/settings/item-look';
@@ -6,16 +8,16 @@ import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+
+import { ActionIcon, Avatar, Badge, Button, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
+import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useColorSwatches } from '../../workspace/hooks/use-color-swatches';
+import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../api';
 import * as fmt from '../../../lib/format';
@@ -44,7 +46,7 @@ export function TeamMembers() {
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
   // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
-  const contributorById = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor]));
+  const contributorById = mapById(context?.contributors ?? []);
   const members = (settings?.treasuryMembers ?? [])
     .filter((member) => !context || contributorById.has(member.id))
     .map((member) => ({ ...member, ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}) }));
@@ -154,7 +156,7 @@ export function ContextForm({ context, onDone }: { context?: TreasuryContext; on
     >
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
-        <ColorInput label="Couleur" required format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
+        <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
     </form>
@@ -212,8 +214,6 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
   );
 }
 
-type Dialog = { kind: 'period'; period?: TreasuryContextPeriod } | null;
-
 /**
  * Contexts of spending (not in a tree; a line without context is everyday spending) and the periods they are
  * planned for: the lines of the entries dated in a period get its context proposed.
@@ -222,12 +222,17 @@ type Dialog = { kind: 'period'; period?: TreasuryContextPeriod } | null;
 function Contexts() {
   const { data: settings } = useTreasurySettings();
   const { saveContext, deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
-  const [dialog, setDialog] = useState<Dialog>(null);
   const contexts = settings?.treasuryContexts ?? [];
   const periods = settings?.treasuryContextPeriods ?? [];
-  const contextById = new Map(contexts.map((item) => [item.id, item]));
+  const contextById = mapById(contexts);
   const onError = onMutationError;
-  const close = () => setDialog(null);
+  /**
+   * Opens the form of a new or changed period.
+   * @param {TreasuryContextPeriod} [period] Period changed. Optional.
+   * @returns {void}
+   */
+  const openPeriod = (period?: TreasuryContextPeriod) =>
+    openFormPanel(period ? 'Modifier la période' : 'Planifier un contexte', (close) => <PeriodForm period={period} contexts={contexts} onDone={close} />);
 
   return (
     <>
@@ -252,7 +257,7 @@ function Contexts() {
         title="Contextes planifiés"
         actions={
           <>
-            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => openPeriod()}>
               Nouvelle période
             </ActionButton>
           </>
@@ -293,7 +298,7 @@ function Contexts() {
                     </Table.Td>
                     <Table.Td w={1}>
                       <Group gap={2} wrap="nowrap">
-                        <Button size="compact-xs" variant="subtle" onClick={() => setDialog({ kind: 'period', period })}>
+                        <Button size="compact-xs" variant="subtle" onClick={() => openPeriod(period)}>
                           Modifier
                         </Button>
                         <Button
@@ -319,10 +324,6 @@ function Contexts() {
           </Table>
         )}
       </SettingsSection>
-
-      <SidePanel opened={dialog !== null} onClose={close} title={dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}>
-        {dialog?.kind === 'period' && <PeriodForm period={dialog.period} contexts={contexts} onDone={close} />}
-      </SidePanel>
     </>
   );
 }
@@ -404,7 +405,12 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
 export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
-  const [editing, setEditing] = useState<{ relation?: TreasuryRelation } | null>(null);
+  /**
+   * Opens the form of a new or changed relation.
+   * @param {TreasuryRelation} [relation] Relation changed. Optional.
+   * @returns {void}
+   */
+  const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? 'Modifier la relation' : 'Nouvelle relation', (close) => <RelationForm relation={relation} onDone={close} />);
   const { context } = useTaskContext();
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
   const relations = settings?.treasuryRelations ?? [];
@@ -416,7 +422,7 @@ export function TeamRelations() {
       title="Relations"
       actions={
         <>
-          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openRelation()}>
             Nouvelle relation
           </ActionButton>
         </>
@@ -451,7 +457,7 @@ export function TeamRelations() {
                 </Table.Td>
                 <Table.Td w={1}>
                   <Group gap={2} wrap="nowrap">
-                    <Button size="compact-xs" variant="subtle" onClick={() => setEditing({ relation })}>
+                    <Button size="compact-xs" variant="subtle" onClick={() => openRelation(relation)}>
                       Modifier
                     </Button>
                     <Button
@@ -475,9 +481,6 @@ export function TeamRelations() {
           </Table.Tbody>
         </Table>
       )}
-      <SidePanel opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
-        {editing && <RelationForm relation={editing.relation} onDone={() => setEditing(null)} />}
-      </SidePanel>
     </SettingsSection>
   );
 }

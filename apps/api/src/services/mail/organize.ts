@@ -1,8 +1,10 @@
+import { colorSchema, requiredText } from '@ordo/shared';
 import type { ImapFlow } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import type { MailLabel } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { withImap } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 
@@ -205,8 +207,8 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
 }
 
 const labelSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(40, '40 caractères maximum.'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Couleur invalide.'),
+  name: requiredText(40),
+  color: colorSchema,
 });
 
 /**
@@ -216,8 +218,8 @@ const labelSchema = z.object({
  */
 export async function createLabel(input: { name: string; color: string }): Promise<MailLabel> {
   const data = parseInput(labelSchema, input);
-  const { _max } = await prisma.mailLabel.aggregate({ _max: { position: true } });
-  return prisma.mailLabel.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+  const position = await nextPositionIn('mailLabel');
+  return prisma.mailLabel.create({ data: { ...data, position } });
 }
 
 /**
@@ -228,7 +230,7 @@ export async function createLabel(input: { name: string; color: string }): Promi
  */
 export async function updateLabel(id: string, input: { name: string; color: string }): Promise<MailLabel> {
   const data = parseInput(labelSchema, input);
-  if (!(await prisma.mailLabel.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Drapeau');
+  await orNotFound(prisma.mailLabel.findUnique({ where: { id }, select: { id: true } }), 'Drapeau');
   return prisma.mailLabel.update({ where: { id }, data });
 }
 

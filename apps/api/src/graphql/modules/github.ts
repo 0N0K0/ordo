@@ -1,9 +1,10 @@
+import { currentGithubConnection } from '../../services/github/client';
+import { done } from '../errors';
 import { prisma } from '../../db';
 import { syncGithubProject } from '../../services/github/sync';
 import * as admin from '../../services/github/links-admin';
 import type { Board, BoardField } from '../../services/github/board';
 import { builder } from '../builder';
-import { currentWorkspaceId } from '../../workspace-context';
 
 const BoardOptionRef = builder.objectRef<{ id: string; name: string }>('GithubBoardOption').implement({
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
@@ -119,7 +120,7 @@ builder.queryFields((t) => ({
   githubLogin: t.string({
     nullable: true,
     description: 'Login of the connected GitHub account, or null.',
-    resolve: async () => (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? null,
+    resolve: async () => (await currentGithubConnection())?.login ?? null,
   }),
   githubBoard: t.field({
     type: BoardRef,
@@ -148,10 +149,7 @@ builder.mutationFields((t) => ({
     resolve: (_root, { token }) => admin.setGithubToken(token),
   }),
   removeGithubToken: t.boolean({
-    resolve: async () => {
-      await admin.removeGithubToken();
-      return true;
-    },
+    resolve: () => done(admin.removeGithubToken()),
   }),
   saveGithubLink: t.boolean({
     description: 'Links a project to a board, or changes the settings of its link.',
@@ -183,10 +181,7 @@ builder.mutationFields((t) => ({
   }),
   unlinkGithubProject: t.boolean({
     args: { projectId: t.arg.id({ required: true }) },
-    resolve: async (_root, { projectId }) => {
-      await admin.unlinkGithubProject(projectId);
-      return true;
-    },
+    resolve: (_root, { projectId }) => done(admin.unlinkGithubProject(projectId)),
   }),
   syncGithubProject: t.field({
     type: SummaryRef,
@@ -195,9 +190,6 @@ builder.mutationFields((t) => ({
   }),
   setContributorGithubLogin: t.boolean({
     args: { id: t.arg.id({ required: true }), login: t.arg.string() },
-    resolve: async (_root, { id, login }) => {
-      await admin.setContributorGithubLogin(id, login ?? null);
-      return true;
-    },
+    resolve: (_root, { id, login }) => done(admin.setContributorGithubLogin(id, login ?? null)),
   }),
 }));

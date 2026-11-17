@@ -1,7 +1,9 @@
 import { colorSchema } from '@ordo/shared';
 import { prisma } from '../../db';
+import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
+import { nextPositionIn, type OrderedModel } from './ordering';
 
 /**
  * Settings lists sharing the same look (color, image, name) and manual order, by their kind: the Prisma model of each.
@@ -40,7 +42,7 @@ export type SettingsListKind = keyof typeof SETTINGS_LISTS;
 /** What the lists have in common, whatever their model (each delegate of Prisma has these). */
 interface ListDelegate {
   findUniqueOrThrow(args: { where: { id: string }; select: { id: true; iconId: true } }): Promise<{ id: string; iconId: string | null }>;
-  update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+  update(args: { where: { id: string }; data: Record<string, unknown> }): Prisma.PrismaPromise<unknown>;
 }
 
 /**
@@ -80,14 +82,15 @@ export async function setLook(kind: SettingsListKind, id: string, input: { color
 }
 
 /**
- * Puts the items of a flat settings list in the order given (each one's position is its index).
+ * Puts the items of a flat settings list in the order given (each one's position is its index), all at once or not at
+ * all.
  * @param {SettingsListKind} kind List.
  * @param {string[]} ids Items, in their new order.
  * @returns {Promise<void>}
  */
 export async function reorder(kind: SettingsListKind, ids: string[]): Promise<void> {
   const model = delegate(kind);
-  for (const [position, id] of ids.entries()) await model.update({ where: { id }, data: { position } });
+  await prisma.$transaction(ids.map((id, position) => model.update({ where: { id }, data: { position } })));
 }
 
 /**
@@ -96,7 +99,5 @@ export async function reorder(kind: SettingsListKind, ids: string[]): Promise<vo
  * @returns {Promise<number>} Position after the last one.
  */
 export async function nextPosition(kind: SettingsListKind): Promise<number> {
-  const model = (prisma as unknown as Record<string, { aggregate(args: { _max: { position: true } }): Promise<{ _max: { position: number | null } }> }>)[SETTINGS_LISTS[kind]];
-  const { _max } = await model.aggregate({ _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn(SETTINGS_LISTS[kind] as OrderedModel);
 }

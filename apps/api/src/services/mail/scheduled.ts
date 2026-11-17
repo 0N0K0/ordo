@@ -6,7 +6,7 @@ import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
 import { deliverMessage, type SendMailInput } from './sender';
-import { forEachWorkspace } from '../workspace/workspaces';
+import { forEachWorkspace, schedulePerWorkspace } from '../workspace/workspaces';
 
 /**
  * Schedules a mail: the message is built now (files included, dated of its sending time) and kept until then;
@@ -90,7 +90,6 @@ async function sendDueMails(): Promise<void> {
  * @returns {void}
  */
 export function scheduleMailSending(intervalMs = 30_000): void {
-  const run = () => void forEachWorkspace(() => sendDueMails()).catch((error: unknown) => console.warn('Envois programmés en échec.', error));
   // Interrupted while sending (restart): failed rather than sent twice; it can be sent again by hand.
   void forEachWorkspace(() =>
     prisma.scheduledMail.updateMany({
@@ -98,6 +97,5 @@ export function scheduleMailSending(intervalMs = 30_000): void {
       data: { status: 'FAILED', error: 'Envoi interrompu (redémarrage) : vérifiez s’il est parti avant de le renvoyer.' },
     }),
   );
-  setTimeout(run, 10_000);
-  setInterval(run, intervalMs);
+  schedulePerWorkspace('Envois programmés', () => sendDueMails(), { delay: 10_000, interval: intervalMs });
 }

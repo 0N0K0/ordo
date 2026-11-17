@@ -432,11 +432,6 @@ enum CalendarEventScope {
   THIS
 }
 
-input CalendarInput {
-  color: String!
-  name: String!
-}
-
 type CalendarLink {
   label: String!
   url: String!
@@ -1526,7 +1521,7 @@ type Mutation {
   copySubRoutines(fromId: ID!, toId: ID!): Int!
   createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
-  createCalendar(input: CalendarInput!): Calendar!
+  createCalendar(input: NameColorInput!): Calendar!
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
   createCatalogItem(input: CatalogItemInput!): ID!
@@ -1554,13 +1549,13 @@ type Mutation {
   createMailSearch(input: MailSearchInput!): ID!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
-  createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
-  createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
+  createProjectCategory(input: NameColorInput!): ProjectCategory!
+  createProjectStatus(input: NameColorInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
   createRoutine(input: RoutineInput!): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
   createSheet(input: SheetInput!): ID!
-  createSheetCategory(input: SheetCategoryInput!): ID!
+  createSheetCategory(input: NameColorInput!): ID!
   createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
   createShoppingDelivery(input: ShoppingDeliveryInput!, listId: ID!): ID!
@@ -1568,9 +1563,9 @@ type Mutation {
   """Creates a list, empty or with the missing products of some base lists."""
   createShoppingList(baseListIds: [ID!]!, name: String!, taskIds: [ID!]!): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
-  createShoppingStorage(input: ShoppingStoreInput!): ID!
-  createShoppingStore(input: ShoppingStoreInput!): ID!
-  createShoppingUnit(input: ShoppingStoreInput!): ID!
+  createShoppingStorage(input: NameColorInput!): ID!
+  createShoppingStore(input: NameColorInput!): ID!
+  createShoppingUnit(input: NameColorInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createStockItem(input: StockItemInput!): ID!
   createStockLocation(input: StockLocationInput!): ID!
@@ -1750,7 +1745,6 @@ type Mutation {
   Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
   """
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
-  moveCalendar(id: ID!, index: Int!): Boolean!
 
   """
   Moves a category at an index among its siblings; with parentId, under another category first (null: top level).
@@ -1760,7 +1754,6 @@ type Mutation {
   moveDashboard(id: ID!, index: Int!): Boolean!
   moveDashboardChart(id: ID!, index: Int!): Boolean!
   moveDocumentFolder(id: ID!, parentId: ID): Boolean!
-  moveDocumentStatus(id: ID!, index: Int!): Boolean!
   moveLibraryDocuments(folderId: ID, ids: [ID!]!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
 
@@ -1789,7 +1782,6 @@ type Mutation {
     parentId: ID
   ): Boolean!
   moveProjectResource(id: ID!, index: Int!): Boolean!
-  moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
   Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.
@@ -1805,8 +1797,6 @@ type Mutation {
   Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.
   """
   moveRoutineOccurrence(date: Date!, id: ID!, times: JSON, to: Date!): Boolean!
-  moveSheetCategory(id: ID!, index: Int!): Boolean!
-  moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -1817,9 +1807,6 @@ type Mutation {
   Moves products to another base list (after its own); returns how many moved.
   """
   moveShoppingProducts(baseListId: ID!, ids: [ID!]!): Int!
-  moveShoppingStorage(id: ID!, index: Int!): Boolean!
-  moveShoppingStore(id: ID!, index: Int!): Boolean!
-  moveShoppingUnit(id: ID!, index: Int!): Boolean!
 
   """
   Quantity in or out of an item by hand; returns the quantity moved (signed).
@@ -1831,10 +1818,6 @@ type Mutation {
   Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
   """
   moveTask(beforeId: ID, id: ID!, parentId: ID): Boolean!
-  moveTaskPriority(id: ID!, index: Int!): Boolean!
-  moveTaskStatus(id: ID!, index: Int!): Boolean!
-  moveTaskTag(id: ID!, index: Int!): Boolean!
-  moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
 
   """
@@ -1924,7 +1907,7 @@ type Mutation {
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
 
   """Creates a context (without id) or changes one."""
-  saveTreasuryContext(id: ID, input: TreasuryContextInput!): ID!
+  saveTreasuryContext(id: ID, input: NameColorInput!): ID!
 
   """
   Plans a context between two days (without id), or changes a period. Lines already saved keep their context.
@@ -2094,7 +2077,7 @@ type Mutation {
   unsubscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
-  updateCalendar(id: ID!, input: CalendarInput!): Calendar!
+  updateCalendar(id: ID!, input: NameColorInput!): Calendar!
   updateCalendarCategory(id: ID!, input: CalendarCategoryInput!): CalendarCategory!
 
   """
@@ -2119,25 +2102,25 @@ type Mutation {
   updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
-  updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
+  updateProjectCategory(id: ID!, input: NameColorPatch!): ProjectCategory!
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
-  updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
+  updateProjectStatus(id: ID!, input: NameColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
   updateRoutine(id: ID!, input: RoutineInput!): Boolean!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
-  updateSheetCategory(id: ID!, input: SheetCategoryPatch!): Boolean!
+  updateSheetCategory(id: ID!, input: NameColorPatch!): Boolean!
   updateSheetItem(id: ID!, input: SheetItemInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingDelivery(id: ID!, input: ShoppingDeliveryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
-  updateShoppingStorage(id: ID!, input: ShoppingStorePatch!): Boolean!
-  updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
+  updateShoppingStorage(id: ID!, input: NameColorPatch!): Boolean!
+  updateShoppingStore(id: ID!, input: NameColorPatch!): Boolean!
 
   """Renames a unit; the products and items in it follow."""
-  updateShoppingUnit(id: ID!, input: ShoppingStorePatch!): Boolean!
+  updateShoppingUnit(id: ID!, input: NameColorPatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
@@ -2168,6 +2151,18 @@ type Mutation {
   Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.
   """
   useSheet(id: ID!, multiplier: Float!): SheetUse!
+}
+
+"""Name and color of an item of a simple list."""
+input NameColorInput {
+  color: String!
+  name: String!
+}
+
+"""Changes of an item of a simple list (omitted fields unchanged)."""
+input NameColorPatch {
+  color: String
+  name: String
 }
 
 """Kind of notification a workspace can give while another one is open."""
@@ -2253,16 +2248,6 @@ type ProjectCategory {
   position: Int!
 }
 
-input ProjectCategoryInput {
-  color: String!
-  name: String!
-}
-
-input ProjectCategoryUpdateInput {
-  color: String
-  name: String
-}
-
 input ProjectInput {
   categoryIds: [ID!]
 
@@ -2304,16 +2289,6 @@ type ProjectStatus {
   id: ID!
   name: String!
   position: Int!
-}
-
-input ProjectStatusInput {
-  color: String!
-  name: String!
-}
-
-input ProjectStatusUpdateInput {
-  color: String
-  name: String
 }
 
 input ProjectUpdateInput {
@@ -3214,16 +3189,6 @@ type SheetCategory {
   position: Int!
 }
 
-input SheetCategoryInput {
-  color: String!
-  name: String!
-}
-
-input SheetCategoryPatch {
-  color: String
-  name: String
-}
-
 input SheetInput {
   categoryIds: [ID!]!
   name: String!
@@ -3529,18 +3494,6 @@ type ShoppingStore {
   id: ID!
   name: String!
   position: Int!
-}
-
-"""Shopping store."""
-input ShoppingStoreInput {
-  color: String!
-  name: String!
-}
-
-"""Changes of a shopping store (omitted fields unchanged)."""
-input ShoppingStorePatch {
-  color: String
-  name: String
 }
 
 """
@@ -4213,11 +4166,6 @@ type TreasuryContext {
   id: ID!
   name: String!
   position: Int!
-}
-
-input TreasuryContextInput {
-  color: String!
-  name: String!
 }
 
 """

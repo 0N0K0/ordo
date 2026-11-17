@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, occurrenceDates, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, formatDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
@@ -111,7 +111,7 @@ export async function seedPersonal({
   if (user) await ensureMeContributor(user);
   const meId = user ? await meContributorId(user.id) : null;
   const day = (offset: number) => addDays(today, offset);
-  const date = (value: string) => new Date(`${value}T00:00:00.000Z`);
+  const date = (value: string) => parseDay(value);
 
   // --- Household: members (contributors) and a relation ---------------------------------------------------
   const alex = await addMember({ name: 'Alex' });
@@ -177,7 +177,7 @@ export async function seedPersonal({
   await setTaskRecurrence(canteen.id, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }));
   await materializeTaskOccurrences(day(-21), day(30));
   for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: date(today) } } })) {
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: new Date(`${occurrence.occurrenceDate!.toISOString().slice(0, 10)}T19:00:00`) } });
+    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T19:00:00`) } });
   }
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)

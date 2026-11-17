@@ -1,3 +1,4 @@
+import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
 import { storeAttachment } from '../../services/core/attachments';
@@ -11,8 +12,6 @@ import * as taskViews from '../../services/tasks/task-views';
 import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
 import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
-import { z } from 'zod';
-import { parseInput } from '../errors';
 import * as workspaces from '../../services/workspace/workspaces';
 import { builder } from '../builder';
 import { isMember } from '../../services/treasury/treasury-team';
@@ -501,10 +500,7 @@ builder.mutationFields((t) => ({
       'Places a task before another one in the manual order (at the end when beforeId is null), and under ' +
       'parentId when given (null: top-level task; omitted: parent unchanged).',
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
-    resolve: async (_root, { id, beforeId, parentId }) => {
-      await tasks.moveTask(id, beforeId ?? null, parentId);
-      return true;
-    },
+    resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
   }),
   setTaskRecurrence: t.prismaField({
     type: 'Task',
@@ -520,17 +516,11 @@ builder.mutationFields((t) => ({
   setTasksClosed: t.boolean({
     description: 'Closes (done) or reopens tasks; a closed task no longer blocks other tasks.',
     args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { ids, closed }) => {
-      await tasks.setTasksClosed(ids, closed);
-      return true;
-    },
+    resolve: (_root, { ids, closed }) => done(tasks.setTasksClosed(ids, closed)),
   }),
   bulkUpdateTasks: t.boolean({
     args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: BulkTaskInput, required: true }) },
-    resolve: async (_root, { ids, changes }) => {
-      await tasks.bulkUpdateTasks(ids, changes);
-      return true;
-    },
+    resolve: (_root, { ids, changes }) => done(tasks.bulkUpdateTasks(ids, changes)),
   }),
   bulkTransferTasks: t.field({
     type: TransferResult,
@@ -541,20 +531,14 @@ builder.mutationFields((t) => ({
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { ids, archived }) => {
-      await tasks.bulkSetTasksArchived(ids, archived);
-      return true;
-    },
+    resolve: (_root, { ids, archived }) => done(tasks.bulkSetTasksArchived(ids, archived)),
   }),
   bulkDeleteTasks: t.boolean({
     args: {
       ids: t.arg.idList({ required: true }),
       deleteSubtasks: t.arg.boolean({ required: true, description: 'false moves unselected sub-tasks up.' }),
     },
-    resolve: async (_root, { ids, deleteSubtasks }) => {
-      await tasks.bulkDeleteTasks(ids, deleteSubtasks);
-      return true;
-    },
+    resolve: (_root, { ids, deleteSubtasks }) => done(tasks.bulkDeleteTasks(ids, deleteSubtasks)),
   }),
   createTaskView: t.prismaField({
     type: 'TaskView',
@@ -579,24 +563,15 @@ builder.mutationFields((t) => ({
   }),
   deleteTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await taskViews.deleteView(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(taskViews.deleteView(id)),
   }),
   setDefaultTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await taskViews.setDefaultView(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(taskViews.setDefaultView(id)),
   }),
   moveTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await taskViews.moveView(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(taskViews.moveView(id, index)),
   }),
   createSprint: t.id({
     args: { projectId: t.arg.id({ required: true }), input: t.arg({ type: SprintInput, required: true }) },
@@ -604,17 +579,11 @@ builder.mutationFields((t) => ({
   }),
   updateSprint: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: SprintInput, required: true }) },
-    resolve: async (_root, { id, input }) => {
-      await sprints.updateSprint(id, input);
-      return true;
-    },
+    resolve: (_root, { id, input }) => done(sprints.updateSprint(id, input)),
   }),
   deleteSprint: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await sprints.deleteSprint(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(sprints.deleteSprint(id)),
   }),
   createMilestone: t.prismaField({
     type: 'Milestone',
@@ -630,46 +599,28 @@ builder.mutationFields((t) => ({
   }),
   deleteMilestone: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await milestones.deleteMilestone(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(milestones.deleteMilestone(id)),
   }),
   moveMilestone: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await milestones.moveMilestone(id, index);
-      return true;
-    },
+    resolve: (_root, { id, index }) => done(milestones.moveMilestone(id, index)),
   }),
   addTaskBlock: t.boolean({
     description: 'blockerId blocks blockedId.',
     args: { blockerId: t.arg.id({ required: true }), blockedId: t.arg.id({ required: true }) },
-    resolve: async (_root, { blockerId, blockedId }) => {
-      await tasks.addTaskBlock(blockerId, blockedId);
-      return true;
-    },
+    resolve: (_root, { blockerId, blockedId }) => done(tasks.addTaskBlock(blockerId, blockedId)),
   }),
   removeTaskBlock: t.boolean({
     args: { blockerId: t.arg.id({ required: true }), blockedId: t.arg.id({ required: true }) },
-    resolve: async (_root, { blockerId, blockedId }) => {
-      await tasks.removeTaskBlock(blockerId, blockedId);
-      return true;
-    },
+    resolve: (_root, { blockerId, blockedId }) => done(tasks.removeTaskBlock(blockerId, blockedId)),
   }),
   addTaskRelation: t.boolean({
     args: { taskId: t.arg.id({ required: true }), otherId: t.arg.id({ required: true }) },
-    resolve: async (_root, { taskId, otherId }) => {
-      await tasks.addTaskRelation(taskId, otherId);
-      return true;
-    },
+    resolve: (_root, { taskId, otherId }) => done(tasks.addTaskRelation(taskId, otherId)),
   }),
   removeTaskRelation: t.boolean({
     args: { taskId: t.arg.id({ required: true }), otherId: t.arg.id({ required: true }) },
-    resolve: async (_root, { taskId, otherId }) => {
-      await tasks.removeTaskRelation(taskId, otherId);
-      return true;
-    },
+    resolve: (_root, { taskId, otherId }) => done(tasks.removeTaskRelation(taskId, otherId)),
   }),
   addTaskComment: t.prismaField({
     type: 'TaskComment',
@@ -685,10 +636,7 @@ builder.mutationFields((t) => ({
   }),
   deleteTaskComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await tasks.deleteComment(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(tasks.deleteComment(id)),
   }),
 
   createContributor: t.prismaField({
@@ -710,10 +658,7 @@ builder.mutationFields((t) => ({
   setProjectContributors: t.boolean({
     description: 'Sets the contributors directly attached to a project; tasks keep their assignees.',
     args: { projectId: t.arg.id({ required: true }), contributorIds: t.arg.idList({ required: true }) },
-    resolve: async (_root, { projectId, contributorIds }) => {
-      await contributors.setProjectContributors(projectId, contributorIds);
-      return true;
-    },
+    resolve: (_root, { projectId, contributorIds }) => done(contributors.setProjectContributors(projectId, contributorIds)),
   }),
   updateContributor: t.prismaField({
     type: 'Contributor',
@@ -726,10 +671,7 @@ builder.mutationFields((t) => ({
   }),
   deleteContributor: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await contributors.deleteContributor(id);
-      return true;
-    },
+    resolve: (_root, { id }) => done(contributors.deleteContributor(id)),
   }),
 }));
 
@@ -766,17 +708,7 @@ for (const kind of labelKinds) {
     }),
     [`delete${kind.suffix}`]: t.boolean({
       args: { id: t.arg.id({ required: true }) },
-      resolve: async (_root, { id }) => {
-        await kind.service.remove(id);
-        return true;
-      },
-    }),
-    [`move${kind.suffix}`]: t.boolean({
-      args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-      resolve: async (_root, { id, index }) => {
-        await kind.service.move(id, index);
-        return true;
-      },
+      resolve: (_root, { id }) => done(kind.service.remove(id)),
     }),
   }));
 }

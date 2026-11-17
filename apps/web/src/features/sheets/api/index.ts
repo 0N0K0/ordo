@@ -187,23 +187,18 @@ const UseSheet = graphql(`
   }
 `);
 const CreateSheetCategory = graphql(`
-  mutation CreateSheetCategory($input: SheetCategoryInput!) {
+  mutation CreateSheetCategory($input: NameColorInput!) {
     createSheetCategory(input: $input)
   }
 `);
 const UpdateSheetCategory = graphql(`
-  mutation UpdateSheetCategory($id: ID!, $input: SheetCategoryPatch!) {
+  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {
     updateSheetCategory(id: $id, input: $input)
   }
 `);
 const DeleteSheetCategory = graphql(`
   mutation DeleteSheetCategory($id: ID!) {
     deleteSheetCategory(id: $id)
-  }
-`);
-const MoveSheetCategory = graphql(`
-  mutation MoveSheetCategory($id: ID!, $index: Int!) {
-    moveSheetCategory(id: $id, index: $index)
   }
 `);
 const DuplicateSheet = graphql(`
@@ -335,7 +330,6 @@ export function useSheetMutations() {
     createCategory: useSheetMutation(async (input: SheetCategoryInput) => (await execute(CreateSheetCategory, { input })).createSheetCategory),
     updateCategory: useSheetMutation(async (variables: { id: string; input: Partial<SheetCategoryInput> }) => (await execute(UpdateSheetCategory, variables)).updateSheetCategory),
     deleteCategory: useSheetMutation(async ({ id }: { id: string }) => (await execute(DeleteSheetCategory, { id })).deleteSheetCategory),
-    moveCategory: useSheetMutation(async (variables: { id: string; index: number }) => (await execute(MoveSheetCategory, variables)).moveSheetCategory),
     duplicate: useSheetMutation(async (id: string) => (await execute(DuplicateSheet, { id })).duplicateSheet),
     remove: useSheetMutation(async (id: string) => (await execute(DeleteSheet, { id })).deleteSheet),
     addToShoppingList: useSheetMutation(async (variables: { listId: string; sheetId: string; multiplier: number }) => (await execute(AddSheetToShoppingList, variables)).addSheetToShoppingList),

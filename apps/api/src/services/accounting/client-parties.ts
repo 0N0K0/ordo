@@ -1,7 +1,8 @@
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type ClientContactInput, type ClientDetailsInput, type ClientServiceInput } from '@ordo/shared';
 import { prisma } from '../../db';
+import { nextPositionIn } from '../core/ordering';
 import { Prisma, type Client, type ClientContact, type ClientService } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
  * Updates the billing details of a client (kind, address, identifiers, contact information).
@@ -10,7 +11,7 @@ import { clientError, notFound, parseInput } from '../../graphql/errors';
  * @returns {Promise<Client>} Client.
  */
 export async function updateClientDetails(id: string, input: ClientDetailsInput): Promise<Client> {
-  if (!(await prisma.client.findUnique({ where: { id } }))) throw notFound('Client');
+  await orNotFound(prisma.client.findUnique({ where: { id } }), 'Client');
   const data = parseInput(clientDetailsSchema, input);
   const individual = data.kind === 'INDIVIDUAL';
   return prisma.client.update({
@@ -43,11 +44,11 @@ async function assertService(serviceId: string | null, clientId: string): Promis
  * @returns {Promise<ClientService>} Service.
  */
 export async function createClientService(clientId: string, input: ClientServiceInput): Promise<ClientService> {
-  if (!(await prisma.client.findUnique({ where: { id: clientId } }))) throw notFound('Client');
+  await orNotFound(prisma.client.findUnique({ where: { id: clientId } }), 'Client');
   const data = parseInput(clientServiceSchema, input);
-  const { _max } = await prisma.clientService.aggregate({ where: { clientId }, _max: { position: true } });
+  const position = await nextPositionIn('clientService', { clientId });
   return prisma.clientService.create({
-    data: { ...data, address: data.address ?? Prisma.DbNull, clientId, position: (_max.position ?? -1) + 1 },
+    data: { ...data, address: data.address ?? Prisma.DbNull, clientId, position },
   });
 }
 
@@ -58,7 +59,7 @@ export async function createClientService(clientId: string, input: ClientService
  * @returns {Promise<ClientService>} Service.
  */
 export async function updateClientService(id: string, input: ClientServiceInput): Promise<ClientService> {
-  if (!(await prisma.clientService.findUnique({ where: { id } }))) throw notFound('Service');
+  await orNotFound(prisma.clientService.findUnique({ where: { id } }), 'Service');
   const data = parseInput(clientServiceSchema, input);
   return prisma.clientService.update({ where: { id }, data: { ...data, address: data.address ?? Prisma.DbNull } });
 }
@@ -69,7 +70,7 @@ export async function updateClientService(id: string, input: ClientServiceInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientService(id: string): Promise<void> {
-  if (!(await prisma.clientService.findUnique({ where: { id } }))) throw notFound('Service');
+  await orNotFound(prisma.clientService.findUnique({ where: { id } }), 'Service');
   await prisma.clientService.delete({ where: { id } });
 }
 
@@ -80,7 +81,7 @@ export async function deleteClientService(id: string): Promise<void> {
  * @returns {Promise<ClientContact>} Contact.
  */
 export async function createClientContact(clientId: string, input: ClientContactInput): Promise<ClientContact> {
-  if (!(await prisma.client.findUnique({ where: { id: clientId } }))) throw notFound('Client');
+  await orNotFound(prisma.client.findUnique({ where: { id: clientId } }), 'Client');
   const data = parseInput(clientContactSchema, input);
   await assertService(data.serviceId, clientId);
   return prisma.clientContact.create({ data: { ...data, clientId } });
@@ -93,8 +94,7 @@ export async function createClientContact(clientId: string, input: ClientContact
  * @returns {Promise<ClientContact>} Contact.
  */
 export async function updateClientContact(id: string, input: ClientContactInput): Promise<ClientContact> {
-  const contact = await prisma.clientContact.findUnique({ where: { id } });
-  if (!contact) throw notFound('Contact');
+  const contact = await orNotFound(prisma.clientContact.findUnique({ where: { id } }), 'Contact');
   const data = parseInput(clientContactSchema, input);
   await assertService(data.serviceId, contact.clientId);
   return prisma.clientContact.update({ where: { id }, data });
@@ -106,6 +106,6 @@ export async function updateClientContact(id: string, input: ClientContactInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientContact(id: string): Promise<void> {
-  if (!(await prisma.clientContact.findUnique({ where: { id } }))) throw notFound('Contact');
+  await orNotFound(prisma.clientContact.findUnique({ where: { id } }), 'Contact');
   await prisma.clientContact.delete({ where: { id } });
 }

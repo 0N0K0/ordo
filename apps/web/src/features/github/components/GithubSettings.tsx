@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Alert, Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from '../api';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -55,7 +55,7 @@ export function GithubSettings() {
    * @returns {void}
    */
   const confirmRemove = () => {
-    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', onConfirm: () => { removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: (removeError) => notifyError(removeError.message) }); } });
+    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', onConfirm: () => { removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: onMutationError }); } });
   };
 
   if (isPending) return <FormSkeleton fields={3} />;

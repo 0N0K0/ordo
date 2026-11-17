@@ -4,7 +4,7 @@ import type { DocumentFolder, LibraryDocument } from '../../generated/prisma/cli
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { zipFiles } from '../core/zip';
-import { moveInOrder } from '../core/ordering';
+import { moveInOrder, nextPositionIn } from '../core/ordering';
 
 /** Largest file of the library. */
 const MAX_LIBRARY_BYTES = 25 * 1024 * 1024;
@@ -60,8 +60,7 @@ export async function createFolder(name: string, parentId: string | null): Promi
  * @returns {Promise<number>} Position.
  */
 async function nextFolderPosition(parentId: string | null): Promise<number> {
-  const { _max } = await prisma.documentFolder.aggregate({ where: { parentId }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('documentFolder', { parentId });
 }
 
 /**
@@ -70,8 +69,7 @@ async function nextFolderPosition(parentId: string | null): Promise<number> {
  * @returns {Promise<number>} Position.
  */
 async function nextDocumentPosition(folderId: string | null): Promise<number> {
-  const { _max } = await prisma.libraryDocument.aggregate({ where: { folderId }, _max: { position: true } });
-  return (_max.position ?? -1) + 1;
+  return nextPositionIn('libraryDocument', { folderId });
 }
 
 /**

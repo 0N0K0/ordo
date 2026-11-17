@@ -1,7 +1,7 @@
+import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport } from './pdf-report';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { startReport } from './pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -25,8 +25,8 @@ const tablePdfSchema = z.object({
 });
 type TablePdfInput = z.input<typeof tablePdfSchema>;
 
-const COLORS = { text: '#1d232b', muted: '#66707c', border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0', task: '#2f9e44', event: '#1c7ed6' };
-const MARGIN = 36;
+const COLORS = { ...PDF_TEXT, ...PDF_TABLE, task: '#2f9e44', event: '#1c7ed6' };
+const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 8;
 const INDENT = 10;

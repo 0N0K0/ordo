@@ -1,6 +1,8 @@
+import { round2, toCents } from './accounting-documents';
+import { mapById } from '../core/collections';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
-import { recurrenceSchema } from '../dates/recurrence';
+import { parseDay, recurrenceSchema } from '../dates/recurrence';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
 const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -106,14 +108,24 @@ const treasuryEntryLineSchema = z
 export type TreasuryEntryLineInput = z.input<typeof treasuryEntryLineSchema>;
 
 /**
+ * Signed amount of a line of an entry, in cents: a percentage is of the entry amount.
+ * @param {number} entryAmount Signed amount of the entry.
+ * @param {{ mode: TreasuryLineMode, value: number }} line Line.
+ * @returns {number} Cents.
+ */
+export function lineCents(entryAmount: number, line: { mode: TreasuryLineMode; value: number }): number {
+  return line.mode === 'PERCENT' ? Math.round((toCents(entryAmount) * line.value) / 100) : toCents(line.value);
+}
+
+/**
  * Amounts of the lines of an entry, and what they leave ("not split"): a percentage is of the entry amount.
  * @param {number} entryAmount Signed amount of the entry.
  * @param {readonly { mode: TreasuryLineMode, value: number }[]} lines Lines.
  * @returns {{ amounts: number[], remainder: number }} Signed amounts of the lines and remainder, in cents.
  */
 export function splitAmounts(entryAmount: number, lines: readonly { mode: TreasuryLineMode; value: number }[]): { amounts: number[]; remainder: number } {
-  const total = Math.round(entryAmount * 100);
-  const amounts = lines.map((line) => (line.mode === 'PERCENT' ? Math.round((total * line.value) / 100) : Math.round(line.value * 100)));
+  const total = toCents(entryAmount);
+  const amounts = lines.map((line) => lineCents(entryAmount, line));
   return { amounts, remainder: total - amounts.reduce((sum, value) => sum + value, 0) };
 }
 
@@ -253,8 +265,8 @@ export const treasuryEntrySchema = z
       if (entry.linkedEntryIds.length) context.addIssue({ code: 'custom', path: ['linkedEntryIds'], message: onLines });
       if (entry.libraryDocumentIds.length || entry.projectResourceIds.length) context.addIssue({ code: 'custom', path: ['libraryDocumentIds'], message: onLines });
     }
-    const allocated = entry.allocations.reduce((sum, allocation) => sum + Math.round(allocation.amount * 100), 0);
-    if (allocated > Math.abs(Math.round(entry.amount * 100))) {
+    const allocated = entry.allocations.reduce((sum, allocation) => sum + toCents(allocation.amount), 0);
+    if (allocated > Math.abs(toCents(entry.amount))) {
       context.addIssue({ code: 'custom', path: ['allocations'], message: 'Les documents réglés dépassent le montant du mouvement.' });
     }
   });
@@ -301,7 +313,7 @@ interface ReminderMailInput {
 export function reminderMail(invoice: ReminderMailInput): { subject: string; html: string } {
   const label = invoice.deposit ? 'Facture d’acompte' : 'Facture';
   const money = (cents: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: invoice.currency }).format(cents / 100);
-  const date = invoice.dueDate ? new Date(`${invoice.dueDate}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : null;
+  const date = invoice.dueDate ? parseDay(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : null;
   return {
     subject: `Relance — ${label} ${invoice.number}${invoice.companyName ? ` — ${invoice.companyName}` : ''}`,
     html: [
@@ -339,7 +351,7 @@ interface LinkedMovement {
  * @returns {Map<string, number>} Remaining signed amount of each movement, by id.
  */
 export function offsetLinkedMovements(movements: readonly LinkedMovement[]): Map<string, number> {
-  const byId = new Map(movements.map((movement) => [movement.id, movement]));
+  const byId = mapById(movements);
   const parent = new Map(movements.map((movement) => [movement.id, movement.id]));
   /**
    * Representative of the group of a movement.
@@ -456,7 +468,7 @@ function statementAmount(value: string | undefined): number | null {
   const decimal = Math.max(cleaned.lastIndexOf(','), cleaned.lastIndexOf('.'));
   const normalized = decimal >= 0 && cleaned.length - decimal - 1 <= 2 ? `${cleaned.slice(0, decimal).replace(/[.,]/g, '')}.${cleaned.slice(decimal + 1)}` : cleaned.replace(/[.,]/g, '');
   const amount = Number(normalized);
-  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : null;
+  return Number.isFinite(amount) ? round2(amount) : null;
 }
 
 /**
