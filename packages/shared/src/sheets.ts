@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { shoppingItemSchema } from './shopping';
 
 const shopping = shoppingItemSchema.shape;
@@ -10,7 +11,7 @@ export const sheetItemSchema = z.object({
   /** Item kept (its comments with it); none: a new one. */
   id: z.string().nullish(),
   productId: z.string().nullable(),
-  label: z.string().trim().min(1, 'Le libellé est requis.').max(200, '200 caractères maximum.'),
+  label: requiredText(200, 'Le libellé est requis.'),
   /** Category of the shopping products. */
   categoryId: z.string().nullable(),
   quantity,
@@ -32,7 +33,7 @@ export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
 /** Sheet: a name, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  name: requiredText(100),
   note: z.string().max(20_000, 'Note trop longue.').nullable(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),
@@ -42,7 +43,7 @@ export type SheetInput = z.infer<typeof sheetSchema>;
 
 /** Category of the sheets: a name and a color. */
 export const sheetCategorySchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  name: requiredText(60),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Couleur attendue (#RRGGBB).'),
 });
 export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;

@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { RecurringInvoice } from '../generated/prisma/client';
@@ -9,7 +9,7 @@ import { forEachWorkspace } from './workspaces';
 import { requirePro } from './workspaces';
 
 const settingsSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(200, '200 caractères maximum.'),
+  name: requiredText(200),
   recurrence: recurrenceSchema,
   startDate: z.iso.date({ error: 'La date de début est requise.' }),
   autoFinalize: z.boolean(),

@@ -1,4 +1,5 @@
 import { Stack } from '@mantine/core';
+import { UNIT_COLOR } from './shopping-format';
 import { labelFormSchema } from '@ordo/shared';
 import { listMutations } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
@@ -65,7 +66,10 @@ export function ShoppingSettings() {
           usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.name).length]))}
           withColor={false}
           schema={labelFormSchema.pick({ name: true })}
-          {...listMutations({ create: mutations.createUnit, update: mutations.updateUnit, remove: mutations.deleteUnit, move: mutations.moveUnit }, (values) => ({ name: values.name, color: 'gray' }))}
+          {...listMutations({ create: mutations.createUnit, update: mutations.updateUnit, remove: mutations.deleteUnit, move: mutations.moveUnit }, (values) => ({
+            name: values.name,
+            color: UNIT_COLOR,
+          }))}
         />
         <SettingsList
           kind="SHOPPING_STORAGE"

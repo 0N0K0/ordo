@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 
 const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(255);
 const portSchema = z.number({ error: 'Port attendu.' }).int().min(1, 'Port invalide.').max(65_535, 'Port invalide.');
 
 /** Mail account settings. Passwords may be left empty on edition to keep the saved ones. */
 export const mailAccountFormSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.'),
+  name: requiredText(80),
   email: z.email({ error: 'Adresse email invalide.' }),
   displayName: z.string().trim().max(120, '120 caractères maximum.'),
   imapHost: hostSchema,
@@ -63,7 +64,7 @@ export const mailSearchCriteriaSchema = z
 export type MailSearchCriteria = z.infer<typeof mailSearchCriteriaSchema>;
 
 /** Search folder: a name and its criteria, kept in Ordo. */
-export const mailSearchSchema = z.object({ name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.') }).and(mailSearchCriteriaSchema);
+export const mailSearchSchema = z.object({ name: requiredText(60) }).and(mailSearchCriteriaSchema);
 export type MailSearchInput = z.input<typeof mailSearchSchema>;
 
 /** Criteria of a new search (every account, inboxes, to do). */

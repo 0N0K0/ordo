@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
 const quantity = z.number().min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
 export const stockLocationSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.'),
+  name: requiredText(80),
   color: z.string().nullable(),
   parentId: z.string().nullable(),
 });
@@ -14,7 +15,7 @@ export type StockLocationInput = z.infer<typeof stockLocationSchema>;
 /** Item of the stock: a reference followed in stock, or an item of its own. */
 export const stockItemSchema = z.object({
   productId: z.string().nullable(),
-  label: z.string().trim().min(1, 'Le libellé est requis.').max(200, '200 caractères maximum.'),
+  label: requiredText(200, 'Le libellé est requis.'),
   categoryId: z.string().nullable(),
   unit: z.string().trim().max(40, '40 caractères maximum.').nullable(),
   locationId: z.string().nullable(),

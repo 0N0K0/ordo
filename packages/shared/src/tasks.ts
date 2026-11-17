@@ -1,13 +1,10 @@
 import { normalize } from './text';
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { dateSchema } from './workspace';
 import { slotRuleSchema } from './slot-rules';
 
-export const taskTitleSchema = z
-  .string()
-  .trim()
-  .min(1, 'Le titre est requis.')
-  .max(256, '256 caractères maximum.');
+export const taskTitleSchema = requiredText(256, 'Le titre est requis.');
 
 /** Markdown text (description, comment); empty becomes null. */
 export const markdownSchema = z
@@ -36,7 +33,7 @@ export const handleSchema = z
   .max(39, '39 caractères maximum.')
   .regex(/^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/, 'Lettres, chiffres, « - » et « _ » ; ni au début ni à la fin pour « - » et « _ ».');
 
-export const contributorNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.');
+export const contributorNameSchema = requiredText(120);
 
 /**
  * Suggests a mention handle from a name ("Noémie Koelblen" → "noemie-koelblen").
@@ -88,11 +85,7 @@ export const taskFormSchema = z
   });
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-export const milestoneTitleSchema = z
-  .string()
-  .trim()
-  .min(1, 'Le titre est requis.')
-  .max(120, '120 caractères maximum.');
+export const milestoneTitleSchema = requiredText(120, 'Le titre est requis.');
 
 export const milestoneFormSchema = z.object({
   title: milestoneTitleSchema,
@@ -101,7 +94,7 @@ export const milestoneFormSchema = z.object({
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-export const sprintNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.');
+export const sprintNameSchema = requiredText(120);
 
 export const sprintFormSchema = z
   .object({

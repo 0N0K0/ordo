@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { calendarStart, shiftCalendar, type CalendarScale } from './periods';
 import { emptyTableFilter } from './table-views';
 import { taskTableFilterSchema } from './task-filter-translation';
@@ -127,7 +128,7 @@ export const MAIN_DATASET = 'main';
 /** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
 const chartDatasetSchema = z.object({
   id: z.string().min(1).max(40),
-  name: z.string().trim().min(1, 'Nommez le jeu de données.').max(60, '60 caractères maximum.'),
+  name: requiredText(60, 'Nommez le jeu de données.'),
   source: z.enum(CHART_SOURCES),
   measure: z.enum(CHART_MEASURES),
   /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
@@ -148,7 +149,7 @@ export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
 const chartComparisonSchema = z.object({
   id: z.string().min(1).max(40),
-  name: z.string().trim().min(1, 'Nommez la comparaison.').max(60, '60 caractères maximum.'),
+  name: requiredText(60, 'Nommez la comparaison.'),
   kind: z.enum(CHART_COMPARISON_KINDS),
   /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
   a: z.string().min(1),
@@ -227,8 +228,8 @@ export const chartConfigSchema = z
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
 
-export const chartTitleSchema = z.string().trim().min(1, 'Le titre est requis.').max(120, '120 caractères maximum.');
-export const dashboardNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.');
+export const chartTitleSchema = requiredText(120, 'Le titre est requis.');
+export const dashboardNameSchema = requiredText(60);
 
 /**
  * Configuration of a new chart of a source: tasks created per week, invoiced revenue per month, or money in

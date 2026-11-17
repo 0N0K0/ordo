@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
 import { dateSchema } from './workspace';
 
@@ -103,7 +104,7 @@ export type AlarmFrequency = (typeof ALARM_FREQUENCIES)[number];
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    title: z.string().trim().min(1, 'Le titre est requis.').max(200, '200 caractères maximum.'),
+    title: requiredText(200, 'Le titre est requis.'),
     note: z
       .string()
       .max(4000, '4 000 caractères maximum.')

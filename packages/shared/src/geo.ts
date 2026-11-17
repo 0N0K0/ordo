@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 
 /** Point on the map (WGS 84). */
 const geoPointSchema = z.object({
@@ -15,7 +16,7 @@ export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = { CAR: 'Voiture', 
 /** Saved place ("Maison", "Bureau"…): a name, an address and its point. */
 export const placeSchema = z
   .object({
-    name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+    name: requiredText(60),
     address: z.string().trim().max(300, '300 caractères maximum.').default(''),
     /** Its point; none for a zone (that of the place it is in). */
     lat: geoPointSchema.shape.lat.nullable().default(null),

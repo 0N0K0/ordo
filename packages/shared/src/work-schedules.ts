@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from './recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from './repetition';
 import { colorSchema } from './workspace';
@@ -104,7 +105,7 @@ export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 /** Planned time slots: a name, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+    name: requiredText(100),
     startDate: isoDate,
     endDate: isoDate.nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
@@ -465,7 +466,7 @@ const scheduleDisplayFields = {
 
 /** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  name: requiredText(60),
   color: colorSchema,
   ...scheduleDisplayFields,
 });

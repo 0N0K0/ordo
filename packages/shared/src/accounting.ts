@@ -1,12 +1,6 @@
 import { z } from 'zod';
+import { optionalText, requiredText } from './rules';
 
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, `${max} caractères maximum.`)
-    .transform((value) => value || null)
-    .nullable();
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
@@ -156,11 +150,7 @@ export const clientDetailsSchema = z.object({
 export type ClientDetailsInput = z.input<typeof clientDetailsSchema>;
 
 export const clientServiceSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Le nom est requis.')
-    .max(120, '120 caractères maximum.'),
+  name: requiredText(120),
   address: addressSchema.nullable(),
   email: emailSchema,
   phones: phonesSchema,
@@ -169,16 +159,8 @@ export type ClientServiceInput = z.input<typeof clientServiceSchema>;
 
 export const clientContactSchema = z.object({
   serviceId: z.string().nullable(),
-  firstName: z
-    .string()
-    .trim()
-    .min(1, 'Le prénom est requis.')
-    .max(100, '100 caractères maximum.'),
-  lastName: z
-    .string()
-    .trim()
-    .min(1, 'Le nom est requis.')
-    .max(100, '100 caractères maximum.'),
+  firstName: requiredText(100, 'Le prénom est requis.'),
+  lastName: requiredText(100),
   email: emailSchema,
   jobTitle: optionalText(120),
   phones: phonesSchema,
@@ -187,11 +169,7 @@ export type ClientContactInput = z.input<typeof clientContactSchema>;
 
 /** The user's business. */
 export const companyProfileSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Le nom de la société est requis.')
-    .max(200, '200 caractères maximum.'),
+  name: requiredText(200, 'Le nom de la société est requis.'),
   contact: optionalText(120),
   legalForm: optionalText(80),
   capital: optionalText(40),

@@ -1,13 +1,6 @@
 import { z } from 'zod';
+import { requiredText, optionalText } from './rules';
 import { colorSchema, dateSchema, labelNameSchema, optionalColorSchema } from './workspace';
-
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, 'Texte trop long.')
-    .transform((value) => value || null)
-    .nullable();
 
 const linkSchema = z
   .union([z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }), z.literal('')])
@@ -26,7 +19,7 @@ export const shoppingStorageSchema = shoppingStoreSchema;
 
 /** Category of products, in a tree. */
 export const shoppingCategorySchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  name: requiredText(100),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
   /** Base lists it is offered in (none: all; a sub-category without any takes those of its parent). */
@@ -36,7 +29,7 @@ export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
 /** Fields shared by a product of the base list and an item of a list. */
 const shoppingFields = {
-  name: z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.'),
+  name: requiredText(120),
   categoryId: z.string().nullable(),
   storeId: z.string().nullable(),
   url: linkSchema,
@@ -64,9 +57,9 @@ export const shoppingItemSchema = z.object({ ...shoppingFields, optional: z.bool
 export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
 
 /** Base list ("liste type"): its name. */
-export const shoppingBaseListNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.');
+export const shoppingBaseListNameSchema = requiredText(80);
 
-export const shoppingListNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.');
+export const shoppingListNameSchema = requiredText(120);
 
 /**
  * Estimated cost of a product or an item: its quantity (1 without) times its unit price.

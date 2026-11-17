@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText, optionalText } from './rules';
 import { recurrenceSchema } from './recurrence';
 import { colorSchema, optionalColorSchema } from './workspace';
 
@@ -25,16 +26,8 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, 'Texte trop long.')
-    .transform((value) => value || null)
-    .nullable();
-
 export const treasuryAccountSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  name: requiredText(100),
   openingBalance: amount,
   openingDate: isoDate,
 });
@@ -52,7 +45,7 @@ export type TreasuryAllocationInput = z.input<typeof treasuryAllocationSchema>;
 const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 
-const name = z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.');
+const name = requiredText(100);
 
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({
@@ -126,7 +119,7 @@ export function splitAmounts(entryAmount: number, lines: readonly { mode: Treasu
 
 /** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
 export const treasuryRelationSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  name: requiredText(100),
   note: optionalText(500),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
@@ -135,7 +128,7 @@ export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 
 /** Context of spending, not in a tree; a line without context is everyday spending. */
 export const treasuryContextSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  name: requiredText(60),
   color: colorSchema,
 });
 
@@ -216,7 +209,7 @@ export const treasuryEntrySchema = z
     /** Execution date. */
     date: isoDate,
     valueDate: isoDate.nullable(),
-    label: z.string().trim().min(1, 'Le libellé est requis.').max(300, '300 caractères maximum.'),
+    label: requiredText(300, 'Le libellé est requis.'),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
     methodId: z.string().nullable(),

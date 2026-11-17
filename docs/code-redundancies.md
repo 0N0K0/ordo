@@ -159,6 +159,12 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Noms :** certains schémas sont définis dans les services de l'API (`workspaces`, `library`, `recurring-invoices`). Une quarantaine de règles « nom requis, N caractères au plus » sont réécrites à la main dans le code partagé.
 - **Cible :** un `requiredText(max)` partagé, à côté de `optionalText`, et un seul schéma de couleur.
 
+**Fait** :
+
+- **Textes :** `requiredText(max, message?)` et `optionalText(max)` dans `packages/shared/src/rules.ts`, à la place d'une cinquantaine de règles écrites à la main (dont trois copies d'`optionalText`) ; les messages sont les mêmes partout (« N caractères maximum. »). Les noms des espaces et des factures récurrentes, définis dans l'API, les utilisent aussi.
+- **Couleurs :** l'aspect des listes (`setSettingsItemLook`) valide la couleur avec le `colorSchema` partagé (`#rrggbb`). Corrigé au passage : la création d'une unité échouait, le web envoyant `'gray'`.
+- La bibliothèque garde ses règles, en attendant sa refonte.
+
 ## Petites redondances
 
 ### 17. Pluriels et libellés de nombres

@@ -417,3 +417,6 @@ export function listClosed(list: { closed: boolean; closedAt: string | null; tas
 export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], context: TaskContext | null, projectIds: ReadonlySet<string>): T[] {
   return lists.filter((list) => listTasks(list, context).some((task) => task.projectId !== null && projectIds.has(task.projectId)));
 }
+
+/** Color of the units (they show none: the color rule asks for one). */
+export const UNIT_COLOR = '#868e96';

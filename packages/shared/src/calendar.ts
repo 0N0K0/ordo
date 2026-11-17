@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { recurrenceSchema } from './recurrence';
 import { colorSchema } from './workspace';
 
@@ -12,7 +13,7 @@ const calendarLinkSchema = z.object({
 /** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
-    title: z.string().trim().min(1, 'Le titre est requis.').max(300, '300 caractères maximum.'),
+    title: requiredText(300, 'Le titre est requis.'),
     description: z
       .string()
       .max(65_536, 'Texte trop long.')
@@ -74,7 +75,7 @@ export const EVENT_SCOPES = ['THIS', 'FOLLOWING', 'ALL'] as const;
 export type EventScope = (typeof EVENT_SCOPES)[number];
 
 export const calendarCategoryFormSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.'),
+  name: requiredText(80),
   color: colorSchema,
   parentId: z.string().nullable(),
 });
@@ -82,7 +83,7 @@ export type CalendarCategoryFormValues = z.infer<typeof calendarCategoryFormSche
 
 /** Calendar of a workspace (every event belongs to one). */
 export const calendarFormSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.'),
+  name: requiredText(80),
   color: colorSchema,
 });
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;

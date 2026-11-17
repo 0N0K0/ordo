@@ -1,6 +1,6 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
-import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan } from '@ordo/shared';
+import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../generated/prisma/client';
@@ -16,7 +16,7 @@ const WORKSPACE_HEADER = 'x-ordo-workspace';
 const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 const workspaceInputSchema = z.object({
-  name: z.string().trim().min(1, 'Nom requis.').max(60, '60 caractères au plus.'),
+  name: requiredText(60),
   kind: z.enum(['PRO', 'PERSO']),
 });
 

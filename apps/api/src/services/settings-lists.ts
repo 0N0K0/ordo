@@ -1,3 +1,4 @@
+import { colorSchema } from '@ordo/shared';
 import { prisma } from '../db';
 import { clientError } from '../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
@@ -49,9 +50,6 @@ interface ListDelegate {
  */
 const delegate = (kind: SettingsListKind) => (prisma as unknown as Record<string, ListDelegate>)[SETTINGS_LISTS[kind]];
 
-/** Color of an item: a name of the palette (« blue ») or a hex color. */
-const COLOR = /^(#[0-9a-f]{6}|[a-z]+(\.[0-9])?)$/i;
-
 /**
  * Changes the look of an item of a settings list: its color and / or its image (replaced or removed).
  * @param {SettingsListKind} kind List.
@@ -65,10 +63,16 @@ const COLOR = /^(#[0-9a-f]{6}|[a-z]+(\.[0-9])?)$/i;
 export async function setLook(kind: SettingsListKind, id: string, input: { color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<string | null> {
   const model = delegate(kind);
   const item = await model.findUniqueOrThrow({ where: { id }, select: { id: true, iconId: true } });
-  if (input.color !== undefined && input.color !== null && !COLOR.test(input.color)) throw clientError('BAD_USER_INPUT', 'Couleur invalide.', { fields: { color: 'Couleur invalide.' } });
+  // The same rule as every color of the app (#rrggbb).
+  let color = input.color;
+  if (color) {
+    const parsed = colorSchema.safeParse(color);
+    if (!parsed.success) throw clientError('BAD_USER_INPUT', 'Couleur invalide (format #rrggbb).', { fields: { color: 'Couleur invalide (format #rrggbb).' } });
+    color = parsed.data;
+  }
   const iconId = await resolveIconUpdate(item.iconId, input);
   const data: Record<string, unknown> = {};
-  if (input.color !== undefined) data.color = input.color;
+  if (color !== undefined) data.color = color;
   if (iconId !== undefined) data.iconId = iconId;
   if (Object.keys(data).length) await model.update({ where: { id }, data });
   if (iconId !== undefined) await deleteOrphanIcons([item.iconId]);

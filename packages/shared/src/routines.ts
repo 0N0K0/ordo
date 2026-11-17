@@ -1,5 +1,6 @@
 import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from './recurrence';
 import { caseSpans } from './repetition';
 import { weekdayOfDate } from './weeks';
@@ -8,7 +9,7 @@ import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  name: requiredText(100),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -112,7 +113,7 @@ export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    title: z.string().trim().min(1, 'Le titre est requis.').max(200, '200 caractères maximum.'),
+    title: requiredText(200, 'Le titre est requis.'),
     description: z
       .string()
       .max(4000, '4 000 caractères maximum.')

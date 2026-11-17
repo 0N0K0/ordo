@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText } from './rules';
 import { TABLE_AGGREGATES } from './aggregates';
 import { columnLayoutSchema, tableSortSchema } from './table-layout';
 import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './filters';
@@ -74,4 +75,4 @@ export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableVie
 }
 
 /** Name of a saved view of a table. */
-export const taskViewNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.');
+export const taskViewNameSchema = requiredText(60);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredText, optionalText } from './rules';
 import { addDays, formatDay, parseDay } from './recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
@@ -31,13 +32,6 @@ const accountingLineSchema = z.object({
   deductedDocumentId: z.string().nullish(),
 });
 export type AccountingLineInput = z.infer<typeof accountingLineSchema>;
-
-const optionalText = (max: number) =>
-  z
-    .string()
-    .max(max, 'Texte trop long.')
-    .transform((value) => (value.trim() ? value.trim() : null))
-    .nullable();
 
 /** Editable fields of a draft document. */
 export const accountingDocumentInputSchema = z
@@ -303,7 +297,7 @@ export function depositAmount(type: DiscountType | null, value: number | null, t
 export const importedDocumentSchema = z
   .object({
     type: z.enum(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE']),
-    number: z.string().trim().min(1, 'Le numéro est requis.').max(60, '60 caractères maximum.'),
+    number: requiredText(60, 'Le numéro est requis.'),
     issueDate: z.iso.date({ error: 'La date est requise.' }),
     dueDate: z.iso.date().nullable(),
     clientId: z.string().nullable(),
@@ -344,7 +338,7 @@ export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
 /** Product or service of the catalogue: default fields of a line. */
 export const catalogItemSchema = z.object({
   kind: z.enum(['ITEM', 'DISBURSEMENT']),
-  title: z.string().trim().min(1, 'Le libellé est requis.').max(300, '300 caractères maximum.'),
+  title: requiredText(300, 'Le libellé est requis.'),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')
