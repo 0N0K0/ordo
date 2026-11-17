@@ -2264,14 +2264,20 @@ model Place {
   id          String    @id @default(cuid())
   name        String
   address     String    @default("")
-  lat         Float
-  lon         Float
+  /// Its point; none for a zone (a room of the house…): that of the place it is in.
+  lat         Float?
+  lon         Float?
+  /// Place a zone is in (« Maison » for « Cuisine »); none for a place with its own address.
+  parentId    String?
+  parent      Place?    @relation("PlaceZones", fields: [parentId], references: [id], onDelete: Cascade)
+  zones       Place[]   @relation("PlaceZones")
   createdAt   DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, name])
+  /// A name is unique among the zones of a place (those at the top are checked by the app: a null parent is never equal).
+  @@unique([workspaceId, parentId, name])
 }
 
 /// Category of the shopping products, in a tree (as the treasury categories).

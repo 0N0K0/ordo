@@ -80,8 +80,8 @@ export function taskColumns(context: TaskContext, today: string): DataColumn<Tas
     for (let current = projectId; current; current = context.projects.find((project) => project.id === current)?.parentId ?? null) ids.push(current);
     return ids;
   };
-  const projectChoices = context.projects.map((project) => ({ value: project.id, label: context.projectLabel(project.id) }));
-  const taskChoices = context.tasks.map((task) => ({ value: task.id, label: context.taskLabel(task) }));
+  const projectChoices = context.projectOptions(context.projects);
+  const taskChoices = context.taskOptions(context.tasks);
   const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))];
   /**
    * People of a row, with « Moi » for the user.

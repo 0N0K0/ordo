@@ -15,8 +15,10 @@ const PlacesDocument = graphql(`
       id
       name
       address
+      parentId
       lat
       lon
+      path
     }
   }
 `);
@@ -63,6 +65,30 @@ const DeletePlaceDocument = graphql(`
     deletePlace(id: $id)
   }
 `);
+
+/**
+ * Places in tree order: each place followed by its zones (theirs too), with their depth.
+ * @param {readonly Place[]} places Places, by name.
+ * @returns {(Place & { depth: number })[]} Places.
+ */
+export function placesInTree(places: readonly Place[]): (Place & { depth: number })[] {
+  const ids = new Set(places.map((place) => place.id));
+  const out: (Place & { depth: number })[] = [];
+  /**
+   * Adds the places under a parent, and theirs.
+   * @param {string | null} parent Parent.
+   * @param {number} depth Their depth.
+   * @returns {void}
+   */
+  const visit = (parent: string | null, depth: number) => {
+    for (const place of places.filter((item) => (item.parentId && ids.has(item.parentId) ? item.parentId : null) === parent)) {
+      out.push({ ...place, depth });
+      visit(place.id, depth + 1);
+    }
+  };
+  visit(null, 0);
+  return out;
+}
 
 /**
  * Saved places of the workspace ("Maison", "Bureau"…).

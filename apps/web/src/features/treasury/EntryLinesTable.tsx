@@ -74,7 +74,11 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       size: 180,
       sortValue: (row) => categoryName(row) || null,
       text: categoryName,
-      filter: { kind: 'choice', value: (row) => row.line.categoryId, options: [...env.paths].map(([value, label]) => ({ value, label })) },
+      filter: {
+        kind: 'choice',
+        value: (row) => row.line.categoryId,
+        options: [...categoryOptions(env.settings?.treasuryCategories ?? [], 'OUT'), ...categoryOptions(env.settings?.treasuryCategories ?? [], 'IN')],
+      },
       groupable: true,
     },
     {
@@ -128,7 +132,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       size: 180,
       sortValue: (row) => projectName(row) || null,
       text: projectName,
-      filter: { kind: 'choice', value: (row) => row.line.projectId, options: [...env.projectNames].map(([value, label]) => ({ value, label })) },
+      filter: { kind: 'choice', value: (row) => row.line.projectId, options: env.projects },
       groupable: true,
     },
     {

@@ -2,7 +2,7 @@ import { ArchiveIcon, ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCirc
 import { useState } from 'react';
 import type { SelectionAction } from '../../components/data-table/SelectionBar';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
-import { routineInputOf, useRoutineMutations, type Routine } from './api';
+import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { routinesLabel } from './routine-cell-edit';
 import { isDone, movableOccurrence } from './routine-format';
 import { usePostponeRoutine } from './use-routine-move';
@@ -14,7 +14,8 @@ import { usePostponeRoutine } from './use-routine-move';
  * @returns {(routines: Routine[], onClear: () => void) => SelectionAction[]} Actions of the routines checked.
  */
 export function useRoutineSelectionActions() {
-  const { bulkArchive, bulkDone, bulkRemove, create } = useRoutineMutations();
+  const { bulkArchive, bulkDone, bulkRemove, create, copySubRoutines } = useRoutineMutations();
+  const { data } = useRoutinesData();
   const postpone = usePostponeRoutine();
   const [duplicating, setDuplicating] = useState(false);
   return (routines: Routine[], onClear: () => void): SelectionAction[] => {
@@ -54,7 +55,18 @@ export function useRoutineSelectionActions() {
         onClick: async () => {
           setDuplicating(true);
           try {
-            for (const routine of routines) await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
+            // Each with its sub-routines (one under another checked routine comes with it).
+            const checked = new Set(ids);
+            const byId = new Map((data?.routines ?? []).map((routine) => [routine.id, routine]));
+            const under = (routine: Routine) => {
+              for (let parent = routine.parentId ? byId.get(routine.parentId) : undefined; parent; parent = parent.parentId ? byId.get(parent.parentId) : undefined)
+                if (checked.has(parent.id)) return true;
+              return false;
+            };
+            for (const routine of routines.filter((item) => !under(item))) {
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
+              if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
+            }
             notifySuccess(`${label} dupliquée${ids.length > 1 ? 's' : ''}.`);
           } catch (error) {
             onError(error as Error);

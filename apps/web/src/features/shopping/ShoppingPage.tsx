@@ -81,7 +81,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       bulk: true,
       sortValue: (list) => list.taskIds.map(taskLabel).sort()[0] ?? null,
       text: (list) => list.taskIds.map(taskLabel).filter(Boolean).join(', '),
-      filter: { kind: 'choices', value: (list) => list.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.title })) },
+      filter: { kind: 'choices', value: (list) => list.taskIds, options: context ? context.taskOptions(context.tasks) : [] },
     },
     {
       id: 'project',
@@ -99,7 +99,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       filter: {
         kind: 'choices',
         value: (list) => projectsOf(list, context),
-        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.title })),
+        options: context ? context.projectOptions(context.projects) : [],
       },
     },
     {
@@ -181,7 +181,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
-        options: categoryOptions(env.categories).map((option) => ({ value: option.value, label: option.label })),
+        options: categoryOptions(env.categories),
       },
     },
     {

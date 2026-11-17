@@ -2,13 +2,27 @@ import { TRAVEL_MODES } from '@ordo/shared';
 import * as geo from '../../services/geo';
 import { builder } from '../builder';
 
-builder.prismaObject('Place', {
-  description: 'Saved place ("Maison", "Bureau"…): an address and its point.',
-  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), address: t.exposeString('address'), lat: t.exposeFloat('lat'), lon: t.exposeFloat('lon') }),
+const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
+  description: 'Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one (a room of the house), with its point.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    address: t.exposeString('address', { description: 'Its address, or that of the place a zone is in.' }),
+    parentId: t.exposeID('parentId', { nullable: true, description: 'Place a zone is in; null: a place with its own address.' }),
+    lat: t.exposeFloat('lat'),
+    lon: t.exposeFloat('lon'),
+    path: t.exposeString('path', { description: 'Full name (« Maison › Cuisine »).' }),
+  }),
 });
 
 const PlaceInput = builder.inputType('PlaceInput', {
-  fields: (t) => ({ name: t.string({ required: true }), address: t.string({ required: true }), lat: t.float({ required: true }), lon: t.float({ required: true }) }),
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    address: t.string(),
+    lat: t.float({ description: 'None for a zone.' }),
+    lon: t.float({ description: 'None for a zone.' }),
+    parentId: t.id({ description: 'Place a zone is in.' }),
+  }),
 });
 
 const GeoPointInput = builder.inputType('GeoPointInput', {
@@ -32,7 +46,7 @@ const TravelTimeRef = builder.objectRef<geo.TravelTime>('TravelTime').implement(
 });
 
 builder.queryFields((t) => ({
-  places: t.prismaField({ type: ['Place'], resolve: () => geo.places() }),
+  places: t.field({ type: [PlaceRef], resolve: () => geo.places() }),
   searchAddresses: t.field({
     type: [AddressSuggestionRef],
     description: 'Addresses and places matching a text (3 characters at least), the closest to `near` first.',
@@ -57,7 +71,9 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   savePlace: t.id({
     args: { id: t.arg.id(), input: t.arg({ type: PlaceInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await geo.savePlace(id ?? null, input)).id,
+    resolve: async (_root, { id, input }) =>
+      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId ? String(input.parentId) : null }))
+        .id,
   }),
   deletePlace: t.boolean({
     description: 'Deletes a saved place (events keep their address).',

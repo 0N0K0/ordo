@@ -18,6 +18,7 @@ import { opensFits, readOpens } from '@ordo/shared';
 import * as fmt from '../../lib/format';
 import { ruleOf } from './routine-format';
 import { ROUTINE_REMINDERS } from './routine-format';
+import { routineTreeOptions } from './routine-format';
 
 /** Cells do not open the routine when used. */
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
@@ -284,7 +285,7 @@ export function BlocksCell({ routine, routines }: { routine: Routine; routines: 
   return (
     <EditableMultiSelect
       label={`Routines qu’attend ${routine.title}`}
-      data={routines.filter((other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))).map((other) => ({ value: other.id, label: other.title }))}
+      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
       value={waiting}
       onSave={(next) => {
         // Those added here wait for this routine (and each one of the selection), those removed here no more.

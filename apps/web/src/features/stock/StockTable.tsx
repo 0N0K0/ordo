@@ -74,7 +74,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : null),
       text: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: [...places].map(([id, path]) => ({ value: id, label: path })) },
+      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: locationOptions(locations ?? []) },
       groupable: true,
     },
     {
@@ -84,7 +84,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => (item.categoryId ? (categoryPaths.get(item.categoryId) ?? '') : null),
       text: (item) => (item.categoryId ? (categoryPaths.get(item.categoryId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: [...categoryPaths].map(([id, path]) => ({ value: id, label: path })) },
+      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: shoppingCategoryOptions(categories) },
       groupable: true,
     },
     {

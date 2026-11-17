@@ -12,6 +12,8 @@ import {
   caseSpans,
   plannedSlots,
   conditionScheduleIds,
+  conditionConstrains,
+  ALL_SCHEDULES,
   conditionWindows,
   readSlotCondition,
   windowsAllowed,
@@ -107,7 +109,8 @@ export async function loadScheduleContext(): Promise<ScheduleContext> {
       if (!ids.length) return [];
       let slots = byDay.get(date);
       if (!slots) byDay.set(date, (slots = plannedSlots(rules, date, date)));
-      return slots.filter((slot) => ids.includes(slot.scheduleId));
+      // Every schedule (the free time) or those named.
+      return ids.includes(ALL_SCHEDULES) ? slots : slots.filter((slot) => ids.includes(slot.scheduleId));
     },
   };
 }
@@ -157,7 +160,7 @@ export function storedRule(routine: Pick<RoutineTiming, 'recurrence' | 'schedule
  * @param {SlotCondition | null | undefined} condition Condition.
  * @returns {boolean} Some.
  */
-const constrains = (condition: SlotCondition | null | undefined) => conditionScheduleIds(condition).length > 0;
+const constrains = (condition: SlotCondition | null | undefined) => conditionConstrains(condition);
 
 /** Days looked at before and after a day to find the occurrences around it (a year and a little more). */
 const LOOK_DAYS = 400;
@@ -667,6 +670,35 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
     return routine;
   });
+}
+
+/**
+ * Copies the sub-routines of a routine under another one (its copy), their own sub-routines too, in their order; a
+ * dependency on a routine copied with them points to its copy.
+ * @param {string} fromId Routine copied.
+ * @param {string} toId Its copy.
+ * @returns {Promise<number>} Sub-routines copied.
+ */
+export async function copySubRoutines(fromId: string, toId: string): Promise<number> {
+  const copies = new Map<string, string>([[fromId, toId]]);
+  const queue: string[] = [fromId];
+  while (queue.length) {
+    const source = queue.shift()!;
+    const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+    for (const child of children) {
+      const input = await inputOf(child.id);
+      const copy = await createRoutine({ ...input, parentId: copies.get(source)! });
+      copies.set(child.id, copy.id);
+      queue.push(child.id);
+    }
+  }
+  // Dependencies within the copied routines: on their copies.
+  for (const [sourceId, copyId] of copies) {
+    if (sourceId === fromId) continue;
+    const { requiredIds } = await inputOf(copyId);
+    if (requiredIds.some((id) => copies.has(id))) await patchRoutine(copyId, { requiredIds: requiredIds.map((id) => copies.get(id) ?? id) });
+  }
+  return copies.size - 1;
 }
 
 /**

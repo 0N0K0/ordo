@@ -16,6 +16,10 @@ export const emptySlotCondition = (): SlotCondition => ({ type: 'group', id: 'ro
 export function describeSlotCondition(node: SlotCondition | SlotConditionItem | null | undefined, names: Map<string, string>, nested = false): string {
   if (!node) return '';
   if (node.type === 'condition') {
+    if (node.field === 'freeTime') {
+      const except = (Array.isArray(node.value) ? node.value : []).map((id) => `« ${names.get(id) ?? 'plage supprimée'} »`);
+      return node.operator === 'notIn' && except.length ? `hors de toutes les plages sauf ${except.join(' et ')}` : 'hors de toutes les plages';
+    }
     const listed = (Array.isArray(node.value) ? node.value : []).map((id) => `« ${names.get(id) ?? 'plage supprimée'} »`).join(node.operator === 'notIn' ? ' et ' : ' ou ');
     return `${node.operator === 'notIn' ? 'hors de' : 'sur'} ${listed}`;
   }

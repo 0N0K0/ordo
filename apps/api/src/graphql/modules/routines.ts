@@ -479,6 +479,11 @@ builder.mutationFields((t) => ({
     args: { input: t.arg({ type: RoutineInputType, required: true }) },
     resolve: async (_root, { input }) => (await routines.createRoutine(routineInput(input))).id,
   }),
+  copySubRoutines: t.int({
+    description: 'Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.',
+    args: { fromId: t.arg.id({ required: true }), toId: t.arg.id({ required: true }) },
+    resolve: (_root, { fromId, toId }) => routines.copySubRoutines(String(fromId), String(toId)),
+  }),
   updateRoutine: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }) },
     resolve: async (_root, { id, input }) => {

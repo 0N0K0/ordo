@@ -133,7 +133,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
           for (let id = entry.projectId; id; id = context?.projectById.get(id)?.parentId ?? null) ids.push(id);
           return ids;
         },
-        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.title })),
+        options: context ? context.projectOptions(context.projects) : [],
       },
       groupable: true,
     },
