@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useRoomBelow } from '../../lib/fill-height';
 
 /** Tables shown in the content of the page. */
 let tableCount = 0;
@@ -49,35 +50,12 @@ export function useTableHeight() {
     count(1);
     return () => count(-1);
   }, []);
-  useLayoutEffect(() => {
-    /**
-     * Measures the room left below the top of the area, and what the page has below it.
-     * @returns {void}
-     */
-    const update = () => {
-      const element = ref.current;
-      if (!element) return;
-      const box = element.getBoundingClientRect();
-      const main = element.closest('main');
-      const padding = main ? parseFloat(getComputedStyle(main).paddingBottom) : 16;
-      const content = main?.firstElementChild?.getBoundingClientRect();
-      const below = content ? Math.max(0, content.bottom - box.bottom) : 0;
-      const height = Math.floor(window.innerHeight - (box.top + window.scrollY) - below - padding);
-      setFill((current) => {
-        const next = { height: Math.max(MINIMUM, height), crowded: below > BELOW_TOLERANCE || height < MINIMUM };
-        return current && current.height === next.height && current.crowded === next.crowded ? current : next;
-      });
-    };
-    update();
-    window.addEventListener('resize', update);
-    // What is above or below may change height (filters, a bar of selection…): the content of the page tells it.
-    const observer = new ResizeObserver(update);
-    observer.observe(ref.current?.closest('main')?.firstElementChild ?? document.body);
-    return () => {
-      window.removeEventListener('resize', update);
-      observer.disconnect();
-    };
-  }, []);
+  useRoomBelow(ref, ({ height, below }) =>
+    setFill((current) => {
+      const next = { height: Math.max(MINIMUM, height), crowded: below > BELOW_TOLERANCE || height < MINIMUM };
+      return current && current.height === next.height && current.crowded === next.crowded ? current : next;
+    }),
+  );
   const alone = tables <= 1 && fill !== null && !fill.crowded;
   return [ref, alone ? fill.height : SHARED_TABLE_HEIGHT] as const;
 }

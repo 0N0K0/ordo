@@ -104,17 +104,36 @@ function parseConfig(config: unknown): TableViewConfig {
 /**
  * Saved views of a table (tabs, unsaved changes, default one), the first ones made once: what a table reads before its
  * rows when they depend on its view (the events listed with the tasks).
- * @param {{ tableKey: string, projectId?: string | null, first?: readonly FirstTableView[], ready?: boolean }} options Table, project of the views, first views, whether it makes them.
+ * @param {{ tableKey: string, projectId?: string | null, first?: readonly FirstTableView[], defaults?: Partial<TableViewConfig>, ready?: boolean }} options Table, project of the views, first views, what every new view starts with (the columns chosen for the workspace…), whether it makes them.
  * @returns {SavedViewsState<TableViewConfig>} Views.
  */
-export function useTableViews({ tableKey, projectId = null, first, ready = true }: { tableKey: string; projectId?: string | null; first?: readonly FirstTableView[]; ready?: boolean }) {
+export function useTableViews({
+  tableKey,
+  projectId = null,
+  first,
+  defaults,
+  ready = true,
+}: {
+  tableKey: string;
+  projectId?: string | null;
+  first?: readonly FirstTableView[];
+  defaults?: Partial<TableViewConfig>;
+  ready?: boolean;
+}) {
   const firstKey = JSON.stringify(first ?? null);
+  const defaultsKey = JSON.stringify(defaults ?? {});
+  // A new view: what the table starts with, then its own.
+  const blank = useCallback(() => tableViewConfig(JSON.parse(defaultsKey) as Partial<TableViewConfig>), [defaultsKey]);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
-    () => ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ name: 'Toutes' }]).map((view) => ({ name: view.name, config: tableViewConfig(view.config) })),
-    [firstKey],
+    () =>
+      ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ name: 'Toutes' }]).map((view) => ({
+        name: view.name,
+        config: tableViewConfig({ ...(JSON.parse(defaultsKey) as Partial<TableViewConfig>), ...view.config }),
+      })),
+    [firstKey, defaultsKey],
   );
-  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse: parseConfig, blank: tableViewConfig, first: firstViews, ready, param: `${tableKey}-view` });
+  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse: parseConfig, blank, first: firstViews, ready, param: `${tableKey}-view` });
 }
 
 /**

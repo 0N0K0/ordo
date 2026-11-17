@@ -5,7 +5,7 @@ import { createdId } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import type { SettingsItemValues } from '../../components/settings/SettingsItemForm';
 import { notifyError } from '../../lib/notify';
-import { useFillHeight } from '../tasks/column-fit';
+import { useFillHeight } from '../../lib/fill-height';
 import { AddressInput } from './AddressInput';
 import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
 import { PlaceMap } from './PlaceMap';

@@ -1,5 +1,3 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-
 /** Rows measured at most: enough to see the content of a column, quick on long lists. */
 const MEASURED_ROWS = 400;
 
@@ -54,45 +52,4 @@ export function contentWidth(table: HTMLTableElement, index: number): number {
     else element.setAttribute('style', style);
   }
   return Math.ceil(width);
-}
-
-/**
- * Height an element can take so that the page fits the window: down to its bottom, less what the page has below the
- * element (paddings, borders, other content) and its bottom padding; at least a minimum. Follows the size of the
- * window and of the page.
- * @param {number} [minimum] Smallest height, in pixels. Optional. Default = 320.
- * @returns {readonly [React.RefObject<HTMLDivElement | null>, number | undefined]} Element to measure, and its height.
- */
-export function useFillHeight(minimum = 320) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number>();
-  useLayoutEffect(() => {
-    /**
-     * Measures the room left below the top of the element.
-     * @returns {void}
-     */
-    const update = () => {
-      const element = ref.current;
-      if (!element) return;
-      const box = element.getBoundingClientRect();
-      const main = element.closest('main');
-      const padding = main ? parseFloat(getComputedStyle(main).paddingBottom) : 16;
-      // What the page has below the element: measured on its content, not on the main area (as tall as the window
-      // at least).
-      const content = main?.firstElementChild?.getBoundingClientRect();
-      const below = content ? Math.max(0, content.bottom - box.bottom) : 0;
-      const top = box.top + window.scrollY;
-      setHeight(Math.max(minimum, Math.floor(window.innerHeight - top - below - padding)));
-    };
-    update();
-    window.addEventListener('resize', update);
-    // What is above or below may change height (filters, a bar of selection…): the content of the page tells it.
-    const observer = new ResizeObserver(update);
-    observer.observe(ref.current?.closest('main')?.firstElementChild ?? document.body);
-    return () => {
-      window.removeEventListener('resize', update);
-      observer.disconnect();
-    };
-  }, [minimum]);
-  return [ref, height] as const;
 }

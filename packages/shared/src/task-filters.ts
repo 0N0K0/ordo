@@ -394,24 +394,28 @@ export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
 /** Columns of the views made by the app, unless the workspace chose its own. */
 export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
 
-/** Columns new views of a workspace start with: their order, and those hidden. */
+/** Ids of columns of a table layout: any column of the table (the unknown ones are ignored by the table). */
+const columnIdsSchema = z.array(z.string().max(60)).max(200);
+
+/**
+ * Columns new task views of a workspace start with, as the layout of the table: their order, and those hidden (empty:
+ * the columns of the app, those hidden by default hidden).
+ */
 export const taskColumnDefaultsSchema = z.object({
-  columnOrder: columnListSchema().default([...TASK_COLUMNS]),
+  columnOrder: columnIdsSchema.default([]),
   // The title is always shown.
-  hiddenColumns: columnListSchema()
-    .transform((columns): TaskColumn[] => columns.filter((column) => column !== 'title'))
-    .default([...DEFAULT_HIDDEN_COLUMNS]),
+  hiddenColumns: columnIdsSchema.transform((columns) => columns.filter((column) => column !== 'title')).default([]),
 });
 export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
 
 /**
- * Columns new views start with: those chosen for the workspace (stored value), else the app's.
+ * Columns new task views start with: those chosen for the workspace (stored value), else the app's (an empty layout).
  * @param {unknown} stored Stored value, if any.
  * @returns {TaskColumnDefaults} Order and hidden columns.
  */
 export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
   const parsed = taskColumnDefaultsSchema.safeParse(stored ?? {});
-  return parsed.success ? parsed.data : { columnOrder: [...TASK_COLUMNS], hiddenColumns: [...DEFAULT_HIDDEN_COLUMNS] };
+  return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
 }
 
 /**
@@ -422,8 +426,8 @@ export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
 export function defaultTaskViewConfig(columns?: TaskColumnDefaults): TaskViewConfig {
   return taskViewConfigSchema.parse({
     filter: emptyFilter(),
-    columnOrder: columns?.columnOrder ?? [...TASK_COLUMNS],
-    hiddenColumns: columns?.hiddenColumns ?? DEFAULT_HIDDEN_COLUMNS,
+    columnOrder: columns?.columnOrder.length ? columns.columnOrder : [...TASK_COLUMNS],
+    hiddenColumns: columns?.columnOrder.length ? columns.hiddenColumns : DEFAULT_HIDDEN_COLUMNS,
   });
 }
 

@@ -1,17 +1,22 @@
 import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { DataColumnsPanel } from '../../../components/data-table/ColumnsPanel';
+import { localToday } from '../../../lib/dates';
 import { notifyError } from '../../../lib/notify';
 import { useSetTaskColumnDefaults, useTaskColumnDefaults } from '../api';
-import { ColumnsPanel } from '../views/ColumnsPanel';
+import { useTaskColumns } from '../use-task-columns';
+import { useTaskContext } from '../use-task-context';
 
 /**
- * Columns new task views of the workspace start with: those shown and their order, by drag and drop; the views
- * already made keep theirs.
+ * Columns new task views of the workspace start with: those shown and their order, by drag and drop, in the panel of
+ * the columns of every table; the views already made keep theirs.
  * @returns {JSX.Element} Section.
  */
 export function ColumnDefaults() {
-  const { data: columns } = useTaskColumnDefaults();
+  const { data: defaults } = useTaskColumnDefaults();
   const save = useSetTaskColumnDefaults();
+  const { context } = useTaskContext();
+  const columns = useTaskColumns(context, localToday(), { doable: false });
   const onError = (error: Error) => notifyError(error.message);
   return (
     <Paper withBorder radius="md" p="md">
@@ -27,7 +32,13 @@ export function ColumnDefaults() {
         <Text size="xs" c="dimmed">
           Colonnes affichées et leur ordre (glissez-déposez) quand une vue de tâches est créée. Les vues existantes gardent les leurs.
         </Text>
-        {columns && <ColumnsPanel columnOrder={columns.columnOrder} hiddenColumns={columns.hiddenColumns} onChange={(next) => save.mutate(next, { onError })} withHint={false} />}
+        {defaults && (
+          <DataColumnsPanel
+            columns={columns}
+            layout={{ columnOrder: defaults.columnOrder, hiddenColumns: defaults.hiddenColumns, columnSizing: {} }}
+            onLayoutChange={(layout) => save.mutate(layout.columnOrder.length ? { columnOrder: layout.columnOrder, hiddenColumns: layout.hiddenColumns } : null, { onError })}
+          />
+        )}
       </Stack>
     </Paper>
   );

@@ -103,6 +103,11 @@ Restent propres à chaque domaine : le report au lendemain des routines, le tran
 - Colonnes : `features/tasks/views/ColumnsPanel.tsx` (réglages des colonnes par défaut des tâches) et `DataColumnsPanel` générique.
 - Hauteur : `useFillHeight` (lieux, mails) et `useTableHeight` (tableaux) font le même calcul.
 
+**Fait** :
+
+- Colonnes : le panneau propre aux tâches est supprimé. Les colonnes des nouvelles vues de tâches se règlent dans le panneau générique, avec les colonnes du tableau, et les nouvelles vues partent de ce réglage (il n'était plus lu depuis les vues génériques).
+- Hauteur : un seul calcul, `useRoomBelow` dans `lib/fill-height.ts` ; `useFillHeight` (sorti de `features/tasks`) et `useTableHeight` en dépendent.
+
 ## Petites redondances
 
 ### 9. Fonctions utilitaires recopiées

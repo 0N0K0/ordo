@@ -6,7 +6,7 @@ import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, Sliders
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { notifySuccess } from '../../lib/notify';
-import { useFillHeight } from '../tasks/column-fit';
+import { useFillHeight } from '../../lib/fill-height';
 import { AdvancedSearchPanel } from './AdvancedSearchPanel';
 import { useMailAccounts, useMailRefresh } from './api';
 import classes from './MailPage.module.css';
