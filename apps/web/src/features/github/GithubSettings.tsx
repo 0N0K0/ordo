@@ -1,12 +1,13 @@
 import { FormSkeleton } from '../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Group, Paper, PasswordInput, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from './api';
 import { SettingsGrid } from '../../components/settings/SettingsGrid';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 
 /**
  * GitHub login of a contributor, saved when the field is left.
@@ -60,91 +61,87 @@ export function GithubSettings() {
   if (isPending) return <FormSkeleton fields={3} />;
   return (
     <SettingsGrid>
-      <Paper withBorder radius="md" p="lg">
-        <Stack gap="sm">
-          <Group gap="xs">
+      <SettingsSection
+        title={
+          <Group gap="xs" component="span">
             <GithubLogoIcon aria-hidden size={20} />
-            <Title order={2} size="h4">
-              Connexion
-            </Title>
+            Connexion
             {login && (
               <Badge variant="light" color="green">
                 Connecté : @{login}
               </Badge>
             )}
           </Group>
-          <Text size="sm" c="dimmed">
+        }
+        description={
+          <>
             Ordo se connecte avec un{' '}
             <Anchor href="https://github.com/settings/tokens" target="_blank" rel="noopener" size="sm">
               jeton d’accès personnel
             </Anchor>{' '}
-            : jeton « classic » avec les droits <code>project</code> et <code>repo</code>, ou jeton « fine-grained » avec l’accès aux projets et aux issues des dépôts
-            concernés. Il est chiffré en base.
-          </Text>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              setToken.mutate(token, {
-                onSuccess: (account) => {
-                  setTokenValue('');
-                  setError(null);
-                  notifySuccess(`GitHub connecté : @${account}.`);
-                },
-                onError: (saveError) => setError(saveError.message),
-              });
-            }}
-          >
-            <Group align="flex-start" gap="sm">
-              <PasswordInput
-                label={login ? 'Remplacer le jeton' : 'Jeton'}
-                placeholder="ghp_… ou github_pat_…"
-                value={token}
-                error={error}
-                onChange={(event) => setTokenValue(event.currentTarget.value)}
-                style={{ flex: 1, maxWidth: 480 }}
-                autoComplete="off"
-              />
-              <Button type="submit" mt={25} loading={setToken.isPending} disabled={!token.trim()}>
-                {login ? 'Remplacer' : 'Connecter'}
-              </Button>
-              {login && (
-                <DestructiveButton mt={25} onClick={confirmRemove}>
-                  Déconnecter
-                </DestructiveButton>
-              )}
-            </Group>
-          </form>
-        </Stack>
-      </Paper>
+            : jeton « classic » avec les droits <code>project</code> et <code>repo</code>, ou jeton « fine-grained » avec l’accès aux projets et aux issues des dépôts concernés. Il est chiffré en
+            base.
+          </>
+        }
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setToken.mutate(token, {
+              onSuccess: (account) => {
+                setTokenValue('');
+                setError(null);
+                notifySuccess(`GitHub connecté : @${account}.`);
+              },
+              onError: (saveError) => setError(saveError.message),
+            });
+          }}
+        >
+          <Group align="flex-start" gap="sm">
+            <PasswordInput
+              label={login ? 'Remplacer le jeton' : 'Jeton'}
+              placeholder="ghp_… ou github_pat_…"
+              value={token}
+              error={error}
+              onChange={(event) => setTokenValue(event.currentTarget.value)}
+              style={{ flex: 1, maxWidth: 480 }}
+              autoComplete="off"
+            />
+            <Button type="submit" mt={25} loading={setToken.isPending} disabled={!token.trim()}>
+              {login ? 'Remplacer' : 'Connecter'}
+            </Button>
+            {login && (
+              <DestructiveButton mt={25} onClick={confirmRemove}>
+                Déconnecter
+              </DestructiveButton>
+            )}
+          </Group>
+        </form>
+      </SettingsSection>
 
-      <Paper withBorder radius="md" p="lg">
-        <Stack gap="sm">
-          <Title order={2} size="h4">
-            Contributeurs sur GitHub
-          </Title>
-          <Text size="sm" c="dimmed">
-            Les assignés d’une issue sont ceux des contributeurs qui ont son login GitHub ; les autres logins sont laissés tels quels des deux côtés.
-          </Text>
-          {!contributors?.length ? (
-            <Alert color="gray">Aucun contributeur.</Alert>
-          ) : (
-            <Table verticalSpacing={4} maw={560}>
-              <Table.Tbody>
-                {contributors.map((contributor) => (
-                  <Table.Tr key={contributor.id}>
-                    <Table.Td>
-                      <Text size="sm">{contributor.name}</Text>
-                    </Table.Td>
-                    <Table.Td w={260}>
-                      <LoginField id={contributor.id} login={contributor.githubLogin ?? null} />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Stack>
-      </Paper>
+      <SettingsSection
+        title="Contributeurs sur GitHub"
+        description="Les assignés d’une issue sont ceux des contributeurs qui ont son login GitHub ; les autres logins sont laissés tels quels des deux côtés."
+      >
+        {!contributors?.length ? (
+          <Alert color="gray">Aucun contributeur.</Alert>
+        ) : (
+          <Table verticalSpacing={4} maw={560}>
+            <Table.Tbody>
+              {contributors.map((contributor) => (
+                <Table.Tr key={contributor.id}>
+                  <Table.Td>
+                    <Text size="sm">{contributor.name}</Text>
+                  </Table.Td>
+                  <Table.Td w={260}>
+                    <LoginField id={contributor.id} login={contributor.githubLogin ?? null} />
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </SettingsSection>
     </SettingsGrid>
   );
 }

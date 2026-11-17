@@ -3,7 +3,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Group, Stack, Tabs, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { recurrenceSchema } from '@ordo/shared';
 import {
@@ -48,6 +48,7 @@ import { useEffect } from 'react';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import * as fmt from '../../lib/format';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 
 /** Tabs of the settings sidebar. */
 type SettingsTab = 'zip' | 'statuses' | 'company';
@@ -394,14 +395,9 @@ export function AccountingPage() {
             <CompanySettings />
           </Tabs.Panel>
           <Tabs.Panel value="zip">
-            <Paper withBorder p="lg" radius="md" component="section">
-              <Stack gap="md">
-                <Title order={2} size="h4">
-                  Télécharger les documents d’une période
-                </Title>
-                <DocumentsZipForm years={years} />
-              </Stack>
-            </Paper>
+            <SettingsSection title="Télécharger les documents d’une période">
+              <DocumentsZipForm years={years} />
+            </SettingsSection>
           </Tabs.Panel>
         </Tabs>
       </PageSettings>

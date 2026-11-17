@@ -1,7 +1,8 @@
 import { createdId } from '../../components/settings/settings-api';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { Badge, Checkbox, ColorInput, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Badge, Checkbox, ColorInput, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
@@ -391,13 +392,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
   const save = (changes: Partial<typeof current>) =>
     setInvoiceCategories.mutate({ ...current, ...changes }, { onSuccess: () => notifySuccess('Catégorie enregistrée.'), onError: onMutationError });
   return (
-    <Paper withBorder radius="md" p="md">
-      <Title order={3} size="h5" mb={4}>
-        Factures et avoirs
-      </Title>
-      <Text size="xs" c="dimmed" mb="sm">
-        Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.
-      </Text>
+    <SettingsSection title="Factures et avoirs" description="Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.">
       {/* Side by side when the sidebar is wide enough (its width, not the window's). */}
       <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
         <Select
@@ -419,7 +414,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           onChange={(value) => save({ creditNoteCategoryId: value })}
         />
       </SimpleGrid>
-    </Paper>
+    </SettingsSection>
   );
 }
 

@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
@@ -10,6 +10,7 @@ import { ListSkeleton } from '../feedback/Skeletons';
 import { openFormPanel } from '../panels/panels';
 import { useReorderSettingsItems, type SettingsListKind } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type SettingsItemValues } from './SettingsItemForm';
+import { SettingsSection } from './SettingsSection';
 
 interface SettingsListProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
@@ -180,82 +181,77 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   };
 
   return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={4}>
-            <Title order={2} size="h4">
-              {title}
-            </Title>
-            <Text size="sm" c="dimmed">
-              {description}
-            </Text>
-          </Stack>
+    <SettingsSection
+      title={title}
+      description={description}
+      actions={
+        <>
           <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
             {headerActions}
             <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
               Ajouter
             </Button>
           </Group>
+        </>
+      }
+    >
+      {loading ? (
+        <ListSkeleton items={3} />
+      ) : items.length === 0 ? (
+        <Group gap="sm">
+          <ThemeIcon variant="light" color="gray" radius="xl">
+            <TagIcon aria-hidden />
+          </ThemeIcon>
+          <EmptyState compact message="Aucun élément pour le moment." />
         </Group>
-        {loading ? (
-          <ListSkeleton items={3} />
-        ) : items.length === 0 ? (
-          <Group gap="sm">
-            <ThemeIcon variant="light" color="gray" radius="xl">
-              <TagIcon aria-hidden />
-            </ThemeIcon>
-            <EmptyState compact message="Aucun élément pour le moment." />
-          </Group>
-        ) : (
-          <CategoryTree
-            categories={items}
-            nested={nested}
-            storageKey={storageKey}
-            renderMeta={
-              usage
-                ? ({ category }) => (
-                    <Text size="xs" c="dimmed">
-                      {usage.get(category.id) || ''}
-                    </Text>
-                  )
-                : undefined
-            }
-            renderBadges={renderBadges}
-            renderActions={({ category, path }) => (
-              <>
-                {renderActions?.(category)}
-                {nested && (
-                  <Tooltip label="Ajouter un sous-élément">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un sous-élément à ${path}`} onClick={() => openForm({ parentId: category.id })}>
-                      <PlusIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                )}
-                <Tooltip label="Modifier">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ item: category })}>
-                    <PencilSimpleIcon aria-hidden />
+      ) : (
+        <CategoryTree
+          categories={items}
+          nested={nested}
+          storageKey={storageKey}
+          renderMeta={
+            usage
+              ? ({ category }) => (
+                  <Text size="xs" c="dimmed">
+                    {usage.get(category.id) || ''}
+                  </Text>
+                )
+              : undefined
+          }
+          renderBadges={renderBadges}
+          renderActions={({ category, path }) => (
+            <>
+              {renderActions?.(category)}
+              {nested && (
+                <Tooltip label="Ajouter un sous-élément">
+                  <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un sous-élément à ${path}`} onClick={() => openForm({ parentId: category.id })}>
+                    <PlusIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
-                <Tooltip label={undeletable?.(category) ?? 'Supprimer'}>
-                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              </>
-            )}
-            onMove={handleMove}
-            canMove={
-              canMove
-                ? (id, parentId) => {
-                    const item = items.find((other) => other.id === id);
-                    return !item || canMove(item, parentId);
-                  }
-                : undefined
-            }
-          />
-        )}
-      </Stack>
-    </Paper>
+              )}
+              <Tooltip label="Modifier">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ item: category })}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label={undeletable?.(category) ?? 'Supprimer'}>
+                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)}>
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          )}
+          onMove={handleMove}
+          canMove={
+            canMove
+              ? (id, parentId) => {
+                  const item = items.find((other) => other.id === id);
+                  return !item || canMove(item, parentId);
+                }
+              : undefined
+          }
+        />
+      )}
+    </SettingsSection>
   );
 }

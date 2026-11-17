@@ -2,13 +2,14 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 /**
  * Settings of the mail accounts: add, edit, signature, remove.
@@ -48,77 +49,71 @@ export function MailAccountsManager() {
   };
 
   return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={4}>
-            <Title order={2} size="h4">
-              Boîtes mail
-            </Title>
-            <Text size="sm" c="dimmed">
-              Lues en direct sur le serveur (IMAP) et utilisées pour l’envoi (SMTP). Seuls les mails rattachés à un projet sont
-              copiés dans Ordo.
-            </Text>
-          </Stack>
+    <SettingsSection
+      title="Boîtes mail"
+      description={<>Lues en direct sur le serveur (IMAP) et utilisées pour l’envoi (SMTP). Seuls les mails rattachés à un projet sont copiés dans Ordo.</>}
+      actions={
+        <>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => open('Nouvelle boîte mail', (close) => <MailAccountForm onDone={close} />)}>
             Ajouter
           </Button>
+        </>
+      }
+    >
+      {isPending ? (
+        <ListSkeleton items={2} />
+      ) : !accounts?.length ? (
+        <Group gap="sm">
+          <ThemeIcon variant="light" color="gray" radius="xl">
+            <EnvelopeSimpleIcon aria-hidden />
+          </ThemeIcon>
+          <EmptyState compact message="Aucune boîte mail configurée." />
         </Group>
-        {isPending ? (
-          <ListSkeleton items={2} />
-        ) : !accounts?.length ? (
-          <Group gap="sm">
-            <ThemeIcon variant="light" color="gray" radius="xl">
-              <EnvelopeSimpleIcon aria-hidden />
-            </ThemeIcon>
-            <EmptyState compact message="Aucune boîte mail configurée." />
-          </Group>
-        ) : (
-          <Stack gap="xs">
-            {accounts.map((account) => (
-              <Group key={account.id} gap="sm" wrap="nowrap">
-                <ThemeIcon variant="light" radius="xl">
-                  <EnvelopeSimpleIcon aria-hidden />
-                </ThemeIcon>
-                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {account.name}
-                  </Text>
-                  <Text size="xs" c="dimmed" truncate>
-                    {account.displayName ? `${account.displayName} <${account.email}>` : account.email}
-                    {account.signature ? ' · signature' : ''}
-                  </Text>
-                </Stack>
-                <Tooltip label="Signature">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Signature de ${account.name}`}
-                    onClick={() => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />)}
-                  >
-                    <SignatureIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Modifier">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Modifier ${account.name}`}
-                    onClick={() => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />)}
-                  >
-                    <PencilSimpleIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Retirer">
-                  <ActionIcon variant="subtle" color="red" aria-label={`Retirer ${account.name}`} onClick={() => confirmDelete(account)}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </Paper>
+      ) : (
+        <Stack gap="xs">
+          {accounts.map((account) => (
+            <Group key={account.id} gap="sm" wrap="nowrap">
+              <ThemeIcon variant="light" radius="xl">
+                <EnvelopeSimpleIcon aria-hidden />
+              </ThemeIcon>
+              <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                <Text size="sm" fw={500} truncate>
+                  {account.name}
+                </Text>
+                <Text size="xs" c="dimmed" truncate>
+                  {account.displayName ? `${account.displayName} <${account.email}>` : account.email}
+                  {account.signature ? ' · signature' : ''}
+                </Text>
+              </Stack>
+              <Tooltip label="Signature">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  aria-label={`Signature de ${account.name}`}
+                  onClick={() => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />)}
+                >
+                  <SignatureIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Modifier">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  aria-label={`Modifier ${account.name}`}
+                  onClick={() => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />)}
+                >
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Retirer">
+                <ActionIcon variant="subtle" color="red" aria-label={`Retirer ${account.name}`} onClick={() => confirmDelete(account)}>
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          ))}
+        </Stack>
+      )}
+    </SettingsSection>
   );
 }

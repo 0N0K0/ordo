@@ -1,5 +1,5 @@
 import { FormSkeleton } from '../../components/feedback/Skeletons';
-import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { InfoIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from './api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { FormActions } from '../../components/dialogs/FormActions';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
 
@@ -313,19 +314,11 @@ function NumberingSettings() {
   >({});
 
   return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={4}>
-            <Title order={2} size="h4">
-              Numérotation
-            </Title>
-            <Text size="sm" c="dimmed">
-              Numéro du prochain document définitif de chaque type. Les
-              brouillons n’ont pas de numéro : il est attribué à la validation,
-              sans trou.
-            </Text>
-          </Stack>
+    <SettingsSection
+      title="Numérotation"
+      description={<>Numéro du prochain document définitif de chaque type. Les brouillons n’ont pas de numéro : il est attribué à la validation, sans trou.</>}
+      actions={
+        <>
           <Select
             aria-label="Année"
             w={110}
@@ -337,71 +330,65 @@ function NumberingSettings() {
             }}
             allowDeselect={false}
           />
-        </Group>
-        {isPending ? (
-          <FormSkeleton fields={3} />
-        ) : (
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Document</Table.Th>
-                <Table.Th>Prochain numéro</Table.Th>
-                <Table.Th>Aperçu</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {sequences?.map((sequence) => {
-                const value = edits[sequence.type] ?? sequence.nextNumber;
-                return (
-                  <Table.Tr key={sequence.type}>
-                    <Table.Td>
-                      {DOCUMENT_TYPE_LABELS[sequence.type]} (
-                      {DOCUMENT_PREFIXES[sequence.type]})
-                    </Table.Td>
-                    <Table.Td>
-                      <NumberInput
-                        aria-label={`Prochain numéro — ${DOCUMENT_TYPE_LABELS[sequence.type]}`}
-                        w={120}
-                        min={sequence.minimum}
-                        max={99_999}
-                        value={value}
-                        onChange={(next) =>
-                          typeof next === 'number' &&
-                          setEdits({ ...edits, [sequence.type]: next })
-                        }
-                      />
-                    </Table.Td>
-                    <Table.Td ff="monospace">
-                      {documentNumber(sequence.type, year, value)}
-                    </Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="xs"
-                        variant="default"
-                        disabled={value === sequence.nextNumber}
-                        onClick={() =>
-                          setSequence.mutate(
-                            { type: sequence.type, year, nextNumber: value },
-                            {
-                              onSuccess: () =>
-                                notifySuccess('Numérotation enregistrée.'),
-                              onError: onMutationError,
-                            },
-                          )
-                        }
-                      >
-                        Enregistrer
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Stack>
-    </Paper>
+        </>
+      }
+    >
+      {isPending ? (
+        <FormSkeleton fields={3} />
+      ) : (
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Document</Table.Th>
+              <Table.Th>Prochain numéro</Table.Th>
+              <Table.Th>Aperçu</Table.Th>
+              <Table.Th />
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {sequences?.map((sequence) => {
+              const value = edits[sequence.type] ?? sequence.nextNumber;
+              return (
+                <Table.Tr key={sequence.type}>
+                  <Table.Td>
+                    {DOCUMENT_TYPE_LABELS[sequence.type]} ({DOCUMENT_PREFIXES[sequence.type]})
+                  </Table.Td>
+                  <Table.Td>
+                    <NumberInput
+                      aria-label={`Prochain numéro — ${DOCUMENT_TYPE_LABELS[sequence.type]}`}
+                      w={120}
+                      min={sequence.minimum}
+                      max={99_999}
+                      value={value}
+                      onChange={(next) => typeof next === 'number' && setEdits({ ...edits, [sequence.type]: next })}
+                    />
+                  </Table.Td>
+                  <Table.Td ff="monospace">{documentNumber(sequence.type, year, value)}</Table.Td>
+                  <Table.Td>
+                    <Button
+                      size="xs"
+                      variant="default"
+                      disabled={value === sequence.nextNumber}
+                      onClick={() =>
+                        setSequence.mutate(
+                          { type: sequence.type, year, nextNumber: value },
+                          {
+                            onSuccess: () => notifySuccess('Numérotation enregistrée.'),
+                            onError: onMutationError,
+                          },
+                        )
+                      }
+                    >
+                      Enregistrer
+                    </Button>
+                  </Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
+      )}
+    </SettingsSection>
   );
 }
 
@@ -413,16 +400,7 @@ export function CompanySettings() {
   const { data: profile, isPending } = useCompanyProfile();
   return (
     <Stack gap="lg">
-      <Paper withBorder p="lg" radius="md" component="section">
-        <Stack gap="md">
-          <Stack gap={4}>
-            <Title order={2} size="h4">
-              Ma société
-            </Title>
-            <Text size="sm" c="dimmed">
-              Imprimée sur les devis, factures et avoirs.
-            </Text>
-          </Stack>
+      <SettingsSection title="Ma société" description="Imprimée sur les devis, factures et avoirs.">
           {!isPending && profile && !profile.name && (
             <Alert color="blue" icon={<InfoIcon aria-hidden />}>
               Renseignez au moins le nom de la société avant d’éditer des
@@ -434,8 +412,7 @@ export function CompanySettings() {
           ) : (
             <CompanyForm profile={profile} />
           )}
-        </Stack>
-      </Paper>
+      </SettingsSection>
       <NumberingSettings />
     </Stack>
   );

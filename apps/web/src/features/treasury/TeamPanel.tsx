@@ -6,7 +6,7 @@ import { SettingsList } from '../../components/settings/SettingsList';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -22,6 +22,7 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { countOf } from '../../lib/text';
 import { FormActions } from '../../components/dialogs/FormActions';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 
 /**
  * Day in words.
@@ -54,78 +55,70 @@ export function TeamMembers() {
   const team = perso ? 'Foyer' : 'Équipe';
 
   return (
-    <Paper withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Title order={3} size="h5">
-          {team}
-        </Title>
-        <Text size="xs" c="dimmed">
-          Les mouvements se répartissent entre les membres. Chaque membre est aussi un contributeur (tâches, projets, agenda) ; retiré, il le reste.
-        </Text>
-        <Table verticalSpacing={4}>
-          <Table.Tbody>
-            {members.map((member) => (
-              <Table.Tr key={member.id}>
-                <Table.Td>
-                  <Group gap="xs" wrap="nowrap">
-                    <Avatar src={member.avatarUrl} size="sm" name={member.name} color="initials" />
-                    <Text size="sm">{member.name}</Text>
-                    {member.isMe && (
-                      <Badge size="xs" variant="light">
-                        Moi
-                      </Badge>
-                    )}
-                  </Group>
-                </Table.Td>
-                <Table.Td w={1}>
-                  {!member.isMe && (
-                    <Tooltip label={`Retirer du ${team.toLowerCase()} (reste contributeur)`}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label={`Retirer ${member.name}`}
-                        loading={removeMember.isPending && removeMember.variables === member.id}
-                        onClick={() => removeMember.mutate(member.id, { onSuccess: () => notifySuccess(`${member.name} n’est plus membre.`), onError })}
-                      >
-                        <UserMinusIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
+    <SettingsSection title={team} description="Les mouvements se répartissent entre les membres. Chaque membre est aussi un contributeur (tâches, projets, agenda) ; retiré, il le reste.">
+      <Table verticalSpacing={4}>
+        <Table.Tbody>
+          {members.map((member) => (
+            <Table.Tr key={member.id}>
+              <Table.Td>
+                <Group gap="xs" wrap="nowrap">
+                  <Avatar src={member.avatarUrl} size="sm" name={member.name} color="initials" />
+                  <Text size="sm">{member.name}</Text>
+                  {member.isMe && (
+                    <Badge size="xs" variant="light">
+                      Moi
+                    </Badge>
                   )}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-          <Select
-            size="xs"
-            aria-label="Ajouter un contributeur existant"
-            placeholder={others.length ? 'Ajouter un contributeur…' : 'Tous les contributeurs sont membres'}
-            disabled={!others.length}
-            searchable
-            data={others.map((item) => ({ value: item.id, label: item.name }))}
-            value={null}
-            onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, { onSuccess: () => notifySuccess('Membre ajouté.'), onError })}
-          />
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!name.trim()) return;
-              addMember.mutate({ name: name.trim() }, { onSuccess: () => (notifySuccess('Membre ajouté.'), setName('')), onError });
-            }}
-          >
-            <Group gap={4} wrap="nowrap">
-              <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom d’un nouveau membre" placeholder="Ou un nouveau membre…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-              <Tooltip label="Ajouter (crée le contributeur)">
-                <ActionIcon type="submit" variant="light" size="input-xs" aria-label="Ajouter le nouveau membre" disabled={!name.trim()} loading={addMember.isPending}>
-                  <PlusIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          </form>
-        </SimpleGrid>
-      </Stack>
-    </Paper>
+                </Group>
+              </Table.Td>
+              <Table.Td w={1}>
+                {!member.isMe && (
+                  <Tooltip label={`Retirer du ${team.toLowerCase()} (reste contributeur)`}>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      aria-label={`Retirer ${member.name}`}
+                      loading={removeMember.isPending && removeMember.variables === member.id}
+                      onClick={() => removeMember.mutate(member.id, { onSuccess: () => notifySuccess(`${member.name} n’est plus membre.`), onError })}
+                    >
+                      <UserMinusIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+        <Select
+          size="xs"
+          aria-label="Ajouter un contributeur existant"
+          placeholder={others.length ? 'Ajouter un contributeur…' : 'Tous les contributeurs sont membres'}
+          disabled={!others.length}
+          searchable
+          data={others.map((item) => ({ value: item.id, label: item.name }))}
+          value={null}
+          onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, { onSuccess: () => notifySuccess('Membre ajouté.'), onError })}
+        />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!name.trim()) return;
+            addMember.mutate({ name: name.trim() }, { onSuccess: () => (notifySuccess('Membre ajouté.'), setName('')), onError });
+          }}
+        >
+          <Group gap={4} wrap="nowrap">
+            <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom d’un nouveau membre" placeholder="Ou un nouveau membre…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
+            <Tooltip label="Ajouter (crée le contributeur)">
+              <ActionIcon type="submit" variant="light" size="input-xs" aria-label="Ajouter le nouveau membre" disabled={!name.trim()} loading={addMember.isPending}>
+                <PlusIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </form>
+      </SimpleGrid>
+    </SettingsSection>
   );
 }
 
@@ -250,15 +243,16 @@ function Contexts() {
         )}
       />
 
-      <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" mb="xs">
-          <Title order={3} size="h5">
-            Contextes planifiés
-          </Title>
-          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
-            Nouvelle période
-          </ActionButton>
-        </Group>
+      <SettingsSection
+        title="Contextes planifiés"
+        actions={
+          <>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
+              Nouvelle période
+            </ActionButton>
+          </>
+        }
+      >
         <Text size="xs" c="dimmed" mb="xs">
           Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées.
         </Text>
@@ -319,7 +313,7 @@ function Contexts() {
             </Table.Tbody>
           </Table>
         )}
-      </Paper>
+      </SettingsSection>
 
       <SidePanel opened={dialog !== null} onClose={close} title={dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}>
         {dialog?.kind === 'period' && <PeriodForm period={dialog.period} contexts={contexts} onDone={close} />}
@@ -413,15 +407,16 @@ export function TeamRelations() {
     [relation.lineCount ? countOf(relation.lineCount, 'ligne') : '', relation.budgetCount ? countOf(relation.budgetCount, 'budget') : ''].filter(Boolean).join(', ');
 
   return (
-    <Paper withBorder radius="md" p="md">
-      <Group justify="space-between" mb="xs">
-        <Title order={3} size="h5">
-          Relations
-        </Title>
-        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
-          Nouvelle relation
-        </ActionButton>
-      </Group>
+    <SettingsSection
+      title="Relations"
+      actions={
+        <>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
+            Nouvelle relation
+          </ActionButton>
+        </>
+      }
+    >
       <Text size="xs" c="dimmed" mb="xs">
         Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.
       </Text>
@@ -478,6 +473,6 @@ export function TeamRelations() {
       <SidePanel opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
         {editing && <RelationForm relation={editing.relation} onDone={() => setEditing(null)} />}
       </SidePanel>
-    </Paper>
+    </SettingsSection>
   );
 }

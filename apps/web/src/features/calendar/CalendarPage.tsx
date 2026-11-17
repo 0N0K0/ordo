@@ -1,4 +1,5 @@
 import { PageHeader } from '../../components/actions/PageHeader';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { SidePanel } from '../../components/panels/SidePanel';
@@ -8,11 +9,11 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { localToday } from '../../lib/dates';
@@ -85,26 +86,6 @@ interface Filters {
 
 /** Tabs of the settings sidebar. */
 type SettingsTab = 'display' | 'settings';
-
-/**
- * Section of the settings sidebar, framed like the managers of the settings tab.
- * @param {{ title: string, children: ReactNode }} props Component props.
- * @param {string} props.title Title of the section.
- * @param {ReactNode} props.children Content.
- * @returns {JSX.Element} Section.
- */
-function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Title order={2} size="h4">
-          {title}
-        </Title>
-        {children}
-      </Stack>
-    </Paper>
-  );
-}
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
 /** Rows of the collapsed all-day row (week and day views). */

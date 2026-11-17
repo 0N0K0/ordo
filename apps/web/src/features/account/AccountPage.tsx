@@ -1,47 +1,14 @@
 import { PageHeader } from '../../components/actions/PageHeader';
-import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
+import { SettingsSection } from '../../components/settings/SettingsSection';
+import { Alert, Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { InfoFeedbackIcon } from '../../components/feedback-icons';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../auth/api';
 import { PasswordStrength } from '../auth/PasswordStrength';
 import { FormActions } from '../../components/dialogs/FormActions';
-
-interface SectionProps {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}
-
-/**
- * Card grouping one account setting.
- * @param {SectionProps} props Component props.
- * @param {string} props.title Section title.
- * @param {string} [props.description] Short explanation. Optional.
- * @param {ReactNode} props.children Section content.
- * @returns {JSX.Element} Section card.
- */
-function Section({ title, description, children }: SectionProps) {
-  return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Stack gap={4}>
-          <Title order={2} size="h4">
-            {title}
-          </Title>
-          {description && (
-            <Text size="sm" c="dimmed">
-              {description}
-            </Text>
-          )}
-        </Stack>
-        {children}
-      </Stack>
-    </Paper>
-  );
-}
 
 /**
  * Username change form.
@@ -216,18 +183,15 @@ export function AccountPage() {
   return (
     <Stack gap="lg">
       <PageHeader title="Mon compte" />
-      <Section title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
+      <SettingsSection title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
         <UsernameForm key={user.username} user={user} />
-      </Section>
-      <Section
-        title="Adresse email"
-        description="Sert à la connexion et à la réinitialisation du mot de passe. La nouvelle adresse doit être confirmée."
-      >
+      </SettingsSection>
+      <SettingsSection title="Adresse email" description="Sert à la connexion et à la réinitialisation du mot de passe. La nouvelle adresse doit être confirmée.">
         <EmailForm user={user} />
-      </Section>
-      <Section title="Mot de passe" description="Les autres sessions ouvertes seront fermées.">
+      </SettingsSection>
+      <SettingsSection title="Mot de passe" description="Les autres sessions ouvertes seront fermées.">
         <PasswordForm user={user} />
-      </Section>
+      </SettingsSection>
     </Stack>
   );
 }

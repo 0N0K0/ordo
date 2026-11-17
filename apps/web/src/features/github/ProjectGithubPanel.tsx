@@ -1,8 +1,9 @@
 import { normalize } from '@ordo/shared';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -354,39 +355,35 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   if (!link) {
     return (
       <Stack gap="md">
-        <Paper withBorder radius="md" p="lg">
-          <Stack gap="sm">
-            <Group gap="xs">
-              <GithubLogoIcon size={20} aria-hidden />
-              <Title order={2} size="h4">
-                Lier un tableau GitHub Projects
-              </Title>
+        <SettingsSection
+          title={
+            <Group gap="xs" component="span">
+              <GithubLogoIcon size={20} aria-hidden /> Lier un tableau GitHub Projects
             </Group>
-            <Text size="sm" c="dimmed">
-              Les tâches du projet et de ses sous-projets et les items du tableau (issues et brouillons) sont synchronisés dans les deux sens.
-            </Text>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setRequested(url.trim());
-              }}
-            >
-              <Group align="flex-end" gap="sm">
-                <TextInput
-                  label="Adresse du tableau"
-                  placeholder="https://github.com/users/compte/projects/1"
-                  value={url}
-                  onChange={(event) => setUrl(event.currentTarget.value)}
-                  style={{ flex: 1 }}
-                  error={board.error?.message}
-                />
-                <Button type="submit" loading={board.isFetching} disabled={!url.trim()}>
-                  Charger
-                </Button>
-              </Group>
-            </form>
-          </Stack>
-        </Paper>
+          }
+          description={<>Les tâches du projet et de ses sous-projets et les items du tableau (issues et brouillons) sont synchronisés dans les deux sens.</>}
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setRequested(url.trim());
+            }}
+          >
+            <Group align="flex-end" gap="sm">
+              <TextInput
+                label="Adresse du tableau"
+                placeholder="https://github.com/users/compte/projects/1"
+                value={url}
+                onChange={(event) => setUrl(event.currentTarget.value)}
+                style={{ flex: 1 }}
+                error={board.error?.message}
+              />
+              <Button type="submit" loading={board.isFetching} disabled={!url.trim()}>
+                Charger
+              </Button>
+            </Group>
+          </form>
+        </SettingsSection>
         {board.data && (
           <Paper withBorder radius="md" p="lg">
             <LinkForm projectId={projectId} board={board.data} initial={guessSettings(board.data, context)} context={context} onDone={() => setRequested(null)} />

@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -8,6 +8,7 @@ import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Wor
 import { switchWorkspace } from './switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { SettingsGrid } from '../../components/settings/SettingsGrid';
+import { SettingsSection } from '../../components/settings/SettingsSection';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
@@ -212,48 +213,42 @@ export function WorkspacesManager() {
 
   return (
     <SettingsGrid>
-      <Paper withBorder radius="md" p="lg">
-        <Stack gap="sm">
-          <Title order={2} size="h4">
-            Espaces
-          </Title>
-          <Text size="sm" c="dimmed">
+      <SettingsSection
+        title="Espaces"
+        description={
+          <>
             Chaque espace a ses propres projets, tâches, temps, agenda, alarmes, boîtes mail, documents, tableaux de bord, trésorerie et paramètres. Un espace personnel n’a ni facturation, ni clients,
             ni société. Un espace peut continuer à notifier ses alarmes, rappels d’agenda et nouveaux mails quand un autre est ouvert.
-          </Text>
-          {workspaces.map((workspace, index) => (
-            <WorkspaceRow
-              key={workspace.id}
-              workspace={workspace}
-              index={index}
-              count={workspaces.length}
-              current={workspace.id === data?.currentWorkspaceId}
-              fallbackId={workspaces.find((item) => item.id !== workspace.id)?.id ?? null}
-            />
-          ))}
-        </Stack>
-      </Paper>
-      <Paper withBorder radius="md" p="lg">
-        <Stack gap="sm">
-          <Title order={2} size="h4">
-            Nouvel espace
-          </Title>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              add();
-            }}
-          >
-            <Group gap="xs" wrap="nowrap" align="flex-end">
-              <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
-              <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
-              <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
-                Ajouter
-              </Button>
-            </Group>
-          </form>
-        </Stack>
-      </Paper>
+          </>
+        }
+      >
+        {workspaces.map((workspace, index) => (
+          <WorkspaceRow
+            key={workspace.id}
+            workspace={workspace}
+            index={index}
+            count={workspaces.length}
+            current={workspace.id === data?.currentWorkspaceId}
+            fallbackId={workspaces.find((item) => item.id !== workspace.id)?.id ?? null}
+          />
+        ))}
+      </SettingsSection>
+      <SettingsSection title="Nouvel espace">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            add();
+          }}
+        >
+          <Group gap="xs" wrap="nowrap" align="flex-end">
+            <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
+            <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
+            <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
+              Ajouter
+            </Button>
+          </Group>
+        </form>
+      </SettingsSection>
     </SettingsGrid>
   );
 }

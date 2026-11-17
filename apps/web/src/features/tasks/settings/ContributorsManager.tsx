@@ -1,7 +1,7 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Avatar, Badge, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
@@ -11,6 +11,7 @@ import { useTreasurySettings } from '../../treasury/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { accountingQueryKey } from '../../accounting/api';
 import { countOf } from '../../../lib/text';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 interface ContributorsManagerProps {
   contributors: Contributor[];
@@ -75,92 +76,83 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   };
 
   return (
-    <Paper withBorder p="lg" radius="md" component="section">
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={4}>
-            <Title order={2} size="h4">
-              Contributeurs
-            </Title>
-            <Text size="sm" c="dimmed">
-              Personnes à qui les tâches peuvent être assignées. Rattachez-les aux projets où elles interviennent : seuls les contributeurs
-              d’un projet (et de ses projets parents) sont proposés dans ses tâches.
-            </Text>
-          </Stack>
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>Nouveau contributeur</ActionButton>
+    <SettingsSection
+      title="Contributeurs"
+      description={
+        <>
+          Personnes à qui les tâches peuvent être assignées. Rattachez-les aux projets où elles interviennent : seuls les contributeurs d’un projet (et de ses projets parents) sont proposés dans ses
+          tâches.
+        </>
+      }
+      actions={
+        <>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            Nouveau contributeur
+          </ActionButton>
+        </>
+      }
+    >
+      {contributors.length === 0 ? (
+        <Group gap="sm">
+          <ThemeIcon variant="light" color="gray" radius="xl">
+            <UsersIcon aria-hidden />
+          </ThemeIcon>
+          <EmptyState compact message="Aucun contributeur pour le moment." />
         </Group>
-        {contributors.length === 0 ? (
-          <Group gap="sm">
-            <ThemeIcon variant="light" color="gray" radius="xl">
-              <UsersIcon aria-hidden />
-            </ThemeIcon>
-            <EmptyState compact message="Aucun contributeur pour le moment." />
-          </Group>
-        ) : (
-          <Stack gap="xs">
-            {contributors.map((contributor) => (
-              <Group key={contributor.id} gap="sm" wrap="nowrap">
-                <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" />
-                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                  <Group gap={6} wrap="nowrap">
-                    <Text size="sm" fw={500} truncate>
-                      {contributor.name}
-                    </Text>
-                    {contributor.isMe && (
-                      <Badge size="xs" variant="light">
-                        Moi
-                      </Badge>
-                    )}
-                    {/* A member of the team or household, or a relation: never both. */}
-                    {!contributor.isMe && memberIds.has(contributor.id) && (
-                      <Badge size="xs" variant="light" color="blue">
-                        Membre
-                      </Badge>
-                    )}
-                    {relationOf.has(contributor.id) && (
-                      <Tooltip label={`Relation « ${relationOf.get(contributor.id)} »`}>
-                        <Badge size="xs" variant="light" color="grape">
-                          Relation
-                        </Badge>
-                      </Tooltip>
-                    )}
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    @{contributor.handle}
-                    {(usage.get(contributor.id) ?? 0) > 0 && ` · ${usage.get(contributor.id)} tâche(s)`}
+      ) : (
+        <Stack gap="xs">
+          {contributors.map((contributor) => (
+            <Group key={contributor.id} gap="sm" wrap="nowrap">
+              <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" />
+              <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="sm" fw={500} truncate>
+                    {contributor.name}
                   </Text>
-                  <Text size="xs" c="dimmed" truncate>
-                    {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
-                  </Text>
-                </Stack>
-                <Tooltip label="Modifier">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Modifier ${contributor.name}`}
-                    onClick={() => openForm(contributor)}
-                  >
-                    <PencilSimpleIcon aria-hidden />
+                  {contributor.isMe && (
+                    <Badge size="xs" variant="light">
+                      Moi
+                    </Badge>
+                  )}
+                  {/* A member of the team or household, or a relation: never both. */}
+                  {!contributor.isMe && memberIds.has(contributor.id) && (
+                    <Badge size="xs" variant="light" color="blue">
+                      Membre
+                    </Badge>
+                  )}
+                  {relationOf.has(contributor.id) && (
+                    <Tooltip label={`Relation « ${relationOf.get(contributor.id)} »`}>
+                      <Badge size="xs" variant="light" color="grape">
+                        Relation
+                      </Badge>
+                    </Tooltip>
+                  )}
+                </Group>
+                <Text size="xs" c="dimmed">
+                  @{contributor.handle}
+                  {(usage.get(contributor.id) ?? 0) > 0 && ` · ${usage.get(contributor.id)} tâche(s)`}
+                </Text>
+                <Text size="xs" c="dimmed" truncate>
+                  {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
+                </Text>
+              </Stack>
+              <Tooltip label="Modifier">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${contributor.name}`} onClick={() => openForm(contributor)}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              {/* The user's own profile cannot be deleted. */}
+              {!contributor.isMe && (
+                <Tooltip label="Supprimer">
+                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${contributor.name}`} onClick={() => confirmDelete(contributor)}>
+                    <TrashIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
-                {/* The user's own profile cannot be deleted. */}
-                {!contributor.isMe && (
-                  <Tooltip label="Supprimer">
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label={`Supprimer ${contributor.name}`}
-                      onClick={() => confirmDelete(contributor)}
-                    >
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                )}
-              </Group>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </Paper>
+              )}
+            </Group>
+          ))}
+        </Stack>
+      )}
+    </SettingsSection>
   );
 }

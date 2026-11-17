@@ -77,6 +77,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Un composant inutilisé :** `components/actions/SectionHeader.tsx` existe mais n'est importé nulle part.
 - **Cible :** une `SettingsSection` construite sur `SectionHeader`, que `SettingsList` utiliserait aussi.
 
+**Fait** : `SettingsSection` (`components/settings/SettingsSection.tsx`), construite sur `SectionHeader`, dans 22 cartes : utilisateurs, calendriers, comptes mail, espaces, GitHub, compte, entreprise, facturation, équipe et paramètres de la trésorerie, colonnes par défaut, et `SettingsList` elle-même. Une seule taille de titre. Deux copies locales (compte, agenda) sont supprimées. Restent à part les sections de l'éditeur de documents (`EditorSection`, plus denses) et les cartes des pages de la trésorerie (budgets), qui ne sont pas des paramètres.
+
 ### 9. Parcours d'arbres et chemins réécrits
 
 - **Web :**
