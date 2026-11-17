@@ -13,6 +13,9 @@ import { EditableMultiSelect } from '../../components/data-table/EditableCells';
 import { StackedValues } from '../../components/data-table/StackedValues';
 import { openRoutineForm } from './open-routine-form';
 import { OpensOnInput } from './OpensOnInput';
+import { opensText } from './opens-format';
+import { opensFits, readOpens } from '@ordo/shared';
+import * as fmt from '../../lib/format';
 import { ruleOf } from './routine-format';
 import { ROUTINE_REMINDERS } from './routine-format';
 
@@ -234,30 +237,35 @@ export function RemindersCell({ routine }: { routine: Routine }) {
 }
 
 /**
- * « À partir du » cell: the day of the period an occurrence can be done from (monthly or yearly routines only).
+ * « À partir du » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
  * @param {{ routine: Routine }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function OpensOnCell({ routine }: { routine: Routine }) {
   const { apply } = useRoutineCellEdit(routine, 'opensOn');
-  const rule = ruleOf(routine);
-  const frequency = rule?.frequency;
-  if ((routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
-    return null;
-  }
-  const text = routine.opensOn ? (routine.opensOn.includes('-') ? `Le ${routine.opensOn.slice(3)}/${routine.opensOn.slice(0, 2)}` : `Le ${Number(routine.opensOn)}`) : '—';
+  const frequency = ruleOf(routine)?.frequency;
+  if ((routine.cases as unknown[] | null)?.length || !frequency) return null;
+  const opens = readOpens(routine.opensOn);
+  const words = opens ? opensText(opens, frequency) : '';
+  const text = words ? fmt.capitalize(words) : '—';
   return (
     <Popover position="bottom-start" withinPortal shadow="md" width={320}>
       <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={routine.opensOn ? undefined : 'dimmed'} onClick={stop}>
+        <Anchor component="button" type="button" size="sm" c={words ? undefined : 'dimmed'} onClick={stop}>
           {text}
         </Anchor>
       </Popover.Target>
       <Popover.Dropdown onClick={stop}>
         <OpensOnInput
           frequency={frequency}
-          value={routine.opensOn ?? null} // The day is that of a month, or of a year: only routines of the same frequency take it.
-          onChange={(opensOn) => apply((target) => (hasOwnTimes(target) && ruleOf(target)?.frequency === frequency ? { opensOn } : {}))}
+          value={opens}
+          // A day of a month, or of a year: only the routines whose rule it fits take it.
+          onChange={(opensOn) =>
+            apply((target) => {
+              const targetFrequency = ruleOf(target)?.frequency;
+              return hasOwnTimes(target) && targetFrequency && (!opensOn || opensFits(opensOn, targetFrequency)) ? { opensOn } : {};
+            })
+          }
         />
       </Popover.Dropdown>
     </Popover>

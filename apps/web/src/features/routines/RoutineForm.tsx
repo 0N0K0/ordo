@@ -1,5 +1,5 @@
 import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import { opensOnFits, readSlotCondition, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensFits, readOpens, readSlotCondition, type RoutineOpens, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
@@ -39,7 +39,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   projectId: string | null;
   assigneeIds: string[];
   requiredIds: string[];
-  opensOn: string | null;
+  opensOn: RoutineOpens | null;
   beneficiaryIds: string[];
   beneficiaryRelationIds: string[];
 }
@@ -117,7 +117,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       requiredIds: routine?.requiredIds ?? [],
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
-      opensOn: routine?.opensOn ?? null,
+      opensOn: readOpens(routine?.opensOn),
     },
     schema: routineSchema,
   });
@@ -138,8 +138,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     );
 
   const handleSubmit = form.onSubmit((values) => {
-    // « À partir du » only for a monthly or yearly rule: dropped when the repetition changed.
-    const opensOn = values.opensOn && opensOnFits(values.opensOn, values) ? values.opensOn : null;
+    // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
+    const opensOn = values.opensOn && !values.cases.length && opensFits(values.opensOn, values.recurrence.frequency) ? values.opensOn : null;
     const input = { ...values, description: values.description || null, opensOn };
     const callbacks = {
       onSuccess: () => {

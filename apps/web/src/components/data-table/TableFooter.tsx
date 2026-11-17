@@ -112,13 +112,13 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
 
 /**
  * Footer of a group of rows: the totals chosen in the footer of the table, over the rows of the group.
- * @param {Omit<TableFooterProps<R>, 'onChange'> & { label: string }} props Columns, rows of the group, totals, cells around, name of the group.
+ * @param {Omit<TableFooterProps<R>, 'onChange'> & { label: string, trProps?: Record<string, unknown> }} props Columns, rows of the group, totals, cells around, name of the group, props of its row.
  * @returns {JSX.Element | null} Row (none while no total is chosen).
  */
-export function GroupFooter<R>({ shown, rows, totals, before, after, label }: Omit<TableFooterProps<R>, 'onChange'> & { label: string }) {
+export function GroupFooter<R>({ shown, rows, totals, before, after, label, trProps }: Omit<TableFooterProps<R>, 'onChange'> & { label: string; trProps?: Record<string, unknown> }) {
   if (!shown.some((column) => totals[column.id])) return null;
   return (
-    <Table.Tr bg="var(--mantine-color-default-hover)" aria-label={`Totaux de ${label}`}>
+    <Table.Tr {...trProps} bg="var(--mantine-color-default-hover)" aria-label={`Totaux de ${label}`}>
       {before > 0 && <Table.Td colSpan={before} />}
       {shown.map((column) => {
         const chosen = totals[column.id];

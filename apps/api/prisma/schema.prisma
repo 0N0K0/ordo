@@ -2899,9 +2899,9 @@ model Routine {
   slotCondition  Json?
   /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
   reminders      Int[]               @default([])
-  /// Day each occurrence can be done from, before its due date: "DD" (monthly repetition), "MM-DD" (yearly); null: on
-  /// its due date.
-  opensOn        String?
+  /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
+  /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
+  opensOn        Json?
   /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
   /// (on the working hours in a professional workspace).
   slotRule       Json?

@@ -311,7 +311,7 @@ export function ProjectPage() {
           <TaskBoard
             key={project.id}
             projectId={project.id}
-            baseFilter={baseFilter}
+            projectIds={tree}
             title={project.title}
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."

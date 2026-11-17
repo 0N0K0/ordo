@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text } from '@mantine/core';
+import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
@@ -6,6 +6,9 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from './api';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import * as fmt from '../../lib/format';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
+import { useDataView } from '../../components/data-table/use-data-view';
 
 /** Days between a bank operation and an entry or forecast of the same amount for them to match. */
 const DUPLICATE_DAYS = 3;
@@ -68,6 +71,13 @@ interface PreviewRow extends StatementRow {
   /** Forecast of the same amount around that day. */
   forecast: { id: string; occurrence: string; label: string } | null;
 }
+
+/** Columns of the preview of the import. */
+const PREVIEW_COLUMNS: DataColumn<PreviewRow>[] = [
+  { id: 'date', label: 'Date', size: 120, sortValue: (row) => row.date, text: (row) => fmt.day(row.date), filter: { kind: 'date', value: (row) => row.date } },
+  { id: 'label', label: 'Libellé', size: 360, locked: true, sortValue: (row) => row.label, text: (row) => row.label },
+  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (row) => row.amount, text: (row) => fmt.money(row.amount), formatTotal: fmt.money },
+];
 
 interface StatementImportProps {
   accounts: TreasuryAccount[];
@@ -147,6 +157,21 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
     });
   }, [rows, existing.data, forecasts.data, accountId, range]);
   const chosen = preview.filter((row) => (row.duplicate ? excluded.has(row.key) : !excluded.has(row.key)));
+  /**
+   * Whether an operation is imported: ticked (a duplicate only when ticked by hand).
+   * @param {PreviewRow} row Operation.
+   * @returns {boolean} Imported.
+   */
+  const ticked = (row: PreviewRow) => (row.duplicate ? excluded.has(row.key) : !excluded.has(row.key));
+  // The first lines of the file, column by column, to map them.
+  const rawRows = useMemo(() => raw.map((cells, index) => ({ index, cells })), [raw]);
+  const rawColumns = useMemo(
+    (): DataColumn<{ index: number; cells: string[] }>[] =>
+      Array.from({ length: columns }, (_, index) => ({ id: `c${index}`, label: String(index + 1), size: 110, filter: false, groupable: false, text: (row) => row.cells[index] ?? '' })),
+    [columns],
+  );
+  const rawView = useDataView({ tableKey: 'statement-import-file', columns: rawColumns, rows: rawRows, title: 'Relevé', getKey: (row) => String(row.index) });
+  const previewView = useDataView({ tableKey: 'statement-import-preview', columns: PREVIEW_COLUMNS, rows: preview, title: 'Opérations', getKey: (row) => String(row.key) });
 
   /**
    * Reads the file chosen, with the mapping of the account (or a guessed one).
@@ -237,26 +262,19 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
     const single = mapping.amountColumn !== null;
     return (
       <Stack gap="sm">
-        <ScrollArea type="auto" offsetScrollbars>
-          <Table withTableBorder withColumnBorders fz="xs" verticalSpacing={2} miw={columns * 110}>
-            <Table.Thead>
-              <Table.Tr>
-                {Array.from({ length: columns }, (_, index) => (
-                  <Table.Th key={index}>{index + 1}</Table.Th>
-                ))}
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {raw.map((cells, rowIndex) => (
-                <Table.Tr key={rowIndex} opacity={rowIndex < mapping.skipRows ? 0.4 : 1}>
-                  {Array.from({ length: columns }, (_, index) => (
-                    <Table.Td key={index}>{cells[index] ?? ''}</Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
+        <DataTable
+          view={rawView}
+          getKey={(row) => String(row.index)}
+          toolbar={false}
+          maxHeight={320}
+          withColumnBorders
+          fz="xs"
+          verticalSpacing={2}
+          rowProps={(row) => ({ opacity: row.index < mapping.skipRows ? 0.4 : 1 })}
+          cells={(row) => Object.fromEntries(Array.from({ length: columns }, (_, index) => [`c${index}`, row.cells[index] ?? '']))}
+          actions={() => null}
+          actionsWidth={8}
+        />
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <Select
             label="Séparateur"
@@ -357,81 +375,82 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           {duplicates > 1 ? 's' : ''}.
         </Alert>
       )}
-      <ScrollArea.Autosize mah="55vh" type="auto">
-        <Table verticalSpacing={4} stickyHeader>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th w={1}>
+      <DataTable
+        view={previewView}
+        getKey={(row) => String(row.key)}
+        toolbar={false}
+        maxHeight="55vh"
+        verticalSpacing={4}
+        rowProps={(row) => ({ opacity: ticked(row) ? 1 : 0.5 })}
+        leading={{
+          width: 36,
+          header: (
+            <Checkbox
+              size="xs"
+              aria-label="Tout cocher"
+              checked={chosen.length === preview.length}
+              indeterminate={chosen.length > 0 && chosen.length < preview.length}
+              onChange={(event) =>
+                setExcluded(
+                  event.currentTarget.checked ? new Set(preview.filter((row) => row.duplicate).map((row) => row.key)) : new Set(preview.filter((row) => !row.duplicate).map((row) => row.key)),
+                )
+              }
+            />
+          ),
+          cell: (row) => (
+            <Checkbox
+              size="xs"
+              aria-label={`Importer ${row.label}`}
+              checked={ticked(row)}
+              onChange={() =>
+                setExcluded((current) => {
+                  const next = new Set(current);
+                  if (next.has(row.key)) next.delete(row.key);
+                  else next.add(row.key);
+                  return next;
+                })
+              }
+            />
+          ),
+        }}
+        cells={(row) => ({
+          date: <span style={{ whiteSpace: 'nowrap' }}>{fmt.day(row.date)}</span>,
+          label: (
+            <>
+              <Text size="sm">{row.label}</Text>
+              {row.duplicate && (
+                <Badge size="xs" variant="light" color="yellow">
+                  Déjà saisie ? « {row.duplicate} »
+                </Badge>
+              )}
+              {row.forecast && (
                 <Checkbox
-                  aria-label="Tout cocher"
-                  checked={chosen.length === preview.length}
-                  indeterminate={chosen.length > 0 && chosen.length < preview.length}
-                  onChange={(event) =>
-                    setExcluded(
-                      event.currentTarget.checked ? new Set(preview.filter((row) => row.duplicate).map((row) => row.key)) : new Set(preview.filter((row) => !row.duplicate).map((row) => row.key)),
-                    )
+                  size="xs"
+                  mt={4}
+                  label={`Réalise la prévision « ${row.forecast.label} » du ${fmt.day(row.forecast.occurrence)}`}
+                  checked={!notRealized.has(row.key)}
+                  onChange={() =>
+                    setNotRealized((current) => {
+                      const next = new Set(current);
+                      if (next.has(row.key)) next.delete(row.key);
+                      else next.add(row.key);
+                      return next;
+                    })
                   }
                 />
-              </Table.Th>
-              <Table.Th>Date</Table.Th>
-              <Table.Th>Libellé</Table.Th>
-              <Table.Th ta="right">Montant</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {preview.map((row) => {
-              const ticked = row.duplicate ? excluded.has(row.key) : !excluded.has(row.key);
-              return (
-                <Table.Tr key={row.key} opacity={ticked ? 1 : 0.5}>
-                  <Table.Td>
-                    <Checkbox
-                      aria-label={`Importer ${row.label}`}
-                      checked={ticked}
-                      onChange={() =>
-                        setExcluded((current) => {
-                          const next = new Set(current);
-                          if (next.has(row.key)) next.delete(row.key);
-                          else next.add(row.key);
-                          return next;
-                        })
-                      }
-                    />
-                  </Table.Td>
-                  <Table.Td style={{ whiteSpace: 'nowrap' }}>{fmt.day(row.date)}</Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{row.label}</Text>
-                    {row.duplicate && (
-                      <Badge size="xs" variant="light" color="yellow">
-                        Déjà saisie ? « {row.duplicate} »
-                      </Badge>
-                    )}
-                    {row.forecast && (
-                      <Checkbox
-                        size="xs"
-                        mt={4}
-                        label={`Réalise la prévision « ${row.forecast.label} » du ${fmt.day(row.forecast.occurrence)}`}
-                        checked={!notRealized.has(row.key)}
-                        onChange={() =>
-                          setNotRealized((current) => {
-                            const next = new Set(current);
-                            if (next.has(row.key)) next.delete(row.key);
-                            else next.add(row.key);
-                            return next;
-                          })
-                        }
-                      />
-                    )}
-                  </Table.Td>
-                  <Table.Td ta="right" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                    {row.amount > 0 ? '+' : ''}
-                    {fmt.money(row.amount)}
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
-      </ScrollArea.Autosize>
+              )}
+            </>
+          ),
+          amount: (
+            <Text span size="sm" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
+              {row.amount > 0 ? '+' : ''}
+              {fmt.money(row.amount)}
+            </Text>
+          ),
+        })}
+        actions={() => null}
+        actionsWidth={8}
+      />
       <Group justify="flex-end">
         <Button variant="default" onClick={() => setStep('columns')}>
           Retour

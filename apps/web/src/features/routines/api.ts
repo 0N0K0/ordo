@@ -1,5 +1,15 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { readSlotCondition, type Recurrence, type RoutineCategoryInput, type RoutineInput } from '@ordo/shared';
+import {
+  readSlotCondition,
+  type Recurrence,
+  type RoutineCategoryInput,
+  type RoutineInput,
+  type RoutineMoveTimes,
+  type RoutineOpens,
+  type RoutineCaseInput,
+  type RoutineSlot,
+  type SlotCondition,
+} from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
@@ -149,8 +159,8 @@ const SetRoutineDoneDocument = graphql(`
 `);
 
 const MoveRoutineOccurrenceDocument = graphql(`
-  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {
-    moveRoutineOccurrence(id: $id, date: $date, to: $to)
+  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {
+    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)
   }
 `);
 
@@ -428,11 +438,15 @@ export interface RoutinePatchValues {
   travelBefore?: number;
   travelAfter?: number;
   reminders?: number[];
-  opensOn?: string | null;
+  opensOn?: RoutineOpens | null;
   fromTime?: string | null;
   dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
+  /** Whole repetition (with recurrence): its cases (empty: its rule), moments and condition. */
+  cases?: RoutineCaseInput[];
+  moments?: RoutineSlot[];
+  slotCondition?: SlotCondition | null;
 }
 
 /** Same changes for several routines: values set, or ids added to and removed from their lists. */
@@ -449,6 +463,11 @@ export interface RoutineBulkChanges {
   dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
+  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « à partir du ». */
+  cases?: RoutineCaseInput[];
+  moments?: RoutineSlot[];
+  slotCondition?: SlotCondition | null;
+  opensOn?: RoutineOpens | null;
 }
 
 /**
@@ -540,7 +559,9 @@ export function useRoutineMutations() {
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
-    moveOccurrence: useRoutineMutation(async (variables: { id: string; date: string; to: string }) => (await execute(MoveRoutineOccurrenceDocument, variables)).moveRoutineOccurrence),
+    moveOccurrence: useRoutineMutation(
+      async (variables: { id: string; date: string; to: string; times?: RoutineMoveTimes }) => (await execute(MoveRoutineOccurrenceDocument, variables)).moveRoutineOccurrence,
+    ),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
         (await execute(ChangeRoutineOccurrenceDocument, variables as never)).changeRoutineOccurrence,

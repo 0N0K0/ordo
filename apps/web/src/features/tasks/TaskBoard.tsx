@@ -1,297 +1,404 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Alert, Paper, Stack } from '@mantine/core';
-import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
-import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
-import type { RowSelectionState } from '@tanstack/react-table';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert, Group, Select, Switch, Text, Tooltip } from '@mantine/core';
+import { addDays, EVENT_PERIODS, filterPeriod, TASK_GROUP_BY, type EventPeriod, type TaskColumn, type TaskGroupBy } from '@ordo/shared';
+import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
+import { DataTable, type RowMove } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
+import { ALL_COLUMNS } from '../../components/data-table/bulk-selection';
+import { useDataView, useTableViews, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
-import { useCalendarEvents } from '../calendar/api';
-import { useMatchingTaskIds, type Task } from './api';
-import { TaskTable } from './TaskTable';
-import type { CellSelection } from './views/cell-edit';
-import { COLUMN_FILTER_FIELDS } from './views/columns-meta';
-import { useTaskActions } from './use-task-actions';
-import { useTaskContext } from './use-task-context';
-import { BulkBar } from './views/BulkBar';
-import { newCondition, nodeId, pruneFilter } from './views/filter-meta';
-import { eventMatches, eventMatchesSearch } from './views/event-rows';
-import { downloadCsv, downloadPdf, exportTable } from './views/export';
-import { buildRows, taskIdOfRow } from './views/task-rows';
-import { useTaskView } from './views/use-task-view';
-import { ViewTabs } from './views/ViewTabs';
-import { ViewToolbar } from './views/ViewToolbar';
-import { sprintPeriod } from './views/sprint-period';
-import classes from './TaskBoard.module.css';
 import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
+import { useTaskAlarmCounts } from '../alarms/api';
+import { useCalendarEvents } from '../calendar/api';
+import { useCommentCounts } from '../comments/api';
+import { commentTotal } from '../comments/comment-column';
+import { useShoppingLists } from '../shopping/api';
+import { useBulkTaskMutations, useMoveTask, useTasksData, type BulkChanges, type Task } from './api';
+import { eventKey, taskColumns, type TaskTableRow } from './task-columns';
+import { TaskStateIcon } from './task-ui';
+import { useTaskActions } from './use-task-actions';
+import { taskName, useTaskContext } from './use-task-context';
+import { TASK_PARAM, useTaskLink } from './use-task-link';
+import { useTaskSelectionActions } from './views/BulkBar';
+import { CellSelectionContext, EventRowsContext, type CellSelection } from './views/cell-edit';
+import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './views/event-cells';
+import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './views/extra-cells';
+import {
+  AssigneesCell,
+  BlockedByCell,
+  DateCell,
+  EffortCell,
+  LabelCell,
+  MilestoneCell,
+  ParentCell,
+  SprintCell,
+  TagsCell,
+  TaskBeneficiariesCell,
+  TaskLinksCell,
+  TaskProjectCell,
+  TitleCell,
+} from './views/inline-cells';
+import { groupDefaults } from './views/new-task-defaults';
+import { AddTaskRow } from './views/table-extras';
+import classes from './TaskTable.module.css';
+
+/** Periods of the events listed with the tasks. */
+const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
+  thisWeek: 'Cette semaine',
+  nextWeek: 'La semaine prochaine',
+  thisMonth: 'Ce mois-ci',
+  nextMonth: 'Le mois prochain',
+  'next:7': '7 prochains jours',
+  'next:30': '30 prochains jours',
+  'next:90': '90 prochains jours',
+  'past:30': '30 derniers jours',
+};
+
+/** Views made the first time: the open tasks, mine, all. */
+const TASK_VIEWS: FirstTableView[] = [
+  { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
+  {
+    name: 'Mes tâches',
+    config: {
+      filter: {
+        type: 'group',
+        id: 'root',
+        combinator: 'and',
+        children: [
+          { type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: ['me'] },
+          { type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null },
+        ],
+      },
+    },
+  },
+  { name: 'Toutes' },
+];
 
 /**
- * Short day: "3 nov.".
- * @param {string} day YYYY-MM-DD.
- * @returns {string} Day.
+ * Number of comments of a row (its description counting as one), with its icon; nothing when none.
+ * @param {{ count: number }} props Component props.
+ * @returns {JSX.Element | null} Count.
  */
-const dayLabel = (day: string) => fmt.dayShort(day);
+function CommentCount({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <Group gap={4} wrap="nowrap" c="dimmed">
+      <ChatCircleIcon aria-hidden />
+      <Text size="sm">{count}</Text>
+    </Group>
+  );
+}
 
 interface TaskBoardProps {
-  /** Project whose tasks (sub-projects included) are listed, or null for the home page. */
+  /** Project whose views these are (its tasks and those of its sub-projects), or null for the tasks page. */
   projectId: string | null;
-  /** Filter always applied on top of the view (project tree, home period). */
-  baseFilter: FilterGroup | null;
+  /** Projects whose tasks are listed (a project and its sub-projects); none: every task. Optional. */
+  projectIds?: ReadonlySet<string>;
   /** Preselected project of new tasks. */
   createProjectId?: string;
-  /** Controls shown before the view tabs (e.g. the home period). */
+  /** Controls shown before the view tabs. */
   header?: ReactNode;
   emptyMessage: string;
-  /** What the list is, for the title of exports ("Accueil — Aujourd’hui", project title). */
+  /** What the list is, for the title of exports. */
   title: string;
-  /** Days of the events listed (home period), instead of the period chosen in the view. Dates included. */
+  /** Days of the events listed, instead of the period chosen in the view. Dates included. Optional. */
   eventRange?: { from: string; to: string };
 }
 
 /**
- * Task list of a scope: saved view tabs, view toolbar, table with inline and column edits, bulk actions, the
- * calendar events of a period when the view shows them, and exports (CSV, PDF) of what the view lists.
+ * Tasks of a scope, the data table of every table: tabs of views (« En cours », « Mes tâches », « Toutes » made at
+ * first), each with its search, filters, sorts, groups and columns; sub-tasks under their parent, each field changed in
+ * place (or on a selection of cells, or on the tasks checked), moved by drag and drop (to another place, level or
+ * group), a row adding one at the end of the table and of each group; the calendar events of a period listed with them
+ * when the view shows them.
  * @param {TaskBoardProps} props Component props.
  * @returns {JSX.Element} Board.
  */
-export function TaskBoard({ projectId, baseFilter, createProjectId, header, emptyMessage, title, eventRange }: TaskBoardProps) {
+export function TaskBoard({ projectId, projectIds, createProjectId, header, emptyMessage, title, eventRange }: TaskBoardProps) {
   const { context, isPending, error } = useTaskContext();
-  const actions = useTaskActions(context);
-  const view = useTaskView(projectId);
-  const { config, current, change } = view;
-  const [params, setParams] = useSearchParams();
-  const touch = useMediaQuery('(hover: none)');
+  const { isPending: tasksPending } = useTasksData();
+  const taskActions = useTaskActions(context);
+  const taskLink = useTaskLink();
+  const moveTask = useMoveTask();
+  const { update: bulkUpdate } = useBulkTaskMutations();
+  const selectionActions = useTaskSelectionActions(context);
+  const alarmCounts = useTaskAlarmCounts();
+  const { data: shoppingLists } = useShoppingLists();
+  const [params] = useSearchParams();
+  const openId = params.get(TASK_PARAM);
   const today = localToday();
-
-  // Selection belongs to a view: switching views starts with an empty selection.
-  const [selectionState, setSelectionState] = useState<{ viewId?: string; rows: RowSelectionState }>({ rows: {} });
-  const selection = useMemo(
-    () => (selectionState.viewId === current?.id ? selectionState.rows : {}),
-    [selectionState, current?.id],
-  );
-  const setSelection = (rows: RowSelectionState) => setSelectionState({ viewId: current?.id, rows });
-  const [cellSelection, setCellSelection] = useState<CellSelection | null>(null);
-  const [filterOpened, setFilterOpened] = useState(false);
-
-  // The API is asked once typing pauses; incomplete conditions are left out.
-  const filter = config?.filter;
-  const search = config?.search ?? '';
-  const includeArchived = config?.includeArchived ?? false;
-  const request = useMemo(() => {
-    if (!filter) return null;
-    const viewFilter = pruneFilter(filter);
-    return {
-      filter: baseFilter
-        ? { type: 'group' as const, id: 'context', combinator: 'and' as const, children: [baseFilter, viewFilter] }
-        : viewFilter,
-      search,
-      includeArchived,
-      today,
-      utcOffset: -new Date().getTimezoneOffset(),
-    };
-  }, [filter, baseFilter, search, includeArchived, today]);
-  const [query] = useDebouncedValue(request, 250);
-  const matching = useMatchingTaskIds(query);
-
-  // "@handle" links in markdown lead here: the contributor becomes an (unsaved) filter of the view.
-  // Applied once per link: the view changes before the URL parameter is removed.
-  const assigneeHandle = params.get('assignee');
-  const appliedHandle = useRef<string | null>(null);
-  useEffect(() => {
-    if (!assigneeHandle) {
-      appliedHandle.current = null;
-      return;
-    }
-    if (!context || !current || appliedHandle.current === assigneeHandle) return;
-    appliedHandle.current = assigneeHandle;
-    const contributor = context.contributors.find((item) => item.handle === assigneeHandle);
-    if (contributor) {
-      change((currentConfig) => ({
-        ...currentConfig,
-        filter: {
-          ...currentConfig.filter,
-          combinator: 'and',
-          children: [
-            ...currentConfig.filter.children,
-            {
-              type: 'condition',
-              id: nodeId(),
-              field: 'assignees',
-              operator: 'anyOf',
-              value: [contributor.isMe ? ME : contributor.id],
-            },
-          ],
-        },
-      }));
-    }
-    const next = new URLSearchParams(params);
-    next.delete('assignee');
-    setParams(next, { replace: true });
-  }, [assigneeHandle, context, current, change, params, setParams]);
-
+  const columns = useMemo(() => (context ? taskColumns(context, today) : []), [context, today]);
   const tasks = useMemo(
     () =>
-      context && matching.data
-        ? matching.data.map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined)
-        : [],
-    [context, matching.data],
+      (context?.tasks ?? [])
+        .filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))
+        .sort((a, b) => a.position - b.position || (a.number ?? 0) - (b.number ?? 0))
+        .map((task): TaskTableRow => ({ kind: 'task', key: task.id, task })),
+    [context, projectIds],
   );
 
-  // Events of the period, filtered by the view as far as their fields allow (task-only conditions leave them in).
-  const showEvents = config?.events.show ?? false;
-  const eventPeriod = config?.events.period ?? 'next:30';
-  // A view filtering sprints lists the events of their dates.
-  const sprintRange = useMemo(() => (showEvents && context && config ? sprintPeriod(config.filter, context, today) : null), [showEvents, context, config, today]);
+  // Events of a period, listed with the tasks when the view shows them (its option).
+  const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS });
+  const showEvents = views.config?.options.events === true;
+  const period = (views.config?.options.eventPeriod as EventPeriod | undefined) ?? 'next:30';
   const range = useMemo(() => {
     if (!showEvents) return null;
     if (eventRange) return eventRange;
-    if (sprintRange) return sprintRange;
-    const [from, end] = filterPeriod(eventPeriod, today, currentWeek());
+    const [from, end] = filterPeriod(period, today, currentWeek());
     return { from, to: addDays(end, -1) };
-  }, [showEvents, eventRange, sprintRange, eventPeriod, today]);
-  const eventsQuery = useCalendarEvents(range);
-  const events = useMemo(() => {
-    if (!context || !query || !range || !eventsQuery.data) return [];
-    return eventsQuery.data
-      .filter((event) => eventMatches(event, query.filter, context, today) && eventMatchesSearch(event, query.search))
-      .sort((a, b) => String(a.start).localeCompare(String(b.start)));
-  }, [context, query, range, eventsQuery.data, today]);
+  }, [showEvents, eventRange, period, today]);
+  const periodEvents = useCalendarEvents(range);
+  const eventRows = useMemo(
+    () =>
+      (periodEvents.data ?? [])
+        .filter((event) => !projectIds || (event.projectId && projectIds.has(event.projectId)))
+        .sort((a, b) => String(a.start).localeCompare(String(b.start)))
+        .map((event): TaskTableRow => ({ kind: 'event', key: eventKey(event), event })),
+    [periodEvents.data, projectIds],
+  );
+  const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
+  const view = useDataView({ tableKey: 'tasks', projectId, columns, rows, title, views, getKey: (row) => row.key, archived: (row) => row.kind === 'task' && row.task.archived });
+  const eventComments = useCommentCounts(
+    'EVENT',
+    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
+  );
+  const shownEvents = useMemo(() => view.rows.flatMap((row) => (row.kind === 'event' ? [row.event] : [])), [view.rows]);
 
-  const rows = useMemo(() => (context && config ? buildRows(tasks, events, config, context) : []), [tasks, events, config, context]);
-  const [exporting, setExporting] = useState(false);
+  // The cells of the selection (or the tasks checked), for the edits of the cells of the tasks and events.
+  const cellSelection = useMemo((): CellSelection | null => {
+    const selection = view.selection;
+    if (!selection) return null;
+    const taskIds = selection.keys.filter((key) => !key.startsWith('e:'));
+    const eventKeys = selection.keys.filter((key) => key.startsWith('e:')).map((key) => key.slice(2));
+    return { column: selection.column === ALL_COLUMNS ? '*' : (selection.column as TaskColumn), rowIds: selection.keys, taskIds, eventKeys };
+  }, [view.selection]);
 
   /**
-   * Exports what the view lists (every row, collapsed ones included) with its visible columns.
-   * @param {'csv' | 'pdf'} format Format.
+   * Saves a task dragged to another place or level (before the task now following it, under its new parent), or into
+   * another group (its status, priority, type, milestone, an assignee, a tag or a sprint replaced by the group's).
+   * @param {RowMove} drop Drop.
    * @returns {void}
    */
-  const exportRows = (format: 'csv' | 'pdf') => {
-    if (!context || !config || !current) return;
-    const taskCount = new Set(tasks.map((task) => task.id)).size;
-    const parts = [
-      `${taskCount} tâche${taskCount > 1 ? 's' : ''}`,
-      ...(showEvents ? [`${events.length} évènement${events.length > 1 ? 's' : ''} du ${dayLabel(range!.from)} au ${dayLabel(range!.to)}`] : []),
-      ...(search.trim() ? [`recherche « ${search.trim()} »`] : []),
-      `exporté le ${fmt.exportDateTime(new Date())}`,
-    ];
-    const table = exportTable({ rows, config, context, title: `${title} — ${current.name}`, subtitle: parts.join(' · ') });
-    if (format === 'csv') {
-      downloadCsv(table);
+  const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
+    const task = context?.taskById.get(key);
+    if (!task) return;
+    const onError = (moveError: Error) => notifyError(moveError.message);
+    const column = view.groupColumn?.id;
+    if (groupKey !== undefined && column) {
+      const to = groupKey || null;
+      const from = fromGroupKey || null;
+      const changes: BulkChanges | null =
+        column === 'status'
+          ? { statusId: to }
+          : column === 'priority'
+            ? { priorityId: to }
+            : column === 'type'
+              ? { typeId: to }
+              : column === 'milestone'
+                ? { milestoneId: to }
+                : column === 'assignees'
+                  ? { addAssigneeIds: to ? [to] : [], removeAssigneeIds: from ? [from] : task.assigneeIds }
+                  : column === 'tags'
+                    ? { addTagIds: to ? [to] : [], removeTagIds: from ? [from] : task.tagIds }
+                    : column === 'sprint'
+                      ? { addSprintIds: to ? [to] : [], removeSprintIds: from ? [from] : task.sprintIds }
+                      : null;
+      if (changes) bulkUpdate.mutate({ ids: [task.id], changes }, { onError });
       return;
     }
-    setExporting(true);
-    downloadPdf(table)
-      .catch((exportError: Error) => notifyError(exportError.message))
-      .finally(() => setExporting(false));
+    const before = beforeKey ? context?.taskById.get(beforeKey) : undefined;
+    moveTask.mutate({ id: task.id, beforeId: before?.id ?? null, ...(parentKey !== undefined && { parentId: parentKey }) }, { onError });
   };
 
-  // Only tasks still shown by the view count as selected (an edit can make a task leave the view).
-  const selectedTasks = useMemo(() => {
-    const ids = new Set(Object.keys(selection).filter((rowId) => selection[rowId]).map(taskIdOfRow));
-    return tasks.filter((task) => ids.has(task.id));
-  }, [selection, tasks]);
+  /**
+   * Cells of a task, each edited in place; of an event, what it has.
+   * @param {TaskTableRow} row Row.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const cells = (row: TaskTableRow): Record<string, ReactNode> => {
+    if (!context) return {};
+    const texts = Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(row)]));
+    if (row.kind === 'event') {
+      const event = row.event;
+      return {
+        ...texts,
+        comments: <CommentCount count={commentTotal(eventComments, event.eventId, event.description)} />,
+        title: <EventTitleCell event={event} context={context} />,
+        assignees: <EventPeopleCell event={event} context={context} />,
+        beneficiaries: <EventBeneficiariesCell event={event} />,
+        status: <EventStatusCell event={event} />,
+        trackedTime: <EventTimeCell event={event} />,
+        startDate: <EventWhenCell event={event} side="start" />,
+        endDate: <EventWhenCell event={event} side="end" />,
+      };
+    }
+    const task = row.task;
+    return {
+      ...texts,
+      title: (
+        <TitleCell
+          task={task}
+          context={context}
+          prefix={
+            <>
+              <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
+              {task.githubLinked && (
+                <Tooltip label={task.githubNumber ? `Synchronisée avec l’issue GitHub #${task.githubNumber}` : 'Synchronisée avec un brouillon GitHub'}>
+                  <GithubLogoIcon aria-label="GitHub" className={classes.recurring} />
+                </Tooltip>
+              )}
+              {(task.recurrence || task.seriesId) && (
+                <Tooltip label={task.seriesId ? 'Occurrence d’une tâche récurrente' : 'Tâche récurrente'}>
+                  <ArrowsClockwiseIcon aria-label="Récurrente" className={classes.recurring} />
+                </Tooltip>
+              )}
+              {alarmCounts.has(task.id) && (
+                <Tooltip label={`${alarmCounts.get(task.id)} alerte(s) active(s)`}>
+                  <AlarmIcon aria-label="Alertes" className={classes.recurring} />
+                </Tooltip>
+              )}
+            </>
+          }
+        />
+      ),
+      project: <TaskProjectCell task={task} context={context} />,
+      status: <LabelCell task={task} column="status" labels={context.statuses} />,
+      priority: <LabelCell task={task} column="priority" labels={context.priorities} />,
+      type: <LabelCell task={task} column="type" labels={context.types} />,
+      assignees: <AssigneesCell task={task} context={context} />,
+      beneficiaries: <TaskBeneficiariesCell task={task} />,
+      tags: <TagsCell task={task} context={context} />,
+      effort: <EffortCell task={task} />,
+      trackedTime: <TrackedCell task={task} />,
+      minDate: <DateCell task={task} column="minDate" />,
+      slots: <SlotsCell task={task} />,
+      timer: <TimerCell task={task} />,
+      subtasks: <SubtasksCell task={task} context={context} onAdd={() => taskActions.create({ parentId: task.id, projectId: task.projectId ?? undefined })} />,
+      progress: <ProgressCell task={task} context={context} />,
+      alarms: <AlarmsCell task={task} context={context} count={alarmCounts.get(task.id) ?? 0} />,
+      shopping: <ShoppingCell task={task} lists={shoppingLists ?? []} />,
+      startDate: <DateCell task={task} column="startDate" />,
+      endDate: <DateCell task={task} column="endDate" />,
+      deadline: <DateCell task={task} column="deadline" alert={task.deadline !== null && task.deadline < today && !context.isClosed(task)} />,
+      parent: <ParentCell task={task} context={context} />,
+      milestone: <MilestoneCell task={task} context={context} />,
+      sprint: <SprintCell task={task} context={context} />,
+      blockedBy: <BlockedByCell task={task} context={context} />,
+      blocking: <TaskLinksCell task={task} context={context} kind="blocking" />,
+      related: <TaskLinksCell task={task} context={context} kind="related" />,
+      comments: <CommentCount count={task.commentCount + (task.description?.trim() ? 1 : 0)} />,
+    };
+  };
 
   const canCreate = (context?.projects.filter((project) => !project.archived).length ?? 0) > 0;
-  // Empty because of the view (filters, search, archives hidden) or because there is no task at all.
-  const filtered = Boolean(search.trim()) || (filter?.children.length ?? 0) > 0;
-  const loading = isPending || view.isPending || (matching.isPending && query !== null);
+  const config = view.config;
+  // The group a new task goes in gives it its value (status, assignee…).
+  const groupBy = view.groupColumn && (TASK_GROUP_BY as readonly string[]).includes(view.groupColumn.id) ? (view.groupColumn.id as TaskGroupBy) : null;
 
   return (
-    <Stack gap="md">
-      {(header || canCreate || view.views.length > 0) && (
-        <div className={classes.top}>
-          {view.views.length > 0 && (
-            <div className={classes.tabs}>
-              <ViewTabs state={view} />
-            </div>
-          )}
-          {(header || canCreate) && (
-            <div className={classes.controls}>
-              {header}
-              {/* The new task at the far right, as every « Nouveau… ». */}
-              {canCreate && (
-                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
-                  Nouvelle tâche
-                </ActionButton>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {config && context && (
-        <ViewToolbar
-          config={config}
-          change={change}
-          context={context}
-          filterOpened={filterOpened}
-          onFilterOpenedChange={setFilterOpened}
-          eventPeriodLocked={Boolean(eventRange ?? sprintRange)}
-          eventPeriodLabel={!eventRange && sprintRange ? `Évènements des sprints : du ${dayLabel(sprintRange.from)} au ${dayLabel(sprintRange.to)}` : undefined}
-          onExport={exportRows}
-          exporting={exporting}
-          canExport={rows.length > 0}
-          dirty={view.dirty}
-          onSave={view.save}
-          onRevert={view.revert}
+    <CellSelectionContext.Provider value={cellSelection}>
+      <EventRowsContext.Provider value={shownEvents}>
+        {(error ?? view.views.error) && (
+          <Alert color="red" icon={<ErrorIcon />} mb="sm">
+            {(error ?? view.views.error)?.message}
+          </Alert>
+        )}
+        <DataTable
+          view={view}
+          getKey={(row) => row.key}
+          loading={isPending || tasksPending || !context}
+          framed
+          verticalSpacing={4}
+          className={classes.table}
+          bar={{
+            searchLabel: 'Rechercher (titre, numéro, description)',
+            manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
+            actions: (
+              <Group gap="sm" wrap="nowrap">
+                {header}
+                {canCreate && (
+                  <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => taskActions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
+                    Nouvelle tâche
+                  </ActionButton>
+                )}
+              </Group>
+            ),
+            displayOptions: config && (
+              <>
+                <Switch
+                  label="Afficher les évènements"
+                  checked={showEvents}
+                  onChange={(event) => {
+                    const events = event.currentTarget.checked;
+                    view.change((current) => ({ ...current, options: { ...current.options, events } }));
+                  }}
+                />
+                {showEvents && !eventRange && (
+                  <Select
+                    label="Période des évènements"
+                    data={EVENT_PERIODS.map((value) => ({ value, label: EVENT_PERIOD_LABELS[value] }))}
+                    value={period}
+                    allowDeselect={false}
+                    comboboxProps={{ withinPortal: false }}
+                    onChange={(eventPeriod) => eventPeriod && view.change((current) => ({ ...current, options: { ...current.options, eventPeriod } }))}
+                  />
+                )}
+                {showEvents && range && (
+                  <Text size="xs" c="dimmed">
+                    Du {fmt.dayShort(range.from)} au {fmt.dayShort(range.to)}
+                  </Text>
+                )}
+              </>
+            ),
+          }}
+          empty={<EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={canCreate ? emptyMessage : 'Créez d’abord un projet : chaque tâche appartient à un projet.'} />}
+          parentKey={(row) => (row.kind === 'task' ? (row.task.parentId ?? null) : null)}
+          onMoveRow={handleMove}
+          readOnly={(row) => row.kind === 'event'}
+          isActive={(row) => row.kind === 'task' && row.task.id === openId}
+          isArchived={(row) => row.kind === 'task' && row.task.archived}
+          rowProps={() => ({ className: classes.row })}
+          cells={cells}
+          actions={(row) =>
+            row.kind === 'task' && (
+              <RowActions
+                name={`la tâche ${taskName(row.task)}`}
+                primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
+                items={[
+                  { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
+                  'divider',
+                  ...taskActions.menu(row.task),
+                ]}
+              />
+            )
+          }
+          addRow={
+            context && canCreate
+              ? (group) => (
+                  <AddTaskRow
+                    context={context}
+                    defaults={group && groupBy ? groupDefaults(groupBy, group.key || 'none', context) : {}}
+                    projectId={createProjectId}
+                    onOpenForm={(defaults) => taskActions.create({ projectId: defaults.projectId, parentId: defaults.parentId ?? undefined })}
+                  />
+                )
+              : undefined
+          }
+          selectionLabel={(count) => `${count} tâche${count > 1 ? 's' : ''} sélectionnée${count > 1 ? 's' : ''}`}
+          selectionActions={(checked, clear) =>
+            selectionActions(
+              checked.flatMap((row): Task[] => (row.kind === 'task' ? [row.task] : [])),
+              clear,
+            )
+          }
         />
-      )}
-
-      {(error ?? view.error ?? matching.error) && (
-        <Alert color="red" icon={<ErrorIcon />}>
-          {(error ?? view.error ?? matching.error)?.message}
-        </Alert>
-      )}
-      {loading && !matching.data && (
-        <TableSkeleton rows={5} />
-      )}
-      {context &&
-        config &&
-        matching.data &&
-        (rows.length > 0 ? (
-          <Paper withBorder radius="md" style={{ opacity: matching.isPlaceholderData ? 0.6 : 1 }}>
-            <TaskTable
-              rows={rows}
-              config={config}
-              change={change}
-              context={context}
-              today={today}
-              selection={selection}
-              onSelectionChange={setSelection}
-              cellSelection={cellSelection}
-              onCellSelectionChange={setCellSelection}
-              onFilterColumn={(column) => {
-                const field = COLUMN_FILTER_FIELDS[column];
-                if (!field) return;
-                change((currentConfig) => ({
-                  ...currentConfig,
-                  filter: { ...currentConfig.filter, children: [...currentConfig.filter.children, newCondition(field)] },
-                }));
-                setFilterOpened(true);
-              }}
-              dndEnabled={!touch && config.sorting.length === 0 && config.groupBy === null}
-              createProjectId={createProjectId}
-              onOpenCreateForm={(defaults) =>
-                actions.create({ projectId: defaults.projectId, parentId: defaults.parentId ?? undefined })
-              }
-            />
-          </Paper>
-        ) : (
-          <EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={<>{!canCreate
-                  ? 'Créez d’abord un projet : chaque tâche appartient à un projet.'
-                  : filtered
-                    ? `Aucune tâche${showEvents ? ' ni aucun évènement' : ''} ne correspond aux filtres de cette vue.`
-                    : emptyMessage}</>} />
-        ))}
-
-      {context && selectedTasks.length > 0 && (
-        <BulkBar tasks={selectedTasks} context={context} onClear={() => setSelection({})} />
-      )}
-    </Stack>
+      </EventRowsContext.Provider>
+    </CellSelectionContext.Provider>
   );
 }

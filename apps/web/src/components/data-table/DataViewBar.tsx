@@ -1,4 +1,5 @@
-import { Button, Group, Select } from '@mantine/core';
+import { Button, Group, Select, Switch } from '@mantine/core';
+import { GROUP_PERIODS, type GroupPeriod } from '@ordo/shared';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
 import { BulkHint } from './BulkHint';
 import { useState, type ReactNode } from 'react';
@@ -6,12 +7,15 @@ import { notifyError } from '../../lib/notify';
 import { FieldsFilterBuilder } from '../../features/tasks/views/FilterBuilder';
 import { countConditions } from '../../features/tasks/views/filter-meta';
 import { ViewTabs } from '../../features/tasks/views/ViewTabs';
-import { SortPanel } from '../../features/tasks/views/ViewToolbar';
+import { SortPanel } from './SortPanel';
 import { DataColumnsPanel } from './ColumnsPanel';
-import { groupableColumns, tableFilterFields } from './table-engine';
+import { columnFilter, groupableColumns, tableFilterFields } from './table-engine';
 import { downloadTableCsv, downloadTablePdf, type TableExport } from './table-export';
 import { TableOptions, TableToolbar, ToolbarFilter, ToolbarSort } from './TableToolbar';
 import type { DataView } from './use-data-view';
+
+/** Names of the periods of a grouping on a date. */
+const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: 'Jour', WEEK: 'Semaine', MONTH: 'Mois', QUARTER: 'Trimestre', YEAR: 'Année' };
 
 /**
  * CSV and PDF buttons of the exports of a table.
@@ -71,6 +75,8 @@ export interface DataViewBarProps<R> {
   exports?: ReactNode;
   /** What the order without sort is. Optional. */
   manualText?: string;
+  /** Its rows show as a tree: the option to show them flat. Optional. Default = false. */
+  tree?: boolean;
 }
 
 /**
@@ -88,6 +94,7 @@ export function DataViewBar<R>({
   displayOptions,
   exports,
   manualText = 'Sans tri : l’ordre choisi à la main (glissez les lignes), sinon celui du tableau.',
+  tree = false,
 }: DataViewBarProps<R>) {
   const { config, views } = view;
   const sortable = view.columns.filter((column) => column.sortValue);
@@ -122,6 +129,24 @@ export function DataViewBar<R>({
                       onChange={(groupBy) => view.change((current) => ({ ...current, groupBy }))}
                       clearable
                       comboboxProps={inPanel}
+                    />
+                  )}
+                  {view.groupColumn && columnFilter(view.groupColumn)?.kind === 'date' && (
+                    <Select
+                      label="Période"
+                      data={GROUP_PERIODS.map((value) => ({ value, label: PERIOD_LABELS[value] }))}
+                      value={config.groupPeriod}
+                      onChange={(groupPeriod) => groupPeriod && view.change((current) => ({ ...current, groupPeriod: groupPeriod as GroupPeriod }))}
+                      allowDeselect={false}
+                      comboboxProps={inPanel}
+                    />
+                  )}
+                  {tree && <Switch label="Sous-éléments à plat" checked={config.flat} onChange={(event) => view.change((current) => ({ ...current, flat: event.currentTarget.checked }))} />}
+                  {view.hasArchived && (
+                    <Switch
+                      label="Inclure les archivées"
+                      checked={config.includeArchived}
+                      onChange={(event) => view.change((current) => ({ ...current, includeArchived: event.currentTarget.checked }))}
                     />
                   )}
                   {displayOptions}
