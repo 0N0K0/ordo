@@ -1,8 +1,9 @@
+import { treasuryKey } from '../../treasury/api';
 import type { QueryClient } from '@tanstack/react-query';
 import { reorderSettingsItems } from '../../../components/settings/settings-api';
 import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
 import type { ShoppingDataQuery, ShoppingListsQuery } from '../../../graphql/graphql';
@@ -407,7 +408,6 @@ const cached = (input: ShoppingItemInput) => ({
  * @returns {object} Mutations.
  */
 export function useShoppingMutations() {
-  const queryClient = useQueryClient();
   return {
     createCategory: useShoppingMutation(async (input: ShoppingCategoryInput) => (await execute(CreateCategory, { input })).createShoppingCategory),
     updateCategory: useShoppingMutation(async (variables: { id: string; input: ShoppingCategoryInput }) => (await execute(UpdateCategory, variables)).updateShoppingCategory),
@@ -456,11 +456,9 @@ export function useShoppingMutations() {
     setClosed: useShoppingMutation(async (variables: { id: string; closed: boolean }) => (await execute(SetListClosed, variables)).setShoppingListClosed),
     duplicateList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DuplicateList, { id })).duplicateShoppingList),
     deleteList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteList, { id })).deleteShoppingList),
-    attachEntry: useShoppingMutation(async (variables: { id: string; entryId: string | null }) => {
-      const done = (await execute(AttachEntry, variables)).attachShoppingListEntry;
-      // The entry got lines of split.
-      await queryClient.invalidateQueries({ queryKey: ['accounting', 'treasury'] });
-      return done;
+    // The entry gets lines of split.
+    attachEntry: useInvalidatingMutation(async (variables: { id: string; entryId: string | null }) => (await execute(AttachEntry, variables)).attachShoppingListEntry, {
+      invalidate: [shoppingKey, treasuryKey],
     }),
     addItem: useShoppingMutation(async ({ listId, input }: { listId: string; input: ShoppingItemInput }) => (await execute(AddItem, { listId, input: itemVariables(input) })).addShoppingItem),
     addProducts: useShoppingMutation(async (variables: { listId: string; productIds: string[] }) => (await execute(AddProducts, variables)).addShoppingProducts),

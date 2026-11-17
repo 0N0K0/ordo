@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -49,7 +50,8 @@ const SORTS = [
  */
 export function MailPage() {
   const { data: accounts, isPending } = useMailAccounts();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const compose = useMailComposer();
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [debouncedSearch] = useDebouncedValue(search, 400);
@@ -96,11 +98,7 @@ export function MailPage() {
   const { setOpened: setSettingsOpened } = useSettingsOpened();
   const openSettings = () => setSettingsOpened(true);
   useEffect(() => {
-    if (params.get('accounts') !== '1') return;
-    const next = new URLSearchParams(params);
-    next.delete('accounts');
-    next.set(SETTINGS_PARAM, '1');
-    setParams(next, { replace: true });
+    if (params.get('accounts') === '1') setParams({ accounts: null, [SETTINGS_PARAM]: '1' });
   }, [params, setParams]);
   const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
@@ -110,14 +108,7 @@ export function MailPage() {
    * @param {Record<string, string | null>} changes Parameters; null removes one.
    * @returns {void}
    */
-  const update = (changes: Record<string, string | null>) => {
-    const next = new URLSearchParams(params);
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === null) next.delete(key);
-      else next.set(key, value);
-    }
-    setParams(next, { replace: true });
-  };
+  const update = (changes: Record<string, string | null>) => setParams(changes);
 
   if (!isPending && accounts?.length === 0) {
     return (

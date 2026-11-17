@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { ancestorsOf, mapById } from '@ordo/shared';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
@@ -127,7 +128,8 @@ export function ProjectPage() {
   const actions = useEntityActions();
   // No invoicing nor clients in a personal workspace.
   const { perso } = useActiveWorkspace();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   // The former tabs of the settings (links, bookmarks) open their section.
   const requested = params.get('tab') ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
@@ -139,7 +141,7 @@ export function ProjectPage() {
   // The former settings tab (and its sections): the settings, in the sidebar.
   useEffect(() => {
     if (!legacy && requested !== 'settings') return;
-    setParams({ [SETTINGS_PARAM]: '1', section }, { replace: true });
+    setParams({ [SETTINGS_PARAM]: '1', section }, { only: true });
   }, [legacy, requested, section, setParams]);
 
   if (isPending) return <EntitySkeleton />;
@@ -194,14 +196,8 @@ export function ProjectPage() {
         value={tab}
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1', section } : {});
-              if (value && value !== 'overview') next.set('tab', value);
-              return next;
-            },
-            { replace: true },
-          );
+          const settings = params.get(SETTINGS_PARAM);
+          setParams({ [SETTINGS_PARAM]: settings, section: settings ? section : null, tab: value && value !== 'overview' ? value : null }, { only: true });
         }}
         keepMounted={false}
       >
@@ -322,14 +318,7 @@ export function ProjectPage() {
           project={project}
           section={section}
           onSection={(next) =>
-            setParams(
-              (current) => {
-                const updated = new URLSearchParams(current);
-                updated.set('section', next);
-                return updated;
-              },
-              { replace: true },
-            )
+            setParams({ section: next })
           }
         />
       </PageSettings>

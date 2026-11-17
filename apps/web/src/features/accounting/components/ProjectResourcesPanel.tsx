@@ -1,9 +1,10 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -141,28 +142,15 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                     </Text>
                   </Stack>
                 </Group>
-                <Group gap={2} wrap="nowrap">
-                  <Tooltip label="Monter">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Monter ${resource.title}`} disabled={index === 0} onClick={() => move.mutate({ id: resource.id, index: index - 1 })}>
-                      <ArrowUpIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Descendre">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Descendre ${resource.title}`} disabled={index === resources.length - 1} onClick={() => move.mutate({ id: resource.id, index: index + 1 })}>
-                      <ArrowDownIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Modifier">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${resource.title}`} onClick={() => openForm(resource)}>
-                      <PencilSimpleIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Supprimer">
-                    <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${resource.title}`} onClick={() => confirmDelete(resource)}>
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
+                <InlineActions
+                  name={resource.title}
+                  items={[
+                    { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: resource.id, index: index - 1 }) },
+                    { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === resources.length - 1, onClick: () => move.mutate({ id: resource.id, index: index + 1 }) },
+                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(resource) },
+                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(resource) },
+                  ]}
+                />
               </Group>
             ))}
           </Stack>

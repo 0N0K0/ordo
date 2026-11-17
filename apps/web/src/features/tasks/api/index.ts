@@ -1,3 +1,4 @@
+import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { byPosition, readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
@@ -619,9 +620,10 @@ export function useContributorMutations() {
         input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] };
       }) => (await execute(UpdateContributorDocument, variables)).updateContributor,
     ),
-    remove: useTasksMutation(
-      async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor,
-    ),
+    // Members and relations (treasury) follow: a relation loses its contributor.
+    remove: useInvalidatingMutation(async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor, {
+      invalidate: [tasksQueryKey, accountingQueryKey],
+    }),
     setProjectContributors: useTasksMutation(
       async (variables: { projectId: string; contributorIds: string[] }) =>
         (await execute(SetProjectContributorsDocument, variables)).setProjectContributors,

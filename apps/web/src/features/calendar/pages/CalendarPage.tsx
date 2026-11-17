@@ -1,8 +1,10 @@
+import { openFormPanel } from '../../../components/panels/panels';
+import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -39,7 +41,6 @@ import {
   useDefaultScheduleKind,
   useSubscribedSchedules,
   useWorkSchedules,
-  type CalendarSubscription,
   type EventOccurrence,
 } from '../api';
 import { askScope } from '../lib/ask-scope';
@@ -50,7 +51,7 @@ import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
-import { SubscribedEventModal } from '../components/SubscribedEventModal';
+import { SubscribedEvent } from '../components/SubscribedEvent';
 import { useEventForm } from '../hooks/use-event-form';
 import { CalendarCategoriesManager } from '../components/CalendarCategoriesManager';
 import { CalendarsManager } from '../components/CalendarsManager';
@@ -136,10 +137,6 @@ export function CalendarPage() {
   const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
   const subscribedEvents = useSubscribedCalendarEvents(shownSubscriptions.length > 0 ? range : null);
-  const [openedSubscribed, setOpenedSubscribed] = useState<{
-    occurrence: EventOccurrence;
-    subscription: CalendarSubscription;
-  } | null>(null);
   const materialize = useMaterializeTaskOccurrences();
   const { update } = useCalendarEventMutations();
   const updateTask = useUpdateTask();
@@ -168,15 +165,14 @@ export function CalendarPage() {
   // Slots of the schedules of the workspace shown as events, to move, stretch, change or delete.
   const [editingSlots, setEditingSlots] = useState(false);
   // A date to show (link to a postponed event…).
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const requestedDate = params.get('date');
   useEffect(() => {
     if (!requestedDate) return;
     calendarRef.current?.getApi().gotoDate(requestedDate);
-    const next = new URLSearchParams(params);
-    next.delete('date');
-    setParams(next, { replace: true });
-  }, [requestedDate, params, setParams]);
+    setParams({ date: null });
+  }, [requestedDate, setParams]);
 
   // Occurrences of recurring tasks exist once their period is displayed.
   const materializeMutate = materialize.mutate;
@@ -729,7 +725,6 @@ export function CalendarPage() {
   };
 
   const api = () => calendarRef.current?.getApi();
-  const [managingSchedules, setManagingSchedules] = useState(false);
   const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({
     key: 'ordo.calendar.settingsTab',
     defaultValue: 'display',
@@ -812,7 +807,7 @@ export function CalendarPage() {
           </Text>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
+          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(perso ? 'Plages' : 'Plages de travail', () => <WorkSchedulesManager />, 'lg')}>
             {perso ? 'Plages' : 'Plages de travail'}
           </ActionButton>
           <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
@@ -836,7 +831,6 @@ export function CalendarPage() {
           {(events.error ?? materialize.error ?? subscribedEvents.error)?.message}
         </Alert>
       )}
-      <SubscribedEventModal opened={openedSubscribed} onClose={() => setOpenedSubscribed(null)} />
       {/*
        * In the settings sidebar (?settings=1): first what the agenda shows and its export; then
        * the calendars, subscriptions, categories, kinds of slots and places.
@@ -984,9 +978,6 @@ export function CalendarPage() {
           </Tabs.Panel>
         </Tabs>
       </PageSettings>
-      <SidePanel opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="lg">
-        {managingSchedules && <WorkSchedulesManager />}
-      </SidePanel>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
@@ -1089,10 +1080,9 @@ export function CalendarPage() {
               edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')
-              setOpenedSubscribed({
-                occurrence: info.event.extendedProps.occurrence,
-                subscription: info.event.extendedProps.subscription,
-              });
+              openFormPanel(info.event.extendedProps.occurrence.title, (close) => (
+                <SubscribedEvent occurrence={info.event.extendedProps.occurrence} subscription={info.event.extendedProps.subscription} onClose={close} />
+              ));
             else openEvent({ occurrence: info.event.extendedProps.occurrence });
           }}
           eventDrop={(info) => void handleChange(info)}

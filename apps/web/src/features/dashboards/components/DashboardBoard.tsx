@@ -1,3 +1,5 @@
+import { DragHandle } from '../../../components/actions/DragHandle';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -6,7 +8,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Alert, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Alert, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -19,8 +21,6 @@ import {
   CheckSquareOffsetIcon,
   ReceiptIcon,
   CopyIcon,
-  DotsSixVerticalIcon,
-  DotsThreeIcon,
   FileImageIcon,
   FilePdfIcon,
   PencilSimpleIcon,
@@ -230,19 +230,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Tooltip label="Déplacer">
-            <ActionIcon
-              ref={setActivatorNodeRef}
-              variant="subtle"
-              color="gray"
-              aria-label={`Déplacer ${chart.title}`}
-              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
-              {...attributes}
-              {...listeners}
-            >
-              <DotsSixVerticalIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <DragHandle label={`Déplacer ${chart.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}
@@ -252,87 +240,51 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               {data && ` · ${countLabel(config, data.taskCount)}`}
             </Text>
           </Stack>
-          <Menu position="bottom-end" shadow="md" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur ${chart.title}`} loading={exporting}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={onEdit}>
-                Modifier
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<CopyIcon aria-hidden />}
-                onClick={() =>
-                  duplicateChart.mutate(chart.id, {
-                    onError: onMutationError,
-                  })
-                }
-              >
-                Dupliquer
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<ArrowsHorizontalIcon aria-hidden />}
-                onClick={() =>
-                  updateChart.mutate(
-                    {
-                      id: chart.id,
-                      input: { title: chart.title, config, wide: !chart.wide },
-                    },
-                    {
-                      onError: onMutationError,
-                    },
-                  )
-                }
-              >
-                {chart.wide ? 'Demi-largeur' : 'Pleine largeur'}
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowUpIcon aria-hidden />} disabled={index === 0} onClick={() => moveChart.mutate({ id: chart.id, index: index - 1 })}>
-                Avancer
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === count - 1} onClick={() => moveChart.mutate({ id: chart.id, index: index + 1 })}>
-                Reculer
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<ArrowBendUpRightIcon aria-hidden />}
-                onClick={() => {
+          <ActionsMenu
+            name={chart.title}
+            loading={exporting}
+            items={[
+              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, { onError: onMutationError }) },
+              {
+                label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
+                icon: <ArrowsHorizontalIcon aria-hidden />,
+                onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
+              },
+              { label: 'Avancer', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => moveChart.mutate({ id: chart.id, index: index - 1 }) },
+              { label: 'Reculer', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => moveChart.mutate({ id: chart.id, index: index + 1 }) },
+              {
+                label: 'Déplacer vers…',
+                icon: <ArrowBendUpRightIcon aria-hidden />,
+                onClick: () =>
                   openFormPanel(`Déplacer « ${chart.title} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
                     panelId: `transfer-chart-${chart.id}`,
-                  });
-                }}
-              >
-                Déplacer vers…
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item leftSection={<FileImageIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('png')}>
-                Exporter en image…
-              </Menu.Item>
-              <Menu.Item leftSection={<FilePdfIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('pdf')}>
-                Exporter en PDF
-              </Menu.Item>
-              <Menu.Item leftSection={<TableIcon aria-hidden />} disabled={!data || data.empty} onClick={() => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`)}>
-                Exporter les données (CSV)
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<TableIcon aria-hidden />}
-                disabled={!data || data.empty}
-                onClick={() => {
+                  }),
+              },
+              'divider',
+              { label: 'Exporter en image…', icon: <FileImageIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('png') },
+              { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('pdf') },
+              {
+                label: 'Exporter les données (CSV)',
+                icon: <TableIcon aria-hidden />,
+                disabled: !data || data.empty,
+                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`),
+              },
+              {
+                label: 'Exporter les données (PDF)',
+                icon: <TableIcon aria-hidden />,
+                disabled: !data || data.empty,
+                onClick: () => {
                   if (!data) return;
                   setExporting(true);
                   downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
                     .catch(onMutationError)
                     .finally(() => setExporting(false));
-                }}
-              >
-                Exporter les données (PDF)
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={confirmDelete}>
-                Supprimer
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+                },
+              },
+              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: confirmDelete },
+            ]}
+          />
         </Group>
         {error ? (
           <Alert color="red" icon={<ErrorIcon />}>

@@ -1,3 +1,5 @@
+import { openFormPanel } from '../../../components/panels/panels';
+import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -5,7 +7,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from '../lib/entry-values';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
@@ -201,19 +203,19 @@ type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: '
  */
 export function TreasuryPage() {
   const today = localToday();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   // The old settings and accounts tabs: in the settings sidebar.
   const asked = params.get('tab') ?? 'forecast';
   const moved = asked === 'settings' || asked === 'accounts';
   const tab = moved ? 'forecast' : asked;
   useEffect(() => {
-    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
+    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { only: true });
   }, [moved, setParams]);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<CalendarScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
   const [picking, setPicking] = useState(false);
-  const [dialog, setDialog] = useState<Dialog>(null);
   const from = periodFirst;
   const periodLast = calendarEnd(scale, periodFirst);
   // The forecast (expected movements) always reaches a year ahead, whatever the period shown.
@@ -274,7 +276,28 @@ export function TreasuryPage() {
         const entry = forecastOf(target);
         return entry ? changeOf(change, entry) : {};
       });
-  const close = () => setDialog(null);
+  /**
+   * Opens the form of an entry (new, changed, copied) or the realization of a forecast.
+   * @param {NonNullable<Dialog>} dialog Form.
+   * @returns {void}
+   */
+  const openDialog = (dialog: NonNullable<Dialog>) =>
+    openFormPanel(
+      dialog.kind === 'realize'
+        ? 'Réaliser la prévision'
+        : dialog.entry && dialog.copy
+          ? dialog.entry.status === 'FORECAST'
+            ? 'Dupliquer la prévision'
+            : 'Dupliquer le mouvement'
+          : dialog.entry
+            ? 'Modifier le mouvement'
+            : dialog.status === 'FORECAST'
+              ? 'Nouvelle prévision'
+              : 'Nouveau mouvement',
+      (close) => (dialog.kind === 'entry' ? <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} /> : <RealizeForm item={dialog.item} onDone={close} />),
+      // An entry has a table of lines (its split).
+      dialog.kind === 'entry' ? 'lg' : 'md',
+    );
   const onError = onMutationError;
 
   if (accountsPending) return <DetailSkeleton />;
@@ -290,8 +313,8 @@ export function TreasuryPage() {
         ) : (
           <ActionButton
             icon={<PlusIcon aria-hidden />}
-            onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}
-            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', status: 'FORECAST' }) }]}
+            onClick={() => openDialog({ kind: 'entry', status: 'ACTUAL' })}
+            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', status: 'FORECAST' }) }]}
           >
             Nouveau mouvement
           </ActionButton>
@@ -300,37 +323,11 @@ export function TreasuryPage() {
     />
   );
 
-  const dialogs = (
-    <SidePanel
-      opened={dialog !== null}
-      onClose={close}
-      // An entry has a table of lines (its split).
-      size={dialog?.kind === 'entry' ? 'lg' : 'md'}
-      title={
-        dialog?.kind === 'realize'
-          ? 'Réaliser la prévision'
-          : dialog?.kind === 'entry' && dialog.entry && dialog.copy
-            ? dialog.entry.status === 'FORECAST'
-              ? 'Dupliquer la prévision'
-              : 'Dupliquer le mouvement'
-            : dialog?.kind === 'entry' && dialog.entry
-              ? 'Modifier le mouvement'
-              : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
-                ? 'Nouvelle prévision'
-                : 'Nouveau mouvement'
-      }
-    >
-      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
-      {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
-    </SidePanel>
-  );
-
   if (!accounts?.length) {
     return (
       <Stack gap="md">
         {header}
         <EmptyState icon={<BankIcon aria-hidden />} message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là." />
-        {dialogs}
       </Stack>
     );
   }
@@ -456,14 +453,7 @@ export function TreasuryPage() {
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1' } : {});
-              if (value && value !== 'forecast') next.set('tab', value);
-              return next;
-            },
-            { replace: true },
-          )
+          setParams({ [SETTINGS_PARAM]: params.get(SETTINGS_PARAM), tab: value && value !== 'forecast' ? value : null }, { only: true })
         }
         keepMounted={false}
       >
@@ -602,12 +592,12 @@ export function TreasuryPage() {
                   name={item.label}
                   primary={
                     forecast
-                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => setDialog({ kind: 'realize', item }) }
-                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) }
+                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
+                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
                   }
                   items={[
-                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) },
-                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry, copy: true }) },
+                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) },
+                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry, copy: true }) },
                     {
                       label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
                       icon: <TrashIcon aria-hidden />,
@@ -633,7 +623,7 @@ export function TreasuryPage() {
         </PageTabs.Panel>
 
         <PageTabs.Panel value="entries">
-          <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} onDuplicate={(entry) => setDialog({ kind: 'entry', entry, copy: true })} />
+          <EntriesPanel accounts={accounts} onEdit={(entry) => openDialog({ kind: 'entry', entry })} onDuplicate={(entry) => openDialog({ kind: 'entry', entry, copy: true })} />
         </PageTabs.Panel>
 
         <PageTabs.Panel value="budgets">
@@ -648,7 +638,6 @@ export function TreasuryPage() {
       <PageSettings title="Paramètres de la trésorerie">
         <SettingsPanel />
       </PageSettings>
-      {dialogs}
     </Stack>
   );
 }

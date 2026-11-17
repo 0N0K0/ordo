@@ -1,17 +1,19 @@
+import { DragHandle } from '../../../components/actions/DragHandle';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
 import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Group, Menu, Paper, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Group, Paper, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { DotsSixVerticalIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
@@ -105,17 +107,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
     >
       <Group gap="sm" wrap="nowrap" align="flex-start">
         {sortable && (
-          <ActionIcon
-            ref={setActivatorNodeRef}
-            variant="subtle"
-            color="gray"
-            aria-label={`Déplacer le jalon ${milestone.title}`}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-            {...attributes}
-            {...listeners}
-          >
-            <DotsSixVerticalIcon weight="bold" aria-hidden />
-          </ActionIcon>
+          <DragHandle label={`Déplacer le jalon ${milestone.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
@@ -214,22 +206,14 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                           {late && ' — en retard'}
                         </Text>
                       </Stack>
-                      <Menu position="bottom-end" withinPortal shadow="md">
-                        <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le jalon ${milestone.title}`}>
-                            <DotsThreeIcon weight="bold" aria-hidden />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(milestone)}>
-                            Modifier
-                          </Menu.Item>
-                          <Menu.Divider />
-                          <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(milestone, tasks.length)}>
-                            Supprimer
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
+                      <ActionsMenu
+                        name={milestone.title}
+                        items={[
+                          { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
+                          'divider',
+                          { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
+                        ]}
+                      />
                     </Group>
                     <TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />
                     {milestone.description && (

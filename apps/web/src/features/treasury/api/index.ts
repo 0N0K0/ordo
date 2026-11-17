@@ -37,6 +37,8 @@ export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number]
 
 // Under the accounting key: payments change documents, and documents change the forecast.
 export const treasuryKey = [...accountingQueryKey, 'treasury'];
+/** Key of the treasury settings (team, relations, contexts…). */
+export const treasurySettingsKey = [...treasuryKey, 'settings'];
 
 graphql(`
   fragment TreasuryEntryFields on TreasuryEntry {
@@ -424,7 +426,7 @@ export function useInvoiceTreasuryCategories() {
  * @returns {UseQueryResult} Query state.
  */
 export function useTreasurySettings() {
-  return useQuery({ queryKey: [...treasuryKey, 'settings'], queryFn: () => execute(SettingsDocument) });
+  return useQuery({ queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) });
 }
 
 /**

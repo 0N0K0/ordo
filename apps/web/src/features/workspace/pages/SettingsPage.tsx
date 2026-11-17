@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
@@ -41,7 +42,8 @@ export function SettingsPage() {
   const deleteStatus = useDeleteProjectStatus();
 
   const { data: taskData } = useTasksData();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const { perso } = useActiveWorkspace();
   const asked = params.get("tab") ?? "projects";
   const tab = asked;
@@ -81,7 +83,7 @@ export function SettingsPage() {
       <PageTabs
         value={tab}
         onChange={(value) =>
-          setParams(value && value !== "projects" ? { tab: value } : {})
+          setParams({ tab: value && value !== "projects" ? value : null }, { only: true })
         }
         keepMounted={false}
       >

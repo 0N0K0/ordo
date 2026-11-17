@@ -1,5 +1,6 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Group, Paper, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
 import { nextOccurrence } from '@ordo/shared';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -103,21 +104,14 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   checked={alarm.enabled}
                   onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, { onError: onMutationError })}
                 />
-                <Tooltip label="Modifier">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${alarm.title}`} onClick={() => openForm(alarm)}>
-                    <PencilSimpleIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Dupliquer">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${alarm.title}`} onClick={() => openForm(alarm, { copy: true })}>
-                    <CopyIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Supprimer">
-                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${alarm.title}`} onClick={() => confirmDelete(alarm)}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <InlineActions
+                  name={alarm.title}
+                  items={[
+                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(alarm) },
+                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openForm(alarm, { copy: true }) },
+                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(alarm) },
+                  ]}
+                />
               </Group>
             </Group>
           </Paper>

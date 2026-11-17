@@ -1,3 +1,4 @@
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
@@ -5,10 +6,10 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Badge, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Badge, Group, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
-import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
@@ -167,22 +168,14 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                       Du {fmt.day(start)} au {fmt.day(end)}
                     </Text>
                   </Stack>
-                  <Menu position="bottom-end" withinPortal shadow="md">
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le sprint ${sprint.name}`}>
-                        <DotsThreeIcon weight="bold" aria-hidden />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(sprint)}>
-                        Modifier
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(sprint, tasks.length)}>
-                        Supprimer
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
+                  <ActionsMenu
+                    name={sprint.name}
+                    items={[
+                      { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
+                      'divider',
+                      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
+                    ]}
+                  />
                 </Group>
                 <TaskProgress
                   done={done.length}

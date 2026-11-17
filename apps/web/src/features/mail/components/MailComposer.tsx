@@ -1,6 +1,7 @@
+import { openModal } from '../../../components/panels/open-modal';
 import { WEEKDAY_LABELS } from '@ordo/shared';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
-import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Modal, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -93,7 +94,6 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
   const saving = useRef<Promise<void>>(Promise.resolve());
   // The closing question is open (shown over this form's modal, which stays mounted).
   const closing = useRef(false);
-  const [askingClose, setAskingClose] = useState(false);
 
   const account = accounts?.find((item) => item.id === accountId) ?? accounts?.[0];
   const signature = withSignature ? account?.signature : null;
@@ -242,7 +242,63 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       return;
     }
     closing.current = true;
-    setAskingClose(true);
+    openModal(
+      'Fermer le mail',
+      (close) => (
+    <Stack gap="md">
+      <Text size="sm">
+        Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il
+        sera alors perdu définitivement.
+      </Text>
+      <Group justify="flex-end" gap="sm">
+        <DestructiveButton
+         
+         
+          onClick={() => {
+            close();
+            void discard()
+              .then(() => {
+                notifySuccess('Brouillon supprimé.');
+                onDone();
+              })
+              .catch(onMutationError)
+              .finally(() => {
+                closing.current = false;
+              });
+          }}
+        >
+          Supprimer le brouillon
+        </DestructiveButton>
+        <Button
+          onClick={() => {
+            close();
+            void save()
+              .then(() => {
+                notifySuccess('Brouillon enregistré.');
+                onDone();
+              })
+              .catch(onMutationError)
+              .finally(() => {
+                closing.current = false;
+              });
+          }}
+        >
+          Enregistrer le brouillon
+        </Button>
+        <Button
+          variant="default"
+          onClick={() => {
+            close();
+          }}
+        >
+          Continuer la rédaction
+        </Button>
+      </Group>
+    </Stack>
+      ),
+      // Closed without an answer: writing goes on.
+      { onClose: () => (closing.current = false) },
+    );
   };
 
   // Escape asks to close (unless a list or the closing question handles it).
@@ -278,68 +334,6 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
 
   return (
     <Stack gap="sm">
-      <Modal
-        opened={askingClose}
-        onClose={() => {
-          closing.current = false;
-          setAskingClose(false);
-        }}
-        title="Fermer le mail"
-        centered
-        zIndex={300}
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il
-            sera alors perdu définitivement.
-          </Text>
-          <Group justify="flex-end" gap="sm">
-            <DestructiveButton
-             
-             
-              onClick={() => {
-                setAskingClose(false);
-                void discard()
-                  .then(() => {
-                    notifySuccess('Brouillon supprimé.');
-                    onDone();
-                  })
-                  .catch(onMutationError)
-                  .finally(() => {
-                    closing.current = false;
-                  });
-              }}
-            >
-              Supprimer le brouillon
-            </DestructiveButton>
-            <Button
-              onClick={() => {
-                setAskingClose(false);
-                void save()
-                  .then(() => {
-                    notifySuccess('Brouillon enregistré.');
-                    onDone();
-                  })
-                  .catch(onMutationError)
-                  .finally(() => {
-                    closing.current = false;
-                  });
-              }}
-            >
-              Enregistrer le brouillon
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                closing.current = false;
-                setAskingClose(false);
-              }}
-            >
-              Continuer la rédaction
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
       <Group justify="space-between" wrap="nowrap">
         <Text size="xs" c={saveState.status === 'error' ? 'red' : 'dimmed'} aria-live="polite">
           {saveState.status === 'saving' && 'Enregistrement du brouillon…'}

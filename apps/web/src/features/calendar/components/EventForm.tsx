@@ -1,9 +1,11 @@
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+import { openFormPanel } from '../../../components/panels/panels';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { TimeField } from '../../../components/inputs/TimeField';
-import { ActionIcon, Alert, Anchor, Button, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
@@ -15,13 +17,13 @@ import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { DestructiveActions, DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from '../api';
 import { useTimeMutations } from '../../time/api';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
-import { useScopeQuestion } from '../lib/ask-scope';
+import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from '../lib/event-input';
@@ -86,6 +88,35 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
   );
 }
 
+/**
+ * Postponement of an occurrence in its panel: its form, and the postponement once confirmed.
+ * @param {{ fields: PostponeFormProps['fields'], occurrence: EventOccurrence, onCancel: () => void, onDone: () => void }} props Fields of the event, occurrence, closing.
+ * @returns {JSX.Element} Panel content.
+ */
+function PostponePanel({ fields, occurrence, onCancel, onDone }: { fields: PostponeFormProps['fields']; occurrence: EventOccurrence; onCancel: () => void; onDone: () => void }) {
+  const { postpone } = useCalendarEventMutations();
+  return (
+    <PostponeForm
+      fields={fields}
+      title={occurrence.title}
+      loading={postpone.isPending}
+      onCancel={onCancel}
+      onConfirm={(input) =>
+        postpone.mutate(
+          { id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input },
+          {
+            onSuccess: () => {
+              notifySuccess('Évènement reporté.');
+              onDone();
+            },
+            onError: onMutationError,
+          },
+        )
+      }
+    />
+  );
+}
+
 interface EventFormProps {
   context: TaskContext;
   /** Occurrence edited. */
@@ -109,9 +140,15 @@ interface EventFormProps {
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
   const { create: createCategory } = useCalendarCategoryMutations();
   const color = useDefaultColor();
-  const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
-  const [postponing, setPostponing] = useState(false);
+  const { create, update, remove, setCalledOff } = useCalendarEventMutations();
   const { start: startTimer } = useTimeMutations();
+
+  /**
+   * Opens the postponement of this occurrence; once postponed, the event form closes too.
+   * @returns {void}
+   */
+  const openPostpone = () =>
+    occurrence && openFormPanel('Reporter l’évènement', (close) => <PostponePanel fields={values} occurrence={occurrence} onCancel={close} onDone={() => (close(), onDone())} />);
 
   /**
    * Starts a timer on this occurrence (its project, tasks and title).
@@ -138,8 +175,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
-  const scopeQuestion = useScopeQuestion();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const today = localToday();
   const initial: CalendarEventInput = occurrence
     ? occurrenceInput(occurrence)
@@ -212,7 +247,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
     if (recurring) {
       const ruleChanged = JSON.stringify(input.recurrence) !== JSON.stringify(occurrence.recurrence);
-      const chosen = await scopeQuestion.ask({ action: 'update', allowThis: !ruleChanged });
+      const chosen = await askScope({ action: 'update', allowThis: !ruleChanged });
       if (!chosen) return;
       scope = chosen;
     }
@@ -242,11 +277,25 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         },
       );
     if (recurring) {
-      const scope = await scopeQuestion.ask({ action: 'delete' });
+      const scope = await askScope({ action: 'delete' });
       if (scope) run(scope);
       return;
     }
-    setConfirmingDelete(true);
+    confirmDestructive({
+      title: 'Supprimer l’évènement',
+      risks: `L’évènement « ${occurrence?.title ?? ''} » sera supprimé définitivement. Cette action est irréversible.`,
+      onConfirm: () =>
+        remove.mutate(
+          { id: occurrence!.eventId, scope: 'ALL', occurrenceDate: occurrence!.occurrenceDate },
+          {
+            onSuccess: () => {
+              notifySuccess('Évènement supprimé.');
+              onDone();
+            },
+            onError: onMutationError,
+          },
+        ),
+    });
   };
 
   /**
@@ -258,7 +307,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     if (!occurrence) return;
     let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
     if (recurring) {
-      const chosen = await scopeQuestion.ask({ action: calledOff ? 'cancel' : 'restore' });
+      const chosen = await askScope({ action: calledOff ? 'cancel' : 'restore' });
       if (!chosen) return;
       scope = chosen;
     }
@@ -276,52 +325,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {scopeQuestion.dialog}
-      <Modal opened={confirmingDelete} onClose={() => setConfirmingDelete(false)} title="Supprimer l’évènement" centered zIndex={300}>
-        <Stack gap="md">
-          <Text size="sm">L’évènement « {occurrence?.title} » sera supprimé définitivement. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={remove.isPending}
-            onCancel={() => setConfirmingDelete(false)}
-            onConfirm={() => {
-              setConfirmingDelete(false);
-              remove.mutate(
-                { id: occurrence!.eventId, scope: 'ALL', occurrenceDate: occurrence!.occurrenceDate },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Évènement supprimé.');
-                    onDone();
-                  },
-                  onError: onMutationError,
-                },
-              );
-            }}
-          />
-        </Stack>
-      </Modal>
-      <SidePanel opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement">
-        {postponing && occurrence && (
-          <PostponeForm
-            fields={values}
-            title={occurrence.title}
-            loading={postpone.isPending}
-            onCancel={() => setPostponing(false)}
-            onConfirm={(input) =>
-              postpone.mutate(
-                { id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Évènement reporté.');
-                    setPostponing(false);
-                    onDone();
-                  },
-                  onError: onMutationError,
-                },
-              )
-            }
-          />
-        )}
-      </SidePanel>
       <Stack gap="md">
         {occurrence?.calledOff && (
           <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">
@@ -608,7 +611,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                   <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
                     Annuler l’évènement
                   </Button>
-                  <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={() => setPostponing(true)}>
+                  <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
                     Reporter
                   </Button>
                 </>

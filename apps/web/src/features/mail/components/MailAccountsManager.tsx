@@ -1,8 +1,9 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Button, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { Button, Group, Stack, Text, ThemeIcon } from '@mantine/core';
 
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -85,32 +86,15 @@ export function MailAccountsManager() {
                   {account.signature ? ' · signature' : ''}
                 </Text>
               </Stack>
-              <Tooltip label="Signature">
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`Signature de ${account.name}`}
-                  onClick={() => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />)}
-                >
-                  <SignatureIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Modifier">
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`Modifier ${account.name}`}
-                  onClick={() => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />)}
-                >
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Retirer">
-                <ActionIcon variant="subtle" color="red" aria-label={`Retirer ${account.name}`} onClick={() => confirmDelete(account)}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
+              <InlineActions
+                name={account.name}
+                items={[
+                  { label: 'Signature', icon: <SignatureIcon aria-hidden />, onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />) },
+                  { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />) },
+                  { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
+                ]}
+              />
+              </Group>
           ))}
         </Stack>
       )}

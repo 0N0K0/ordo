@@ -8,7 +8,7 @@ import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileBu
 import { DatePickerInput } from '@mantine/dates';
 
 import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
-import { useQueryClient } from '@tanstack/react-query';
+
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -16,7 +16,7 @@ import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
-import { timeQueryKey } from '../../time/api';
+
 import { useWorkspace } from '../../workspace/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
@@ -106,7 +106,6 @@ function Editor({ document }: { document: AccountingDocument }) {
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
   const tracking = useTrackingMutations();
-  const queryClient = useQueryClient();
   // Duration of the time billed on the invoice, saved or just added.
   const [timeSeconds, setTimeSeconds] = useState(() => new Map(document.timeEntries.map((entry) => [entry.id, entry.duration ?? 0])));
   const readOnly = document.status === 'FINAL';
@@ -145,8 +144,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       .mutateAsync({ id: document.id, input: values })
       .then(() => {
         form.resetDirty();
-        // The time billed changed with the draft.
-        void queryClient.invalidateQueries({ queryKey: timeQueryKey });
         if (then) then();
         else notifySuccess(isTemplate ? 'Modèle enregistré.' : 'Brouillon enregistré.');
       })

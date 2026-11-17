@@ -1,6 +1,6 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
 import { queryClient } from '../../../lib/query-client';
-import { treasuryKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
+import { treasurySettingsKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 
 /** « Bénéficiaires » of a task, a routine or an event: contributors and relations (people out of the team). */
@@ -65,7 +65,7 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
  * @returns {string[]} Names, contributors first.
  */
 export function beneficiaryNames(value: Beneficiaries, context: { contributorById: Map<string, { name: string }> } | null): string[] {
-  const relations = queryClient.getQueryData<TreasurySettings>([...treasuryKey, 'settings'])?.treasuryRelations ?? [];
+  const relations = queryClient.getQueryData<TreasurySettings>(treasurySettingsKey)?.treasuryRelations ?? [];
   const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
   return [
     ...value.beneficiaryIds.flatMap((id) => (context?.contributorById.get(id) ? [context.contributorById.get(id)!.name] : [])),

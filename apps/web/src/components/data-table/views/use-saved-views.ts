@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -47,7 +48,8 @@ interface SavedViewsOptions<C> {
 export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blank, first, ready = true, param = 'view' }: SavedViewsOptions<C>) {
   const viewsQuery = useTaskViews(projectId, kind, tableKey);
   const mutations = useTaskViewMutations();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const [drafts, setDrafts] = useState<Record<string, C>>({});
   // Scope whose first views were asked for: asked once only, even when it fails (no retry loop).
   const created = useRef<string | null>(null);
@@ -75,11 +77,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
    * @param {string} id View id.
    * @returns {void}
    */
-  const select = (id: string) => {
-    const next = new URLSearchParams(params);
-    next.set(param, id);
-    setParams(next, { replace: true });
-  };
+  const select = (id: string) => setParams({ [param]: id });
 
   /**
    * Drops the working copy of a view.
@@ -167,9 +165,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
           onSuccess: () => {
             discard(view.id);
             if (view.id === current?.id) {
-              const next = new URLSearchParams(params);
-              next.delete(param);
-              setParams(next, { replace: true });
+              setParams({ [param]: null });
             }
           },
           onError: onMutationError,

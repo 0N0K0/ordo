@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { Badge, CloseButton, Group, Stack, Title, Tooltip } from '@mantine/core';
@@ -24,7 +25,8 @@ export function TimePage() {
   const running = useRunningTimer();
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context);
   // From the « Temps passé » of a task: its times only, until dismissed.
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const taskId = params.get('task');
   const task = taskId ? context?.taskById.get(taskId) : undefined;
   const shown = taskId ? entries.data?.filter((entry) => entry.taskIds.includes(taskId)) : entries.data;
@@ -39,22 +41,7 @@ export function TimePage() {
       </Title>
       {taskId && (
         <Group gap="xs">
-          <Badge
-            size="lg"
-            variant="light"
-            tt="none"
-            rightSection={
-              <CloseButton
-                size="xs"
-                aria-label="Voir tous les temps"
-                onClick={() => {
-                  const next = new URLSearchParams(params);
-                  next.delete('task');
-                  setParams(next, { replace: true });
-                }}
-              />
-            }
-          >
+          <Badge size="lg" variant="light" tt="none" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
             Tâche : {task ? `${taskRef(task)}${task.title}` : 'introuvable'}
           </Badge>
         </Group>

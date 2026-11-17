@@ -66,7 +66,7 @@ const DeleteWorkspaceMutation = graphql(`
   }
 `);
 
-const workspacesQueryKey = ['workspaces'] as const;
+export const workspacesQueryKey = ['workspaces'] as const;
 
 /**
  * Workspaces and the one the app works in (remembered, and the requests of the tab pinned to it).

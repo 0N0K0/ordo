@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -293,29 +294,15 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const tab = params.get('tab') === 'history' ? 'history' : 'routines';
 
   return (
     <Stack gap="lg">
       <PageHeader title="Routines" />
       <RoutineSettings />
-      <PageTabs
-        value={tab}
-        onChange={(value) =>
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-              next.delete('routine');
-              if (value === 'history') next.set('tab', 'history');
-              else next.delete('tab');
-              return next;
-            },
-            { replace: true },
-          )
-        }
-        keepMounted={false}
-      >
+      <PageTabs value={tab} onChange={(value) => setParams({ routine: null, tab: value === 'history' ? 'history' : null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines
@@ -328,20 +315,7 @@ export function RoutinesPage() {
           <RoutinesPanel />
         </PageTabs.Panel>
         <PageTabs.Panel value="history">
-          <RoutineHistory
-            routineId={params.get('routine')}
-            onRoutine={(id) =>
-              setParams(
-                (current) => {
-                  const next = new URLSearchParams(current);
-                  if (id) next.set('routine', id);
-                  else next.delete('routine');
-                  return next;
-                },
-                { replace: true },
-              )
-            }
-          />
+          <RoutineHistory routineId={params.get('routine')} onRoutine={(id) => setParams({ routine: id })} />
         </PageTabs.Panel>
       </PageTabs>
     </Stack>

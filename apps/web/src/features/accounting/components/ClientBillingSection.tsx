@@ -1,8 +1,9 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../../components/address/countries';
@@ -68,26 +69,16 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
         </Text>
         <ContactInfo address={null} email={contact.email} phones={contact.phones} />
       </Stack>
-      <Group gap={2} wrap="nowrap">
-        <Tooltip label="Modifier">
-          <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${name}`} onClick={() => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />)}>
-            <PencilSimpleIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Supprimer">
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={`Supprimer ${name}`}
-            onClick={() =>
+      <InlineActions
+        name={name}
+        items={[
+          { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />) },
+          { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
               confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement. Cette action est irréversible.`, onConfirm: () =>
                 deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: onMutationError }) })
-            }
-          >
-            <TrashIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
+             },
+        ]}
+      />
     </Group>
   );
 }
@@ -108,30 +99,16 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
             <Text fw={600}>{service.name}</Text>
             <ContactInfo address={service.address} email={service.email} phones={service.phones} />
           </Stack>
-          <Group gap={2} wrap="nowrap">
-            <Tooltip label="Ajouter un contact">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un contact à ${service.name}`} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />)}>
-                <UserPlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Modifier">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${service.name}`} onClick={() => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />)}>
-                <PencilSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Supprimer">
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                aria-label={`Supprimer ${service.name}`}
-                onClick={() =>
+          <InlineActions
+            name={`à ${service.name}`}
+            items={[
+              { label: 'Ajouter un contact', icon: <UserPlusIcon aria-hidden />, onClick: () => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />) },
+              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />) },
+              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
                   confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: onMutationError }) })
-                }
-              >
-                <TrashIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
+                 },
+            ]}
+          />
         </Group>
         {contacts.map((contact) => (
           <ContactRow key={contact.id} client={client} contact={contact} />

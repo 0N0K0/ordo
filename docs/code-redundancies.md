@@ -126,6 +126,21 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
   - répétition (`RepetitionField.tsx`).
 - **Confirmation en ligne :** `WorkspacesManager.tsx` confirme une suppression dans la ligne même.
 
+**Fait** :
+
+- **`openFormPanel` partout :**
+  - équipe et relations, budgets, suivi de facturation, mouvements, import et export d'un relevé, commentaires des emprunts ;
+  - plages de travail, report d'un évènement (`PostponePanel` garde son état d'attente) ;
+  - évènement d'un calendrier abonné (`SubscribedEvent`, ex-`SubscribedEventModal`).
+- **`confirmDestructive`** pour la suppression d'un évènement et celle d'un espace (plus de confirmation dans la ligne).
+- **`openModal`** pour la question « Fermer le mail ».
+- **`askScope`** partout : `useScopeQuestion` est supprimé, car le formulaire d'évènement est maintenant dans le panneau.
+- **Restent à part**, parce que leur contenu suit un état vivant :
+  - les rattachements d'une ligne de mouvement ;
+  - les créations depuis le formulaire de mouvement ;
+  - la fenêtre de répétition (`RepetitionField`), qui édite un brouillon ;
+  - le panneau routé d'une tâche.
+
 ### 8. Web : menus et boutons d'actions écrits à la main
 
 - **Menus Modifier / Supprimer** au lieu de `ActionsMenu` : jalons, sprints, recherches mail, dossiers mail, graphiques des tableaux de bord.
@@ -133,6 +148,13 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
 - **Boutons Monter / Descendre :** lignes d'un document, espaces, ressources de projet, panneau de tri.
 - **Poignées de glisser-déposer** (`useSortable` avec une icône de poignée) : jalons, graphiques, cas d'une répétition.
 - **Cible :** `InlineActions items={RowMenuEntry[]}` (à côté de `RowActions`), `MoveButtons`, `DragHandle`.
+
+**Fait** :
+
+- **`InlineActions`** (`RowActions.tsx`), des icônes côte à côte avec leur infobulle et les actions destructives en rouge : alarmes, contributeurs, facturation d'un client ×2, ressources de projet, comptes mail, espaces, lignes d'un document. Les boutons Monter / Descendre en sont des entrées.
+- **`ActionsMenu`** remplace les menus écrits à la main : jalons, sprints, recherches et dossiers mail, graphiques. Il gagne `inRow` (clics gardés dans le menu), `size` et `loading`.
+- **`DragHandle`** (`components/actions`) remplace les poignées des jalons, des graphiques et des cas d'une répétition.
+- **Restent à part :** la poignée de la liste des projets (glisser-déposer sans tri) et `SettingsList`.
 
 ### 9. Web : paramètres d'URL
 
@@ -143,6 +165,8 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
   - effets « lire un ancien paramètre puis le retirer » : facturation ×2, mail, agenda, trésorerie, projet.
 - **Incohérence :** deux pages (stock, paramètres) ajoutent une entrée dans l'historique au lieu de la remplacer.
 - **Cible :** `useSearchParam(clé)`, `useSetParams()` et `useConsumeParam(clé, …)` dans `lib/search-params.ts`, avec `useTabParam` construit dessus.
+
+**Fait** : `useSetParams` et `useSearchParam` (`lib/search-params.ts`) changent l'URL partout (routines, achats, stock, paramètres, temps, agenda, mail, facturation, trésorerie, projet, vues, réglages de page) ; `useTabParam` repose dessus. Toutes les pages remplacent l'entrée de l'historique, stock et paramètres compris. Restent les `URLSearchParams` qui construisent un lien ou une adresse d'API.
 
 ## Doublons moyens
 
@@ -257,6 +281,14 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
   - la clé des réglages de la trésorerie reconstruite dans les bénéficiaires.
 - **Invalidations dans des composants :** gestion des contributeurs, éditeur de document. Elles appartiennent à la liste `invalidate` de leurs mutations.
 - **Cible :** exporter les clés et passer par `useInvalidatingMutation`.
+
+**Fait** :
+
+- `workspacesQueryKey`, `treasurySettingsKey` et `tasksQueryKey` sont utilisés au lieu des clés écrites en dur ;
+- le rattachement d'un mouvement à une liste d'achats rafraîchit la trésorerie par sa liste `invalidate` ;
+- la suppression d'un contributeur et l'enregistrement d'un document rafraîchissent leurs requêtes dans leurs mutations, et non plus dans les composants.
+
+Restent les deux invalidations « tout sauf une sous-clé » (document supprimé, mail lu), propres à leur cas.
 
 ### 19. API : PDF
 

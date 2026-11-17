@@ -1,3 +1,4 @@
+import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -344,28 +345,15 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
  * @returns {JSX.Element} Page.
  */
 export function ShoppingPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetParams();
   const tab = params.get('tab') === 'lists' ? 'lists' : 'base';
 
   return (
     <Stack gap="lg">
       <PageHeader title="Achats" />
       <ShoppingSettings />
-      <PageTabs
-        value={tab}
-        onChange={(value) =>
-          setParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-              if (value === 'lists') next.set('tab', 'lists');
-              else next.delete('tab');
-              return next;
-            },
-            { replace: true },
-          )
-        }
-        keepMounted={false}
-      >
+      <PageTabs value={tab} onChange={(value) => setParams({ tab: value === 'lists' ? 'lists' : null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
             Références

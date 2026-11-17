@@ -1,3 +1,4 @@
+import { tasksQueryKey } from '../../tasks/api';
 import { useQuery } from '@tanstack/react-query';
 import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -31,7 +32,7 @@ const SprintTaskStatusesDocument = graphql(`
 export function useSprintTaskStatuses(today: string, enabled: boolean) {
   return useQuery({
     enabled,
-    queryKey: ['tasks', 'sprint-statuses', today],
+    queryKey: [...tasksQueryKey, 'sprint-statuses', today],
     queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [`${item.sprintId}|${item.taskId}`, item])),
   });
 }

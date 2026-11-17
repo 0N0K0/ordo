@@ -1,7 +1,8 @@
+import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { ActionIcon, Alert, Button, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
@@ -84,7 +85,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   );
 }
 
-type Dialog = 'payment' | 'accept' | 'reminder' | 'sent' | null;
+type Dialog = 'payment' | 'accept' | 'reminder' | 'sent';
 
 /**
  * Tracking of a final document: configurable status, sending, acceptance with the signed quote (quotes),
@@ -95,15 +96,36 @@ type Dialog = 'payment' | 'accept' | 'reminder' | 'sent' | null;
 export function TrackingPanel({ document, onRemind, remindPending }: { document: AccountingDocument; onRemind: () => void; remindPending: boolean }) {
   const { data: statuses } = useDocumentStatuses();
   const mutations = useTrackingMutations();
-  const [dialog, setDialog] = useState<Dialog>(null);
-  // "Sent" status chosen in the list, given with the sending.
-  const [sentStatusId, setSentStatusId] = useState<string | null>(null);
   const isQuote = document.type === 'QUOTE';
   const isCredit = document.type === 'CREDIT_NOTE';
   const scoped = (statuses ?? []).filter((status) => status.scope === (isQuote ? 'QUOTE' : 'INVOICE'));
   const money = (amount: number) => fmt.money(amount, document.currency);
   const balance = document.balance ?? 0;
   const onError = onMutationError;
+
+  /**
+   * Opens a form of the follow-up: payment (or refund), acceptance of the quote, reminder, sending.
+   * @param {Dialog} dialog Form.
+   * @param {string | null} [sentStatusId] "Sent" status chosen in the list, given with the sending. Optional.
+   * @returns {void}
+   */
+  const openDialog = (dialog: Dialog, sentStatusId: string | null = null) =>
+    openFormPanel(dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : dialog === 'sent' ? 'Envoi' : isCredit ? 'Remboursement' : 'Paiement', (close) =>
+      dialog === 'payment' ? (
+        <PaymentForm document={document} onDone={close} />
+      ) : dialog === 'accept' ? (
+        <AcceptForm document={document} onDone={close} />
+      ) : dialog === 'reminder' ? (
+        <ReminderForm documentId={document.id} onDone={close} />
+      ) : (
+        <SentForm
+          sentAt={document.sentAt}
+          sentVia={document.sentVia}
+          onSubmit={({ date, via }) => mutations.markSent.mutateAsync({ id: document.id, date, via, statusId: sentStatusId })}
+          onDone={close}
+        />
+      ),
+    );
 
   return (
     <Section title="Suivi">
@@ -117,8 +139,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           if (!statusId) return;
           // A "sent" status asks when and how it was sent.
           if (scoped.find((status) => status.id === statusId)?.category === 'SENT') {
-            setSentStatusId(statusId);
-            setDialog('sent');
+            openDialog('sent', statusId);
           } else mutations.setStatus.mutate({ id: document.id, statusId }, { onError });
         }}
       />
@@ -133,7 +154,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(new Date(document.sentAt))}`
             : 'Pas encore envoyé.'}
         </Text>
-        <Button size="compact-xs" variant="subtle" onClick={() => setDialog('sent')}>
+        <Button size="compact-xs" variant="subtle" onClick={() => openDialog('sent')}>
           {document.sentAt ? 'Modifier' : 'Marquer envoyé'}
         </Button>
       </Group>
@@ -155,7 +176,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
               </Tooltip>
             </Group>
           )}
-          <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => setDialog('accept')}>
+          <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
             {document.acceptedAt ? (document.signedFileUrl ? 'Remplacer le devis signé' : 'Joindre le devis signé') : 'Enregistrer l’acceptation'}
           </Button>
         </Stack>
@@ -199,7 +220,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             </Group>
           ))}
           {balance > 0 && (
-            <Button variant="default" leftSection={<CoinsIcon aria-hidden />} onClick={() => setDialog('payment')}>
+            <Button variant="default" leftSection={<CoinsIcon aria-hidden />} onClick={() => openDialog('payment')}>
               {isCredit ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
             </Button>
           )}
@@ -217,7 +238,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                 <Button size="compact-xs" variant="default" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
                 </Button>
-                <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setDialog('reminder')}>
+                <Button size="compact-xs" variant="subtle" color="gray" onClick={() => openDialog('reminder')}>
                   Noter
                 </Button>
               </Group>
@@ -243,22 +264,6 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         </Stack>
       )}
 
-      <SidePanel opened={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : dialog === 'sent' ? 'Envoi' : isCredit ? 'Remboursement' : 'Paiement'}>
-        {dialog === 'payment' && <PaymentForm document={document} onDone={() => setDialog(null)} />}
-        {dialog === 'accept' && <AcceptForm document={document} onDone={() => setDialog(null)} />}
-        {dialog === 'reminder' && <ReminderForm documentId={document.id} onDone={() => setDialog(null)} />}
-        {dialog === 'sent' && (
-          <SentForm
-            sentAt={document.sentAt}
-            sentVia={document.sentVia}
-            onSubmit={({ date, via }) => mutations.markSent.mutateAsync({ id: document.id, date, via, statusId: sentStatusId })}
-            onDone={() => {
-              setDialog(null);
-              setSentStatusId(null);
-            }}
-          />
-        )}
-      </SidePanel>
     </Section>
   );
 }

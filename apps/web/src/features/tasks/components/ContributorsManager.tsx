@@ -1,15 +1,16 @@
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Avatar, Badge, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { Avatar, Badge, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';
-import { useQueryClient } from '@tanstack/react-query';
-import { accountingQueryKey } from '../../accounting/api';
+
+
 import { countOf } from '../../../lib/text';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
@@ -27,7 +28,6 @@ interface ContributorsManagerProps {
  */
 export function ContributorsManager({ contributors, usage }: ContributorsManagerProps) {
   const { data: treasury } = useTreasurySettings();
-  const queryClient = useQueryClient();
   const memberIds = new Set((treasury?.treasuryMembers ?? []).map((member) => member.id));
   // Contributor → name of the relation they are.
   const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
@@ -67,8 +67,6 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                 {
                   onSuccess: () => {
                     notifySuccess(`${contributor.name} supprimé.`);
-                    // Members and relations (treasury) follow: a relation loses its contributor.
-                    void queryClient.invalidateQueries({ queryKey: accountingQueryKey });
                   },
                   onError: onMutationError,
                 },
@@ -136,19 +134,14 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                   {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
                 </Text>
               </Stack>
-              <Tooltip label="Modifier">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${contributor.name}`} onClick={() => openForm(contributor)}>
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              {/* The user's own profile cannot be deleted. */}
-              {!contributor.isMe && (
-                <Tooltip label="Supprimer">
-                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${contributor.name}`} onClick={() => confirmDelete(contributor)}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              )}
+              <InlineActions
+                name={contributor.name}
+                items={[
+                  { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
+                  // The user's own profile cannot be deleted.
+                  !contributor.isMe && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(contributor) },
+                ]}
+              />
             </Group>
           ))}
         </Stack>
