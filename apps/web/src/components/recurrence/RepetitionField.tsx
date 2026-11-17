@@ -65,25 +65,55 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
           </Button>
         )}
       </Group>
-      <Modal opened={opened} onClose={() => setOpened(false)} title={label} size="xl">
-        <Stack gap="md">
-          {editor(draft, setDraft)}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={() => setOpened(false)}>
-              Annuler
-            </Button>
-            <Button
-              disabled={valid ? !valid(draft) : false}
-              onClick={() => {
-                onChange(draft);
-                setOpened(false);
-              }}
-            >
-              Appliquer
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <RepetitionModal opened={opened} onClose={() => setOpened(false)} title={label} draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onChange} />
     </Input.Wrapper>
+  );
+}
+
+interface RepetitionModalProps<V> {
+  opened: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  /** Draft edited, applied on « Appliquer ». */
+  draft: V;
+  setDraft: (value: V) => void;
+  /** Every setting. */
+  editor: (draft: V, setDraft: (value: V) => void) => ReactNode;
+  /** Draft that can be applied. Optional. Default = any. */
+  valid?: (draft: V) => boolean;
+  onApply: (value: V) => void;
+  /** Above the settings (what it applies to…). Optional. */
+  header?: ReactNode;
+}
+
+/**
+ * Modal holding every repetition setting, on a draft applied on « Appliquer », dropped on « Annuler » (the field's,
+ * or a table cell's).
+ * @template V
+ * @param {RepetitionModalProps<V>} props Component props.
+ * @returns {JSX.Element} Modal.
+ */
+export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, editor, valid, onApply, header }: RepetitionModalProps<V>) {
+  return (
+    <Modal opened={opened} onClose={onClose} title={title} size="xl">
+      <Stack gap="md">
+        {header}
+        {editor(draft, setDraft)}
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button
+            disabled={valid ? !valid(draft) : false}
+            onClick={() => {
+              onApply(draft);
+              onClose();
+            }}
+          >
+            Appliquer
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }

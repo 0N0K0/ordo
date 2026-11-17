@@ -1782,9 +1782,9 @@ type Mutation {
   moveRoutineCategory(id: ID!, index: Int, parentId: ID): Boolean!
 
   """
-  Moves an occurrence to another day (postponed or brought forward); back to its own day, the exception is removed.
+  Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.
   """
-  moveRoutineOccurrence(date: Date!, id: ID!, to: Date!): Boolean!
+  moveRoutineOccurrence(date: Date!, id: ID!, times: JSON, to: Date!): Boolean!
   moveSheetCategory(id: ID!, index: Int!): Boolean!
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
@@ -2794,6 +2794,9 @@ input RoutineBulkChanges {
   addCategoryIds: [ID!]
   addRequiredIds: [ID!]
 
+  """Cases (with recurrence: its whole repetition); empty: its rule."""
+  cases: JSON
+
   """HH:MM; null: no limit."""
   dueTime: String
 
@@ -2802,11 +2805,20 @@ input RoutineBulkChanges {
 
   """HH:MM; null: no limit."""
   fromTime: String
+
+  """Times of the day following its rule."""
+  moments: JSON
+
+  """« À partir du » of its rule; null: none."""
+  opensOn: JSON
   projectId: ID
   recurrence: JSON
   removeAssigneeIds: [ID!]
   removeCategoryIds: [ID!]
   removeRequiredIds: [ID!]
+
+  """On or out of calendar schedules, following its rule; null: any time."""
+  slotCondition: JSON
   startDate: Date
 }
 
@@ -2919,6 +2931,9 @@ input RoutinePatch {
   assigneeIds: [ID!]
   beneficiaryIds: [ID!]
   beneficiaryRelationIds: [ID!]
+
+  """Cases (with recurrence: its whole repetition); empty: its rule."""
+  cases: JSON
   categoryIds: [ID!]
 
   """HH:MM; null: no limit."""
@@ -2932,6 +2947,9 @@ input RoutinePatch {
   location: String
   locationLat: Float
   locationLon: Float
+
+  """Times of the day following its rule."""
+  moments: JSON
 
   """
   « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
@@ -2948,6 +2966,9 @@ input RoutinePatch {
   """Minutes before its moment."""
   reminders: [Int!]
   requiredIds: [ID!]
+
+  """On or out of calendar schedules, following its rule; null: any time."""
+  slotCondition: JSON
   startDate: Date
   title: String
 

@@ -510,7 +510,7 @@ const RoutineRowView = memo(function RoutineRowView({
             !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
             !readOnly && movableOccurrence(routine) && 'divider',
             !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
-            !readOnly && movableOccurrence(routine) && { label: 'Reporter ou avancer…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
+            !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
             'divider',
             { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },

@@ -240,7 +240,7 @@ type Documents = {
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": typeof types.SetRoutineDoneDocument,
-    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
+    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": typeof types.RemoveRoutineMoveDocument,
@@ -714,7 +714,7 @@ const documents: Documents = {
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": types.SetRoutineDoneDocument,
-    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to)\n  }\n": types.MoveRoutineOccurrenceDocument,
+    "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": types.RemoveRoutineMoveDocument,
@@ -1866,7 +1866,7 @@ export function graphql(source: "\n  mutation SetRoutineDone($id: ID!, $done: Bo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to)\n  }\n"): typeof import('./graphql').MoveRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n"): typeof import('./graphql').MoveRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

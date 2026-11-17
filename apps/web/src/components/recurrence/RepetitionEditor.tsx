@@ -7,7 +7,9 @@ import { CaseCard } from './CaseCard';
 import { describeCase } from './describe-recurrence';
 import { DurationFields } from './DurationFields';
 import { RecurrenceEditor } from './RecurrenceEditor';
-import { useCaseFolds } from './use-case-folds';
+import { useCaseFolds, useCaseKeys } from './use-case-folds';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
@@ -131,6 +133,21 @@ function CaseFields<T>({
 export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
   const { mode, onModeChange, cases, onChange, start, multiple = false, modes = [], times, footer } = props;
   const folds = useCaseFolds();
+  const keys = useCaseKeys(cases.length);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  /**
+   * Moves a dropped case where it was dropped (its fold with it).
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    const from = keys.list.indexOf(String(active.id));
+    const to = over ? keys.list.indexOf(String(over.id)) : -1;
+    if (from < 0 || to < 0 || from === to) return;
+    keys.moved(from, to);
+    folds.moved(from, to);
+    onChange(arrayMove(cases, from, to));
+  };
   /**
    * Changes a case.
    * @param {number} index Its index.
@@ -168,28 +185,35 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
       {mode === 'RULE' && cases[0] && <CaseFields item={cases[0]} onChange={(changes) => update(0, changes)} start={start} index={0} withPeriod={false} props={props} />}
       {mode === 'CASES' && (
         <Stack gap="xs">
-          {cases.map((item, index) => (
-            <CaseCard
-              key={index}
-              index={index + 1}
-              summary={describeCase(item, start, { weekly: props.weekly, times })}
-              collapsible={cases.length > 1}
-              opened={folds.isOpen(index)}
-              onToggle={() => folds.toggle(index)}
-              onRemove={
-                cases.length > 1
-                  ? () => {
-                      folds.removed(index);
-                      onChange(cases.filter((_, other) => other !== index));
-                    }
-                  : undefined
-              }
-            >
-              <CaseFields item={item} onChange={(changes) => update(index, changes)} start={start} index={index} withPeriod props={props} />
-            </CaseCard>
-          ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={keys.list} strategy={verticalListSortingStrategy}>
+              {cases.map((item, index) => (
+                <CaseCard
+                  key={keys.list[index]}
+                  sortId={keys.list[index]}
+                  sortable={cases.length > 1}
+                  index={index + 1}
+                  summary={describeCase(item, start, { weekly: props.weekly, times })}
+                  collapsible={cases.length > 1}
+                  opened={folds.isOpen(index)}
+                  onToggle={() => folds.toggle(index)}
+                  onRemove={
+                    cases.length > 1
+                      ? () => {
+                          folds.removed(index);
+                          keys.removed(index);
+                          onChange(cases.filter((_, other) => other !== index));
+                        }
+                      : undefined
+                  }
+                >
+                  <CaseFields item={item} onChange={(changes) => update(index, changes)} start={start} index={index} withPeriod props={props} />
+                </CaseCard>
+              ))}
+            </SortableContext>
+          </DndContext>
           <Text size="xs" c="dimmed">
-            Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier.
+            Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner).
           </Text>
           <div>
             <Button

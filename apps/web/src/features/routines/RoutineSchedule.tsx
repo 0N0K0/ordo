@@ -1,12 +1,12 @@
 import { ActionIcon, Button, Checkbox, Group, NumberInput, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { opensFits, readOpens, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, CarIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { TimeField } from '../../components/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../components/recurrence/RepetitionEditor';
-import { RepetitionField } from '../../components/recurrence/RepetitionField';
+import { RepetitionField, RepetitionModal } from '../../components/recurrence/RepetitionField';
 import { describeCase } from '../../components/recurrence/describe-recurrence';
 import * as fmt from '../../lib/format';
 import { localToday } from '../../lib/dates';
@@ -17,7 +17,8 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from './opens-format';
 import { SlotConditionBuilder } from './SlotConditionBuilder';
 import { describeSlotCondition } from './slot-condition-text';
-import { DAILY, ROUTINE_REMINDERS, windowText } from './routine-format';
+import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from './routine-format';
+import type { Routine } from './api';
 
 /** Time and place fields of a routine. */
 export interface RoutineScheduleValues {
@@ -230,6 +231,68 @@ function describeRepetition(value: RoutineRepetitionValue, names: Map<string, st
   ];
 }
 
+/** Whole repetition of a routine, as saved. */
+export type RoutineRepetition = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'>;
+
+/**
+ * Repetition of a routine, to edit.
+ * @param {Routine} routine Routine.
+ * @returns {RoutineRepetitionValue} Repetition.
+ */
+function repetitionOf(routine: Routine): RoutineRepetitionValue {
+  const cases = ((routine.cases as RoutineCase[] | null) ?? []).map((item) => ({ ...item, opens: readOpens(item.opens) }));
+  return {
+    mode: cases.length ? 'CASES' : 'RULE',
+    startDate: routine.startDate,
+    recurrence: ruleOf(routine) ?? DAILY,
+    cases,
+    slotCondition: readSlotCondition(routine.slotCondition),
+    moments: (routine.moments as RoutineSlot[] | null)?.length ? (routine.moments as RoutineSlot[]) : [ANY_TIME],
+    opensOn: readOpens(routine.opensOn),
+  };
+}
+
+/**
+ * Whether a repetition can be applied: a first day, and a case at least in cases.
+ * @param {RoutineRepetitionValue} draft Repetition.
+ * @returns {boolean} Valid.
+ */
+const validRepetition = (draft: RoutineRepetitionValue) => Boolean(draft.startDate) && (draft.mode !== 'CASES' || draft.cases.length > 0);
+
+/**
+ * Every repetition setting of a routine in the common modal, out of its form (a table cell): applied to it, or to every
+ * routine selected.
+ * @param {{ routine: Routine, opened: boolean, onClose: () => void, onApply: (repetition: RoutineRepetition) => void, header?: ReactNode }} props Routine edited, opened, closing, saving, what it applies to.
+ * @returns {JSX.Element} Modal.
+ */
+export function RoutineRepetitionModal({ routine, opened, onClose, onApply, header }: { routine: Routine; opened: boolean; onClose: () => void; onApply: (repetition: RoutineRepetition) => void; header?: ReactNode }) {
+  const { data: schedules } = useWorkSchedules();
+  const names = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.name]));
+  const [draft, setDraft] = useState<RoutineRepetitionValue>(() => repetitionOf(routine));
+  return (
+    <RepetitionModal<RoutineRepetitionValue>
+      opened={opened}
+      onClose={onClose}
+      title={`Répétition et moments de « ${routine.title} »`}
+      header={header}
+      draft={draft}
+      setDraft={setDraft}
+      valid={validRepetition}
+      editor={(value, change) => <RoutineRepetitionEditor draft={value} setDraft={change} names={names} />}
+      onApply={(value) =>
+        onApply({
+          startDate: value.startDate,
+          recurrence: value.recurrence,
+          cases: value.mode === 'CASES' ? value.cases : [],
+          slotCondition: value.mode === 'CASES' ? null : value.slotCondition,
+          moments: value.mode === 'CASES' ? [] : value.moments,
+          opensOn: value.mode === 'CASES' ? null : value.opensOn,
+        })
+      }
+    />
+  );
+}
+
 interface RoutineScheduleProps {
   values: RoutineScheduleValues;
   errors: Record<string, ReactNode>;
@@ -268,7 +331,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
             opensOn: value.opensOn,
           })
         }
-        valid={(draft) => Boolean(draft.startDate) && (draft.mode !== 'CASES' || draft.cases.length > 0)}
+        valid={validRepetition}
         describe={(value) => describeRepetition(value, names)}
         editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
       />

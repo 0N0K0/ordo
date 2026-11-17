@@ -451,7 +451,7 @@ export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
  */
 export const routineMoveSchema = z
   .object({ from: z.iso.date({ error: 'Date invalide.' }), to: z.iso.date({ error: 'Date invalide.' }).nullable(), times: routineMoveTimesSchema })
-  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour.');
+  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
 export type RoutineMove = z.infer<typeof routineMoveSchema>;
 
 /**

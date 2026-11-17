@@ -560,17 +560,25 @@ export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
   addRequiredIds?: Array<string | number> | null | undefined;
+  /** Cases (with recurrence: its whole repetition); empty: its rule. */
+  cases?: unknown;
   /** HH:MM; null: no limit. */
   dueTime?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
   /** HH:MM; null: no limit. */
   fromTime?: string | null | undefined;
+  /** Times of the day following its rule. */
+  moments?: unknown;
+  /** « À partir du » of its rule; null: none. */
+  opensOn?: unknown;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
   removeCategoryIds?: Array<string | number> | null | undefined;
   removeRequiredIds?: Array<string | number> | null | undefined;
+  /** On or out of calendar schedules, following its rule; null: any time. */
+  slotCondition?: unknown;
   startDate?: string | null | undefined;
 };
 
@@ -621,6 +629,8 @@ export type RoutinePatch = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
   beneficiaryRelationIds?: Array<string | number> | null | undefined;
+  /** Cases (with recurrence: its whole repetition); empty: its rule. */
+  cases?: unknown;
   categoryIds?: Array<string | number> | null | undefined;
   /** HH:MM; null: no limit. */
   dueTime?: string | null | undefined;
@@ -631,6 +641,8 @@ export type RoutinePatch = {
   location?: string | null | undefined;
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
+  /** Times of the day following its rule. */
+  moments?: unknown;
   /** « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   /** Null: top level. */
@@ -641,6 +653,8 @@ export type RoutinePatch = {
   /** Minutes before its moment. */
   reminders?: Array<number> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
+  /** On or out of calendar schedules, following its rule; null: any time. */
+  slotCondition?: unknown;
   startDate?: string | null | undefined;
   title?: string | null | undefined;
   /** Minutes to come back. */
@@ -2852,6 +2866,7 @@ export type MoveRoutineOccurrenceMutationVariables = Exact<{
   id: string | number;
   date: string;
   to: string;
+  times?: unknown;
 }>;
 
 
@@ -7508,8 +7523,8 @@ export const SetRoutineDoneDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetRoutineDoneMutation, SetRoutineDoneMutationVariables>;
 export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {
-  moveRoutineOccurrence(id: $id, date: $date, to: $to)
+    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {
+  moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
