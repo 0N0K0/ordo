@@ -1,3 +1,4 @@
+import { idsOfKind, peopleKeys, personKey } from '../../components/people/people-keys';
 import { queryClient } from '../../lib/query-client';
 import { treasuryKey, useTreasurySettings, type TreasurySettings } from '../treasury/api';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -9,21 +10,18 @@ export interface Beneficiaries {
 }
 
 /**
- * Values of a select of beneficiaries: « c:<contributor> » and « r:<relation> ».
+ * Values of a select of beneficiaries: contributors and relations.
  * @param {Beneficiaries} value Beneficiaries.
  * @returns {string[]} Values.
  */
-export const beneficiaryKeys = (value: Beneficiaries) => [...value.beneficiaryIds.map((id) => `c:${id}`), ...value.beneficiaryRelationIds.map((id) => `r:${id}`)];
+export const beneficiaryKeys = (value: Beneficiaries) => peopleKeys({ contributor: value.beneficiaryIds, relation: value.beneficiaryRelationIds });
 
 /**
  * Beneficiaries of select values.
- * @param {string[]} keys Values « c:<id> » / « r:<id> ».
+ * @param {string[]} keys Values.
  * @returns {Beneficiaries} Beneficiaries.
  */
-export const beneficiariesOf = (keys: string[]): Beneficiaries => ({
-  beneficiaryIds: keys.filter((key) => key.startsWith('c:')).map((key) => key.slice(2)),
-  beneficiaryRelationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)),
-});
+export const beneficiariesOf = (keys: string[]): Beneficiaries => ({ beneficiaryIds: idsOfKind(keys, 'contributor'), beneficiaryRelationIds: idsOfKind(keys, 'relation') });
 
 /**
  * People a task, a routine or an event can be for: the contributors, and the relations without contributor (one with
@@ -39,10 +37,12 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
   const contributorName = new Map(contributors.map((contributor) => [contributor.id, context?.contributorName(contributor) ?? contributor.name]));
   const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
   const options = [
-    { group: 'Contributeurs', items: contributors.map((contributor) => ({ value: `c:${contributor.id}`, label: contributorName.get(contributor.id)! })) },
+    { group: 'Contributeurs', items: contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)! })) },
     {
       group: 'Proches',
-      items: relations.filter((relation) => !relation.contributorId || chosen.beneficiaryRelationIds.includes(relation.id)).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })),
+      items: relations
+        .filter((relation) => !relation.contributorId || chosen.beneficiaryRelationIds.includes(relation.id))
+        .map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
     },
   ].filter((group) => group.items.length > 0);
   /**

@@ -1,4 +1,5 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { PersonOption } from '../../components/people/PersonOption';
 import { listSelectProps } from '../../components/settings/item-look';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { createdId } from '../../components/settings/settings-api';
@@ -98,6 +99,10 @@ export function TeamMembers() {
           disabled={!others.length}
           searchable
           data={others.map((item) => ({ value: item.id, label: item.name }))}
+          renderOption={({ option }) => {
+            const contributor = contributorById.get(option.value);
+            return <PersonOption name={option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
+          }}
           value={null}
           onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, { onSuccess: () => notifySuccess('Membre ajouté.'), onError })}
         />

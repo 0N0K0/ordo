@@ -13,7 +13,7 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
-import { ProjectSelect } from '../tasks/task-ui';
+import { AssigneesSelect, ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions, DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from './api';
@@ -473,14 +473,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               form.setFieldValue('contributorIds', values.contributorIds.filter((id) => allowed.has(id)));
             }}
           />
-          <BatchMultiSelect
+          <AssigneesSelect
             label="Contributeurs"
             description={values.projectId ? 'Contributeurs du projet.' : undefined}
-            placeholder={values.contributorIds.length ? undefined : 'Aucun'}
-            data={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? []).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-            searchable
-            clearable
-            {...form.getInputProps('contributorIds')}
+            contributors={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? [])}
+            value={values.contributorIds}
+            onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
           />
           <BeneficiariesSelect
             description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."

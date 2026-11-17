@@ -1,13 +1,14 @@
 import { DatePickerInput } from '@mantine/dates';
+import { PeopleSelect } from '../../components/people/PeopleSelect';
+import { categoriesForBaseList, listTasks, rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, unitOptions, usePeople } from './shopping-format';
 import { listSelectProps } from '../../components/settings/item-look';
 import { Anchor, Checkbox, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
-import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { categoriesForBaseList, listTasks, shoppingCategoryOptions, unitOptions, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -181,17 +182,13 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
             </SimpleGrid>
           )}
-          <BatchMultiSelect
+          <PeopleSelect
             label="Bénéficiaire"
             description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
-            placeholder={values.memberIds.length + values.relationIds.length ? undefined : 'Personne en particulier'}
+            placeholder="Personne en particulier"
             data={people.options}
-            searchable
-            clearable
-            value={[...values.memberIds.map((id) => `m:${id}`), ...values.relationIds.map((id) => `r:${id}`)]}
-            onChange={(keys) =>
-              form.setValues({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
-            }
+            value={rowPeopleKeys(values)}
+            onChange={(keys) => form.setValues(rowPeopleOf(keys))}
           />
           <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
           <MarkdownEditor

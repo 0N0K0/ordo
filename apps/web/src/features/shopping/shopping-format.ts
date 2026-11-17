@@ -1,3 +1,4 @@
+import { idsOfKind, peopleKeys, personKey } from '../../components/people/people-keys';
 import { lineageOf } from '@ordo/shared';
 import { categoryOptions, categoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
 import { useTreasurySettings } from '../treasury/api';
@@ -161,11 +162,18 @@ export const EMPTY_GROUPS_LABEL: Record<ShoppingGrouping, string> = {
 };
 
 /**
- * Keys of the people a row is for ("m:" members, "r:" relations).
+ * Keys of the people a row is for: members and relations.
  * @param {{ memberIds: string[], relationIds: string[] }} row Product or item.
  * @returns {string[]} Keys.
  */
-export const peopleKeys = (row: { memberIds: string[]; relationIds: string[] }) => [...row.memberIds.map((id) => `m:${id}`), ...row.relationIds.map((id) => `r:${id}`)];
+export const rowPeopleKeys = (row: { memberIds: string[]; relationIds: string[] }) => peopleKeys({ member: row.memberIds, relation: row.relationIds });
+
+/**
+ * Members and relations of people keys.
+ * @param {readonly string[]} keys Keys.
+ * @returns {{ memberIds: string[], relationIds: string[] }} People of a row.
+ */
+export const rowPeopleOf = (keys: readonly string[]) => ({ memberIds: idsOfKind(keys, 'member'), relationIds: idsOfKind(keys, 'relation') });
 
 /**
  * Groups a row is in: its category, store or way of keeping, or each of its people (none: the group without).
@@ -174,7 +182,7 @@ export const peopleKeys = (row: { memberIds: string[]; relationIds: string[] }) 
  * @returns {string[]} Group ids.
  */
 export function groupsOfRow(row: Pick<ShoppingFields, 'categoryId' | 'storeId' | 'storageId' | 'perishable' | 'memberIds' | 'relationIds'>, grouping: ShoppingGrouping): string[] {
-  if (grouping === 'people') return peopleKeys(row);
+  if (grouping === 'people') return rowPeopleKeys(row);
   const id = grouping === 'category' ? row.categoryId : grouping === 'store' ? row.storeId : row.perishable ? row.storageId : null;
   return id ? [id] : [];
 }
@@ -193,10 +201,10 @@ export function moveToGroup(row: ShoppingFields, grouping: ShoppingGrouping, fro
   if (grouping === 'store') return { storeId: to };
   if (grouping === 'storage') return to ? { perishable: true, storageId: to } : { storageId: null };
   if (!to) return { memberIds: [], relationIds: [] };
-  const keys = peopleKeys(row).filter((key) => key !== from);
+  const keys = rowPeopleKeys(row).filter((key) => key !== from);
   if (keys.includes(to)) return null;
   keys.push(to);
-  return { memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) };
+  return rowPeopleOf(keys);
 }
 
 /**
@@ -210,7 +218,7 @@ export function placeInGroup(grouping: ShoppingGrouping, groupId: string | null)
   if (grouping === 'category') return { categoryId: groupId };
   if (grouping === 'store') return { storeId: groupId };
   if (grouping === 'storage') return { perishable: true, storageId: groupId };
-  return groupId.startsWith('m:') ? { memberIds: [groupId.slice(2)] } : { relationIds: [groupId.slice(2)] };
+  return rowPeopleOf([groupId]);
 }
 
 /** What the groups of a shopping table are named from. */
@@ -337,7 +345,7 @@ export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<st
  * @param {string[]} [projectIds] Projects of the list (through its tasks); none: every member. Optional.
  * @param {string[]} [keep] Members already chosen, offered anyway. Optional.
  * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[] }} Names (also by
- *   "m:"/"r:" key) and select options.
+ *   people key) and select options.
  */
 export function usePeople(projectIds: string[] = [], keep: string[] = []) {
   const { data } = useTreasurySettings();
@@ -347,10 +355,10 @@ export function usePeople(projectIds: string[] = [], keep: string[] = []) {
   // Members are contributors: of a project, its contributors only.
   const allowed = projectIds.length && context ? new Set(context.assignableFor(projectIds, keep).map((contributor) => contributor.id)) : null;
   const options = [
-    { group: 'Membres', items: [...members].filter(([id]) => !allowed || allowed.has(id)).map(([id, name]) => ({ value: `m:${id}`, label: name })) },
-    { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: `r:${id}`, label: name })) },
+    { group: 'Membres', items: [...members].filter(([id]) => !allowed || allowed.has(id)).map(([id, name]) => ({ value: personKey('member', id), label: name })) },
+    { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })) },
   ].filter((group) => group.items.length > 0);
-  const byKey = new Map([...[...members].map(([id, name]) => [`m:${id}`, name] as const), ...[...relations].map(([id, name]) => [`r:${id}`, name] as const)]);
+  const byKey = new Map([...[...members].map(([id, name]) => [personKey('member', id), name] as const), ...[...relations].map(([id, name]) => [personKey('relation', id), name] as const)]);
   return { members, relations, byKey, options };
 }
 

@@ -1,5 +1,6 @@
-import { Avatar, Group } from '@mantine/core';
-import { EditableMultiSelect, EditableSelect } from '../../../components/data-table/EditableCells';
+import { PeopleCell } from '../../../components/people/PeopleSelect';
+import { PersonAvatar, PersonOption } from '../../../components/people/PersonOption';
+import { EditableSelect } from '../../../components/data-table/EditableCells';
 import { treeSelectProps } from '../../../components/tree-select/tree-select';
 import type { TaskContext } from '../use-task-context';
 
@@ -28,25 +29,18 @@ interface AssigneesCellProps {
  */
 export function AssigneesCell({ value, projectId, context, label, readOnly = false, onSave }: AssigneesCellProps) {
   return (
-    <EditableMultiSelect
+    <PeopleCell
       label={label}
       readOnly={readOnly}
       value={value}
       items={value.flatMap((id) => {
         const contributor = context.contributorById.get(id);
-        return contributor
-          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
-          : [];
+        return contributor ? [{ id, label: context.contributorName(contributor), icon: <PersonAvatar name={contributor.name} avatarUrl={contributor.avatarUrl} /> }] : [];
       })}
       data={context.assignableFor([projectId], value).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
       renderOption={({ option }) => {
         const contributor = context.contributorById.get(option.value);
-        return (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-            {option.label}
-          </Group>
-        );
+        return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} />;
       }}
       onSave={(assigneeIds) => onSave(assigneeIds, { added: assigneeIds.filter((id) => !value.includes(id)), removed: value.filter((id) => !assigneeIds.includes(id)) })}
     />

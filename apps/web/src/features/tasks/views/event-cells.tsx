@@ -1,12 +1,11 @@
-import { Avatar, Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type MouseEvent } from 'react';
-import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
-import { applyDiff } from '../../../components/data-table/bulk-edit';
-import { bulkTargets, useBulkTable } from '../../../components/data-table/bulk-edit';
+import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/bulk-edit';
 import { eventKey, type TaskTableRow } from '../task-columns';
 import type { TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/ask-scope';
@@ -16,9 +15,10 @@ import { useEventForm } from '../../calendar/use-event-form';
 import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
-import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
+
 import { cellField as sharedField } from '../../../components/data-table/cell-field';
 import * as fmt from '../../../lib/format';
+import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 
 /**
@@ -111,38 +111,13 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
  */
 export function EventPeopleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
   const save = useEventSave(event, 'assignees');
-  const label = `Personnes de l’évènement ${event.title}`;
   return (
-    <StackedMultiCell
-      label={label}
-      items={event.contributorIds.flatMap((id) => {
-        const contributor = context.contributorById.get(id);
-        return contributor
-          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
-          : [];
-      })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellField}
-          comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
-          aria-label={label}
-          data={context.assignableFor(event.projectId ? [event.projectId] : [], event.contributorIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-          renderOption={({ option }) => {
-            const contributor = context.contributorById.get(option.value);
-            return (
-              <Group gap="xs" wrap="nowrap">
-                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-                {option.label}
-              </Group>
-            );
-          }}
-          value={event.contributorIds}
-          onChange={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
-          onDropdownClose={onDropdownClose}
-          placeholder={event.contributorIds.length ? undefined : '—'}
-          searchable
-        />
-      )}
+    <AssigneesCell
+      value={event.contributorIds}
+      projectId={event.projectId}
+      context={context}
+      label={`Personnes de l’évènement ${event.title}`}
+      onSave={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
     />
   );
 }

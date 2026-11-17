@@ -1,3 +1,4 @@
+import { personKey, memberOrRelation, memberOrRelationKey } from '../../components/people/people-keys';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
@@ -217,11 +218,11 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               clearable
               searchable
               data={[
-                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
-                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })) },
+                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
               ].filter((group) => group.items.length)}
-              value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
-              onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+              value={memberOrRelationKey(values)}
+              onChange={(key) => form.setValues(memberOrRelation(key))}
               error={form.errors.memberId}
             />
             <Select label="Contexte" placeholder={EVERYDAY_CONTEXT} clearable {...listSelectProps(settings?.treasuryContexts ?? [])} {...form.getInputProps('contextId')} />
@@ -333,11 +334,11 @@ export function BudgetsPanel() {
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
   // "Me" (no member nor relation), and the everyday context, in the filters.
   const ME_KEY = 'none';
-  const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => (row.relationId ? `r:${row.relationId}` : row.memberId && row.memberId !== me?.id ? `m:${row.memberId}` : null);
+  const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => memberOrRelationKey({ relationId: row.relationId, memberId: row.memberId !== me?.id ? row.memberId : null });
   const whoChoices = [
     { value: ME_KEY, label: `${me?.name ?? 'Moi'} (moi)` },
-    ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })),
-    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })),
+    ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })),
+    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
   ];
   /**
    * What is out of budget, counted as the budgets count it: spent (money out) or received (money in) by the direction of
@@ -730,7 +731,7 @@ export function BudgetsPanel() {
                   label="Bénéficiaire du budget"
                   nullable
                   data={whoChoices.filter((choice) => choice.value !== ME_KEY)}
-                  onSave={(key) => bulk('who')(budget, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+                  onSave={(key) => bulk('who')(budget, memberOrRelation(key))}
                 />
               ),
               context: (

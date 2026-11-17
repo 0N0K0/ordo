@@ -1,3 +1,4 @@
+import { beneficiaryKeys } from '../beneficiaries/use-beneficiaries';
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../components/category-tree/category-tree';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -32,7 +33,6 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const beneficiaryName = new Map((env.beneficiaries ?? []).map((person) => [person.value, person.label]));
   const comments = env.comments ?? new Map<string, number>();
   const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.title ?? '').filter(Boolean);
-  const beneficiaryKeys = (routine: Routine) => [...routine.beneficiaryIds.map((id) => `c:${id}`), ...routine.beneficiaryRelationIds.map((id) => `r:${id}`)];
   const slotIds = (routine: Routine) => [
     ...conditionScheduleIds(readSlotCondition(routine.slotCondition)),
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),

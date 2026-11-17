@@ -1,3 +1,4 @@
+import { personKey } from '../../components/people/people-keys';
 import { recurrenceSchema } from '@ordo/shared';
 import type { BulkChange } from '../../components/data-table/bulk-edit';
 import { useMemo } from 'react';
@@ -77,9 +78,9 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.title])),
       documents: [...groups].map(([group, items]) => ({ group, items })),
       names: new Map([
-        ...(settings?.treasuryMembers ?? []).map((member) => [`m:${member.id}`, member.isMe ? `${member.name} (moi)` : member.name] as const),
-        ...(settings?.treasuryRelations ?? []).map((relation) => [`r:${relation.id}`, relation.name] as const),
-        ...(settings?.treasuryContexts ?? []).map((context) => [`c:${context.id}`, context.name] as const),
+        ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), member.isMe ? `${member.name} (moi)` : member.name] as const),
+        ...(settings?.treasuryRelations ?? []).map((relation) => [personKey('relation', relation.id), relation.name] as const),
+        ...(settings?.treasuryContexts ?? []).map((context) => [`context:${context.id}`, context.name] as const),
       ]),
     };
   }, [settings, workspace, documentOptions, accounts]);

@@ -1,4 +1,5 @@
 import { Badge, Button, Group, Text } from '@mantine/core';
+import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, usePeople } from '../shopping/shopping-format';
 import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../components/actions/ActionButton';
@@ -21,7 +22,6 @@ import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { useShoppingData } from '../shopping/api';
-import { shoppingCategoryOptions, usePeople } from '../shopping/shopping-format';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from './api';
 import { LotsTable } from './LotsTable';
 import { MovementsTable } from './MovementsTable';
@@ -121,7 +121,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => whom(item).join(', ') || null,
       text: (item) => whom(item).join(', '),
-      filter: { kind: 'choices', value: (item) => [...item.memberIds.map((id) => `m:${id}`), ...item.relationIds.map((id) => `r:${id}`)], options: people.options.flatMap((group) => group.items) },
+      filter: { kind: 'choices', value: (item) => rowPeopleKeys(item), options: people.options.flatMap((group) => group.items) },
       groupable: true,
     },
     {
@@ -292,15 +292,15 @@ export function StockTable() {
           ),
           people: (
             <EditableMultiSelect
-              value={[...item.memberIds.map((id) => `m:${id}`), ...item.relationIds.map((id) => `r:${id}`)]}
+              value={rowPeopleKeys(item)}
               label={`Bénéficiaires de ${item.label}`}
               data={people.options}
               onSave={(keys) =>
                 bulk('people')(item, (target) => {
-                  const before = [...item.memberIds.map((id) => `m:${id}`), ...item.relationIds.map((id) => `r:${id}`)];
-                  const mine = [...target.memberIds.map((id) => `m:${id}`), ...target.relationIds.map((id) => `r:${id}`)];
+                  const before = rowPeopleKeys(item);
+                  const mine = rowPeopleKeys(target);
                   const next = applyDiff(mine, before, keys);
-                  return { memberIds: next.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: next.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) };
+                  return rowPeopleOf(next);
                 })
               }
             />

@@ -1,4 +1,6 @@
 import { Anchor, Box, Avatar, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
+import { PeopleSelect } from '../../components/people/PeopleSelect';
+import { PersonOption } from '../../components/people/PersonOption';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../components/settings/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
@@ -131,39 +133,29 @@ interface AssigneesSelectProps {
   value: string[];
   onChange: (value: string[]) => void;
   label?: string;
+  /** Help under the field. Optional. */
+  description?: string;
   error?: string;
 }
 
 /**
- * Multi-select of contributors.
+ * Multi-select of contributors, with their avatar and handle (assignees of a task, a routine, people of an event).
  * @param {AssigneesSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function AssigneesSelect({ contributors, value, onChange, label = 'Assignés', error }: AssigneesSelectProps) {
+export function AssigneesSelect({ contributors, value, onChange, label = 'Assignés', description, error }: AssigneesSelectProps) {
+  const byId = new Map(contributors.map((contributor) => [contributor.id, contributor]));
   return (
-    <BatchMultiSelect
+    <PeopleSelect
       label={label}
-      placeholder={value.length ? undefined : 'Personne'}
-      data={contributors.map((contributor) => ({
-        value: contributor.id,
-        label: contributor.isMe ? `${contributor.name} (moi)` : contributor.name,
-      }))}
+      description={description}
+      data={contributors.map((contributor) => ({ value: contributor.id, label: contributor.isMe ? `${contributor.name} (moi)` : contributor.name }))}
       renderOption={({ option }) => {
-        const contributor = contributors.find((item) => item.id === option.value);
-        return (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor?.avatarUrl} name={option.label} color="initials" size={20} />
-            <Text size="sm">{option.label}</Text>
-            <Text size="xs" c="dimmed">
-              @{contributor?.handle}
-            </Text>
-          </Group>
-        );
+        const contributor = byId.get(option.value);
+        return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
       }}
       value={value}
       onChange={onChange}
-      searchable
-      clearable
       error={error}
       nothingFoundMessage="Aucun contributeur"
     />

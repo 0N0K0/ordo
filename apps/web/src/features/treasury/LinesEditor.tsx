@@ -1,3 +1,4 @@
+import { personKey, memberOrRelation, memberOrRelationKey, parsePersonKey } from '../../components/people/people-keys';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
@@ -101,8 +102,8 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const contextOptions = contexts.map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl }));
   // For whom: a member (none: me), or a relation (loan, gift…).
   const whomOptions = [
-    { group: 'Membres', items: members.map((member) => ({ value: `m:${member.id}`, label: member.isMe ? `${member.name} (moi)` : member.name })) },
-    { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+    { group: 'Membres', items: members.map((member) => ({ value: personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })) },
+    { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
   ].filter((group) => group.items.length);
 
   return (
@@ -158,13 +159,12 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                           clearable
                           searchable
                           data={whomOptions}
-                          value={line.relationId ? `r:${line.relationId}` : line.memberId ? `m:${line.memberId}` : null}
+                          value={memberOrRelationKey(line)}
                           onChange={(key) =>
                             // A loan is with a relation only.
                             change(index, {
-                              memberId: key?.startsWith('m:') ? key.slice(2) : null,
-                              relationId: key?.startsWith('r:') ? key.slice(2) : null,
-                              loan: key?.startsWith('r:') ? line.loan : false,
+                              ...memberOrRelation(key),
+                              loan: parsePersonKey(key)?.kind === 'relation' ? line.loan : false,
                             })
                           }
                           error={error('memberId') ?? error('relationId')}

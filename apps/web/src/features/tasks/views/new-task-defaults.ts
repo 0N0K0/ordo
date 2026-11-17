@@ -1,3 +1,4 @@
+import { parsePersonKey } from '../../../components/people/people-keys';
 import type { TaskGroupBy } from '@ordo/shared';
 import type { TaskInputValues } from '../api';
 import type { TaskContext } from '../use-task-context';
@@ -47,8 +48,10 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
       const parent = context.taskById.get(key);
       return parent ? { parentId: key, projectId: parent.projectId ?? undefined } : {};
     }
-    case 'beneficiaries':
-      return key.startsWith('r:') ? { beneficiaryRelationIds: [key.slice(2)] } : { beneficiaryIds: [key.replace(/^c:/, '')] };
+    case 'beneficiaries': {
+      const person = parsePersonKey(key);
+      return person?.kind === 'relation' ? { beneficiaryRelationIds: [person.id] } : person ? { beneficiaryIds: [person.id] } : {};
+    }
     // Links and months: nothing set (a new task has no link, and no day within the month is chosen).
     case 'blockedBy':
     case 'blocking':

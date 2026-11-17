@@ -1,5 +1,4 @@
-import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { EditableMultiSelect } from '../../components/data-table/EditableCells';
+import { PeopleCell, PeopleSelect } from '../../components/people/PeopleSelect';
 import { beneficiariesOf, beneficiaryKeys, useBeneficiaries, type Beneficiaries } from './use-beneficiaries';
 
 /** Label of the field, everywhere. */
@@ -21,17 +20,14 @@ interface BeneficiariesSelectProps {
  */
 export function BeneficiariesSelect({ value, onChange, description = 'Pour qui c’est : contributeurs ou proches.', disabled }: BeneficiariesSelectProps) {
   const { options } = useBeneficiaries(value);
-  const keys = beneficiaryKeys(value);
   return (
-    <BatchMultiSelect
+    <PeopleSelect
       label={BENEFICIARIES_LABEL}
       description={description}
-      placeholder={keys.length ? undefined : 'Personne en particulier'}
+      placeholder="Personne en particulier"
       data={options}
-      value={keys}
+      value={beneficiaryKeys(value)}
       onChange={(next) => onChange(beneficiariesOf(next))}
-      searchable
-      clearable
       disabled={disabled}
     />
   );
@@ -44,5 +40,5 @@ export function BeneficiariesSelect({ value, onChange, description = 'Pour qui c
  */
 export function BeneficiariesCell({ value, label, readOnly = false, onSave }: { value: Beneficiaries; label: string; readOnly?: boolean; onSave: (value: Beneficiaries) => void }) {
   const { options } = useBeneficiaries(value);
-  return <EditableMultiSelect label={label} value={beneficiaryKeys(value)} data={options} readOnly={readOnly} onSave={(next) => onSave(beneficiariesOf(next))} />;
+  return <PeopleCell label={label} value={beneficiaryKeys(value)} data={options} readOnly={readOnly} onSave={(next) => onSave(beneficiariesOf(next))} />;
 }

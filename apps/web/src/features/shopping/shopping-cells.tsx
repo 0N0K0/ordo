@@ -1,4 +1,5 @@
 import { ActionIcon, Select, Tooltip } from '@mantine/core';
+import { PeopleCell as SharedPeopleCell } from '../../components/people/PeopleSelect';
 import { localToday } from '../../lib/dates';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../components/settings/item-look';
@@ -8,7 +9,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from './api';
 import { EditableSelect } from '../../components/data-table/EditableCells';
-import { shoppingCategoryOptions, shoppingCategoryTree, unitOptions, usePeople } from './shopping-format';
+import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, shoppingCategoryTree, unitOptions, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { cellCombobox, cellField, cellMulti } from '../../components/data-table/cell-field';
 
@@ -78,29 +79,15 @@ interface PeopleCellProps {
  */
 export function PeopleCell({ memberIds, relationIds, label, readOnly = false, projectIds, onSave }: PeopleCellProps) {
   const people = usePeople(projectIds, memberIds);
-  const value = [...memberIds.map((id) => `m:${id}`), ...relationIds.map((id) => `r:${id}`)];
+  const value = rowPeopleKeys({ memberIds, relationIds });
   return (
-    <StackedMultiCell
+    <SharedPeopleCell
       label={label}
       readOnly={readOnly}
-      items={[
-        ...memberIds.flatMap((id) => (people.members.has(id) ? [{ id: `m:${id}`, label: people.members.get(id)! }] : [])),
-        ...relationIds.flatMap((id) => (people.relations.has(id) ? [{ id: `r:${id}`, label: people.relations.get(id)! }] : [])),
-      ]}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={label}
-          data={people.options}
-          searchable
-          value={value}
-          onChange={(keys) =>
-            onSave({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
-          }
-          onDropdownClose={onDropdownClose}
-          placeholder={value.length ? undefined : '—'}
-        />
-      )}
+      value={value}
+      items={value.flatMap((key) => (people.byKey.has(key) ? [{ id: key, label: people.byKey.get(key)! }] : []))}
+      data={people.options}
+      onSave={(keys) => onSave(rowPeopleOf(keys))}
     />
   );
 }

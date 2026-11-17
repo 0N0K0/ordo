@@ -67,6 +67,14 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `components/people`, avec `PeopleSelect` et `PeopleCell`, un seul schéma de clés et un seul rendu avec avatar ;
   - `AssigneesCell` pour les évènements aussi.
 
+**Fait** :
+
+- **`components/people/`** : `people-keys.ts`, un seul schéma de clés (`c:` contributeur, `m:` membre, `r:` relation), avec `personKey`, `parsePersonKey`, `peopleKeys`, `idsOfKind`, et `memberOrRelation` et `memberOrRelationKey` pour les sélecteurs à une personne de la trésorerie. `PeopleSelect` est le champ de formulaire et `PeopleCell` la cellule. `PersonOption` et `PersonAvatar` sont le seul rendu avec avatar.
+- **Branchés dessus** : bénéficiaires, colonnes et valeurs par défaut des tâches et des routines, achats (cellule, formulaire, regroupement par personne), stock, lignes et budgets de la trésorerie.
+- **Contributeurs** : `AssigneesSelect` sert aussi au formulaire d'évènement (avec avatars), et `AssigneesCell` aux évènements (`EventPeopleCell` le reprend). Le choix d'un contributeur dans l'équipe de la trésorerie montre son avatar.
+- **Corrigé** : les contextes de la trésorerie n'utilisent plus la clé `c:` des contributeurs.
+- **Reste à part** : le modèle des données. Les achats, le stock et la trésorerie gardent membres et relations, les bénéficiaires contributeurs et relations ; seul le web partage clés et composants.
+
 ## Doublons moyens
 
 ### 6. Ouverture des panneaux et des fenêtres

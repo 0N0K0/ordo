@@ -1,12 +1,13 @@
 import { Autocomplete, Checkbox, NumberInput, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
+import { PeopleSelect } from '../../components/people/PeopleSelect';
+import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, usePeople } from '../shopping/shopping-format';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
-import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData } from '../shopping/api';
-import { shoppingCategoryOptions, usePeople } from '../shopping/shopping-format';
 import { useStockLocations, useStockMutations } from './api';
 import { locationOptions } from './stock-format';
 import { FormActions } from '../../components/dialogs/FormActions';
@@ -78,17 +79,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
-        <BatchMultiSelect
-          label="Bénéficiaires"
-          placeholder={values.memberIds.length + values.relationIds.length ? undefined : 'Personne en particulier'}
-          data={people.options}
-          searchable
-          clearable
-          value={[...values.memberIds.map((id) => `m:${id}`), ...values.relationIds.map((id) => `r:${id}`)]}
-          onChange={(keys) =>
-            form.setValues({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
-          }
-        />
+        <PeopleSelect label="Bénéficiaires" placeholder="Personne en particulier" data={people.options} value={rowPeopleKeys(values)} onChange={(keys) => form.setValues(rowPeopleOf(keys))} />
         <Textarea label="Description" autosize minRows={2} maxRows={6} value={values.note ?? ''} onChange={(event) => form.setFieldValue('note', event.currentTarget.value || null)} />
         <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />
       </Stack>

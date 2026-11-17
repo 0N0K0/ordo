@@ -1,3 +1,4 @@
+import { personKey, memberOrRelation, memberOrRelationKey, parsePersonKey } from '../../components/people/people-keys';
 import { Checkbox, Text } from '@mantine/core';
 import { listSelectProps } from '../../components/settings/item-look';
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
@@ -39,7 +40,7 @@ const ME = 'me';
  * @param {LineValues} line Line.
  * @returns {string} "m:<id>", "r:<id>", or ME.
  */
-const whomKey = (line: LineValues) => (line.relationId ? `r:${line.relationId}` : line.memberId ? `m:${line.memberId}` : ME);
+const whomKey = (line: LineValues) => memberOrRelationKey(line) ?? ME;
 
 /**
  * Columns of the lines of an entry.
@@ -49,12 +50,12 @@ const whomKey = (line: LineValues) => (line.relationId ? `r:${line.relationId}` 
 function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const me = env.settings?.treasuryMembers.find((member) => member.isMe);
   const whomName = (row: LineRow) => (whomKey(row.line) === ME ? (me ? `${me.name} (moi)` : 'Moi') : (env.names.get(whomKey(row.line)) ?? ''));
-  const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(`c:${row.line.contextId}`) ?? '') : EVERYDAY_CONTEXT);
+  const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(`context:${row.line.contextId}`) ?? '') : EVERYDAY_CONTEXT);
   const categoryName = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
   const projectName = (row: LineRow) => (row.line.projectId ? (env.projectNames.get(row.line.projectId) ?? '') : '');
   const whomChoices = [
-    ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : `m:${member.id}`, label: member.isMe ? `${member.name} (moi)` : member.name })),
-    ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })),
+    ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })),
+    ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
   ];
   return [
     { id: 'label', bulk: true, label: 'Libellé', size: 200, locked: true, sortValue: (row) => row.line.label ?? null, text: (row) => row.line.label ?? '' },
@@ -222,15 +223,14 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={`Bénéficiaire de ${name}`}
               nullable
               data={[
-                { group: 'Membres', items: (env.settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
-                { group: 'Relations', items: (env.settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+                { group: 'Membres', items: (env.settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })) },
+                { group: 'Relations', items: (env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
               ].filter((group) => group.items.length)}
               // A loan is with a relation only.
               onSave={(key) =>
                 saveLine('whom', row, (target) => ({
-                  memberId: key?.startsWith('m:') ? key.slice(2) : null,
-                  relationId: key?.startsWith('r:') ? key.slice(2) : null,
-                  loan: key?.startsWith('r:') ? target.line.loan : false,
+                  ...memberOrRelation(key),
+                  loan: parsePersonKey(key)?.kind === 'relation' ? target.line.loan : false,
                 }))
               }
             />

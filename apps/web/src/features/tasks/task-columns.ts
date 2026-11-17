@@ -1,3 +1,5 @@
+import { beneficiaryKeys } from '../beneficiaries/use-beneficiaries';
+import { personKey } from '../../components/people/people-keys';
 import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../components/data-table/data-table';
 import { filterRows } from '../../components/data-table/table-engine';
@@ -189,11 +191,8 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'beneficiaries':
         return {
           kind: 'choices',
-          value: (row) => {
-            const item = row.kind === 'task' ? row.task : row.event;
-            return [...item.beneficiaryIds.map((id) => `c:${id}`), ...item.beneficiaryRelationIds.map((id) => `r:${id}`)];
-          },
-          options: [...context.contributors.map((contributor) => ({ value: `c:${contributor.id}`, label: contributor.name }))],
+          value: (row) => beneficiaryKeys(row.kind === 'task' ? row.task : row.event),
+          options: context.contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributor.name })),
         };
       case 'effort':
         return { kind: 'number', value: (row) => task(row)?.effort ?? null };

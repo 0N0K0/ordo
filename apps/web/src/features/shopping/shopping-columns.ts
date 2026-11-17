@@ -1,7 +1,8 @@
 import type { DataColumn } from '../../components/data-table/data-table';
+import { personKey } from '../../components/people/people-keys';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from './api';
-import { peopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
+import { rowPeopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../lib/format';
 
 /** Filter values of the rows not perishable, and perishable without a way of keeping. */
@@ -116,8 +117,11 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       text: (item) => people(item).join(', '),
       filter: {
         kind: 'choices',
-        value: peopleKeys,
-        options: [...[...names.members].map(([id, name]) => ({ value: `m:${id}`, label: name })), ...[...names.relations].map(([id, name]) => ({ value: `r:${id}`, label: name }))],
+        value: rowPeopleKeys,
+        options: [
+          ...[...names.members].map(([id, name]) => ({ value: personKey('member', id), label: name })),
+          ...[...names.relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
+        ],
       },
     },
     { id: 'url', bulk: true, label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },
