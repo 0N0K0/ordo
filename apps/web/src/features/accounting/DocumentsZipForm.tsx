@@ -1,4 +1,5 @@
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import { fetchDownload } from '../../lib/download';
 import { DatePickerInput } from '@mantine/dates';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
@@ -46,14 +47,11 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
     setLoading(true);
     try {
       const params = new URLSearchParams({ from, to, types: types.join(','), imported: imported ? '1' : '0' });
-      const response = await fetch(`/api/accounting/documents/zip?${params}`, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error((await response.text()) || 'Archive impossible.');
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = preset === 'calendarYear' ? `Documents comptables ${year}.zip` : `Documents comptables du ${from} au ${to}.zip`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await fetchDownload(
+        `/api/accounting/documents/zip?${params}`,
+        preset === 'calendarYear' ? `Documents comptables ${year}.zip` : `Documents comptables du ${from} au ${to}.zip`,
+        'Archive impossible.',
+      );
       notifySuccess('Archive téléchargée.');
       onDone?.();
     } catch (error) {

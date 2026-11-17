@@ -1,6 +1,6 @@
 import type { EventInput } from '@fullcalendar/core';
 import { addDays } from '@ordo/shared';
-import { exportFileName, saveFile } from '../dashboards/chart-image';
+import { fileName, postExport } from '../../lib/download';
 import { localParts } from './event-input';
 
 type PdfKind = 'event' | 'task' | 'routine' | 'time' | 'pause' | 'work';
@@ -89,12 +89,5 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
  * @returns {Promise<void>}
  */
 export async function downloadCalendarPdf(view: { title: string; subtitle: string; view: 'month' | 'week' | 'day'; from: string; to: string; today: string; items: PdfItem[] }): Promise<void> {
-  const response = await fetch('/api/exports/calendar.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(view),
-  });
-  if (!response.ok) throw new Error(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Export PDF impossible.');
-  saveFile(await response.blob(), exportFileName(`Agenda — ${view.title}`, 'pdf'));
+  await postExport('/api/exports/calendar.pdf', view, fileName(`Agenda — ${view.title}`, 'pdf'), 'Export PDF impossible.');
 }

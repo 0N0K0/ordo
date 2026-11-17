@@ -1,4 +1,5 @@
 import { Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { fetchDownload } from '../../lib/download';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
@@ -38,14 +39,7 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
     setLoading(true);
     try {
       const params = new URLSearchParams({ from, to, ...(accountId ? { accountId } : {}) });
-      const response = await fetch(`/api/treasury/statement.pdf?${params}`, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error((await response.text()) || 'Relevé impossible.');
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Relevé du ${from} au ${to}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await fetchDownload(`/api/treasury/statement.pdf?${params}`, `Relevé du ${from} au ${to}.pdf`, 'Relevé impossible.');
       notifySuccess('Relevé téléchargé.');
       onDone();
     } catch (error) {

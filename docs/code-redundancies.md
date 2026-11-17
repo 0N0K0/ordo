@@ -103,6 +103,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **CSV :** l'échappement et le BOM sont écrits deux fois.
 - **Cible :** `postPdf` et `toCsv` dans `lib/download.ts`.
 
+**Fait** : `lib/download.ts` regroupe `download` (un blob ou une image en data URL), `fileName`, `fetchDownload` (un fichier servi par l'API : archive des documents, relevé), `postExport` (un export construit par l'API : graphiques, agenda), `postTablePdf` (le PDF d'un tableau : tableaux, achats, graphiques) et `downloadCsv` (au format des tableurs français). Les copies de `chart-image.ts` (`saveFile`, `exportFileName`) et les téléchargements écrits à la main sont supprimés ; les erreurs de l'API sont lues de la même façon partout.
+
 ### 11. Calcul des périodes de calendrier
 
 - **Où :** le même calcul existe dans trois endroits, `shared/dashboards.ts` (`calendarStart`, `shiftCalendar`…), `treasury/chart-period.ts` (`periodStart`, `shiftPeriod`…) et `lib/periods.ts`.

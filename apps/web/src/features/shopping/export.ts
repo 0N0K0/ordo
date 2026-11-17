@@ -1,4 +1,5 @@
 import { shoppingCost } from '@ordo/shared';
+import { postTablePdf, type PdfTableRow } from '../../lib/download';
 import type { ShoppingItem, ShoppingList } from './api';
 import { quantityText, type ShoppingRow } from './shopping-format';
 import * as fmt from '../../lib/format';
@@ -58,7 +59,7 @@ export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>
  */
 export async function downloadShoppingPdf(list: ShoppingList, tableRows: ShoppingRow<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): Promise<void> {
   const total = shoppingTotal(list.items);
-  const rows = tableRows.map((row) => {
+  const rows = tableRows.map((row): PdfTableRow => {
     if (row.kind === 'group') return { kind: 'group', depth: row.depth, cells: [row.name] };
     const { item } = row;
     const cost = shoppingCost(item);
@@ -68,23 +69,11 @@ export async function downloadShoppingPdf(list: ShoppingList, tableRows: Shoppin
       cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
     };
   });
-  const response = await fetch('/api/exports/table.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: list.name,
-      subtitle: total ? `Total estimé : ${fmt.money(total)}` : '',
-      columns: ['Acheté', 'Produit', 'Quantité', 'Pour', 'Note', 'Prix estimé'],
-      rows,
-      align: ['left', 'left', 'right', 'left', 'left', 'right'],
-    }),
+  await postTablePdf({
+    title: list.name,
+    subtitle: total ? `Total estimé : ${fmt.money(total)}` : '',
+    columns: ['Acheté', 'Produit', 'Quantité', 'Pour', 'Note', 'Prix estimé'],
+    rows,
+    align: ['left', 'left', 'right', 'left', 'left', 'right'],
   });
-  if (!response.ok) throw new Error('Le PDF n’a pas pu être créé.');
-  const url = URL.createObjectURL(await response.blob());
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${list.name.replace(/[\\/:*?"<>|]/g, '-')}.pdf`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

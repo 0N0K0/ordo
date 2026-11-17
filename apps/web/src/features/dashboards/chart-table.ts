@@ -1,6 +1,6 @@
 import { isTimeDimension, type ChartConfig } from '@ordo/shared';
 import { DIMENSION_LABELS, MONEY_MEASURES, type ChartData } from './aggregate';
-import { exportFileName, saveFile } from './chart-image';
+import { downloadCsv, postTablePdf } from '../../lib/download';
 import * as fmt from '../../lib/format';
 
 /** Data of a chart as a table: one row per value of the axis, one column per series. */
@@ -47,11 +47,10 @@ export function chartTable(data: ChartData, config: ChartConfig): ChartTable {
  * @returns {void}
  */
 export function downloadChartCsv(table: ChartTable, title: string): void {
-  const cell = (value: string | number | null) => (value === null ? '' : typeof value === 'number' ? String(value).replace('.', ',') : `"${value.replace(/"/g, '""')}"`);
   // Raw numbers: the unit of the percents is in their header.
-  const lines = [table.columns.map((column, index) => cell(table.percent[index] ? `${column} (%)` : column)), ...table.rows.map((row) => row.map(cell))];
-  if (table.total) lines.push([cell('Total'), ...table.total.slice(1).map(cell)]);
-  saveFile(new Blob(['﻿', lines.map((line) => line.join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), exportFileName(title, 'csv'));
+  const lines: (string | number | null)[][] = [table.columns.map((column, index) => (table.percent[index] ? `${column} (%)` : column)), ...table.rows];
+  if (table.total) lines.push(['Total', ...table.total.slice(1)]);
+  downloadCsv(lines, title);
 }
 
 /**
@@ -66,12 +65,5 @@ export async function downloadChartTablePdf(table: ChartTable, title: string, su
     value === null ? '' : typeof value === 'string' ? value : table.percent[index] ? `${fmt.number(value, 2)} %` : table.money ? fmt.money(value) : fmt.number(value);
   const rows = table.rows.map((row) => ({ kind: 'row' as const, depth: 0, cells: row.map(format) }));
   if (table.total) rows.push({ kind: 'row', depth: 0, cells: ['Total', ...table.total.slice(1).map((value, index) => format(value, index + 1))] });
-  const response = await fetch('/api/exports/table.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, subtitle, columns: table.columns, rows, align: table.columns.map((_, index) => (index === 0 ? 'left' : 'right')) }),
-  });
-  if (!response.ok) throw new Error('Le PDF n’a pas pu être créé.');
-  saveFile(await response.blob(), exportFileName(title, 'pdf'));
+  await postTablePdf({ title, subtitle, columns: table.columns, rows, align: table.columns.map((_, index) => (index === 0 ? 'left' : 'right')) });
 }

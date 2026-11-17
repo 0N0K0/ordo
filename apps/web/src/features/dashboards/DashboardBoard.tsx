@@ -40,7 +40,8 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
-import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
+import { chartPng, chartSizeFor, downloadChartsPdf, type ExportScheme } from './chart-image';
+import { download, fileName } from '../../lib/download';
 import { ImageExportForm } from './ImageExportForm';
 import { chartTable, downloadChartCsv, downloadChartTablePdf } from './chart-table';
 import { describeChart, useChartData, type ChartScope } from './chart-data';
@@ -169,7 +170,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             onExport={(settings) => {
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
-                .then((image) => saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png')))
+                .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.title}`, 'png')))
                 .catch((exportError: Error) => notifyError(exportError.message));
             }}
           />

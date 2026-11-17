@@ -1,4 +1,4 @@
-import { download, fileName } from '../../lib/download';
+import { downloadCsv, postTablePdf } from '../../lib/download';
 import type { ShownColumn } from './data-table';
 import type { RowGroup } from './table-engine';
 
@@ -29,11 +29,9 @@ const exportedColumns = <R>(table: TableExport<R>) => table.columns.filter((colu
  */
 export function downloadTableCsv<R>(table: TableExport<R>): void {
   const columns = exportedColumns(table);
-  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
   const header = [...(table.grouped ? ['Groupe'] : []), ...columns.map((column) => column.label)];
   const lines = table.groups.flatMap((group) => group.rows.map((row) => [...(table.grouped ? [group.label] : []), ...columns.map((column) => column.text!(row))]));
-  const csv = [header, ...lines].map((line) => line.map(quote).join(';')).join('\r\n');
-  download(new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' }), fileName(table.title, 'csv'));
+  downloadCsv([header, ...lines], table.title);
 }
 
 /**
@@ -47,12 +45,5 @@ export async function downloadTablePdf<R>(table: TableExport<R>): Promise<void> 
     ...(table.grouped ? [{ kind: 'group' as const, depth: 0, cells: [`${group.label} (${group.rows.length})`] }] : []),
     ...group.rows.map((row) => ({ kind: 'row' as const, depth: 0, cells: columns.map((column) => column.text!(row)) })),
   ]);
-  const response = await fetch('/api/exports/table.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: table.title, subtitle: table.subtitle, columns: columns.map((column) => column.label), rows, align: columns.map((column) => (column.numeric ? 'right' : 'left')) }),
-  });
-  if (!response.ok) throw new Error('Le PDF n’a pas pu être créé.');
-  download(await response.blob(), fileName(table.title, 'pdf'));
+  await postTablePdf({ title: table.title, subtitle: table.subtitle, columns: columns.map((column) => column.label), rows, align: columns.map((column) => (column.numeric ? 'right' : 'left')) });
 }

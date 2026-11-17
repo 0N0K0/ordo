@@ -1,3 +1,4 @@
+import { fileName, postExport } from '../../lib/download';
 import type { ChartSeries } from './aggregate';
 
 /** Styles copied from the page onto the exported SVG (Mantine charts color it with CSS variables). */
@@ -163,53 +164,10 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
 }
 
 /**
- * File name (characters forbidden in file names replaced).
- * @param {string} title Title.
- * @param {string} extension Extension.
- * @returns {string} File name.
- */
-export const exportFileName = (title: string, extension: string) => `${title.replace(/[\\/:*?"<>|]/g, '-')}.${extension}`;
-
-/**
- * Saves a data URL or blob as a file.
- * @param {string | Blob} content Data URL or blob.
- * @param {string} filename File name.
- * @returns {void}
- */
-export function saveFile(content: string | Blob, filename: string): void {
-  // Large data URLs are not reliably downloaded: always through a blob.
-  const blob = typeof content === 'string' ? dataUrlBlob(content) : content;
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * Blob of a base64 data URL.
- * @param {string} dataUrl Data URL.
- * @returns {Blob} Blob.
- */
-function dataUrlBlob(dataUrl: string): Blob {
-  const [header, data] = dataUrl.split(',');
-  const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
-  return new Blob([bytes], { type: /^data:([^;]+)/.exec(header)?.[1] ?? 'application/octet-stream' });
-}
-
-/**
  * Downloads charts as a PDF (laid out by the API).
  * @param {{ title: string, subtitle: string, charts: { title: string, description: string, image: string }[] }} input Charts.
  * @returns {Promise<void>}
  */
 export async function downloadChartsPdf(input: { title: string; subtitle: string; charts: { title: string; description: string; image: string }[] }): Promise<void> {
-  const response = await fetch('/api/exports/charts.pdf', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) throw new Error('Le PDF n’a pas pu être créé.');
-  saveFile(await response.blob(), exportFileName(input.title, 'pdf'));
+  await postExport('/api/exports/charts.pdf', input, fileName(input.title, 'pdf'));
 }
