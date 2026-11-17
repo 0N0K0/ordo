@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { emptyTableFilter, tableFilterSchema, type TableFilterGroup } from './table-views';
-import type { FilterConditionOf, FilterGroupOf } from './task-filters';
+import { tableFilterSchema, type TableFilterGroup } from './table-views';
+import type { FilterConditionOf, FilterGroupOf } from './filters';
 
 /** Fields of the former task filters named otherwise by the columns of the task table. */
 const RENAMED: Record<string, string> = { dependsOn: 'blockedBy', blocks: 'blocking', relatedTo: 'related', trackedHours: 'trackedTime' };
@@ -44,6 +44,3 @@ export const taskTableFilterSchema = z.preprocess(
   (value) => (value && typeof value === 'object' && (value as { type?: unknown }).type === 'group' ? translateTaskFilter(value as FilterGroupOf<string>) : value),
   tableFilterSchema,
 );
-
-/** Empty filter of tasks: every task. */
-export const emptyTaskTableFilter = emptyTableFilter;

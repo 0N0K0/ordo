@@ -128,6 +128,15 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Badges des listes paramétrables :** `LabelBadge` est générique mais rangé dans les tâches, et d'autres écrans font leurs propres badges colorés (page d'un projet, liste des projets, accueil, trésorerie, mails, suivi des documents). Cible : un `ItemBadge` dans `components/settings`.
 - **Catégories de fiches :** le formulaire d'une fiche les affiche par leur nom seul, sans `listSelectProps`.
 
+**Fait** :
+
+- **Abonnements :** `ByWorkspace` (`components/settings`) regroupe par espace les calendriers et les types de plages des autres espaces ; la carte des types de plages passe sur `SettingsSection`.
+- **Jalons et sprints :** une même barre d'avancement (`TaskProgress`) et une même confirmation de suppression (`confirmPlanDelete`), qui corrige leur mise en forme.
+- **Clients :** `ClientSelect` (`features/workspace`), avec leur avatar, dans les nouveaux documents, les factures d'acompte et l'éditeur de documents. Les groupes « Clients » de la trésorerie restent dans leur liste de tiers.
+- **Avatars :** les calendriers et les types de plages des autres espaces, les statuts des documents, le mode magasin (magasins et catégories) et le type d'une plage de travail ont leur avatar.
+- **Badges :** `ItemBadge` (`components/settings`) remplace `LabelBadge` et les badges colorés faits à la main (statuts et catégories des projets, statuts des tâches de l'accueil, drapeaux des mails, suivi des documents) ; il montre l'image de l'item quand il en a une.
+- **Catégories de fiches :** avec `listSelectProps` dans le formulaire d'une fiche.
+
 ### 14. Glisser-déposer : capteurs recopiés
 
 - **Le constat :** la configuration des capteurs est écrite 14 fois, avec une distance d'activation qui varie (4 ou 6 pixels). La détection « sous le pointeur, sinon le plus proche » est écrite trois fois.
@@ -141,6 +150,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Cible :**
   - séparer en `filters.ts` (générique) et `task-columns.ts` (tâches) ;
   - garder `task-filter-translation.ts` pour les anciens filtres des tableaux de bord seulement.
+
+**Fait** : `task-filters.ts` est séparé en `filters.ts` (opérateurs, périodes, conditions et groupes de filtres, communs à tous les tableaux) et `task-columns.ts` (catégories des statuts, colonnes, regroupements et colonnes par défaut des tâches). Le nom des vues (`taskViewNameSchema`) va dans `table-views.ts`. `task-filter-translation.ts` ne sert plus qu'aux anciens filtres des tableaux de bord ; son alias `emptyTaskTableFilter` est supprimé.
 
 ### 16. Règles de validation qui divergent
 

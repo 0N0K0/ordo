@@ -1,13 +1,15 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { ByWorkspace } from '../../components/settings/ByWorkspace';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { ActionIcon, Button, ColorSwatch, Group, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { CalendarBlankIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
 import { onMutationError } from '../../lib/notify';
-import { WorkspaceKindIcon } from '../workspaces/WorkspaceKindIcon';
-import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars, type SubscribableCalendar } from './api';
+
+import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars } from './api';
 import { SettingsSection } from '../../components/settings/SettingsSection';
 
 /**
@@ -62,8 +64,6 @@ function OtherCalendars() {
   const { data: calendars, isPending } = useSubscribableCalendars(true);
   const { subscribe, unsubscribe } = useCalendarMutations();
   const onError = onMutationError;
-  const byWorkspace = new Map<string, SubscribableCalendar[]>();
-  for (const calendar of calendars ?? []) byWorkspace.set(calendar.workspace.id, [...(byWorkspace.get(calendar.workspace.id) ?? []), calendar]);
 
   return (
     <SettingsSection
@@ -72,7 +72,7 @@ function OtherCalendars() {
     >
       {isPending ? (
         <ListSkeleton items={2} />
-      ) : byWorkspace.size === 0 ? (
+      ) : !calendars?.length ? (
         <Group gap="sm">
           <ThemeIcon variant="light" color="gray" radius="xl">
             <CalendarBlankIcon aria-hidden />
@@ -80,32 +80,22 @@ function OtherCalendars() {
           <EmptyState compact message="Aucun autre espace pour le moment." />
         </Group>
       ) : (
-        <Stack gap="sm">
-          {[...byWorkspace.values()].map((items) => (
-            <Stack key={items[0].workspace.id} gap={4}>
-              <Group gap="xs">
-                <WorkspaceKindIcon kind={items[0].workspace.kind as 'PRO' | 'PERSO'} />
-                <Text size="sm" fw={600}>
-                  {items[0].workspace.name}
-                </Text>
-              </Group>
-              {items.map((calendar) => (
-                <Group key={calendar.id} gap="sm" wrap="nowrap" pl="lg">
-                  <ColorSwatch color={calendar.color} size={14} />
-                  <Text size="sm" style={{ flex: 1 }} truncate>
-                    {calendar.name}
-                  </Text>
-                  <Switch
-                    aria-label={`Abonnement à ${calendar.name} (${calendar.workspace.name})`}
-                    label="Abonné"
-                    checked={calendar.subscribed}
-                    onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(calendar.id, { onError })}
-                  />
-                </Group>
-              ))}
-            </Stack>
-          ))}
-        </Stack>
+        <ByWorkspace items={calendars} workspaceOf={(calendar) => calendar.workspace}>
+          {(calendar) => (
+            <Group key={calendar.id} gap="sm" wrap="nowrap" pl="lg">
+              <ItemAvatar name={calendar.name} color={calendar.color} />
+              <Text size="sm" style={{ flex: 1 }} truncate>
+                {calendar.name}
+              </Text>
+              <Switch
+                aria-label={`Abonnement à ${calendar.name} (${calendar.workspace.name})`}
+                label="Abonné"
+                checked={calendar.subscribed}
+                onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(calendar.id, { onError })}
+              />
+            </Group>
+          )}
+        </ByWorkspace>
       )}
     </SettingsSection>
   );

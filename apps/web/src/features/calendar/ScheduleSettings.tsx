@@ -1,4 +1,7 @@
-import { ActionIcon, Badge, Button, Collapse, ColorInput, ColorSwatch, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Collapse, ColorInput, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { SettingsSection } from '../../components/settings/SettingsSection';
+import { ByWorkspace } from '../../components/settings/ByWorkspace';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { DEFAULT_SCHEDULE_DISPLAY, DEFAULT_SCHEDULE_KIND_NAME, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
 import { createdId } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
@@ -117,98 +120,88 @@ function ForeignSchedules() {
   const [opened, setOpened] = useState<string | null>(null);
   if (!kinds?.length) return null;
   const onError = onMutationError;
-  const byWorkspace = new Map<string, typeof kinds>();
-  for (const kind of kinds) byWorkspace.set(kind.workspaceId, [...(byWorkspace.get(kind.workspaceId) ?? []), kind]);
   return (
-    <Paper withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Text fw={600}>Plages des autres espaces</Text>
-        <Text size="xs" c="dimmed">
-          Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici.
-        </Text>
-        {[...byWorkspace.values()].map((items) => (
-          <Stack key={items[0].workspaceId} gap={4}>
-            <Text size="sm" fw={600}>
-              {items[0].workspaceName}
-            </Text>
-            {items.map((kind) => {
-              const key = `${kind.workspaceId}|${kind.typeId ?? ''}`;
-              const target = { workspaceId: kind.workspaceId, typeId: kind.typeId ?? null };
-              const look = { color: kind.color ?? null, ...readScheduleDisplay(kind) };
-              return (
-                <Stack key={key} gap={6} pl="md">
-                  <Group gap="sm" wrap="nowrap">
-                    <ColorSwatch size={12} color={kind.color ?? 'var(--mantine-color-green-4)'} />
-                    <Text size="sm" style={{ flex: 1 }}>
-                      {kind.name}
-                      <Text span size="xs" c="dimmed">
-                        {' '}
-                        · {kind.scheduleCount} plage{kind.scheduleCount > 1 ? 's' : ''}
-                        {kind.customized ? ' · affichage personnalisé' : ''}
+    <SettingsSection
+      title="Plages des autres espaces"
+      description="Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici."
+    >
+      <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, name: kind.workspaceName })}>
+        {(kind) => {
+          const key = `${kind.workspaceId}|${kind.typeId ?? ''}`;
+          const target = { workspaceId: kind.workspaceId, typeId: kind.typeId ?? null };
+          const look = { color: kind.color ?? null, ...readScheduleDisplay(kind) };
+          return (
+            <Stack key={key} gap={6} pl="md">
+              <Group gap="sm" wrap="nowrap">
+                <ItemAvatar name={kind.name} color={kind.color ?? 'green'} />
+                <Text size="sm" style={{ flex: 1 }}>
+                  {kind.name}
+                  <Text span size="xs" c="dimmed">
+                    {' '}
+                    · {kind.scheduleCount} plage{kind.scheduleCount > 1 ? 's' : ''}
+                    {kind.customized ? ' · affichage personnalisé' : ''}
+                  </Text>
+                </Text>
+                {kind.subscribed && (
+                  <Tooltip label="Couleur et affichage dans cet agenda">
+                    <ActionIcon
+                      variant={opened === key ? 'light' : 'subtle'}
+                      color="gray"
+                      aria-label={`Affichage de ${kind.name} (${kind.workspaceName})`}
+                      aria-expanded={opened === key}
+                      onClick={() => setOpened(opened === key ? null : key)}
+                    >
+                      <SlidersHorizontalIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+                <Switch
+                  label="Abonné"
+                  aria-label={`Abonnement à ${kind.name} (${kind.workspaceName})`}
+                  checked={kind.subscribed}
+                  onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(target, { onError })}
+                />
+              </Group>
+              <Collapse expanded={kind.subscribed && opened === key}>
+                <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
+                  <Stack gap={6}>
+                    <Group gap="xs" align="center">
+                      <Text size="xs" w={120}>
+                        Couleur
                       </Text>
-                    </Text>
-                    {kind.subscribed && (
-                      <Tooltip label="Couleur et affichage dans cet agenda">
-                        <ActionIcon
-                          variant={opened === key ? 'light' : 'subtle'}
-                          color="gray"
-                          aria-label={`Affichage de ${kind.name} (${kind.workspaceName})`}
-                          aria-expanded={opened === key}
-                          onClick={() => setOpened(opened === key ? null : key)}
+                      <ColorInput
+                        key={kind.color ?? 'none'}
+                        size="xs"
+                        w={140}
+                        format="hex"
+                        swatches={swatches}
+                        placeholder="Vert"
+                        aria-label={`Couleur de ${kind.name} dans cet agenda`}
+                        defaultValue={kind.color ?? ''}
+                        onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
+                      />
+                    </Group>
+                    <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
+                    {kind.customized && (
+                      <div>
+                        <Button
+                          size="compact-xs"
+                          variant="subtle"
+                          leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
+                          onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
                         >
-                          <SlidersHorizontalIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
+                          Reprendre ceux du type
+                        </Button>
+                      </div>
                     )}
-                    <Switch
-                      label="Abonné"
-                      aria-label={`Abonnement à ${kind.name} (${kind.workspaceName})`}
-                      checked={kind.subscribed}
-                      onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(target, { onError })}
-                    />
-                  </Group>
-                  <Collapse expanded={kind.subscribed && opened === key}>
-                    <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-                      <Stack gap={6}>
-                        <Group gap="xs" align="center">
-                          <Text size="xs" w={120}>
-                            Couleur
-                          </Text>
-                          <ColorInput
-                            key={kind.color ?? 'none'}
-                            size="xs"
-                            w={140}
-                            format="hex"
-                            swatches={swatches}
-                            placeholder="Vert"
-                            aria-label={`Couleur de ${kind.name} dans cet agenda`}
-                            defaultValue={kind.color ?? ''}
-                            onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
-                          />
-                        </Group>
-                        <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
-                        {kind.customized && (
-                          <div>
-                            <Button
-                              size="compact-xs"
-                              variant="subtle"
-                              leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-                              onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
-                            >
-                              Reprendre ceux du type
-                            </Button>
-                          </div>
-                        )}
-                      </Stack>
-                    </Paper>
-                  </Collapse>
-                </Stack>
-              );
-            })}
-          </Stack>
-        ))}
-      </Stack>
-    </Paper>
+                  </Stack>
+                </Paper>
+              </Collapse>
+            </Stack>
+          );
+        }}
+      </ByWorkspace>
+    </SettingsSection>
   );
 }
 

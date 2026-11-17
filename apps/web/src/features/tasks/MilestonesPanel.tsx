@@ -1,8 +1,10 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { confirmPlanDelete } from './confirm-plan-delete';
+import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Group, Menu, Paper, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -19,7 +21,7 @@ import { useMilestoneMutations, type Milestone } from './api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import * as fmt from '../../lib/format';
-import { countOf } from '../../lib/text';
+
 import { useDragSensors } from '../../lib/drag';
 import { FormActions } from '../../components/dialogs/FormActions';
 
@@ -166,14 +168,14 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (milestone: Milestone, count: number) => {
-    confirmDestructive({ title: 'Supprimer le jalon', risks: (
-<>
-<Text size="sm">
-            Le jalon « {milestone.title} » sera supprimé définitivement
-            {count > 0 ? ` et retiré des ${countOf(count, 'tâche')} qui l’utilisent` : ''}. Les tâches ne sont pas supprimées. Cette action est irréversible.
-          </Text>
-</>
-), onConfirm: () => { remove.mutate({ id: milestone.id }, { onSuccess: () => notifySuccess('Jalon supprimé.'), onError: onMutationError }); } });
+    confirmPlanDelete({
+      title: 'Supprimer le jalon',
+      what: `Le jalon « ${milestone.title} »`,
+      count,
+      link: 'qui l’utilisent',
+      done: 'Jalon supprimé.',
+      remove: () => remove.mutateAsync({ id: milestone.id }),
+    });
   };
 
   return (
@@ -229,12 +231,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
-                    <Group gap="sm" wrap="nowrap">
-                      <Progress value={tasks.length ? (done / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du jalon ${milestone.title}`} />
-                      <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
-                        {done}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
-                      </Text>
-                    </Group>
+                    <TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />
                     {milestone.description && (
                   <MarkdownView targets={context.targetsFor(milestone.projectId)} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}>
                     {milestone.description}

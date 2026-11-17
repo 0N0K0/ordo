@@ -1,4 +1,5 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { ClientSelect } from '../workspace/ClientSelect';
 import { openModal } from '../../components/panels/open-modal';
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -292,7 +293,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       ), { size: 'lg', panelId: `time-billing-${document.id}` });
   };
 
-  const clients = (workspace?.clients ?? []).filter((item) => !item.archived || item.id === values.clientId);
   const projects = (workspace?.projects ?? []).filter((project) => (!project.archived && project.clientId === values.clientId) || project.id === values.projectId);
   const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
 
@@ -441,12 +441,9 @@ function Editor({ document }: { document: AccountingDocument }) {
           <Stack gap="md">
             <Section title="Client et dates">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                <Select
-                  label="Client"
+                <ClientSelect
                   required
-                  searchable
                   readOnly={readOnly}
-                  data={clients.map((item) => ({ value: item.id, label: item.name }))}
                   {...form.getInputProps('clientId')}
                   onChange={(clientId) => clientId && form.setValues({ clientId, serviceId: null, contactId: null, projectId: null })}
                 />

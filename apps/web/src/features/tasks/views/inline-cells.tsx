@@ -1,4 +1,5 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
+import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
@@ -13,7 +14,6 @@ import { notifySuccess } from '../../../lib/notify';
 import { TaskSelect } from '../task-ui';
 import { subtreeIds } from '../task-links';
 import { linkableTasks } from '../task-links';
-import { LabelBadge } from '../task-ui';
 import { taskName, taskRef, type TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
@@ -133,7 +133,7 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
             combobox.toggleDropdown();
           }}
         >
-          {current ? <LabelBadge label={current} /> : <span className={classes.placeholder}>—</span>}
+          {current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>}
         </UnstyledButton>
       </Combobox.Target>
       <Combobox.Dropdown onClick={stop}>
@@ -141,7 +141,7 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
           {labels.length === 0 && <Combobox.Empty>Aucune valeur définie dans les paramètres</Combobox.Empty>}
           {labels.map((label) => (
             <Combobox.Option key={label.id} value={label.id} active={label.id === current?.id}>
-              <LabelBadge label={label} />
+              <ItemBadge item={label} />
             </Combobox.Option>
           ))}
         </Combobox.Options>

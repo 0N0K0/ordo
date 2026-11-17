@@ -1,4 +1,4 @@
-import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from './task-filters';
+import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from './filters';
 import type { PlannedSlot } from './work-schedules';
 
 /**

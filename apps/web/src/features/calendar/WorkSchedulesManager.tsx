@@ -1,8 +1,9 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import * as fmt from '../../lib/format';
 import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { Badge, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { Badge, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
   readScheduleCases,
@@ -332,14 +333,15 @@ export function WorkSchedulesManager() {
             const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
+            const kindName = type?.name ?? defaultName;
             return {
               name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && bulk('name')(row, { name })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
                   label={`Type de ${schedule.name}`}
-                  leftSection={<ColorSwatch size={10} color={color} />}
-                  data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl }))]}
+                  leftSection={<ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />}
+                  {...listSelectProps([{ id: NO_KIND, name: defaultName, color: defaultKind?.color ?? null }, ...(types ?? [])])}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),

@@ -1,3 +1,4 @@
+import { listSelectProps } from '../../components/settings/item-look';
 import { Anchor, Button, Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -117,7 +118,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
             label="Catégories"
             placeholder={sheet.categoryIds.length ? undefined : 'Aucune'}
             searchable
-            data={(categories ?? []).map((category) => ({ value: category.id, label: category.name }))}
+            {...listSelectProps(categories ?? [])}
             value={sheet.categoryIds}
             onChange={(categoryIds) => save({ categoryIds })}
           />

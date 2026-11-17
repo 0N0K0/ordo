@@ -1,4 +1,5 @@
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
+import { ItemBadge } from '../../components/settings/ItemBadge';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Alert, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
@@ -231,9 +232,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 .map((id) => labels?.find((label) => label.id === id))
                 .filter((label) => label !== undefined)
                 .map((label) => (
-                  <Badge key={label.id} size="sm" variant="light" color={label.color} leftSection={<FlagIcon weight="fill" aria-hidden />}>
-                    {label.name}
-                  </Badge>
+                  <ItemBadge key={label.id} item={label} size="sm" leftSection={<FlagIcon weight="fill" aria-hidden />} />
                 ))}
               {mail.linkedProjectIds.map((projectId) => (
                 <Badge

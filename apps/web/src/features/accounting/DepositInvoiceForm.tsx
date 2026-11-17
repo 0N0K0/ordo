@@ -1,9 +1,10 @@
 import { NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
+import { ClientSelect } from '../workspace/ClientSelect';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
-import { useWorkspace } from '../workspace/api';
+
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from './documents-api';
 import * as fmt from '../../lib/format';
 import { FormActions } from '../../components/dialogs/FormActions';
@@ -39,7 +40,6 @@ interface DepositInvoiceFormProps {
  * @returns {JSX.Element} Form.
  */
 export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initialClient = null, onDone }: DepositInvoiceFormProps) {
-  const { data: workspace } = useWorkspace();
   const documents = useAccountingDocuments();
   const imported = useImportedDocuments();
   const { createDeposit } = useDocumentMutations();
@@ -98,12 +98,9 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
   return (
     <Stack gap="md">
       {!quoteId && !importedQuoteId && (
-        <Select
-          label="Client"
+        <ClientSelect
           clearable
-          searchable
           placeholder="Tous"
-          data={(workspace?.clients ?? []).filter((client) => !client.archived).map((client) => ({ value: client.id, label: client.name }))}
           value={clientId}
           onChange={(value) => {
             setClientId(value);

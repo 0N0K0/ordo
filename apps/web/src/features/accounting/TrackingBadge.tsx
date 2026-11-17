@@ -1,4 +1,6 @@
-import { Badge, ColorSwatch, Group, Menu, UnstyledButton } from '@mantine/core';
+import { Badge, Group, Menu, UnstyledButton } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { ItemBadge } from '../../components/settings/ItemBadge';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
 import { onMutationError } from '../../lib/notify';
@@ -29,9 +31,7 @@ export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps
     <Menu position="bottom-start" withinPortal>
       <Menu.Target>
         <UnstyledButton aria-label={`Statut : ${current?.name ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
-          <Badge size="sm" variant="light" color={current?.color ?? 'gray'} rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }}>
-            {current?.name ?? 'Sans statut'}
-          </Badge>
+          <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }} />
         </UnstyledButton>
       </Menu.Target>
       <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
@@ -39,7 +39,7 @@ export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps
         {scoped.map((status) => (
           <Menu.Item
             key={status.id}
-            leftSection={<ColorSwatch color={status.color} size={12} />}
+            leftSection={<ItemAvatar name={status.name} iconUrl={status.iconUrl} color={status.color} />}
             rightSection={status.id === current?.id ? <CheckIcon aria-hidden /> : undefined}
             disabled={pending}
             onClick={() => status.id !== current?.id && onSelect(status)}

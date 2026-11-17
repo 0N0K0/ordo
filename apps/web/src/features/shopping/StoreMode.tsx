@@ -1,4 +1,5 @@
-import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, ColorSwatch, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon, ShoppingCartIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
@@ -12,6 +13,8 @@ import classes from './Shopping.module.css';
 interface HeadingProps {
   name: string;
   color: string | null;
+  /** Image of the store or of the category. Optional. */
+  iconUrl?: string | null;
   /** Items left to buy in it. */
   count: number;
   /** 0 for a store, 1 and more for its categories. */
@@ -25,7 +28,7 @@ interface HeadingProps {
  * @param {HeadingProps} props Component props.
  * @returns {JSX.Element} Heading.
  */
-function Heading({ name, color, count, depth, collapsed, onToggle }: HeadingProps) {
+function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
   return (
     <UnstyledButton
       className={classes.storeHeading}
@@ -36,7 +39,7 @@ function Heading({ name, color, count, depth, collapsed, onToggle }: HeadingProp
     >
       <Group gap="xs" wrap="nowrap">
         {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-        {color && <ColorSwatch color={color} size={depth === 0 ? 14 : 12} />}
+        {(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
         <Text fw={depth <= 1 ? 700 : 600} size={depth === 0 ? 'lg' : 'sm'} tt={depth === 0 ? undefined : 'uppercase'} c={depth === 0 ? undefined : 'dimmed'} style={{ flex: 1 }}>
           {name}
         </Text>
@@ -74,7 +77,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
   const inStores = toBuy.filter((item) => !item.deliveryId || !delivered.has(item.deliveryId));
   const deliverySections = deliveries.map((delivery) => ({ delivery, items: toBuy.filter((item) => item.deliveryId === delivery.id) })).filter((section) => section.items.length > 0);
   const sections = [
-    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, items: inStores.filter((item) => item.storeId === store.id) })),
+    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, iconUrl: store.iconUrl, items: inStores.filter((item) => item.storeId === store.id) })),
     { key: NO_GROUP, name: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
   ].filter((section) => section.items.length > 0);
 
@@ -134,6 +137,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
           key={`${prefix}${entry.id ?? NO_GROUP}`}
           name={entry.name}
           color={entry.color}
+          iconUrl={data?.shoppingCategories.find((category) => category.id === entry.id)?.iconUrl}
           count={entry.items.length}
           depth={entry.depth + 1}
           collapsed={folded.has(entry.id ?? NO_GROUP)}
@@ -205,7 +209,15 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         ))}
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
-            <Heading name={section.name} color={section.color} count={section.items.length} depth={0} collapsed={collapsed.has(section.key)} onToggle={() => toggle(section.key)} />
+            <Heading
+              name={section.name}
+              color={section.color}
+              iconUrl={'iconUrl' in section ? section.iconUrl : null}
+              count={section.items.length}
+              depth={0}
+              collapsed={collapsed.has(section.key)}
+              onToggle={() => toggle(section.key)}
+            />
             {!collapsed.has(section.key) && categories(section.key, section.items)}
           </Stack>
         ))}

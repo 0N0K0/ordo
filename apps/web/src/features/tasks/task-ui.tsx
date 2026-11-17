@@ -1,4 +1,4 @@
-import { Anchor, Box, Avatar, Badge, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
+import { Anchor, Box, Avatar, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../components/settings/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
@@ -10,21 +10,6 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { CreatableSelect } from '../../components/CreatableSelect';
 import { useDefaultColor } from '../workspace/use-default-color';
-
-/**
- * Colored badge of a status, priority or type.
- * @param {object} props Component props.
- * @param {TaskLabel | undefined} props.label Label, or undefined for none.
- * @returns {JSX.Element | null} Badge.
- */
-export function LabelBadge({ label }: { label: TaskLabel | undefined }) {
-  if (!label) return null;
-  return (
-    <Badge variant="light" color={label.color} radius="sm" style={{ textTransform: 'none' }} leftSection={label.iconUrl ? <ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} size={14} /> : undefined}>
-      {label.name}
-    </Badge>
-  );
-}
 
 /**
  * Stacked avatars of the assignees.

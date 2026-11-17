@@ -1,8 +1,10 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { confirmPlanDelete } from './confirm-plan-delete';
+import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Badge, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Badge, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
@@ -14,7 +16,7 @@ import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useSprintMutations, type Sprint } from './api';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import * as fmt from '../../lib/format';
-import { countOf } from '../../lib/text';
+
 import { FormActions } from '../../components/dialogs/FormActions';
 
 interface SprintFormProps {
@@ -108,15 +110,14 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (sprint: Sprint, count: number) => {
-    confirmDestructive({ title: 'Supprimer le sprint', risks: (
-<>
-<Text size="sm">
-            Le sprint « {sprint.name} » sera supprimé définitivement
-            {count > 0 ? ` et retiré des ${countOf(count, 'tâche')} qui y sont planifiées` : ''}. Les tâches ne sont pas supprimées.
-            Cette action est irréversible.
-          </Text>
-</>
-), onConfirm: () => { remove.mutate({ id: sprint.id }, { onSuccess: () => notifySuccess('Sprint supprimé.'), onError: onMutationError }); } });
+    confirmPlanDelete({
+      title: 'Supprimer le sprint',
+      what: `Le sprint « ${sprint.name} »`,
+      count,
+      link: 'qui y sont planifiées',
+      done: 'Sprint supprimé.',
+      remove: () => remove.mutateAsync({ id: sprint.id }),
+    });
   };
 
   return (
@@ -182,13 +183,12 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                     </Menu.Dropdown>
                   </Menu>
                 </Group>
-                <Group gap="sm" wrap="nowrap">
-                  <Progress value={tasks.length ? (done.length / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du sprint ${sprint.name}`} />
-                  <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
-                    {done.length}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
-                    {effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
-                  </Text>
-                </Group>
+                <TaskProgress
+                  done={done.length}
+                  total={tasks.length}
+                  label={`Avancement du sprint ${sprint.name}`}
+                  extra={effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
+                />
                 {sprint.goal && (
                   <MarkdownView
                     targets={context.targetsFor(sprint.projectId)}

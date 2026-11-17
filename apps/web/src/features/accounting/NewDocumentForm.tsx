@@ -1,4 +1,5 @@
 import { Select, Stack, Text } from '@mantine/core';
+import { ClientSelect } from '../workspace/ClientSelect';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -46,12 +47,9 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
 
   return (
     <Stack gap="md">
-      <Select
-        label="Client"
+      <ClientSelect
         required
-        searchable
         data-autofocus
-        data={(workspace?.clients ?? []).filter((client) => !client.archived).map((client) => ({ value: client.id, label: client.name }))}
         value={clientId}
         onChange={(value) => {
           setClientId(value);

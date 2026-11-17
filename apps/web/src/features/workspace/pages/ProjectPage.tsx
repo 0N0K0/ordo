@@ -1,7 +1,8 @@
 import { ancestorsOf } from '@ordo/shared';
+import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { TaskSettings } from '../../tasks/settings/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
 import { SheetsTable } from '../../sheets/SheetsTable';
 import { PageTabs } from '../../../components/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -240,21 +241,13 @@ export function ProjectPage() {
               <Paper withBorder p="lg" radius="md">
                 <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
                   <Detail label="Statut">
-                    {status ? (
-                      <Badge variant="light" color={status.color}>
-                        {status.name}
-                      </Badge>
-                    ) : (
-                      <Text size="sm">—</Text>
-                    )}
+                    <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
                   </Detail>
                   <Detail label="Catégories">
                     {project.categories.length > 0 ? (
                       <Group gap={4}>
                         {project.categories.map((category) => (
-                          <Badge key={category.id} variant="light" color={category.color}>
-                            {category.name}
-                          </Badge>
+                          <ItemBadge key={category.id} item={category} />
                         ))}
                       </Group>
                     ) : (

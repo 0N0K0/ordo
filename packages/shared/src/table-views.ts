@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TABLE_AGGREGATES } from './aggregates';
 import { columnLayoutSchema, tableSortSchema } from './table-layout';
-import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './task-filters';
+import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './filters';
 
 /** Name of a table with saved views of its own (« time-log », « treasury-entries »…). */
 export const tableKeySchema = z.string().regex(/^[a-z0-9-]{1,64}$/, 'Tableau invalide.');
@@ -72,3 +72,6 @@ export function emptyTableFilter(): TableFilterGroup {
 export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableViewConfig {
   return tableViewConfigSchema.parse({ filter: emptyTableFilter(), ...config });
 }
+
+/** Name of a saved view of a table. */
+export const taskViewNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.');

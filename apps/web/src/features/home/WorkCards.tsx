@@ -1,4 +1,5 @@
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { ItemBadge } from '../../components/settings/ItemBadge';
 import { addDays, formatDuration, nextOccurrence, daysBetween } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -54,11 +55,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
                       {daysBetween(task.deadline, today)} j de retard
                     </Badge>
                   ) : (
-                    status && (
-                      <Badge color={status.color} variant="light" style={{ flexShrink: 0 }}>
-                        {status.name}
-                      </Badge>
-                    )
+                    <ItemBadge item={status} style={{ flexShrink: 0 }} />
                   )}
                 </Group>
               </Link>
