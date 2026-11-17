@@ -8,8 +8,9 @@ import { describeCase } from './describe-recurrence';
 import { DurationFields } from './DurationFields';
 import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useDragSensors } from '../../lib/drag';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
@@ -22,7 +23,7 @@ export interface RepetitionTimes<T> {
 }
 
 /** Another way to repeat than a rule or cases (a routine following calendar schedules). */
-export interface RepetitionMode {
+interface RepetitionMode {
   value: string;
   label: string;
   /** Its settings. */
@@ -32,7 +33,7 @@ export interface RepetitionMode {
 /** Ways of repeating: a single rule, cases (each with its period), or another one. */
 export type RepetitionModeValue = 'RULE' | 'CASES' | (string & {});
 
-export interface RepetitionEditorProps<T> {
+interface RepetitionEditorProps<T> {
   /** Mode: one rule, cases, or another. */
   mode: RepetitionModeValue;
   onModeChange: (mode: RepetitionModeValue) => void;
@@ -134,7 +135,7 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
   const { mode, onModeChange, cases, onChange, start, multiple = false, modes = [], times, footer } = props;
   const folds = useCaseFolds();
   const keys = useCaseKeys(cases.length);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useDragSensors('sortable');
   /**
    * Moves a dropped case where it was dropped (its fold with it).
    * @param {DragEndEvent} event Drag event.

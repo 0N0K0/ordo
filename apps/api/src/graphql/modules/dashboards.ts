@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import * as dashboards from '../../services/dashboards';
+import * as dashboards from '../../services/dashboards/dashboards';
 import { builder } from '../builder';
 
 builder.prismaObject('Dashboard', {

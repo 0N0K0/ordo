@@ -1,0 +1,67 @@
+@layer app {
+  /*
+   * Places of the settings: as tall as the window leaves (measured, --fill-height), no more; the map on the left
+   * and the list of the saved places on the right, both as tall as the content, the list scrolling. On a narrow
+   * screen, one under the other: the page scrolls.
+   */
+  .root {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+
+    @media (min-width: 62em) {
+      /* Dimension */
+      height: var(--fill-height, auto);
+    }
+  }
+
+  .body {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+
+    @media (min-width: 62em) {
+      /* Agencement */
+      flex: 1;
+      flex-direction: row;
+
+      /* Dimension */
+      min-height: 0;
+    }
+  }
+
+  /* Map: the room the list leaves, all the height of the content. */
+  .map {
+    /* Effets */
+    overflow: hidden;
+
+    /* Dimension */
+    height: 18rem;
+
+    @media (min-width: 62em) {
+      /* Agencement */
+      flex: 1;
+
+      /* Dimension */
+      min-width: 0;
+      height: auto;
+    }
+  }
+
+  /* Saved places: their list, scrolling within the content. */
+  .side {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+
+    @media (min-width: 62em) {
+      /* Dimension */
+      width: min(36rem, 45%);
+      min-height: 0;
+      overflow-y: auto;
+    }
+  }
+}

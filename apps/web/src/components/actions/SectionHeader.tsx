@@ -18,12 +18,12 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, description, actions }: SectionHeaderProps) {
   return (
     <Group justify="space-between" gap="sm" wrap="nowrap" align="flex-start">
-      <Stack gap={2} style={{ minWidth: 0 }}>
-        <Title order={3} size="h5">
+      <Stack gap={4} style={{ minWidth: 0 }}>
+        <Title order={2} size="h4">
           {title}
         </Title>
         {description && (
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             {description}
           </Text>
         )}

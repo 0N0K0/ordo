@@ -17,8 +17,8 @@ import { treasuryRouter } from './routes/treasury';
 import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
-import { scheduleRecurringInvoices } from './services/recurring-invoices';
-import { workspaceMiddleware } from './services/workspaces';
+import { scheduleRecurringInvoices } from './services/accounting/recurring-invoices';
+import { workspaceMiddleware } from './services/workspace/workspaces';
 
 const disableIntrospection: Plugin = {
   /**

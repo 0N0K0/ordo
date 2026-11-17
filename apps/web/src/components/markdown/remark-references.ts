@@ -34,12 +34,14 @@ export const NO_TARGETS: ReferenceTargets = { projectId: null, taskById: new Map
 
 /**
  * Label of a task reference seen from the project of a text: "#12" in the same project, "Client › Projet #12"
- * otherwise.
+ * otherwise, its title for a task of no project.
  * @param {ReferenceTask} task Task.
  * @param {string | null} projectId Project of the text.
  * @returns {string} Label.
  */
 export function referenceLabel(task: ReferenceTask, projectId: string | null): string {
+  // A task of no project has no number: its title.
+  if (task.number === null) return task.title;
   return task.projectId === projectId ? `#${task.number}` : `${task.place} #${task.number}`;
 }
 

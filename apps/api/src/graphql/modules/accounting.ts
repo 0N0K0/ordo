@@ -1,7 +1,7 @@
 import { ACCOUNTING_DOCUMENT_TYPES } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as parties from '../../services/client-parties';
-import * as company from '../../services/company';
+import * as parties from '../../services/accounting/client-parties';
+import * as company from '../../services/accounting/company';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
 

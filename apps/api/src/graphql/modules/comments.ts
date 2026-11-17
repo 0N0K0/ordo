@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import * as comments from '../../services/comments';
+import * as comments from '../../services/core/comments';
 import { builder } from '../builder';
 
 const CommentTargetEnum = builder.enumType('CommentTarget', {

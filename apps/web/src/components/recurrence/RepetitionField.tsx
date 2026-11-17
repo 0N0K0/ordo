@@ -1,6 +1,7 @@
 import { Button, Group, Input, Modal, Stack, Text } from '@mantine/core';
 import { PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
+import { FormActions } from '../dialogs/FormActions';
 
 interface RepetitionFieldProps<V> {
   value: V;
@@ -99,20 +100,15 @@ export function RepetitionModal<V>({ opened, onClose, title, draft, setDraft, ed
       <Stack gap="md">
         {header}
         {editor(draft, setDraft)}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button
-            disabled={valid ? !valid(draft) : false}
-            onClick={() => {
-              onApply(draft);
-              onClose();
-            }}
-          >
-            Appliquer
-          </Button>
-        </Group>
+        <FormActions
+          onCancel={onClose}
+          submitLabel="Appliquer"
+          disabled={valid ? !valid(draft) : false}
+          onSubmit={() => {
+            onApply(draft);
+            onClose();
+          }}
+        />
       </Stack>
     </Modal>
   );

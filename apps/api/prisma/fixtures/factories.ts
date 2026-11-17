@@ -1,7 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
-import { resolveCalendarId } from '../../src/services/calendars';
+import { resolveCalendarId } from '../../src/services/calendar/calendars';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */

@@ -1,0 +1,21 @@
+@layer app {
+  .addRow {
+    /* Arrière-Plan */
+    &:hover {
+      background-color: transparent;
+    }
+  }
+
+  .summaryRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+  }
+
+  .totalRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+
+    /* Bordures */
+    border-top: 2px solid var(--mantine-color-default-border);
+  }
+}

@@ -199,16 +199,41 @@ model AuthToken {
 
 /// Uploaded image, stored apart so lists never load the bytes.
 model Icon {
-  id           String        @id @default(cuid())
-  mimeType     String
-  data         Bytes
-  createdAt    DateTime      @default(now())
-  clients      Client[]
-  projects     Project[]
-  contributors Contributor[]
+  id                     String                  @id @default(cuid())
+  mimeType               String
+  data                   Bytes
+  createdAt              DateTime                @default(now())
+  clients                Client[]
+  projects               Project[]
+  contributors           Contributor[]
+  projectStatuses        ProjectStatus[]
+  projectCategories      ProjectCategory[]
+  taskStatuses           TaskStatus[]
+  taskPriorities         TaskPriority[]
+  taskTypes              TaskType[]
+  taskTags               TaskTag[]
+  documentStatuses       DocumentStatus[]
+  sheetCategories        SheetCategory[]
+  shoppingStores         ShoppingStore[]
+  shoppingUnits          ShoppingUnit[]
+  shoppingStorages       ShoppingStorage[]
+  mailLabels             MailLabel[]
+  calendars              Calendar[]
+  scheduleTypes          ScheduleType[]
+  treasuryAccounts       TreasuryAccount[]
+  treasuryContexts       TreasuryContext[]
+  treasuryPaymentMethods TreasuryPaymentMethod[]
+  treasuryCounterparties TreasuryCounterparty[]
+  shoppingBaseLists      ShoppingBaseList[]
+  treasuryCategories     TreasuryCategory[]
+  shoppingCategories     ShoppingCategory[]
+  routineCategories      RoutineCategory[]
+  stockLocations         StockLocation[]
+  calendarCategories     CalendarCategory[]
+  places                 Place[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId  String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId            String                  @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }
@@ -367,6 +392,11 @@ model Project {
 model ProjectCategory {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Manual order among its siblings (then by name).
+  position    Int       @default(0)
   /// Hex color, e.g. #228be6.
   color       String
   createdAt   DateTime  @default(now())
@@ -382,6 +412,9 @@ model ProjectCategory {
 model ProjectStatus {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color       String
   /// Display order in lists and selects.
@@ -397,44 +430,44 @@ model ProjectStatus {
 
 /// Person who can be assigned to tasks.
 model Contributor {
-  id                String              @id @default(cuid())
-  name              String
+  id                    String              @id @default(cuid())
+  name                  String
   /// Unique identifier used in @mentions.
-  handle            String
-  iconId            String?
-  icon              Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  createdAt         DateTime            @default(now())
-  tasks             Task[]
+  handle                String
+  iconId                String?
+  icon                  Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt             DateTime            @default(now())
+  tasks                 Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
-  projects          Project[]           @relation("ProjectContributors")
-  events            CalendarEvent[]
+  projects              Project[]           @relation("ProjectContributors")
+  events                CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
-  userId            String?
-  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId                String?
+  user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
-  githubLogin       String?
+  githubLogin           String?
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
-  teamMember        Boolean             @default(false)
+  teamMember            Boolean             @default(false)
   /// Lines of treasury entries that are theirs.
-  treasuryLines     TreasuryEntryLine[]
-  treasuryBudgets   TreasuryBudget[]
+  treasuryLines         TreasuryEntryLine[]
+  treasuryBudgets       TreasuryBudget[]
   /// Relation (out of the team or household) this contributor also is.
-  treasuryRelations TreasuryRelation[]
+  treasuryRelations     TreasuryRelation[]
   /// Shopping products and items it is for (member of the team or household).
-  shoppingProducts  ShoppingProduct[]   @relation("ShoppingProductMembers")
-  shoppingItems     ShoppingItem[]      @relation("ShoppingItemMembers")
-  sheetItems        SheetItem[]         @relation("SheetItemMembers")
-  stockItems        StockItem[]         @relation("StockItemMembers")
+  shoppingProducts      ShoppingProduct[]   @relation("ShoppingProductMembers")
+  shoppingItems         ShoppingItem[]      @relation("ShoppingItemMembers")
+  sheetItems            SheetItem[]         @relation("SheetItemMembers")
+  stockItems            StockItem[]         @relation("StockItemMembers")
   /// Routines it is assigned to.
-  routines          Routine[]           @relation("RoutineAssignees")
+  routines              Routine[]           @relation("RoutineAssignees")
   /// Tasks, routines and events it is a beneficiary of.
-  beneficiaryOfTasks    Task[]          @relation("TaskBeneficiaries")
-  beneficiaryOfRoutines Routine[]       @relation("RoutineBeneficiaries")
-  beneficiaryOfEvents   CalendarEvent[] @relation("EventBeneficiaries")
+  beneficiaryOfTasks    Task[]              @relation("TaskBeneficiaries")
+  beneficiaryOfRoutines Routine[]           @relation("RoutineBeneficiaries")
+  beneficiaryOfEvents   CalendarEvent[]     @relation("EventBeneficiaries")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId       String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId           String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace             Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, handle])
   @@unique([workspaceId, githubLogin])
@@ -452,6 +485,9 @@ enum TaskStatusCategory {
 model TaskStatus {
   id          String             @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?              @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color       String
   category    TaskStatusCategory @default(TODO)
@@ -468,6 +504,9 @@ model TaskStatus {
 model TaskPriority {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
@@ -483,6 +522,9 @@ model TaskPriority {
 model TaskType {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
@@ -499,6 +541,9 @@ model TaskType {
 model TaskTag {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
@@ -512,95 +557,95 @@ model TaskTag {
 }
 
 model Task {
-  id                String             @id @default(cuid())
+  id                   String             @id @default(cuid())
   /// Human-readable number (#12) within its project, given by the database (trigger "task_project_number"): the
   /// next of the project on creation, and of the target project on a transfer; none without project. Links use the
   /// id, never the number.
-  number            Int?
-  title             String
+  number               Int?
+  title                String
   /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
   /// (on the working hours in a professional workspace).
-  slotRule          Json?
+  slotRule             Json?
   /// Markdown.
-  description       String?
+  description          String?
   /// None: a task of no project (no number, no sprint, milestone nor GitHub item).
-  projectId         String?
-  project           Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  statusId          String?
-  status            TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
-  priorityId        String?
-  priority          TaskPriority?      @relation(fields: [priorityId], references: [id], onDelete: SetNull)
-  typeId            String?
-  type              TaskType?          @relation(fields: [typeId], references: [id], onDelete: SetNull)
-  milestoneId       String?
-  milestone         Milestone?         @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  projectId            String?
+  project              Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  statusId             String?
+  status               TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  priorityId           String?
+  priority             TaskPriority?      @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  typeId               String?
+  type                 TaskType?          @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  milestoneId          String?
+  milestone            Milestone?         @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   /// Item of the GitHub board the task is synchronized with (ProjectV2Item node id).
-  githubItemId      String?            @unique
+  githubItemId         String?            @unique
   /// Content of the item: issue or draft issue node id.
-  githubContentId   String?
+  githubContentId      String?
   /// ISSUE or DRAFT_ISSUE.
-  githubContentType String?
-  githubUrl         String?
-  githubNumber      Int?
+  githubContentType    String?
+  githubUrl            String?
+  githubNumber         Int?
   /// Synchronized values at the last sync, for the three-way merge.
-  githubSnapshot    Json?
-  effort            Float?
-  startDate         DateTime?          @db.Date
-  endDate           DateTime?          @db.Date
+  githubSnapshot       Json?
+  effort               Float?
+  startDate            DateTime?          @db.Date
+  endDate              DateTime?          @db.Date
   /// Latest acceptable date ("Date max"): an open task past it is overdue.
   /// Earliest acceptable date (« Date min »): the task is not to be done before it.
-  minDate           DateTime?          @db.Date
-  deadline          DateTime?          @db.Date
+  minDate              DateTime?          @db.Date
+  deadline             DateTime?          @db.Date
   /// Parent task, possibly in another project of the same tree.
-  parentId          String?
-  parent            Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children          Task[]             @relation("TaskTree")
+  parentId             String?
+  parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children             Task[]             @relation("TaskTree")
   /// Global manual order.
-  position          Int                @default(0)
+  position             Int                @default(0)
   /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
-  closedAt          DateTime?
-  archivedAt        DateTime?
+  closedAt             DateTime?
+  archivedAt           DateTime?
   /// Archived along with its parent task: restoring the parent restores it.
-  archivedByCascade Boolean            @default(false)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  assignees         Contributor[]
+  archivedByCascade    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  assignees            Contributor[]
   /// « Bénéficiaires »: whom the task is for (contributors, and relations out of the team or household).
   beneficiaries        Contributor[]      @relation("TaskBeneficiaries")
   beneficiaryRelations TreasuryRelation[] @relation("TaskBeneficiaryRelations")
-  tags              TaskTag[]          @relation("TaskTags")
+  tags                 TaskTag[]          @relation("TaskTags")
   /// Sprints of the project tree the task is planned in (it may run over several).
-  sprints           Sprint[]           @relation("TaskSprints")
+  sprints              Sprint[]           @relation("TaskSprints")
   /// Status changes (recorded by a database trigger).
-  statusChanges     TaskStatusChange[]
+  statusChanges        TaskStatusChange[]
   /// Tasks this task blocks.
-  blocking          TaskBlock[]        @relation("Blocker")
+  blocking             TaskBlock[]        @relation("Blocker")
   /// Tasks blocking this task.
-  blockedBy         TaskBlock[]        @relation("Blocked")
+  blockedBy            TaskBlock[]        @relation("Blocked")
   /// Symmetric relations, stored once with taskAId < taskBId.
-  relationsA        TaskRelation[]     @relation("RelationA")
-  relationsB        TaskRelation[]     @relation("RelationB")
-  comments          TaskComment[]
+  relationsA           TaskRelation[]     @relation("RelationA")
+  relationsB           TaskRelation[]     @relation("RelationB")
+  comments             TaskComment[]
   /// Sheets the task gets a checklist of.
-  sheetLinks        SheetLink[]
-  checklists        Checklist[]
-  timeEntries       TimeEntry[]
+  sheetLinks           SheetLink[]
+  checklists           Checklist[]
+  timeEntries          TimeEntry[]
   /// Calendar events about the task.
-  calendarEvents    CalendarEvent[]    @relation("CalendarEventTasks")
-  alarms            Alarm[]
+  calendarEvents       CalendarEvent[]    @relation("CalendarEventTasks")
+  alarms               Alarm[]
   /// Shopping lists of the task (closed along with it).
-  shoppingLists     ShoppingList[]     @relation("ShoppingListTasks")
+  shoppingLists        ShoppingList[]     @relation("ShoppingListTasks")
   /// Repetition of a recurring task (set on the first task of the series).
-  recurrence        Json?
+  recurrence           Json?
   /// First task of the series this task is an occurrence of.
-  seriesId          String?
-  series            Task?              @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
-  occurrences       Task[]             @relation("TaskSeries")
+  seriesId             String?
+  series               Task?              @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
+  occurrences          Task[]             @relation("TaskSeries")
   /// Date of the occurrence in its series (the first task: its own date).
-  occurrenceDate    DateTime?          @db.Date
+  occurrenceDate       DateTime?          @db.Date
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId       String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId          String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, number])
   @@index([projectId])
@@ -685,48 +730,48 @@ model TaskComment {
 /// Comment (markdown) of an item other than a task (those have their own): exactly one target set — a row of the app,
 /// or a mail by its Message-ID (mails stay on their server).
 model Comment {
-  id                 String    @id @default(cuid())
+  id                 String              @id @default(cuid())
   /// Markdown.
   body               String
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   routineId          String?
-  routine            Routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine            Routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
   eventId            String?
-  event              CalendarEvent?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event              CalendarEvent?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   scheduleId         String?
-  schedule           WorkSchedule?         @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule           WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   timeEntryId        String?
-  timeEntry          TimeEntry?            @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  timeEntry          TimeEntry?          @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
   shoppingListId     String?
-  shoppingList       ShoppingList?         @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  shoppingList       ShoppingList?       @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
   shoppingProductId  String?
-  shoppingProduct    ShoppingProduct?      @relation(fields: [shoppingProductId], references: [id], onDelete: Cascade)
+  shoppingProduct    ShoppingProduct?    @relation(fields: [shoppingProductId], references: [id], onDelete: Cascade)
   shoppingItemId     String?
-  shoppingItem       ShoppingItem?         @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
+  shoppingItem       ShoppingItem?       @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
   sheetItemId        String?
-  sheetItem          SheetItem?            @relation(fields: [sheetItemId], references: [id], onDelete: Cascade)
+  sheetItem          SheetItem?          @relation(fields: [sheetItemId], references: [id], onDelete: Cascade)
   stockItemId        String?
-  stockItem          StockItem?            @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  stockItem          StockItem?          @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
   documentId         String?
-  document           AccountingDocument?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document           AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   importedDocumentId String?
-  importedDocument   ImportedDocument?     @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
+  importedDocument   ImportedDocument?   @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
   catalogItemId      String?
-  catalogItem        CatalogItem?          @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  catalogItem        CatalogItem?        @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   treasuryEntryId    String?
-  treasuryEntry      TreasuryEntry?        @relation(fields: [treasuryEntryId], references: [id], onDelete: Cascade)
+  treasuryEntry      TreasuryEntry?      @relation(fields: [treasuryEntryId], references: [id], onDelete: Cascade)
   budgetId           String?
-  budget             TreasuryBudget?       @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budget             TreasuryBudget?     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   relationId         String?
-  relation           TreasuryRelation?     @relation(fields: [relationId], references: [id], onDelete: Cascade)
+  relation           TreasuryRelation?   @relation(fields: [relationId], references: [id], onDelete: Cascade)
   libraryDocumentId  String?
-  libraryDocument    LibraryDocument?      @relation(fields: [libraryDocumentId], references: [id], onDelete: Cascade)
+  libraryDocument    LibraryDocument?    @relation(fields: [libraryDocumentId], references: [id], onDelete: Cascade)
   /// Message-ID header of the mail (without angle brackets).
   mailMessageId      String?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId        String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId        String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([routineId])
   @@index([eventId])
@@ -959,7 +1004,7 @@ model LibraryDocument {
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryLibraryDocuments")
   treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineLibraryDocuments")
   /// Comments (markdown).
-  comments    Comment[]
+  comments        Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1033,7 +1078,7 @@ model TimeEntry {
   updatedAt              DateTime            @updatedAt
   tasks                  Task[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments               Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId            String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1177,6 +1222,9 @@ model MailMessage {
 model MailLabel {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int       @default(0)
   createdAt   DateTime  @default(now())
@@ -1270,6 +1318,9 @@ model MailFolderCursor {
 model Calendar {
   id            String                 @id @default(cuid())
   name          String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId        String?
+  icon          Icon?                  @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color         String
   position      Int                    @default(0)
   createdAt     DateTime               @default(now())
@@ -1302,6 +1353,9 @@ model CalendarSubscription {
 model CalendarCategory {
   id          String             @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?              @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   parentId    String?
   parent      CalendarCategory?  @relation("CalendarCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
@@ -1319,69 +1373,69 @@ model CalendarCategory {
 
 /// Calendar event, possibly recurring. Times are local to `timeZone`; all-day events have no times.
 model CalendarEvent {
-  id                String                   @id @default(cuid())
-  title             String
+  id                   String                   @id @default(cuid())
+  title                String
   /// Markdown.
-  description       String?
-  location          String?
+  description          String?
+  location             String?
   /// Point of the location, when chosen from the map or a search.
-  locationLat       Float?
-  locationLon       Float?
+  locationLat          Float?
+  locationLon          Float?
   /// [{ url, label }]
-  links             Json                     @default("[]")
-  allDay            Boolean                  @default(false)
+  links                Json                     @default("[]")
+  allDay               Boolean                  @default(false)
   /// First day (of the first occurrence for a recurring event).
-  startDate         DateTime                 @db.Date
+  startDate            DateTime                 @db.Date
   /// HH:MM, null for an all-day event.
-  startTime         String?
+  startTime            String?
   /// Last day, included.
-  endDate           DateTime                 @db.Date
-  endTime           String?
+  endDate              DateTime                 @db.Date
+  endTime              String?
   /// IANA time zone of the times.
-  timeZone          String
+  timeZone             String
   /// Repetition (see the shared recurrence rule), null for a one-off event.
-  recurrence        Json?
+  recurrence           Json?
   /// Reminders, in minutes before the start.
-  reminders         Int[]
+  reminders            Int[]
   /// Travel time to the event and back from it, in minutes (timed events).
-  travelBefore      Int                      @default(0)
-  travelAfter       Int                      @default(0)
-  projectId         String?
-  project           Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  calendarId        String
+  travelBefore         Int                      @default(0)
+  travelAfter          Int                      @default(0)
+  projectId            String?
+  project              Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  calendarId           String
   /// Deleting a calendar deletes its events.
-  calendar          Calendar                 @relation(fields: [calendarId], references: [id], onDelete: Cascade)
-  contributors      Contributor[]
+  calendar             Calendar                 @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  contributors         Contributor[]
   /// Relations without contributor taking part (those with one are among the contributors).
-  relations         TreasuryRelation[]
+  relations            TreasuryRelation[]
   /// « Bénéficiaires »: whom the event is for (« l’anniversaire est pour mon fils »), not those taking part.
-  beneficiaries        Contributor[]      @relation("EventBeneficiaries")
-  beneficiaryRelations TreasuryRelation[] @relation("EventBeneficiaryRelations")
-  categories        CalendarCategory[]
-  exceptions        CalendarEventException[]
+  beneficiaries        Contributor[]            @relation("EventBeneficiaries")
+  beneficiaryRelations TreasuryRelation[]       @relation("EventBeneficiaryRelations")
+  categories           CalendarCategory[]
+  exceptions           CalendarEventException[]
   /// Cancelled but kept in the calendar (struck through); can be restored.
-  calledOff         Boolean                  @default(false)
+  calledOff            Boolean                  @default(false)
   /// Postponement of another event (its occurrence `postponedFromDate` for a recurring one).
-  postponedFromId   String?
-  postponedFrom     CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
-  postponedFromDate DateTime?                @db.Date
-  postponements     CalendarEvent[]          @relation("EventPostponement")
+  postponedFromId      String?
+  postponedFrom        CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
+  postponedFromDate    DateTime?                @db.Date
+  postponements        CalendarEvent[]          @relation("EventPostponement")
   /// Times tracked on the event.
-  timeEntries       TimeEntry[]
+  timeEntries          TimeEntry[]
   /// Tasks the event is about.
-  tasks             Task[]                   @relation("CalendarEventTasks")
+  tasks                Task[]                   @relation("CalendarEventTasks")
   /// Routines of a day the event is about (their occurrence of that day is done during it).
-  routineLinks      CalendarEventRoutine[]
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
+  routineLinks         CalendarEventRoutine[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
   /// Comments (markdown).
-  comments    Comment[]
+  comments             Comment[]
   /// Sheets each occurrence gets a checklist of.
-  sheetLinks  SheetLink[]
-  checklists  Checklist[]
+  sheetLinks           SheetLink[]
+  checklists           Checklist[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId       String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace         Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId          String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace            Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([startDate])
   @@index([projectId])
@@ -1448,6 +1502,9 @@ model CalendarEventException {
 model ScheduleType {
   id            String                     @id @default(cuid())
   name          String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId        String?
+  icon          Icon?                      @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color         String
   /// Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
   dayDisplay    String                     @default("SLOT_BACKGROUND")
@@ -1515,7 +1572,7 @@ model WorkSchedule {
   /// Routines following it.
   routines      Routine[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments      Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1691,7 +1748,7 @@ model AccountingDocument {
   recurringId         String?
   generatedBy         RecurringInvoice?        @relation("RecurringGenerated", fields: [recurringId], references: [id], onDelete: SetNull)
   /// Comments (markdown).
-  comments    Comment[]
+  comments            Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId         String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace           Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1863,7 +1920,7 @@ model ImportedDocument {
   /// Deposit invoices made in Ordo from this imported quote.
   derived          AccountingDocument[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments         Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1899,6 +1956,9 @@ model DocumentStatus {
   id                String                 @id @default(cuid())
   scope             DocumentStatusScope
   name              String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId            String?
+  icon              Icon?                  @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Hex color, e.g. #228be6.
   color             String
   category          DocumentStatusCategory
@@ -1935,6 +1995,11 @@ model DocumentReminder {
 model TreasuryAccount {
   id             String          @id @default(cuid())
   name           String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId         String?
+  icon           Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Color of the item (none: gray).
+  color          String?
   /// Balance at the opening date (entries before it are not counted).
   openingBalance Decimal         @default(0) @db.Decimal(14, 4)
   openingDate    DateTime        @db.Date
@@ -2011,6 +2076,9 @@ model TreasuryEntryLine {
 model TreasuryContext {
   id          String                  @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?                   @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int                     @default(0)
   createdAt   DateTime                @default(now())
@@ -2027,31 +2095,31 @@ model TreasuryContext {
 /// Person out of the team or household (friend, family, partner…) lines and budgets can be for: loan, gift…
 /// Not a contributor, not a counterparty (organizations stay counterparties).
 model TreasuryRelation {
-  id               String              @id @default(cuid())
-  name             String
-  note             String?
+  id                    String              @id @default(cuid())
+  name                  String
+  note                  String?
   /// Contributor this person also is (on projects, tasks…), if any.
-  contributorId    String?
-  contributor      Contributor?        @relation(fields: [contributorId], references: [id], onDelete: SetNull)
-  createdAt        DateTime            @default(now())
-  lines            TreasuryEntryLine[]
-  budgets          TreasuryBudget[]
+  contributorId         String?
+  contributor           Contributor?        @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+  createdAt             DateTime            @default(now())
+  lines                 TreasuryEntryLine[]
+  budgets               TreasuryBudget[]
   /// Events it takes part in.
-  events           CalendarEvent[]
+  events                CalendarEvent[]
   /// Tasks, routines and events it is a beneficiary of.
-  beneficiaryOfTasks    Task[]          @relation("TaskBeneficiaryRelations")
-  beneficiaryOfRoutines Routine[]       @relation("RoutineBeneficiaryRelations")
-  beneficiaryOfEvents   CalendarEvent[] @relation("EventBeneficiaryRelations")
+  beneficiaryOfTasks    Task[]              @relation("TaskBeneficiaryRelations")
+  beneficiaryOfRoutines Routine[]           @relation("RoutineBeneficiaryRelations")
+  beneficiaryOfEvents   CalendarEvent[]     @relation("EventBeneficiaryRelations")
   /// Shopping products and items it is for.
-  shoppingProducts ShoppingProduct[]   @relation("ShoppingProductRelations")
-  shoppingItems    ShoppingItem[]      @relation("ShoppingItemRelations")
-  sheetItems       SheetItem[]         @relation("SheetItemRelations")
-  stockItems       StockItem[]         @relation("StockItemRelations")
+  shoppingProducts      ShoppingProduct[]   @relation("ShoppingProductRelations")
+  shoppingItems         ShoppingItem[]      @relation("ShoppingItemRelations")
+  sheetItems            SheetItem[]         @relation("SheetItemRelations")
+  stockItems            StockItem[]         @relation("StockItemRelations")
   /// Comments (markdown).
-  comments    Comment[]
+  comments              Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId      String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId           String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace             Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, name])
   @@unique([workspaceId, contributorId])
@@ -2126,6 +2194,9 @@ enum TreasuryDirection {
 model TreasuryCategory {
   id                 String              @id @default(cuid())
   name               String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId             String?
+  icon               Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color              String?
   direction          TreasuryDirection
   parentId           String?
@@ -2152,6 +2223,13 @@ model TreasuryCategory {
 model TreasuryPaymentMethod {
   id          String          @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Color of the item (none: gray).
+  color       String?
+  /// Manual order among its siblings (then by name).
+  position    Int             @default(0)
   incoming    Boolean         @default(true)
   outgoing    Boolean         @default(true)
   createdAt   DateTime        @default(now())
@@ -2167,6 +2245,13 @@ model TreasuryPaymentMethod {
 model TreasuryCounterparty {
   id          String          @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Color of the item (none: gray).
+  color       String?
+  /// Manual order among its siblings (then by name).
+  position    Int             @default(0)
   note        String?
   archived    Boolean         @default(false)
   createdAt   DateTime        @default(now())
@@ -2224,7 +2309,7 @@ model TreasuryEntry {
   /// Shopping lists it pays (attaching one added its split).
   shoppingLists    ShoppingList[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments         Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2263,6 +2348,13 @@ model TreasuryAllocation {
 model Place {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Color of the item (none: gray).
+  color       String?
+  /// Manual order among its siblings (then by name).
+  position    Int       @default(0)
   address     String    @default("")
   /// Its point; none for a zone (a room of the house…): that of the place it is in.
   lat         Float?
@@ -2284,6 +2376,9 @@ model Place {
 model ShoppingCategory {
   id             String             @id @default(cuid())
   name           String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId         String?
+  icon           Icon?              @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color          String?
   parentId       String?
   parent         ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -2310,6 +2405,9 @@ model ShoppingCategory {
 model ShoppingStore {
   id          String            @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int               @default(0)
   createdAt   DateTime          @default(now())
@@ -2328,6 +2426,9 @@ model ShoppingStore {
 model ShoppingStorage {
   id          String            @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int               @default(0)
   createdAt   DateTime          @default(now())
@@ -2348,6 +2449,9 @@ model ShoppingStorage {
 model ShoppingUnit {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   /// Unused (labels have one).
   color       String    @default("gray")
   position    Int       @default(0)
@@ -2363,6 +2467,11 @@ model ShoppingUnit {
 model ShoppingBaseList {
   id          String             @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?              @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Color of the item (none: gray).
+  color       String?
   position    Int                @default(0)
   createdAt   DateTime           @default(now())
   products    ShoppingProduct[]
@@ -2518,6 +2627,9 @@ model ShoppingItem {
 model StockLocation {
   id          String            @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String?
   parentId    String?
   parent      StockLocation?    @relation("StockLocationTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -2686,6 +2798,9 @@ model ShoppingDelivery {
 model SheetCategory {
   id          String    @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int       @default(0)
   createdAt   DateTime  @default(now())
@@ -2723,40 +2838,40 @@ model Sheet {
 
 /// Item of a sheet: a product of a base list (summed by product), or a label of its own (summed by label and unit).
 model SheetItem {
-  id          String            @id @default(cuid())
+  id          String             @id @default(cuid())
   sheetId     String
-  sheet       Sheet             @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  sheet       Sheet              @relation(fields: [sheetId], references: [id], onDelete: Cascade)
   productId   String?
-  product     ShoppingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product     ShoppingProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   /// Its own label, or the name of its product when it was chosen (kept when the product is deleted).
   label       String
   /// Category of the shopping products (the item of a shopping list made of it takes it).
   categoryId  String?
-  category    ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  quantity    Decimal?          @db.Decimal(12, 3)
+  category    ShoppingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  quantity    Decimal?           @db.Decimal(12, 3)
   unit        String?
   /// As the items of the shopping lists: store, link, conservation, whom it is for (the item of a shopping list made of
   /// it takes them).
   storeId     String?
-  store       ShoppingStore?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  store       ShoppingStore?     @relation(fields: [storeId], references: [id], onDelete: SetNull)
   url         String?
-  perishable  Boolean           @default(false)
+  perishable  Boolean            @default(false)
   storageId   String?
-  storage     ShoppingStorage?  @relation(fields: [storageId], references: [id], onDelete: SetNull)
-  members     Contributor[]     @relation("SheetItemMembers")
+  storage     ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
+  members     Contributor[]      @relation("SheetItemMembers")
   relations   TreasuryRelation[] @relation("SheetItemRelations")
   /// Not needed (bought if possible): the item of a shopping list made of it is optional too.
-  optional    Boolean           @default(false)
+  optional    Boolean            @default(false)
   /// Description (markdown).
   note        String?
   /// Used up when the sheet is used (a recipe), unlike what comes back (a suitcase): taken from the stock.
-  consumable  Boolean           @default(true)
-  position    Int               @default(0)
+  consumable  Boolean            @default(true)
+  position    Int                @default(0)
   /// Comments (markdown).
   comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([sheetId])
   @@index([productId])
@@ -2846,6 +2961,9 @@ model ChecklistItem {
 model RoutineCategory {
   id          String            @id @default(cuid())
   name        String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String?
   parentId    String?
   parent      RoutineCategory?  @relation("RoutineCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -2864,89 +2982,89 @@ model RoutineCategory {
 
 /// Task repeating on a calendar rule, simply ticked once done for its current occurrence.
 model Routine {
-  id             String              @id @default(cuid())
-  title          String
+  id                   String                 @id @default(cuid())
+  title                String
   /// Plain text, several lines.
-  description    String?
+  description          String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
-  categories     RoutineCategory[]   @relation("RoutineCategories")
+  categories           RoutineCategory[]      @relation("RoutineCategories")
   /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
-  parentId       String?
-  parent         Routine?            @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children       Routine[]           @relation("RoutineTree")
+  parentId             String?
+  parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children             Routine[]              @relation("RoutineTree")
   /// First occurrence: the rule repeats from it.
-  startDate      DateTime            @db.Date
+  startDate            DateTime               @db.Date
   /// Repetition (the shared recurrence rule of the events and tasks).
-  recurrence     Json
+  recurrence           Json
   /// Time to spend on it, in minutes.
-  estimate       Int?
+  estimate             Int?
   /// Time window to do it in ("HH:MM", Paris time), e.g. dropping the children at school between 8:20 and 8:30:
   /// from fromTime (null: from the start of the day) to dueTime at the latest (null: until the end of the day).
-  fromTime       String?
-  dueTime        String?
+  fromTime             String?
+  dueTime              String?
   /// Cases (days, as the calendar schedules, and times of the day, each ticked apart) instead of the repetition and
   /// the time window; empty: the repetition.
-  cases          Json                @default("[]")
+  cases                Json                   @default("[]")
   /// Exceptions: occurrences postponed or brought forward to another day, [{ from, to }] (YYYY-MM-DD).
-  moves          Json                @default("[]")
+  moves                Json                   @default("[]")
   /// Calendar schedule ("plage") it follows instead of its own times and repetition: it occurs on the days of the
   /// schedule, before its start (START), during it (WHOLE) or after its end (END).
-  scheduleId     String?
-  schedule       WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-  scheduleAnchor String?
+  scheduleId           String?
+  schedule             WorkSchedule?          @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleAnchor       String?
   /// Former form: calendar schedules it followed (one or another), read into its condition.
-  scheduleIds    String[]            @default([])
+  scheduleIds          String[]               @default([])
   /// Former form: calendar schedules it was done out of, read into its condition.
-  excludedScheduleIds String[]       @default([])
+  excludedScheduleIds  String[]               @default([])
   /// Times of the day, following its rule: [{ fromTime, dueTime, optional }]; none: fromTime / dueTime.
-  moments        Json                @default("[]")
+  moments              Json                   @default("[]")
   /// On or out of calendar schedules, in groups (and / or), following its rule; none: any time (or, saved before
   /// it, scheduleIds / excludedScheduleIds).
-  slotCondition  Json?
+  slotCondition        Json?
   /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
-  reminders      Int[]               @default([])
+  reminders            Int[]                  @default([])
   /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
-  opensOn        Json?
+  opensOn              Json?
   /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
   /// (on the working hours in a professional workspace).
-  slotRule       Json?
+  slotRule             Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.
-  location       String?
-  locationLat    Float?
-  locationLon    Float?
+  location             String?
+  locationLat          Float?
+  locationLon          Float?
   /// Travel time to the place and back from it, in minutes.
-  travelBefore   Int                 @default(0)
-  travelAfter    Int                 @default(0)
+  travelBefore         Int                    @default(0)
+  travelAfter          Int                    @default(0)
   /// Project its tracked time goes to, if any.
-  projectId      String?
-  project        Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId            String?
+  project              Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
   /// Manual order among siblings.
-  position       Int                 @default(0)
-  archivedAt     DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  assignees      Contributor[]       @relation("RoutineAssignees")
+  position             Int                    @default(0)
+  archivedAt           DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  assignees            Contributor[]          @relation("RoutineAssignees")
   /// « Bénéficiaires »: whom the routine is for (contributors, and relations out of the team or household).
-  beneficiaries        Contributor[]      @relation("RoutineBeneficiaries")
-  beneficiaryRelations TreasuryRelation[] @relation("RoutineBeneficiaryRelations")
+  beneficiaries        Contributor[]          @relation("RoutineBeneficiaries")
+  beneficiaryRelations TreasuryRelation[]     @relation("RoutineBeneficiaryRelations")
   /// Events its occurrence of a day is done during.
   eventLinks           CalendarEventRoutine[]
   /// Routines to do before this one ("étendre le linge" requires "laver le linge").
-  requires       RoutineDependency[] @relation("RoutineDependent")
+  requires             RoutineDependency[]    @relation("RoutineDependent")
   /// Routines requiring this one.
-  requiredBy     RoutineDependency[] @relation("RoutineRequired")
+  requiredBy           RoutineDependency[]    @relation("RoutineRequired")
   /// Occurrences ticked as done.
-  checks         RoutineCheck[]
-  timeEntries    TimeEntry[]
+  checks               RoutineCheck[]
+  timeEntries          TimeEntry[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments             Comment[]
   /// Sheets each occurrence gets a checklist of.
-  sheetLinks  SheetLink[]
-  checklists  Checklist[]
+  sheetLinks           SheetLink[]
+  checklists           Checklist[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId    String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId          String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
   @@index([projectId])

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getSession } from '../auth/session';
-import { fileSecurityPolicy, isPdf } from '../services/attachments';
+import { fileSecurityPolicy, isPdf } from '../services/core/attachments';
 import { messageAttachment } from '../services/mail/reader';
 
 export const mailRouter: Router = Router();

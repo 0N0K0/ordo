@@ -4,7 +4,7 @@ import { prisma } from '../db';
 import { isProd } from '../env';
 import { generateToken, hashToken } from './crypto';
 
-export const SESSION_COOKIE = 'ordo_session';
+const SESSION_COOKIE = 'ordo_session';
 
 const DAY = 24 * 60 * 60 * 1000;
 /** Idle timeout: the session expires after this long without activity. */

@@ -1,4 +1,4 @@
-import * as workspaces from '../../services/workspaces';
+import * as workspaces from '../../services/workspace/workspaces';
 import { builder } from '../builder';
 
 // passwordHash is never exposed.

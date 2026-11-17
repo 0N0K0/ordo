@@ -1,4 +1,4 @@
-import * as workspaces from '../../services/workspaces';
+import * as workspaces from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
 

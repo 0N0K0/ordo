@@ -6,7 +6,7 @@ import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
 import { deliverMessage, type SendMailInput } from './sender';
-import { forEachWorkspace } from '../workspaces';
+import { forEachWorkspace } from '../workspace/workspaces';
 
 /**
  * Schedules a mail: the message is built now (files included, dated of its sending time) and kept until then;
@@ -79,7 +79,7 @@ export async function cancelScheduled(id: string): Promise<void> {
  * Sends the scheduled mails whose time has come.
  * @returns {Promise<void>}
  */
-export async function sendDueMails(): Promise<void> {
+async function sendDueMails(): Promise<void> {
   const due = await prisma.scheduledMail.findMany({ where: { status: 'PENDING', sendAt: { lte: new Date() } }, select: { id: true }, orderBy: { sendAt: 'asc' } });
   for (const { id } of due) await sendScheduled(id).catch((error: unknown) => console.warn('Envoi programmé en échec.', error));
 }

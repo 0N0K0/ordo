@@ -10,23 +10,23 @@ import {
 } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
-import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting-documents';
-import { createCatalogItem } from '../../src/services/catalog';
-import { statusOf } from '../../src/services/document-statuses';
-import { acceptQuote, documentBalances, markSent, recordPayment, setTrackingStatus } from '../../src/services/document-tracking';
-import { importDocument } from '../../src/services/imported-documents';
-import { createRecurringInvoice, issueDueInvoices } from '../../src/services/recurring-invoices';
-import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury';
-import { importStatement } from '../../src/services/treasury-import';
-import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
+import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
+import { createCatalogItem } from '../../src/services/accounting/catalog';
+import { statusOf } from '../../src/services/accounting/document-statuses';
+import { acceptQuote, documentBalances, markSent, recordPayment, setTrackingStatus } from '../../src/services/accounting/document-tracking';
+import { importDocument } from '../../src/services/accounting/imported-documents';
+import { createRecurringInvoice, issueDueInvoices } from '../../src/services/accounting/recurring-invoices';
+import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury/treasury';
+import { importStatement } from '../../src/services/treasury/treasury-import';
+import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
 import { maybe } from './factories';
 import { logoFile } from './images';
 import { tinyPdf } from './mail';
-import { setCompanyLogo } from '../../src/services/company';
+import { setCompanyLogo } from '../../src/services/accounting/company';
 import { currentWorkspaceId } from '../../src/workspace-context';
 
 /** Seller of the fixture documents: the seed only reloads a database whose final documents are its own. */
-export const DEMO_COMPANY = 'Atelier Ordo (démo)';
+const DEMO_COMPANY = 'Atelier Ordo (démo)';
 
 const SERVICES = ['Comptabilité', 'Direction marketing', 'Achats', 'Direction générale', 'Service informatique'];
 const JOB_TITLES = ['Responsable comptable', 'Directrice marketing', 'Chef de projet', 'Gérant', 'Assistante de direction', 'Responsable achats', 'DSI'];

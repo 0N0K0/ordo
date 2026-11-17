@@ -12,8 +12,8 @@ import {
   createStore,
   setItemPurchased,
   setListClosed,
-} from '../../src/services/shopping';
-import { createEntry } from '../../src/services/treasury';
+} from '../../src/services/shopping/shopping';
+import { createEntry } from '../../src/services/treasury/treasury';
 import type { SeededTeam } from './team';
 
 /** Fields of a product or an item, from its name. */

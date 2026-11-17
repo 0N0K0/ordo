@@ -7,7 +7,7 @@
  */
 
 /** A calendar day (YYYY-MM-DD) or an instant. */
-export type DateValue = string | number | Date;
+type DateValue = string | number | Date;
 
 const LOCALE = 'fr-FR';
 const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;

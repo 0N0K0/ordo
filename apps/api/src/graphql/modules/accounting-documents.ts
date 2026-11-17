@@ -1,12 +1,13 @@
 import { formatDay } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as docs from '../../services/accounting-documents';
-import * as imported from '../../services/imported-documents';
-import * as recurring from '../../services/recurring-invoices';
-import * as resources from '../../services/project-resources';
+import * as docs from '../../services/accounting/accounting-documents';
+import * as imported from '../../services/accounting/imported-documents';
+import * as recurring from '../../services/accounting/recurring-invoices';
+import * as resources from '../../services/workspace/project-resources';
 import { builder } from '../builder';
 import { clientError } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
+import { parisToday } from '../../today';
 
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
 export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
@@ -296,12 +297,6 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
   })),
 });
 
-/**
- * Today, on the server.
- * @returns {string} YYYY-MM-DD.
- */
-const today = () => formatDay(new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())));
-
 const DeductibleRateRef = builder.objectRef<{ rate: number; base: number }>('DeductibleRate').implement({
   fields: (t) => ({ rate: t.exposeFloat('rate'), amount: t.float({ description: 'Excluding VAT.', resolve: (item) => item.base / 100 }) }),
 });
@@ -471,15 +466,15 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { documentId, input }) => {
       const created = await recurring.createRecurringInvoice(documentId, input as recurring.RecurringSettings);
       // An invoice due today is issued at once rather than at the next hourly run.
-      await recurring.issueDueInvoices(today());
+      await recurring.issueDueInvoices(parisToday());
       return created.id;
     },
   }),
   updateRecurringInvoice: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RecurringInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await recurring.updateRecurringInvoice(id, input as recurring.RecurringSettings, today());
-      await recurring.issueDueInvoices(today());
+      await recurring.updateRecurringInvoice(id, input as recurring.RecurringSettings, parisToday());
+      await recurring.issueDueInvoices(parisToday());
       return true;
     },
   }),

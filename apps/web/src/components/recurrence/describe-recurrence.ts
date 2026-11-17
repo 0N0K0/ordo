@@ -1,8 +1,9 @@
-import { parseDay, ruleValues, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { parseDay, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
+import { countOf } from '../../lib/text';
 
-export const WEEKDAY_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+export const WEEKDAY_NAMES: readonly string[] = WEEKDAY_LABELS;
 const ORDINALS = ['', '1er', '2e', '3e', '4e'];
 
 /**
@@ -11,7 +12,7 @@ const ORDINALS = ['', '1er', '2e', '3e', '4e'];
  * @param {number} weekday 1 (Monday) to 7.
  * @returns {string} Label.
  */
-export function nthWeekday(position: number, weekday: number): string {
+function nthWeekday(position: number, weekday: number): string {
   return `le ${position === -1 ? 'dernier' : ORDINALS[position]} ${WEEKDAY_NAMES[weekday - 1]}`;
 }
 
@@ -33,29 +34,6 @@ export const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'j
  */
 export function formatLongDate(date: string): string {
   return fmt.day(parseDay(date));
-}
-
-/**
- * Weekday of the month of a date, as text: "le 2e mardi", "le dernier vendredi".
- * @param {string} date Calendar date.
- * @returns {string} Label.
- */
-export function weekdayOfMonth(date: string): string {
-  const day = parseDay(date);
-  const weekday = WEEKDAY_NAMES[(day.getUTCDay() + 6) % 7];
-  const daysInMonth = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
-  if (day.getUTCDate() + 7 > daysInMonth) return `le dernier ${weekday}`;
-  return `le ${ORDINALS[Math.ceil(day.getUTCDate() / 7)]} ${weekday}`;
-}
-
-/**
- * Day and month of a date: "4 avril".
- * @param {string} date Calendar date.
- * @returns {string} Label.
- */
-export function formatDayMonth(date: string): string {
-  const day = parseDay(date);
-  return `${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`;
 }
 
 /**
@@ -105,7 +83,7 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
   }
   if (rule.until) text += `, jusqu’au ${formatLongDate(rule.until)}`;
   if (rule.count) text += `, ${rule.count} fois`;
-  if (rule.pauses.length) text += ` (${rule.pauses.length} pause${rule.pauses.length > 1 ? 's' : ''})`;
+  if (rule.pauses.length) text += ` (${countOf(rule.pauses.length, 'pause')})`;
   return text;
 }
 

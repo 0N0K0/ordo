@@ -40,6 +40,7 @@ import {
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
 import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
+import { countOf, normalize } from '../../lib/text';
 
 export interface MarkdownSuggestions {
   /** Project of the text: its tasks come first and show without their project. */
@@ -108,18 +109,6 @@ const COMMANDS: { label: string; key?: string; icon: ReactNode; edit: Edit; divi
 const LIST_ITEM = /^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)\. |> )/;
 
 /**
- * Lowercases and strips accents, for accent-insensitive matching.
- * @param {string} value Text.
- * @returns {string} Normalized text.
- */
-function normalize(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
-}
-
-/**
  * GitHub-like markdown field: "Écrire" / "Aperçu" tabs, formatting toolbar, keyboard shortcuts,
  * list continuation, link on URL paste and "#" / "@" autocompletion. Edits keep the native undo history.
  * @param {MarkdownEditorProps} props Component props.
@@ -166,12 +155,16 @@ export function MarkdownEditor({
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
           key: `t${task.id}`,
-          reference: `[#${task.number}](${taskReferenceUrl(task.id)})`,
+          reference: `[${task.number === null ? task.title : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
-              <Text span size="sm" c="dimmed" ff="monospace">
-                {referenceLabel(task, suggestions.projectId)}
-              </Text>{' '}
+              {task.number !== null && (
+                <>
+                  <Text span size="sm" c="dimmed" ff="monospace">
+                    {referenceLabel(task, suggestions.projectId)}
+                  </Text>{' '}
+                </>
+              )}
               <Text span size="sm">
                 {task.title}
               </Text>
@@ -515,7 +508,7 @@ export function MarkdownEditor({
           {uploading > 0 ? <Loader size={12} /> : <MarkdownLogoIcon aria-hidden />}
           <Text size="xs" c="dimmed">
             {uploading > 0
-              ? `Envoi de ${uploading} fichier${uploading > 1 ? 's' : ''}…`
+              ? `Envoi de ${countOf(uploading, 'fichier')}…`
               : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
           </Text>
         </Group>

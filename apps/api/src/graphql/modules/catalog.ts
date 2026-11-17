@@ -1,6 +1,6 @@
 import type { CatalogItemInput as CatalogItemInputData } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as catalog from '../../services/catalog';
+import * as catalog from '../../services/accounting/catalog';
 import { builder } from '../builder';
 import { LineKindEnum, UnitEnum } from './accounting-documents';
 

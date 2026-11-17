@@ -2,10 +2,10 @@ import { Button, type ButtonProps } from '@mantine/core';
 import { CaretDownIcon } from '@phosphor-icons/react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ActionsMenu, type RowMenuEntry } from '../data-table/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../data-table/cells/RowActions';
 
 /** Weight of an action: the main ones of a page or a view (filled), the others (outlined). */
-export type ActionPriority = 'primary' | 'secondary';
+type ActionPriority = 'primary' | 'secondary';
 
 interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'leftSection' | 'rightSection'>, Omit<ComponentPropsWithoutRef<'button'>, 'color' | 'children' | 'style'> {
   children: ReactNode;

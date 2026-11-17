@@ -1,0 +1,28 @@
+@layer app {
+  /* Field of an add row: borderless, its placeholder dimmed. */
+  .input {
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+
+    &::placeholder {
+      color: var(--mantine-color-dimmed);
+    }
+  }
+
+  /* Button of an add row (« + Ajouter »), dimmed until hovered. */
+  .button {
+    /* Agencement */
+    display: inline-flex;
+    align-items: center;
+
+    /* Espacement */
+    gap: calc(var(--mantine-spacing-xs) / 2);
+
+    /* Typographie */
+    color: var(--mantine-color-dimmed);
+
+    &:hover {
+      color: var(--mantine-color-text);
+    }
+  }
+}

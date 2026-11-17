@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import * as auth from '../../services/auth';
+import * as auth from '../../services/core/auth';
 import { builder } from '../builder';
 import { requireSession } from '../context';
 

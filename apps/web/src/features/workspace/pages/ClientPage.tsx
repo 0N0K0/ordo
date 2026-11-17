@@ -4,15 +4,15 @@ import { Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
-import { ClientBillingSection } from '../../accounting/ClientBillingSection';
-import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
-import { PageSettings } from '../../../layouts/PageSettings';
-import { ClientForm } from '../ClientForm';
+import { ClientBillingSection } from '../../accounting/components/ClientBillingSection';
+import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingPanel';
+import { PageSettings } from '../../../app/layout/PageSettings';
+import { ClientForm } from '../components/ClientForm';
 import { descendantIds, useWorkspace } from '../api';
-import { useEntityActions } from '../use-entity-actions';
-import { EntityHeader } from './EntityHeader';
-import { EntityNotFound, EntitySkeleton } from './EntityState';
-import { ProjectList } from './ProjectList';
+import { useEntityActions } from '../hooks/use-entity-actions';
+import { EntityHeader } from '../components/EntityHeader';
+import { EntityNotFound, EntitySkeleton } from '../components/EntityState';
+import { ProjectList } from '../components/ProjectList';
 
 /** Tabs of the settings sidebar. */
 type SettingsTab = 'billing' | 'client';

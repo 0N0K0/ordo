@@ -293,6 +293,9 @@ input BulkTaskInput {
 """Calendar of the workspace: every event belongs to one."""
 type Calendar {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -300,6 +303,9 @@ type Calendar {
 
 type CalendarCategory {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   parentId: ID
@@ -869,6 +875,9 @@ type DocumentStatus {
   category: DocumentStatusCategory!
   color: String!
   documentCount: Int!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -1279,6 +1288,9 @@ type MailFolder {
 """Flag of mails (name, color)."""
 type MailLabel {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -1474,6 +1486,10 @@ type Mutation {
   Ticks or unticks the current occurrence of several routines; returns how many changed.
   """
   bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
+
+  """
+  Archiving cascades to sub-tasks; restoring restores them and the archived parents.
+  """
   bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
 
   """
@@ -1624,7 +1640,6 @@ type Mutation {
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
-  deleteRoutine(id: ID!): Boolean!
   deleteRoutineCategory(id: ID!): Boolean!
 
   """
@@ -1655,11 +1670,6 @@ type Mutation {
   deleteSprint(id: ID!): Boolean!
   deleteStockItem(id: ID!): Boolean!
   deleteStockLocation(id: ID!): Boolean!
-  deleteTask(
-    """false moves the sub-tasks up to the parent."""
-    deleteSubtasks: Boolean!
-    id: ID!
-  ): Boolean!
   deleteTaskComment(id: ID!): Boolean!
   deleteTaskPriority(id: ID!): Boolean!
   deleteTaskStatus(id: ID!): Boolean!
@@ -1760,6 +1770,11 @@ type Mutation {
   moveMailFolder(accountId: ID!, parent: String, path: String!): String!
   moveMails(accountId: ID!, folder: String!, target: String!, uids: [Int!]!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a place among the places, or a zone under another place or zone, at an index among its siblings.
+  """
+  movePlace(id: ID!, index: Int!, parentId: ID): Boolean!
 
   """Moves a project with its sub-projects."""
   moveProject(
@@ -1868,6 +1883,9 @@ type Mutation {
   Moves a document among the documents of a folder (into that folder first when it is another one).
   """
   reorderLibraryDocument(folderId: ID, id: ID!, index: Int!): Boolean!
+
+  """Puts the items of a flat settings list in the order given."""
+  reorderSettingsItems(ids: [ID!]!, kind: SettingsListKind!): Boolean!
 
   """
   Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.
@@ -1981,7 +1999,6 @@ type Mutation {
   """
   setProjectContributors(contributorIds: [ID!]!, projectId: ID!): Boolean!
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
-  setRoutineArchived(archived: Boolean!, id: ID!): Boolean!
 
   """
   Ticks or unticks an occurrence (by default the current one); returns its date.
@@ -2003,6 +2020,11 @@ type Mutation {
   """
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
 
+  """
+  Changes the color and / or the image of an item of a settings list; gives the URL of its image.
+  """
+  setSettingsItemLook(id: ID!, input: SettingsItemLookInput!, kind: SettingsListKind!): String
+
   """Sets the sheets of a routine, an event or a task (one of them)."""
   setSheetLinks(eventId: ID, links: [SheetLinkInput!]!, routineId: ID, taskId: ID): Boolean!
 
@@ -2015,11 +2037,6 @@ type Mutation {
   setShoppingOrder(input: ShoppingOrderInput!, listId: ID!): Boolean!
   setShoppingProductsMissing(ids: [ID!]!, missing: Boolean!): Boolean!
   setStockLotExpiry(expiresAt: Date, id: ID!): Boolean!
-
-  """
-  Archiving cascades to sub-tasks; restoring restores them and the archived parents.
-  """
-  setTaskArchived(archived: Boolean!, id: ID!): Task!
 
   """
   Chooses the columns new task views start with; without columns, gives back the app’s.
@@ -2069,11 +2086,6 @@ type Mutation {
   Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
-
-  """
-  Moves the task and its sub-tasks to another project, or out of any (projectId null).
-  """
-  transferTask(id: ID!, projectId: ID): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -2171,6 +2183,10 @@ Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one 
 type Place {
   """Its address, or that of the place a zone is in."""
   address: String!
+  color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   lat: Float!
   lon: Float!
@@ -2181,6 +2197,7 @@ type Place {
 
   """Full name (« Maison › Cuisine »)."""
   path: String!
+  position: Int!
 }
 
 input PlaceInput {
@@ -2228,8 +2245,12 @@ type Project {
 
 type ProjectCategory {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
+  position: Int!
 }
 
 input ProjectCategoryInput {
@@ -2277,6 +2298,9 @@ enum ProjectResourceKind {
 
 type ProjectStatus {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -2372,6 +2396,11 @@ type Query {
 
   """Schedules without kind of this workspace: name, color and display."""
   defaultScheduleKind: DefaultScheduleKind!
+
+  """
+  Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.
+  """
+  doableTaskIds(utcOffset: Int!): [ID!]!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
@@ -2459,14 +2488,6 @@ type Query {
   """A page of the mails of a search folder, latest first."""
   mailSearchResults(id: ID!, page: Int!): MailSearchPage!
   mailSearches: [MailSearch!]!
-
-  """Ids of the tasks matching a filter, in manual order."""
-  matchingTaskIds(query: TaskQueryInput!): [ID!]!
-
-  """
-  For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.
-  """
-  matchingTaskIdsBySprint(query: TaskQueryInput!): [SprintMatches!]!
   me: User
   milestones: [Milestone!]!
 
@@ -2846,6 +2867,9 @@ input RoutineBulkChanges {
 """Category of the routines, in a tree."""
 type RoutineCategory {
   color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   parentId: ID
@@ -3068,6 +3092,9 @@ type ScheduleType {
   Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
   """
   dayDisplay: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
 
   """Its days in the month: BACKGROUND, BORDER or NONE."""
@@ -3118,6 +3145,46 @@ input SendMailInput {
   to: [String!]!
 }
 
+input SettingsItemLookInput {
+  """New color; null: none (where the list allows it)."""
+  color: String
+
+  """Replaces the current image."""
+  icon: File
+  removeIcon: Boolean
+}
+
+"""
+Settings list sharing the same look (color, image, name) and manual order.
+"""
+enum SettingsListKind {
+  CALENDAR
+  CALENDAR_CATEGORY
+  DOCUMENT_STATUS
+  MAIL_LABEL
+  PLACE
+  PROJECT_CATEGORY
+  PROJECT_STATUS
+  ROUTINE_CATEGORY
+  SCHEDULE_TYPE
+  SHEET_CATEGORY
+  SHOPPING_BASE_LIST
+  SHOPPING_CATEGORY
+  SHOPPING_STORAGE
+  SHOPPING_STORE
+  SHOPPING_UNIT
+  STOCK_LOCATION
+  TASK_PRIORITY
+  TASK_STATUS
+  TASK_TAG
+  TASK_TYPE
+  TREASURY_ACCOUNT
+  TREASURY_CATEGORY
+  TREASURY_CONTEXT
+  TREASURY_COUNTERPARTY
+  TREASURY_PAYMENT_METHOD
+}
+
 """
 Sheet: products and items used together (a recipe, a suitcase…), added to shopping lists or made a checklist of.
 """
@@ -3139,6 +3206,9 @@ type Sheet {
 """Category of the sheets (flat, set in the settings)."""
 type SheetCategory {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3236,6 +3306,10 @@ type SheetUse {
 
 """Base list ("liste type"): products usually bought together."""
 type ShoppingBaseList {
+  color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3248,6 +3322,9 @@ type ShoppingCategory {
   """
   baseListIds: [ID!]!
   color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   parentId: ID
@@ -3435,6 +3512,9 @@ input ShoppingProductInput {
 """Storage mode of perishable products (fresh, frozen…)."""
 type ShoppingStorage {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3443,6 +3523,9 @@ type ShoppingStorage {
 """Store (or supplier) a product is bought at."""
 type ShoppingStore {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3466,6 +3549,9 @@ Unit of quantity of the products and items (« kg », « boîte »…); they kee
 type ShoppingUnit {
   """Unused."""
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3486,12 +3572,6 @@ input SprintInput {
   goal: String
   name: String!
   startDate: Date!
-}
-
-"""Tasks of a sprint matching a filter at the end of the sprint."""
-type SprintMatches {
-  sprintId: ID!
-  taskIds: [ID!]!
 }
 
 """Status of a task at the end of a sprint."""
@@ -3569,6 +3649,9 @@ input StockItemInput {
 """Place things are kept (Frigo, Congélateur…), in a tree."""
 type StockLocation {
   color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   parentId: ID
@@ -3785,29 +3868,20 @@ input TaskLabelUpdateInput {
 
 type TaskPriority {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
 }
 
-input TaskQueryInput {
-  """Filter tree (and / or groups of conditions)."""
-  filter: JSON!
-  includeArchived: Boolean
-
-  """Quick search: number, title or description."""
-  search: String
-
-  """User's current day, for relative dates."""
-  today: Date!
-
-  """User's offset from UTC, in minutes."""
-  utcOffset: Int!
-}
-
 type TaskStatus {
   category: TaskStatusCategory!
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3825,6 +3899,9 @@ enum TaskStatusCategory {
 
 type TaskTag {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -3837,13 +3914,16 @@ type TaskTransferResult {
 
 type TaskType {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
 }
 
 """
-Omitted fields are left unchanged; null clears a field. Use transferTask to change the project.
+Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
@@ -3997,10 +4077,14 @@ type TreasuryAccount {
 
   """Balance today."""
   balance: Float!
+  color: String
 
   """Columns of its bank statements (CSV), as last mapped."""
   csvMapping: JSON
   entryCount: Int!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   openingBalance: Float!
@@ -4099,6 +4183,9 @@ type TreasuryCategory {
   color: String
   direction: TreasuryDirection!
   entryCount: Int!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   parentId: ID
@@ -4120,6 +4207,9 @@ Context of spending (not in a tree); a line without context is everyday spending
 """
 type TreasuryContext {
   color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   position: Int!
@@ -4150,10 +4240,15 @@ input TreasuryContextPeriodInput {
 
 type TreasuryCounterparty {
   archived: Boolean!
+  color: String
   entryCount: Int!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   name: String!
   note: String
+  position: Int!
 }
 
 input TreasuryCounterpartyInput {
@@ -4352,11 +4447,16 @@ type TreasuryLoanItem {
 }
 
 type TreasuryPaymentMethod {
+  color: String
   entryCount: Int!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   incoming: Boolean!
   name: String!
   outgoing: Boolean!
+  position: Int!
 }
 
 input TreasuryPaymentMethodInput {

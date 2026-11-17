@@ -1,10 +1,10 @@
 import { addDays } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
-import { createCalendarEvent } from '../../src/services/calendar-events';
-import { createEntry as saveEntry } from '../../src/services/treasury';
-import { saveBudget } from '../../src/services/treasury-budgets';
-import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
+import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
+import { createEntry as saveEntry } from '../../src/services/treasury/treasury';
+import { saveBudget } from '../../src/services/treasury/treasury-budgets';
+import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
 
 /**
  * Creates a movement; a split one has its categories on its lines only.

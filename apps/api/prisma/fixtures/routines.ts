@@ -1,20 +1,11 @@
 import { fakerFR as faker } from '@faker-js/faker';
+import { parisToday } from '../../src/today';
 import { addDays, DEFAULT_RECURRENCE, type Recurrence, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
-import { savePlace } from '../../src/services/geo';
-import { createTimeEntry } from '../../src/services/time-entries';
-import {
-  changeRoutineOccurrence,
-  createCategory,
-  createRoutine,
-  deleteRoutineOccurrence,
-  moveRoutineOccurrence,
-  occurrencesBetween,
-  routineToday,
-  setRoutineArchived,
-  slotsOf,
-} from '../../src/services/routines';
+import { savePlace } from '../../src/services/core/geo';
+import { createTimeEntry } from '../../src/services/tasks/time-entries';
+import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, setRoutineArchived, slotsOf } from '../../src/services/routines/routines';
 
 /**
  * Rule from the default one.
@@ -65,7 +56,7 @@ export async function tickRoutines(today: string): Promise<{ routineId: string; 
  * @returns {Promise<void>}
  */
 export async function seedRoutines({ projects, contributors, meId, scheduleId }: { projects: Project[]; contributors: Contributor[]; meId: string | null; scheduleId: string }): Promise<void> {
-  const today = routineToday();
+  const today = parisToday();
 
   // --- Places ------------------------------------------------------------------------------------------
   const office = await savePlace(null, { name: 'Bureau', address: '12 rue de la République, 69002 Lyon', lat: 45.7615, lon: 4.8357 });

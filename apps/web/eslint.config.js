@@ -27,7 +27,7 @@ export default defineConfig([
             {
               name: '@mantine/core',
               importNames: ['MultiSelect'],
-              message: 'Utiliser BatchMultiSelect (components/BatchMultiSelect) : plusieurs choix en une fois.',
+              message: 'Utiliser BatchMultiSelect (components/inputs/BatchMultiSelect) : plusieurs choix en une fois.',
             },
             {
               name: '@ordo/shared',
@@ -61,7 +61,7 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
-    files: ['src/components/BatchMultiSelect.tsx'],
+    files: ['src/components/inputs/BatchMultiSelect.tsx'],
     rules: { 'no-restricted-imports': 'off' },
   },
 ])

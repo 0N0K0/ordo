@@ -2,7 +2,7 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { WarningIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { ErrorIcon, InfoFeedbackIcon, SuccessIcon } from '../components/feedback-icons';
+import { ErrorIcon, InfoFeedbackIcon, SuccessIcon } from '../components/feedback/feedback-icons';
 
 /**
  * Toasts (top right): an error stays until closed; any other closes on its own (paused while hovered), sooner when
@@ -111,6 +111,13 @@ export function notifyWarning(title: string, message: string): void {
 export function notifyError(message: string): void {
   notifications.show({ color: 'red', icon: <ErrorIcon />, title: 'Erreur', message, autoClose: false });
 }
+
+/**
+ * Error of a mutation (or of any action), told in an error toast: the handler every `onError` takes.
+ * @param {Error} error Error.
+ * @returns {void}
+ */
+export const onMutationError = (error: Error): void => notifyError(error.message);
 
 /**
  * Shows a success toast with an "Annuler" button, for a few seconds.
