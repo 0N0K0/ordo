@@ -1,5 +1,5 @@
 import type { TaskColumn } from '@ordo/shared';
-import { bulkSaver, bulkTargets, useBulkTable, type BulkTable } from '../../../components/data-table/bulk-edit';
+import { useEntityCellEdit } from '../../../components/data-table/bulk-edit';
 import { notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
@@ -18,40 +18,19 @@ type TaskChange = Omit<TaskInputValues, 'projectId'>;
  *   Saver, the number of tasks an edit would change and their ids.
  */
 export function useCellEdit(task: Task, column: TaskColumn) {
-  const table = useBulkTable();
   const updateTask = useUpdateTask();
   const { update } = useBulkTaskMutations();
   const undo = useBulkUndo();
   const { data } = useTasksData();
-  // The tasks of the table, by the keys of its rows (a task's row key is its id; the events have their own).
-  const view: BulkTable<Task> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: data?.tasks ?? [] };
-  const targets = bulkTargets(view, column, task).map((item) => item.id);
-  const onError = onMutationError;
-
-  return {
-    count: targets.length,
-    /** Tasks the edit applies to. */
-    targets,
-
-    /**
-     * Saves the edit: on several tasks, in one bulk change when given (with its undo), else task by task (the change
-     * made for each).
-     * @param {TaskChange | ((task: Task) => TaskChange)} single Change of the edited task (or of each).
-     * @param {BulkChanges} [bulk] Same change for several tasks at once. Optional.
-     * @returns {void}
-     */
-    apply: (single: TaskChange | ((task: Task) => TaskChange), bulk?: BulkChanges) =>
-      bulkSaver<Task, TaskChange>(
-        view,
-        (item, change) => Object.keys(change).length > 0 && updateTask.mutate({ id: item.id, input: change }, { onError }),
-        bulk
-          ? (rows) => {
-              // Snapshot taken before the change, for the undo.
-              const ids = rows.map((item) => item.id);
-              update.mutate({ ids, changes: bulk }, { onSuccess: () => notifyWithUndo(`Modification appliquée à ${tasksLabel(ids.length)}.`, undo.changes(rows, bulk)), onError });
-            }
-          : undefined,
-        { label: tasksLabel, notify: !bulk },
-      )(column)(task, single),
-  };
+  return useEntityCellEdit<Task, TaskChange, BulkChanges>(task, column, {
+    rows: data?.tasks ?? [],
+    save: (item, change) => updateTask.mutate({ id: item.id, input: change }, { onError: onMutationError }),
+    // Snapshot taken before the change, for the undo.
+    saveMany: (rows, changes) =>
+      update.mutate(
+        { ids: rows.map((item) => item.id), changes },
+        { onSuccess: () => notifyWithUndo(`Modification appliquée à ${tasksLabel(rows.length)}.`, undo.changes(rows, changes)), onError: onMutationError },
+      ),
+    label: tasksLabel,
+  });
 }

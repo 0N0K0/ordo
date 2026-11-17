@@ -117,6 +117,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Le constat :** `useCellEdit` et `useRoutineCellEdit` font environ 40 lignes chacun, identiques aux types près. L'annulation des modifications groupées est elle aussi séparée en deux.
 - **Cible :** un `useEntityCellEdit` dans `bulk-edit.ts`.
 
+**Fait** : `useEntityCellEdit` (`components/data-table/bulk-edit.ts`) porte la logique commune (lignes visées par la sélection, enregistrement d'une ligne ou de toutes en une requête). `useCellEdit` et `useRoutineCellEdit` ne lui donnent plus que leurs mutations et leur libellé. Les deux annulations restent propres à leur domaine : les tâches défont chaque champ changé, les routines se remettent comme elles étaient.
+
 ### 13. Autres doublons d'interface
 
 - **Abonnements aux autres espaces :** les calendriers et les types de plages ont chacun leur liste, regroupée par espace, avec un interrupteur d'abonnement.

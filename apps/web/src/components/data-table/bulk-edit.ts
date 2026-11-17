@@ -102,3 +102,45 @@ export function applyDiff(current: readonly string[], before: readonly string[],
   const removed = new Set(before.filter((value) => !after.includes(value)));
   return [...new Set([...current.filter((value) => !removed.has(value)), ...after.filter((value) => !before.includes(value))])];
 }
+
+/**
+ * Saves a cell edit of a row of a table, on the selection of its table (bulkSaver): on a cell of the column selection
+ * (or of the rows checked), the change applies to every row of it — in one bulk request when given, with its undo —,
+ * otherwise to the edited row only (an empty change leaves a row as it is). The edit of the cells of every table whose
+ * rows are entities with an id (tasks, routines).
+ * @param {R} row Edited row.
+ * @param {Columns} columns Edited column (or the columns of the table it answers for).
+ * @param {object} options How the rows are saved.
+ * @param {readonly R[]} options.rows Rows of the table.
+ * @param {(row: R, change: C) => void} options.save Saves the change of a row.
+ * @param {(rows: R[], changes: B) => void} options.saveMany Saves the same change for several rows at once (with its undo).
+ * @param {(count: number) => string} options.label « 3 tâches »: in the messages.
+ * @returns {{ apply: (single: C | ((row: R) => C), bulk?: B) => void, count: number, targets: string[] }} Saver, the number of rows an edit would change and their ids.
+ */
+export function useEntityCellEdit<R extends { id: string }, C extends object, B>(
+  row: R,
+  columns: Columns,
+  options: { rows: readonly R[]; save: (row: R, change: C) => void; saveMany: (rows: R[], changes: B) => void; label: (count: number) => string },
+) {
+  const table = useBulkTable();
+  // The rows of the table, by the keys of their rows (an entity's row key is its id).
+  const view: BulkTable<R> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: options.rows as R[] };
+  const targets = bulkTargets(view, columns, row).map((item) => item.id);
+  return {
+    count: targets.length,
+    /** Rows the edit applies to. */
+    targets,
+    /**
+     * Saves the edit: on several rows, in one bulk change when given (with its undo), else row by row (the change made
+     * for each).
+     * @param {C | ((row: R) => C)} single Change of the edited row (or of each).
+     * @param {B} [bulk] Same change for several rows at once. Optional.
+     * @returns {void}
+     */
+    apply: (single: C | ((row: R) => C), bulk?: B) =>
+      bulkSaver<R, C>(view, (item, change) => Object.keys(change).length > 0 && options.save(item, change), bulk !== undefined ? (rows) => options.saveMany(rows, bulk) : undefined, {
+        label: options.label,
+        notify: bulk === undefined,
+      })(columns)(row, single),
+  };
+}

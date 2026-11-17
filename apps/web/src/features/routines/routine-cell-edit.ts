@@ -1,4 +1,4 @@
-import { bulkSaver, bulkTargets, useBulkTable, type BulkTable } from '../../components/data-table/bulk-edit';
+import { useEntityCellEdit } from '../../components/data-table/bulk-edit';
 import { notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from './api';
 import { countOf } from '../../lib/text';
@@ -71,39 +71,18 @@ function useBulkRoutineChanges() {
  *   Saver, the number of routines an edit would change and their ids.
  */
 export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
-  const table = useBulkTable();
   const { patch } = useRoutineMutations();
   const { data } = useRoutinesData();
   const applyBulk = useBulkRoutineChanges();
-  // The routines of the table, by the keys of its rows (a routine's row key is its id).
-  const view: BulkTable<Routine> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: data?.routines ?? [] };
-  const columns = TABLE_COLUMNS[column] ?? column;
-  const targets = bulkTargets(view, columns, routine).map((item) => item.id);
-  const onError = onMutationError;
-  return {
-    count: targets.length,
-    /** Routines the edit applies to. */
-    targets,
-    /**
-     * Saves the edit: on several routines, in one bulk change when given (with its undo), else routine by routine (the
-     * change made for each).
-     * @param {RoutinePatchValues | ((routine: Routine) => RoutinePatchValues)} single Change of the edited routine (or of each).
-     * @param {RoutineBulkChanges} [bulk] Same change for several routines at once. Optional.
-     * @returns {void}
-     */
-    apply: (single: RoutinePatchValues | ((routine: Routine) => RoutinePatchValues), bulk?: RoutineBulkChanges) =>
-      bulkSaver<Routine, RoutinePatchValues>(
-        view,
-        (item, change) => Object.keys(change).length > 0 && patch.mutate({ id: item.id, input: change }, { onError }),
-        bulk
-          ? (rows) =>
-              applyBulk(
-                rows.map((item) => item.id),
-                bulk,
-                `Modification appliquée à ${routinesLabel(rows.length)}.`,
-              )
-          : undefined,
-        { label: routinesLabel, notify: !bulk },
-      )(columns)(routine, single),
-  };
+  return useEntityCellEdit<Routine, RoutinePatchValues, RoutineBulkChanges>(routine, TABLE_COLUMNS[column] ?? column, {
+    rows: data?.routines ?? [],
+    save: (item, change) => patch.mutate({ id: item.id, input: change }, { onError: onMutationError }),
+    saveMany: (rows, changes) =>
+      applyBulk(
+        rows.map((item) => item.id),
+        changes,
+        `Modification appliquée à ${routinesLabel(rows.length)}.`,
+      ),
+    label: routinesLabel,
+  });
 }
