@@ -26,6 +26,10 @@ export const tableFilterSchema = filterGroupSchemaFor(tableFilterConditionSchema
   `Les groupes de filtres sont limités à ${MAX_FILTER_DEPTH} niveaux.`,
 );
 
+/** Periods the rows are grouped by on a date: its day, week, month, quarter or year. */
+export const GROUP_PERIODS = ['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'] as const;
+export type GroupPeriod = (typeof GROUP_PERIODS)[number];
+
 /** Configuration of a view of any table: search, filter, sorts, groups and columns. */
 export const tableViewConfigSchema = z.object({
   filter: tableFilterSchema.catch({ type: 'group', id: 'root', combinator: 'and', children: [] }),
@@ -33,6 +37,12 @@ export const tableViewConfigSchema = z.object({
   sorting: z.array(tableSortSchema).max(30).default([]),
   /** Column the rows are grouped by, null for none. */
   groupBy: z.string().max(64).nullable().catch(null).default(null),
+  /** Period of a grouping on a date. */
+  groupPeriod: z.enum(GROUP_PERIODS).catch('MONTH').default('MONTH'),
+  /** Sub-rows shown flat, each a row of its own (a table of rows in a tree). */
+  flat: z.boolean().catch(false).default(false),
+  /** Archived rows shown too (a table that has some). */
+  includeArchived: z.boolean().catch(false).default(false),
   ...columnLayoutSchema.shape,
   /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
   footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),

@@ -13,6 +13,7 @@ import {
   type DragMoveEvent,
   type DragOverEvent,
   type DragStartEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -29,7 +30,8 @@ import {
   type ExpandedState,
   type Updater,
 } from '@tanstack/react-table';
-import { Fragment, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { contentWidth } from '../../features/tasks/column-fit';
 import { ColumnHeaderMenu, type ColumnMove } from './ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn } from './data-table';
@@ -58,6 +60,8 @@ export interface RowMove {
   beforeKey: string | null;
   /** New parent (null: top level); undefined: unchanged. */
   parentKey?: string | null;
+  /** Group it was dropped in (the key of its value), when it changed; undefined: the same. */
+  groupKey?: string;
 }
 
 interface DataTableProps<R> extends Omit<TableProps, 'children'> {
@@ -101,7 +105,26 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   isActive?: (row: R) => boolean;
   /** The row is archived (dimmed). Optional. */
   isArchived?: (row: R) => boolean;
+  /** The row is read only (shown among the others: no drag, no check, no cell selection). Optional. */
+  readOnly?: (row: R) => boolean;
 }
+
+/** Props given to each row of the body: its index and its measure (the rows shown are those in view). */
+interface RowAttrs {
+  'data-index': number;
+  ref: (element: HTMLTableRowElement | null) => void;
+}
+
+/** A row of the body, rendered with its measure. */
+interface Entry {
+  key: string;
+  render: (attrs: RowAttrs) => ReactNode;
+}
+
+/** Rows from which only those in view are rendered. */
+const VIRTUAL_FROM = 80;
+/** Height of a row before it is measured. */
+const ROW_ESTIMATE = 37;
 
 /** A row of the table: a heading of a group, or a row of data (with its sub-rows). */
 type Item<R> = { kind: 'group'; id: string; group: RowGroup<R>; children: Item<R>[] } | { kind: 'row'; id: string; row: R; children: Item<R>[] };
@@ -254,6 +277,7 @@ export function DataTable<R>({
   addRow,
   isActive,
   isArchived,
+  readOnly,
   className,
   style,
   ...tableProps
@@ -268,7 +292,9 @@ export function DataTable<R>({
   // Without sort, the rows go in the order chosen by hand; dragged when not grouped.
   const manual = view.config !== null && view.sorting.length === 0;
   const draggable = manual && !view.groupColumn;
-  const tree = Boolean(parentKey);
+  // A tree unless shown flat (an option of the view).
+  const tree = Boolean(parentKey) && !view.config?.flat;
+  const treeKey = tree ? parentKey : undefined;
   const rank = useMemo(() => new Map((view.config?.manualOrder ?? []).map((key, index) => [key, index])), [view.config?.manualOrder]);
   /**
    * Rows in the order chosen by hand (without sort and without own saving), else as they are.
@@ -284,17 +310,18 @@ export function DataTable<R>({
       : rows;
   // Check boxes of the rows, to act on several (a table without its own leading cell).
   const checks = leading ? null : view.rowSelection;
-  const leadWidth = (draggable || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0) + (leading?.width ?? 0);
+  const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn) : draggable;
+  const leadWidth = (rowDrag || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0) + (leading?.width ?? 0);
   const hasLead = leadWidth > 0;
   const before = hasLead ? 1 : 0;
   const span = shown.length + 1 + before;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const items = useMemo((): Item<R>[] => {
-    if (!view.groupColumn) return treeOf(inOrder(view.rows), getKey, parentKey);
-    return view.groups.map((group) => ({ kind: 'group', id: `${GROUP_PREFIX}${group.key}`, group, children: treeOf(inOrder(group.rows), getKey, parentKey) }));
+    if (!view.groupColumn) return treeOf(inOrder(view.rows), getKey, treeKey);
+    return view.groups.map((group) => ({ kind: 'group', id: `${GROUP_PREFIX}${group.key}`, group, children: treeOf(inOrder(group.rows), getKey, treeKey) }));
     // inOrder reads the manual order (rank) and the sort: both in its deps through them.
-  }, [view.rows, view.groups, view.groupColumn, getKey, parentKey, rank, manual, onMoveRow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view.rows, view.groups, view.groupColumn, getKey, treeKey, rank, manual, onMoveRow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => {
     const helper = createColumnHelper<typeof features, Item<R>>();
@@ -336,7 +363,6 @@ export function DataTable<R>({
   const dragItems = drag ? withoutDescendants(allDragItems, drag.activeId) : allDragItems;
   const draggedAlong = new Set(drag ? allDragItems.filter((item) => !dragItems.includes(item)).map((item) => item.id) : []);
   const projection = drag?.overId ? getProjection(dragItems, drag.activeId, drag.overId, drag.offsetX, tree && Boolean(onMoveRow)) : null;
-  const rowDrag = draggable || (tree && Boolean(onMoveRow) && manual && !grouped);
 
   /**
    * Moves a column to the start, the end, or by one shown column.
@@ -394,6 +420,13 @@ export function DataTable<R>({
       view.setLayout(withOrder(view.columns, layout, arrayMove(order, order.indexOf(from), order.indexOf(to))));
       return;
     }
+    const overId = String(over.id);
+    // Dropped on the heading of a group: first in it.
+    if (overId.startsWith(GROUP_PREFIX)) {
+      const groupKey = overId.slice(GROUP_PREFIX.length);
+      if (groupKey !== groupOfRow.get(activeId)) onMoveRow?.({ key: activeId, beforeKey: firstOfGroup.get(groupKey) ?? null, groupKey });
+      return;
+    }
     if (!projection) return;
     const original = dragItems.find((item) => item.id === activeId)!;
     const moved = arrayMove(
@@ -414,7 +447,13 @@ export function DataTable<R>({
     // by a filter keeps its hidden parent).
     const index = moved.findIndex((item) => item.id === activeId);
     const next = moved[index + 1];
-    onMoveRow({ key: activeId, beforeKey: next?.id ?? null, ...(reparented && { parentKey: projection.parentId }) });
+    const groupKey = groupOfRow.get(overId);
+    onMoveRow({
+      key: activeId,
+      beforeKey: next?.id ?? null,
+      ...(reparented && { parentKey: projection.parentId }),
+      ...(groupKey !== undefined && groupKey !== groupOfRow.get(activeId) && { groupKey }),
+    });
     // The new parent opens to show its new sub-row.
     if (projection.parentId) {
       const parentRowId = projection.parentId;
@@ -422,23 +461,41 @@ export function DataTable<R>({
     }
   };
 
+  // Group of each row shown, and the first row of each group (a row dropped on its heading goes there).
+  const groupOfRow = new Map<string, string>();
+  const firstOfGroup = new Map<string, string>();
+  {
+    let current: string | null = null;
+    for (const row of visibleRows) {
+      if (row.original.kind === 'group') current = row.original.group.key;
+      else if (current !== null) {
+        groupOfRow.set(row.id, current);
+        if (!firstOfGroup.has(current)) firstOfGroup.set(current, row.id);
+      }
+    }
+  }
+
   /**
    * Row adding one, across the table.
    * @param {RowGroup<R> | null} group Group it adds to (null: the table).
-   * @returns {ReactNode} Row.
+   * @returns {Entry | null} Row.
    */
-  const addRowOf = (group: RowGroup<R> | null) => {
+  const addRowOf = (group: RowGroup<R> | null): Entry | null => {
     const content = addRow?.(group);
     if (!content) return null;
-    return (
-      <Table.Tr key={`add:${group?.key ?? ''}`} className={classes.addRow}>
-        {hasLead && <Table.Td />}
-        <Table.Td colSpan={shown.length + 1}>{content}</Table.Td>
-      </Table.Tr>
-    );
+    const key = `add:${group?.key ?? ''}`;
+    return {
+      key,
+      render: (attrs) => (
+        <Table.Tr key={key} {...attrs} className={classes.addRow}>
+          {hasLead && <Table.Td />}
+          <Table.Td colSpan={shown.length + 1}>{content}</Table.Td>
+        </Table.Tr>
+      ),
+    };
   };
 
-  const body: ReactNode[] = [];
+  const entries: Entry[] = [];
   let openGroup: RowGroup<R> | null = null;
   /**
    * Closes the group open: its add row and its totals.
@@ -446,112 +503,166 @@ export function DataTable<R>({
    */
   const closeGroup = () => {
     if (!openGroup) return;
-    body.push(addRowOf(openGroup));
-    if (view.config?.footer)
-      body.push(<GroupFooter key={`footer:${openGroup.key}`} shown={shown} rows={openGroup.rows} totals={view.config.footer} label={openGroup.label} before={before} after={1} />);
+    const group: RowGroup<R> = openGroup;
+    const add = addRowOf(group);
+    if (add) entries.push(add);
+    const footer = view.config?.footer;
+    if (footer && shown.some((column) => footer[column.id])) {
+      const key = `footer:${group.key}`;
+      entries.push({ key, render: (attrs) => <GroupFooter key={key} trProps={{ ...attrs }} shown={shown} rows={group.rows} totals={footer} label={group.label} before={before} after={1} /> });
+    }
     openGroup = null;
   };
   for (const row of visibleRows) {
     const item = row.original;
     if (item.kind === 'group') {
       closeGroup();
-      body.push(
-        <GroupHeaderRow
-          key={row.id}
-          label={item.group.label}
-          count={item.group.rows.length}
-          summary={groupSummary?.(item.group.rows)}
-          span={span}
-          collapsed={!row.getIsExpanded()}
-          onToggle={row.getToggleExpandedHandler()}
-        />,
-      );
-      if (row.getIsExpanded()) openGroup = item.group;
+      const expandedGroup = row.getIsExpanded();
+      entries.push({
+        key: row.id,
+        render: (attrs) => (
+          <GroupHeading
+            key={row.id}
+            id={row.id}
+            droppable={rowDrag && Boolean(onMoveRow)}
+            attrs={attrs}
+            label={item.group.label}
+            count={item.group.rows.length}
+            summary={groupSummary?.(item.group.rows)}
+            span={span}
+            collapsed={!expandedGroup}
+            onToggle={row.getToggleExpandedHandler()}
+          />
+        ),
+      });
+      if (expandedGroup) openGroup = item.group;
       continue;
     }
     if (draggedAlong.has(row.id)) continue;
     const data = item.row;
     const key = item.id;
-    const content = cells(data);
+    const locked = readOnly?.(data) ?? false;
     const depth = row.id === drag?.activeId && projection ? projection.depth : row.depth - (grouped ? 1 : 0);
-    const own = rowProps?.(data) ?? {};
-    const unfolded = details?.(data);
-    body.push(
-      <Fragment key={key}>
-        <DataRow
-          id={key}
-          draggable={rowDrag}
-          dropTarget={projection?.parentId === key}
-          active={isActive?.(data) ?? false}
-          archived={isArchived?.(data) ?? false}
-          checked={checks?.isChecked(key) ?? false}
-          rowProps={own}
-        >
-          {(handle) => (
-            <>
-              {hasLead && (
-                <Table.Td px={4} onClick={(event) => event.stopPropagation()}>
-                  <Group gap={2} wrap="nowrap">
-                    {(draggable || tree) && handle}
-                    {checks && <RowCheck selection={checks} rowKey={key} label={shown[0]?.text?.(data) || 'la ligne'} />}
-                    {leading?.cell(data)}
-                  </Group>
-                </Table.Td>
-              )}
-              {shown.map((column, index) => {
-                const first = index === 0 && tree;
-                return (
-                  <Table.Td
-                    key={column.id}
-                    className={first ? `${classes.cell} ${classes.titleCell}` : classes.cell}
-                    style={first ? ({ '--row-depth': depth } as CSSProperties) : undefined}
-                    data-numeric={column.numeric || undefined}
-                    ff={column.numeric ? 'monospace' : undefined}
-                    {...view.cellProps(column.id, key)}
-                  >
-                    {first ? (
-                      <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
-                        {row.getCanExpand() ? (
-                          <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            aria-label={row.getIsExpanded() ? 'Replier les sous-éléments' : 'Déplier les sous-éléments'}
-                            aria-expanded={row.getIsExpanded()}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              row.toggleExpanded();
-                            }}
-                          >
-                            <CaretRightIcon className={classes.chevron} data-expanded={row.getIsExpanded() || undefined} aria-hidden />
-                          </ActionIcon>
-                        ) : (
-                          <span className={classes.chevronSpacer} />
-                        )}
-                        <div style={{ minWidth: 0, flex: 1 }}>{content[column.id]}</div>
-                      </Group>
-                    ) : (
-                      content[column.id]
-                    )}
+    entries.push({
+      key,
+      render: (attrs) => {
+        const content = cells(data);
+        return (
+          <DataRow
+            key={key}
+            id={key}
+            attrs={attrs}
+            draggable={rowDrag && !locked}
+            dropTarget={projection?.parentId === key}
+            active={isActive?.(data) ?? false}
+            archived={isArchived?.(data) ?? false}
+            checked={checks?.isChecked(key) ?? false}
+            rowProps={rowProps?.(data) ?? {}}
+          >
+            {(handle) => (
+              <>
+                {hasLead && (
+                  <Table.Td px={4} onClick={(event) => event.stopPropagation()}>
+                    <Group gap={2} wrap="nowrap">
+                      {(rowDrag || tree) && handle}
+                      {checks && (locked ? <span style={{ width: ROW_CHECK_WIDTH - 8, flex: 'none' }} /> : <RowCheck selection={checks} rowKey={key} label={shown[0]?.text?.(data) || 'la ligne'} />)}
+                      {leading?.cell(data)}
+                    </Group>
                   </Table.Td>
-                );
-              })}
-              <Table.Td onClick={(event) => event.stopPropagation()}>{actions?.(data)}</Table.Td>
-            </>
-          )}
-        </DataRow>
-        {unfolded && (
-          <Table.Tr className={classes.details}>
+                )}
+                {shown.map((column, index) => {
+                  const first = index === 0 && tree;
+                  return (
+                    <Table.Td
+                      key={column.id}
+                      className={first ? `${classes.cell} ${classes.titleCell}` : classes.cell}
+                      style={first ? ({ '--row-depth': depth } as CSSProperties) : undefined}
+                      data-numeric={column.numeric || undefined}
+                      ff={column.numeric ? 'monospace' : undefined}
+                      {...(locked ? {} : view.cellProps(column.id, key))}
+                    >
+                      {first ? (
+                        <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
+                          {row.getCanExpand() ? (
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="sm"
+                              aria-label={row.getIsExpanded() ? 'Replier les sous-éléments' : 'Déplier les sous-éléments'}
+                              aria-expanded={row.getIsExpanded()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                row.toggleExpanded();
+                              }}
+                            >
+                              <CaretRightIcon className={classes.chevron} data-expanded={row.getIsExpanded() || undefined} aria-hidden />
+                            </ActionIcon>
+                          ) : (
+                            <span className={classes.chevronSpacer} />
+                          )}
+                          <div style={{ minWidth: 0, flex: 1 }}>{content[column.id]}</div>
+                        </Group>
+                      ) : (
+                        content[column.id]
+                      )}
+                    </Table.Td>
+                  );
+                })}
+                <Table.Td onClick={(event) => event.stopPropagation()}>{actions?.(data)}</Table.Td>
+              </>
+            )}
+          </DataRow>
+        );
+      },
+    });
+    const unfolded = details?.(data);
+    if (unfolded) {
+      const detailsKey = `details:${key}`;
+      entries.push({
+        key: detailsKey,
+        render: (attrs) => (
+          <Table.Tr key={detailsKey} {...attrs} className={classes.details}>
             <Table.Td colSpan={span} className={classes.detailsCell}>
               {unfolded}
             </Table.Td>
           </Table.Tr>
-        )}
-      </Fragment>,
-    );
+        ),
+      });
+    }
   }
   closeGroup();
-  if (!grouped) body.push(addRowOf(null));
+  if (!grouped) {
+    const add = addRowOf(null);
+    if (add) entries.push(add);
+  }
+
+  // Long tables: only the rows in view are rendered (measured as they show), the others stand as their height.
+  const virtual = entries.length > VIRTUAL_FROM;
+  const virtualizer = useVirtualizer({
+    count: virtual ? entries.length : 0,
+    getScrollElement: () => heightRef.current,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: 12,
+    getItemKey: (index) => entries[index]?.key ?? index,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const paddingTop = virtual && virtualRows.length ? virtualRows[0].start : 0;
+  const paddingBottom = virtual && virtualRows.length ? virtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0;
+  const body: ReactNode[] = virtual
+    ? [
+        paddingTop > 0 && (
+          <tr key="virtual:top" aria-hidden style={{ height: paddingTop }}>
+            <td colSpan={span} style={{ padding: 0, border: 0 }} />
+          </tr>
+        ),
+        ...virtualRows.map((virtualRow) => entries[virtualRow.index].render({ 'data-index': virtualRow.index, ref: virtualizer.measureElement })),
+        paddingBottom > 0 && (
+          <tr key="virtual:bottom" aria-hidden style={{ height: paddingBottom }}>
+            <td colSpan={span} style={{ padding: 0, border: 0 }} />
+          </tr>
+        ),
+      ]
+    : entries.map((entry, index) => entry.render({ 'data-index': index, ref: () => undefined }));
 
   const headers = table.getHeaderGroups()[0]?.headers ?? [];
   const tableElement = (
@@ -591,7 +702,7 @@ export function DataTable<R>({
                     return (
                       <Table.Th key={header.id} px={4} style={{ width: header.column.getSize() }}>
                         <Group gap={2} wrap="nowrap">
-                          {(draggable || tree) && <span className={classes.handleSpacer} />}
+                          {(rowDrag || tree) && <span className={classes.handleSpacer} />}
                           {checks && <AllRowsCheck selection={checks} />}
                           {leading?.header}
                         </Group>
@@ -686,7 +797,7 @@ export function DataTable<R>({
   const clear = () => checks?.check(checks.keys, false);
   return (
     <Stack gap="sm">
-      <DataViewBar view={view} {...bar} />
+      <DataViewBar view={view} tree={Boolean(parentKey)} {...bar} />
       {content()}
       {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
     </Stack>
@@ -726,6 +837,8 @@ function HeaderCell({ id, width, numeric, sort, children }: HeaderCellProps) {
 
 interface DataRowProps {
   id: string;
+  /** Its index and measure in the body. */
+  attrs: RowAttrs;
   draggable: boolean;
   /** Future parent of the dragged row. */
   dropTarget: boolean;
@@ -743,7 +856,7 @@ interface DataRowProps {
  * @param {DataRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function DataRow({ id, draggable, dropTarget, active, archived, checked, rowProps, children }: DataRowProps) {
+function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, rowProps, children }: DataRowProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
@@ -764,8 +877,12 @@ function DataRow({ id, draggable, dropTarget, active, archived, checked, rowProp
   );
   return (
     <Table.Tr
-      ref={setNodeRef}
       {...props}
+      data-index={attrs['data-index']}
+      ref={(element: HTMLTableRowElement | null) => {
+        setNodeRef(element);
+        attrs.ref(element);
+      }}
       className={[classes.row, className].filter(Boolean).join(' ')}
       // Vertical only: the level being chosen shows through the indentation.
       style={{ ...(typeof style === 'object' ? style : {}), transform: CSS.Translate.toString(transform && { ...transform, x: 0 }), transition }}
@@ -777,5 +894,40 @@ function DataRow({ id, draggable, dropTarget, active, archived, checked, rowProp
     >
       {children(handle)}
     </Table.Tr>
+  );
+}
+
+interface GroupHeadingProps {
+  id: string;
+  /** Rows can be dropped on it (into its group). */
+  droppable: boolean;
+  attrs: RowAttrs;
+  label: string;
+  count: number;
+  summary?: ReactNode;
+  span: number;
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+/**
+ * Heading of a group, on which a dragged row can be dropped to go into the group.
+ * @param {GroupHeadingProps} props Component props.
+ * @returns {JSX.Element} Row.
+ */
+function GroupHeading({ id, droppable, attrs, ...heading }: GroupHeadingProps) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !droppable });
+  return (
+    <GroupHeaderRow
+      {...heading}
+      trProps={{
+        'data-index': attrs['data-index'],
+        'data-drop-target': (droppable && isOver) || undefined,
+        ref: (element: HTMLTableRowElement | null) => {
+          setNodeRef(element);
+          attrs.ref(element);
+        },
+      }}
+    />
   );
 }

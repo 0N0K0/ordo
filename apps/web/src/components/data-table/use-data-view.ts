@@ -6,7 +6,7 @@ import type { ColumnMenuExtras } from './ColumnHeaderMenu';
 import { localToday } from '../../lib/dates';
 import { useSavedViews, type SavedViewsState } from '../../features/tasks/views/use-saved-views';
 import { shownColumns, sortRows, type DataColumn, type ShownColumn } from './data-table';
-import { filterRows, groupRows, tableFilterFields, type RowGroup } from './table-engine';
+import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from './table-engine';
 
 /** First view of a table: its name and what it starts with. */
 export interface FirstTableView {
@@ -41,6 +41,8 @@ interface DataViewOptions<R> {
   getKey?: (row: R) => string;
   /** Cells of their own (out of the columns: a toggle before them…) also edited in bulk, with their name. Optional. */
   bulkColumns?: readonly { id: string; label: string }[];
+  /** The row is archived: left out unless the view includes them (its option « Inclure les archivées »). Optional. */
+  archived?: (row: R) => boolean;
 }
 
 /** Saved views of a table, the current one applied to its rows. */
@@ -58,6 +60,8 @@ export interface DataView<R> {
   rows: R[];
   /** Number of rows before the search and the filter. */
   total: number;
+  /** The table has archived rows to include or not (its option). */
+  hasArchived: boolean;
   /** Groups of the rows (one of every row, without heading, when not grouped). */
   groups: RowGroup<R>[];
   /** Column the rows are grouped by. */
@@ -99,7 +103,7 @@ function parseConfig(config: unknown): TableViewConfig {
  * @param {DataViewOptions<R>} options Table.
  * @returns {DataView<R>} View.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [] }: DataViewOptions<R>): DataView<R> {
+export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived }: DataViewOptions<R>): DataView<R> {
   const firstKey = JSON.stringify(first ?? null);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
@@ -110,10 +114,12 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
   const { config } = views;
   const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
   const sorting = config?.sorting ?? [];
-  const kept = config ? sortRows(filterRows(rows, columns, config, localToday()), sorting, columns) : [];
+  // The archived rows, unless the view includes them.
+  const pool = archived && !config?.includeArchived ? rows.filter((row) => !archived(row)) : rows;
+  const kept = config ? sortRows(filterRows(pool, columns, config, localToday()), sorting, columns) : [];
   const [filterOpened, setFilterOpened] = useState(false);
   const fields = tableFilterFields(columns);
-  const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && column.groupable && column.text)) || null;
+  const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && isGroupable(column))) || null;
   const keys = getKey ? kept.map(getKey) : [];
   const bulk = useBulkSelection({ keys, isBulk: (id) => Boolean(getKey && (bulkColumns.some((column) => column.id === id) || columns.find((column) => column.id === id)?.bulk)) });
   return {
@@ -127,7 +133,8 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     sorting,
     rows: kept,
     total: rows.length,
-    groups: groupColumn ? groupRows(kept, groupColumn, sorting) : [{ key: '', label: '', rows: kept }],
+    hasArchived: Boolean(archived),
+    groups: groupColumn ? groupRows(kept, groupColumn, sorting, config?.groupPeriod) : [{ key: '', label: '', rows: kept }],
     groupColumn,
     change: views.change,
     setLayout: (next) => views.change((current) => ({ ...current, ...next })),
@@ -150,8 +157,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
                 setFilterOpened(true);
               }
             : undefined,
-        group:
-          column?.groupable && column.text ? { active: groupColumn?.id === id, onToggle: () => views.change((current) => ({ ...current, groupBy: current.groupBy === id ? null : id })) } : undefined,
+        group: column && isGroupable(column) ? { active: groupColumn?.id === id, onToggle: () => views.change((current) => ({ ...current, groupBy: current.groupBy === id ? null : id })) } : undefined,
         onSelect: column?.bulk && getKey ? () => bulk.selectColumn(id) : undefined,
       };
     },

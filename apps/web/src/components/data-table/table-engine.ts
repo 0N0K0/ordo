@@ -1,7 +1,18 @@
-import { filterConditionSchemaFor, filterDay, filterPeriod, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator, type TableSort } from '@ordo/shared';
+import {
+  filterConditionSchemaFor,
+  filterDay,
+  filterPeriod,
+  type FilterConditionOf,
+  type FilterFieldKind,
+  type FilterGroupOf,
+  type FilterOperator,
+  type GroupPeriod,
+  type TableSort,
+} from '@ordo/shared';
 import type { FilterFields } from '../../features/tasks/views/FilterBuilder';
 import type { ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../lib/week';
+import * as fmt from '../../lib/format';
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -174,20 +185,114 @@ export interface RowGroup<R> {
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
- * Rows grouped by the values of a column (its text), the groups in the order of its sort value (its text without),
- * reversed when the column is sorted descending; the rows without value last.
+ * ISO week of a day: its year (that of its Thursday) and its number.
+ * @param {string} date YYYY-MM-DD.
+ * @returns {{ year: number, week: number, monday: string }} Week.
+ */
+function isoWeek(date: string): { year: number; week: number; monday: string } {
+  const day = new Date(`${date}T00:00:00Z`);
+  const weekday = (day.getUTCDay() + 6) % 7;
+  const thursday = new Date(day.getTime() + (3 - weekday) * 86_400_000);
+  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  const monday = new Date(day.getTime() - weekday * 86_400_000).toISOString().slice(0, 10);
+  return { year: thursday.getUTCFullYear(), week: Math.floor((thursday.getTime() - yearStart) / 86_400_000 / 7) + 1, monday };
+}
+
+/**
+ * Group of a day in a period: its key (in date order) and its name.
+ * @param {string} date YYYY-MM-DD.
+ * @param {GroupPeriod} period Period.
+ * @returns {{ key: string, label: string }} Group.
+ */
+export function periodGroup(date: string, period: GroupPeriod): { key: string; label: string } {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  switch (period) {
+    case 'DAY':
+      return { key: date, label: fmt.capitalize(fmt.dayLong(date)) };
+    case 'WEEK': {
+      const week = isoWeek(date);
+      return { key: `${week.year}-W${String(week.week).padStart(2, '0')}`, label: `Semaine ${week.week} · ${week.year} (du ${fmt.dayShort(week.monday)})` };
+    }
+    case 'MONTH':
+      return { key: date.slice(0, 7), label: fmt.capitalize(fmt.month(`${date.slice(0, 7)}-01`)) };
+    case 'QUARTER': {
+      const quarter = Math.ceil(month / 3);
+      return { key: `${year}-Q${quarter}`, label: `${quarter === 1 ? '1er' : `${quarter}e`} trimestre ${year}` };
+    }
+    case 'YEAR':
+      return { key: String(year), label: String(year) };
+  }
+}
+
+/**
+ * Whether the rows can be grouped by a column: every column but the label (locked), unless it says not; with a value
+ * to group by (its filter, or its text).
+ * @param {DataColumn<R>} column Column.
+ * @returns {boolean} Groupable.
+ */
+export function isGroupable<R>(column: DataColumn<R>): boolean {
+  if (column.groupable === false || column.locked) return false;
+  return Boolean(column.text || columnFilter(column));
+}
+
+/**
+ * Groups of a row by a column: its value as told by its filter (each value of several, the period of a date, yes or
+ * no), else its text; with the order of the groups.
+ * @param {R} row Row.
+ * @param {DataColumn<R>} column Column.
+ * @param {GroupPeriod} period Period of a date.
+ * @returns {{ key: string, label: string, order: string | number | null }[]} Groups (one without value: key '').
+ */
+function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key: string; label: string; order: string | number | null }[] {
+  const none = [{ key: '', label: 'Sans valeur', order: null }];
+  const filter = columnFilter(column);
+  if (filter?.kind === 'date') {
+    const date = filter.value(row);
+    if (!date) return none;
+    const group = periodGroup(date.slice(0, 10), period);
+    return [{ ...group, order: group.key }];
+  }
+  if (filter?.kind === 'choices') {
+    const values = filter.value(row);
+    if (!values.length) return none;
+    return values.map((value) => {
+      const index = filter.options.findIndex((option) => option.value === value);
+      return { key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index };
+    });
+  }
+  if (filter?.kind === 'choice') {
+    const value = filter.value(row);
+    if (value === null || value === '') return none;
+    const index = filter.options.findIndex((option) => option.value === value);
+    return [{ key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index }];
+  }
+  if (filter?.kind === 'boolean') {
+    const value = filter.value(row);
+    return [{ key: value ? 'yes' : 'no', label: value ? 'Oui' : 'Non', order: value ? 0 : 1 }];
+  }
+  const label = column.text?.(row) ?? (filter?.kind === 'number' ? String(filter.value(row) ?? '') : '');
+  if (!label) return none;
+  return [{ key: label, label, order: column.sortValue?.(row) ?? label }];
+}
+
+/**
+ * Rows grouped by the values of a column (a row with several values in each of their groups; a date by its period),
+ * the groups in the order of their values, reversed when the column is sorted descending; the rows without value last.
  * @param {readonly R[]} rows Rows, in their order.
  * @param {DataColumn<R>} column Column.
  * @param {readonly TableSort[]} sorting Sorts of the table.
+ * @param {GroupPeriod} [period] Period of a date. Optional. Default = MONTH.
  * @returns {RowGroup<R>[]} Groups.
  */
-export function groupRows<R>(rows: readonly R[], column: DataColumn<R>, sorting: readonly TableSort[]): RowGroup<R>[] {
+export function groupRows<R>(rows: readonly R[], column: DataColumn<R>, sorting: readonly TableSort[], period: GroupPeriod = 'MONTH'): RowGroup<R>[] {
   const groups = new Map<string, RowGroup<R> & { order: string | number | null }>();
   for (const row of rows) {
-    const label = column.text?.(row) ?? '';
-    const group = groups.get(label) ?? { key: label, label: label || 'Sans valeur', rows: [], order: label ? (column.sortValue?.(row) ?? label) : null };
-    group.rows.push(row);
-    groups.set(label, group);
+    for (const { key, label, order } of groupsOf(row, column, period)) {
+      const group = groups.get(key) ?? { key, label, rows: [], order };
+      group.rows.push(row);
+      groups.set(key, group);
+    }
   }
   const desc = sorting.find((sort) => sort.id === column.id)?.desc ?? false;
   return [...groups.values()]
@@ -205,4 +310,4 @@ export function groupRows<R>(rows: readonly R[], column: DataColumn<R>, sorting:
  * @param {readonly DataColumn<R>[]} columns Columns.
  * @returns {DataColumn<R>[]} Groupable columns.
  */
-export const groupableColumns = <R>(columns: readonly DataColumn<R>[]) => columns.filter((column) => column.groupable && column.text);
+export const groupableColumns = <R>(columns: readonly DataColumn<R>[]) => columns.filter(isGroupable);

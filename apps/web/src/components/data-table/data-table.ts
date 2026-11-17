@@ -38,7 +38,10 @@ export interface DataColumn<R> {
   text?: (row: R) => string;
   /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */
   filter?: ColumnFilter<R> | false;
-  /** The rows can be grouped by its values (its text, in the order of its sort value). Optional. Default = false. */
+  /**
+   * The rows can be grouped by its values (those of its filter: a date by period, each of several values; else its
+   * text). Optional. Default = every column but the label (locked); false: not.
+   */
   groupable?: boolean;
   /**
    * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),

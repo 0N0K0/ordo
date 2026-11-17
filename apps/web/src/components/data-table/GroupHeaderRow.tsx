@@ -15,6 +15,8 @@ interface GroupHeaderRowProps {
   span: number;
   collapsed: boolean;
   onToggle: () => void;
+  /** Props of its row (measured, a drop target…). Optional. */
+  trProps?: Record<string, unknown>;
 }
 
 /**
@@ -22,9 +24,9 @@ interface GroupHeaderRowProps {
  * @param {GroupHeaderRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggle }: GroupHeaderRowProps) {
+export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggle, trProps }: GroupHeaderRowProps) {
   return (
-    <Table.Tr className={classes.groupRow}>
+    <Table.Tr {...trProps} className={classes.groupRow}>
       <Table.Td colSpan={span}>
         <Group gap="xs" wrap="nowrap">
           <ActionIcon variant="subtle" color="gray" size="sm" aria-label={collapsed ? `Déplier ${label}` : `Replier ${label}`} aria-expanded={!collapsed} onClick={onToggle}>
