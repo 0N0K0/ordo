@@ -24,6 +24,7 @@ import {
 import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
+import { localToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 
@@ -67,7 +68,7 @@ function DayValue({ value, onChange }: DayValueProps) {
                 ? `today-${days}`
                 : next === 'future'
                   ? `today+${days}`
-                  : new Date().toISOString().slice(0, 10),
+                  : localToday(),
           )
         }
         w={140}

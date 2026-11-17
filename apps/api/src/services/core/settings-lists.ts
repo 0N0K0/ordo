@@ -1,5 +1,6 @@
 import { colorSchema } from '@ordo/shared';
 import { prisma } from '../../db';
+import type { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
 
@@ -40,7 +41,7 @@ export type SettingsListKind = keyof typeof SETTINGS_LISTS;
 /** What the lists have in common, whatever their model (each delegate of Prisma has these). */
 interface ListDelegate {
   findUniqueOrThrow(args: { where: { id: string }; select: { id: true; iconId: true } }): Promise<{ id: string; iconId: string | null }>;
-  update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<unknown>;
+  update(args: { where: { id: string }; data: Record<string, unknown> }): Prisma.PrismaPromise<unknown>;
 }
 
 /**
@@ -80,14 +81,15 @@ export async function setLook(kind: SettingsListKind, id: string, input: { color
 }
 
 /**
- * Puts the items of a flat settings list in the order given (each one's position is its index).
+ * Puts the items of a flat settings list in the order given (each one's position is its index), all at once or not at
+ * all.
  * @param {SettingsListKind} kind List.
  * @param {string[]} ids Items, in their new order.
  * @returns {Promise<void>}
  */
 export async function reorder(kind: SettingsListKind, ids: string[]): Promise<void> {
   const model = delegate(kind);
-  for (const [position, id] of ids.entries()) await model.update({ where: { id }, data: { position } });
+  await prisma.$transaction(ids.map((id, position) => model.update({ where: { id }, data: { position } })));
 }
 
 /**

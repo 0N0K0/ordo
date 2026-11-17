@@ -1,5 +1,5 @@
 import { addDays, EVERYDAY_CONTEXT, offsetLinkedMovements, plannedContext, splitAmounts, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
-import { localDay } from '../../../lib/dates';
+import { localDay, localToday } from '../../../lib/dates';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -114,7 +114,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         totalGross: document.totalGross,
         paid: document.paid ?? 0,
         balance: document.balance ?? 0,
-        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && String(document.dueDate) < new Date().toISOString().slice(0, 10)),
+        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && String(document.dueDate) < localToday()),
       }))
     : [];
   return [...own, ...before].filter(

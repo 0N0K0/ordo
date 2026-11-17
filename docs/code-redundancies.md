@@ -21,10 +21,14 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - les factures en retard et la valeur « aujourd'hui » d'un filtre sont donc décalées entre minuit et 1 h ou 2 h.
   - Les deux devraient passer par `localToday`.
 
+**Fait** : `parisToday` pour les factures récurrentes et le rapport des budgets ; `localToday` pour la valeur « aujourd'hui » des filtres et les factures en retard des tableaux de bord.
+
 ### 2. Réordonnancements sans transaction
 
 - `settings-lists.reorder` (`services/core/settings-lists.ts:88`) et `movePlace` (`services/core/geo.ts:251`) écrivent les positions une par une.
 - Une erreur au milieu laisse l'ordre à moitié appliqué. `saveSiblingOrder` le fait déjà dans une transaction.
+
+**Fait** : les deux écrivent leurs positions dans une seule transaction.
 
 ## Gros doublons
 

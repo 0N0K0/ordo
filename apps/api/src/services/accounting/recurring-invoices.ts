@@ -1,6 +1,7 @@
 import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import { parisToday } from '../../today';
 import type { RecurringInvoice } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
@@ -123,7 +124,7 @@ export async function issueDueInvoices(today: string): Promise<number> {
  */
 export function scheduleRecurringInvoices(): void {
   const run = () =>
-    void forEachWorkspace(() => issueDueInvoices(new Intl.DateTimeFormat('en-CA').format(new Date())), { kind: 'PRO' }).catch((error: unknown) =>
+    void forEachWorkspace(() => issueDueInvoices(parisToday()), { kind: 'PRO' }).catch((error: unknown) =>
       console.warn('Factures récurrentes en échec.', error),
     );
   setTimeout(run, 20_000);

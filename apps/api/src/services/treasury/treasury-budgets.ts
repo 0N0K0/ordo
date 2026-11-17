@@ -1,5 +1,6 @@
 import { addDays, budgetMonths, formatDay, occurrenceDates, parseDay, plannedContext, splitAmounts, treasuryBudgetSchema, type TreasuryBudgetInput } from '@ordo/shared';
 import { prisma } from '../../db';
+import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
 import { notFound, parseInput } from '../../graphql/errors';
@@ -102,7 +103,7 @@ function lastDay(month: string): string {
  * @param {string | null} meId Contributor of the app user.
  * @returns {Promise<BudgetReportRow[]>} Rows: budgets first, then what is out of budget.
  */
-export async function budgetReport(from: string, to: string, meId: string | null, today: string = formatDay(new Date())): Promise<BudgetReportRow[]> {
+export async function budgetReport(from: string, to: string, meId: string | null, today: string = parisToday()): Promise<BudgetReportRow[]> {
   const me = meId ?? 'me';
   const [budgets, categories, periods] = await Promise.all([
     prisma.treasuryBudget.findMany({ where: { month: { lte: parseDay(`${to}-01`) } } }),

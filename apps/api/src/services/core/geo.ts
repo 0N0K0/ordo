@@ -251,8 +251,10 @@ export async function movePlace(id: string, parentId: string | null, index: numb
   const siblings = all.filter((item) => item.parentId === parentId && item.id !== id);
   if (siblings.some((item) => item.name === place.name)) throw clientError('BAD_USER_INPUT', parentId ? 'Une zone de ce lieu porte déjà ce nom.' : 'Un lieu porte déjà ce nom.');
   siblings.splice(Math.max(0, Math.min(index, siblings.length)), 0, place);
-  for (const [position, item] of siblings.entries()) {
-    if (item.id === id) await prisma.place.update({ where: { id }, data: { parentId, position } });
-    else if (item.position !== position) await prisma.place.update({ where: { id: item.id }, data: { position } });
-  }
+  // All at once or not at all.
+  await prisma.$transaction(
+    siblings.flatMap((item, position) =>
+      item.id === id ? [prisma.place.update({ where: { id }, data: { parentId, position } })] : item.position !== position ? [prisma.place.update({ where: { id: item.id }, data: { position } })] : [],
+    ),
+  );
 }
