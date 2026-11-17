@@ -80,7 +80,9 @@ La trésorerie et le calendrier pourraient reposer sur le générique avec un fi
 - Toute option d'arbre porte son chemin complet (« Client › Projet », « Maison › Cuisine »), qui s'affiche une fois choisie ; la liste déroulante garde le nom seul, indenté.
 - « Sans client » et « Sans projet » ne figurent plus dans les chemins, et les tâches sans numéro n'affichent plus « #null ».
 
-Restent : les items choisis empilés dans les multi-selects, un modèle unique de liste paramétrable (couleur, image, nom, glisser-déposer), et les lieux sur ce modèle.
+Étape 2 faite : dans tous les multi-selects (`BatchMultiSelect`), les items choisis s'empilent dans le champ, 5 au plus, sinon 4 et « X de plus » / « Réduire ».
+
+Restent : un modèle unique de liste paramétrable (couleur, image, nom, glisser-déposer), et les lieux sur ce modèle.
 
 ### 7. Actions de sélection et dialogues dupliqués
 

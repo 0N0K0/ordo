@@ -55,15 +55,6 @@
     }
   }
 
-  /* Pills stay on one line; extra ones are cut. */
-  .pills {
-    /* Agencement */
-    flex-wrap: nowrap;
-
-    /* Dimension */
-    overflow: hidden;
-  }
-
   /* Chip cells (status, priority, type): the chip is the value, the whole cell opens the list. */
   .chipTrigger {
     /* Agencement */

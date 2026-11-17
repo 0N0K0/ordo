@@ -1,4 +1,6 @@
-import { MultiSelect, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
+import { Anchor, ColorSwatch, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
+import type { MouseEvent } from 'react';
+import { MAX_STACKED, stackedCount } from './data-table/stacked';
 import { notifyError } from '../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
@@ -52,7 +54,8 @@ function selectedFirst(data: ComboboxData | undefined, selected: string[]): Comb
  * Multi-select checking several options in one go: while its list is open, the choices are a draft, given (once) when
  * it closes; a pill removed with the list closed is given at once. Saving on each choice would redraw what holds it
  * (a table row) and close the list after every click. The options already selected come first (in the order of the
- * opening: rows do not jump while checking), and the pills stay on one line.
+ * opening: rows do not jump while checking). The values chosen show one under the other in the field: 5 at most;
+ * beyond, 4 and « X de plus », unfolded or folded again.
  * @param {MultiSelectProps} props Props of Mantine's MultiSelect (value and onChange: the committed value).
  * @returns {JSX.Element} Multi-select.
  */
@@ -75,6 +78,25 @@ export function BatchMultiSelect({
   const draftRef = useRef<string[] | null>(null);
   // Selection the options are ordered by: the one of the opening, kept while the list is open.
   const [order, setOrder] = useState<string[] | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const shownValues = draft ?? committed;
+  const shown = stackedCount(shownValues.length, expanded);
+
+  /**
+   * Unfolds or folds the values, without opening the list.
+   * @param {MouseEvent} event Click.
+   * @returns {void}
+   */
+  const toggle = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setExpanded((current) => !current);
+  };
+  const toggleButton = (
+    <Anchor component="button" type="button" size="xs" className={classes.toggle} aria-expanded={expanded} onMouseDown={(event: MouseEvent) => event.preventDefault()} onClick={toggle}>
+      {expanded ? 'Réduire' : `${shownValues.length - shown} de plus`}
+    </Anchor>
+  );
 
   /**
    * Gives the value chosen, when it changed.
@@ -98,7 +120,23 @@ export function BatchMultiSelect({
         pillsList: [classes.pillsList, typeof classNames === 'object' ? classNames.pillsList : undefined].filter(Boolean).join(' '),
         group: [classes.group, typeof classNames === 'object' ? classNames.group : undefined].filter(Boolean).join(' '),
       }}
-      value={draft ?? committed}
+      value={shownValues}
+      renderPill={({ option, value: pill, onRemove, disabled }) => {
+        const index = shownValues.indexOf(String(pill));
+        const folded = shownValues.length > MAX_STACKED;
+        // Beyond those shown: the first one hidden gives its place to « X de plus ».
+        if (index >= shown) return index === shown ? toggleButton : null;
+        const color = option && 'color' in option && typeof option.color === 'string' ? option.color : null;
+        return (
+          <>
+            <Pill withRemoveButton={!props.readOnly && !disabled && !option?.disabled} onRemove={onRemove} disabled={disabled} className={classes.pill}>
+              {color && <ColorSwatch color={color} size={8} className={classes.swatch} />}
+              {option?.label ?? String(pill)}
+            </Pill>
+            {folded && expanded && index === shownValues.length - 1 && toggleButton}
+          </>
+        );
+      }}
       onDropdownOpen={() => {
         draftRef.current = committed;
         setDraft(committed);

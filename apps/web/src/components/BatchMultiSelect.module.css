@@ -1,23 +1,39 @@
 @layer app {
-  /*
-   * The pills stay on one line: the field keeps its height. They scroll sideways (no bar), the search field coming
-   * into view when it gets the focus.
-   */
+  /* The values chosen, one under the other (5 at most, the others folded behind « X de plus »), the search field last. */
   .pillsList {
     /* Agencement */
+    flex-direction: column;
     flex-wrap: nowrap;
+    align-items: flex-start;
 
     /* Dimension */
-    overflow-x: auto;
-    overflow-y: hidden;
-
-    /* Interaction */
-    scrollbar-width: none;
+    min-width: 0;
 
     & > * {
-      /* Agencement */
-      flex-shrink: 0;
+      /* Dimension */
+      max-width: 100%;
     }
+  }
+
+  .pill {
+    /* Dimension */
+    max-width: 100%;
+  }
+
+  .swatch {
+    /* Agencement */
+    display: inline-block;
+    flex-shrink: 0;
+
+    /* Espacement */
+    margin-inline-end: 4px;
+    vertical-align: middle;
+  }
+
+  /* « X de plus » / « Réduire »: in the field, it does not open the list. */
+  .toggle {
+    /* Espacement */
+    padding-inline: 4px;
   }
 
   /* A line between the groups of options: the selected ones, then the others. */

@@ -16,7 +16,6 @@ import { useEventForm } from '../../calendar/use-event-form';
 import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
-import cellClasses from '../../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
 import { cellField as sharedField } from '../../../components/data-table/cell-field';
 import * as fmt from '../../../lib/format';
@@ -126,7 +125,6 @@ export function EventPeopleCell({ event, context }: { event: EventOccurrence; co
         <BatchMultiSelect
           {...cellField}
           comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
-          classNames={{ ...cellField.classNames, pillsList: cellClasses.pills }}
           aria-label={label}
           data={context.assignableFor(event.projectId ? [event.projectId] : [], event.contributorIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
           renderOption={({ option }) => {
