@@ -16,7 +16,7 @@ import {
 } from '@ordo/shared';
 import { CopyIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../tasks/use-task-context';
-import { FilterBuilder } from '../tasks/views/FilterBuilder';
+import { TaskFilterBuilder } from '../tasks/TaskFilterBuilder';
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from './aggregate';
 import { DocumentFilters, TreasuryFilters } from './source-filters';
 import { useActiveWorkspace } from '../workspaces/api';
@@ -227,7 +227,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                     {dataset.source === 'tasks' && (
                       <>
                         <TextInput placeholder="Recherche (titre, description)" value={dataset.search} onChange={(event) => setDataset(index, { search: event.currentTarget.value })} />
-                        <FilterBuilder filter={dataset.filter} context={context} onChange={(filter) => setDataset(index, { filter })} />
+                        <TaskFilterBuilder filter={dataset.filter} context={context} onChange={(filter) => setDataset(index, { filter })} />
                         <Switch label="Inclure les tâches archivées" checked={dataset.includeArchived} onChange={(event) => setDataset(index, { includeArchived: event.currentTarget.checked })} />
                       </>
                     )}

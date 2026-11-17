@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emptyFilter, taskFilterSchema } from './task-filters';
+import { emptyTaskTableFilter, taskTableFilterSchema } from './task-filter-translation';
 
 /** What a chart is drawn from: tasks, accounting documents (quotes, invoices…), treasury movements. */
 export const CHART_SOURCES = ['tasks', 'documents', 'treasury'] as const;
@@ -160,7 +160,7 @@ export const chartDatasetSchema = z.object({
   series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
   /** How it is drawn; the type of the chart when null. */
   type: z.enum(['bar', 'line', 'area']).nullable().default(null),
-  filter: taskFilterSchema.default(emptyFilter),
+  filter: taskTableFilterSchema.default(emptyTaskTableFilter),
   search: z.string().max(200).default(''),
   includeArchived: z.boolean().default(false),
   documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
@@ -199,7 +199,7 @@ export const chartConfigSchema = z
     /** Burndown: the sprint followed. */
     sprintId: z.string().nullable().default(null),
     /** Tasks counted: same filters as the task views. */
-    filter: taskFilterSchema.default(emptyFilter),
+    filter: taskTableFilterSchema.default(emptyTaskTableFilter),
     search: z.string().max(200).default(''),
     includeArchived: z.boolean().default(false),
     documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
@@ -273,5 +273,5 @@ export function defaultChartConfig(source: ChartSource = 'tasks'): ChartConfig {
     });
   }
   if (source === 'treasury') return chartConfigSchema.parse({ source, type: 'bar', dimension: 'date', bucket: 'month', period: 'year:0', measure: 'amount', series: 'direction' });
-  return chartConfigSchema.parse({ type: 'bar', dimension: 'createdAt', filter: emptyFilter() });
+  return chartConfigSchema.parse({ type: 'bar', dimension: 'createdAt', filter: emptyTaskTableFilter() });
 }

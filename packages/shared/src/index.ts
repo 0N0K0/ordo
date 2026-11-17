@@ -12,6 +12,7 @@ export * from './accounting';
 export * from './accounting-documents';
 export * from './treasury';
 export * from './dashboards';
+export * from './task-filter-translation';
 export * from './work-schedules';
 export * from './geo';
 export * from './shopping';

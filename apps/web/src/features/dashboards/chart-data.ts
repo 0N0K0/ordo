@@ -1,12 +1,12 @@
 import { useDebouncedValue } from '@mantine/hooks';
-import { useQueries } from '@tanstack/react-query';
-import { addDays, isTimeDimension, type ChartConfig, type FilterGroup } from '@ordo/shared';
+import { addDays, isTimeDimension, type ChartConfig } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localToday } from '../../lib/dates';
 import { useAccountingDocuments, useImportedDocuments } from '../accounting/documents-api';
-import { matchingTaskIdsBySprintQuery, matchingTaskIdsQuery, type Task } from '../tasks/api';
+import type { Task } from '../tasks/api';
+import { filterUses, matchTasks } from '../tasks/task-columns';
+import { useTaskColumns } from '../tasks/use-task-columns';
 import type { TaskContext } from '../tasks/use-task-context';
-import { pruneFilter } from '../tasks/views/filter-meta';
 import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../treasury/api';
 import { descendantIds } from '../workspace/api';
 import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartData } from './aggregate';
@@ -52,9 +52,7 @@ export function describeChart(config: ChartConfig, context: TaskContext): string
 
 /** Scope of a dashboard: every record, or those of a project tree. */
 export interface ChartScope {
-  /** Task filter of the project tree, or null. */
-  baseFilter: FilterGroup | null;
-  /** Project of the dashboard, or null. */
+  /** Project of the dashboard (its tree), or null. */
   projectId: string | null;
 }
 
@@ -72,40 +70,43 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
   const parts = useMemo(() => datasetParts(config), [config]);
   const sources = new Set(parts.map((part) => part.config.source));
 
-  // Tasks: one query per data set of tasks.
-  const requests = useMemo(
-    () =>
-      parts.map((part) => {
-        if (part.config.source !== 'tasks') return null;
-        const filter = pruneFilter(part.config.filter);
-        return {
-          filter: scope.baseFilter ? { type: 'group' as const, id: 'context', combinator: 'and' as const, children: [scope.baseFilter, filter] } : filter,
-          search: part.config.search,
-          includeArchived: part.config.includeArchived,
-          today,
-          utcOffset: -new Date().getTimezoneOffset(),
-        };
-      }),
-    [parts, scope.baseFilter, today],
+  // Tasks: those of the scope (a project tree) each data set keeps, filtered here in the words of the task table.
+  const needsDoable = parts.some((part) => part.config.source === 'tasks' && filterUses(part.config.filter, 'doableNow'));
+  const columns = useTaskColumns(context, today, { doable: needsDoable });
+  const [debouncedParts] = useDebouncedValue(parts, 250);
+  const projectsInScope = useMemo(() => (scope.projectId && context ? new Set([scope.projectId, ...descendantIds(context.projects, scope.projectId)]) : null), [scope.projectId, context]);
+  const scoped = useMemo(() => (context?.tasks ?? []).filter((task) => !projectsInScope || (task.projectId !== null && projectsInScope.has(task.projectId))), [context, projectsInScope]);
+  const matchingData = useMemo(
+    () => debouncedParts.map((part) => (part.config.source === 'tasks' && context ? matchTasks(scoped, columns, part.config, today).map((task) => task.id) : undefined)),
+    [debouncedParts, scoped, columns, context, today],
   );
-  const [queries] = useDebouncedValue(requests, 250);
-  const matching = useQueries({ queries: queries.map((query) => ({ ...matchingTaskIdsQuery(query), placeholderData: (previous: string[] | undefined) => previous })) });
 
-  // Charts by sprint: the tasks matching at the end of each ended sprint, and their statuses then.
+  // Charts by sprint: the tasks matching at the end of each ended sprint, with their statuses then.
   const bySprintParts = useMemo(
     () => parts.map((part) => part.config.source === 'tasks' && part.config.type !== 'burndown' && (part.config.dimension === 'sprint' || part.config.series === 'sprint')),
     [parts],
   );
   const sprintAware = bySprintParts.some(Boolean);
   const sprintStatuses = useSprintTaskStatuses(today, sprintAware);
-  const sprintMatching = useQueries({
-    queries: queries.map((query, index) => ({ ...matchingTaskIdsBySprintQuery(bySprintParts[index] ? query : null), placeholderData: (previous: Map<string, Set<string>> | undefined) => previous })),
-  });
-  const sprintMatchingStamp = sprintMatching.map((query) => query.dataUpdatedAt).join();
   const sprintMatchingData = useMemo(
-    () => sprintMatching.map((query) => query.data),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sprintMatchingStamp, sprintMatching.length],
+    () =>
+      debouncedParts.map((part, index) => {
+        if (!bySprintParts[index] || !context || !sprintStatuses.data) return undefined;
+        const statuses = sprintStatuses.data;
+        const matches = new Map<string, Set<string>>();
+        for (const sprint of context.sprints.filter((item) => String(item.endDate).slice(0, 10) < today)) {
+          // Its tasks, each with the status it had at the end of the sprint.
+          const tasks = scoped
+            .filter((task) => task.sprintIds.includes(sprint.id))
+            .map((task) => {
+              const then = statuses.get(`${sprint.id}|${task.id}`);
+              return then ? { ...task, statusId: then.statusId, closed: then.closed } : task;
+            });
+          matches.set(sprint.id, new Set(matchTasks(tasks, columns, part.config, today).map((task) => task.id)));
+        }
+        return matches;
+      }),
+    [debouncedParts, bySprintParts, context, sprintStatuses.data, scoped, columns, today],
   );
 
   // Documents.
@@ -137,14 +138,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
   const accounts = useTreasuryAccounts(treasury);
   const treasurySettings = useTreasurySettings();
 
-  const projects = useMemo(() => (scope.projectId && context ? new Set([scope.projectId, ...descendantIds(context.projects, scope.projectId)]) : null), [scope.projectId, context]);
-  // The task queries are followed by their update times (their array is new on each render).
-  const matchingStamp = matching.map((query) => query.dataUpdatedAt).join();
-  const matchingData = useMemo(
-    () => matching.map((query) => query.data),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [matchingStamp, matching.length],
-  );
+  const projects = projectsInScope;
 
   const data = useMemo((): ChartData | null => {
     if (!context) return null;
@@ -213,12 +207,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
     today,
   ]);
 
-  const pending =
-    (sources.has('tasks') && matching.some((query, index) => queries[index] !== null && query.isPending)) || (sources.has('documents') && documents.isPending) || (treasury && entries.isPending);
-  const error =
-    matching.find((query) => query.error)?.error ??
-    (sources.has('documents') ? (documents.error ?? imported.error) : null) ??
-    (treasury ? (entries.error ?? projection.error ?? accounts.error) : null) ??
-    null;
+  const pending = (sources.has('tasks') && !context) || (sources.has('documents') && documents.isPending) || (treasury && entries.isPending);
+  const error = (sources.has('documents') ? (documents.error ?? imported.error) : null) ?? (treasury ? (entries.error ?? projection.error ?? accounts.error) : null) ?? null;
   return { data, isPending: pending && !data, error };
 }

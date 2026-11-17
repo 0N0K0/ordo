@@ -15,84 +15,21 @@ import {
 import { DatePickerInput } from '@mantine/dates';
 import {
   MAX_FILTER_DEPTH,
-  ME,
-  TASK_FILTER_FIELDS,
-  TASK_STATUS_CATEGORIES,
   VALUELESS_OPERATORS,
   type FilterConditionOf,
   type FilterFieldKind,
-  type FilterGroup,
   type FilterGroupOf,
   type FilterOperator,
-  type TaskFilterField,
 } from '@ordo/shared';
 import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import type { TaskContext } from '../use-task-context';
 import classes from './FilterBuilder.module.css';
-import { defaultValueFor, FIELD_GROUPS, FIELD_LABELS, isComplete, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
+import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
-import { treeSelectProps } from '../../../components/tree-select/tree-select';
-import { useBeneficiaries } from '../../beneficiaries/use-beneficiaries';
-import { useSlotRules } from '../../slot-rules/use-slot-rules';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
 const INLINE = { withinPortal: false } as const;
-
-const CATEGORY_LABELS = { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminé', CANCELLED: 'Annulé' };
-
-/**
- * Options of a reference field (project, status, priority, type, parent task, assignees).
- * @param {TaskFilterField} field Field.
- * @param {TaskContext} context Task context.
- * @returns {{ value: string, label: string }[]} Options.
- */
-function referenceOptions(field: TaskFilterField, context: TaskContext, extra: ExtraOptions): { value: string; label: string }[] {
-  const labels = (items: { id: string; name: string }[]) => items.map((item) => ({ value: item.id, label: item.name }));
-  switch (field) {
-    case 'project':
-      return context.projectOptions(context.projects);
-    case 'status':
-      return labels(context.statuses);
-    case 'priority':
-      return labels(context.priorities);
-    case 'type':
-      return labels(context.types);
-    case 'parent':
-      return context.tasks.map((task) => ({ value: task.id, label: context.taskLabel(task) }));
-    case 'assignees':
-      // "Moi" follows the logged-in user, whatever their contributor profile.
-      return [
-        { value: ME, label: 'Moi' },
-        ...context.contributors.filter((contributor) => !contributor.isMe).map((contributor) => ({ value: contributor.id, label: contributor.name })),
-      ];
-    case 'milestone':
-      return context.milestones.map((milestone) => ({
-        value: milestone.id,
-        label: `${milestone.title} — ${context.projectById.get(milestone.projectId)?.title ?? ''}`,
-      }));
-    case 'tags':
-      return context.tags.map((tag) => ({ value: tag.id, label: tag.name }));
-    case 'sprint':
-      return context.sprints.map((sprint) => ({
-        value: sprint.id,
-        label: `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}`,
-      }));
-    case 'beneficiaries':
-      return extra.beneficiaries;
-    case 'slots':
-      return extra.slotKinds;
-    case 'dependsOn':
-    case 'blocks':
-    case 'relatedTo':
-      return context.tasks.map((task) => ({ value: task.id, label: context.taskLabel(task) }));
-    case 'statusCategory':
-      return TASK_STATUS_CATEGORIES.map((category) => ({ value: category, label: CATEGORY_LABELS[category] }));
-    default:
-      return [];
-  }
-}
 
 interface DayValueProps {
   value: string;
@@ -452,34 +389,6 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
 }
 
 /** Options read from other data than the task context: the beneficiaries, the kinds of slots. */
-interface ExtraOptions {
-  beneficiaries: { value: string; label: string }[];
-  slotKinds: { value: string; label: string }[];
-}
-
-/**
- * Fields of the task filters, their values from the task context (and the beneficiaries and kinds of slots).
- * @param {TaskContext} context Task context.
- * @param {ExtraOptions} extra Other options.
- * @returns {FilterFields<TaskFilterField>} Fields.
- */
-function taskFilterFields(context: TaskContext, extra: ExtraOptions): FilterFields<TaskFilterField> {
-  return {
-    kinds: TASK_FILTER_FIELDS,
-    labels: FIELD_LABELS,
-    groups: FIELD_GROUPS,
-    first: 'title',
-    options: (field) =>
-      field === 'project'
-        ? treeSelectProps(context.projectOptions(context.projects))
-        : field === 'parent' || field === 'dependsOn' || field === 'blocks' || field === 'relatedTo'
-          ? treeSelectProps(context.taskOptions(context.tasks))
-          : { data: referenceOptions(field, context, extra) },
-    isComplete,
-    emptyText: 'Aucun filtre : toutes les tâches sont affichées.',
-  };
-}
-
 interface FieldsFilterBuilderProps<F extends string> {
   filter: FilterGroupOf<F>;
   fields: FilterFields<F>;
@@ -493,25 +402,4 @@ interface FieldsFilterBuilderProps<F extends string> {
  */
 export function FieldsFilterBuilder<F extends string>({ filter, fields, onChange }: FieldsFilterBuilderProps<F>) {
   return <GroupEditor group={filter} depth={1} fields={fields} onChange={onChange} />;
-}
-
-interface FilterBuilderProps {
-  filter: FilterGroup;
-  context: TaskContext;
-  onChange: (filter: FilterGroup) => void;
-}
-
-/**
- * Editor of a task filter tree.
- * @param {FilterBuilderProps} props Component props.
- * @returns {JSX.Element} Builder.
- */
-export function FilterBuilder({ filter, context, onChange }: FilterBuilderProps) {
-  const { options: beneficiaryGroups } = useBeneficiaries();
-  const { kinds } = useSlotRules();
-  const extra = {
-    beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
-    slotKinds: kinds.map((kind) => ({ value: kind.value, label: kind.label })),
-  };
-  return <FieldsFilterBuilder filter={filter} fields={taskFilterFields(context, extra)} onChange={onChange} />;
 }

@@ -17,7 +17,7 @@ import {
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
-import { FilterBuilder } from '../tasks/views/FilterBuilder';
+import { TaskFilterBuilder } from '../tasks/TaskFilterBuilder';
 import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from './aggregate';
 import { CalendarPeriodPicker } from './CalendarPeriodPicker';
 import { useDashboardMutations, type DashboardChart } from './api';
@@ -284,7 +284,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
           {source === 'tasks' && (
             <>
               <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
-              <FilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
+              <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
               <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
             </>
           )}

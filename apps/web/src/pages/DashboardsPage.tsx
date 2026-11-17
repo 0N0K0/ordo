@@ -10,7 +10,7 @@ export function DashboardsPage() {
   return (
     <Stack gap="lg">
       <PageHeader title="Tableaux de bord" />
-      <DashboardBoard projectId={null} baseFilter={null} title="Tous les projets" />
+      <DashboardBoard projectId={null} title="Tous les projets" />
     </Stack>
   );
 }

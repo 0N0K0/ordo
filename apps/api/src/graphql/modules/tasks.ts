@@ -1,3 +1,4 @@
+import { doableTaskIds } from '../../services/slot-rules';
 import { prisma } from '../../db';
 import { storeAttachment } from '../../services/attachments';
 import * as contributors from '../../services/contributors';
@@ -6,7 +7,6 @@ import * as sprints from '../../services/sprints';
 import { iconUrl } from '../../services/icons';
 import type { Label } from '../../services/labels';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/task-labels';
-import * as taskFilters from '../../services/task-filters';
 import * as taskViews from '../../services/task-views';
 import * as taskRecurrence from '../../services/task-recurrence';
 import * as tasks from '../../services/tasks';
@@ -85,11 +85,6 @@ const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
-});
-
-const SprintMatchesRef = builder.objectRef<{ sprintId: string; taskIds: string[] }>('SprintMatches').implement({
-  description: 'Tasks of a sprint matching a filter at the end of the sprint.',
-  fields: (t) => ({ sprintId: t.exposeID('sprintId'), taskIds: t.exposeIDList('taskIds') }),
 });
 
 const SprintTaskStatusRef = builder.objectRef<sprints.SprintTaskStatus>('SprintTaskStatus').implement({
@@ -342,16 +337,6 @@ const LabelUpdateInput = builder.inputType('TaskLabelUpdateInput', {
   }),
 });
 
-const TaskQueryInput = builder.inputType('TaskQueryInput', {
-  fields: (t) => ({
-    filter: t.field({ type: 'JSON', required: true, description: 'Filter tree (and / or groups of conditions).' }),
-    search: t.string({ description: 'Quick search: number, title or description.' }),
-    includeArchived: t.boolean(),
-    today: t.field({ type: 'Date', required: true, description: 'User\'s current day, for relative dates.' }),
-    utcOffset: t.int({ required: true, description: 'User\'s offset from UTC, in minutes.' }),
-  }),
-});
-
 const BulkTaskInput = builder.inputType('BulkTaskInput', {
   description: 'Omitted fields are left unchanged; null clears a field.',
   fields: (t) => ({
@@ -445,55 +430,10 @@ builder.queryFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: (query, _root, { id }) => prisma.task.findUnique({ ...query, where: { id } }),
   }),
-  matchingTaskIdsBySprint: t.field({
-    type: [SprintMatchesRef],
-    description:
-      'For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.',
-    args: { query: t.arg({ type: TaskQueryInput, required: true }) },
-    resolve: async (_root, { query }, ctx) => {
-      const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
-      const statuses = await sprints.sprintTaskStatuses(query.today);
-      const categoryOf = new Map((await prisma.taskStatus.findMany({ select: { id: true, category: true } })).map((status) => [status.id, status.category]));
-      const bySprint = new Map<string, Map<string, { statusId: string | null; closed: boolean }>>();
-      for (const item of statuses) {
-        const map = bySprint.get(item.sprintId) ?? new Map();
-        map.set(item.taskId, { statusId: item.statusId, closed: item.closed });
-        bySprint.set(item.sprintId, map);
-      }
-      const ended = await prisma.sprint.findMany({ where: { endDate: { lt: new Date(`${query.today}T00:00:00Z`) } }, select: { id: true } });
-      return Promise.all(
-        ended.map(async ({ id }) => {
-          const where = await taskFilters.buildTaskWhere({
-            filter,
-            search: query.search ?? '',
-            includeArchived: query.includeArchived ?? false,
-            clock: { today: query.today, utcOffset: query.utcOffset },
-            user: { contributorId: meId },
-            statusAt: { statuses: bySprint.get(id) ?? new Map(), categoryOf },
-          });
-          const tasks = await prisma.task.findMany({ where: { AND: [where, { sprints: { some: { id } } }] }, select: { id: true } });
-          return { sprintId: id, taskIds: tasks.map((task) => task.id) };
-        }),
-      );
-    },
-  }),
-  matchingTaskIds: t.idList({
-    description: 'Ids of the tasks matching a filter, in manual order.',
-    args: { query: t.arg({ type: TaskQueryInput, required: true }) },
-    resolve: async (_root, { query }, ctx) => {
-      const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
-      const where = await taskFilters.buildTaskWhere({
-        filter,
-        search: query.search ?? '',
-        includeArchived: query.includeArchived ?? false,
-        clock: { today: query.today, utcOffset: query.utcOffset },
-        user: { contributorId: meId },
-      });
-      const matches = await prisma.task.findMany({ where, orderBy: [...byManualOrder], select: { id: true } });
-      return matches.map((task) => task.id);
-    },
+  doableTaskIds: t.idList({
+    description: 'Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.',
+    args: { utcOffset: t.arg.int({ required: true }) },
+    resolve: async (_root, { utcOffset }, ctx) => doableTaskIds(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],

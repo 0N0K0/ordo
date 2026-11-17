@@ -1,5 +1,6 @@
-import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, TASK_COLUMNS, type TaskColumn } from '@ordo/shared';
+import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory } from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../components/data-table/data-table';
+import { filterRows } from '../../components/data-table/table-engine';
 import type { EventOccurrence } from '../calendar/api';
 import type { Task } from './api';
 import type { TaskContext } from './use-task-context';
@@ -9,6 +10,51 @@ import { eventSortValue, sortValue } from './views/task-rows';
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
+
+/** What some task filters need that the tasks do not hold. */
+export interface TaskColumnExtras {
+  /** Tasks that can be done now (their slot rule, the events of their people). */
+  doableIds?: ReadonlySet<string>;
+  /** Tasks with a shopping list. */
+  shoppingTaskIds?: ReadonlySet<string>;
+  /** Active alerts by task. */
+  alarmCounts?: ReadonlyMap<string, number>;
+  /** Kinds of slots (calendar schedules). */
+  slotKinds?: ColumnChoice[];
+}
+
+/** Categories of the statuses, in their order. */
+const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
+const STATUS_CATEGORY_LABELS: Record<TaskStatusCategory, string> = { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminé', CANCELLED: 'Annulé' };
+
+/**
+ * Tasks kept by a filter in the words of the task table (its columns), a search in their texts, the archived ones
+ * left out unless included; in their order.
+ * @param {readonly Task[]} tasks Tasks.
+ * @param {readonly DataColumn<TaskTableRow>[]} columns Columns of the tasks.
+ * @param {{ filter: FilterGroupOf<string>, search?: string, includeArchived?: boolean }} query Filter, search, archived ones.
+ * @param {string} today Today, YYYY-MM-DD.
+ * @returns {Task[]} Tasks.
+ */
+export function matchTasks(
+  tasks: readonly Task[],
+  columns: readonly DataColumn<TaskTableRow>[],
+  { filter, search = '', includeArchived = false }: { filter: FilterGroupOf<string>; search?: string; includeArchived?: boolean },
+  today: string,
+): Task[] {
+  const rows = tasks.filter((task) => includeArchived || !task.archived).map((task): TaskTableRow => ({ kind: 'task', key: task.id, task }));
+  return filterRows(rows, columns, { search, filter }, today).flatMap((row) => (row.kind === 'task' ? [row.task] : []));
+}
+
+/**
+ * Whether a filter has a condition on a field (to load what it needs only then).
+ * @param {FilterGroupOf<string> | null | undefined} group Filter.
+ * @param {string} field Field.
+ * @returns {boolean} It has.
+ */
+export function filterUses(group: FilterGroupOf<string> | null | undefined, field: string): boolean {
+  return Boolean(group?.children.some((child) => (child.type === 'group' ? filterUses(child, field) : child.field === field)));
+}
 
 /** Key of the row of an event. */
 export const eventKey = (event: EventOccurrence) => `e:${event.key}`;
@@ -39,9 +85,17 @@ const localDay = (iso: string) => {
  * dates).
  * @param {TaskContext} context Task context.
  * @param {string} today Today, YYYY-MM-DD.
+ * @param {TaskColumnExtras} [extras] What the tasks do not hold: those doable now, their alerts, their shopping, the
+ *   kinds of slots. Optional.
  * @returns {DataColumn<TaskTableRow>[]} Columns.
  */
-export function taskColumns(context: TaskContext, today: string): DataColumn<TaskTableRow>[] {
+export function taskColumns(context: TaskContext, today: string, extras: TaskColumnExtras = {}): DataColumn<TaskTableRow>[] {
+  /**
+   * Category of the status of a task (to do, in progress, done, cancelled).
+   * @param {Task} task Task.
+   * @returns {TaskStatusCategory | null} Category.
+   */
+  const categoryOf = (task: Task): TaskStatusCategory | null => (task.statusId ? ((context.statusById.get(task.statusId)?.category as TaskStatusCategory | undefined) ?? null) : null);
   const day = (value: unknown) => String(value).slice(0, 10);
   // Relative sprints, from today.
   const sprints = context.sprints;
@@ -121,7 +175,16 @@ export function taskColumns(context: TaskContext, today: string): DataColumn<Tas
           options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name }))],
         };
       case 'parent':
-        return { kind: 'choice', value: (row) => task(row)?.parentId ?? null, options: taskChoices };
+        // Its parent and those above it: a filter on a task keeps its sub-tasks at every level.
+        return {
+          kind: 'choices',
+          value: (row) => {
+            const ids: string[] = [];
+            for (let parent = task(row)?.parentId ?? null; parent && !ids.includes(parent); parent = context.taskById.get(parent)?.parentId ?? null) ids.push(parent);
+            return ids;
+          },
+          options: taskChoices,
+        };
       case 'blockedBy':
         return { kind: 'choices', value: (row) => task(row)?.blockedByIds ?? [], options: taskChoices };
       case 'blocking':
@@ -153,6 +216,15 @@ export function taskColumns(context: TaskContext, today: string): DataColumn<Tas
       case 'updatedAt':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(String(row.task[id])) : null) };
       case 'slots':
+        // Kinds of slots its rule names, during or out of.
+        return {
+          kind: 'choices',
+          value: (row) => {
+            const rule = row.kind === 'task' ? readSlotRule(row.task.slotRule) : null;
+            return rule ? [...rule.inside, ...rule.outside] : [];
+          },
+          options: extras.slotKinds ?? [],
+        };
       case 'timer':
       case 'subtasks':
       case 'progress':
@@ -226,5 +298,21 @@ export function taskColumns(context: TaskContext, today: string): DataColumn<Tas
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task)),
     flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0),
     flag('archived', 'Archivée', (task) => task.archived),
+    flag('doableNow', 'Faisable maintenant', (task) => extras.doableIds?.has(task.id) ?? false),
+    flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
+    flag('hasAlarms', 'A des alertes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
+    flag('hasComments', 'A des commentaires', (task) => task.commentCount > 0 || Boolean(task.description?.trim())),
+    {
+      id: 'statusCategory',
+      label: 'Catégorie de statut',
+      size: 140,
+      hiddenByDefault: true,
+      sortValue: (row) => (row.kind === 'task' ? STATUS_CATEGORY_ORDER.indexOf(categoryOf(row.task) ?? 'TODO') : null),
+      text: (row) => {
+        const category = row.kind === 'task' ? categoryOf(row.task) : null;
+        return category ? STATUS_CATEGORY_LABELS[category] : '';
+      },
+      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null), options: STATUS_CATEGORY_ORDER.map((value) => ({ value, label: STATUS_CATEGORY_LABELS[value] })) },
+    },
   ];
 }

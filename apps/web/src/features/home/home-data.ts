@@ -1,7 +1,9 @@
-import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
+import { addDays, entrySeconds, filterPeriod, translateTaskFilter } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
-import { useMatchingTaskIds, type Task } from '../tasks/api';
+import type { Task } from '../tasks/api';
+import { matchTasks } from '../tasks/task-columns';
+import { useTaskColumns } from '../tasks/use-task-columns';
 import { useTimeEntriesSince } from '../time/api';
 import { useNow } from '../time/use-now';
 import { myTasksFilter } from '../tasks/my-tasks';
@@ -115,16 +117,16 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
  * @returns {{ tasks: Task[] | null, overdue: number }} Tasks (null while loading) and how many are overdue.
  */
 export function useMyTodayTasks(context: TaskContext | null, today: string) {
-  const query = useMemo(() => ({ filter: myTasksFilter('today'), search: '', includeArchived: false, today, utcOffset: -new Date().getTimezoneOffset() }), [today]);
-  const matching = useMatchingTaskIds(query);
+  // Filtered here, in the words of the task table (its columns).
+  const columns = useTaskColumns(context, today, { doable: false });
   return useMemo(() => {
-    if (!context || !matching.data) return { tasks: null, overdue: 0 };
-    const tasks = matching.data.map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined);
+    if (!context) return { tasks: null, overdue: 0 };
+    const tasks = matchTasks(context.tasks, columns, { filter: translateTaskFilter(myTasksFilter('today')) }, today);
     // Overdue: past its "Date max".
     const late = (task: Task) => task.deadline !== null && task.deadline < today;
     tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
-  }, [context, matching.data, today]);
+  }, [context, columns, today]);
 }
 
 /** Time tracked this week. */

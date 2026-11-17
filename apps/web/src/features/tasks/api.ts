@@ -776,12 +776,6 @@ const TaskViewsDocument = graphql(`
   }
 `);
 
-const MatchingTaskIdsDocument = graphql(`
-  query MatchingTaskIds($query: TaskQueryInput!) {
-    matchingTaskIds(query: $query)
-  }
-`);
-
 const CreateTaskViewDocument = graphql(`
   mutation CreateTaskView($input: TaskViewInput!) {
     createTaskView(input: $input) {
@@ -875,58 +869,26 @@ export function useTaskViews(projectId: string | null, kind: ViewKind = 'TASKS',
   });
 }
 
-export interface TaskQuery {
-  filter: unknown;
-  search: string;
-  includeArchived: boolean;
-  today: string;
-  utcOffset: number;
-}
-
-/**
- * Ids of the tasks matching a filter (evaluated by the API), in manual order.
- * Refreshed with the task data.
- * @param {TaskQuery | null} query Filter, search and user clock; null while the view is loading.
- * @returns {UseQueryResult<string[]>} Query state; previous ids are kept while a new filter loads.
- */
-export function useMatchingTaskIds(query: TaskQuery | null) {
-  return useQuery({ ...matchingTaskIdsQuery(query), placeholderData: (previous) => previous });
-}
-
-const MatchingTaskIdsBySprintDocument = graphql(`
-  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {
-    matchingTaskIdsBySprint(query: $query) {
-      sprintId
-      taskIds
-    }
+const DoableTaskIdsDocument = graphql(`
+  query DoableTaskIds($utcOffset: Int!) {
+    doableTaskIds(utcOffset: $utcOffset)
   }
 `);
 
 /**
- * Query of the tasks of each ended sprint matching a filter at the end of the sprint (its status conditions on
- * the statuses of then), as a map of sets.
- * @param {TaskQuery | null} query Filter, search and user clock; null: not loaded.
- * @returns {object} Query options.
+ * Open tasks that can be done now (their slot rule, the events of their people), refreshed every minute; asked only
+ * when a filter needs it.
+ * @param {boolean} enabled Asked.
+ * @returns {Set<string> | undefined} Ids.
  */
-export function matchingTaskIdsBySprintQuery(query: TaskQuery | null) {
-  return {
-    enabled: query !== null,
-    queryKey: [...tasksQueryKey, 'matching-by-sprint', query],
-    queryFn: async () => new Map((await execute(MatchingTaskIdsBySprintDocument, { query: query! })).matchingTaskIdsBySprint.map((item) => [item.sprintId, new Set(item.taskIds)])),
-  };
-}
-
-/**
- * Query of the ids of the tasks matching a filter (for several queries at once).
- * @param {TaskQuery | null} query Filter, search and user clock; null: not loaded.
- * @returns {object} Query options.
- */
-export function matchingTaskIdsQuery(query: TaskQuery | null) {
-  return {
-    enabled: query !== null,
-    queryKey: [...tasksQueryKey, 'matching', query],
-    queryFn: async () => (await execute(MatchingTaskIdsDocument, { query: query! })).matchingTaskIds,
-  };
+export function useDoableTaskIds(enabled: boolean) {
+  const { data } = useQuery({
+    queryKey: [...tasksQueryKey, 'doable'],
+    queryFn: async () => new Set((await execute(DoableTaskIdsDocument, { utcOffset: -new Date().getTimezoneOffset() })).doableTaskIds),
+    enabled,
+    refetchInterval: 60_000,
+  });
+  return data;
 }
 
 /**

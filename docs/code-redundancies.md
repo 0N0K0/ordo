@@ -25,6 +25,8 @@ Le même rôle est codé trois fois ; les tableaux des tâches et des routines p
 
 Même constructeur de filtres à l'écran, mais deux langages et deux moteurs.
 
+**Fait** : les tableaux de bord et l'accueil filtrent les tâches dans le navigateur avec les colonnes du tableau des tâches (`matchTasks`, `useTaskColumns`). Les anciens filtres enregistrés sont traduits à la lecture (`translateTaskFilter` dans `@ordo/shared`), sprints relatifs compris. L'historique par sprint se calcule à partir des statuts de fin de sprint. Supprimés : `matchingTaskIds`, `matchingTaskIdsBySprint`, le service `task-filters` et le constructeur de filtres propre aux tâches. Côté serveur, il ne reste que `doableTaskIds`. Restent pour le point 11 : `TASK_FILTER_FIELDS` et `taskFilterSchema`, qui servent encore au schéma des anciennes vues de tâches.
+
 ### 3. Cellules éditables en double
 
 | Rôle           | Doublons                                                                                                 |

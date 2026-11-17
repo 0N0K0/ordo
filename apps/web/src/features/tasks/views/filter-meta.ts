@@ -1,65 +1,4 @@
-import {
-  filterConditionSchema,
-  FILTER_OPERATORS,
-  TASK_FILTER_FIELDS,
-  VALUELESS_OPERATORS,
-  type FilterCondition,
-  type FilterConditionOf,
-  type FilterFieldKind,
-  type FilterGroupOf,
-  type FilterOperator,
-  type TaskFilterField,
-} from '@ordo/shared';
-
-export const FIELD_LABELS: Record<TaskFilterField, string> = {
-  title: 'Label',
-  description: 'Description',
-  number: 'Numéro',
-  effort: 'Effort',
-  project: 'Projet',
-  status: 'Statut',
-  statusCategory: 'Catégorie de statut',
-  priority: 'Priorité',
-  type: 'Type',
-  parent: 'Tâche parente',
-  milestone: 'Jalon',
-  sprint: 'Sprint',
-  assignees: 'Assignés',
-  tags: 'Étiquettes',
-  startDate: 'Début',
-  endDate: 'Fin',
-  deadline: 'Date max',
-  minDate: 'Date min',
-  createdAt: 'Créée le',
-  updatedAt: 'Modifiée le',
-  overdue: 'En retard',
-  blocked: 'Bloquée',
-  hasSubtasks: 'A des sous-tâches',
-  doableNow: 'Faisable maintenant',
-  beneficiaries: 'Bénéficiaires',
-  slots: 'Plages',
-  dependsOn: 'Dépend de',
-  blocks: 'Bloque',
-  relatedTo: 'Relative à',
-  trackedHours: 'Temps passé (heures)',
-  hasShopping: 'A des achats',
-  hasAlarms: 'A des alertes',
-  hasComments: 'A des commentaires',
-  closed: 'Fermée',
-  archived: 'Archivée',
-};
-
-/** Field order in the field picker, by theme. */
-export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
-  { group: 'Texte', fields: ['title', 'description', 'number'] },
-  {
-    group: 'Organisation',
-    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'beneficiaries', 'tags', 'effort', 'trackedHours', 'slots'],
-  },
-  { group: 'Dates', fields: ['startDate', 'endDate', 'minDate', 'deadline', 'createdAt', 'updatedAt'] },
-  { group: 'Liens', fields: ['dependsOn', 'blocks', 'relatedTo', 'hasShopping', 'hasAlarms', 'hasComments'] },
-  { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'doableNow', 'archived'] },
-];
+import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterCondition, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {
   text: {
@@ -162,16 +101,6 @@ export function defaultValueFor(kind: FilterFieldKind, operator: FilterOperator)
 }
 
 /**
- * Starting value of a task condition for a field and an operator.
- * @param {TaskFilterField} field Field.
- * @param {FilterOperator} operator Operator.
- * @returns {FilterCondition['value']} Value.
- */
-export function defaultValue(field: TaskFilterField, operator: FilterOperator): FilterCondition['value'] {
-  return defaultValueFor(TASK_FILTER_FIELDS[field], operator);
-}
-
-/**
  * New condition on a field, with its first operator.
  * @param {Record<F, FilterFieldKind>} kinds Kind of each field.
  * @param {F} field Field.
@@ -180,35 +109,6 @@ export function defaultValue(field: TaskFilterField, operator: FilterOperator): 
 export function newConditionFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): FilterConditionOf<F> {
   const operator = operatorsFor(kinds, field)[0];
   return { type: 'condition', id: nodeId(), field, operator, value: defaultValueFor(kinds[field], operator) };
-}
-
-/**
- * Whether a task condition is complete (valid), so it applies.
- * @param {FilterCondition} condition Condition.
- * @returns {boolean} True when valid.
- */
-export function isComplete(condition: FilterCondition): boolean {
-  return filterConditionSchema.safeParse(condition).success;
-}
-
-/**
- * Filter without its incomplete conditions nor its empty groups.
- * @param {FilterGroupOf<F>} group Group.
- * @param {(condition: FilterConditionOf<F>) => boolean} [complete] Whether a condition is complete. Optional. Default = a task one.
- * @returns {FilterGroupOf<F>} Pruned copy.
- */
-export function pruneFilter<F extends string = TaskFilterField>(
-  group: FilterGroupOf<F>,
-  complete: (condition: FilterConditionOf<F>) => boolean = isComplete as unknown as (condition: FilterConditionOf<F>) => boolean,
-): FilterGroupOf<F> {
-  return {
-    ...group,
-    children: group.children.flatMap((child): FilterGroupOf<F>['children'] => {
-      if (child.type === 'condition') return complete(child) ? [child] : [];
-      const pruned = pruneFilter(child, complete);
-      return pruned.children.length > 0 ? [pruned] : [];
-    }),
-  };
 }
 
 /**

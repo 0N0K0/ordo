@@ -4,7 +4,7 @@ import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text
 import { SheetsTable } from '../../sheets/SheetsTable';
 import { PageTabs } from '../../../components/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
 import { ProjectGithubPanel } from '../../github/ProjectGithubPanel';
@@ -139,19 +139,6 @@ export function ProjectPage() {
     if (!legacy && requested !== 'settings') return;
     setParams({ [SETTINGS_PARAM]: '1', section }, { replace: true });
   }, [legacy, requested, section, setParams]);
-  // Tasks of the project and of its sub-projects.
-  const baseFilter = useMemo(
-    () =>
-      id
-        ? {
-            type: 'group' as const,
-            id: 'project',
-            combinator: 'and' as const,
-            children: [{ type: 'condition' as const, id: 'project', field: 'project' as const, operator: 'inTree', value: [id] }],
-          }
-        : null,
-    [id],
-  );
 
   if (isPending) return <EntitySkeleton />;
   const project = data?.projects.find((item) => item.id === id);
@@ -304,7 +291,7 @@ export function ProjectPage() {
                 </Text>
               </Stack>
 
-              <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
+              <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
           </Stack>
         </PageTabs.Panel>
         <PageTabs.Panel value="tasks">

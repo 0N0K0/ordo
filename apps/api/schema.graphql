@@ -2372,6 +2372,11 @@ type Query {
 
   """Schedules without kind of this workspace: name, color and display."""
   defaultScheduleKind: DefaultScheduleKind!
+
+  """
+  Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.
+  """
+  doableTaskIds(utcOffset: Int!): [ID!]!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
@@ -2459,14 +2464,6 @@ type Query {
   """A page of the mails of a search folder, latest first."""
   mailSearchResults(id: ID!, page: Int!): MailSearchPage!
   mailSearches: [MailSearch!]!
-
-  """Ids of the tasks matching a filter, in manual order."""
-  matchingTaskIds(query: TaskQueryInput!): [ID!]!
-
-  """
-  For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.
-  """
-  matchingTaskIdsBySprint(query: TaskQueryInput!): [SprintMatches!]!
   me: User
   milestones: [Milestone!]!
 
@@ -3488,12 +3485,6 @@ input SprintInput {
   startDate: Date!
 }
 
-"""Tasks of a sprint matching a filter at the end of the sprint."""
-type SprintMatches {
-  sprintId: ID!
-  taskIds: [ID!]!
-}
-
 """Status of a task at the end of a sprint."""
 type SprintTaskStatus {
   closed: Boolean!
@@ -3788,21 +3779,6 @@ type TaskPriority {
   id: ID!
   name: String!
   position: Int!
-}
-
-input TaskQueryInput {
-  """Filter tree (and / or groups of conditions)."""
-  filter: JSON!
-  includeArchived: Boolean
-
-  """Quick search: number, title or description."""
-  search: String
-
-  """User's current day, for relative dates."""
-  today: Date!
-
-  """User's offset from UTC, in minutes."""
-  utcOffset: Int!
 }
 
 type TaskStatus {

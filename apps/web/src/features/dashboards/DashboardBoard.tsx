@@ -6,7 +6,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
+import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowDownIcon,
@@ -362,7 +362,6 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
 interface DashboardBoardProps {
   /** Project whose tasks (sub-projects included) are charted, or null for every task. */
   projectId: string | null;
-  baseFilter: FilterGroup | null;
   /** What is charted ("Tous les projets", project title), for the exports. */
   title: string;
 }
@@ -392,8 +391,8 @@ function SortableTab(props: TabsTabProps & { value: string }) {
  * @param {DashboardBoardProps} props Component props.
  * @returns {JSX.Element} Board.
  */
-export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardProps) {
-  const scope = useMemo<ChartScope>(() => ({ baseFilter, projectId }), [baseFilter, projectId]);
+export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
+  const scope = useMemo<ChartScope>(() => ({ projectId }), [projectId]);
   const { context, isPending: contextPending } = useTaskContext();
   const { data: dashboards, isPending, error } = useDashboards(projectId);
   const mutations = useDashboardMutations();

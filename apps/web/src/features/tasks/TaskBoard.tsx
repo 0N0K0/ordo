@@ -19,7 +19,8 @@ import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
 import { useShoppingLists } from '../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTasksData, type BulkChanges, type Task } from './api';
-import { eventKey, taskColumns, type TaskTableRow } from './task-columns';
+import { eventKey, filterUses, type TaskTableRow } from './task-columns';
+import { useTaskColumns } from './use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
 import { taskName, useTaskContext } from './use-task-context';
@@ -131,7 +132,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const [params] = useSearchParams();
   const openId = params.get(TASK_PARAM);
   const today = localToday();
-  const columns = useMemo(() => (context ? taskColumns(context, today) : []), [context, today]);
   const tasks = useMemo(
     () =>
       (context?.tasks ?? [])
@@ -143,6 +143,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
 
   // Events of a period, listed with the tasks when the view shows them (its option).
   const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS });
+  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow') });
   const showEvents = views.config?.options.events === true;
   const period = (views.config?.options.eventPeriod as EventPeriod | undefined) ?? 'next:30';
   const range = useMemo(() => {

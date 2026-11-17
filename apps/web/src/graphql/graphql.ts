@@ -939,18 +939,6 @@ export type TaskLabelUpdateInput = {
   name?: string | null | undefined;
 };
 
-export type TaskQueryInput = {
-  /** Filter tree (and / or groups of conditions). */
-  filter: unknown;
-  includeArchived?: boolean | null | undefined;
-  /** Quick search: number, title or description. */
-  search?: string | null | undefined;
-  /** User's current day, for relative dates. */
-  today: string;
-  /** User's offset from UTC, in minutes. */
-  utcOffset: number;
-};
-
 /** Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED). */
 export type TaskStatusCategory =
   | 'CANCELLED'
@@ -3937,13 +3925,6 @@ export type TaskViewsQueryVariables = Exact<{
 
 export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
 
-export type MatchingTaskIdsQueryVariables = Exact<{
-  query: TaskQueryInput;
-}>;
-
-
-export type MatchingTaskIdsQuery = { matchingTaskIds: Array<string> };
-
 export type CreateTaskViewMutationVariables = Exact<{
   input: TaskViewInput;
 }>;
@@ -4021,12 +4002,12 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
 
-export type MatchingTaskIdsBySprintQueryVariables = Exact<{
-  query: TaskQueryInput;
+export type DoableTaskIdsQueryVariables = Exact<{
+  utcOffset: number;
 }>;
 
 
-export type MatchingTaskIdsBySprintQuery = { matchingTaskIdsBySprint: Array<{ sprintId: string, taskIds: Array<string> }> };
+export type DoableTaskIdsQuery = { doableTaskIds: Array<string> };
 
 export type CreateMilestoneMutationVariables = Exact<{
   input: MilestoneInput;
@@ -8788,11 +8769,6 @@ export const TaskViewsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
-export const MatchingTaskIdsDocument = new TypedDocumentString(`
-    query MatchingTaskIds($query: TaskQueryInput!) {
-  matchingTaskIds(query: $query)
-}
-    `) as unknown as TypedDocumentString<MatchingTaskIdsQuery, MatchingTaskIdsQueryVariables>;
 export const CreateTaskViewDocument = new TypedDocumentString(`
     mutation CreateTaskView($input: TaskViewInput!) {
   createTaskView(input: $input) {
@@ -8851,14 +8827,11 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
   bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
-export const MatchingTaskIdsBySprintDocument = new TypedDocumentString(`
-    query MatchingTaskIdsBySprint($query: TaskQueryInput!) {
-  matchingTaskIdsBySprint(query: $query) {
-    sprintId
-    taskIds
-  }
+export const DoableTaskIdsDocument = new TypedDocumentString(`
+    query DoableTaskIds($utcOffset: Int!) {
+  doableTaskIds(utcOffset: $utcOffset)
 }
-    `) as unknown as TypedDocumentString<MatchingTaskIdsBySprintQuery, MatchingTaskIdsBySprintQueryVariables>;
+    `) as unknown as TypedDocumentString<DoableTaskIdsQuery, DoableTaskIdsQueryVariables>;
 export const CreateMilestoneDocument = new TypedDocumentString(`
     mutation CreateMilestone($input: MilestoneInput!) {
   createMilestone(input: $input) {
