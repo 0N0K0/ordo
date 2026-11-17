@@ -1,425 +1,204 @@
 # Composants similaires et redondances de code
 
-État au 17 novembre 2026, après deux séries d'unifications (voir [Déjà unifié](#déjà-unifié)).
+État au 17 novembre 2026, après le plan précédent en cinq étapes (22 points, voir [Déjà unifié](#déjà-unifié)).
 
-Le plus gros reste se trouve dans l'API : l'ordre des listes, les arbres et le CRUD des listes simples, recopiés service par service. Côté web, ce sont surtout des contournements des briques déjà communes : panneaux ouverts à la main, menus d'actions écrits à la main, paramètres d'URL. S'y ajoutent de petits utilitaires de collections et de dates recopiés partout.
+Ce qui reste se range en trois familles :
 
-La relecture a aussi trouvé quatre bugs de « jour courant », listés en premier.
+- **API :** les vérifications « existe, sinon introuvable » et les erreurs de champ, recopiées partout ; les routes REST ; quelques modèles GraphQL répétés.
+- **Web, briques existantes contournées :** les nouveaux composants communs (`SubSection`, `SectionHeader`, `ErrorAlert`, `categoryPaths`…) ne sont pas encore repris partout.
+- **Web, nouveaux doublons :** surtout dans la trésorerie, la facturation, le stock et l'agenda (liens entre écritures, quantités, formulaires d'export, montants signés).
+
+La relecture a aussi trouvé quelques bugs et incohérences, listés en premier.
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
-## Bugs trouvés en passant
-
-### 1. « Aujourd'hui » faux autour de minuit
-
-- **API :**
-  - `services/accounting/recurring-invoices.ts:126` prend le jour du fuseau du serveur (`Intl.DateTimeFormat('en-CA')`) ;
-  - `services/treasury/treasury-budgets.ts:105` prend le jour UTC (`formatDay(new Date())`).
-  - Les deux devraient passer par `parisToday`.
-- **Web :**
-  - `components/filters/FilterBuilder.tsx:70` et `features/dashboards/lib/finance-records.ts:117` prennent le jour UTC (`new Date().toISOString().slice(0, 10)`) ;
-  - les factures en retard et la valeur « aujourd'hui » d'un filtre sont donc décalées entre minuit et 1 h ou 2 h.
-  - Les deux devraient passer par `localToday`.
-
-**Fait** : `parisToday` pour les factures récurrentes et le rapport des budgets ; `localToday` pour la valeur « aujourd'hui » des filtres et les factures en retard des tableaux de bord.
-
-### 2. Réordonnancements sans transaction
-
-- `settings-lists.reorder` (`services/core/settings-lists.ts:88`) et `movePlace` (`services/core/geo.ts:251`) écrivent les positions une par une.
-- Une erreur au milieu laisse l'ordre à moitié appliqué. `saveSiblingOrder` le fait déjà dans une transaction.
-
-**Fait** : les deux écrivent leurs positions dans une seule transaction.
-
-## Gros doublons
-
-### 3. API : déplacement et position suivante, liste par liste
-
-- **Déplacement :**
-  - 16 services appellent `moveInOrder`, puis réécrivent la même transaction de positions : calendriers, étiquettes, achats ×4, tableaux de bord ×2, statuts de documents, ressources de projet, jalons, statuts, vues, comptes mail, clients, projets.
-  - Trois autres (espaces, routines, lieux) n'utilisent pas `ordering.ts` du tout.
-  - Au total, environ 250 lignes.
-- **Deux chemins pour les mêmes listes :**
-  - `reorderSettingsItems` couvre déjà les statuts de projet, les libellés des tâches, les statuts de documents, les catégories de fiches, les listes des achats et les calendriers ;
-  - les mutations `moveProjectStatus`, `moveDocumentStatus`, `moveSheetCategory`, `moveCalendar`, `moveShopping{Store,Unit,Storage,BaseList}` et `moveTask{Status,Priority,Type,Tag}` existent pourtant toujours.
-- **Position suivante :**
-  - `(_max.position ?? -1) + 1` est écrit environ 44 fois, dans 28 fichiers ;
-  - 14 de ces copies concernent des listes paramétrables qui ont déjà `nextPosition` ;
-  - les arbres ne peuvent pas l'utiliser : il n'a pas de `where`.
-- **Cible :**
-  - `moveInList(modèle, id, index, where?)` et `nextPosition(modèle, where?)` dans `ordering.ts` ;
-  - suppression des mutations de déplacement que `reorderSettingsItems` couvre déjà.
-
-**Fait** :
-
-- **Outils :** `moveInList(modèle, id, index, where)` et `nextPositionIn(modèle, where)` dans `ordering.ts`. La version des listes paramétrables (`nextPosition`) repose sur le second.
-- **Remplacés :**
-  - les déplacements des tableaux de bord, des graphiques, des vues, des jalons, des comptes mail, des clients et des ressources ;
-  - ceux des espaces et des routines, sur `moveInOrder` et `saveSiblingOrder` ;
-  - une quarantaine de calculs de position suivante.
-- **Supprimées :** les 12 mutations en double (statuts de projet et de documents, catégories de fiches, calendriers, magasins, unités, conservations, références, libellés des tâches) et leurs services. Le web réordonne ces listes par `reorderSettingsItems`, onglets des références compris.
-- **Restent à part :**
-  - le déplacement des projets, qui change aussi le parent et le client ;
-  - les positions calculées dans une transaction ouverte (`tx`).
-
-### 4. API : arbres
-
-- **Détection de cycle :**
-  - la boucle « le nouveau parent n'est pas sous l'élément » est recopiée 9 fois : catégories de l'agenda, de la trésorerie, des achats, emplacements du stock, lieux ×2, routines (`reaches`) ;
-  - `ProjectTree.ancestors` refait `ancestorsOf`.
-- **Déplacement dans un arbre** (nouveau parent et ordre des frères) : 4 `moveCategory` quasi identiques, plus `moveLocation`.
-- **Suppression** (les enfants remontent d'un niveau, puis suppression) : 6 copies.
-- **Cible :**
-  - `assertNotUnder` dans `tree.ts` (partagé) ;
-  - `moveInTree` et `deleteTreeNode` dans `ordering.ts`.
-
-**Fait** :
-
-- `isUnderOrSelf` dans `tree.ts` (partagé) ;
-- dans `core/trees.ts` : `assertTreeParent`, qui vérifie qu'un parent existe et n'est pas sous l'élément, et `deleteTreeNode`, qui fait remonter les enfants puis supprime ;
-- les déplacements dans un arbre passent par `moveInList` avec le parent ;
-- toutes les vérifications de parent et toutes les suppressions recopiées sont remplacées.
-
-Reste à part : `ProjectTree`, la vue en mémoire des projets.
-
-### 5. API : CRUD des listes simples (nom et couleur)
-
-- **Services :**
-  - `createLabelService` ne sert qu'aux 4 libellés des tâches ;
-  - le même créer / modifier / supprimer / déplacer est écrit à la main pour les statuts de projet, les magasins, unités, conservations et références des achats, les catégories de fiches, les drapeaux mail, les contextes de la trésorerie et les statuts de documents.
-- **Erreur de nom déjà pris :**
-  - la conversion de l'erreur Prisma P2002 en erreur de champ est faite 6 fois, plus 6 fois en ligne ;
-  - les achats vérifient le nom avant, autrement.
-- **GraphQL :**
-  - les objets `{ id, name, color, position }` sont définis 7 fois, les entrées `{ name, color }` environ 14 fois ;
-  - environ 178 résolveurs finissent par `await …; return true;`, et un seul `done()` existe (stock).
-- **Cible :**
-  - `createLabelService` généralisé (périmètre `where`, crochets) ;
-  - une fabrique `labelMutations(kind, service)` ;
-  - `LabelInput` et `LabelPatch` communs ;
-  - `rethrowUnique` et `done()` dans `graphql/`.
-
-**Fait** :
-
-- `rethrowUnique` et `isUniqueConflict` (`graphql/errors.ts`) remplacent toutes les conversions de l'erreur P2002, avec un seul code (`CONFLICT`) ;
-- `done()` remplace 171 résolveurs `await …; return true;` ;
-- `NameColorInput` et `NameColorPatch` (`graphql/label-inputs.ts`) remplacent 10 types d'entrée identiques ; les documents du web sont mis à jour.
-
-Restent : la généralisation de `createLabelService` à toutes les listes nom + couleur, et une fabrique de mutations pour elles.
-
-### 6. API : chercher, sinon « introuvable »
-
-- `findUnique`, puis `if (!x) throw notFound(…)`, est écrit environ 146 fois. Les plus gros fichiers : achats (14), routines (9), stock (7), trésorerie, fiches.
-- S'y ajoutent une vingtaine de `findX` locaux et une quinzaine de vérifications d'existence `select: { id: true }`.
-- **Cible :** `findOrThrow(modèle, id, libellé)` et `assertExists`, dans `services/core/lookup.ts`.
-
-**Fait** : `orNotFound(requête, libellé)` (`graphql/errors.ts`), qui garde le type de la requête, remplace 136 copies. Les autres `notFound` sont des cas à part : décomptes, suppressions groupées, recherches en mémoire.
-
-### 7. Web : panneaux et fenêtres ouverts à la main
-
-- **Panneaux :** une quinzaine de formulaires sont dans un `<SidePanel>` piloté par un état local (titre, contenu conditionnel) au lieu de `openFormPanel` :
-  - trésorerie : page, budgets, équipe ×2, mouvement, mouvements ×2, lignes, emprunts ;
-  - suivi de facturation, évènement, agenda, évènement abonné.
-- **Fenêtres :** des `<Modal>` bruts au lieu de `openModal` ou `confirmDestructive` :
-  - suppression d'un évènement (`EventForm.tsx:280`) ;
-  - fermeture d'un mail (`MailComposer.tsx:281`) ;
-  - choix de la portée (`ask-scope.tsx`) ;
-  - répétition (`RepetitionField.tsx`).
-- **Confirmation en ligne :** `WorkspacesManager.tsx` confirme une suppression dans la ligne même.
-
-**Fait** :
-
-- **`openFormPanel` partout :**
-  - équipe et relations, budgets, suivi de facturation, mouvements, import et export d'un relevé, commentaires des emprunts ;
-  - plages de travail, report d'un évènement (`PostponePanel` garde son état d'attente) ;
-  - évènement d'un calendrier abonné (`SubscribedEvent`, ex-`SubscribedEventModal`).
-- **`confirmDestructive`** pour la suppression d'un évènement et celle d'un espace (plus de confirmation dans la ligne).
-- **`openModal`** pour la question « Fermer le mail ».
-- **`askScope`** partout : `useScopeQuestion` est supprimé, car le formulaire d'évènement est maintenant dans le panneau.
-- **Restent à part**, parce que leur contenu suit un état vivant :
-  - les rattachements d'une ligne de mouvement ;
-  - les créations depuis le formulaire de mouvement ;
-  - la fenêtre de répétition (`RepetitionField`), qui édite un brouillon ;
-  - le panneau routé d'une tâche.
-
-### 8. Web : menus et boutons d'actions écrits à la main
-
-- **Menus Modifier / Supprimer** au lieu de `ActionsMenu` : jalons, sprints, recherches mail, dossiers mail, graphiques des tableaux de bord.
-- **Rangées de boutons Modifier / Dupliquer / Supprimer** (infobulle et icône) : alarmes, contributeurs, facturation d'un client ×2, ressources de projet, comptes mail, espaces. `SettingsList` fait la même chose en interne.
-- **Boutons Monter / Descendre :** lignes d'un document, espaces, ressources de projet, panneau de tri.
-- **Poignées de glisser-déposer** (`useSortable` avec une icône de poignée) : jalons, graphiques, cas d'une répétition.
-- **Cible :** `InlineActions items={RowMenuEntry[]}` (à côté de `RowActions`), `MoveButtons`, `DragHandle`.
-
-**Fait** :
-
-- **`InlineActions`** (`RowActions.tsx`), des icônes côte à côte avec leur infobulle et les actions destructives en rouge : alarmes, contributeurs, facturation d'un client ×2, ressources de projet, comptes mail, espaces, lignes d'un document. Les boutons Monter / Descendre en sont des entrées.
-- **`ActionsMenu`** remplace les menus écrits à la main : jalons, sprints, recherches et dossiers mail, graphiques. Il gagne `inRow` (clics gardés dans le menu), `size` et `loading`.
-- **`DragHandle`** (`components/actions`) remplace les poignées des jalons, des graphiques et des cas d'une répétition.
-- **Restent à part :** la poignée de la liste des projets (glisser-déposer sans tri) et `SettingsList`.
-
-### 9. Web : paramètres d'URL
-
-- `new URLSearchParams(…)`, puis `set` ou `delete`, puis `setParams(…, { replace: true })` : une vingtaine de copies.
-- **Où :**
-  - changements d'onglet qui contournent `useTabParam` : routines, achats, stock, paramètres, trésorerie, projet ;
-  - setters locaux : facturation, mail, vues, temps, réglages de page ;
-  - effets « lire un ancien paramètre puis le retirer » : facturation ×2, mail, agenda, trésorerie, projet.
-- **Incohérence :** deux pages (stock, paramètres) ajoutent une entrée dans l'historique au lieu de la remplacer.
-- **Cible :** `useSearchParam(clé)`, `useSetParams()` et `useConsumeParam(clé, …)` dans `lib/search-params.ts`, avec `useTabParam` construit dessus.
-
-**Fait** : `useSetParams` et `useSearchParam` (`lib/search-params.ts`) changent l'URL partout (routines, achats, stock, paramètres, temps, agenda, mail, facturation, trésorerie, projet, vues, réglages de page) ; `useTabParam` repose dessus. Toutes les pages remplacent l'entrée de l'historique, stock et paramètres compris. Restent les `URLSearchParams` qui construisent un lien ou une adresse d'API.
-
-## Doublons moyens
-
-### 10. Petits utilitaires de collections
-
-- **`byId` :** `new Map(list.map((x) => [x.id, x]))` est écrit 52 fois, plus une quinzaine de tables « id → nom ».
-- **Regroupements** (`m.set(k, [...(m.get(k) ?? []), x])`) : 13 copies, dont 3 exactes des enfants par parent (orphelins à la racine) dans `routine-format.ts`, `category-tree.ts` et `tree-select.tsx`.
-- **Tri par position :** `(a, b) => a.position - b.position` est écrit 24 fois ; côté API, `orderBy: [{ position: 'asc' }, { createdAt: 'asc' }]` l'est 49 fois.
-- **Déplacement dans une liste en cache :** 6 copies dans les mises à jour optimistes (tâches, vues, jalons, tableaux de bord, graphiques, références).
-- **Cible :**
-  - `byId`, `groupBy`, `childrenOf`, `byPosition` dans `tree.ts` (partagé) ;
-  - `BY_POSITION` dans `ordering.ts` ;
-  - `moveToIndex` dans `lib/mutation.ts`.
-
-**Fait** :
-
-- **Outils partagés :** `mapById`, `groupBy` et `byPosition` (`core/collections.ts`), et `childrenByParent` dans `tree.ts`.
-- **Remplacés :**
-  - les tables par id (`mapById`, renommé ainsi parce que beaucoup de variables s'appellent déjà `byId`) ;
-  - les tris par position ;
-  - les trois copies des enfants par parent ;
-  - les regroupements simples ;
-  - `BY_POSITION` dans `ordering.ts` pour l'ordre des requêtes de l'API ;
-  - `moveToIndex` dans `lib/mutation.ts` pour 5 des 6 déplacements en cache.
-- **Restent à part :** les regroupements à plusieurs clés ou conditionnels, et le déplacement des tâches, qui change aussi le parent.
-
-### 11. Dates et heures
-
-- **Web :**
-  - le jour local est recalculé au lieu de `localDay` 5 fois : temps, factures en retard, accueil ;
-  - minuit local en ISO est écrit 3 fois ;
-  - les débuts et décalages de périodes des tableaux de bord (`aggregate.ts:160`) refont `calendarStart` et `shiftCalendar` ;
-  - un `isoWeek` privé (`table-engine.ts`) double celui du code partagé ;
-  - 3 écarts de jours sont calculés en `/ 86_400_000` au lieu de `daysBetween`.
-- **Heures :** la conversion « HH:MM ↔ minutes » existe au moins 5 fois (agenda, créneaux, temps, plages de travail).
-- **API :**
-  - le même `toDate()` est défini 4 fois (projets, tâches, jalons, alarmes) ;
-  - `new Date(\`${jour}T00:00:00Z\`)` est écrit en ligne une dizaine de fois ;
-  - `toISOString().slice(0, 10)` est utilisé au lieu de `formatDay` ;
-  - le dernier jour du mois et le jour borné au mois sont recalculés dans plusieurs fichiers.
-- **Cible :**
-  - `localMidnight` dans `lib/dates.ts` ;
-  - `timeToMinutes` et `minutesToTime` dans le code partagé ;
-  - `parseOptionalDay` ;
-  - un `months.ts` partagé.
-
-**Fait** :
-
-- **Web :**
-  - `lib/dates` réunit `localDay`, `localParts` (sorti de l'agenda et du formulaire de temps) et `localMidnight`, à la place des copies du temps, des factures en retard et de l'accueil ;
-  - les périodes des tableaux de bord passent par `calendarStart` et `shiftCalendar` ;
-  - la semaine ISO des tableaux passe par `isoWeek` et `isoWeekYear` (partagés) ;
-  - `daysBetween` remplace les calculs en `/ 86_400_000`.
-- **Partagé :**
-  - `timeToMinutes` et `minutesToTime` (`dates/times.ts`) ;
-  - `daysInMonth`, `dayInMonth` et `lastDayOfMonth` (`dates/months.ts`).
-- **API :**
-  - `parseOptionalDay` à la place des 4 `toDate` ;
-  - `parseDay` et `formatDay` à la place des conversions écrites en ligne, seed compris.
-
-### 12. Argent
-
-- **Arrondi à 2 décimales :** une dizaine de copies dans le web (lignes de trésorerie, factures importées, stock, tableaux), alors qu'un `round` existe déjà dans `aggregate.ts`.
-- **Centimes :** `Math.round(x * 100)` est écrit à la main au lieu de `toCents`, dans l'API et le code partagé.
-- **Montant d'une ligne de trésorerie** (pourcentage ou montant) : recalculé dans `treasury-loans.ts:40` et dans le module GraphQL de la trésorerie, alors que `splitAmounts` le fait déjà.
-- **Cible :** `round2`, `toCents` partout, `lineCents` dans le code partagé.
-
-**Fait** : `round2` à côté de `toCents`, et `toCents` partout dans le web, l'API et le code partagé. `lineCents` donne le montant d'une ligne de trésorerie, utilisé par `splitAmounts`, les emprunts et le module GraphQL. L'arrondi local des tableaux de bord est supprimé.
-
-### 13. Blocs de page
-
-- **Navigation de période** (« Aujourd'hui », précédent, suivant, libellé) : 3 copies (agenda, trésorerie, historique des routines), avec des boutons dans un ordre différent.
-- **En-tête de page de détail** (retour, titre, badge, sous-titre, actions) : 4 copies (document, facture importée, liste d'achats, fiche), avec trois styles de lien retour.
-- **Petite section à titre en capitales** (titre, action à droite, contenu) : une dizaine de copies. `Property` du panneau d'une tâche et `Detail` de la page projet sont le même composant.
-- **Chiffre clé :** `Figure` (trésorerie) double `StatTile` (accueil).
-- **Section d'éditeur :** `EditorSection` (facturation) double `SettingsSection`, avec un titre plus petit.
-- **Cible :** `PeriodNav`, `DetailHeader`, `SubSection`, `StatTile` dans `components/`, et une taille de titre pour `SettingsSection`.
-
-**Fait** :
-
-- `SubSection` (`components/page`) : propriétés d'une tâche, détails d'un projet, alertes et achats d'une tâche ;
-- `StatTile` sorti de l'accueil vers `components/page`, repris par les chiffres de la trésorerie (`valueColor`) ;
-- `PeriodNav` : agenda, trésorerie et historique des routines, dans un seul ordre (« Aujourd'hui », précédent, la période, suivant).
-
-Restent à part :
-
-- l'en-tête des pages de détail : ses quatre copies n'ont pas le même lien retour, c'est un choix d'interface à faire d'abord ;
-- les autres petites sections à titre écrites en ligne ;
-- `EditorSection`.
-
-### 14. Tâches : cartes et cellules
-
-- **Jalon et sprint :** la même carte (titre, badges, dates, menu, progression, description modifiable) est recopiée dans `MilestonesPanel` et `SprintsPanel`. Environ 45 lignes chacune.
-- **Progression :** `TaskProgress` est contourné par la cellule de progression et par le panneau d'une tâche (sous-tâches faites sur total).
-- **Cellules en popover** (un tiret grisé, puis un éditeur dans un popover) : 5 copies (lieu, rappels, ouverture, créneaux, temps).
-- **Cible :** `PlanCard`, `TaskProgress` avec une unité, `EditablePopoverCell`.
-
-**Fait** :
-
-- `PlanCard` pour les jalons et les sprints ;
-- `TaskProgress`, avec une taille et une unité, sert aussi aux sous-tâches (cellule et panneau) ;
-- `EditablePopoverCell` (`EditableCells`) pour le lieu, les alertes et l'ouverture des routines, les créneaux des tâches et l'évènement d'un temps.
-
-### 15. Mail : barre de la liste
-
-- La recherche, la recherche avancée, le tri, le filtre « Tous / À traiter / Traités » et les messages vides sont recopiés entre `MailPage` et `ProjectMailsPanel`, environ 60 lignes chacun.
-- La liste `SORTS` est en double.
-- **Cible :** `MailListToolbar`, `MAIL_SORTS`.
-
-**Fait** : `MAIL_SORTS`, `MAIL_SORTS_ACROSS` et `DONE_FILTERS` (`lib/mail-list.ts`), et `MailListControls` (tri et état traité) pour la page Mails et les mails d'un projet. Reste à part la recherche et la recherche avancée : leur état diffère entre les deux (dans l'URL pour l'une, dans le composant pour l'autre).
-
-### 16. Personnes : restes
-
-- **Options « membres puis relations »** : construites 4 fois (lignes, tableau des lignes, budgets, achats).
-- **Noms des bénéficiaires** : calculés deux fois dans `use-beneficiaries.ts`.
-- **Ligne d'un contributeur** (avatar, nom, badge « Moi ») : écrite avec un `Avatar` brut 4 fois (contributeurs d'un projet, gestion des contributeurs, équipe, éditeur markdown).
-- **Code mort :** `Assignees` (`task-ui.tsx`) n'est plus utilisé.
-- **Cible :** `memberRelationOptions` dans `components/people`, et `PersonRow`.
-
-**Fait** :
-
-- `memberRelationOptions` (`people-keys`) pour les lignes, le tableau des lignes et les budgets ;
-- un seul calcul des noms des bénéficiaires ;
-- `PersonRow` pour les contributeurs d'un projet et de l'espace ;
-- `Assignees` supprimé.
-
-Restent les options des achats (« Moi », contributeurs du projet), et l'équipe de la trésorerie et l'éditeur markdown, aux lignes plus simples.
-
-### 17. Listes paramétrables : restes
-
-- **Compteurs d'usage** (combien d'éléments utilisent un item) : 9 copies, dont deux `usageOf` locaux.
-- **Options des plages de travail** : construites 3 fois, leurs noms 2 fois.
-- **Options d'arbre des routines** : `routineTreeOptions` est contourné par le formulaire et une cellule des routines, et le temps en fait une liste plate.
-- **Cible :** `countBy` à côté de `SettingsList`, et `useScheduleChoices()`.
-
-**Fait** : `countBy` (`collections.ts`, partagé) pour les 9 compteurs d'usage ; `scheduleChoices` pour les options et les noms des plages ; `routineTreeOptions` dans le formulaire et la cellule de la routine parente.
-
-### 18. Requêtes : clés et invalidations hors des `api.ts`
-
-- **Clés écrites en dur :**
-  - `['workspaces']` dans `lib/week.ts` (la clé n'est pas exportée) ;
-  - `['accounting', 'treasury']` dans les achats, invalidé dans le `mutationFn` même ;
-  - la clé des réglages de la trésorerie reconstruite dans les bénéficiaires.
-- **Invalidations dans des composants :** gestion des contributeurs, éditeur de document. Elles appartiennent à la liste `invalidate` de leurs mutations.
-- **Cible :** exporter les clés et passer par `useInvalidatingMutation`.
-
-**Fait** :
-
-- `workspacesQueryKey`, `treasurySettingsKey` et `tasksQueryKey` sont utilisés au lieu des clés écrites en dur ;
-- le rattachement d'un mouvement à une liste d'achats rafraîchit la trésorerie par sa liste `invalidate` ;
-- la suppression d'un contributeur et l'enregistrement d'un document rafraîchissent leurs requêtes dans leurs mutations, et non plus dans les composants.
-
-Restent les deux invalidations « tout sauf une sous-clé » (document supprimé, mail lu), propres à leur cas.
-
-### 19. API : PDF
-
-- **Émetteur :** le PDF de trésorerie relit le nom de l'entreprise, ce que fait déjà `issuer()`.
-- **Mise en page :** le PDF de trésorerie et celui des tableaux partagent la même structure (titre, ligne d'en-tête, sauts de page avec en-tête répété, bandeau).
-- **Thème :** couleurs, marges et tailles sont redéclarées dans 5 fichiers.
-- **Cible :** `issuer()`, le thème et un `tableWriter` exportés par `pdf-report.ts`. Environ 80 lignes.
-
-**Fait** : `issuerName()`, `PDF_TEXT`, `PDF_TABLE` et `REPORT_MARGIN` sont exportés par `pdf-report.ts` et repris par les PDF de trésorerie, des tableaux, des graphiques et de l'agenda. Reste à part la mise en page commune des tableaux (`tableWriter`) : sans essai visuel, elle n'a pas été touchée.
-
-### 20. API : tâches de fond
-
-- La boucle « pour chaque espace, au démarrage puis à intervalle » est recopiée 4 fois : factures récurrentes, GitHub, mails liés, mails programmés.
-- La connexion GitHub de l'espace courant est cherchée 4 fois.
-- **Cible :** `schedulePerWorkspace` et `currentGithubConnection`.
-
-**Fait** : `schedulePerWorkspace` (`workspaces.ts`) lance les 4 tâches de fond, et `currentGithubConnection` cherche la connexion GitHub de l'espace courant.
-
-### 21. Autres champs et badges
-
-- **Couleur :** `ColorInput` avec les nuances du thème est écrit 8 fois, avec des réglages différents (7 ou 9 nuances par ligne, `hex` ou pas). Cible : `ColorField`.
-- **Logo :** le logo de l'entreprise (`CompanySettings.tsx:84`) refait `IconField`. Cible : `IconField` générique dans `components/`.
-- **Trajet aller / retour :** les champs sont recopiés entre l'évènement et la répétition des routines. Cible : `TravelFields`.
-- **Édition de markdown en ligne** avec « Annuler » et « Enregistrer » écrits à la main : commentaires et description d'une tâche. Cible : `FormActions` avec une taille.
-- **Description du projet :** elle est affichée en texte brut au lieu de `MarkdownView`.
-- **Badge « Archivé(e) » :** 6 styles différents. Cible : `ArchivedBadge`.
-- **États vides :** `EmptyState` est contourné à l'accueil (`HomeEmpty`), dans la barre latérale, les graphiques, l'équipe, le mail et GitHub ; deux gestionnaires l'entourent d'un `ThemeIcon` au lieu de lui passer `icon`.
-- **Erreur de chargement :** `<Alert color="red" icon={<ErrorIcon />}>{error.message}</Alert>` est écrit une douzaine de fois. Cible : `ErrorAlert`.
-
-**Fait** :
-
-- **Composants :**
-  - `ColorField` (8 champs) ;
-  - `TravelField` ;
-  - `ArchivedBadge` ;
-  - `ErrorAlert` (12 alertes) ;
-  - `FormActions` avec une taille, pour l'édition d'un commentaire et de la description d'une tâche.
-- **États vides :** la variante `plain` d'`EmptyState` remplace `HomeEmpty` et les copies des graphiques et des gestionnaires.
-- **Description du projet :** elle est maintenant affichée en markdown.
-
-Restent à part :
-
-- le logo de l'entreprise : il s'enregistre tout de suite et n'accepte que PNG ou JPEG, pour les PDF ;
-- le petit vide de la barre latérale, plus dense.
-
-## Petites redondances
-
-### 22. Divers
-
-- **`stopClick` :** redéclaré localement dans 6 fichiers de cellules.
-- **Erreurs :** `notifyError(e.message)` est utilisé au lieu de `onMutationError` dans 13 fichiers.
-- **Pluriels :** une trentaine sont encore écrits à la main (« + N autres » de l'accueil, factures en retard, import de relevé, mail, barre des routines).
-- **Tris et recherches :**
-  - `localeCompare` est utilisé au lieu de `collator` 6 fois ;
-  - 3 recherches comparent en minuscules au lieu de passer par `normalize`.
-- **Validation :**
-  - les drapeaux mail redéfinissent la règle de nom et la couleur ;
-  - deux expressions de couleur hexadécimale existent en plus de `colorSchema` ;
-  - les ressources de projet refont `requiredText` et `optionalText` ;
-  - le schéma d'une nouvelle liste d'achats est en double.
-- **Accessibilité dans un graphe** (cycle de blocages, prérequis des routines) : écrite deux fois. Cible : `reaches` dans `tree.ts`.
-
-**Fait** :
-
-- `stopClick` est partagé par les fichiers de cellules ;
-- `onMutationError` remplace 20 `notifyError(e.message)` ;
-- `plural` et `countOf` remplacent la plupart des pluriels écrits à la main ;
-- `collator` trie les noms, et `normalize` sert aux trois recherches ;
-- les règles partagées (`requiredText`, `optionalText`, `colorSchema`) remplacent leurs copies, et `shoppingListFormSchema` est commun aux deux formulaires de liste ;
-- `reaches` (`tree.ts`) vérifie les cycles de blocages et de prérequis.
-
-Restent écrits à la main : quelques pluriels de phrases à plusieurs compteurs (synthèse GitHub, corbeille du mail).
+## Bugs et incohérences
+
+### 1. Dates d'un évènement décalées hors de France
+
+`features/calendar/components/EventRepetition.tsx:30-36` formate `new Date(`${d}T00:00:00Z`)` comme un instant local. Dans un fuseau négatif, le résumé affiche la veille. `fmt.day(d)` sait déjà formater un jour seul.
+
+### 2. Remise globale toujours en euros
+
+`features/accounting/components/DocumentEditor.tsx:652` écrit `'€'` en dur, alors que l'acompte (`:599`) et les lignes suivent la devise du document.
+
+### 3. Personnes des achats validées de trois façons
+
+- `services/shopping/shopping.ts:47` exige un membre de l'équipe ;
+- `services/shopping/stock.ts:126-129` accepte tout contributeur ;
+- `services/shopping/sheets.ts` ne vérifie rien.
+
+À décider : la règle commune (probablement celle des achats).
+
+### 4. Petites incohérences
+
+- **GitHub :** `services/github/board.ts:693-707` (`createMilestone`) refait l'appel de `githubRequest` sans gérer 401, 403 et 429.
+- **Mail :** `services/mail/sender.ts:44` et `reader.ts:472` cherchent les dossiers spéciaux sans repli sur le nom, contrairement à `organize.ts:67 specialFolder`.
+- **Étiquettes :** `services/core/labels.ts:67-68` calcule la position suivante à la main, hors transaction, au lieu de `nextPositionIn`.
+- **Recherche des tableaux :** `components/data-table/table/table-engine.ts:127-128, 173-188` est sensible aux accents, contrairement aux sélecteurs en arbre.
+- **Erreurs de bénéficiaire :** erreur de champ dans les routines (`routines.ts:546-549`), NOT_FOUND dans les tâches et les évènements (`tasks.ts:152`, `calendar-events.ts:180`).
+
+## API
+
+### 5. « Existe, sinon introuvable »
+
+- **Un id :** `if (x && !(await prisma.M.findUnique({ where: { id: x }, select: { id: true } }))) throw notFound(…)`, 37 copies, dont 15 pour le projet. Les pires : `shopping/stock.ts`, `shopping.ts`, `treasury/treasury.ts:193-195`, `treasury-budgets.ts:40-42`, `tasks/tasks.ts:154-158`. `shopping/sheets.ts:76 assertProject` est un wrapper local.
+- **Une liste :** `count({ where: { id: { in } } }) !== n`, 41 copies, chacune avec son dédoublonnage.
+- **Proposition :** `assertExists(model, id, what)` et `assertAllExist(model, ids, what)` dans `services/core/lookup.ts`, avec un choix entre erreur de champ et NOT_FOUND (voir 4).
+
+### 6. `fieldError` redéfini
+
+- 6 copies locales : `routines.ts:64`, `tasks.ts:18`, `time-entries.ts:13`, `accounting-documents.ts:80`, `projects.ts:117` (`invalidParent`), `core/icons.ts:19`.
+- ~35 `clientError('BAD_USER_INPUT', m, { fields: { [f]: m } })` en ligne (`treasury-settings.ts`, `treasury.ts`, `mail/accounts.ts`, `geo.ts`…).
+- **Proposition :** un seul `fieldError` exporté par `graphql/errors.ts`.
+
+### 7. Routes REST
+
+- La même garde de session (4 lignes) 10 fois : `routes/accounting.ts`, `attachments.ts`, `exports.ts` ×4, `icons.ts`, `mail.ts`, `treasury.ts`.
+- 9 blocs d'en-têtes de téléchargement (`Content-Disposition`, `no-store`, `nosniff`).
+- 6 `catch` de `GraphQLError` aux réponses différentes : 400 en texte, 400 en JSON, 409.
+- Le nettoyage du nom de fichier (`exports.ts` ×4, `treasury-pdf.ts:384`) et la lecture d'un paramètre texte (`accounting.ts:16`, `treasury.ts:15`).
+- **Proposition :** `routes/http.ts` avec `requireSession`, `sendDownload`, `sendServiceError`, `safeFilename`. À décider : un seul format d'erreur.
+
+### 8. GraphQL
+
+- **Listes d'ids de relations :** `t.idList({ select: { X: { select: { id: true } } }, resolve: (r) => r.X.map((x) => x.id) })`, 22 fois (tâches ×6, routines, fiches, achats, stock, temps). Proposition : `relationIds(t, 'members')`.
+- **Objets nom + couleur + position :** 9 définitions (`calendar.ts:21`, `shopping.ts` ×3, `tasks.ts:135`, `workspace.ts:21`, `sheets.ts:44`, `mail.ts:15`, `treasury.ts:81`). Proposition : `labelObject(name)` dans `graphql/label-inputs.ts`.
+- **`BY_POSITION` contourné :** 21 `[{ position: 'asc' }, { createdAt: 'asc' }]` dans les modules, et deux constantes locales `byManualOrder` (`workspace.ts:11`, `tasks.ts:19`).
+- **`String(id)` inutiles :** les ID arrivent déjà en `string` (`builder.ts:16`). 63 `String(id)` et 34 `ids.map(String)` (achats, routines, fiches, stock, commentaires, listes, lieux).
+
+### 9. Arbres et ordre contournés
+
+- `routines.ts:441-450 parseCategory` recopie `assertTreeParent`.
+- `contributors.ts:137, 168` remontent les projets parents à la main, sans garde contre les cycles (`lineageOf`).
+- `geo.ts:239-246 movePlace` refait le contrôle de parent et le déplacement de `moveInOrder`.
+- `labels.ts` : le paramètre `transaction` et `findMany` ne servent plus depuis la suppression des déplacements ; `task-labels.ts:13` construit encore la transaction.
+
+### 10. Mail et GitHub
+
+- **Verrou de dossier IMAP :** `getMailboxLock` puis `try/finally release()`, 13 fois (`reader` ×6, `organize` ×3, `drafts` ×2, `linked`, `searches`). Proposition : `withMailbox(client, folder, fn)` dans `imap.ts`.
+- **Dossier des brouillons :** trouver ou créer, recopié dans `drafts.ts:49` et `scheduled.ts:70-72` ; `organize.ts:67 specialFolder` est la version générale, à exporter.
+- **Personnes des achats :** écriture et relecture des membres et relations recopiées dans `sheets.ts`, `shopping.ts` et `stock.ts`. Proposition : `services/shopping/people.ts` (`peopleData`, `peopleIds`, `assertPeople`), avec la règle du point 3.
+- **Message d'erreur :** `e instanceof Error ? e.message : String(e)`, 7 fois. Proposition : `errorMessage()`.
+
+### 11. Dates et argent partagés contournés
+
+- **Dernier jour du mois** par `Date.UTC(y, m, 0)` : `routines.ts:222`, `work-schedules.ts:599`, `dates/recurrence.ts:264` (`daysInMonth`).
+- **Index de mois :** `monthIndex` et `shiftMonth` privés (`work-schedules.ts:566-577`), `budgetMonths` (`accounting/treasury.ts:205-206`). Proposition : `monthIndex` et `monthFromIndex` dans `dates/months.ts`.
+- **Jours :** `tables/filters.ts:46-53, 84-92` refait `addDays`, `formatDay`, `calendarStart`, `shiftCalendar` ; `86_400_000` dans `github/sync.ts:616` et `calendar-ics.ts:171` ; des dates en ``T00:00:00Z`` au lieu de `parseDay` (`graphql/modules/treasury.ts:828`, `treasury-pdf.ts:253`).
+- **Expressions régulières :** HH:MM 7 fois, AAAA-MM-JJ 4 fois. Proposition : `timeOfDaySchema` et `daySchema` dans `dates/`.
+- **Centimes :** `/ 100` au lieu de `fromCents` (`accounting-documents.ts`, `treasury-loans.ts`) ; `Math.round(x * pct / 100)` 7 fois (proposition : `percentOf`) ; `formatMoney` réécrit dans `shared/accounting/treasury.ts:315`.
+
+## Web : briques existantes contournées
+
+### 12. Blocs de page
+
+- **`SubSection` :** la légende `Text size="xs" fw={600} c="dimmed" tt="uppercase"` écrite à la main 10 fois : `TaskPanel.tsx:281, 324, 358`, `RoutineMoveForm.tsx:167`, `RoutineForm.tsx:148`, `WorkCards.tsx:124`, `FinanceCards.tsx:39, 153`, `Comments.tsx:31`, `ProjectPage.tsx:259`.
+- **`SectionHeader` :** `Group` + `Title order={2} size="h4"` + actions, 5 fois : `ClientBillingSection.tsx:142`, `ProjectBillingPanel.tsx:33`, `TimePage.tsx:39`, `ClientPage.tsx:79`, `ProjectPage.tsx:251`. Le texte d'introduction suivi d'un bouton (jalons, sprints, plages, facturation ×3, fiches, mail) gagnerait un `SectionHeader` sans titre.
+- **`PageHeader` :** `HomePage.tsx:75-86` fait son propre titre.
+- **`ErrorAlert` :** `ProjectGithubPanel.tsx:286`, `DocumentEditor.tsx:793` (sans icône).
+- **`EmptyState` :** `ScheduledMailsList.tsx:20` (dans un `ThemeIcon`), `ImportedDocumentPage.tsx:84`, `GithubSettings.tsx:127` (une `Alert` grise).
+- **`DragHandle` :** la poignée des cartes de l'accueil (`HomeCard.tsx:31-37`) n'a ni activateur ni curseur.
+
+### 13. Listes, arbres et avatars
+
+- **`categoryPaths` :** `new Map(categoryTree(x).map(…path))` écrit 6 fois (`stock-format.ts:31`, `StockTable.tsx:58`, `ChecklistPanel.tsx:42`, `SheetPage.tsx:156`, `shopping-columns.ts:31`, `ProductPicker.tsx:28`). `locationOptions`, `shoppingCategoryOptions` et `shoppingCategoryTree` ne sont que des alias.
+- **Arbres partagés :** `workspace/lib/tree.ts:116, 172`, `use-task-context.ts:133`, `TimeLog.tsx:124`, `task-columns.ts:180`, `StockCountForm.tsx:31` remontent les parents à la main (`pathOf`, `lineageOf`, `ancestorsOf`, `isUnderOrSelf`).
+- **`listSelectProps` :** options `{ value, label, color, iconUrl }` refaites dans la trésorerie (`LinesEditor.tsx:102`, `EntryLinesTable.tsx:98`, `entry-columns.tsx:74, 140`) et `SheetsTable.tsx:56`. Le sélecteur de contexte des lignes n'a donc pas d'avatars.
+- **`routineTreeOptions` :** le filtre de colonne de `TimeLog.tsx:229` liste les routines à plat.
+- **`ItemAvatar` :** `EntityAvatar` refait à la main dans `CategoryTree.tsx:58`, `BaseLists.tsx:136`, `ClientSelect.tsx:22`. `EntityAvatar` est dans `features/workspace` mais importé par `components/` : à déplacer.
+- **Suggestions vides :** `NO_TARGETS` réécrit 3 fois ; son pendant `{ projectId: null, tasks: [], contributors: [] }` 6 fois. Proposition : `NO_SUGGESTIONS` à côté de `NO_TARGETS`.
+
+### 14. Menus, panneaux et erreurs
+
+- **`ActionsMenu` :** `CommentThread.tsx:95-119` écrit son menu Modifier / Supprimer. `SortableTabs` prend des `Menu.Item` bruts, que `BaseLists.tsx:150` et `ViewTabs.tsx:150` écrivent à la main ; il devrait prendre des `RowMenuEntry[]`.
+- **`openFormPanel` et `confirmDestructive` :** `WorkSchedulesManager.tsx:192-299` remplace tout le panneau par son formulaire ou sa confirmation, comme le faisait `WorkspacesManager`. Il répète aussi 10 fois `String(schedule.startDate).slice(0, 10)`.
+- **`onMutationError` :** `notifyError((error as Error).message)` dans `TaskDialogs.tsx:215`, `PlacesManager.tsx:48`, `TravelCalculator.tsx:76`, et 3 copies de `error instanceof Error ? error.message : fallback`.
+
+### 15. Format et dates
+
+- **`capitalize` :** réécrit dans `chart-period.ts:24`, `aggregate.ts:230`, `SubscribedEvent.tsx:14`, `use-slot-rules.ts:196`, `ChartEditor.tsx:280`.
+- **Alias de `fmt` :** `longDay` (`use-routine-move.ts:12`), `printedDay` (`EventForm.tsx:50`), `clock` (`RoutineDayAgenda.tsx:60`).
+- **Jours :** `86_400_000` dans `event-cells.tsx:183, 208` (`daysBetween`, `addDays`) ; `localTime` dans `use-slot-rules.ts:109` (`fmt.time`).
+- **`plural` :** `selection-label.ts:9` écrit son pluriel.
+
+## Web : nouveaux doublons
+
+### 16. Formulaires asynchrones et exports
+
+- **Envoi avec retour :** `setLoading(true); try { await …; notifySuccess; onDone() } catch { notifyError(…) } finally { … }`, 6 fois : `StatementForm.tsx:38`, `DocumentsZipForm.tsx:46`, `NewDocumentForm.tsx:33`, `SentForm.tsx:35`, `DepositInvoiceForm.tsx:86`, `StockPurchaseForm.tsx:77` (qui écrit aussi ses boutons au lieu de `FormActions`). Proposition : `useAsyncAction(fn, { success, fallback })` dans `lib/notify.tsx`.
+- **Période d'export :** `StatementForm` et `DocumentsZipForm` partagent le choix de période, les dates Du / Au avec « Avant la date de début. » et le téléchargement. Proposition : `PeriodRangeFields` et `usePeriodRange` dans `components/inputs/`.
+
+### 17. Trésorerie et facturation
+
+- **Liens entre écritures :** les candidats sont construits deux fois (`LineAttachments.tsx:33-47`, `entry-cells.tsx:131-141`), avec le montant d'une ligne recalculé au lieu de `lineCents` ; la recherche (« Tapez au moins 2 caractères ») est copiée 3 fois ; le badge de lien rouge ou vert avec sa croix 4 fois. Proposition : `useLinkCandidates`, `EntryLinkSelect` et `LinkBadge` dans `features/treasury/components/entry-links.tsx`.
+- **Lignes :** la bascule d'unité qui garde la part et la catégorie gardée selon le sens sont écrites dans `LinesEditor.tsx` et `EntryLinesTable.tsx`. Proposition : `valueInMode` et `categoryForDirection` dans `features/treasury/lib/lines.ts`.
+- **Montant signé :** `Text ff="monospace" c={x < 0 ? 'red' : 'green'}` avec « + », 5 fois (prêts, import de relevé, lignes ×2, achats). Proposition : `SignedAmount` dans `components/money/`.
+- **Pourcentage ou montant :** le montant avec son `%/€` est copié 3 fois (`accounting/LinesEditor.tsx:143-167`, `DocumentEditor.tsx:572-603, 634-656`). Proposition : `DiscountInput` ; corrige le point 2.
+- **Projets d'un client :** filtrés puis passés à `projectOptions` 4 fois (`NewDocumentForm.tsx:27`, `ImportedDocumentForm.tsx:72`, `DocumentEditor.tsx:271, 293`), et la ligne 271 garde les archivés. Proposition : `clientProjectOptions` dans `features/workspace/lib/tree.ts`.
+
+### 18. Quantités et petits champs
+
+- **`quantityText` :** défini deux fois (`shopping-format.ts:15`, `sheet-format.ts:10`) et réécrit dans `StockMoveForm.tsx` et `StockCountForm.tsx`. Proposition : `fmt.quantity`.
+- **Champ quantité :** `NumberInput decimalScale={3} decimalSeparator=","`, 6 fois (stock ×4, achats, facturation) ; champ multiplicateur « × », 2 fois (fiches). Proposition : `QuantityInput` et `MultiplierInput` dans `components/inputs/`.
+- **Bouton retirer :** infobulle + `ActionIcon` gris + `XIcon`, 7 fois (écriture, lignes ×2, suivi ×2, fiches ×2). Proposition : `RemoveButton` dans `components/actions/`.
+- **Rappels :** la sélection multiple des rappels est recopiée dans `EventForm.tsx:529`, `RoutineSchedule.tsx:360`, `routines/extra-cells.tsx:199`. Proposition : `RemindersSelect`.
+- **Nouveau mot de passe** avec `PasswordStrength` : `ResetPasswordPage.tsx:45-60`, `AccountPage.tsx:164-168`. Proposition : `NewPasswordFields`.
+
+### 19. Agenda, temps et tâches
+
+- **Temps lié à un évènement :** la clé `${eventId}|${occurrenceDate}` est construite et relue à 4 endroits (`time-cells.tsx`, `TimeEntryForm.tsx`, `CalendarPage.tsx`), et la liste des évènements du jour 2 fois. Proposition : `features/time/lib/time-events.ts` (`eventKey`, `parseEventKey`, `dayEventOptions`).
+- **Boutons du temps :** « Nouveau temps » et « Lancer un chrono » dans `TimePage.tsx:58-68` et `ProjectTimePanel.tsx:28-42`. Proposition : `TimeLogActions`.
+- **Occurrences dans FullCalendar :** le début et la fin sont calculés 3 fois (`CalendarPage.tsx:207, 260`, `RoutineDayAgenda.tsx:227`), et les plages comme sources 2 fois. Proposition : `occurrenceSpan` et `scheduleSources` dans `features/calendar/lib/calendar-events.ts`.
+- **Horloge :** `useMinute` (`use-slot-rules.ts:115`), un intervalle dans `event-cells.tsx:126-130` et `useNow`. Proposition : `useNow(active, everyMs)`.
+- **Différence d'ids :** ajoutés et retirés calculés 5 fois dans les cellules. Proposition : `listDiff` à côté de `applyDiff`.
+- **Archiver une sélection :** « Désarchiver » dans les tâches, « Restaurer » dans les routines. Proposition : `archiveRowsAction` dans `selection-actions.tsx`. À décider : le libellé.
+
+### 20. Glisser-déposer et panneaux redimensionnables
+
+- **Listes triables :** `DndContext` + `SortableContext`, le même style de déplacement et un `handleDragEnd` vers un index, 4 fois (jalons, tableaux de bord, accueil, cas de répétition). Proposition : `sortableStyle` et `SortableArea` dans `components/actions/sortable.tsx`.
+- **Panneaux redimensionnables :** `use-resizable-aside.ts` et `use-resizable-sidebar.ts` font la même chose, et `.resizeHandle` est écrit deux fois. Proposition : `useResizablePanel`. Leur fermeture et leur double-clic diffèrent un peu.
+
+### 21. Divers
+
+- **Noms de période :** les trimestres s'écrivent « 1er trimestre 2026 » dans les tableaux et la trésorerie, « T2 2026 » dans les tableaux de bord ; `CURRENT_LABELS` (`aggregate.ts:213`) répète `PERIOD_PRESETS`. Proposition : `periodName(scale, start)` dans `lib/periods.ts`. À décider : la forme des trimestres.
+- **Tableaux de bord :** les filtres de source sont copiés dans `ChartEditor.tsx:285-293` et `DatasetsEditor.tsx:227-235` ; `SOURCE_LABELS` est défini deux fois.
+- **Mail :** les compteurs « à traiter » et « non lus » dans `MailNavBadge.tsx:18-31` et `MailFolders.tsx:321-334`.
+- **Page indisponible :** `ProOnly.tsx:16` et `EntityState.tsx:33`. Proposition : `PageMessage` dans `components/feedback/`.
+- **Évènement abonné :** sa description s'affiche en texte brut, pas en markdown (`SubscribedEvent.tsx:62`).
+- **CSS mort :**
+  - `TaskTable.module.css` recopie `DataTable.module.css`, et seuls `.table`, `.row` et `.recurring` servent ;
+  - des classes inutilisées dans `Routines.module.css` et `Shopping.module.css` ;
+  - `td[data-cell-selected]`, que plus rien n'émet ;
+  - `table-extras.module.css`, importé nulle part ;
+  - `ProjectMailsPanel.module.css`, dont seul `.panes` sert.
+- **Exports inutiles :** `DRAG_DISTANCE`, `InvalidatingOptions`, `ParamChanges`, `FormPanelOptions`, `PersonKind`, `PeopleOptions`, `BulkTable` ne servent que dans leur fichier.
 
 ## Plan proposé
 
-1. **Bugs (1, 2) :** quelques lignes chacun.
-2. **Sans risque, rapide :**
-   - les utilitaires de collections (10) ;
-   - les dates et l'argent (11, 12) ;
-   - les petites redondances (22).
-3. **API, par blocs :**
-   - l'ordre et la position suivante, avec la suppression des mutations de déplacement en trop (3) ;
-   - les arbres (4) ;
-   - le CRUD des listes simples (5) ;
-   - les recherches « sinon introuvable » (6) ;
-   - le PDF et les tâches de fond (19, 20).
-4. **Web, contournements des briques communes :**
-   - les panneaux et les fenêtres (7) ;
-   - les menus et les boutons d'actions (8) ;
-   - les paramètres d'URL (9) ;
-   - les requêtes (18).
-5. **Web, nouveaux composants communs :**
-   - les blocs de page (13) ;
-   - les cartes et cellules des tâches (14) ;
-   - le mail (15) ;
-   - les restes des personnes et des listes (16, 17) ;
-   - les champs et badges (21).
+1. **Bugs et incohérences (1 à 4).** À décider : la règle des personnes des achats, et erreur de champ ou NOT_FOUND.
+2. **Web, briques contournées (12 à 15) :** mécanique, sans risque, quelques petits changements d'espacement.
+3. **API, rapide (6, 8, 9, 11) :** `fieldError`, `BY_POSITION`, `String(id)`, arbres, dates et centimes.
+4. **API, par blocs (5, 7, 10) :** `assertExists`, `routes/http.ts`, `withMailbox`, les personnes des achats, `relationIds`, `labelObject`. À décider : le format d'erreur des routes REST.
+5. **Web, nouveaux composants (16 à 21)**, puis le nettoyage du CSS mort. À décider : la forme des trimestres et le libellé « Désarchiver » ou « Restaurer ».
+
+## Restent à part
+
+- **En-tête des pages de détail :** les quatre copies n'ont pas le même lien retour ; il faut choisir lequel garder.
+- **Recherche mail :** l'état est dans l'URL d'un côté, dans le composant de l'autre.
+- **Logo de l'entreprise :** il s'enregistre tout de suite et n'accepte que PNG ou JPEG, pour les PDF.
+- **Menus bruts :** `tasks/components/extra-cells.tsx:179` (avec `Menu.Label`) et `AddressInput.tsx:134` (arbre avec coches).
+- **Mise en page des tableaux PDF (`tableWriter`) :** pas touchée sans essai visuel.
+- **Argent :** `formatMoney` (API) et `fmt.moneyCents` (web) font le même format, mais pas dans le même environnement.
 
 ## Déjà unifié
 
+- **Plan précédent :**
+  - jour courant autour de minuit, réordonnancements en transaction ;
+  - utilitaires de collections, dates et argent partagés ;
+  - API : `moveInList`, `nextPositionIn`, `BY_POSITION`, `assertTreeParent`, `deleteTreeNode`, `orNotFound`, `rethrowUnique`, `NameColorInput`, `schedulePerWorkspace`, `issuerName`, `PDF_TEXT`, `PDF_TABLE` ;
+  - web : `useSetParams`, `useSearchParam`, `InlineActions`, `ActionsMenu`, `DragHandle`, les panneaux en `openFormPanel` ;
+  - web : `SubSection`, `StatTile`, `PeriodNav`, `PlanCard`, `EditablePopoverCell`, `MailListControls`, `memberRelationOptions`, `PersonRow`, `countBy`, `scheduleChoices`, `ColorField`, `TravelField`, `ArchivedBadge`, `ErrorAlert`, `EmptyState` `plain`.
 - **Données du web :**
   - `useInvalidatingMutation` et `patchQuery` (`lib/mutation.ts`) sous toutes les mutations, optimistes comprises.
   - Une seule action par opération, sur une ligne comme sur plusieurs : `useTaskRowsActions`, `useRoutineRowsActions`, `rowMenuEntry`, et les dialogues des tâches sur une liste.
@@ -442,12 +221,7 @@ Restent écrits à la main : quelques pluriels de phrases à plusieurs compteurs
   - les arbres reposent sur `tree` ;
   - `tree.ts` (partagé) fait les parcours et les chemins ;
   - tout item hiérarchisé s'affiche par son chemin complet.
-- **Code partagé :**
-  - `filters.ts` et `task-columns.ts` ;
-  - `periods.ts` ;
-  - `rules.ts` ;
-  - `text.ts` ;
-  - `table-views.ts`.
+- **Code partagé :** `filters.ts`, `task-columns.ts`, `periods.ts`, `rules.ts`, `text.ts`, `table-views.ts`.
 - **Utilitaires :**
   - `lib/download`, `lib/text`, `lib/drag`, `lib/fill-height`, `lib/notify` (`onMutationError`) ;
   - `localDay` ;
