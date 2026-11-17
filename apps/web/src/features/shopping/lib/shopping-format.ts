@@ -1,5 +1,5 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
-import { lineageOf } from '@ordo/shared';
+import { mapById, byPosition, lineageOf } from '@ordo/shared';
 import { categoryOptions, categoryTree, type PlacedCategory } from '../../../components/tree/category-tree';
 import { useTreasurySettings } from '../../treasury/api';
 import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
@@ -117,7 +117,7 @@ export const blankInput = (name: string, place: Partial<Omit<ShoppingItemInput, 
  * @returns {ShoppingCategory[]} Categories offered.
  */
 export function categoriesForBaseList(categories: readonly ShoppingCategory[], baseListId: string): ShoppingCategory[] {
-  const byId = new Map(categories.map((category) => [category.id, category]));
+  const byId = mapById(categories);
   /**
    * Base lists a category is offered in, its own or those of the closest parent with some (none: all).
    * @param {ShoppingCategory} category Category.
@@ -291,7 +291,7 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
     grouping === 'category'
       ? shoppingCategoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
       : grouping === 'store'
-        ? [...labels.stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }))
+        ? [...labels.stores].sort(byPosition).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }))
         : grouping === 'storage'
           ? [...(labels.storages ?? [])]
               .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))

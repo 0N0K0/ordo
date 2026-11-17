@@ -1,4 +1,4 @@
-import { addDays, formatDay, occurrenceDates, ruleValues, zonedInstant, type Recurrence } from '@ordo/shared';
+import { addDays, formatDay, occurrenceDates, parseDay, type Recurrence, ruleValues, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { CalendarEvent, CalendarEventException } from '../../generated/prisma/client';
 import { notFound } from '../../graphql/errors';
@@ -97,7 +97,7 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
  * @returns {string[]} RRULE content line, and RDATE ones for the months lacking the day.
  */
 function rrule(rule: Recurrence, start: string, time: string | null, timeZone: string): string[] {
-  const first = new Date(`${start}T00:00:00Z`);
+  const first = parseDay(start);
   const isoWeekday = ((first.getUTCDay() + 6) % 7) + 1;
   // Values of the monthly and yearly modes: chosen, else those of the first date.
   const values = ruleValues(rule, start);

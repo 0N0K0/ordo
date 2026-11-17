@@ -1,19 +1,21 @@
 import {
   addQuantities,
-  sheetItemKey,
-  sheetLinkSchema,
   checklistItemSchema,
-  sheetMultiplierSchema,
-  sheetCategorySchema,
-  sheetItemSchema,
-  sheetSchema,
+  mapById,
+  parseDay,
   readSheetSources,
-  timesSheet,
   type SheetCategoryInput,
+  sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
+  sheetItemKey,
+  sheetItemSchema,
   type SheetLinkInput,
+  sheetLinkSchema,
+  sheetMultiplierSchema,
+  sheetSchema,
   type SheetSource,
+  timesSheet,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -348,7 +350,7 @@ export async function moveSheetCategory(id: string, index: number): Promise<void
  */
 async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
   const sheets = await prisma.sheet.findMany({ where: { id: { in: [...new Set(links.map((link) => link.sheetId))] } }, include: { items: { orderBy: { position: 'asc' }, include: withPeople } } });
-  const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]));
+  const byId = mapById(sheets);
   return links.flatMap((link) => {
     const sheet = byId.get(link.sheetId);
     if (!sheet) throw notFound('Fiche');
@@ -402,7 +404,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   const times = parseInput(sheetMultiplierSchema, multiplier);
   const parts = await partsOf([{ sheetId, multiplier: times }]);
   const products = await prisma.shoppingProduct.findMany({ where: { id: { in: parts.flatMap((part) => (part.productId ? [part.productId] : [])) } }, include: withPeople });
-  const productById = new Map(products.map((product) => [product.id, product]));
+  const productById = mapById(products);
   return prisma.$transaction(async (tx) => {
     const items = await tx.shoppingItem.findMany({ where: { listId, purchasedAt: null } });
     const byKey = new Map(items.map((item) => [sheetItemKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
@@ -556,9 +558,7 @@ export async function setSheetLinks(owner: { routineId?: string | null; eventId?
  * @returns {Prisma.ChecklistWhereInput} Where clause.
  */
 const listWhere = (owner: SheetOwner): Prisma.ChecklistWhereInput =>
-  'taskId' in owner
-    ? { taskId: owner.taskId }
-    : { ...('routineId' in owner ? { routineId: owner.routineId } : { eventId: owner.eventId }), occurrenceDate: new Date(`${owner.occurrenceDate}T00:00:00.000Z`) };
+  'taskId' in owner ? { taskId: owner.taskId } : { ...('routineId' in owner ? { routineId: owner.routineId } : { eventId: owner.eventId }), occurrenceDate: parseDay(owner.occurrenceDate) };
 
 /**
  * Items of sheets summed into rows of a checklist (same product, or same label and unit, make one row).
@@ -616,7 +616,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
   const links = await prisma.sheetLink.findMany({ where: ownerOnly, orderBy: { position: 'asc' } });
   if (!links.length) return null;
   const parts = await partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() })));
-  const occurrence = 'occurrenceDate' in owner ? new Date(`${owner.occurrenceDate}T00:00:00.000Z`) : null;
+  const occurrence = 'occurrenceDate' in owner ? parseDay(owner.occurrenceDate) : null;
   try {
     return await prisma.checklist.create({ data: { ...ownerOnly, occurrenceDate: occurrence, items: { create: summedRows(parts) } } });
   } catch (error) {

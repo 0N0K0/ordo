@@ -1,17 +1,20 @@
 import {
-  shoppingBaseListNameSchema,
-  shoppingItemSchema,
-  shoppingCategorySchema,
-  shoppingListNameSchema,
-  shoppingProductSchema,
-  shoppingStoreSchema,
-  shoppingStorageSchema,
-  shoppingShares,
-  type ShoppingItemInput,
-  type ShoppingCategoryInput,
-  type ShoppingProductInput,
-  type ShoppingStoreInput,
   lineageOf,
+  mapById,
+  parseDay,
+  shoppingBaseListNameSchema,
+  type ShoppingCategoryInput,
+  shoppingCategorySchema,
+  type ShoppingItemInput,
+  shoppingItemSchema,
+  shoppingListNameSchema,
+  type ShoppingProductInput,
+  shoppingProductSchema,
+  shoppingShares,
+  shoppingStorageSchema,
+  type ShoppingStoreInput,
+  shoppingStoreSchema,
+  toCents,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { syncPurchaseStock } from './stock';
@@ -27,12 +30,12 @@ import {
   type ShoppingUnit,
 } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder, saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder, saveSiblingOrder } from '../core/ordering';
 import { isMember } from '../treasury/treasury-team';
 
 const decimal = (value: number | null) => (value === null ? null : new Prisma.Decimal(value));
 const number = (value: Prisma.Decimal | null) => (value === null ? null : Number(value));
-const day = (value: string | null) => (value === null ? null : new Date(`${value}T00:00:00Z`));
+const day = (value: string | null) => (value === null ? null : parseDay(value));
 
 /**
  * Checks the members of the team or household and the relations a product or an item is for.
@@ -253,7 +256,7 @@ export async function deleteStore(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveStore(id: string, index: number): Promise<void> {
-  const all = await prisma.shoppingStore.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const all = await prisma.shoppingStore.findMany({ orderBy: BY_POSITION, select: { id: true } });
   if (!all.some((store) => store.id === id)) throw notFound('Magasin');
   const order = moveInOrder(
     all.map((store) => store.id),
@@ -310,7 +313,7 @@ export async function deleteStorage(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveStorage(id: string, index: number): Promise<void> {
-  const all = await prisma.shoppingStorage.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const all = await prisma.shoppingStorage.findMany({ orderBy: BY_POSITION, select: { id: true } });
   if (!all.some((storage) => storage.id === id)) throw notFound('Mode de conservation');
   const order = moveInOrder(
     all.map((storage) => storage.id),
@@ -370,7 +373,7 @@ export async function deleteBaseList(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveBaseList(id: string, index: number): Promise<void> {
-  const all = await prisma.shoppingBaseList.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const all = await prisma.shoppingBaseList.findMany({ orderBy: BY_POSITION, select: { id: true } });
   if (!all.some((baseList) => baseList.id === id)) throw notFound('Référence');
   const order = moveInOrder(
     all.map((baseList) => baseList.id),
@@ -439,14 +442,14 @@ export async function moveProducts(ids: string[], baseListId: string): Promise<n
   await assertBaseList(baseListId);
   const products = await prisma.shoppingProduct.findMany({
     where: { id: { in: ids } },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true, baseListId: true, categoryId: true },
   });
   if (products.length !== new Set(ids).size) throw notFound('Produit');
   const moved = products.filter((product) => product.baseListId !== baseListId);
   if (moved.length === 0) return 0;
   const categories = await prisma.shoppingCategory.findMany({ select: { id: true, parentId: true, baseLists: { select: { id: true } } } });
-  const byId = new Map(categories.map((category) => [category.id, category]));
+  const byId = mapById(categories);
   /**
    * Whether a category is offered in the target list: the lists of the closest category with some (none: all).
    * @param {string} categoryId Category.
@@ -527,7 +530,7 @@ export async function deleteUnit(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveUnit(id: string, index: number): Promise<void> {
-  const all = await prisma.shoppingUnit.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const all = await prisma.shoppingUnit.findMany({ orderBy: BY_POSITION, select: { id: true } });
   if (!all.some((unit) => unit.id === id)) throw notFound('Unité');
   const order = moveInOrder(
     all.map((unit) => unit.id),
@@ -643,7 +646,7 @@ export async function setListClosed(id: string, closed: boolean): Promise<Shoppi
  * @returns {Promise<ShoppingList>} Copy.
  */
 export async function duplicateList(id: string): Promise<ShoppingList> {
-  const list = await prisma.shoppingList.findUnique({ where: { id }, include: { items: { include: withPeople, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } } });
+  const list = await prisma.shoppingList.findUnique({ where: { id }, include: { items: { include: withPeople, orderBy: BY_POSITION } } });
   if (!list) throw notFound('Liste');
   return prisma.shoppingList.create({
     data: {
@@ -688,7 +691,7 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
   );
   const shares = [...[...members].map(([memberId, cents]) => ({ memberId, relationId: null, cents })), ...[...relations].map(([relationId, cents]) => ({ memberId: null, relationId, cents }))];
   if (entry.lines.length + shares.length > 50) throw clientError('BAD_USER_INPUT', 'Le mouvement aurait plus de 50 lignes de répartition.');
-  const amount = Math.round(Number(entry.amount) * 100);
+  const amount = toCents(Number(entry.amount));
   const percent = total > Math.abs(amount);
   const start = Math.max(-1, ...entry.lines.map((line) => line.position)) + 1;
   await prisma.$transaction([

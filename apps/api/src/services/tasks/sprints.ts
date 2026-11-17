@@ -1,4 +1,4 @@
-import { addDays, formatDay, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
+import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
@@ -41,8 +41,8 @@ function sprintData(input: SprintInput) {
   return {
     name: fields.name,
     goal: fields.goal,
-    startDate: new Date(`${fields.startDate}T00:00:00.000Z`),
-    endDate: new Date(`${fields.endDate}T00:00:00.000Z`),
+    startDate: parseDay(fields.startDate),
+    endDate: parseDay(fields.endDate),
   };
 }
 
@@ -103,8 +103,7 @@ export async function sprintTaskStatuses(today: string): Promise<SprintTaskStatu
   const taskIds = [...new Set(ended.flatMap((sprint) => sprint.tasks.map((task) => task.id)))];
   if (!taskIds.length) return [];
   const changes = await prisma.taskStatusChange.findMany({ where: { taskId: { in: taskIds } }, orderBy: { at: 'asc' }, select: { taskId: true, statusId: true, closed: true, at: true } });
-  const byTask = new Map<string, typeof changes>();
-  for (const change of changes) byTask.set(change.taskId, [...(byTask.get(change.taskId) ?? []), change]);
+  const byTask = groupBy(changes, (change) => change.taskId);
   const result: SprintTaskStatus[] = [];
   for (const sprint of ended) {
     // Up to the end of its last day.

@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
 import { TaskProgress } from './TaskProgress';
@@ -6,7 +7,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionIcon, Badge, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
+import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -97,7 +98,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (sprint?: Sprint) => {
     const last = sprints[sprints.length - 1];
-    const length = last ? Math.round((Date.parse(String(last.endDate)) - Date.parse(String(last.startDate))) / 86_400_000) : 13;
+    const length = last ? daysBetween(String(last.startDate), String(last.endDate)) : 13;
     const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
@@ -158,7 +159,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                       </Badge>
                       {late && (
                         <Badge size="sm" variant="light" color="red">
-                          {tasks.length - done.length} tâche{tasks.length - done.length > 1 ? 's' : ''} non terminée{tasks.length - done.length > 1 ? 's' : ''}
+                          {tasks.length - done.length} {plural(tasks.length - done.length, 'tâche')} non {plural(tasks.length - done.length, 'terminée')}
                         </Badge>
                       )}
                     </Group>

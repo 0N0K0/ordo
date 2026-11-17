@@ -1,7 +1,7 @@
+import { localParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
 import { addDays } from '@ordo/shared';
 import { fileName, postExport } from '../../../lib/download';
-import { localParts } from './event-input';
 
 type PdfKind = 'event' | 'task' | 'routine' | 'time' | 'pause' | 'work';
 

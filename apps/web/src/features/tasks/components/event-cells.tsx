@@ -2,7 +2,7 @@ import { Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core'
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useState } from 'react';
 
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
@@ -16,7 +16,7 @@ import classes from './TaskTable.module.css';
 import type { TaskContext } from '../hooks/use-task-context';
 import { EVENT_STATES, eventState } from '../lib/event-format';
 
-import { cellField as sharedField } from '../../../components/data-table/cells/cell-field';
+import { cellField as sharedField, stopClick } from '../../../components/data-table/cells/cell-field';
 import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -61,16 +61,9 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
   );
 }
 
-/**
- * Keeps a click in a cell field from reaching the row (opening the task panel, selecting the row).
- * @param {MouseEvent} event Click.
- * @returns {void}
- */
-const stop = (event: MouseEvent) => event.stopPropagation();
-
 /** Look of the cell fields, like those of the tasks. */
 /** Fields of the cells, a click kept from the row. */
-const cellField = { ...sharedField, onClick: stop } as const;
+const cellField = { ...sharedField, onClick: stopClick } as const;
 
 /**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event

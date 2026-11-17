@@ -1,3 +1,4 @@
+import { normalize } from '@ordo/shared';
 import type { ComboboxData, ComboboxItem, ComboboxItemGroup, ComboboxParsedItem, OptionsFilter } from '@mantine/core';
 
 /** Value of the option creating what was typed. */
@@ -37,8 +38,8 @@ export const keepCreate =
   (input) => {
     const isCreate = (option: ComboboxParsedItem) => 'value' in option && option.value === CREATE_VALUE;
     const options = input.options as ComboboxParsedItem[];
-    const search = input.search.trim().toLocaleLowerCase('fr');
-    const contains = (option: ComboboxItem) => option.label.toLocaleLowerCase('fr').includes(search);
+    const search = normalize(input.search.trim());
+    const contains = (option: ComboboxItem) => normalize(option.label).includes(search);
     const others = options.filter((option) => !isCreate(option));
     const kept: ComboboxParsedItem[] = filter
       ? (filter({ ...input, options: others }) as ComboboxParsedItem[])

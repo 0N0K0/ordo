@@ -1,16 +1,10 @@
-import {
-  dateSchema,
-  descriptionSchema,
-  MAX_PROJECT_DEPTH,
-  projectTitleSchema,
-  optionalColorSchema,
-} from '@ordo/shared';
+import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColorSchema, parseOptionalDay, projectTitleSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -31,7 +25,7 @@ class ProjectTree {
    * @param {TreeProject[]} projects Every project.
    */
   constructor(projects: TreeProject[]) {
-    this.byId = new Map(projects.map((project) => [project.id, project]));
+    this.byId = mapById(projects);
     for (const project of projects) {
       const siblings = this.childrenOf.get(project.parentId) ?? [];
       siblings.push(project);
@@ -207,16 +201,6 @@ const detailsSchema = z.object({
 });
 
 /**
- * Converts a YYYY-MM-DD date to a UTC Date, keeping null and undefined.
- * @param {string | null | undefined} date Calendar date.
- * @returns {Date | null | undefined} Date at midnight UTC.
- */
-function toDate(date: string | null | undefined): Date | null | undefined {
-  if (date === undefined || date === null) return date;
-  return new Date(`${date}T00:00:00.000Z`);
-}
-
-/**
  * Validates the optional details of a project (undefined: unchanged, null: cleared).
  * @param {ProjectDetailsInput} input Raw details.
  * @param {{ startDate: Date | null, endDate: Date | null }} [current] Current dates, to check the range on update. Optional.
@@ -230,8 +214,8 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
     color: input.color,
   });
 
-  const startDate = details.startDate === undefined ? current?.startDate : toDate(details.startDate);
-  const endDate = details.endDate === undefined ? current?.endDate : toDate(details.endDate);
+  const startDate = details.startDate === undefined ? current?.startDate : parseOptionalDay(details.startDate);
+  const endDate = details.endDate === undefined ? current?.endDate : parseOptionalDay(details.endDate);
   if (startDate && endDate && endDate < startDate) {
     const message = 'La date de fin doit suivre la date de début.';
     throw clientError('BAD_USER_INPUT', message, { fields: { endDate: message } });
@@ -245,8 +229,8 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
     description: details.description,
     color: details.color,
     statusId: input.statusId,
-    startDate: toDate(details.startDate),
-    endDate: toDate(details.endDate),
+    startDate: parseOptionalDay(details.startDate),
+    endDate: parseOptionalDay(details.endDate),
   };
 }
 
@@ -312,7 +296,7 @@ async function placeProject(
 
   const siblings = await prisma.project.findMany({
     where: { ...siblingsWhere(parentId, targetClientId), archivedAt: null },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true },
   });
   const order = moveInOrder(

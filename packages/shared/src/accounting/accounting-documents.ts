@@ -1,6 +1,7 @@
+import { lastDayOfMonth } from '@ordo/shared';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
-import { addDays, formatDay, parseDay } from '../dates/recurrence';
+import { addDays } from '../dates/recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
@@ -107,6 +108,15 @@ export function fromCents(cents: number): number {
 }
 
 /**
+ * Amount rounded to the cent (or any value to 2 decimals).
+ * @param {number} value Value.
+ * @returns {number} Rounded value.
+ */
+export function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
  * Discount in cents on a base.
  * @param {number} base Base, in cents.
  * @param {DiscountType | null} type Discount type.
@@ -173,7 +183,7 @@ export function computeTotals(document: {
   const lines = document.lines.map((line) => {
     if (line.kind === 'TEXT') return { gross: 0, discount: 0, net: 0 };
     // The unit price keeps its decimals (1,879 €): rounded to the cent once multiplied.
-    const gross = Math.round(line.quantity * line.unitPrice * 100);
+    const gross = toCents(line.quantity * line.unitPrice);
     const rate = document.vatApplicable ? line.vatRate : 0;
     if (line.kind === 'DEDUCTION') {
       deductionsByRate.set(rate, (deductionsByRate.get(rate) ?? 0) + gross);
@@ -277,8 +287,7 @@ export function dueDateForTerms(terms: string | null, issueDate: string): string
   if (!match) return null;
   const due = addDays(issueDate, Number(match[1]));
   if (!match[2]) return due;
-  const date = parseDay(due);
-  return formatDay(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)));
+  return lastDayOfMonth(due);
 }
 
 /**

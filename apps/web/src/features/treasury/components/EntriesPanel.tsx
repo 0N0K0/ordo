@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -282,9 +283,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         selectionActions={(rows, clear) => [
           deleteRowsAction(rows, {
             title: 'Supprimer les mouvements',
-            risks: `${rows.length} mouvement(s) seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
+            risks: `${countOf(rows.length, 'mouvement')} seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
             remove: (entry) => deleteEntry.mutateAsync(entry.id),
-            done: `${rows.length} mouvement(s) supprimé(s).`,
+            done: `${countOf(rows.length, 'mouvement')} ${plural(rows.length, 'supprimé')}.`,
             clear,
           }),
         ]}

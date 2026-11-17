@@ -1,7 +1,7 @@
 import { ActionIcon, Button, ColorInput, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { labelFormSchema, type LabelFormValues } from '@ordo/shared';
+import { byPosition, labelFormSchema, type LabelFormValues } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -119,7 +119,7 @@ export function StatusInput({ statuses, value, onChange, error }: StatusInputPro
       <Select
         label="Statut"
         placeholder="Aucun"
-        {...listSelectProps([...statuses].sort((a, b) => a.position - b.position))}
+        {...listSelectProps([...statuses].sort(byPosition))}
         leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
         value={value}
         onChange={onChange}

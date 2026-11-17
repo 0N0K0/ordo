@@ -1,6 +1,6 @@
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
-import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
+import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -157,7 +157,7 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
  */
 export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'requires');
-  const byId = new Map(routines.map((other) => [other.id, other]));
+  const byId = mapById(routines);
   const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
     <StackedMultiCell

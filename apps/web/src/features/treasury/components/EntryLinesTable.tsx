@@ -1,7 +1,7 @@
 import { personKey, memberOrRelation, memberOrRelationKey, parsePersonKey } from '../../../components/people/people-keys';
 import { Checkbox, Text } from '@mantine/core';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -271,7 +271,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
                 saveLine('mode', row, (target) => {
                   if (target.line.mode === mode) return {};
                   const share = target.amount * sign;
-                  return { mode: mode as TreasuryLineMode, value: mode === 'PERCENT' ? (values.amount ? Math.round(((share * 100) / values.amount) * 100) / 100 : 0) : share };
+                  return { mode: mode as TreasuryLineMode, value: mode === 'PERCENT' ? (values.amount ? round2((share * 100) / values.amount) : 0) : share };
                 })
               }
             />

@@ -1,3 +1,4 @@
+import { minutesToTime, parseDay } from '@ordo/shared';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
@@ -230,7 +231,7 @@ export function localDate(date: Date): string {
  * @returns {string} Time.
  */
 export function clock(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  return minutesToTime(minutes);
 }
 
 /**
@@ -262,11 +263,3 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
   };
 });
 
-/**
- * Midnight UTC of a YYYY-MM-DD date (@db.Date columns).
- * @param {string} date Calendar date.
- * @returns {Date} Date.
- */
-function parseDay(date: string): Date {
-  return new Date(`${date}T00:00:00.000Z`);
-}

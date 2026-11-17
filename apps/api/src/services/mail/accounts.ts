@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';
@@ -164,7 +164,7 @@ export async function deleteMailAccount(id: string): Promise<void> {
  */
 export async function moveMailAccount(id: string, index: number): Promise<void> {
   await findAccount(id);
-  const accounts = await prisma.mailAccount.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const accounts = await prisma.mailAccount.findMany({ orderBy: BY_POSITION, select: { id: true } });
   const order = moveInOrder(
     accounts.map((item) => item.id),
     id,

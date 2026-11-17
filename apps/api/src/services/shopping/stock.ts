@@ -1,23 +1,26 @@
 import {
+  formatDay,
+  mapById,
+  type NewStockItemInput,
   newStockItemSchema,
+  parseDay,
+  type ProductStockInput,
   productStockSchema,
   sheetMultiplierSchema,
-  shoppingDeliverySchema,
-  shoppingOrderSchema,
-  stockCountSchema,
-  stockItemSchema,
-  stockLocationSchema,
-  stockMoveSchema,
-  stockPurchaseSchema,
-  type NewStockItemInput,
-  type ProductStockInput,
   type ShoppingDeliveryInput,
+  shoppingDeliverySchema,
   type ShoppingOrderInput,
+  shoppingOrderSchema,
   type StockCountInput,
+  stockCountSchema,
   type StockItemInput,
+  stockItemSchema,
   type StockLocationInput,
+  stockLocationSchema,
   type StockMoveInput,
+  stockMoveSchema,
   type StockPurchaseInput,
+  stockPurchaseSchema,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
@@ -45,7 +48,7 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
  * @param {string | null} day YYYY-MM-DD.
  * @returns {Date | null} Date.
  */
-const dayOf = (day: string | null) => (day ? new Date(`${day}T00:00:00.000Z`) : null);
+const dayOf = (day: string | null) => (day ? parseDay(day) : null);
 
 // Places ---------------------------------------------------------------------------------------------------------
 
@@ -319,7 +322,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
   if (data.locationId && !(await prisma.stockLocation.findUnique({ where: { id: data.locationId }, select: { id: true } }))) throw notFound('Emplacement');
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
-  const byId = new Map(items.map((item) => [item.id, item]));
+  const byId = mapById(items);
   return prisma.$transaction(async (tx) => {
     const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note?.trim() || null } });
     for (const line of data.lines) {
@@ -330,7 +333,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
       // More than expected: into the latest lot (a new one without date when there is none).
       if (difference > 0) {
         const latest = [...item.lots].sort((a, b) => (b.expiresAt?.getTime() ?? Infinity) - (a.expiresAt?.getTime() ?? Infinity))[0];
-        await addIn(tx, item, difference, latest?.expiresAt ? latest.expiresAt.toISOString().slice(0, 10) : null, latest?.id ?? null, source);
+        await addIn(tx, item, difference, latest?.expiresAt ? formatDay(latest.expiresAt) : null, latest?.id ?? null, source);
       } else if (difference < 0) await takeOut(tx, item.id, -difference, null, source);
     }
     return count;
@@ -425,7 +428,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
     },
     locationId,
   );
-  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? bought.expiresAt.toISOString().slice(0, 10) : null), null, { kind: 'PURCHASE', shoppingItemId });
+  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? formatDay(bought.expiresAt) : null), null, { kind: 'PURCHASE', shoppingItemId });
 }
 
 /**

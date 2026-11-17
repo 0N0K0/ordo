@@ -5,7 +5,7 @@ import { SidePanel } from '../../../components/panels/SidePanel';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { ActionIcon, Alert, Anchor, Button, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, type Recurrence, sharePeople } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
@@ -180,7 +180,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
-  const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
+  const routineById = mapById(routinesData?.routines ?? []);
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`));
   const routineOptions = [

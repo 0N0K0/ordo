@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
+import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
+import { byPosition, readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -570,7 +570,7 @@ export function useMoveTask() {
     invalidate: [tasksQueryKey],
     optimistic: (queryClient, { id, beforeId, parentId }) =>
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
-        const ordered = [...data.tasks].sort((a, b) => a.position - b.position);
+        const ordered = [...data.tasks].sort(byPosition);
         const moved = ordered.find((task) => task.id === id);
         const others = ordered.filter((task) => task.id !== id);
         const index = beforeId ? others.findIndex((task) => task.id === beforeId) : others.length;
@@ -843,10 +843,8 @@ export function useTaskViewMutations() {
       // The tab stays where it was dropped while the server reorders.
       optimistic: (queryClient, { id, index }) => {
         for (const [key, views] of queryClient.getQueriesData<TaskViewRecord[]>({ queryKey: taskViewsQueryKey })) {
-          if (!views?.some((view) => view.id === id)) continue;
-          const order = views.filter((view) => view.id !== id);
-          order.splice(index, 0, views.find((view) => view.id === id)!);
-          queryClient.setQueryData(key, order);
+          const order = views && moveToIndex(views, id, index);
+          if (order) queryClient.setQueryData(key, order);
         }
       },
     }),
@@ -960,8 +958,8 @@ function useMoveMilestone() {
       patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => {
         const moved = data.milestones.find((milestone) => milestone.id === id);
         if (!moved) return data;
-        const others = data.milestones.filter((milestone) => milestone.projectId === moved.projectId && milestone.id !== id).sort((a, b) => a.position - b.position);
-        const positions = new Map([...others.slice(0, index), moved, ...others.slice(index)].map((milestone, position) => [milestone.id, position]));
+        const siblings = data.milestones.filter((milestone) => milestone.projectId === moved.projectId).sort(byPosition);
+        const positions = new Map((moveToIndex(siblings, id, index) ?? []).map((milestone, position) => [milestone.id, position]));
         return { ...data, milestones: data.milestones.map((milestone) => ({ ...milestone, position: positions.get(milestone.id) ?? milestone.position })) };
       }),
   });

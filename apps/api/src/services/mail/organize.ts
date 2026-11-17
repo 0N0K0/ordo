@@ -1,3 +1,4 @@
+import { colorSchema, requiredText } from '@ordo/shared';
 import type { ImapFlow } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -205,8 +206,8 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
 }
 
 const labelSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(40, '40 caractères maximum.'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Couleur invalide.'),
+  name: requiredText(40),
+  color: colorSchema,
 });
 
 /**

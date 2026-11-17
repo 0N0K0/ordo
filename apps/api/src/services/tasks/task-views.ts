@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 /**
  * Loads a view or throws NOT_FOUND.
@@ -146,7 +146,7 @@ export async function moveView(id: string, index: number): Promise<void> {
   const view = await findView(id);
   const views = await prisma.taskView.findMany({
     where: scopeOf(view),
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true },
   });
   const order = moveInOrder(

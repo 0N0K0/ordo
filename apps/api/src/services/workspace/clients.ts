@@ -4,7 +4,7 @@ import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
 import { notFound, parseInput } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 import { requirePro } from './workspaces';
 
 /**
@@ -124,7 +124,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   const client = await findClient(id);
   const projects = await prisma.project.findMany({
     where: { clientId: id },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true, iconId: true, parentId: true },
   });
 
@@ -164,7 +164,7 @@ export async function moveClient(id: string, index: number): Promise<void> {
   await findClient(id);
   const siblings = await prisma.client.findMany({
     where: { archivedAt: null },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true },
   });
   const order = moveInOrder(

@@ -1,6 +1,9 @@
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 
+/** Manual order of a list: by position, then by creation (two items at the same position). */
+export const BY_POSITION: { position?: 'asc'; createdAt?: 'asc' }[] = [{ position: 'asc' }, { createdAt: 'asc' }];
+
 /**
  * Moves an id inside an ordered list.
  * @param {string[]} orderedIds Sibling ids in their current order (may contain `id`).

@@ -1,5 +1,17 @@
 import { Divider, Grid, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import { opensFits, readOpens, readSlotCondition, type RoutineOpens, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot, subtreeOf } from '@ordo/shared';
+import {
+  byPosition,
+  opensFits,
+  readOpens,
+  readSlotCondition,
+  type Recurrence,
+  type RoutineCase,
+  type RoutineOpens,
+  routineSchema,
+  type RoutineSlot,
+  type SlotCondition,
+  subtreeOf,
+} from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { localToday } from '../../../lib/dates';
@@ -111,7 +123,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
    */
   const routineOptions = (filter: (item: Routine) => boolean) =>
     treeOptions(
-      [...routines].sort((a, b) => a.position - b.position).map((item) => ({ id: item.id, parentId: item.parentId, label: item.title })),
+      [...routines].sort(byPosition).map((item) => ({ id: item.id, parentId: item.parentId, label: item.title })),
       (id) => {
         const item = routines.find((candidate) => candidate.id === id);
         return item !== undefined && !item.archived && filter(item);

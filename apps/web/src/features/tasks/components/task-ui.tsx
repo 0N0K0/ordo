@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import { Anchor, Box, Avatar, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
 import { PersonOption } from '../../../components/people/PersonOption';
@@ -144,7 +145,7 @@ interface AssigneesSelectProps {
  * @returns {JSX.Element} Select.
  */
 export function AssigneesSelect({ contributors, value, onChange, label = 'Assignés', description, error }: AssigneesSelectProps) {
-  const byId = new Map(contributors.map((contributor) => [contributor.id, contributor]));
+  const byId = mapById(contributors);
   return (
     <PeopleSelect
       label={label}

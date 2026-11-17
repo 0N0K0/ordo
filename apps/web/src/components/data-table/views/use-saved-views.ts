@@ -1,3 +1,4 @@
+import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
@@ -51,7 +52,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
   // Scope whose first views were asked for: asked once only, even when it fails (no retry loop).
   const created = useRef<string | null>(null);
 
-  const views: SavedView<C>[] = useMemo(() => [...(viewsQuery.data ?? [])].sort((a, b) => a.position - b.position).map((view) => ({ ...view, config: parse(view.config) })), [viewsQuery.data, parse]);
+  const views: SavedView<C>[] = useMemo(() => [...(viewsQuery.data ?? [])].sort(byPosition).map((view) => ({ ...view, config: parse(view.config) })), [viewsQuery.data, parse]);
 
   const requestedId = params.get(param);
   const current = views.find((view) => view.id === requestedId) ?? views.find((view) => view.isDefault) ?? views[0];

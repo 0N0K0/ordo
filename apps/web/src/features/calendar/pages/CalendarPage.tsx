@@ -11,12 +11,12 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, readScheduleDisplay, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../../components/feedback/feedback-icons';
-import { localToday } from '../../../lib/dates';
+import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
@@ -47,7 +47,7 @@ import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-e
 import { slotColumns } from '../lib/slot-columns';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
-import { localParts, occurrenceInput } from '../lib/event-input';
+import { occurrenceInput } from '../lib/event-input';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
 import { SubscribedEventModal } from '../components/SubscribedEventModal';
@@ -153,7 +153,7 @@ export function CalendarPage() {
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
-  const timeEntries = useTimeEntriesSince(range ? new Date(`${range.from}T00:00:00`).toISOString() : null, showTimers && range !== null);
+  const timeEntries = useTimeEntriesSince(range ? localMidnight(range.from) : null, showTimers && range !== null);
   const timerRunning = (timeEntries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   // A running timer grows every minute in the calendar.
   const now = useNow(showTimers && timerRunning);
@@ -189,7 +189,7 @@ export function CalendarPage() {
     calendarRef.current?.getApi().changeView(view);
   }, [view]);
 
-  const categoryById = useMemo(() => new Map((categories ?? []).map((category) => [category.id, category])), [categories]);
+  const categoryById = useMemo(() => mapById(categories ?? []), [categories]);
 
   const items = useMemo<EventInput[]>(() => {
     if (!context) return [];
@@ -315,7 +315,7 @@ export function CalendarPage() {
     // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
     // other workspaces subscribed to are hatched.
     if (range && schedules && (filters.workHours !== false || editingSlots)) {
-      const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
+      const typeOf = mapById(scheduleTypes ?? []);
       const own = schedules.map((schedule) => {
         const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
         // Without kind: the default kind of the workspace.
@@ -513,8 +513,8 @@ export function CalendarPage() {
       }
     }
     if (showRoutines) {
-      const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
-      const routineCategory = new Map((routinesData?.routineCategories ?? []).map((category) => [category.id, category]));
+      const routineById = mapById(routinesData?.routines ?? []);
+      const routineCategory = mapById(routinesData?.routineCategories ?? []);
       // Manual order of the routines: those of a same window follow it.
       const order = manualOrder(routinesData?.routines ?? []);
       // A parent routine is done through its sub-routines: only they show.
@@ -670,9 +670,8 @@ export function CalendarPage() {
       else if ('endDelta' in info && !('delta' in info)) times = { fromTime, dueTime: endParts.date === startParts.date ? endParts.time : null };
       else {
         // Its times move by as much as the event within the day.
-        const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-        const shift = minutes(startParts.time) - minutes(localParts(info.oldEvent.start ?? event.start).time);
-        const moved = (time: string | null) => (time === null ? null : minutes(time) + shift);
+        const shift = timeToMinutes(startParts.time) - timeToMinutes(localParts(info.oldEvent.start ?? event.start).time);
+        const moved = (time: string | null) => (time === null ? null : timeToMinutes(time) + shift);
         const [from, due] = [moved(fromTime), moved(dueTime)];
         if ((from !== null && (from < 0 || from >= 1440)) || (due !== null && (due < 0 || due >= 1440))) {
           revert();
@@ -749,7 +748,7 @@ export function CalendarPage() {
     })),
   ];
   // Slots that can be shown or hidden: of the workspace, then of the workspaces it subscribes to.
-  const typeById = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
+  const typeById = mapById(scheduleTypes ?? []);
   const scheduleChoices = [
     ...(schedules ?? []).map((schedule) => ({
       id: schedule.id,

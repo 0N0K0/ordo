@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
+import { BY_POSITION } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
@@ -12,8 +13,6 @@ import { ensureDocumentStatuses } from '../accounting/document-statuses';
 /** Cookie (and header) naming the workspace the app shows. */
 const WORKSPACE_COOKIE = 'ordo_workspace';
 const WORKSPACE_HEADER = 'x-ordo-workspace';
-
-const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 const workspaceInputSchema = z.object({
   name: requiredText(60),
@@ -25,7 +24,7 @@ const workspaceInputSchema = z.object({
  * @returns {Promise<Workspace[]>} Workspaces.
  */
 export function listWorkspaces(): Promise<Workspace[]> {
-  return unscopedPrisma.workspace.findMany({ orderBy: [...byOrder] });
+  return unscopedPrisma.workspace.findMany({ orderBy: BY_POSITION });
 }
 
 /**
@@ -38,7 +37,7 @@ async function requestedWorkspace(req: Request): Promise<Workspace> {
   const wanted = (typeof header === 'string' && header) || parseCookie(req.headers.cookie ?? '')[WORKSPACE_COOKIE];
   const found = wanted ? await unscopedPrisma.workspace.findUnique({ where: { id: wanted } }) : null;
   if (found) return found;
-  const first = await unscopedPrisma.workspace.findFirst({ orderBy: [...byOrder] });
+  const first = await unscopedPrisma.workspace.findFirst({ orderBy: BY_POSITION });
   return first ?? unscopedPrisma.workspace.create({ data: { name: 'Pro', kind: 'PRO' } });
 }
 
@@ -61,7 +60,7 @@ export async function workspaceMiddleware(req: Request, _res: Response, next: Ne
  * @returns {Promise<void>}
  */
 export async function forEachWorkspace(job: (workspace: Workspace) => Promise<unknown>, options: { kind?: WorkspaceKind } = {}): Promise<void> {
-  const workspaces = await unscopedPrisma.workspace.findMany({ where: options.kind ? { kind: options.kind } : {}, orderBy: [...byOrder] });
+  const workspaces = await unscopedPrisma.workspace.findMany({ where: options.kind ? { kind: options.kind } : {}, orderBy: BY_POSITION });
   for (const workspace of workspaces) {
     try {
       await runInWorkspace(workspace, () => job(workspace));

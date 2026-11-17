@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type ProjectStatus } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 /**
  * Converts a unique name violation into a field error.
@@ -77,7 +77,7 @@ export async function deleteStatus(id: string): Promise<void> {
  */
 export async function moveStatus(id: string, index: number): Promise<void> {
   const statuses = await prisma.projectStatus.findMany({
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true },
   });
   if (!statuses.some((status) => status.id === id)) throw notFound('Statut');

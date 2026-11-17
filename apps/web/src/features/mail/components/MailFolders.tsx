@@ -20,7 +20,7 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -116,7 +116,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
           notifySuccess(parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`);
           if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
         },
-        onError: (failure) => notifyError(failure.message),
+        onError: onMutationError,
       },
     );
 
@@ -241,7 +241,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               notifySuccess('Dossier supprimé.');
               if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
             },
-            onError: (failure) => notifyError(failure.message),
+            onError: onMutationError,
           },
         );
       },
@@ -404,7 +404,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                     notifySuccess(`${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`);
                     onDropped();
                   },
-                  onError: (failure) => notifyError(failure.message),
+                  onError: onMutationError,
                 },
               );
             }}

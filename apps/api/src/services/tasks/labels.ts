@@ -2,7 +2,7 @@ import { colorSchema, labelNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 export interface Label {
   id: string;
@@ -117,7 +117,7 @@ export function createLabelService(
      * @returns {Promise<void>}
      */
     async move(id: string, index: number): Promise<void> {
-      const labels = await delegate().findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+      const labels = await delegate().findMany({ orderBy: BY_POSITION, select: { id: true } });
       if (!labels.some((label) => label.id === id)) throw notFound(messages.notFound);
       const order = moveInOrder(
         labels.map((label) => label.id),

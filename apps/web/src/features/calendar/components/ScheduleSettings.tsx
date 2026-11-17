@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { ActionIcon, Badge, Button, Collapse, ColorInput, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from '../../../components/settings/ByWorkspace';
@@ -138,7 +139,7 @@ function ForeignSchedules() {
                   {kind.name}
                   <Text span size="xs" c="dimmed">
                     {' '}
-                    · {kind.scheduleCount} plage{kind.scheduleCount > 1 ? 's' : ''}
+                    · {kind.scheduleCount} {plural(kind.scheduleCount, 'plage')}
                     {kind.customized ? ' · affichage personnalisé' : ''}
                   </Text>
                 </Text>

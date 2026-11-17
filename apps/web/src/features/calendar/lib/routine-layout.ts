@@ -1,3 +1,4 @@
+import { byPosition, groupBy, minutesToTime, timeToMinutes } from '@ordo/shared';
 /** Time of the day of a routine occurrence to place in the calendar. */
 export interface RoutineBlock {
   /** Its event. */
@@ -39,20 +40,13 @@ interface Interval {
 }
 
 /**
- * Minutes of a time of the day.
- * @param {string} time HH:MM.
- * @returns {number} Minutes.
- */
-const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-
-/**
  * Time of the day of some minutes, within the day (the last minute at most).
  * @param {number} minutes Minutes.
  * @returns {string} HH:MM.
  */
 const toTime = (minutes: number) => {
   const clamped = Math.max(0, Math.min(1439, Math.round(minutes)));
-  return `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
+  return minutesToTime(clamped);
 };
 
 /** Timeline of a block without assignee: its own (nobody else waits for it). */
@@ -65,7 +59,7 @@ const NOBODY = '';
  * @returns {RoutineBlock[]} Blocks, in order.
  */
 function inOrder(blocks: readonly RoutineBlock[]): RoutineBlock[] {
-  const pending = [...blocks].sort((a, b) => a.position - b.position);
+  const pending = [...blocks].sort(byPosition);
   const result: RoutineBlock[] = [];
   while (pending.length) {
     const index = Math.max(
@@ -88,8 +82,7 @@ function inOrder(blocks: readonly RoutineBlock[]): RoutineBlock[] {
  * @returns {Map<string, BlockPlace>} Places, by key.
  */
 export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string, BlockPlace> {
-  const byDay = new Map<string, RoutineBlock[]>();
-  for (const block of blocks) byDay.set(block.day, [...(byDay.get(block.day) ?? []), block]);
+  const byDay = groupBy(blocks, (block) => block.day);
   const places = new Map<string, BlockPlace>();
   for (const dayBlocks of byDay.values()) {
     const busy = new Map<string, Interval[]>();
@@ -126,8 +119,8 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     // From the start of their window, in order.
     for (const block of order.filter((item) => item.fromTime)) {
       // Within schedules, the way there starts with the window and the way back ends with it.
-      const from = toMinutes(block.fromTime!) + (block.travelWithin ? block.travelBefore : 0);
-      const due = (block.dueTime ? toMinutes(block.dueTime) : 1440) - (block.travelWithin ? block.travelAfter : 0);
+      const from = timeToMinutes(block.fromTime!) + (block.travelWithin ? block.travelBefore : 0);
+      const due = (block.dueTime ? timeToMinutes(block.dueTime) : 1440) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due - from));
       // It leaves once those it waits for (placed that day) are done, their way back included.
       let start = Math.max(from, ...block.requiredIds.map((id) => (placed.get(id)?.end ?? 0) + block.travelBefore));
@@ -140,7 +133,7 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     }
     // Up to their latest time, the last ones first.
     for (const block of [...order].reverse().filter((item) => !item.fromTime)) {
-      const due = toMinutes(block.dueTime!) - (block.travelWithin ? block.travelAfter : 0);
+      const due = timeToMinutes(block.dueTime!) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due));
       // Back before those waiting for it (placed that day) leave.
       const waiting = dayBlocks.filter((other) => other.requiredIds.includes(block.routineId)).map((other) => (placed.get(other.routineId)?.start ?? 1440) - block.travelAfter);

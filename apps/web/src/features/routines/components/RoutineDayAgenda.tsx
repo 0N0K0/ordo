@@ -6,7 +6,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
+import { addDays, mapById, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../../lib/dates';
 import { notifyWithUndo, onMutationError } from '../../../lib/notify';
@@ -181,7 +181,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const events: EventInput[] = [];
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
-  const typeOf = new Map((types ?? []).map((type) => [type.id, type]));
+  const typeOf = mapById(types ?? []);
   const slotSources = [
     ...(schedules ?? []).map((schedule) => {
       const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? defaultKind;

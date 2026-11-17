@@ -1,9 +1,10 @@
+import { countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { mailSearchCriteriaSchema } from '@ordo/shared';
+import { mapById, mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -82,7 +83,7 @@ export function MailPage() {
   const { data: labels } = useMailLabels();
   const { data: scheduled } = useScheduledMails();
   const isDrafts = folders?.find((item) => item.path === folder)?.specialUse === '\\Drafts';
-  const labelById = useMemo(() => new Map((labels ?? []).map((label) => [label.id, label])), [labels]);
+  const labelById = useMemo(() => mapById(labels ?? []), [labels]);
   // Mails sent from one of these show their recipients.
   const ownAddresses = useMemo(() => new Set((accounts ?? []).map((account) => account.email.toLowerCase())), [accounts]);
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
@@ -352,7 +353,7 @@ export function MailPage() {
                         // The ticked mails, or this one.
                         const uids = ticked ? selected : [message.uid];
                         event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', `${uids.length} mail(s)`);
+                        event.dataTransfer.setData('text/plain', `${countOf(uids.length, 'mail')}`);
                         setDragged({ accountId, folder, uids });
                       }}
                       onDragEnd={() => setDragged(null)}

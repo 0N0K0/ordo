@@ -1,4 +1,4 @@
-import { normalize, subtreeOf } from '@ordo/shared';
+import { formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
@@ -138,7 +138,7 @@ const relatedOf = (task: SyncedTask) => [...task.relationsA.map((relation) => re
  * @returns {number} Hours.
  */
 const trackedHours = (task: SyncedTask) =>
-  Math.round((task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600) * 100) / 100;
+  round2(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600);
 
 /**
  * Whether the type is synchronized for an item: in a field of the board, or as issue type (issues only).
@@ -189,9 +189,9 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     fields.iteration =
       current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
-  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
-  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
-  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? task.deadline.toISOString().slice(0, 10) : null;
+  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? formatDay(task.startDate) : null;
+  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? formatDay(task.endDate) : null;
+  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? formatDay(task.deadline) : null;
   if (usable(link.effortFieldId, maps, type)) fields.effort = task.effort;
   return fields;
 }
@@ -260,7 +260,7 @@ async function subtree(taskId: string): Promise<Set<string>> {
  */
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
-  const day = (value: unknown) => (value ? new Date(`${String(value)}T00:00:00.000Z`) : null);
+  const day = (value: unknown) => (value ? parseDay(String(value)) : null);
   if ('title' in values) data.title = String(values.title).trim().slice(0, 300) || task.title;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
@@ -508,7 +508,7 @@ async function pushValues(
  */
 async function syncComments(token: string, taskId: string, item: RemoteItem, login: string): Promise<number> {
   const local: TaskComment[] = await prisma.taskComment.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } });
-  const remote = new Map(item.comments.map((comment) => [comment.id, comment]));
+  const remote = mapById(item.comments);
   let changes = 0;
   for (const comment of local) {
     if (!comment.githubCommentId) {
@@ -612,7 +612,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
       changed += 1;
     }
     if (!sprint) {
-      const startDate = new Date(`${iteration.startDate}T00:00:00.000Z`);
+      const startDate = parseDay(iteration.startDate);
       const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
       sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;

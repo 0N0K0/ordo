@@ -1,3 +1,5 @@
+import { plural } from '../../../lib/text';
+import { byPosition } from '@ordo/shared';
 import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon, ShoppingCartIcon } from '@phosphor-icons/react';
@@ -66,9 +68,9 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
   const { setDeliveryReceived } = useStockMutations();
   const propose = useStockProposal();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const stores = [...(data?.shoppingStores ?? [])].sort((a, b) => a.position - b.position);
+  const stores = [...(data?.shoppingStores ?? [])].sort(byPosition);
   const known = new Set(stores.map((store) => store.id));
-  const items = [...list.items].sort((a, b) => a.position - b.position);
+  const items = [...list.items].sort(byPosition);
   const toBuy = items.filter((item) => !item.purchasedAt);
   const bought = items.filter((item) => item.purchasedAt);
   // A remote order: its deliveries first (to receive), then what is bought in stores.
@@ -158,7 +160,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
               {list.name}
             </Title>
             <Text size="sm" c="dimmed">
-              {toBuy.length} à acheter · {bought.length} sur {list.items.length} acheté(s)
+              {toBuy.length} à acheter · {bought.length} sur {list.items.length} {plural(bought.length, 'acheté')}
             </Text>
           </Stack>
           <CloseButton size="lg" aria-label="Quitter le mode collecte" onClick={onClose} />

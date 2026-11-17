@@ -1,4 +1,4 @@
-import { subtreeOf } from '@ordo/shared';
+import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
@@ -394,7 +394,7 @@ export function useMoveClient() {
       if (!moved) return workspace;
       const siblings = workspace.clients
         .filter((client) => !client.archived)
-        .sort((a, b) => a.position - b.position);
+        .sort(byPosition);
       return { ...workspace, clients: reposition(workspace.clients, siblings, moved, index) };
     },
   });
@@ -513,7 +513,7 @@ export function useMoveProject() {
           parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId,
         )
         .filter((item) => !item.archived)
-        .sort((a, b) => a.position - b.position);
+        .sort(byPosition);
       const descendants = descendantIds(workspace.projects, id);
       const projects = reposition(
         workspace.projects,
@@ -603,7 +603,7 @@ export function useMoveProjectStatus() {
     optimistic: (workspace, { id, index }) => {
       const moved = workspace.projectStatuses.find((status) => status.id === id);
       if (!moved) return workspace;
-      const siblings = [...workspace.projectStatuses].sort((a, b) => a.position - b.position);
+      const siblings = [...workspace.projectStatuses].sort(byPosition);
       return { ...workspace, projectStatuses: reposition(workspace.projectStatuses, siblings, moved, index) };
     },
   });

@@ -1,4 +1,17 @@
-import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState, pathOf } from '@ordo/shared';
+import {
+  byPosition,
+  childrenByParent,
+  DEFAULT_RECURRENCE,
+  mapById,
+  pathOf,
+  type Recurrence,
+  recurrenceSchema,
+  type RoutineCase,
+  type RoutineMove,
+  routineSchedule,
+  routineState,
+  type RoutineState,
+} from '@ordo/shared';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
@@ -46,9 +59,9 @@ export const stateOf = (routine: Routine, today: string, doable = true): Routine
  * @returns {TreeOption[]} Options.
  */
 export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.title): TreeOption[] {
-  const byId = new Map(routines.map((routine) => [routine.id, routine]));
+  const byId = mapById(routines);
   return treeOptions(
-    [...routines].sort((a, b) => a.position - b.position).map((routine) => ({ id: routine.id, parentId: routine.parentId ?? null, label: label(routine) })),
+    [...routines].sort(byPosition).map((routine) => ({ id: routine.id, parentId: routine.parentId ?? null, label: label(routine) })),
     (id) => {
       const routine = byId.get(id);
       return routine !== undefined && offered(routine);
@@ -172,13 +185,8 @@ export const ROUTINE_REMINDERS: { value: number; label: string }[] = [
  * @returns {Map<string, number>} Rank of each routine.
  */
 export function manualOrder(routines: readonly { id: string; parentId: string | null; position: number }[]): Map<string, number> {
-  const known = new Set(routines.map((routine) => routine.id));
-  const children = new Map<string | null, { id: string; position: number }[]>();
-  for (const routine of routines) {
-    // A routine whose parent is missing comes at the top level.
-    const parent = routine.parentId && known.has(routine.parentId) ? routine.parentId : null;
-    children.set(parent, [...(children.get(parent) ?? []), routine]);
-  }
+  // A routine whose parent is missing comes at the top level.
+  const children = childrenByParent(routines);
   const rank = new Map<string, number>();
   /**
    * Ranks the routines under a parent, depth first.
@@ -186,7 +194,7 @@ export function manualOrder(routines: readonly { id: string; parentId: string | 
    * @returns {void}
    */
   const visit = (parent: string | null) => {
-    for (const child of [...(children.get(parent) ?? [])].sort((a, b) => a.position - b.position)) {
+    for (const child of [...(children.get(parent) ?? [])].sort(byPosition)) {
       if (rank.has(child.id)) continue;
       rank.set(child.id, rank.size);
       visit(child.id);

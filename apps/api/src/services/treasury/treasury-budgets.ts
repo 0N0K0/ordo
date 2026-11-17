@@ -1,4 +1,4 @@
-import { addDays, budgetMonths, formatDay, occurrenceDates, parseDay, plannedContext, splitAmounts, treasuryBudgetSchema, type TreasuryBudgetInput } from '@ordo/shared';
+import { addDays, budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, toCents, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
@@ -83,16 +83,6 @@ export async function deleteBudget(id: string): Promise<void> {
 const monthOf = (day: string) => day.slice(0, 7);
 
 /**
- * Last day of a month.
- * @param {string} month YYYY-MM.
- * @returns {string} YYYY-MM-DD.
- */
-function lastDay(month: string): string {
-  const [year, value] = month.split('-').map(Number);
-  return addDays(`${value === 12 ? year + 1 : year}-${String((value % 12) + 1).padStart(2, '0')}-01`, -1);
-}
-
-/**
  * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
  * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
@@ -130,7 +120,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     for (const month of months) {
       const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };
-      row.budget += Math.round(Number(budget.amount) * 100);
+      row.budget += toCents(Number(budget.amount));
       rows.set(keyOf(month, key), row);
     }
   }
@@ -162,7 +152,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
   };
 
   const first = parseDay(`${from}-01`);
-  const last = parseDay(lastDay(to));
+  const last = parseDay(lastDayOfMonth(to));
   const entries = await prisma.treasuryEntry.findMany({
     where: {
       OR: [
@@ -178,7 +168,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     const start = formatDay(entry.date);
     const rule = entry.status === 'FORECAST' ? storedRecurrence(entry.recurrence) : null;
     // Out of the range, an actual entry only counts by its lines of their own day (the check of `add`).
-    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDay(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
+    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDayOfMonth(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
     const total = Number(entry.amount);
     const lines = entry.lines.map((line) => ({ ...line, value: Number(line.value) }));
     const { amounts, remainder } = splitAmounts(total, lines);
@@ -197,8 +187,8 @@ export async function budgetReport(from: string, to: string, meId: string | null
   // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
   // the categories set for them: forecast of the app user, in the context planned that day (overdue: today).
   const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
-  if (today <= lastDay(to)) {
-    const { items } = await treasuryProjection(today, today, lastDay(to));
+  if (today <= lastDayOfMonth(to)) {
+    const { items } = await treasuryProjection(today, today, lastDayOfMonth(to));
     for (const item of items) {
       if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
       const categoryId = item.amount < 0 ? (company?.creditNoteCategoryId ?? null) : (company?.invoiceCategoryId ?? null);

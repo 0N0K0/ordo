@@ -1,3 +1,4 @@
+import { round2 } from '@ordo/shared';
 import { NumberInput, type NumberInputProps } from '@mantine/core';
 import { useState, type FocusEvent } from 'react';
 
@@ -11,7 +12,7 @@ const AMOUNT_DECIMALS = 4;
  */
 function rounded(value: string | number | undefined): string | number | undefined {
   const amount = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  return typeof amount === 'number' && Number.isFinite(amount) ? Math.round(amount * 100) / 100 : value;
+  return typeof amount === 'number' && Number.isFinite(amount) ? round2(amount) : value;
 }
 
 /**

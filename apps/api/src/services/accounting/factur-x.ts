@@ -1,3 +1,4 @@
+import { formatDay } from '@ordo/shared';
 import type { AccountingUnit, Address, DocumentTotals } from '@ordo/shared';
 import type { AccountingDocumentType } from '../../generated/prisma/client';
 import {
@@ -84,7 +85,7 @@ const amount = (cents: number) => (cents / 100).toFixed(2);
  * @param {Date} date Calendar date (midnight UTC).
  * @returns {string} Date.
  */
-const day = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, '');
+const day = (date: Date) => formatDay(date).replace(/-/g, '');
 
 /**
  * Number without trailing zeros ("2.5", "20").

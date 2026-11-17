@@ -2,7 +2,7 @@ import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@or
 import { prisma } from '../../db';
 import type { CalendarCategory } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, saveSiblingOrder } from '../core/ordering';
 
 /**
  * Loads a category or throws NOT_FOUND.
@@ -94,7 +94,7 @@ export async function moveCalendarCategory(id: string, index: number, parentId?:
   if (parentId !== undefined && parentId !== category.parentId) category = await updateCalendarCategory(id, { name: category.name, color: category.color, parentId });
   const siblings = await prisma.calendarCategory.findMany({
     where: { parentId: category.parentId },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true },
   });
   await saveSiblingOrder(

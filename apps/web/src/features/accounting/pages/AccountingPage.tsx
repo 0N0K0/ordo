@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -162,9 +163,9 @@ function RecurringList() {
       selectionActions={(rows, clear) => [
         deleteRowsAction(rows, {
           title: 'Supprimer les factures récurrentes',
-          risks: `${rows.length} facture(s) récurrente(s) et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
+          risks: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
           remove: (item) => remove.mutateAsync(item.id),
-          done: `${rows.length} facture(s) récurrente(s) supprimée(s).`,
+          done: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} ${plural(rows.length, 'supprimée')}.`,
           clear,
         }),
       ]}
@@ -189,7 +190,7 @@ function RecurringList() {
                 )}
               </Group>
               <Text size="xs" c="dimmed">
-                {item.issuedCount} facture{item.issuedCount > 1 ? 's' : ''} émise{item.issuedCount > 1 ? 's' : ''}
+                {item.issuedCount} {plural(item.issuedCount, 'facture')} {plural(item.issuedCount, 'émise')}
               </Text>
             </>
           ),

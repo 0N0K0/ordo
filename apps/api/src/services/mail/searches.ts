@@ -1,4 +1,4 @@
-import { addDays, EMPTY_MAIL_SEARCH, mailSearchCriteriaSchema, mailSearchSchema, parseDay, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
+import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { MailSearch } from '../../generated/prisma/client';
 import { notFound, parseInput } from '../../graphql/errors';
@@ -235,7 +235,7 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
     }),
   );
   const all = found.flat().sort((a, b) => {
-    const order = sort.by === 'date' ? a.date.getTime() - b.date.getTime() : sortText(a, sort.by).localeCompare(sortText(b, sort.by), 'fr', { sensitivity: 'base' });
+    const order = sort.by === 'date' ? a.date.getTime() - b.date.getTime() : collator.compare(sortText(a, sort.by), sortText(b, sort.by));
     return sort.ascending ? order : -order;
   });
   return { messages: all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), total: all.length };

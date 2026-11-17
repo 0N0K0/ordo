@@ -170,7 +170,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
                 .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.title}`, 'png')))
-                .catch((exportError: Error) => notifyError(exportError.message));
+                .catch(onMutationError);
             }}
           />
         ),
@@ -187,7 +187,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
           charts: [image],
         }),
       )
-      .catch((exportError: Error) => notifyError(exportError.message))
+      .catch(onMutationError)
       .finally(() => setExporting(false));
   };
 
@@ -206,7 +206,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       onConfirm: () => {
         removeChart.mutate(chart.id, {
           onSuccess: () => notifySuccess('Diagramme supprimé.'),
-          onError: (deleteError) => notifyError(deleteError.message),
+          onError: onMutationError,
         });
       },
     });
@@ -266,7 +266,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 leftSection={<CopyIcon aria-hidden />}
                 onClick={() =>
                   duplicateChart.mutate(chart.id, {
-                    onError: (copyError) => notifyError(copyError.message),
+                    onError: onMutationError,
                   })
                 }
               >
@@ -281,7 +281,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                       input: { title: chart.title, config, wide: !chart.wide },
                     },
                     {
-                      onError: (widthError) => notifyError(widthError.message),
+                      onError: onMutationError,
                     },
                   )
                 }
@@ -321,7 +321,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                   if (!data) return;
                   setExporting(true);
                   downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
-                    .catch((exportError: Error) => notifyError(exportError.message))
+                    .catch(onMutationError)
                     .finally(() => setExporting(false));
                 }}
               >
@@ -387,7 +387,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!current || !over || active.id === over.id) return;
     const index = current.charts.findIndex((chart) => chart.id === over.id);
-    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: (moveError) => notifyError(moveError.message) });
+    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: onMutationError });
   };
 
   /**
@@ -409,13 +409,13 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         return;
       }
       close();
-      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: (renameError) => notifyError(renameError.message) });
+      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: onMutationError });
       else
         mutations.create.mutate(
           { name: result.data, projectId },
           {
             onSuccess: (id) => select(id),
-            onError: (createError) => notifyError(createError.message),
+            onError: onMutationError,
           },
         );
     };
@@ -453,7 +453,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       onConfirm: () => {
         mutations.remove.mutate(dashboard.id, {
           onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
-          onError: (deleteError) => notifyError(deleteError.message),
+          onError: onMutationError,
         });
       },
     });
@@ -515,7 +515,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           charts,
         }),
       )
-      .catch((exportError: Error) => notifyError(exportError.message))
+      .catch(onMutationError)
       .finally(() => setExporting(false));
   };
 

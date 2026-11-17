@@ -1,13 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import {
-  addDays,
-  DEFAULT_RECURRENCE,
-  occurrenceDates,
-  parseDay,
-  type AccountingDocumentInput,
-  type AccountingLineInput,
-  type Recurrence,
-} from '@ordo/shared';
+import { type AccountingDocumentInput, type AccountingLineInput, addDays, DEFAULT_RECURRENCE, formatDay, mapById, occurrenceDates, parseDay, type Recurrence, round2 } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
 import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
@@ -236,7 +228,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const catalog = await seedCatalog();
   const item = (title: string) => catalog.get(title)!;
   const fresh = await prisma.client.findMany({ where: { id: { in: clients.map((client) => client.id) } } });
-  const byId = new Map(fresh.map((client) => [client.id, client]));
+  const byId = mapById(fresh);
   const [clientA, clientB, clientC, clientD] = clients.slice(0, 4).map((client) => byId.get(client.id)!);
   const archived = byId.get(clients[clients.length - 1].id)!;
   const rootOf = (client: Client) => projects.find((project) => project.clientId === client.id && project.parentId === null) ?? null;
@@ -484,9 +476,9 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
             paymentTerms: 'À réception',
             dueDate: day(-20),
             projectId: projects.find((project) => project.id === best.entries[0].projectId)?.id ?? null,
-            serviceStart: best.entries[0].startedAt.toISOString().slice(0, 10),
-            serviceEnd: best.entries[best.entries.length - 1].startedAt.toISOString().slice(0, 10),
-            lines: [line(item('Développement'), Math.round((seconds / 3600) * 100) / 100, { description: done.map((text) => `- ${text}`).join('\n') || null })],
+            serviceStart: formatDay(best.entries[0].startedAt),
+            serviceEnd: formatDay(best.entries[best.entries.length - 1].startedAt),
+            lines: [line(item('Développement'), round2(seconds / 3600), { description: done.map((text) => `- ${text}`).join('\n') || null })],
             timeEntryIds: best.entries.map((entry) => entry.id),
           }),
         );
@@ -508,7 +500,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     'INVOICE',
     await fields('INVOICE', clientD, day(-2), {
       title: 'Développement — brouillon',
-      lines: draftSeconds ? [line(item('Développement'), Math.round((draftSeconds / 3600) * 100) / 100)] : [line(item('Journée de développement'), 2)],
+      lines: draftSeconds ? [line(item('Développement'), round2(draftSeconds / 3600))] : [line(item('Journée de développement'), 2)],
       timeEntryIds: draftSeconds ? unbilled.slice(0, 4).map((entry) => entry.id) : [],
     }),
   );
@@ -529,7 +521,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     await prisma.accountingDocument.update({ where: { id }, data: { sentAt: new Date(`${date}T09:30:00`) } });
   };
   const finals = await prisma.accountingDocument.findMany({ where: { status: 'FINAL' }, select: { id: true, issueDate: true } });
-  for (const document of finals) await sent(document.id, document.issueDate.toISOString().slice(0, 10));
+  for (const document of finals) await sent(document.id, formatDay(document.issueDate));
   await acceptQuote(ids.quoteA, day(-152), new File([tinyPdf('Devis signe - bon pour accord')], 'Devis signé.pdf', { type: 'application/pdf' }));
   await acceptQuote(ids.quoteB, day(-112), null);
   await setTrackingStatus(ids.refusedC, (await statusOf('QUOTE', 'REFUSED')).id);
@@ -538,7 +530,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const due = async (id: string) => ((await documentBalances()).get(id)?.balance ?? 0) / 100;
   const pay = async (id: string | undefined, date: string, share = 1, fixed?: number) => {
     if (!id) return;
-    const amount = fixed ?? Math.round((await due(id)) * share * 100) / 100;
+    const amount = fixed ?? round2((await due(id)) * share);
     if (amount > 0) await recordPayment(id, { accountId: bank.id, date, amount, methodId: methodOf(faker.helpers.arrayElement(['Virement', 'Virement', 'Chèque'])) });
   };
   const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: new Date(`${date}T11:00:00`), note } });
@@ -557,7 +549,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await pay(ids.invoiceD, day(-20));
   // Recurring invoices are paid about a week after they are issued, except the last one.
   const generated = await prisma.accountingDocument.findMany({ where: { recurringId: { not: null }, status: 'FINAL' }, orderBy: { issueDate: 'asc' } });
-  for (const invoice of generated.slice(0, -1)) await pay(invoice.id, addDays(invoice.issueDate.toISOString().slice(0, 10), 8));
+  for (const invoice of generated.slice(0, -1)) await pay(invoice.id, addDays(formatDay(invoice.issueDate), 8));
 
   // --- Imported documents (issued before Ordo) ---------------------------------------------------------
   const importedBase = { dueDate: null, projectId: null, note: null, currency: 'EUR' };

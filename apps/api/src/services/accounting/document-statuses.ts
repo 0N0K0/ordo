@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -70,7 +70,7 @@ export async function ensureDocumentStatuses(client: Client = prisma): Promise<v
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
-  const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+  const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION });
   return status ?? createDefaultStatus(scope, category, client);
 }
 
@@ -170,7 +170,7 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const replacement = await tx.documentStatus.findFirstOrThrow({
       where: { scope: status.scope, category: status.category, id: { not: id } },
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: BY_POSITION,
     });
     await tx.accountingDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
     await tx.importedDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
@@ -187,7 +187,7 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
 export async function moveDocumentStatus(id: string, index: number): Promise<void> {
   const status = await prisma.documentStatus.findUnique({ where: { id } });
   if (!status) throw notFound('Statut');
-  const siblings = await prisma.documentStatus.findMany({ where: { scope: status.scope }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const siblings = await prisma.documentStatus.findMany({ where: { scope: status.scope }, orderBy: BY_POSITION, select: { id: true } });
   const order = moveInOrder(
     siblings.map((item) => item.id),
     id,

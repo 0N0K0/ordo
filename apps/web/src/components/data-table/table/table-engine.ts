@@ -1,13 +1,17 @@
 import {
+  addDays,
+  type FilterConditionOf,
   filterConditionSchemaFor,
   filterDay,
-  filterPeriod,
-  type FilterConditionOf,
   type FilterFieldKind,
   type FilterGroupOf,
   type FilterOperator,
+  filterPeriod,
   type GroupPeriod,
+  isoWeek,
+  isoWeekYear,
   type TableSort,
+  weekdayOf,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../settings/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
@@ -192,18 +196,11 @@ export interface RowGroup<R> {
 }
 
 /**
- * ISO week of a day: its year (that of its Thursday) and its number.
+ * ISO week of a day: its year (that of its Thursday), its number and its Monday.
  * @param {string} date YYYY-MM-DD.
  * @returns {{ year: number, week: number, monday: string }} Week.
  */
-function isoWeek(date: string): { year: number; week: number; monday: string } {
-  const day = new Date(`${date}T00:00:00Z`);
-  const weekday = (day.getUTCDay() + 6) % 7;
-  const thursday = new Date(day.getTime() + (3 - weekday) * 86_400_000);
-  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
-  const monday = new Date(day.getTime() - weekday * 86_400_000).toISOString().slice(0, 10);
-  return { year: thursday.getUTCFullYear(), week: Math.floor((thursday.getTime() - yearStart) / 86_400_000 / 7) + 1, monday };
-}
+const weekOf = (date: string) => ({ year: isoWeekYear(date), week: isoWeek(date), monday: addDays(date, 1 - weekdayOf(date)) });
 
 /**
  * Group of a day in a period: its key (in date order) and its name.
@@ -218,7 +215,7 @@ function periodGroup(date: string, period: GroupPeriod): { key: string; label: s
     case 'DAY':
       return { key: date, label: fmt.capitalize(fmt.dayLong(date)) };
     case 'WEEK': {
-      const week = isoWeek(date);
+      const week = weekOf(date);
       return { key: `${week.year}-W${String(week.week).padStart(2, '0')}`, label: `Semaine ${week.week} · ${week.year} (du ${fmt.dayShort(week.monday)})` };
     }
     case 'MONTH':

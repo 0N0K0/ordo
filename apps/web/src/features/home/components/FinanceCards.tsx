@@ -1,3 +1,4 @@
+import { localDay } from '../../../lib/dates';
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Sparkline } from '@mantine/charts';
 import { addDays, daysBetween } from '@ordo/shared';
@@ -8,9 +9,9 @@ import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, localDayOf, type BillingSummary } from '../lib/home-data';
+import { dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-import { countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 
 const MAX_ROWS = 5;
 
@@ -75,7 +76,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
       {summary && summary.pendingQuotes.length > 0 && (
         <Stack gap={0}>
           {summary.pendingQuotes.slice(0, MAX_ROWS).map((quote) => {
-            const sent = quote.sentAt ? localDayOf(quote.sentAt) : quote.issueDate;
+            const sent = quote.sentAt ? localDay(quote.sentAt) : quote.issueDate;
             return (
               <Link key={quote.id} to={`/accounting/${quote.id}`} className={classes.row}>
                 <Group justify="space-between" wrap="nowrap" gap="xs">
@@ -97,7 +98,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
           })}
           {summary.pendingQuotes.length > MAX_ROWS && (
             <Text size="xs" c="dimmed" pt={4}>
-              + {summary.pendingQuotes.length - MAX_ROWS} autre{summary.pendingQuotes.length - MAX_ROWS > 1 ? 's' : ''}
+              + {summary.pendingQuotes.length - MAX_ROWS} {plural(summary.pendingQuotes.length - MAX_ROWS, 'autre')}
             </Text>
           )}
         </Stack>

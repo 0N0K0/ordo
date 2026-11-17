@@ -1,3 +1,4 @@
+import { mapById, byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -98,7 +99,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
   );
   const { options: beneficiaryGroups } = useBeneficiaries();
-  const byId = useMemo(() => new Map(routines.map((routine) => [routine.id, routine])), [routines]);
+  const byId = useMemo(() => mapById(routines), [routines]);
   const doable = useMemo(() => (routine: Routine) => slotRules.allowed(routineDoable(routine)), [slotRules]);
   const columns = useMemo(
     () =>
@@ -155,7 +156,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     }
     const last = routines
       .filter((routine) => routine.parentId === null && routine.id !== key)
-      .sort((a, b) => a.position - b.position)
+      .sort(byPosition)
       .at(-1);
     if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, { onError });
     else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, { onError });

@@ -126,6 +126,18 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `BY_POSITION` dans `ordering.ts` ;
   - `moveToIndex` dans `lib/mutation.ts`.
 
+**Fait** :
+
+- **Outils partagés :** `mapById`, `groupBy` et `byPosition` (`core/collections.ts`), et `childrenByParent` dans `tree.ts`.
+- **Remplacés :**
+  - les tables par id (`mapById`, renommé ainsi parce que beaucoup de variables s'appellent déjà `byId`) ;
+  - les tris par position ;
+  - les trois copies des enfants par parent ;
+  - les regroupements simples ;
+  - `BY_POSITION` dans `ordering.ts` pour l'ordre des requêtes de l'API ;
+  - `moveToIndex` dans `lib/mutation.ts` pour 5 des 6 déplacements en cache.
+- **Restent à part :** les regroupements à plusieurs clés ou conditionnels, et le déplacement des tâches, qui change aussi le parent.
+
 ### 11. Dates et heures
 
 - **Web :**
@@ -146,12 +158,28 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `parseOptionalDay` ;
   - un `months.ts` partagé.
 
+**Fait** :
+
+- **Web :**
+  - `lib/dates` réunit `localDay`, `localParts` (sorti de l'agenda et du formulaire de temps) et `localMidnight`, à la place des copies du temps, des factures en retard et de l'accueil ;
+  - les périodes des tableaux de bord passent par `calendarStart` et `shiftCalendar` ;
+  - la semaine ISO des tableaux passe par `isoWeek` et `isoWeekYear` (partagés) ;
+  - `daysBetween` remplace les calculs en `/ 86_400_000`.
+- **Partagé :**
+  - `timeToMinutes` et `minutesToTime` (`dates/times.ts`) ;
+  - `daysInMonth`, `dayInMonth` et `lastDayOfMonth` (`dates/months.ts`).
+- **API :**
+  - `parseOptionalDay` à la place des 4 `toDate` ;
+  - `parseDay` et `formatDay` à la place des conversions écrites en ligne, seed compris.
+
 ### 12. Argent
 
 - **Arrondi à 2 décimales :** une dizaine de copies dans le web (lignes de trésorerie, factures importées, stock, tableaux), alors qu'un `round` existe déjà dans `aggregate.ts`.
 - **Centimes :** `Math.round(x * 100)` est écrit à la main au lieu de `toCents`, dans l'API et le code partagé.
 - **Montant d'une ligne de trésorerie** (pourcentage ou montant) : recalculé dans `treasury-loans.ts:40` et dans le module GraphQL de la trésorerie, alors que `splitAmounts` le fait déjà.
 - **Cible :** `round2`, `toCents` partout, `lineCents` dans le code partagé.
+
+**Fait** : `round2` à côté de `toCents`, et `toCents` partout dans le web, l'API et le code partagé. `lineCents` donne le montant d'une ligne de trésorerie, utilisé par `splitAmounts`, les emprunts et le module GraphQL. L'arrondi local des tableaux de bord est supprimé.
 
 ### 13. Blocs de page
 
@@ -239,6 +267,17 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - les ressources de projet refont `requiredText` et `optionalText` ;
   - le schéma d'une nouvelle liste d'achats est en double.
 - **Accessibilité dans un graphe** (cycle de blocages, prérequis des routines) : écrite deux fois. Cible : `reaches` dans `tree.ts`.
+
+**Fait** :
+
+- `stopClick` est partagé par les fichiers de cellules ;
+- `onMutationError` remplace 20 `notifyError(e.message)` ;
+- `plural` et `countOf` remplacent la plupart des pluriels écrits à la main ;
+- `collator` trie les noms, et `normalize` sert aux trois recherches ;
+- les règles partagées (`requiredText`, `optionalText`, `colorSchema`) remplacent leurs copies, et `shoppingListFormSchema` est commun aux deux formulaires de liste ;
+- `reaches` (`tree.ts`) vérifie les cycles de blocages et de prérequis.
+
+Restent écrits à la main : quelques pluriels de phrases à plusieurs compteurs (synthèse GitHub, corbeille du mail).
 
 ## Plan proposé
 

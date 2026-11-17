@@ -1,7 +1,7 @@
 import { personKey, memberOrRelation, memberOrRelationKey, parsePersonKey } from '../../../components/people/people-keys';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from '../api';
@@ -91,7 +91,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
         newLine({
           mode: 'PERCENT',
           // The last one takes what rounding leaves.
-          value: index === members.length - 1 ? Math.round((100 - share * (members.length - 1)) * 100) / 100 : share,
+          value: index === members.length - 1 ? round2(100 - share * (members.length - 1)) : share,
           memberId: member.id,
           contextId: planned,
         }),
@@ -224,7 +224,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         onChange={(mode) =>
                           change(index, {
                             mode: mode as TreasuryLineMode,
-                            value: mode === 'PERCENT' ? (amount ? Math.round(((relative * 100) / amount) * 100) / 100 : 0) : relative,
+                            value: mode === 'PERCENT' ? (amount ? round2((relative * 100) / amount) : 0) : relative,
                           })
                         }
                       />

@@ -364,7 +364,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
     <Stack gap="sm">
       {duplicates > 0 && (
         <Alert color="yellow" icon={<InfoIcon />}>
-          {duplicates} opération{duplicates > 1 ? 's' : ''} semble{duplicates > 1 ? 'nt' : ''} déjà saisie{duplicates > 1 ? 's' : ''} (même montant à {DUPLICATE_DAYS} jours près) : décochée
+          {duplicates} {plural(duplicates, 'opération')} {plural(duplicates, 'semble', 'semblent')} déjà {plural(duplicates, 'saisie')} (même montant à {DUPLICATE_DAYS} jours près) : décochée
           {duplicates > 1 ? 's' : ''}.
         </Alert>
       )}
@@ -449,7 +449,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           Retour
         </Button>
         <Button loading={importStatement.isPending || existing.isFetching} disabled={!chosen.length} onClick={submit}>
-          Importer {chosen.length} opération{chosen.length > 1 ? 's' : ''}
+          Importer {chosen.length} {plural(chosen.length, 'opération')}
         </Button>
       </Group>
     </Stack>

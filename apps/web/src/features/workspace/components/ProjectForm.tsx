@@ -1,6 +1,6 @@
 import { ColorInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { projectFormSchema, type ProjectFormValues } from '@ordo/shared';
+import { byPosition, projectFormSchema, type ProjectFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
@@ -68,7 +68,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   // Archived clients cannot receive projects, except the one the project already belongs to.
   const clientOptions = (workspace?.clients ?? [])
     .filter((client) => !client.archived || client.id === project?.clientId)
-    .sort((a, b) => a.position - b.position)
+    .sort(byPosition)
     .map((client) => ({ value: client.id, label: client.name }));
 
   const handleSubmit = form.onSubmit((values) => {

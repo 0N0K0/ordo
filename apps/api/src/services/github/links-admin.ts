@@ -1,4 +1,4 @@
-import { ancestorsOf, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
@@ -71,7 +71,7 @@ export interface LinkInput {
  */
 async function relatives(projectId: string): Promise<{ ancestors: string[]; descendants: string[] }> {
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const ancestors = ancestorsOf(new Map(projects.map((project) => [project.id, project])), projectId).map((project) => project.id);
+  const ancestors = ancestorsOf(mapById(projects), projectId).map((project) => project.id);
   return { ancestors, descendants: [...subtreeOf(projects, projectId, false)] };
 }
 

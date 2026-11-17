@@ -1,4 +1,4 @@
-import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, REMINDER_DELAY_DAYS, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -303,8 +303,7 @@ function linkedLine(line: {
   value: { toString(): string };
   entry: { id: string; label: string; date: Date; amount: { toString(): string }; status: 'ACTUAL' | 'FORECAST' };
 }): LinkedLine {
-  const value = Number(line.value);
-  const amount = line.mode === 'PERCENT' ? Math.round(Number(line.entry.amount) * value) / 100 : value;
+  const amount = fromCents(lineCents(Number(line.entry.amount), { mode: line.mode, value: Number(line.value) }));
   return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
 }
 

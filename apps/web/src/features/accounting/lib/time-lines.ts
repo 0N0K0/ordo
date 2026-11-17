@@ -1,3 +1,4 @@
+import { round2 } from '@ordo/shared';
 import type { AccountingLineInput } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 
@@ -45,7 +46,7 @@ function printedDay(day: string): string {
 function quantityOf(seconds: number, options: TimeLineOptions): number {
   let hours = seconds / 3600;
   if (options.roundQuarter) hours = Math.ceil(hours * 4 - 1e-9) / 4;
-  return options.unit === 'DAY' ? Math.round((hours / options.hoursPerDay) * 1000) / 1000 : Math.round(hours * 100) / 100;
+  return options.unit === 'DAY' ? Math.round((hours / options.hoursPerDay) * 1000) / 1000 : round2(hours);
 }
 
 /**

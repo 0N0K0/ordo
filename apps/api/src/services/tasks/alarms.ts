@@ -1,16 +1,7 @@
-import { alarmInputSchema, type AlarmInput } from '@ordo/shared';
+import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-
-/**
- * Converts a YYYY-MM-DD date to a UTC Date, keeping null.
- * @param {string | null} date Calendar date.
- * @returns {Date | null} Date at midnight UTC.
- */
-function toDate(date: string | null): Date | null {
-  return date === null ? null : new Date(`${date}T00:00:00.000Z`);
-}
 
 /**
  * Validates an alarm and the project or task it points to.
@@ -25,9 +16,9 @@ async function parseAlarm(input: AlarmInput) {
   return {
     ...alarm,
     // Fields that do not apply to the type are cleared.
-    startDate: tracking ? null : toDate(alarm.startDate),
+    startDate: tracking ? null : parseOptionalDay(alarm.startDate),
     time: tracking ? null : alarm.time,
-    endDate: tracking ? null : toDate(alarm.endDate),
+    endDate: tracking ? null : parseOptionalDay(alarm.endDate),
     minutes: tracking ? alarm.minutes : null,
     weekdays: alarm.frequency === 'WEEKLY' ? [...new Set(alarm.weekdays)].sort() : [],
     // The common repetition; none: once (or, for an alarm saved before it, its former fields).

@@ -1,6 +1,7 @@
-import { commentBodySchema, dateSchema, effortSchema, markdownSchema, slotRuleSchema, taskTitleSchema, subtreeOf } from '@ordo/shared';
+import { commentBodySchema, dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, subtreeOf, taskTitleSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import { BY_POSITION } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { attachAssignees } from '../workspace/contributors';
@@ -165,16 +166,6 @@ async function assertReferences(refs: {
   }
 }
 
-/**
- * Converts a YYYY-MM-DD date to a UTC Date, keeping null and undefined.
- * @param {string | null | undefined} date Calendar date.
- * @returns {Date | null | undefined} Date at midnight UTC.
- */
-function toDate(date: string | null | undefined): Date | null | undefined {
-  if (date === undefined || date === null) return date;
-  return new Date(`${date}T00:00:00.000Z`);
-}
-
 export interface TaskInput {
   title?: string | null;
   description?: string | null;
@@ -228,8 +219,8 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     minDate: input.minDate,
     slotRule: input.slotRule as z.input<typeof slotRuleSchema> | null | undefined,
   });
-  const startDate = details.startDate === undefined ? current?.startDate : toDate(details.startDate);
-  const endDate = details.endDate === undefined ? current?.endDate : toDate(details.endDate);
+  const startDate = details.startDate === undefined ? current?.startDate : parseOptionalDay(details.startDate);
+  const endDate = details.endDate === undefined ? current?.endDate : parseOptionalDay(details.endDate);
   if (startDate && endDate && endDate < startDate) {
     throw fieldError('endDate', 'La date de fin doit suivre la date de début.');
   }
@@ -237,10 +228,10 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     title: details.title,
     description: details.description,
     effort: details.effort,
-    startDate: toDate(details.startDate),
-    endDate: toDate(details.endDate),
-    deadline: toDate(details.deadline),
-    minDate: toDate(details.minDate),
+    startDate: parseOptionalDay(details.startDate),
+    endDate: parseOptionalDay(details.endDate),
+    deadline: parseOptionalDay(details.deadline),
+    minDate: parseOptionalDay(details.minDate),
     slotRule: details.slotRule === undefined ? undefined : (details.slotRule ?? Prisma.DbNull),
   };
 }
@@ -557,17 +548,8 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
  * @returns {Promise<boolean>} True when a path exists.
  */
 async function blocksPath(from: string, to: string): Promise<boolean> {
-  const links = await prisma.taskBlock.findMany();
-  const seen = new Set<string>();
-  const queue = [from];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (current === to) return true;
-    if (seen.has(current)) continue;
-    seen.add(current);
-    queue.push(...links.filter((link) => link.blockerId === current).map((link) => link.blockedId));
-  }
-  return false;
+  const blocked = groupBy(await prisma.taskBlock.findMany(), (link) => link.blockerId);
+  return reaches((id) => (blocked.get(id) ?? []).map((link) => link.blockedId), [from], to);
 }
 
 /**
@@ -682,7 +664,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
     return;
   }
   const ordered = await prisma.task.findMany({
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: BY_POSITION,
     select: { id: true, position: true },
   });
   const others = ordered.filter((task) => task.id !== id).map((task) => task.id);
@@ -780,8 +762,8 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.
-    const start = details.startDate === undefined ? task.startDate : toDate(details.startDate);
-    const end = details.endDate === undefined ? task.endDate : toDate(details.endDate);
+    const start = details.startDate === undefined ? task.startDate : parseOptionalDay(details.startDate);
+    const end = details.endDate === undefined ? task.endDate : parseOptionalDay(details.endDate);
     if (start && end && end < start) throw fieldError('endDate', 'La date de fin doit suivre la date de début.');
   }
 
@@ -794,10 +776,10 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         typeId: changes.typeId,
         milestoneId: changes.milestoneId,
         effort: details.effort,
-        startDate: toDate(details.startDate),
-        endDate: toDate(details.endDate),
-        deadline: toDate(details.deadline),
-        minDate: toDate(details.minDate),
+        startDate: parseOptionalDay(details.startDate),
+        endDate: parseOptionalDay(details.endDate),
+        deadline: parseOptionalDay(details.deadline),
+        minDate: parseOptionalDay(details.minDate),
       },
     }),
     ...(add.length || remove.length || addTags.length || removeTags.length || addSprints.length || removeSprints.length

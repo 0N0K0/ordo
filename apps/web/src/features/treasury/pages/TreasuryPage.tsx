@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -8,7 +9,7 @@ import { SidePanel } from '../../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, calendarEnd, calendarStart, shiftCalendar, type CalendarScale } from '@ordo/shared';
+import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -224,7 +225,7 @@ export function TreasuryPage() {
   const saveEntry = useEntryCellSave();
 
   const env = useEntryEnv(accounts ?? NO_ACCOUNTS);
-  const forecastById = new Map((forecasts ?? []).map((entry) => [entry.id, entry]));
+  const forecastById = mapById(forecasts ?? []);
   const forecastOf = ({ item }: ForecastRow) => (item.entryId ? forecastById.get(item.entryId) : undefined);
   // Rows whose splits are unfolded.
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
@@ -356,7 +357,12 @@ export function TreasuryPage() {
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
         <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
-        <Figure label="En retard" value={late.reduce((sum, item) => sum + item.amount, 0)} hint={`${late.length} échéance(s) dépassée(s)`} color={late.length ? 'red' : undefined} />
+        <Figure
+          label="En retard"
+          value={late.reduce((sum, item) => sum + item.amount, 0)}
+          hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
+          color={late.length ? 'red' : undefined}
+        />
         <Figure
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
           value={end?.balance ?? 0}
@@ -487,9 +493,9 @@ export function TreasuryPage() {
                 {
                   ...deleteRowsAction(entries, {
                     title: 'Supprimer les prévisions',
-                    risks: `${entries.length} prévision(s) et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
+                    risks: `${countOf(entries.length, 'prévision')} et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
                     remove: (entry) => deleteEntry.mutateAsync(entry.id),
-                    done: `${entries.length} prévision(s) supprimée(s).`,
+                    done: `${countOf(entries.length, 'prévision')} ${plural(entries.length, 'supprimée')}.`,
                     clear,
                   }),
                   disabled: entries.length === 0,

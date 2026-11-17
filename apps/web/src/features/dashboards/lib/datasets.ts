@@ -1,5 +1,5 @@
-import { isTimeDimension, MAIN_DATASET, type ChartComparison, type ChartConfig } from '@ordo/shared';
-import { MEASURE_LABELS, PALETTE, round, type ChartData, type ChartSeries } from './aggregate';
+import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2 } from '@ordo/shared';
+import { MEASURE_LABELS, PALETTE, type ChartData, type ChartSeries } from './aggregate';
 
 /** A data set of a chart, as a configuration of its own. */
 interface DatasetPart {
@@ -57,8 +57,8 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
  * @returns {number | null} Value (null: share of nothing).
  */
 function compare(kind: ChartComparison['kind'], a: number | null, b: number | null): number | null {
-  if (kind === 'difference') return round((a ?? 0) - (b ?? 0));
-  return b ? round(((a ?? 0) / b) * 100) : null;
+  if (kind === 'difference') return round2((a ?? 0) - (b ?? 0));
+  return b ? round2(((a ?? 0) / b) * 100) : null;
 }
 
 /**

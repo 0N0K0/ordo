@@ -1,8 +1,9 @@
+import { plural } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { formatDuration, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
+import { type AccountingLineInput, formatDuration, toCents, VAT_RATES } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntries } from '../../time/api';
@@ -82,7 +83,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
   const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, title: title.trim() || 'Prestation', roundQuarter });
-  const total = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice * 100), 0);
+  const total = lines.reduce((sum, line) => sum + toCents(line.quantity * line.unitPrice), 0);
   const days = selected.map((entry) => entry.day).sort();
   const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
 
@@ -233,7 +234,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
       <Group justify="space-between" align="center">
         <Text size="sm" c="dimmed">
-          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} ligne{lines.length > 1 ? 's' : ''}, {fmt.moneyCents(total)} HT
+          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
         </Text>
         <FormActions onCancel={onCancel} submitLabel="Ajouter les lignes" disabled={lines.length === 0} onSubmit={() => onAdd(lines, selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })), { start: days[0], end: days[days.length - 1] })} />
       </Group>

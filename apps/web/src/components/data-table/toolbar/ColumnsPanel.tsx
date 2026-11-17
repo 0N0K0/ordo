@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -100,7 +101,7 @@ interface DataColumnsPanelProps<R> {
  * @returns {JSX.Element} Panel.
  */
 export function DataColumnsPanel<R>({ columns, layout, onLayoutChange }: DataColumnsPanelProps<R>) {
-  const byId = new Map(columns.map((column) => [column.id, column]));
+  const byId = mapById(columns);
   const items = columnOrder(columns, layout).map((id) => {
     const column = byId.get(id)!;
     return { id, label: column.label, locked: column.locked, visible: !isHidden(column, layout) };

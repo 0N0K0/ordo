@@ -1,7 +1,8 @@
-import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, splitAmounts, toCents, pathOf } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, splitAmounts, toCents } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
+import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
 import { currentWorkspaceId } from '../../workspace-context';
@@ -35,7 +36,7 @@ const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'num
  * @param {string} day YYYY-MM-DD.
  * @returns {string} DD/MM/YYYY.
  */
-const printed = (day: string) => dateFormat.format(new Date(`${day}T00:00:00Z`));
+const printed = (day: string) => dateFormat.format(parseDay(day));
 
 /**
  * Printed amount.
@@ -63,7 +64,7 @@ interface Column {
  */
 export async function treasuryStatementPdf(input: StatementInput): Promise<{ name: string; content: Buffer }> {
   const { from, to, accountId } = parseInput(statementSchema, input);
-  const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+  const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: BY_POSITION });
   if (accountId && !accounts.length) throw notFound('Compte');
   if (!accounts.length) throw clientError('BAD_USER_INPUT', 'Aucun compte.');
   const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
@@ -103,7 +104,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
 
   // Category paths ("Parent › Enfant").
   const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, parentId: true } });
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryById = mapById(categories);
   /**
    * Full path of a category.
    * @param {string | null} id Category id.

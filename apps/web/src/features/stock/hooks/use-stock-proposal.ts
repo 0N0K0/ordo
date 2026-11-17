@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import { createElement } from 'react';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useShoppingData, type ShoppingItem } from '../../shopping/api';
@@ -10,7 +11,7 @@ import { StockPurchaseForm } from '../components/StockPurchaseForm';
  */
 export function useStockProposal() {
   const { data } = useShoppingData();
-  const products = new Map((data?.shoppingProducts ?? []).map((product) => [product.id, product]));
+  const products = mapById(data?.shoppingProducts ?? []);
   return (items: ShoppingItem[]) => {
     const concerned = items.filter((item) => {
       const product = item.productId ? products.get(item.productId) : undefined;

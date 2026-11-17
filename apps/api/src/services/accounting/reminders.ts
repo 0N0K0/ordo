@@ -1,4 +1,4 @@
-import { formatDay, reminderMail, sendRemindersSchema } from '@ordo/shared';
+import { formatDay, reminderMail, sendRemindersSchema, toCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parseInput } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -60,7 +60,7 @@ export async function sendReminders(input: { accountId: string; documentIds: str
     const mail = reminderMail({
       deposit: document.type === 'DEPOSIT_INVOICE',
       number: document.number ?? '',
-      totalGross: Math.round(Number(document.totalGross) * 100),
+      totalGross: toCents(Number(document.totalGross)),
       balance,
       currency: document.currency,
       dueDate: document.dueDate ? formatDay(document.dueDate) : null,

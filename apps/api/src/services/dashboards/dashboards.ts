@@ -2,7 +2,7 @@ import { chartConfigSchema, chartTitleSchema, dashboardNameSchema } from '@ordo/
 import { prisma } from '../../db';
 import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
 import { notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 /**
  * Loads a dashboard or throws NOT_FOUND.
@@ -67,7 +67,7 @@ export async function deleteDashboard(id: string): Promise<void> {
  */
 export async function moveDashboard(id: string, index: number): Promise<void> {
   const dashboard = await findDashboard(id);
-  const siblings = await prisma.dashboard.findMany({ where: { projectId: dashboard.projectId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const siblings = await prisma.dashboard.findMany({ where: { projectId: dashboard.projectId }, orderBy: BY_POSITION, select: { id: true } });
   const order = moveInOrder(
     siblings.map((item) => item.id),
     id,
@@ -123,7 +123,7 @@ export async function updateChart(id: string, input: ChartInput): Promise<Dashbo
 export async function duplicateChart(id: string): Promise<DashboardChart> {
   const chart = await findChart(id);
   const copy = await createChart(chart.dashboardId, { title: `${chart.title} (copie)`.slice(0, 120), config: chart.config, wide: chart.wide });
-  const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
   await moveChart(copy.id, siblings.findIndex((item) => item.id === id) + 1);
   return copy;
 }
@@ -146,7 +146,7 @@ export async function deleteChart(id: string): Promise<void> {
  */
 export async function moveChart(id: string, index: number): Promise<void> {
   const chart = await findChart(id);
-  const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
   const order = moveInOrder(
     siblings.map((item) => item.id),
     id,
@@ -168,9 +168,7 @@ export async function transferChart(id: string, target: { dashboardId: string | 
   if (target.dashboardId) dashboard = await findDashboard(target.dashboardId);
   else {
     if (target.projectId && !(await prisma.project.findUnique({ where: { id: target.projectId }, select: { id: true } }))) throw notFound('Projet');
-    dashboard =
-      (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] })) ??
-      (await createDashboard('Tableau de bord', target.projectId));
+    dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }
   if (dashboard.id === chart.dashboardId) return dashboard;
   const { _max } = await prisma.dashboardChart.aggregate({ where: { dashboardId: dashboard.id }, _max: { position: true } });

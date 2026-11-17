@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -309,23 +310,26 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       selectionActions={(checked, clear) => {
         const allClosed = checked.every((list) => list.closedAt);
         return [
-          duplicateRowsAction(checked, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${checked.length} liste(s) dupliquée(s).` }),
+          duplicateRowsAction(checked, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'dupliquée')}.` }),
           allClosed
             ? {
                 label: 'Rouvrir',
                 icon: <ArrowCounterClockwiseIcon aria-hidden />,
-                onClick: () => void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: false }), `${checked.length} liste(s) rouverte(s).`),
+                onClick: () => void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: false }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'rouverte')}.`),
               }
             : {
                 label: 'Archiver',
                 icon: <ArchiveIcon aria-hidden />,
-                onClick: () => void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: true }), `${checked.length} liste(s) archivée(s).`).then((all) => all && clear()),
+                onClick: () =>
+                  void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: true }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'archivée')}.`).then(
+                    (all) => all && clear(),
+                  ),
               },
           deleteRowsAction(checked, {
             title: 'Supprimer les listes',
-            risks: `${checked.length} liste(s) et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
+            risks: `${countOf(checked.length, 'liste')} et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
             remove: (list) => deleteList.mutateAsync({ id: list.id }),
-            done: `${checked.length} liste(s) supprimée(s).`,
+            done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'supprimée')}.`,
             clear,
           }),
         ];

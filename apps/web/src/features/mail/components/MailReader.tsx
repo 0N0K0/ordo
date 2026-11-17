@@ -18,7 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ErrorIcon } from '../../../components/feedback/feedback-icons';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -93,7 +93,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                   notifySuccess('Mail détaché du projet.');
                   onDeleted();
                 },
-                onError: (failure) => notifyError(failure.message),
+                onError: onMutationError,
               }); } });
   };
 
@@ -118,7 +118,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                     notifySuccess('Mail supprimé.');
                     onDeleted();
                   },
-                  onError: (failure) => notifyError(failure.message),
+                  onError: onMutationError,
                 },
               ); } });
   };
@@ -175,7 +175,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                     notifySuccess('Brouillon supprimé.');
                     onDeleted();
                   },
-                  onError: (failure) => notifyError(failure.message),
+                  onError: onMutationError,
                 },
               ); } });
   };
@@ -207,7 +207,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 color="gray"
                 aria-label="Marquer comme non lu"
                 onClick={() =>
-                  setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, { onError: (failure) => notifyError(failure.message) })
+                  setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, { onError: onMutationError })
                 }
               >
                 <EnvelopeSimpleIcon aria-hidden />

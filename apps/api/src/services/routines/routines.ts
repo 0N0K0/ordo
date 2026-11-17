@@ -1,50 +1,51 @@
 import {
-  formatDay,
-  parseDay,
-  routineCategorySchema,
-  routineSchema,
-  routineCaseSchema,
-  routineCaseOn,
-  routineCaseSpans,
-  routineOpenDate,
-  opensReach,
-  readOpens,
-  caseSpans,
-  plannedSlots,
-  conditionScheduleIds,
-  conditionConstrains,
+  addDays,
   ALL_SCHEDULES,
+  caseSpans,
+  caseStart,
+  conditionConstrains,
+  conditionScheduleIds,
   conditionWindows,
-  readSlotCondition,
-  windowsAllowed,
-  type SlotCondition,
+  daysBetween,
+  formatDay,
+  MAX_ROUTINE_MOVES,
   movedFrom,
   movedOccurrences,
-  routineMoveSchema,
-  withMove,
-  MAX_ROUTINE_MOVES,
   occurrenceDates,
   occurrencesBefore,
-  addDays,
-  daysBetween,
-  caseStart,
-  routineSlotSchema,
-  routineMoveTimesSchema,
-  type RoutineMoveTimes,
-  withMovedTimes,
-  weekdayOf,
+  opensReach,
+  parseDay,
   type PlannedSlot,
+  plannedSlots,
+  reaches,
+  readOpens,
+  readSlotCondition,
   type Recurrence,
-  type RoutineMove,
   type RoutineCase,
-  type RoutineSlot,
+  routineCaseOn,
+  routineCaseSchema,
+  routineCaseSpans,
   type RoutineCategoryInput,
+  routineCategorySchema,
   type RoutineInput,
+  type RoutineMove,
+  routineMoveSchema,
+  type RoutineMoveTimes,
+  routineMoveTimesSchema,
+  routineOpenDate,
+  routineSchema,
+  type RoutineSlot,
+  routineSlotSchema,
+  type SlotCondition,
   type TimeWindow,
+  weekdayOf,
+  windowsAllowed,
+  withMove,
+  withMovedTimes,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
@@ -67,7 +68,7 @@ const fieldError = (field: string, message: string) => clientError('BAD_USER_INP
  * @param {string} id Id looked for.
  * @returns {boolean} Found.
  */
-function reaches(parentOf: Map<string, string | null>, start: string, id: string): boolean {
+function underOrSelf(parentOf: Map<string, string | null>, start: string, id: string): boolean {
   const seen = new Set<string>();
   for (let current: string | null | undefined = start; current && !seen.has(current); current = parentOf.get(current)) {
     if (current === id) return true;
@@ -457,7 +458,7 @@ async function parseCategory(input: RoutineCategoryInput, id?: string) {
   if (!data.parentId) return data;
   const all = await prisma.routineCategory.findMany({ select: { id: true, parentId: true } });
   if (!all.some((category) => category.id === data.parentId)) throw notFound('Catégorie parente');
-  if (id && reaches(new Map(all.map((category) => [category.id, category.parentId])), data.parentId, id)) {
+  if (id && underOrSelf(new Map(all.map((category) => [category.id, category.parentId])), data.parentId, id)) {
     throw fieldError('parentId', 'Une catégorie ne peut pas être rangée sous elle-même.');
   }
   return data;
@@ -580,7 +581,7 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   const known = new Set(all.map((routine) => routine.id));
   if (data.parentId) {
     if (!known.has(data.parentId)) throw fieldError('parentId', 'Routine parente introuvable.');
-    if (id && reaches(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
+    if (id && underOrSelf(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
       throw fieldError('parentId', 'Une routine ne peut pas être rangée sous elle-même.');
     }
   }
@@ -589,15 +590,7 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   if (id && data.requiredIds.length) {
     // No cycle: none of the required routines may (indirectly) require this one.
     const requires = new Map(all.map((routine) => [routine.id, routine.requires.map((dependency) => dependency.requiredId)]));
-    const stack = [...data.requiredIds];
-    const seen = new Set<string>();
-    while (stack.length) {
-      const current = stack.pop()!;
-      if (current === id) throw fieldError('requiredIds', 'Ces dépendances forment une boucle.');
-      if (seen.has(current)) continue;
-      seen.add(current);
-      stack.push(...(requires.get(current) ?? []));
-    }
+    if (reaches((current) => requires.get(current) ?? [], data.requiredIds, id)) throw fieldError('requiredIds', 'Ces dépendances forment une boucle.');
   }
   return data;
 }
@@ -670,7 +663,7 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
   const queue: string[] = [fromId];
   while (queue.length) {
     const source = queue.shift()!;
-    const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+    const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: BY_POSITION, select: { id: true } });
     for (const child of children) {
       const input = await inputOf(child.id);
       const copy = await createRoutine({ ...input, parentId: copies.get(source)! });
@@ -939,7 +932,7 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
   const parentId = place === 'INSIDE' ? target.id : target.parentId;
   // The parent is checked (no loop) by the regular update.
   if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
-  const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } })).map((sibling) => sibling.id);
+  const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: BY_POSITION, select: { id: true } })).map((sibling) => sibling.id);
   const index = siblings.indexOf(target.id);
   siblings.splice(place === 'INSIDE' || index === -1 ? siblings.length : place === 'BEFORE' ? index : index + 1, 0, id);
   await prisma.$transaction(siblings.map((siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } })));

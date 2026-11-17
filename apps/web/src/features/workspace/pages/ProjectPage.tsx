@@ -1,4 +1,4 @@
-import { ancestorsOf } from '@ordo/shared';
+import { ancestorsOf, mapById } from '@ordo/shared';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -149,7 +149,7 @@ export function ProjectPage() {
   const client = data.clients.find((item) => item.id === project.clientId);
   const status = data.projectStatuses.find((item) => item.id === project.statusId);
   // From the root project down to its parent.
-  const ancestors = ancestorsOf(new Map(data.projects.map((item) => [item.id, item])), project.id).reverse();
+  const ancestors = ancestorsOf(mapById(data.projects), project.id).reverse();
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.

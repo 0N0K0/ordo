@@ -1,19 +1,15 @@
+import { optionalText, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { ProjectResource } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 const linkSchema = z.object({
-  title: z.string().trim().min(1, 'Le titre est requis.').max(200, '200 caractères maximum.'),
+  title: requiredText(200, 'Le titre est requis.'),
   url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  note: z
-    .string()
-    .trim()
-    .max(1000)
-    .transform((value) => value || null)
-    .nullable(),
+  note: optionalText(1000),
 });
 
 /**
@@ -90,7 +86,7 @@ export async function deleteProjectResource(id: string): Promise<void> {
 export async function moveProjectResource(id: string, index: number): Promise<void> {
   const resource = await prisma.projectResource.findUnique({ where: { id } });
   if (!resource) throw notFound('Ressource');
-  const siblings = await prisma.projectResource.findMany({ where: { projectId: resource.projectId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  const siblings = await prisma.projectResource.findMany({ where: { projectId: resource.projectId }, orderBy: BY_POSITION, select: { id: true } });
   const order = moveInOrder(
     siblings.map((item) => item.id),
     id,

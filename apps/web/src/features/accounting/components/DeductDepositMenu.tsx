@@ -1,5 +1,5 @@
 import { Button, Menu, Text } from '@mantine/core';
-import { type AccountingLineInput } from '@ordo/shared';
+import { type AccountingLineInput, toCents } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
@@ -27,10 +27,10 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   for (const line of lines) {
     if (line.kind !== 'DEDUCTION' || !line.deductedDocumentId) continue;
     const key = `${line.deductedDocumentId}|${line.vatRate}`;
-    deducted.set(key, (deducted.get(key) ?? 0) + Math.round(line.quantity * line.unitPrice * 100));
+    deducted.set(key, (deducted.get(key) ?? 0) + toCents(line.quantity * line.unitPrice));
   }
   const offered = (deposits ?? []).flatMap((deposit) => {
-    const remaining = deposit.remaining.map((item) => ({ rate: item.rate, cents: Math.round(item.amount * 100) - (deducted.get(`${deposit.id}|${item.rate}`) ?? 0) })).filter((item) => item.cents > 0);
+    const remaining = deposit.remaining.map((item) => ({ rate: item.rate, cents: toCents(item.amount) - (deducted.get(`${deposit.id}|${item.rate}`) ?? 0) })).filter((item) => item.cents > 0);
     return remaining.length ? [{ ...deposit, remaining }] : [];
   });
   if (!offered.length) return null;

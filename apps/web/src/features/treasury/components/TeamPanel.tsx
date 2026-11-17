@@ -9,7 +9,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
+import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -44,7 +44,7 @@ export function TeamMembers() {
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
   // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
-  const contributorById = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor]));
+  const contributorById = mapById(context?.contributors ?? []);
   const members = (settings?.treasuryMembers ?? [])
     .filter((member) => !context || contributorById.has(member.id))
     .map((member) => ({ ...member, ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}) }));
@@ -225,7 +225,7 @@ function Contexts() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const contexts = settings?.treasuryContexts ?? [];
   const periods = settings?.treasuryContextPeriods ?? [];
-  const contextById = new Map(contexts.map((item) => [item.id, item]));
+  const contextById = mapById(contexts);
   const onError = onMutationError;
   const close = () => setDialog(null);
 

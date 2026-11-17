@@ -3,12 +3,10 @@ import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder } from '../core/ordering';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
-
-const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 /** Calendar of another workspace shown in this one, read only. */
 export interface CalendarSubscriptionView {
@@ -47,7 +45,7 @@ async function findCalendar(id: string): Promise<Calendar> {
  */
 export async function resolveCalendarId(id?: string | null): Promise<string> {
   if (id) return (await findCalendar(id)).id;
-  const first = await prisma.calendar.findFirst({ orderBy: [...byOrder], select: { id: true } });
+  const first = await prisma.calendar.findFirst({ orderBy: BY_POSITION, select: { id: true } });
   if (first) return first.id;
   const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { name: true } });
   return (await prisma.calendar.create({ data: { name: workspace.name, color: DEFAULT_COLOR } })).id;
@@ -84,7 +82,7 @@ export async function updateCalendar(id: string, input: CalendarFormValues): Pro
 export async function moveCalendar(id: string, index: number): Promise<void> {
   await findCalendar(id);
   const order = moveInOrder(
-    (await prisma.calendar.findMany({ orderBy: [...byOrder], select: { id: true } })).map((item) => item.id),
+    (await prisma.calendar.findMany({ orderBy: BY_POSITION, select: { id: true } })).map((item) => item.id),
     id,
     index,
   );
@@ -109,7 +107,7 @@ export async function deleteCalendar(id: string): Promise<void> {
  */
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
-    orderBy: [...byOrder],
+    orderBy: BY_POSITION,
     include: { calendar: { include: { workspace: { select: { id: true, name: true, kind: true } } } } },
   });
   return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, name: calendar.name, color: calendar.color, workspace: calendar.workspace }));

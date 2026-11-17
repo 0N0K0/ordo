@@ -1,3 +1,4 @@
+import { mapById } from '@ordo/shared';
 import { Button, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
@@ -18,7 +19,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
   const { data } = useShoppingData();
   const { data: locations } = useStockLocations();
   const { addPurchase } = useStockMutations();
-  const products = new Map((data?.shoppingProducts ?? []).map((product) => [product.id, product]));
+  const products = mapById(data?.shoppingProducts ?? []);
   const [lines, setLines] = useState<Line[]>(() =>
     items.map((item) => ({
       item,

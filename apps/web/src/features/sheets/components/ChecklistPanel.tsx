@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -142,7 +143,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
     <Stack gap="md">
       <Group justify="space-between" gap="sm">
         <Text size="sm" c="dimmed">
-          {done} / {list.items.length} fait{done > 1 ? 's' : ''}
+          {done} / {list.items.length} {plural(done, 'fait')}
           {occurrenceDate ? ` · ${fmt.dayLong(occurrenceDate)}` : ''}
         </Text>
         <Group gap="xs">
@@ -181,9 +182,9 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           deleteRowsAction(rows, {
             label: 'Retirer',
             title: 'Retirer les éléments',
-            risks: `${rows.length} élément(s) seront retirés de la liste à cocher.`,
+            risks: `${countOf(rows.length, 'élément')} seront retirés de la liste à cocher.`,
             remove: (item) => mutations.removeChecklistItem.mutateAsync(item.id),
-            done: `${rows.length} élément(s) retiré(s).`,
+            done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
             clear,
           }),
         ]}

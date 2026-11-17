@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Alert, Badge, Box, Checkbox, Group, Menu, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
@@ -178,7 +179,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
           />
         ) : (
           <Text size="xs" c="dimmed">
-            {total} mail{total > 1 ? 's' : ''}
+            {total} {plural(total, 'mail')}
           </Text>
         )}
       </Group>

@@ -1,4 +1,4 @@
-import { lineageOf, LEVEL } from '@ordo/shared';
+import { mapById, byPosition, LEVEL, lineageOf } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../../components/markdown/remark-references';
@@ -112,11 +112,11 @@ export function useTaskContext() {
 
   const context = useMemo<TaskContext | null>(() => {
     if (!data || !workspace) return null;
-    const byPosition = <T extends { position: number }>(items: T[]) => [...items].sort((a, b) => a.position - b.position);
-    const tasks = byPosition(data.tasks);
-    const projectById = new Map(workspace.projects.map((project) => [project.id, project]));
+    const inOrder = <T extends { position: number }>(items: T[]) => [...items].sort(byPosition);
+    const tasks = inOrder(data.tasks);
+    const projectById = mapById(workspace.projects);
     const milestones = sortMilestones(data.milestones, milestoneOrder);
-    const statusById = new Map(data.taskStatuses.map((status) => [status.id, status]));
+    const statusById = mapById(data.taskStatuses);
     const children = new Map<string, Task[]>();
     for (const task of tasks) {
       if (task.parentId) children.set(task.parentId, [...(children.get(task.parentId) ?? []), task]);
@@ -146,7 +146,7 @@ export function useTaskContext() {
       const project = projectById.get(projectId);
       return project ? projectFullPath(workspace, project) : 'Projet inconnu';
     };
-    const taskIndex = new Map(tasks.map((task) => [task.id, task]));
+    const taskIndex = mapById(tasks);
 
     /**
      * Full path of a task: its project path (unless it is the one given), its parent tasks, then itself (« #12 Titre »;
@@ -163,7 +163,7 @@ export function useTaskContext() {
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
     const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, title: task.title, place: placeOf(task.projectId) }));
-    const referenceById = new Map(referenceTasks.map((task) => [task.id, task]));
+    const referenceById = mapById(referenceTasks);
     // "#12" only names a task of a project.
     const referenceByNumber = new Map(referenceTasks.filter((task) => task.number !== null).map((task) => [`${task.projectId}:${task.number}`, task]));
     const contributors = data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
@@ -171,16 +171,16 @@ export function useTaskContext() {
     return {
       tasks,
       contributors: data.contributors,
-      statuses: byPosition(data.taskStatuses),
-      priorities: byPosition(data.taskPriorities),
-      types: byPosition(data.taskTypes),
+      statuses: inOrder(data.taskStatuses),
+      priorities: inOrder(data.taskPriorities),
+      types: inOrder(data.taskTypes),
       projects: workspace.projects,
       milestones,
       milestoneOrder,
       milestoneRank: new Map(milestones.map((milestone, index) => [milestone.id, index])),
-      milestoneById: new Map(data.milestones.map((milestone) => [milestone.id, milestone])),
+      milestoneById: mapById(data.milestones),
       sprints: data.sprints,
-      sprintById: new Map(data.sprints.map((sprint) => [sprint.id, sprint])),
+      sprintById: mapById(data.sprints),
       meId,
       milestonesFor: (projectId) => (projectId ? milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)) : []),
       sprintsFor: (projectId) => (projectId ? data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)) : []),
@@ -195,23 +195,23 @@ export function useTaskContext() {
         return data.contributors.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || contributor.projectIds.some((id) => scope.has(id)));
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
-      taskById: new Map(tasks.map((task) => [task.id, task])),
+      taskById: mapById(tasks),
       taskLabel: taskPath,
       milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.title}`,
       sprintLabel: (sprint) => `${placeOf(sprint.projectId)}${LEVEL}${sprint.name}`,
       statusById,
-      priorityById: new Map(data.taskPriorities.map((priority) => [priority.id, priority])),
-      typeById: new Map(data.taskTypes.map((type) => [type.id, type])),
-      tags: [...data.taskTags].sort((a, b) => a.position - b.position),
-      tagById: new Map(data.taskTags.map((tag) => [tag.id, tag])),
-      contributorById: new Map(data.contributors.map((contributor) => [contributor.id, contributor])),
+      priorityById: mapById(data.taskPriorities),
+      typeById: mapById(data.taskTypes),
+      tags: [...data.taskTags].sort(byPosition),
+      tagById: mapById(data.taskTags),
+      contributorById: mapById(data.contributors),
       projectById,
       projectLabel: placeOf,
       projectOptions: (offered: Project[]) => projectOptions(workspace, offered),
       taskOptions: (offered: Task[]) => {
         const ids = new Set(offered.map((task) => task.id));
-        const taskNodes = [...new Map([...tasks, ...offered].map((task) => [task.id, task])).values()]
-          .sort((a, b) => a.position - b.position)
+        const taskNodes = [...mapById([...tasks, ...offered]).values()]
+          .sort(byPosition)
           .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.title}` }));
         const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL, pathless: true }] : [];
         return treeOptions([...projectNodes(workspace), ...withoutProject, ...taskNodes], (id) => ids.has(id));

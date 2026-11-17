@@ -1,3 +1,4 @@
+import { plural, countOf } from '../../../lib/text';
 import { personKey, memberOrRelation, memberOrRelationKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { listSelectProps } from '../../../components/settings/item-look';
@@ -682,9 +683,9 @@ export function BudgetsPanel() {
             selectionActions={(rows, clear) => [
               deleteRowsAction(rows, {
                 title: 'Supprimer les budgets',
-                risks: `${rows.length} budget(s) et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                risks: `${countOf(rows.length, 'budget')} et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
                 remove: (budget) => remove.mutateAsync(budget.id),
-                done: `${rows.length} budget(s) supprimé(s).`,
+                done: `${countOf(rows.length, 'budget')} ${plural(rows.length, 'supprimé')}.`,
                 clear,
               }),
             ]}

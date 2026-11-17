@@ -1,9 +1,9 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
+import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2 } from '@ordo/shared';
 import { localDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import type { SprintTaskStatus } from '../api';
-import { aggregate, none, round, type ChartData, type Key } from './aggregate';
+import { aggregate, none, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../../lib/format';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -199,8 +199,8 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
   for (let day = String(sprint.startDate); day <= String(sprint.endDate); day = addDays(day, 1)) days.push(day);
   const rows = days.map((day, index) => ({
     x: fmt.dayShort(day),
-    Restant: day > today ? null : round(inSprint.filter((task) => !task.closedAt || localDay(String(task.closedAt)) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
-    Idéal: round(days.length > 1 ? total * (1 - index / (days.length - 1)) : 0),
+    Restant: day > today ? null : round2(inSprint.filter((task) => !task.closedAt || localDay(String(task.closedAt)) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
+    Idéal: round2(days.length > 1 ? total * (1 - index / (days.length - 1)) : 0),
   }));
   return {
     rows,
@@ -233,7 +233,7 @@ export function taskChartData(tasks: Task[], config: ChartConfig, context: TaskC
   // now for the others), with the status it had then.
   const counted = !sprintChart
     ? tasks
-    : [...new Map([...tasks, ...bySprint.extraTasks].map((task) => [task.id, task])).values()].flatMap((task) => {
+    : [...mapById([...tasks, ...bySprint.extraTasks]).values()].flatMap((task) => {
         if (!task.sprintIds.length) return bySprint.current.has(task.id) ? [task] : [];
         return task.sprintIds
           .filter((sprintId) => (bySprint.matches.has(sprintId) ? bySprint.matches.get(sprintId)!.has(task.id) : bySprint.current.has(task.id)))

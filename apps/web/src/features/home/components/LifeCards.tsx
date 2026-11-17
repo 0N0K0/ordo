@@ -1,4 +1,5 @@
-import { daysBetween } from '@ordo/shared';
+import { plural } from '../../../lib/text';
+import { collator, daysBetween, mapById } from '@ordo/shared';
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -25,7 +26,7 @@ export function RoutinesCard({ today }: { today: string }) {
   const postpone = usePostponeRoutine();
   const slotRules = useSlotRules();
   const routines = data?.routines ?? [];
-  const byId = new Map(routines.map((routine) => [routine.id, routine]));
+  const byId = mapById(routines);
   const todo = routines
     .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, slotRules.allowed(routineDoable(routine)))))
     // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
@@ -33,7 +34,7 @@ export function RoutinesCard({ today }: { today: string }) {
       (a, b) =>
         (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
         (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
-        a.title.localeCompare(b.title, 'fr'),
+        collator.compare(a.title, b.title),
     );
 
   return (
@@ -84,7 +85,7 @@ export function RoutinesCard({ today }: { today: string }) {
           })}
           {todo.length > MAX_ROWS && (
             <Text size="xs" c="dimmed" pt={4}>
-              + {todo.length - MAX_ROWS} autre{todo.length - MAX_ROWS > 1 ? 's' : ''}
+              + {todo.length - MAX_ROWS} {plural(todo.length - MAX_ROWS, 'autre')}
             </Text>
           )}
         </Stack>

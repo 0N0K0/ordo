@@ -51,13 +51,3 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     routineLinks: occurrence.routineLinks.map(({ routineId, date }) => ({ routineId, date })),
   };
 }
-
-/**
- * Local "YYYY-MM-DD" and "HH:MM" of an instant.
- * @param {Date} date Instant.
- * @returns {{ date: string, time: string }} Local parts.
- */
-export function localParts(date: Date): { date: string; time: string } {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString();
-  return { date: local.slice(0, 10), time: local.slice(11, 16) };
-}

@@ -1,3 +1,4 @@
+import { dayInMonth, daysInMonth } from '@ordo/shared';
 import { z } from 'zod';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
@@ -33,18 +34,6 @@ export const ONE_DAY: Duration = { unit: 'DAYS', count: 1, day: null, month: nul
 export interface Span {
   start: string;
   end: string;
-}
-
-/**
- * Day of a month, kept within it (the 31st of a 30-day month is its 30th).
- * @param {number} year Year.
- * @param {number} month 1 to 12.
- * @param {number} day Day number.
- * @returns {string} YYYY-MM-DD.
- */
-function dayInMonth(year: number, month: number, day: number): string {
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
 }
 
 /**
@@ -194,6 +183,16 @@ export function parseDay(date: string): Date {
 }
 
 /**
+ * Date at midnight UTC of a YYYY-MM-DD day that may be missing: null and undefined are kept (a field cleared, or left
+ * unchanged).
+ * @param {string | null | undefined} date Day.
+ * @returns {Date | null | undefined} Date.
+ */
+export function parseOptionalDay<T extends string | null | undefined>(date: T): Date | Exclude<T, string> {
+  return (date === null || date === undefined ? date : parseDay(date)) as Date | Exclude<T, string>;
+}
+
+/**
  * YYYY-MM-DD of a UTC date.
  * @param {Date} date Date at midnight UTC.
  * @returns {string} Calendar date.
@@ -249,8 +248,7 @@ function weekOfYear(date: Date): number {
  * @returns {number} Position.
  */
 function weekdayPosition(date: Date): number {
-  const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-  if (date.getUTCDate() + 7 > daysInMonth) return -1;
+  if (date.getUTCDate() + 7 > daysInMonth(date.getUTCFullYear(), date.getUTCMonth() + 1)) return -1;
   return Math.ceil(date.getUTCDate() / 7);
 }
 

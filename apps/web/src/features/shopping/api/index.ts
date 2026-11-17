@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { useInvalidatingMutation } from '../../../lib/mutation';
+import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../../components/tree/category-tree';
@@ -457,10 +457,8 @@ export function useShoppingMutations() {
       async (variables: { id: string; index: number }) => (await execute(MoveBaseList, variables)).moveShoppingBaseList,
       (client, { id, index }) =>
         client.setQueryData<ShoppingDataQuery>([...shoppingKey, 'data'], (data) => {
-          const moved = data?.shoppingBaseLists.find((baseList) => baseList.id === id);
-          if (!data || !moved) return data;
-          const order = data.shoppingBaseLists.filter((baseList) => baseList.id !== id);
-          order.splice(index, 0, moved);
+          const order = data && moveToIndex(data.shoppingBaseLists, id, index);
+          if (!data || !order) return data;
           return { ...data, shoppingBaseLists: order.map((baseList, position) => ({ ...baseList, position })) };
         }),
     ),
