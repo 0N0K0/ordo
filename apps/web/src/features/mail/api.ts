@@ -333,6 +333,7 @@ const MailLabelsDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
   }

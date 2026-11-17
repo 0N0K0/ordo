@@ -1866,7 +1866,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1969,7 +1969,7 @@ export type PostponeCalendarEventMutation = { postponeCalendarEvent: string };
 export type CalendarCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CalendarCategoriesQuery = { calendarCategories: Array<{ id: string, name: string, color: string, parentId: string | null, position: number }> };
+export type CalendarCategoriesQuery = { calendarCategories: Array<{ id: string, name: string, color: string, iconUrl: string | null, parentId: string | null, position: number }> };
 
 export type CalendarEventsQueryVariables = Exact<{
   from: string;
@@ -1982,7 +1982,7 @@ export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CalendarsQuery = { calendars: Array<{ id: string, name: string, color: string, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, name: string, color: string, workspace: { id: string, name: string, kind: string } }> };
+export type CalendarsQuery = { calendars: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, name: string, color: string, workspace: { id: string, name: string, kind: string } }> };
 
 export type SubscribableCalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2631,7 +2631,7 @@ export type SendMailMutation = { sendMail: Array<string> };
 export type MailLabelsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MailLabelsQuery = { mailLabels: Array<{ id: string, name: string, color: string, position: number }> };
+export type MailLabelsQuery = { mailLabels: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }> };
 
 export type ScheduledMailsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3199,7 +3199,7 @@ export type DeleteChecklistItemMutation = { deleteChecklistItem: boolean };
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingUnits: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string>, stockTracked: boolean, consumable: boolean, autoStock: boolean, stockLocationId: string | null }> };
+export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingUnits: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string>, stockTracked: boolean, consumable: boolean, autoStock: boolean, stockLocationId: string | null }> };
 
 export type ShoppingListsQueryVariables = Exact<{
   taskId?: string | number | null | undefined;
@@ -4183,7 +4183,7 @@ export type TreasuryDocumentOptionsQuery = { treasuryDocumentOptions: Array<{ id
 export type TreasuryAccountsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasuryAccountsQuery = { treasuryAccounts: Array<{ id: string, name: string, openingBalance: number, openingDate: string, archived: boolean, csvMapping: unknown, entryCount: number, balance: number }> };
+export type TreasuryAccountsQuery = { treasuryAccounts: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, openingBalance: number, openingDate: string, archived: boolean, csvMapping: unknown, entryCount: number, balance: number }> };
 
 export type TreasuryEntriesQueryVariables = Exact<{
   from: string;
@@ -4211,7 +4211,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -6252,6 +6252,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     dayDisplay
     dayBar
     monthDisplay
@@ -6376,6 +6377,7 @@ export const CalendarCategoriesDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     parentId
     position
   }
@@ -6444,6 +6446,7 @@ export const CalendarsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   calendarSubscriptions {
@@ -7282,6 +7285,7 @@ export const MailLabelsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
 }
@@ -7936,6 +7940,8 @@ export const ShoppingDataDocument = new TypedDocumentString(`
   shoppingBaseLists {
     id
     name
+    color
+    iconUrl
     position
   }
   shoppingProducts {
@@ -9060,6 +9066,8 @@ export const TreasuryAccountsDocument = new TypedDocumentString(`
   treasuryAccounts {
     id
     name
+    color
+    iconUrl
     openingBalance
     openingDate
     archived
@@ -9287,6 +9295,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     direction
     parentId
     position
@@ -9295,6 +9304,9 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   treasuryPaymentMethods {
     id
     name
+    color
+    iconUrl
+    position
     incoming
     outgoing
     entryCount
@@ -9302,6 +9314,9 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   treasuryCounterparties {
     id
     name
+    color
+    iconUrl
+    position
     note
     archived
     entryCount
@@ -9317,6 +9332,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   treasuryRelations {

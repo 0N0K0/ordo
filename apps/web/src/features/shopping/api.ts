@@ -52,6 +52,8 @@ const ShoppingDataDocument = graphql(`
     shoppingBaseLists {
       id
       name
+      color
+      iconUrl
       position
     }
     shoppingProducts {

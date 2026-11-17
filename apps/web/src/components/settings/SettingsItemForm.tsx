@@ -20,17 +20,17 @@ export interface SettingsItem {
 }
 
 /** Values of the form of an item: its name, color and parent, and those of its list (`E`). */
-export type SettingsItemValues<E extends Record<string, unknown> = Record<string, never>> = { name: string; color: string; parentId: string | null } & E;
+export type SettingsItemValues<E extends object = Record<string, never>> = { name: string; color: string; parentId: string | null } & E;
 
 /** Fields of a list of its own (a status category, base lists…), after the common ones. */
-export interface SettingsItemExtra<C extends SettingsItem, E extends Record<string, unknown>> {
+export interface SettingsItemExtra<C extends SettingsItem, E extends object> {
   /** Their starting values: those of the item edited, or of a new one. */
   initial: (item?: C) => E;
   /** Their fields. */
   render: (form: UseFormReturnType<SettingsItemValues<E>>) => ReactNode;
 }
 
-export interface SettingsItemFormProps<C extends SettingsItem, E extends Record<string, unknown>> {
+export interface SettingsItemFormProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
   /** Item edited; none: a new one. */
   item?: C;
@@ -58,7 +58,7 @@ export interface SettingsItemFormProps<C extends SettingsItem, E extends Record<
  * @param {SettingsItemFormProps<C, E>} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function SettingsItemForm<C extends SettingsItem, E extends Record<string, unknown> = Record<string, never>>({
+export function SettingsItemForm<C extends SettingsItem, E extends object = Record<string, never>>({
   kind,
   item,
   parentId = null,

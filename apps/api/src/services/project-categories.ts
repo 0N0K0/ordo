@@ -1,4 +1,5 @@
 import { labelNameSchema, colorSchema } from '@ordo/shared';
+import { nextPosition } from './settings-lists';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { Prisma, type ProjectCategory } from '../generated/prisma/client';
@@ -27,7 +28,7 @@ function rethrowNameConflict(error: unknown): never {
 export async function createProjectCategory(input: { name: string; color: string }): Promise<ProjectCategory> {
   const data = parseInput(z.object({ name: labelNameSchema, color: colorSchema }), input);
   try {
-    return await prisma.projectCategory.create({ data });
+    return await prisma.projectCategory.create({ data: { ...data, position: await nextPosition('PROJECT_CATEGORY') } });
   } catch (error) {
     rethrowNameConflict(error);
   }

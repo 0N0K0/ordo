@@ -143,6 +143,8 @@ const AccountsDocument = graphql(`
     treasuryAccounts {
       id
       name
+      color
+      iconUrl
       openingBalance
       openingDate
       archived
@@ -202,6 +204,7 @@ const SettingsDocument = graphql(`
       id
       name
       color
+      iconUrl
       direction
       parentId
       position
@@ -210,6 +213,9 @@ const SettingsDocument = graphql(`
     treasuryPaymentMethods {
       id
       name
+      color
+      iconUrl
+      position
       incoming
       outgoing
       entryCount
@@ -217,6 +223,9 @@ const SettingsDocument = graphql(`
     treasuryCounterparties {
       id
       name
+      color
+      iconUrl
+      position
       note
       archived
       entryCount
@@ -232,6 +241,7 @@ const SettingsDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
     treasuryRelations {

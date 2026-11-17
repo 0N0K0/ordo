@@ -6,13 +6,14 @@ import { CategoryTree } from '../category-tree/CategoryTree';
 import { categoryTree } from '../category-tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { EmptyState } from '../feedback/EmptyState';
+import { ListSkeleton } from '../feedback/Skeletons';
 import { closePanel, openPanel } from '../panels/panels';
 import { useReorderSettingsItems, type SettingsListKind } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type SettingsItemValues } from './SettingsItemForm';
 
 let panelCount = 0;
 
-export interface SettingsListProps<C extends SettingsItem, E extends Record<string, unknown>> {
+export interface SettingsListProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
   title: string;
   description: ReactNode;
@@ -23,6 +24,8 @@ export interface SettingsListProps<C extends SettingsItem, E extends Record<stri
   nested?: boolean;
   /** Items have a color (none: their image or initials alone). Optional. Default = true. */
   withColor?: boolean;
+  /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
+  colorRequired?: boolean;
   /** Number of rows of each item. Optional. */
   usage?: ReadonlyMap<string, number>;
   /** What the rows are, in the deletion message (« tâches »). Optional. */
@@ -45,6 +48,14 @@ export interface SettingsListProps<C extends SettingsItem, E extends Record<stri
   deleteMessage?: (item: C, path: string) => ReactNode;
   /** Key remembering the folded items of a tree in this browser. Optional. */
   storageKey?: string;
+  /** Buttons of a row of the list of its own (export…), before the common ones. Optional. */
+  renderActions?: (item: C) => ReactNode;
+  /** Buttons of the header of the list of its own, before « Ajouter ». Optional. */
+  headerActions?: ReactNode;
+  /** Why an item cannot be deleted (the last calendar…); nothing: it can. Optional. */
+  undeletable?: (item: C) => string | null;
+  /** Rows while the list loads. Optional. */
+  loading?: boolean;
 }
 
 /**
@@ -54,7 +65,7 @@ export interface SettingsListProps<C extends SettingsItem, E extends Record<stri
  * @param {SettingsListProps<C, E>} props Component props.
  * @returns {JSX.Element} List.
  */
-export function SettingsList<C extends SettingsItem, E extends Record<string, unknown> = Record<string, never>>({
+export function SettingsList<C extends SettingsItem, E extends object = Record<string, never>>({
   kind,
   title,
   description,
@@ -62,6 +73,7 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
   items,
   nested = false,
   withColor = true,
+  colorRequired,
   usage,
   usageNoun,
   schema,
@@ -73,6 +85,10 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
   renderBadges,
   deleteMessage,
   storageKey,
+  renderActions,
+  headerActions,
+  undeletable,
+  loading = false,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
 
@@ -93,6 +109,7 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
           parentId={parentId}
           tree={nested ? items : undefined}
           withColor={withColor}
+          colorRequired={colorRequired}
           schema={schema}
           extra={extra}
           create={create}
@@ -164,11 +181,16 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
               {description}
             </Text>
           </Stack>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} style={{ flexShrink: 0 }}>
-            Ajouter
-          </Button>
+          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            {headerActions}
+            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+              Ajouter
+            </Button>
+          </Group>
         </Group>
-        {items.length === 0 ? (
+        {loading ? (
+          <ListSkeleton items={3} />
+        ) : items.length === 0 ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
@@ -192,6 +214,7 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
             renderBadges={renderBadges}
             renderActions={({ category, path }) => (
               <>
+                {renderActions?.(category)}
                 {nested && (
                   <Tooltip label="Ajouter un sous-élément">
                     <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un sous-élément à ${path}`} onClick={() => openForm({ parentId: category.id })}>
@@ -204,8 +227,8 @@ export function SettingsList<C extends SettingsItem, E extends Record<string, un
                     <PencilSimpleIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
-                <Tooltip label="Supprimer">
-                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} onClick={() => confirmDelete(category, path)}>
+                <Tooltip label={undeletable?.(category) ?? 'Supprimer'}>
+                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)}>
                     <TrashIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>

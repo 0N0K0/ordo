@@ -79,6 +79,7 @@ const WorkSchedulesDocument = graphql(`
       id
       name
       color
+      iconUrl
       dayDisplay
       dayBar
       monthDisplay
@@ -208,6 +209,7 @@ const CalendarCategoriesDocument = graphql(`
       id
       name
       color
+      iconUrl
       parentId
       position
     }
@@ -228,6 +230,7 @@ const CalendarsDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
     calendarSubscriptions {

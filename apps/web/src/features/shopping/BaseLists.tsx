@@ -1,4 +1,7 @@
 import { ActionsRow } from '../../components/actions/ActionsRow';
+import { createdId } from '../../components/settings/settings-api';
+import { SettingsItemForm } from '../../components/settings/SettingsItemForm';
+import { EntityAvatar } from '../workspace/EntityAvatar';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
@@ -7,69 +10,15 @@ import { closePanel, openPanel } from '../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Badge, Button, Group, Menu, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Badge, Group, Menu, Stack, Tabs, Text, Tooltip, type TabsTabProps } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
-import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
 import { BaseList } from './BaseList';
-
 const schema = z.object({ name: shoppingBaseListNameSchema });
-
-/**
- * Name of a new or renamed base list.
- * @param {{ baseList?: ShoppingBaseList, onDone: (id?: string) => void }} props Component props.
- * @param {ShoppingBaseList} [props.baseList] Base list renamed. Optional.
- * @param {(id?: string) => void} props.onDone Closes the form (with the id of the new list).
- * @returns {JSX.Element} Form.
- */
-function BaseListForm({ baseList, onDone }: { baseList?: ShoppingBaseList; onDone: (id?: string) => void }) {
-  const { createBaseList, renameBaseList } = useShoppingMutations();
-  const form = useAppForm<z.input<typeof schema>>({ initialValues: { name: baseList?.name ?? '' }, schema });
-  const handleSubmit = form.onSubmit(({ name }) => {
-    const onError = (error: Error) => showFormError(form, error);
-    if (baseList)
-      renameBaseList.mutate(
-        { id: baseList.id, name },
-        {
-          onSuccess: () => {
-            notifySuccess('Référence renommée.');
-            onDone();
-          },
-          onError,
-        },
-      );
-    else
-      createBaseList.mutate(
-        { name },
-        {
-          onSuccess: (id) => {
-            notifySuccess('Référence créée.');
-            onDone(id);
-          },
-          onError,
-        },
-      );
-  });
-  return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput label="Nom" placeholder="Alimentation, fournitures scolaires, vêtements des enfants…" required data-autofocus {...form.getInputProps('name')} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={() => onDone()}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createBaseList.isPending || renameBaseList.isPending}>
-            {baseList ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
 
 /**
  * Tab of a base list dragged along the tab list (a click still selects it: the drag starts after a few pixels), as the
@@ -134,15 +83,25 @@ export function BaseLists() {
    */
   const openForm = (baseList?: ShoppingBaseList) => {
     const modalId = 'shopping-base-list';
+    // Id of the list created, selected once the form closes.
+    let created: string | null = null;
     openPanel({
       panelId: modalId,
-      title: baseList ? 'Renommer la référence' : 'Nouvelle référence',
+      title: baseList ? 'Modifier la référence' : 'Nouvelle référence',
       children: (
-        <BaseListForm
-          baseList={baseList}
-          onDone={(id) => {
+        <SettingsItemForm<ShoppingBaseList>
+          kind="SHOPPING_BASE_LIST"
+          item={baseList}
+          colorRequired={false}
+          schema={schema}
+          create={async ({ name }) => {
+            created = createdId(await mutations.createBaseList.mutateAsync({ name }));
+            return created;
+          }}
+          update={(id, { name }) => mutations.renameBaseList.mutateAsync({ id, name })}
+          onDone={() => {
             closePanel(modalId);
-            if (id) select(id);
+            if (created) select(created);
           }}
         />
       ),
@@ -222,6 +181,7 @@ export function BaseLists() {
                     <SortableTab
                       key={baseList.id}
                       value={baseList.id}
+                      leftSection={<EntityAvatar name={baseList.name} iconUrl={baseList.iconUrl ?? null} color={baseList.color ?? 'gray'} size={18} radius="sm" />}
                       rightSection={
                         baseList.id === current.id ? (
                           <Menu position="bottom-end" withinPortal shadow="md">
@@ -239,7 +199,7 @@ export function BaseLists() {
                             </Menu.Target>
                             <Menu.Dropdown>
                               <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(baseList)}>
-                                Renommer
+                                Modifier
                               </Menu.Item>
                               <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={position === 0} onClick={() => move(baseList.id, position - 1)}>
                                 Déplacer à gauche

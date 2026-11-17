@@ -1,11 +1,13 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import { createdId } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
-import { CalendarBlankIcon, PlusIcon, TagSimpleIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -222,7 +224,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
   );
 }
 
-type Dialog = { kind: 'context'; context?: TreasuryContext } | { kind: 'period'; period?: TreasuryContextPeriod } | null;
+type Dialog = { kind: 'period'; period?: TreasuryContextPeriod } | null;
 
 /**
  * Contexts of spending (not in a tree; a line without context is everyday spending) and the periods they are
@@ -231,7 +233,7 @@ type Dialog = { kind: 'context'; context?: TreasuryContext } | { kind: 'period';
  */
 function Contexts() {
   const { data: settings } = useTreasurySettings();
-  const { deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
+  const { saveContext, deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
   const [dialog, setDialog] = useState<Dialog>(null);
   const contexts = settings?.treasuryContexts ?? [];
   const periods = settings?.treasuryContextPeriods ?? [];
@@ -241,61 +243,22 @@ function Contexts() {
 
   return (
     <>
-      <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" mb="xs">
-          <Title order={3} size="h5">
-            Contextes
-          </Title>
-          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'context' })}>
-            Nouveau contexte
-          </ActionButton>
-        </Group>
-        <Text size="xs" c="dimmed" mb="xs">
-          Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « {EVERYDAY_CONTEXT} ».
-        </Text>
-        {contexts.length === 0 ? (
-          <Group gap="xs" py="xs">
-            <TagSimpleIcon aria-hidden />
-            <EmptyState compact message={`Aucun contexte : tout est du ${EVERYDAY_CONTEXT.toLowerCase()}.`} />
-          </Group>
-        ) : (
-          <Table verticalSpacing={4}>
-            <Table.Tbody>
-              {contexts.map((item) => (
-                <Table.Tr key={item.id}>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <ColorSwatch color={item.color} size={14} />
-                      <Text size="sm">{item.name}</Text>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td w={1}>
-                    <Group gap={2} wrap="nowrap">
-                      <Button size="compact-xs" variant="subtle" onClick={() => setDialog({ kind: 'context', context: item })}>
-                        Modifier
-                      </Button>
-                      <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        color="red"
-                        onClick={() =>
-                          confirmDestructive({
-                            title: 'Supprimer le contexte',
-                            risks: `« ${item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « ${EVERYDAY_CONTEXT} ».`,
-                            onConfirm: () => deleteContext.mutate(item.id, { onSuccess: () => notifySuccess('Contexte supprimé.'), onError }),
-                          })
-                        }
-                      >
-                        Supprimer
-                      </Button>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+      <SettingsList
+        kind="TREASURY_CONTEXT"
+        title="Contextes"
+        description={`Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « ${EVERYDAY_CONTEXT} ».`}
+        noun="le contexte"
+        items={contexts}
+        schema={treasuryContextSchema}
+        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { name: values.name, color: values.color } }))}
+        update={(id, values) => saveContext.mutateAsync({ id, input: { name: values.name, color: values.color } })}
+        remove={(id) => deleteContext.mutateAsync(id)}
+        deleteMessage={(item) => (
+          <>
+            « {item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ». Cette action est irréversible.
+          </>
         )}
-      </Paper>
+      />
 
       <Paper withBorder radius="md" p="md">
         <Group justify="space-between" mb="xs">
@@ -368,12 +331,7 @@ function Contexts() {
         )}
       </Paper>
 
-      <SidePanel
-        opened={dialog !== null}
-        onClose={close}
-        title={dialog?.kind === 'context' ? (dialog.context ? 'Modifier le contexte' : 'Nouveau contexte') : dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}
-      >
-        {dialog?.kind === 'context' && <ContextForm context={dialog.context} onDone={close} />}
+      <SidePanel opened={dialog !== null} onClose={close} title={dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}>
         {dialog?.kind === 'period' && <PeriodForm period={dialog.period} contexts={contexts} onDone={close} />}
       </SidePanel>
     </>

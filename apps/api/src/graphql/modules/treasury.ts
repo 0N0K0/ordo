@@ -842,11 +842,11 @@ builder.queryFields((t) => ({
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
-    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
-    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryDocumentOptions: t.field({
     type: [EntryDocumentRef],

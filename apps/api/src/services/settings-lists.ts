@@ -85,3 +85,14 @@ export async function reorder(kind: SettingsListKind, ids: string[]): Promise<vo
   const model = delegate(kind);
   for (const [position, id] of ids.entries()) await model.update({ where: { id }, data: { position } });
 }
+
+/**
+ * Position of an item added at the end of a flat settings list.
+ * @param {SettingsListKind} kind List.
+ * @returns {Promise<number>} Position after the last one.
+ */
+export async function nextPosition(kind: SettingsListKind): Promise<number> {
+  const model = (prisma as unknown as Record<string, { aggregate(args: { _max: { position: true } }): Promise<{ _max: { position: number | null } }> }>)[SETTINGS_LISTS[kind]];
+  const { _max } = await model.aggregate({ _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}

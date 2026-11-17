@@ -145,7 +145,7 @@ builder.queryFields((t) => ({
   }),
   projectCategories: t.prismaField({
     type: ['ProjectCategory'],
-    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   projectStatuses: t.prismaField({
     type: ['ProjectStatus'],

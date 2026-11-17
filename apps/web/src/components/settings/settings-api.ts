@@ -73,14 +73,14 @@ interface AsyncMutation<V> {
  * `{ id }`, move `{ id, index }`): only the fields of the list are sent (its name and color by default).
  * @param {object} mutations Mutations of the list.
  * @param {AsyncMutation<I>} mutations.create Creation, from its input.
- * @param {AsyncMutation<{ id: string, input: Partial<I> }>} mutations.update Update.
+ * @param {AsyncMutation<{ id: string, input: I }>} mutations.update Update.
  * @param {AsyncMutation<{ id: string }>} mutations.remove Deletion.
  * @param {AsyncMutation<{ id: string, index: number }>} [mutations.move] Move in a flat list. Optional.
  * @param {(values: V) => I} [toInput] Input of the list from the form values. Optional. Default = its name and color.
  * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown>, remove: (id: string) => Promise<unknown>, move?: (id: string, parentId: string | null, index: number) => Promise<unknown> }} Props.
  */
 export function listMutations<V extends { name: string; color: string }, I = { name: string; color: string }>(
-  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: Partial<I> }>; remove: AsyncMutation<{ id: string }>; move?: AsyncMutation<{ id: string; index: number }> },
+  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }>; remove: AsyncMutation<{ id: string }>; move?: AsyncMutation<{ id: string; index: number }> },
   toInput: (values: V) => I = (values) => ({ name: values.name, color: values.color }) as I,
 ) {
   const { move } = mutations;

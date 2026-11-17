@@ -1,34 +1,11 @@
-import { ActionButton } from '../../components/actions/ActionButton';
+import { createdId } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { SidePanel } from '../../components/panels/SidePanel';
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Checkbox,
-  ColorInput,
-  Group,
-  Paper,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
-  Stack,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Button, Checkbox, ColorInput, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
-import { AddressBookIcon, CreditCardIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
-import { CategoryTree } from '../../components/category-tree/CategoryTree';
 import { categoryOptions } from './categories';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
@@ -36,7 +13,6 @@ import { useColorSwatches } from '../workspace/use-color-swatches';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AccountsSettings } from './AccountsSettings';
 
-const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
 /**
  * Number of entries using an item.
@@ -44,46 +20,6 @@ const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OU
  * @returns {string} "3 mouvements".
  */
 const entries = (count: number) => `${count} mouvement${count > 1 ? 's' : ''}`;
-
-/**
- * Edit and delete buttons of a settings row.
- * @param {{ label: string, onEdit: () => void, onDelete: () => void }} props Component props.
- * @returns {JSX.Element} Buttons.
- */
-function RowActions({ label, onEdit, onDelete }: { label: string; onEdit: () => void; onDelete: () => void }) {
-  return (
-    <Group gap={2} justify="flex-end" wrap="nowrap">
-      <Tooltip label="Modifier">
-        <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${label}`} onClick={onEdit}>
-          <PencilSimpleIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Supprimer">
-        <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${label}`} onClick={onDelete}>
-          <TrashIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-    </Group>
-  );
-}
-
-/**
- * Empty state of a settings list.
- * @param {{ icon: ReactNode, children: ReactNode }} props Component props.
- * @returns {JSX.Element} Empty state.
- */
-function Empty({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <Stack align="center" gap="xs" py="md">
-      <ThemeIcon size="lg" radius="xl" variant="light" color="gray">
-        {icon}
-      </ThemeIcon>
-      <Text size="sm" c="dimmed" ta="center">
-        {children}
-      </Text>
-    </Stack>
-  );
-}
 
 /**
  * Form actions: cancel, then save.
@@ -310,62 +246,147 @@ export function CounterpartyForm({ counterparty, onDone }: { counterparty?: Trea
   );
 }
 
-type Dialog =
-  | { kind: 'category'; category?: TreasuryCategory; direction?: TreasuryDirection; parentId?: string | null }
-  | { kind: 'method'; method?: TreasuryPaymentMethod }
-  | { kind: 'counterparty'; counterparty?: TreasuryCounterparty }
-  | null;
-
 /**
- * Categories of one direction, as a tree: add a sub-category, edit, delete, fold, reorder by drag and drop.
- * @param {object} props Component props.
- * @param {TreasuryDirection} props.direction Direction.
- * @param {TreasuryCategory[]} props.categories All categories.
- * @param {(dialog: Dialog) => void} props.open Opens a form.
+ * Categories of one direction, as every settings list, in a tree: added (also as a sub-category), edited (name,
+ * color, image, parent), put under another or reordered by drag and drop, deleted.
+ * @param {{ direction: TreasuryDirection, categories: TreasuryCategory[] }} props Direction, and all categories.
  * @returns {JSX.Element} List.
  */
-function CategoryList({ direction, categories, open }: { direction: TreasuryDirection; categories: TreasuryCategory[]; open: (dialog: Dialog) => void }) {
-  const { deleteCategory, moveCategory } = useTreasuryMutations();
-  const kept = categories.filter((category) => category.direction === direction);
+function CategoryList({ direction, categories }: { direction: TreasuryDirection; categories: TreasuryCategory[] }) {
+  const { createCategory, updateCategory, deleteCategory, moveCategory } = useTreasuryMutations();
+  /**
+   * Input of a category from the form values.
+   * @param {{ name: string, color: string, parentId: string | null }} values Values.
+   * @returns {object} Input.
+   */
+  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, direction, parentId: values.parentId });
   return (
-    <Paper withBorder radius="md" p="md">
-      <Group justify="space-between" mb="xs">
-        <Title order={3} size="h5">
-          Catégories de {direction === 'IN' ? 'recettes' : 'dépenses'}
-        </Title>
-        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => open({ kind: 'category', direction })}>Nouvelle catégorie</ActionButton>
-      </Group>
-      {kept.length === 0 ? (
-        <Empty icon={<TagIcon aria-hidden />}>Aucune catégorie de {DIRECTION_LABELS[direction].toLowerCase()}.</Empty>
-      ) : (
-        <CategoryTree
-          categories={kept}
-          storageKey={`treasury-categories-${direction}`}
-          renderMeta={({ category }) => (
-            <Text size="xs" c="dimmed">
-              {category.entryCount ? entries(category.entryCount) : ''}
-            </Text>
+    <SettingsList<TreasuryCategory, { direction: TreasuryDirection }>
+      kind="TREASURY_CATEGORY"
+      nested
+      title={`Catégories de ${direction === 'IN' ? 'recettes' : 'dépenses'}`}
+      description="En arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
+      noun="la catégorie"
+      items={categories.filter((category) => category.direction === direction)}
+      usage={new Map(categories.map((category) => [category.id, category.entryCount]))}
+      usageNoun="mouvements"
+      storageKey={`treasury-categories-${direction}`}
+      schema={treasuryCategorySchema}
+      extra={{ initial: () => ({ direction }), render: () => null }}
+      create={async (values) => createdId(await createCategory.mutateAsync(input(values)))}
+      update={(id, values) => updateCategory.mutateAsync({ id, input: input(values) })}
+      remove={(id) => deleteCategory.mutateAsync(id)}
+      move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
+    />
+  );
+}
+
+/**
+ * Payment methods, as every settings list: name, color, image and the directions each one serves, reordered by drag
+ * and drop.
+ * @param {{ methods: TreasuryPaymentMethod[] }} props Methods.
+ * @returns {JSX.Element} List.
+ */
+function MethodList({ methods }: { methods: TreasuryPaymentMethod[] }) {
+  const { createMethod, updateMethod, deleteMethod } = useTreasuryMutations();
+  /**
+   * Input of a method from the form values.
+   * @param {{ name: string, incoming: boolean, outgoing: boolean }} values Values.
+   * @returns {object} Input.
+   */
+  const input = (values: { name: string; incoming: boolean; outgoing: boolean }) => ({ name: values.name, incoming: values.incoming, outgoing: values.outgoing });
+  return (
+    <SettingsList<TreasuryPaymentMethod, { incoming: boolean; outgoing: boolean }>
+      kind="TREASURY_PAYMENT_METHOD"
+      title="Moyens de paiement"
+      description="Virement, carte, chèque… pour les entrées, les sorties ou les deux."
+      noun="le moyen de paiement"
+      items={methods}
+      usage={new Map(methods.map((method) => [method.id, method.entryCount]))}
+      usageNoun="mouvements"
+      colorRequired={false}
+      schema={treasuryPaymentMethodSchema}
+      extra={{
+        initial: (method) => ({ incoming: method?.incoming ?? true, outgoing: method?.outgoing ?? true }),
+        render: (form) => (
+          <Group gap="lg">
+            <Checkbox label="Pour les entrées" {...form.getInputProps('incoming', { type: 'checkbox' })} />
+            <Checkbox label="Pour les sorties" {...form.getInputProps('outgoing', { type: 'checkbox' })} />
+          </Group>
+        ),
+      }}
+      create={async (values) => createdId(await createMethod.mutateAsync(input(values)))}
+      update={(id, values) => updateMethod.mutateAsync({ id, input: input(values) })}
+      remove={(id) => deleteMethod.mutateAsync(id)}
+      renderBadges={(method) => (
+        <>
+          {method.incoming && (
+            <Badge size="xs" variant="light" color="green">
+              Entrées
+            </Badge>
           )}
-          renderActions={({ category, path }) => (
-            <>
-              <Tooltip label="Ajouter une sous-catégorie">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter une sous-catégorie à ${path}`} onClick={() => open({ kind: 'category', direction, parentId: category.id })}>
-                  <PlusIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <RowActions
-                label={path}
-                onEdit={() => open({ kind: 'category', category })}
-                onDelete={() =>
-                  confirmDestructive({ title: 'Supprimer la catégorie', risks: `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`, onConfirm: () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }) })
-                }
-              />
-            </>
+          {method.outgoing && (
+            <Badge size="xs" variant="light" color="red">
+              Sorties
+            </Badge>
           )}
-          onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
-        />
+        </>
       )}
-    </Paper>
+    />
+  );
+}
+
+/**
+ * Counterparties that are not clients, as every settings list: name, color, image, note and archived, reordered by
+ * drag and drop.
+ * @param {{ counterparties: TreasuryCounterparty[] }} props Counterparties.
+ * @returns {JSX.Element} List.
+ */
+function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterparty[] }) {
+  const { createCounterparty, updateCounterparty, deleteCounterparty } = useTreasuryMutations();
+  /**
+   * Input of a counterparty from the form values.
+   * @param {{ name: string, note: string, archived: boolean }} values Values.
+   * @returns {object} Input.
+   */
+  const input = (values: { name: string; note: string; archived: boolean }) => ({ name: values.name, note: values.note || null, archived: values.archived });
+  return (
+    <SettingsList<TreasuryCounterparty, { note: string; archived: boolean }>
+      kind="TREASURY_COUNTERPARTY"
+      title="Tiers"
+      description="Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office."
+      noun="le tiers"
+      items={counterparties}
+      usage={new Map(counterparties.map((counterparty) => [counterparty.id, counterparty.entryCount]))}
+      usageNoun="mouvements"
+      colorRequired={false}
+      schema={treasuryCounterpartySchema}
+      extra={{
+        initial: (counterparty) => ({ note: counterparty?.note ?? '', archived: counterparty?.archived ?? false }),
+        render: (form) => (
+          <>
+            <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
+            <Checkbox label="Archivé (n’est plus proposé)" {...form.getInputProps('archived', { type: 'checkbox' })} />
+          </>
+        ),
+      }}
+      create={async (values) => createdId(await createCounterparty.mutateAsync(input(values)))}
+      update={(id, values) => updateCounterparty.mutateAsync({ id, input: input(values) })}
+      remove={(id) => deleteCounterparty.mutateAsync(id)}
+      renderBadges={(counterparty) =>
+        counterparty.archived && (
+          <Badge size="xs" color="gray">
+            Archivé
+          </Badge>
+        )
+      }
+      deleteMessage={(counterparty) => (
+        <>
+          « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''} Cette
+          action est irréversible.
+        </>
+      )}
+    />
   );
 }
 
@@ -428,10 +449,6 @@ export function SettingsPanel() {
   const { data: settings, isPending } = useTreasurySettings();
   // No invoicing in a personal workspace.
   const { perso } = useActiveWorkspace();
-  const { deleteMethod, deleteCounterparty } = useTreasuryMutations();
-  const [dialog, setDialog] = useState<Dialog>(null);
-  const close = () => setDialog(null);
-  const onError = (error: Error) => notifyError(error.message);
   if (isPending || !settings) return <ListSkeleton items={6} />;
   const { treasuryCategories: categories, treasuryPaymentMethods: methods, treasuryCounterparties: counterparties } = settings;
 
@@ -440,138 +457,11 @@ export function SettingsPanel() {
       <AccountsSettings />
       <TeamPanel />
       {/* One column: these settings are in the settings sidebar. */}
-      <CategoryList direction="IN" categories={categories} open={setDialog} />
-      <CategoryList direction="OUT" categories={categories} open={setDialog} />
+      <CategoryList direction="IN" categories={categories} />
+      <CategoryList direction="OUT" categories={categories} />
       {!perso && <InvoiceCategories categories={categories} />}
-
-      <Stack gap="md">
-        <Paper withBorder radius="md" p="md">
-          <Group justify="space-between" mb="xs">
-            <Title order={3} size="h5">
-              Moyens de paiement
-            </Title>
-            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'method' })}>Nouveau moyen de paiement</ActionButton>
-          </Group>
-          {methods.length === 0 ? (
-            <Empty icon={<CreditCardIcon aria-hidden />}>Aucun moyen de paiement.</Empty>
-          ) : (
-            <Table verticalSpacing={4}>
-              <Table.Tbody>
-                {methods.map((method) => (
-                  <Table.Tr key={method.id}>
-                    <Table.Td>
-                      <Text size="sm">{method.name}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        {method.incoming && (
-                          <Badge size="xs" variant="light" color="green">
-                            Entrées
-                          </Badge>
-                        )}
-                        {method.outgoing && (
-                          <Badge size="xs" variant="light" color="red">
-                            Sorties
-                          </Badge>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {method.entryCount ? entries(method.entryCount) : ''}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td w={1}>
-                      <RowActions
-                        label={method.name}
-                        onEdit={() => setDialog({ kind: 'method', method })}
-                        onDelete={() =>
-                          confirmDestructive({ title: 'Supprimer le moyen de paiement', risks: `« ${method.name} » sera supprimé définitivement.${method.entryCount ? ` Ses ${entries(method.entryCount)} n’auront plus de moyen de paiement.` : ''}`, onConfirm: () => deleteMethod.mutate(method.id, { onSuccess: () => notifySuccess('Moyen de paiement supprimé.'), onError }) })
-                        }
-                      />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Paper>
-
-        <Paper withBorder radius="md" p="md">
-          <Group justify="space-between" mb="xs">
-            <Title order={3} size="h5">
-              Tiers
-            </Title>
-            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'counterparty' })}>Nouveau tiers</ActionButton>
-          </Group>
-          <Text size="xs" c="dimmed" mb="xs">
-            Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office.
-          </Text>
-          {counterparties.length === 0 ? (
-            <Empty icon={<AddressBookIcon aria-hidden />}>Aucun tiers.</Empty>
-          ) : (
-            <Table verticalSpacing={4}>
-              <Table.Tbody>
-                {counterparties.map((counterparty) => (
-                  <Table.Tr key={counterparty.id} opacity={counterparty.archived ? 0.6 : 1}>
-                    <Table.Td>
-                      <Group gap="xs">
-                        <Text size="sm">{counterparty.name}</Text>
-                        {counterparty.archived && (
-                          <Badge size="xs" color="gray">
-                            Archivé
-                          </Badge>
-                        )}
-                      </Group>
-                      {counterparty.note && (
-                        <Text size="xs" c="dimmed" lineClamp={1}>
-                          {counterparty.note}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {counterparty.entryCount ? entries(counterparty.entryCount) : ''}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td w={1}>
-                      <RowActions
-                        label={counterparty.name}
-                        onEdit={() => setDialog({ kind: 'counterparty', counterparty })}
-                        onDelete={() =>
-                          confirmDestructive({ title: 'Supprimer le tiers', risks: `« ${counterparty.name} » sera supprimé définitivement.${counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}`, onConfirm: () => deleteCounterparty.mutate(counterparty.id, { onSuccess: () => notifySuccess('Tiers supprimé.'), onError }) })
-                        }
-                      />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Paper>
-      </Stack>
-
-      <SidePanel
-        opened={dialog !== null}
-        onClose={close}
-        title={
-          dialog?.kind === 'category'
-            ? dialog.category
-              ? 'Modifier la catégorie'
-              : 'Nouvelle catégorie'
-            : dialog?.kind === 'method'
-              ? dialog.method
-                ? 'Modifier le moyen de paiement'
-                : 'Nouveau moyen de paiement'
-              : dialog?.counterparty
-                ? 'Modifier le tiers'
-                : 'Nouveau tiers'
-        }
-      >
-        {dialog?.kind === 'category' && <CategoryForm category={dialog.category} direction={dialog.direction} parentId={dialog.parentId} categories={categories} onDone={close} />}
-        {dialog?.kind === 'method' && <MethodForm method={dialog.method} onDone={close} />}
-        {dialog?.kind === 'counterparty' && <CounterpartyForm counterparty={dialog.counterparty} onDone={close} />}
-      </SidePanel>
+      <MethodList methods={methods} />
+      <CounterpartyList counterparties={counterparties} />
     </Stack>
   );
 }
