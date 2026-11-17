@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarStart, shiftCalendar, type CalendarScale } from './periods';
 import { emptyTaskTableFilter, taskTableFilterSchema } from './task-filter-translation';
 
 /** What a chart is drawn from: tasks, accounting documents (quotes, invoices…), treasury movements. */
@@ -69,33 +70,7 @@ export const CHART_PERIODS = ['past:28', 'past:91', 'past:182', 'past:365', 'pas
 
 /** Calendar period: a month, quarter or year — the current one (0), the previous one (-1), or a chosen one (its first day). */
 export const CALENDAR_PERIOD = /^(month|quarter|year):(0|-1|\d{4}-\d{2}-\d{2})$/;
-const CALENDAR_SCALES = ['month', 'quarter', 'year'] as const;
-export type CalendarScale = (typeof CALENDAR_SCALES)[number];
 export type ChartPeriod = (typeof CHART_PERIODS)[number] | `${CalendarScale}:${string}`;
-
-/**
- * First day of the month, quarter or year of a day.
- * @param {CalendarScale} scale Scale.
- * @param {string} day YYYY-MM-DD.
- * @returns {string} First day.
- */
-export function calendarStart(scale: CalendarScale, day: string): string {
-  if (scale === 'year') return `${day.slice(0, 4)}-01-01`;
-  const month = Number(day.slice(5, 7)) - 1;
-  return `${day.slice(0, 4)}-${String((scale === 'quarter' ? month - (month % 3) : month) + 1).padStart(2, '0')}-01`;
-}
-
-/**
- * First day of the month, quarter or year after (or before) another one.
- * @param {CalendarScale} scale Scale.
- * @param {string} start First day of a period.
- * @param {number} delta Periods to move.
- * @returns {string} First day.
- */
-function shiftCalendar(scale: CalendarScale, start: string, delta: number): string {
-  const months = (scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12) * delta;
-  return new Date(Date.UTC(Number(start.slice(0, 4)), Number(start.slice(5, 7)) - 1 + months, 1)).toISOString().slice(0, 10);
-}
 
 /**
  * First day and day after the last one of a calendar period, or null when the period is not one.

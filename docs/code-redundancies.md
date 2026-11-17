@@ -110,6 +110,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Où :** le même calcul existe dans trois endroits, `shared/dashboards.ts` (`calendarStart`, `shiftCalendar`…), `treasury/chart-period.ts` (`periodStart`, `shiftPeriod`…) et `lib/periods.ts`.
 - **Cible :** des utilitaires de périodes dans le code partagé.
 
+**Fait** : `packages/shared/src/periods.ts` (`CalendarScale`, `calendarStart`, `shiftCalendar`, `calendarEnd`). Les périodes des graphiques (`calendarRange`), le graphique de solde de la trésorerie et les périodes proposées des exports reposent dessus ; `chart-period.ts` ne garde que les noms des échelles et des périodes.
+
 ### 12. Édition des cellules : tâches et routines jumelles
 
 - **Le constat :** `useCellEdit` et `useRoutineCellEdit` font environ 40 lignes chacun, identiques aux types près. L'annulation des modifications groupées est elle aussi séparée en deux.

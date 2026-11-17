@@ -29,3 +29,4 @@ export * from './event-busy';
 export * from './aggregates';
 export * from './text';
 export * from './tree';
+export * from './periods';

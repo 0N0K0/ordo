@@ -8,7 +8,7 @@ import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays } from '@ordo/shared';
+import { addDays, calendarEnd, calendarStart, shiftCalendar, type CalendarScale } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -20,7 +20,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryAccount, type TreasuryEntry } from './api';
-import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
+import { CHART_SCALES, periodLabel } from './chart-period';
 import { EntriesPanel } from './EntriesPanel';
 import { DetailsToggle, PayerCell } from './entry-cells';
 import { entryFieldCells, entryFieldColumns } from './entry-columns';
@@ -209,12 +209,12 @@ export function TreasuryPage() {
     if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
   }, [moved, setParams]);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
-  const [scale, setScale] = useState<ChartScale>('month');
-  const [periodFirst, setPeriodFirst] = useState(() => periodStart('month', today));
+  const [scale, setScale] = useState<CalendarScale>('month');
+  const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
   const [picking, setPicking] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const from = periodFirst;
-  const periodLast = periodEnd(scale, periodFirst);
+  const periodLast = calendarEnd(scale, periodFirst);
   // The forecast (expected movements) always reaches a year ahead, whatever the period shown.
   const until = periodLast > addDays(today, 365) ? periodLast : addDays(today, 365);
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
@@ -368,12 +368,12 @@ export function TreasuryPage() {
         <Group justify="space-between" mb="sm">
           <Text fw={600}>Évolution du solde</Text>
           <Group gap="xs">
-            <Button size="xs" variant="default" disabled={periodFirst === periodStart(scale, today)} onClick={() => setPeriodFirst(periodStart(scale, today))}>
+            <Button size="xs" variant="default" disabled={periodFirst === calendarStart(scale, today)} onClick={() => setPeriodFirst(calendarStart(scale, today))}>
               Aujourd’hui
             </Button>
             <Group gap={2} wrap="nowrap">
               <Tooltip label="Période précédente">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période précédente" onClick={() => setPeriodFirst(shiftPeriod(scale, periodFirst, -1))}>
+                <ActionIcon variant="subtle" color="gray" aria-label="Période précédente" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, -1))}>
                   <CaretLeftIcon aria-hidden />
                 </ActionIcon>
               </Tooltip>
@@ -388,7 +388,7 @@ export function TreasuryPage() {
                     <YearPicker
                       value={periodFirst}
                       onChange={(value) => {
-                        if (value) setPeriodFirst(periodStart('year', value));
+                        if (value) setPeriodFirst(calendarStart('year', value));
                         setPicking(false);
                       }}
                     />
@@ -397,7 +397,7 @@ export function TreasuryPage() {
                     <MonthPicker
                       value={periodFirst}
                       onChange={(value) => {
-                        if (value) setPeriodFirst(periodStart(scale, value));
+                        if (value) setPeriodFirst(calendarStart(scale, value));
                         setPicking(false);
                       }}
                     />
@@ -405,7 +405,7 @@ export function TreasuryPage() {
                 </Popover.Dropdown>
               </Popover>
               <Tooltip label="Période suivante">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période suivante" onClick={() => setPeriodFirst(shiftPeriod(scale, periodFirst, 1))}>
+                <ActionIcon variant="subtle" color="gray" aria-label="Période suivante" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, 1))}>
                   <CaretRightIcon aria-hidden />
                 </ActionIcon>
               </Tooltip>
@@ -417,8 +417,8 @@ export function TreasuryPage() {
               value={scale}
               // The new period contains the first day of the previous one.
               onChange={(value) => {
-                setScale(value as ChartScale);
-                setPeriodFirst(periodStart(value as ChartScale, periodFirst));
+                setScale(value as CalendarScale);
+                setPeriodFirst(calendarStart(value as CalendarScale, periodFirst));
               }}
             />
           </Group>
