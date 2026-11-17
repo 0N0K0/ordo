@@ -52,7 +52,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
-import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
+import { isDraftRoutine, useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell, RoutineBeneficiariesCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
@@ -385,7 +385,9 @@ const RoutineRowView = memo(function RoutineRowView({
   });
   const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${row.key}`, data: { kind: 'routine', routine, groupId: row.groupId } satisfies DropData });
   const done = isDone(routine);
-  const readOnly = routine.archived;
+  // Being created: nothing to change on it until it is saved (the server does not know it yet).
+  const draft = isDraftRoutine(routine);
+  const readOnly = routine.archived || draft;
   // The content of the cells, kept while the row's data do not change: a drag draws the row again (its handle, its
   // place), not its cells.
   const cells = useMemo((): Record<string, ReactNode> => {
@@ -503,35 +505,37 @@ const RoutineRowView = memo(function RoutineRowView({
         );
       })}
       <Table.Td>
-        <RowActions
-          name={routine.title}
-          primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
-          items={[
-            !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
-            !readOnly && movableOccurrence(routine) && 'divider',
-            !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
-            !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
-            'divider',
-            { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
-            { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
-            {
-              label: readOnly ? 'Restaurer' : 'Archiver',
-              icon: readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-              onClick: () =>
-                setArchived.mutate(
-                  { id: routine.id, archived: !routine.archived },
-                  { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: (error) => notifyError(error.message) },
-                ),
-            },
-            {
-              label: 'Supprimer',
-              icon: <TrashIcon aria-hidden />,
-              danger: true,
-              onClick: () =>
-                confirmDestructive({ title: 'Supprimer la routine', risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`, onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }) }),
-            },
-          ]}
-        />
+        {!draft && (
+          <RowActions
+            name={routine.title}
+            primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
+            items={[
+              !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
+              !readOnly && movableOccurrence(routine) && 'divider',
+              !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
+              !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
+              'divider',
+              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
+              { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
+              {
+                label: readOnly ? 'Restaurer' : 'Archiver',
+                icon: readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                onClick: () =>
+                  setArchived.mutate(
+                    { id: routine.id, archived: !routine.archived },
+                    { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: (error) => notifyError(error.message) },
+                  ),
+              },
+              {
+                label: 'Supprimer',
+                icon: <TrashIcon aria-hidden />,
+                danger: true,
+                onClick: () =>
+                  confirmDestructive({ title: 'Supprimer la routine', risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`, onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }) }),
+              },
+            ]}
+          />
+        )}
       </Table.Td>
     </Table.Tr>
   );
@@ -557,6 +561,8 @@ function AddRoutineRow({ span, categoryId, projectId, depth, groupName }: { span
       if (title.trim()) notifyError(result.error.issues[0]?.message ?? 'Titre invalide.');
       return;
     }
+    // Cleared at once (the routine shows as typed): the next one can be typed while it is saved.
+    setTitle('');
     create.mutate(
       {
         title: result.data,
@@ -570,7 +576,12 @@ function AddRoutineRow({ span, categoryId, projectId, depth, groupName }: { span
         assigneeIds: [],
         requiredIds: [],
       },
-      { onSuccess: () => setTitle(''), onError: (error) => notifyError(error.message) },
+      {
+        onError: (error) => {
+          setTitle(result.data);
+          notifyError(error.message);
+        },
+      },
     );
   };
 
@@ -586,7 +597,6 @@ function AddRoutineRow({ span, categoryId, projectId, depth, groupName }: { span
           placeholder="Ajouter une routine (tous les jours ; Entrée pour valider)"
           aria-label={`Ajouter une routine dans ${groupName}`}
           value={title}
-          disabled={create.isPending}
           onChange={(event) => setTitle(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') submit();
