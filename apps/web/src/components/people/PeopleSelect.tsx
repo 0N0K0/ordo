@@ -1,8 +1,8 @@
 import type { ComboboxItem, ComboboxLikeRenderOptionInput } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { BatchMultiSelect } from '../BatchMultiSelect';
-import { EditableMultiSelect } from '../data-table/EditableCells';
-import type { StackedItem } from '../data-table/StackedMultiCell';
+import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
+import { EditableMultiSelect } from '../data-table/cells/EditableCells';
+import type { StackedItem } from '../data-table/cells/StackedMultiCell';
 
 /** Options of people, grouped by kind or not. */
 export type PeopleOptions = (ComboboxItem | { group: string; items: ComboboxItem[] })[];

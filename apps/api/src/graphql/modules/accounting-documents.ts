@@ -1,9 +1,9 @@
 import { formatDay } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as docs from '../../services/accounting-documents';
-import * as imported from '../../services/imported-documents';
-import * as recurring from '../../services/recurring-invoices';
-import * as resources from '../../services/project-resources';
+import * as docs from '../../services/accounting/accounting-documents';
+import * as imported from '../../services/accounting/imported-documents';
+import * as recurring from '../../services/accounting/recurring-invoices';
+import * as resources from '../../services/workspace/project-resources';
 import { builder } from '../builder';
 import { clientError } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';

@@ -25,7 +25,7 @@ import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
-import { BatchMultiSelect } from '../BatchMultiSelect';
+import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.

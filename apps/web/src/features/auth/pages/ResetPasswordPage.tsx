@@ -1,12 +1,12 @@
 import { Alert, Anchor, Button, PasswordInput, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback-icons';
+import { ErrorIcon } from '../../../components/feedback/feedback-icons';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useResetPassword } from '../api';
-import { AuthHeader } from '../AuthLayout';
-import { PasswordStrength } from '../PasswordStrength';
+import { AuthHeader } from './AuthLayout';
+import { PasswordStrength } from '../components/PasswordStrength';
 
 /**
  * Sets a new password from the link received by email.

@@ -1,6 +1,6 @@
 import { TRAVEL_MODES } from '@ordo/shared';
-import * as geo from '../../services/geo';
-import { iconUrl } from '../../services/icons';
+import * as geo from '../../services/core/geo';
+import { iconUrl } from '../../services/core/icons';
 import { builder } from '../builder';
 
 const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({

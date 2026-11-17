@@ -2,8 +2,8 @@ import { ActionIcon, Button, Group, Text, ThemeIcon, Tooltip } from '@mantine/co
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
-import { CategoryTree } from '../category-tree/CategoryTree';
-import { categoryTree } from '../category-tree/category-tree';
+import { CategoryTree } from '../tree/CategoryTree';
+import { categoryTree } from '../tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';

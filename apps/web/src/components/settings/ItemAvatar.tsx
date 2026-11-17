@@ -1,4 +1,4 @@
-import { EntityAvatar } from '../../features/workspace/EntityAvatar';
+import { EntityAvatar } from '../../features/workspace/components/EntityAvatar';
 
 /**
  * Avatar of an item of a settings list (or of a project, a client…) in a list, a select or a pill: its image, or its

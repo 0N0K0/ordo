@@ -1,21 +1,21 @@
-import { doableTaskIds } from '../../services/slot-rules';
+import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
-import { storeAttachment } from '../../services/attachments';
-import * as contributors from '../../services/contributors';
-import * as milestones from '../../services/milestones';
-import * as sprints from '../../services/sprints';
-import { iconUrl } from '../../services/icons';
-import type { Label } from '../../services/labels';
-import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/task-labels';
-import * as taskViews from '../../services/task-views';
-import * as taskRecurrence from '../../services/task-recurrence';
-import * as tasks from '../../services/tasks';
+import { storeAttachment } from '../../services/core/attachments';
+import * as contributors from '../../services/workspace/contributors';
+import * as milestones from '../../services/tasks/milestones';
+import * as sprints from '../../services/tasks/sprints';
+import { iconUrl } from '../../services/core/icons';
+import type { Label } from '../../services/tasks/labels';
+import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
+import * as taskViews from '../../services/tasks/task-views';
+import * as taskRecurrence from '../../services/tasks/task-recurrence';
+import * as tasks from '../../services/tasks/tasks';
 import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
-import * as workspaces from '../../services/workspaces';
+import * as workspaces from '../../services/workspace/workspaces';
 import { builder } from '../builder';
-import { isMember } from '../../services/treasury-team';
+import { isMember } from '../../services/treasury/treasury-team';
 
 const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
 import { prisma } from '../db';
-import { libraryZip } from '../services/library';
+import { libraryZip } from '../services/library/library';
 
 export const libraryRouter: Router = Router();
 

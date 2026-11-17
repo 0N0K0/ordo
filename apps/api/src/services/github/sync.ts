@@ -2,7 +2,7 @@ import { normalize, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
-import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks';
+import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
   boardById,
@@ -29,7 +29,7 @@ import {
 import { githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
 import { currentWorkspaceId } from '../../workspace-context';
-import { forEachWorkspace } from '../workspaces';
+import { forEachWorkspace } from '../workspace/workspaces';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */

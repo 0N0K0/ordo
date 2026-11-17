@@ -2,7 +2,7 @@ import { readSlotRule } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../errors';
-import * as routines from '../../services/routines';
+import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { builder } from '../builder';
 import { EventScope } from './calendar';

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
-import { treasuryStatementPdf } from '../services/treasury-pdf';
+import { treasuryStatementPdf } from '../services/treasury/treasury-pdf';
 
 export const treasuryRouter: Router = Router();
 

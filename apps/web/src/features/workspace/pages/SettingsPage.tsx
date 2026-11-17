@@ -5,13 +5,13 @@ import { Navigate, useSearchParams } from "react-router";
 import { labelFormSchema } from "@ordo/shared";
 import { listMutations } from "../../../components/settings/settings-api";
 import { SettingsList } from "../../../components/settings/SettingsList";
-import { GithubSettings } from "../../github/GithubSettings";
-import { PlacesManager } from "../../geo/PlacesManager";
+import { GithubSettings } from "../../github/components/GithubSettings";
+import { PlacesManager } from "../../geo/components/PlacesManager";
 import { useTasksData } from "../../tasks/api";
-import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
-import { TeamMembers, TeamRelations } from "../../treasury/TeamPanel";
+import { ContributorsManager } from "../../tasks/components/ContributorsManager";
+import { TeamMembers, TeamRelations } from "../../treasury/components/TeamPanel";
 import { useActiveWorkspace } from "../../workspaces/api";
-import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
+import { WorkspacesManager } from "../../workspaces/components/WorkspacesManager";
 import {
   useCreateProjectCategory,
   useCreateProjectStatus,
@@ -23,7 +23,7 @@ import {
   useWorkspace,
 } from "../api";
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
-import { PageTabs } from '../../../components/PageTabs';
+import { PageTabs } from '../../../components/tabs/PageTabs';
 
 /**
  * Settings of the whole workspace, in tabs: projects (statuses, categories), team or household, contributors and

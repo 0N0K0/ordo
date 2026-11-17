@@ -1,6 +1,6 @@
 import { STOCK_MOVEMENT_KINDS } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as stock from '../../services/stock';
+import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? 0 : value.toNumber());

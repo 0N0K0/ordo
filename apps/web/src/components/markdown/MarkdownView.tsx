@@ -6,7 +6,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { remarkReferences, type ReferenceTargets } from './remark-references';
 import { remarkTaskOffsets, toggleTask } from './task-list';
-import { FileLink } from '../../features/files/FileLink';
+import { FileLink } from '../../features/files/components/FileLink';
 
 /**
  * Markdown link: task references ("?task=12") open the task over the current page, internal paths use

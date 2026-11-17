@@ -3,9 +3,9 @@ import { parisToday } from '../../src/today';
 import { addDays, DEFAULT_RECURRENCE, type Recurrence, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
-import { savePlace } from '../../src/services/geo';
-import { createTimeEntry } from '../../src/services/time-entries';
-import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, setRoutineArchived, slotsOf } from '../../src/services/routines';
+import { savePlace } from '../../src/services/core/geo';
+import { createTimeEntry } from '../../src/services/tasks/time-entries';
+import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, setRoutineArchived, slotsOf } from '../../src/services/routines/routines';
 
 /**
  * Rule from the default one.

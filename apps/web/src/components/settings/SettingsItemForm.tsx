@@ -1,12 +1,12 @@
 import { ColorInput, Select, Stack, TextInput } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
-import { IconField, type IconValue } from '../../features/workspace/IconField';
-import { useColorSwatches } from '../../features/workspace/use-color-swatches';
+import { IconField, type IconValue } from '../../features/workspace/components/IconField';
+import { useColorSwatches } from '../../features/workspace/hooks/use-color-swatches';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
-import { categoryOptions, categoryTree } from '../category-tree/category-tree';
-import { treeSelectProps } from '../tree-select/tree-select';
+import { categoryOptions, categoryTree } from '../tree/category-tree';
+import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
 import { FormActions } from '../dialogs/FormActions';
 

@@ -3,12 +3,12 @@ import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, occur
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
-import { createAlarm } from '../../src/services/alarms';
-import { createCalendarEvent } from '../../src/services/calendar-events';
-import { subscribe } from '../../src/services/calendars';
-import { addFiles, addLink, createFolder } from '../../src/services/library';
-import { savePlace } from '../../src/services/geo';
-import { createCategory as createRoutineCategory, createRoutine } from '../../src/services/routines';
+import { createAlarm } from '../../src/services/tasks/alarms';
+import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
+import { subscribe } from '../../src/services/calendar/calendars';
+import { addFiles, addLink, createFolder } from '../../src/services/library/library';
+import { savePlace } from '../../src/services/core/geo';
+import { createCategory as createRoutineCategory, createRoutine } from '../../src/services/routines/routines';
 import {
   addItem,
   attachListEntry,
@@ -20,16 +20,16 @@ import {
   createStore,
   setItemPurchased,
   setListClosed,
-} from '../../src/services/shopping';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/task-recurrence';
-import { createView } from '../../src/services/task-views';
-import { createTimeEntry } from '../../src/services/time-entries';
-import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury';
-import { saveBudget } from '../../src/services/treasury-budgets';
-import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
-import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
-import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/work-schedules';
-import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces';
+} from '../../src/services/shopping/shopping';
+import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/tasks/task-recurrence';
+import { createView } from '../../src/services/tasks/task-views';
+import { createTimeEntry } from '../../src/services/tasks/time-entries';
+import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury/treasury';
+import { saveBudget } from '../../src/services/treasury/treasury-budgets';
+import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
+import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
+import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
+import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
 import { projectFactory, taskFactory, TIME_ZONE } from './factories';
 import { initialsIcon } from './images';

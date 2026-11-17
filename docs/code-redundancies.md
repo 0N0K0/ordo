@@ -1,257 +1,298 @@
 # Composants similaires et redondances de code
 
-État au 17 novembre 2026, après une première série d'unifications (voir [Déjà unifié](#déjà-unifié)).
+État au 17 novembre 2026, après deux séries d'unifications (voir [Déjà unifié](#déjà-unifié)).
 
-Les plus coûteuses des redondances restantes sont les enveloppes de mutations du web et la logique d'ordre et de CRUD des listes dans l'API, recopiées liste par liste. Viennent ensuite les doublons d'interface : onglets triables, actions « une ligne » contre « plusieurs », deux modèles de personnes.
+Le plus gros reste se trouve dans l'API : l'ordre des listes, les arbres et le CRUD des listes simples, recopiés service par service. Côté web, ce sont surtout des contournements des briques déjà communes : panneaux ouverts à la main, menus d'actions écrits à la main, paramètres d'URL. S'y ajoutent de petits utilitaires de collections et de dates recopiés partout.
+
+La relecture a aussi trouvé quatre bugs de « jour courant », listés en premier.
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
+## Bugs trouvés en passant
+
+### 1. « Aujourd'hui » faux autour de minuit
+
+- **API :**
+  - `services/accounting/recurring-invoices.ts:126` prend le jour du fuseau du serveur (`Intl.DateTimeFormat('en-CA')`) ;
+  - `services/treasury/treasury-budgets.ts:105` prend le jour UTC (`formatDay(new Date())`).
+  - Les deux devraient passer par `parisToday`.
+- **Web :**
+  - `components/filters/FilterBuilder.tsx:70` et `features/dashboards/lib/finance-records.ts:117` prennent le jour UTC (`new Date().toISOString().slice(0, 10)`) ;
+  - les factures en retard et la valeur « aujourd'hui » d'un filtre sont donc décalées entre minuit et 1 h ou 2 h.
+  - Les deux devraient passer par `localToday`.
+
+### 2. Réordonnancements sans transaction
+
+- `settings-lists.reorder` (`services/core/settings-lists.ts:88`) et `movePlace` (`services/core/geo.ts:251`) écrivent les positions une par une.
+- Une erreur au milieu laisse l'ordre à moitié appliqué. `saveSiblingOrder` le fait déjà dans une transaction.
+
 ## Gros doublons
 
-### 1. Mutations du web : la même enveloppe recopiée par fonctionnalité
+### 3. API : déplacement et position suivante, liste par liste
 
-- **Enveloppe simple** (une mutation puis l'invalidation de ses requêtes) : une vingtaine de copies, dans `github`, `alarms`, `tasks` (×2), `treasury`, `stock`, `time`, `calendar`, `library`, `dashboards`, `sheets`, `mail`, `shopping` et `accounting/catalog-api`. Il y a même trois `useAccountingMutation` du même nom, dans `accounting/api.ts`, `documents-api.ts` et `tracking-api.ts`.
-- **Variante optimiste** (annulation, instantané, modification, retour arrière, invalidation) : copiée dans `routines/api.ts`, `shopping/api.ts` et `workspace/api.ts`, et faite à la main dans `tasks/api.ts` et `dashboards/api.ts`.
-- **Au total :** environ 350 lignes. Les clés invalidées sont parfois écrites en dur (`['shopping']` dans le stock et les fiches).
-- **Styles mélangés :** `workspace/api.ts` a un hook par mutation, quand les autres fonctionnalités les regroupent dans un `useXMutations()`.
-- **Cible :** `lib/mutation.ts`, avec une `useInvalidatingMutation(clés, fn, { optimiste? })`. La version de `workspace/api.ts` a déjà la bonne forme.
-
-**Fait** : `useInvalidatingMutation` et `patchQuery` dans `lib/mutation.ts`. Toutes les enveloppes des fonctionnalités et les mises à jour optimistes écrites à la main reposent dessus : clôture et déplacement des tâches, des jalons, des vues, des tableaux de bord et de leurs graphiques. Le retour arrière en cas d'erreur est le même partout. La clé des achats est exportée au lieu d'être écrite en dur. Restent à part : les espaces de travail (ils rafraîchissent tout au succès), l'invalidation conditionnelle du calendrier, les contributeurs de la trésorerie, le test d'un compte mail, et les colonnes par défaut des tâches, remplies avec la réponse du serveur. Le style des hooks (un par mutation ou un `useXMutations()`) n'est pas harmonisé.
-
-### 2. API : déplacement, position suivante et CRUD recopiés liste par liste
-
-- **Déplacement dans une liste plate :** une vingtaine de fonctions `moveX(id, index)`, toutes bâties sur `moveInOrder`. Elles se trouvent dans `clients`, `calendars`, `statuses`, `document-statuses`, `milestones`, `dashboards`, `task-views`, `project-resources`, `labels`, `mail/accounts`, `workspaces`, `shopping` (magasins, modes de conservation, listes de base, unités) et `sheets`.
-- **Mutations GraphQL en trop :** la plupart de ces listes sont des listes paramétrables, déjà servies par `reorderSettingsItems`. Le web leur passe pourtant encore leurs propres mutations de déplacement : `moveShoppingStore`, `moveTaskStatus`, `moveProjectStatus`, `moveSheetCategory`, `moveDocumentStatus`…
-- **Déplacement dans un arbre :** `moveCategory` est recopié presque ligne pour ligne dans `shopping`, `treasury-settings`, `routines`, `stock` et `calendar-categories`. `movePlace` en est une variante.
-- **Position suivante :** `_max: { position }` est réécrit environ 25 fois, alors que `nextPosition` existe dans `settings-lists.ts`.
-- **CRUD des listes nom et couleur :** `createLabelService` ne sert qu'aux libellés des tâches. Les magasins, modes de conservation, unités, statuts de projet, catégories de fiches et statuts des documents ont chacun leur CRUD écrit à la main. Les modules GraphQL répètent leurs quatre champs (créer, modifier, supprimer, déplacer), soit 63 champs en tout.
+- **Déplacement :**
+  - 16 services appellent `moveInOrder`, puis réécrivent la même transaction de positions : calendriers, étiquettes, achats ×4, tableaux de bord ×2, statuts de documents, ressources de projet, jalons, statuts, vues, comptes mail, clients, projets.
+  - Trois autres (espaces, routines, lieux) n'utilisent pas `ordering.ts` du tout.
+  - Au total, environ 250 lignes.
+- **Deux chemins pour les mêmes listes :**
+  - `reorderSettingsItems` couvre déjà les statuts de projet, les libellés des tâches, les statuts de documents, les catégories de fiches, les listes des achats et les calendriers ;
+  - les mutations `moveProjectStatus`, `moveDocumentStatus`, `moveSheetCategory`, `moveCalendar`, `moveShopping{Store,Unit,Storage,BaseList}` et `moveTask{Status,Priority,Type,Tag}` existent pourtant toujours.
+- **Position suivante :**
+  - `(_max.position ?? -1) + 1` est écrit environ 44 fois, dans 28 fichiers ;
+  - 14 de ces copies concernent des listes paramétrables qui ont déjà `nextPosition` ;
+  - les arbres ne peuvent pas l'utiliser : il n'a pas de `where`.
 - **Cible :**
-  - dans `services/ordering.ts`, des fonctions `moveFlat`, `moveInTree` et `nextPosition` génériques ;
-  - `createLabelService`, étendu et piloté par `SETTINGS_LISTS`, avec un utilitaire GraphQL qui déclare les quatre champs d'une liste ;
-  - les listes plates réordonnées par `reorderSettingsItems` seulement.
+  - `moveInList(modèle, id, index, where?)` et `nextPosition(modèle, where?)` dans `ordering.ts` ;
+  - suppression des mutations de déplacement que `reorderSettingsItems` couvre déjà.
 
-### 3. Onglets triables : trois copies identiques
+### 4. API : arbres
 
-- **Où :** `SortableTab` est identique dans `components/data-table/ViewTabs.tsx`, `features/shopping/BaseLists.tsx` et `features/dashboards/DashboardBoard.tsx`.
-- **Ce qui se répète :** la barre entière, avec les onglets, le glisser-déposer horizontal, le menu (renommer, déplacer à gauche ou à droite, supprimer) et l'onglet choisi dans l'URL. Environ 150 lignes.
-- **Cible :** un composant `components/SortableTabs`, avec des emplacements pour le contenu de l'onglet et pour le menu, que `ViewTabs` utiliserait lui aussi.
-
-**Fait** : `SortableTabs` (`components/sortable-tabs/`) porte la barre des vues, des références d'achats et des tableaux de bord. Elle gère les onglets, le glisser-déposer, le menu de l'onglet choisi (ses actions, déplacer à gauche ou à droite, supprimer) et le bouton d'ajout (un clic, ou un menu). `useTabParam` garde l'onglet choisi dans l'URL pour les références et les tableaux de bord ; les vues gardent leur propre sélection, qui retient aussi leurs modifications. Le déplacement d'un tableau de bord par son menu signale maintenant ses erreurs.
-
-### 4. Actions sur une ligne contre actions sur plusieurs
-
-- **Dialogues des tâches :** `TaskDialogs.tsx` (supprimer, transférer une tâche) double `BulkDialogs.tsx` (les mêmes sur plusieurs tâches). On y retrouve le même choix « Que faire de ses sous-tâches », les mêmes boutons et les mêmes messages.
-- **« N liens retirés » :** le message est construit quatre fois, et une cinquième fois en « lien(s) retiré(s) ».
-- **Ouverture des dialogues :** deux fonctions `openDialog` différentes. `BulkTransferDialog` refait aussi `outermost` à la main.
-- **Routines :** le menu d'une ligne archive sans annulation, supprime avec un autre texte et duplique par le formulaire. La barre de sélection archive avec annulation et duplique avec les sous-routines. Les deux chemins se comportent donc différemment.
-- **API :** les actions groupées enveloppent déjà les actions unitaires. Les points d'entrée unitaires (archiver, supprimer, transférer une tâche ; archiver, supprimer une routine) sont donc en trop.
+- **Détection de cycle :**
+  - la boucle « le nouveau parent n'est pas sous l'élément » est recopiée 9 fois : catégories de l'agenda, de la trésorerie, des achats, emplacements du stock, lieux ×2, routines (`reaches`) ;
+  - `ProjectTree.ancestors` refait `ancestorsOf`.
+- **Déplacement dans un arbre** (nouveau parent et ordre des frères) : 4 `moveCategory` quasi identiques, plus `moveLocation`.
+- **Suppression** (les enfants remontent d'un niveau, puis suppression) : 6 copies.
 - **Cible :**
-  - un seul dialogue par action, sur une liste de tâches (une seule tâche étant une liste d'une) ;
-  - les menus d'une ligne construits avec les mêmes actions génériques que la barre de sélection ;
-  - les seules mutations groupées.
+  - `assertNotUnder` dans `tree.ts` (partagé) ;
+  - `moveInTree` et `deleteTreeNode` dans `ordering.ts`.
 
-**Fait** :
+### 5. API : CRUD des listes simples (nom et couleur)
 
-- **Dialogues des tâches** : un seul dialogue par action (`DeleteTasksDialog`, `TransferTasksDialog`, `CloneTasksDialog`, dans `TaskDialogs.tsx`), sur une liste de tâches. Une seule tâche garde ses textes au singulier. `BulkDialogs.tsx` est supprimé. Une seule ouverture : `openTasksDialog`.
-- **Gagné au passage** : le transfert d'une seule tâche se défait depuis son message, et celui de plusieurs tâches propose « Sans projet » et prévient quand on quitte l'arborescence.
-- **Menus des lignes** : `useTaskRowsActions` et `useRoutineRowsActions` donnent les actions nommées, les mêmes pour la barre de sélection et pour le menu d'une ligne. `rowMenuEntry` les convertit en entrées de menu, confirmation comprise. Une routine s'archive donc avec annulation et se duplique avec ses sous-routines, depuis son menu comme depuis la barre.
-- **« N liens retirés »** : un seul `removedLinksNote`.
-- **Mutations** : le panneau d'une tâche et la cellule Projet passent par le transfert groupé. Les mutations GraphQL `setTaskArchived`, `deleteTask`, `transferTask`, `setRoutineArchived` et `deleteRoutine` sont supprimées ; les services unitaires restent, appelés par les actions groupées et le seed.
-
-### 5. Deux modèles de personnes
-
-- **Bénéficiaires :** clés `c:` et `r:` (`features/beneficiaries`).
-- **Achats, stock et trésorerie :** `memberIds` et `relationIds`, avec des clés `m:` et `r:`. `PeopleCell` (achats) refait `BeneficiariesCell`.
-- **Sélecteurs de contributeurs :** l'agenda (`EventForm`, sans avatars) et l'équipe de la trésorerie (`TeamPanel`) écrivent le leur au lieu d'utiliser `AssigneesSelect`. L'affichage des contributeurs avec leur avatar est recopié trois fois, et `EventPeopleCell` refait `AssigneesCell`.
+- **Services :**
+  - `createLabelService` ne sert qu'aux 4 libellés des tâches ;
+  - le même créer / modifier / supprimer / déplacer est écrit à la main pour les statuts de projet, les magasins, unités, conservations et références des achats, les catégories de fiches, les drapeaux mail, les contextes de la trésorerie et les statuts de documents.
+- **Erreur de nom déjà pris :**
+  - la conversion de l'erreur Prisma P2002 en erreur de champ est faite 6 fois, plus 6 fois en ligne ;
+  - les achats vérifient le nom avant, autrement.
+- **GraphQL :**
+  - les objets `{ id, name, color, position }` sont définis 7 fois, les entrées `{ name, color }` environ 14 fois ;
+  - environ 178 résolveurs finissent par `await …; return true;`, et un seul `done()` existe (stock).
 - **Cible :**
-  - `components/people`, avec `PeopleSelect` et `PeopleCell`, un seul schéma de clés et un seul rendu avec avatar ;
-  - `AssigneesCell` pour les évènements aussi.
+  - `createLabelService` généralisé (périmètre `where`, crochets) ;
+  - une fabrique `labelMutations(kind, service)` ;
+  - `LabelInput` et `LabelPatch` communs ;
+  - `rethrowUnique` et `done()` dans `graphql/`.
 
-**Fait** :
+### 6. API : chercher, sinon « introuvable »
 
-- **`components/people/`** : `people-keys.ts`, un seul schéma de clés (`c:` contributeur, `m:` membre, `r:` relation), avec `personKey`, `parsePersonKey`, `peopleKeys`, `idsOfKind`, et `memberOrRelation` et `memberOrRelationKey` pour les sélecteurs à une personne de la trésorerie. `PeopleSelect` est le champ de formulaire et `PeopleCell` la cellule. `PersonOption` et `PersonAvatar` sont le seul rendu avec avatar.
-- **Branchés dessus** : bénéficiaires, colonnes et valeurs par défaut des tâches et des routines, achats (cellule, formulaire, regroupement par personne), stock, lignes et budgets de la trésorerie.
-- **Contributeurs** : `AssigneesSelect` sert aussi au formulaire d'évènement (avec avatars), et `AssigneesCell` aux évènements (`EventPeopleCell` le reprend). Le choix d'un contributeur dans l'équipe de la trésorerie montre son avatar.
-- **Corrigé** : les contextes de la trésorerie n'utilisent plus la clé `c:` des contributeurs.
-- **Reste à part** : le modèle des données. Les achats, le stock et la trésorerie gardent membres et relations, les bénéficiaires contributeurs et relations ; seul le web partage clés et composants.
+- `findUnique`, puis `if (!x) throw notFound(…)`, est écrit environ 146 fois. Les plus gros fichiers : achats (14), routines (9), stock (7), trésorerie, fiches.
+- S'y ajoutent une vingtaine de `findX` locaux et une quinzaine de vérifications d'existence `select: { id: true }`.
+- **Cible :** `findOrThrow(modèle, id, libellé)` et `assertExists`, dans `services/core/lookup.ts`.
+
+### 7. Web : panneaux et fenêtres ouverts à la main
+
+- **Panneaux :** une quinzaine de formulaires sont dans un `<SidePanel>` piloté par un état local (titre, contenu conditionnel) au lieu de `openFormPanel` :
+  - trésorerie : page, budgets, équipe ×2, mouvement, mouvements ×2, lignes, emprunts ;
+  - suivi de facturation, évènement, agenda, évènement abonné.
+- **Fenêtres :** des `<Modal>` bruts au lieu de `openModal` ou `confirmDestructive` :
+  - suppression d'un évènement (`EventForm.tsx:280`) ;
+  - fermeture d'un mail (`MailComposer.tsx:281`) ;
+  - choix de la portée (`ask-scope.tsx`) ;
+  - répétition (`RepetitionField.tsx`).
+- **Confirmation en ligne :** `WorkspacesManager.tsx` confirme une suppression dans la ligne même.
+
+### 8. Web : menus et boutons d'actions écrits à la main
+
+- **Menus Modifier / Supprimer** au lieu de `ActionsMenu` : jalons, sprints, recherches mail, dossiers mail, graphiques des tableaux de bord.
+- **Rangées de boutons Modifier / Dupliquer / Supprimer** (infobulle et icône) : alarmes, contributeurs, facturation d'un client ×2, ressources de projet, comptes mail, espaces. `SettingsList` fait la même chose en interne.
+- **Boutons Monter / Descendre :** lignes d'un document, espaces, ressources de projet, panneau de tri.
+- **Poignées de glisser-déposer** (`useSortable` avec une icône de poignée) : jalons, graphiques, cas d'une répétition.
+- **Cible :** `InlineActions items={RowMenuEntry[]}` (à côté de `RowActions`), `MoveButtons`, `DragHandle`.
+
+### 9. Web : paramètres d'URL
+
+- `new URLSearchParams(…)`, puis `set` ou `delete`, puis `setParams(…, { replace: true })` : une vingtaine de copies.
+- **Où :**
+  - changements d'onglet qui contournent `useTabParam` : routines, achats, stock, paramètres, trésorerie, projet ;
+  - setters locaux : facturation, mail, vues, temps, réglages de page ;
+  - effets « lire un ancien paramètre puis le retirer » : facturation ×2, mail, agenda, trésorerie, projet.
+- **Incohérence :** deux pages (stock, paramètres) ajoutent une entrée dans l'historique au lieu de la remplacer.
+- **Cible :** `useSearchParam(clé)`, `useSetParams()` et `useConsumeParam(clé, …)` dans `lib/search-params.ts`, avec `useTabParam` construit dessus.
 
 ## Doublons moyens
 
-### 6. Ouverture des panneaux et des fenêtres
+### 10. Petits utilitaires de collections
 
-- **Le constat :** 30 fichiers gardent leur propre compteur (`let modalCount = 0`) avec `openPanel` et `closePanel`, alors que `openFormPanel` existe. Une quinzaine d'entre eux sont des fichiers de 15 à 20 lignes qui ne font qu'ouvrir un panneau.
-- **Cible :** `openFormPanel` partout, et son équivalent pour les fenêtres, `openModal`.
+- **`byId` :** `new Map(list.map((x) => [x.id, x]))` est écrit 52 fois, plus une quinzaine de tables « id → nom ».
+- **Regroupements** (`m.set(k, [...(m.get(k) ?? []), x])`) : 13 copies, dont 3 exactes des enfants par parent (orphelins à la racine) dans `routine-format.ts`, `category-tree.ts` et `tree-select.tsx`.
+- **Tri par position :** `(a, b) => a.position - b.position` est écrit 24 fois ; côté API, `orderBy: [{ position: 'asc' }, { createdAt: 'asc' }]` l'est 49 fois.
+- **Déplacement dans une liste en cache :** 6 copies dans les mises à jour optimistes (tâches, vues, jalons, tableaux de bord, graphiques, références).
+- **Cible :**
+  - `byId`, `groupBy`, `childrenOf`, `byPosition` dans `tree.ts` (partagé) ;
+  - `BY_POSITION` dans `ordering.ts` ;
+  - `moveToIndex` dans `lib/mutation.ts`.
 
-**Fait** : `openFormPanel` (options : largeur, verrouillage, action à la fermeture, identifiant fixe pour un panneau qui se remplace) et `openModal` (`components/panels/open-modal.ts`) ouvrent tous les panneaux et toutes les fenêtres ; plus aucun compteur propre à un fichier. `confirmDestructive` reste la confirmation des actions destructives. Corrigé au passage : le panneau du nom d'un tableau de bord ne se fermait pas à l'enregistrement (il était fermé comme une fenêtre).
-
-### 7. Boutons de bas de formulaire
-
-- **Le constat :** « Annuler » et le bouton d'envoi, alignés à droite, sont écrits à la main dans environ 45 formulaires, avec des écarts qui varient.
-- **Cible :** un `FormActions` à côté de `DestructiveActions`, qui prend le texte du bouton, l'état d'envoi et l'annulation.
-
-**Fait** : `FormActions` (`components/dialogs/FormActions.tsx`), à côté de `DestructiveActions`, dans 78 formulaires et dialogues : « Annuler » (facultatif) puis l'action, avec son texte, son icône, son attente, sa désactivation, et un envoi par clic quand il n'y a pas de formulaire. Deux copies locales de `FormActions` (facturation, trésorerie) sont supprimées. Restent à part : les boutons collés à un champ (ajouter un membre, un élément, un espace…), la validation d'une facture (l'action d'abord, comme une action irréversible), et les dialogues qui n'ont qu'« Annuler ».
-
-### 8. Cartes de section des paramètres
-
-- **Le constat :** le même bloc (cadre, titre, description et actions) est recopié une quinzaine de fois, en deux tailles de titre : utilisateurs, calendriers, comptes mail, espaces, GitHub, compte, entreprise, équipe de la trésorerie, colonnes par défaut…
-- **Un composant inutilisé :** `components/actions/SectionHeader.tsx` existe mais n'est importé nulle part.
-- **Cible :** une `SettingsSection` construite sur `SectionHeader`, que `SettingsList` utiliserait aussi.
-
-**Fait** : `SettingsSection` (`components/settings/SettingsSection.tsx`), construite sur `SectionHeader`, dans 22 cartes : utilisateurs, calendriers, comptes mail, espaces, GitHub, compte, entreprise, facturation, équipe et paramètres de la trésorerie, colonnes par défaut, et `SettingsList` elle-même. Une seule taille de titre. Deux copies locales (compte, agenda) sont supprimées. Restent à part les sections de l'éditeur de documents (`EditorSection`, plus denses) et les cartes des pages de la trésorerie (budgets), qui ne sont pas des paramètres.
-
-### 9. Parcours d'arbres et chemins réécrits
+### 11. Dates et heures
 
 - **Web :**
-  - **sous-arbres :** `subtreeOf` (formulaire des routines), `subtreeIds` (tâches), `descendantIds` (projets) ;
-  - **chaînes de parents :** `routinePath`, `categoryLineage`, `rootPlace`, les achats, le contexte des tâches, les contributeurs d'un projet, la page d'un projet ;
-  - **glisser-déposer :** `ProjectList.tsx` refait `treeDestination` ;
-  - **séparateur :** `LEVEL` est redéfini dans `geo/api.ts`, et « › » est écrit en dur dans `treasury/lines.ts`.
+  - le jour local est recalculé au lieu de `localDay` 5 fois : temps, factures en retard, accueil ;
+  - minuit local en ISO est écrit 3 fois ;
+  - les débuts et décalages de périodes des tableaux de bord (`aggregate.ts:160`) refont `calendarStart` et `shiftCalendar` ;
+  - un `isoWeek` privé (`table-engine.ts`) double celui du code partagé ;
+  - 3 écarts de jours sont calculés en `/ 86_400_000` au lieu de `daysBetween`.
+- **Heures :** la conversion « HH:MM ↔ minutes » existe au moins 5 fois (agenda, créneaux, temps, plages de travail).
 - **API :**
-  - **chemins :** PDF de trésorerie, lieux, prêts ;
-  - **sous-arbres et ancêtres :** temps, tâches, synchronisation GitHub ;
-  - **existant à réutiliser :** `projects.ts` a sa propre classe privée `ProjectTree`.
+  - le même `toDate()` est défini 4 fois (projets, tâches, jalons, alarmes) ;
+  - `new Date(\`${jour}T00:00:00Z\`)` est écrit en ligne une dizaine de fois ;
+  - `toISOString().slice(0, 10)` est utilisé au lieu de `formatDay` ;
+  - le dernier jour du mois et le jour borné au mois sont recalculés dans plusieurs fichiers.
 - **Cible :**
-  - côté web, `ancestors`, `lineage` et `subtree` dans `category-tree.ts`, et une contrainte facultative pour `treeDestination` ;
-  - côté API, un `services/tree.ts`, ou des utilitaires d'arbre placés dans le code partagé.
+  - `localMidnight` dans `lib/dates.ts` ;
+  - `timeToMinutes` et `minutesToTime` dans le code partagé ;
+  - `parseOptionalDay` ;
+  - un `months.ts` partagé.
 
-**Fait** : `packages/shared/src/tree.ts` (`LEVEL`, `subtreeOf`, `lineageOf`, `ancestorsOf`, `pathOf`, à l'abri des cycles), utilisé par le web et l'API. Remplacés : les sous-arbres des routines, des tâches, des projets, des catégories, des temps et des liens GitHub ; les chaînes de parents des routines, de la trésorerie, des lieux, des achats, des tâches et des projets ; les chemins des catégories du PDF de trésorerie et des lieux ; les séparateurs « › » écrits en dur. Restent à part : la `ProjectTree` de l'API (une vue en mémoire avec ses enfants, plus rapide pour ses nombreux usages), le sous-arbre de la synchronisation GitHub (chargé niveau par niveau en base), et le dépôt de la liste des projets, qui a ses règles (projets archivés, profondeur maximale) en plus de la détection de cycle, désormais partagée.
+### 12. Argent
 
-### 10. Téléchargements et exports PDF ou CSV
+- **Arrondi à 2 décimales :** une dizaine de copies dans le web (lignes de trésorerie, factures importées, stock, tableaux), alors qu'un `round` existe déjà dans `aggregate.ts`.
+- **Centimes :** `Math.round(x * 100)` est écrit à la main au lieu de `toCents`, dans l'API et le code partagé.
+- **Montant d'une ligne de trésorerie** (pourcentage ou montant) : recalculé dans `treasury-loans.ts:40` et dans le module GraphQL de la trésorerie, alors que `splitAmounts` le fait déjà.
+- **Cible :** `round2`, `toCents` partout, `lineCents` dans le code partagé.
 
-- **Téléchargement :** `lib/download.ts` est recopié dans `dashboards/chart-image.ts`, et refait à la main dans les achats, l'archive des documents et les relevés.
-- **Export PDF de tableau :** l'appel à `/api/exports/table.pdf` est écrit trois fois (tableaux, achats, graphiques).
-- **CSV :** l'échappement et le BOM sont écrits deux fois.
-- **Cible :** `postPdf` et `toCsv` dans `lib/download.ts`.
+### 13. Blocs de page
 
-**Fait** : `lib/download.ts` regroupe `download` (un blob ou une image en data URL), `fileName`, `fetchDownload` (un fichier servi par l'API : archive des documents, relevé), `postExport` (un export construit par l'API : graphiques, agenda), `postTablePdf` (le PDF d'un tableau : tableaux, achats, graphiques) et `downloadCsv` (au format des tableurs français). Les copies de `chart-image.ts` (`saveFile`, `exportFileName`) et les téléchargements écrits à la main sont supprimés ; les erreurs de l'API sont lues de la même façon partout.
+- **Navigation de période** (« Aujourd'hui », précédent, suivant, libellé) : 3 copies (agenda, trésorerie, historique des routines), avec des boutons dans un ordre différent.
+- **En-tête de page de détail** (retour, titre, badge, sous-titre, actions) : 4 copies (document, facture importée, liste d'achats, fiche), avec trois styles de lien retour.
+- **Petite section à titre en capitales** (titre, action à droite, contenu) : une dizaine de copies. `Property` du panneau d'une tâche et `Detail` de la page projet sont le même composant.
+- **Chiffre clé :** `Figure` (trésorerie) double `StatTile` (accueil).
+- **Section d'éditeur :** `EditorSection` (facturation) double `SettingsSection`, avec un titre plus petit.
+- **Cible :** `PeriodNav`, `DetailHeader`, `SubSection`, `StatTile` dans `components/`, et une taille de titre pour `SettingsSection`.
 
-### 11. Calcul des périodes de calendrier
+### 14. Tâches : cartes et cellules
 
-- **Où :** le même calcul existe dans trois endroits, `shared/dashboards.ts` (`calendarStart`, `shiftCalendar`…), `treasury/chart-period.ts` (`periodStart`, `shiftPeriod`…) et `lib/periods.ts`.
-- **Cible :** des utilitaires de périodes dans le code partagé.
+- **Jalon et sprint :** la même carte (titre, badges, dates, menu, progression, description modifiable) est recopiée dans `MilestonesPanel` et `SprintsPanel`. Environ 45 lignes chacune.
+- **Progression :** `TaskProgress` est contourné par la cellule de progression et par le panneau d'une tâche (sous-tâches faites sur total).
+- **Cellules en popover** (un tiret grisé, puis un éditeur dans un popover) : 5 copies (lieu, rappels, ouverture, créneaux, temps).
+- **Cible :** `PlanCard`, `TaskProgress` avec une unité, `EditablePopoverCell`.
 
-**Fait** : `packages/shared/src/periods.ts` (`CalendarScale`, `calendarStart`, `shiftCalendar`, `calendarEnd`). Les périodes des graphiques (`calendarRange`), le graphique de solde de la trésorerie et les périodes proposées des exports reposent dessus ; `chart-period.ts` ne garde que les noms des échelles et des périodes.
+### 15. Mail : barre de la liste
 
-### 12. Édition des cellules : tâches et routines jumelles
+- La recherche, la recherche avancée, le tri, le filtre « Tous / À traiter / Traités » et les messages vides sont recopiés entre `MailPage` et `ProjectMailsPanel`, environ 60 lignes chacun.
+- La liste `SORTS` est en double.
+- **Cible :** `MailListToolbar`, `MAIL_SORTS`.
 
-- **Le constat :** `useCellEdit` et `useRoutineCellEdit` font environ 40 lignes chacun, identiques aux types près. L'annulation des modifications groupées est elle aussi séparée en deux.
-- **Cible :** un `useEntityCellEdit` dans `bulk-edit.ts`.
+### 16. Personnes : restes
 
-**Fait** : `useEntityCellEdit` (`components/data-table/bulk-edit.ts`) porte la logique commune (lignes visées par la sélection, enregistrement d'une ligne ou de toutes en une requête). `useCellEdit` et `useRoutineCellEdit` ne lui donnent plus que leurs mutations et leur libellé. Les deux annulations restent propres à leur domaine : les tâches défont chaque champ changé, les routines se remettent comme elles étaient.
+- **Options « membres puis relations »** : construites 4 fois (lignes, tableau des lignes, budgets, achats).
+- **Noms des bénéficiaires** : calculés deux fois dans `use-beneficiaries.ts`.
+- **Ligne d'un contributeur** (avatar, nom, badge « Moi ») : écrite avec un `Avatar` brut 4 fois (contributeurs d'un projet, gestion des contributeurs, équipe, éditeur markdown).
+- **Code mort :** `Assignees` (`task-ui.tsx`) n'est plus utilisé.
+- **Cible :** `memberRelationOptions` dans `components/people`, et `PersonRow`.
 
-### 13. Autres doublons d'interface
+### 17. Listes paramétrables : restes
 
-- **Abonnements aux autres espaces :** les calendriers et les types de plages ont chacun leur liste, regroupée par espace, avec un interrupteur d'abonnement.
-- **Jalons et sprints :** les deux panneaux se ressemblent, avec la même carte de progression, le même compte « faites / total » et la même confirmation de suppression (mal mise en forme dans les deux).
-- **Clients :** leur sélecteur est écrit trois fois dans la facturation, et leurs groupes deux fois dans la trésorerie. Cible : un `ClientSelect` avec avatar.
-- **Pastilles de couleur à la place des avatars :** encore dans les calendriers, les types de plages, les statuts des documents, le mode magasin et les plages de travail.
-- **Badges des listes paramétrables :** `LabelBadge` est générique mais rangé dans les tâches, et d'autres écrans font leurs propres badges colorés (page d'un projet, liste des projets, accueil, trésorerie, mails, suivi des documents). Cible : un `ItemBadge` dans `components/settings`.
-- **Catégories de fiches :** le formulaire d'une fiche les affiche par leur nom seul, sans `listSelectProps`.
+- **Compteurs d'usage** (combien d'éléments utilisent un item) : 9 copies, dont deux `usageOf` locaux.
+- **Options des plages de travail** : construites 3 fois, leurs noms 2 fois.
+- **Options d'arbre des routines** : `routineTreeOptions` est contourné par le formulaire et une cellule des routines, et le temps en fait une liste plate.
+- **Cible :** `countBy` à côté de `SettingsList`, et `useScheduleChoices()`.
 
-**Fait** :
+### 18. Requêtes : clés et invalidations hors des `api.ts`
 
-- **Abonnements :** `ByWorkspace` (`components/settings`) regroupe par espace les calendriers et les types de plages des autres espaces ; la carte des types de plages passe sur `SettingsSection`.
-- **Jalons et sprints :** une même barre d'avancement (`TaskProgress`) et une même confirmation de suppression (`confirmPlanDelete`), qui corrige leur mise en forme.
-- **Clients :** `ClientSelect` (`features/workspace`), avec leur avatar, dans les nouveaux documents, les factures d'acompte et l'éditeur de documents. Les groupes « Clients » de la trésorerie restent dans leur liste de tiers.
-- **Avatars :** les calendriers et les types de plages des autres espaces, les statuts des documents, le mode magasin (magasins et catégories) et le type d'une plage de travail ont leur avatar.
-- **Badges :** `ItemBadge` (`components/settings`) remplace `LabelBadge` et les badges colorés faits à la main (statuts et catégories des projets, statuts des tâches de l'accueil, drapeaux des mails, suivi des documents) ; il montre l'image de l'item quand il en a une.
-- **Catégories de fiches :** avec `listSelectProps` dans le formulaire d'une fiche.
+- **Clés écrites en dur :**
+  - `['workspaces']` dans `lib/week.ts` (la clé n'est pas exportée) ;
+  - `['accounting', 'treasury']` dans les achats, invalidé dans le `mutationFn` même ;
+  - la clé des réglages de la trésorerie reconstruite dans les bénéficiaires.
+- **Invalidations dans des composants :** gestion des contributeurs, éditeur de document. Elles appartiennent à la liste `invalidate` de leurs mutations.
+- **Cible :** exporter les clés et passer par `useInvalidatingMutation`.
 
-### 14. Glisser-déposer : capteurs recopiés
+### 19. API : PDF
 
-- **Le constat :** la configuration des capteurs est écrite 14 fois, avec une distance d'activation qui varie (4 ou 6 pixels). La détection « sous le pointeur, sinon le plus proche » est écrite trois fois.
-- **Cible :** `useDragSensors` et la détection commune dans `lib/drag.ts`.
+- **Émetteur :** le PDF de trésorerie relit le nom de l'entreprise, ce que fait déjà `issuer()`.
+- **Mise en page :** le PDF de trésorerie et celui des tableaux partagent la même structure (titre, ligne d'en-tête, sauts de page avec en-tête répété, bandeau).
+- **Thème :** couleurs, marges et tailles sont redéclarées dans 5 fichiers.
+- **Cible :** `issuer()`, le thème et un `tableWriter` exportés par `pdf-report.ts`. Environ 80 lignes.
 
-**Fait** : un seul `useDragSensors` dans `lib/drag.ts`, avec une distance de 5 pixels partout, et le clavier là où il était. La bibliothèque garde sa configuration en attendant sa refonte. La détection « sous le pointeur, sinon le plus proche » reste propre à l'arbre et au tableau, qui ne la font pas de la même façon.
+### 20. API : tâches de fond
 
-### 15. Code partagé : `task-filters.ts` mélange le générique et les tâches
+- La boucle « pour chaque espace, au démarrage puis à intervalle » est recopiée 4 fois : factures récurrentes, GitHub, mails liés, mails programmés.
+- La connexion GitHub de l'espace courant est cherchée 4 fois.
+- **Cible :** `schedulePerWorkspace` et `currentGithubConnection`.
 
-- **Le constat :** la mécanique de filtres commune (opérateurs, périodes, schémas de conditions et de groupes) y est rangée à côté des colonnes, des regroupements et des colonnes par défaut des tâches.
-- **Cible :**
-  - séparer en `filters.ts` (générique) et `task-columns.ts` (tâches) ;
-  - garder `task-filter-translation.ts` pour les anciens filtres des tableaux de bord seulement.
+### 21. Autres champs et badges
 
-**Fait** : `task-filters.ts` est séparé en `filters.ts` (opérateurs, périodes, conditions et groupes de filtres, communs à tous les tableaux) et `task-columns.ts` (catégories des statuts, colonnes, regroupements et colonnes par défaut des tâches). Le nom des vues (`taskViewNameSchema`) va dans `table-views.ts`. `task-filter-translation.ts` ne sert plus qu'aux anciens filtres des tableaux de bord ; son alias `emptyTaskTableFilter` est supprimé.
-
-### 16. Règles de validation qui divergent
-
-- **Couleurs :** `colorSchema` (code partagé) n'accepte que `#rrggbb`. L'API (`settings-lists.ts`) accepte aussi les noms de la palette, et le web envoie `'gray'`.
-- **Noms :** certains schémas sont définis dans les services de l'API (`workspaces`, `library`, `recurring-invoices`). Une quarantaine de règles « nom requis, N caractères au plus » sont réécrites à la main dans le code partagé.
-- **Cible :** un `requiredText(max)` partagé, à côté de `optionalText`, et un seul schéma de couleur.
-
-**Fait** :
-
-- **Textes :** `requiredText(max, message?)` et `optionalText(max)` dans `packages/shared/src/rules.ts`, à la place d'une cinquantaine de règles écrites à la main (dont trois copies d'`optionalText`) ; les messages sont les mêmes partout (« N caractères maximum. »). Les noms des espaces et des factures récurrentes, définis dans l'API, les utilisent aussi.
-- **Couleurs :** l'aspect des listes (`setSettingsItemLook`) valide la couleur avec le `colorSchema` partagé (`#rrggbb`). Corrigé au passage : la création d'une unité échouait, le web envoyant `'gray'`.
-- La bibliothèque garde ses règles, en attendant sa refonte.
+- **Couleur :** `ColorInput` avec les nuances du thème est écrit 8 fois, avec des réglages différents (7 ou 9 nuances par ligne, `hex` ou pas). Cible : `ColorField`.
+- **Logo :** le logo de l'entreprise (`CompanySettings.tsx:84`) refait `IconField`. Cible : `IconField` générique dans `components/`.
+- **Trajet aller / retour :** les champs sont recopiés entre l'évènement et la répétition des routines. Cible : `TravelFields`.
+- **Édition de markdown en ligne** avec « Annuler » et « Enregistrer » écrits à la main : commentaires et description d'une tâche. Cible : `FormActions` avec une taille.
+- **Description du projet :** elle est affichée en texte brut au lieu de `MarkdownView`.
+- **Badge « Archivé(e) » :** 6 styles différents. Cible : `ArchivedBadge`.
+- **États vides :** `EmptyState` est contourné à l'accueil (`HomeEmpty`), dans la barre latérale, les graphiques, l'équipe, le mail et GitHub ; deux gestionnaires l'entourent d'un `ThemeIcon` au lieu de lui passer `icon`.
+- **Erreur de chargement :** `<Alert color="red" icon={<ErrorIcon />}>{error.message}</Alert>` est écrit une douzaine de fois. Cible : `ErrorAlert`.
 
 ## Petites redondances
 
-### 17. Pluriels et libellés de nombres
+### 22. Divers
 
-- **Le constat :** environ 80 `${n} truc${n > 1 ? 's' : ''}` sont écrits à la main.
-- **Libellés éparpillés :** `tasksLabel`, `routinesLabel`, `entries` (trésorerie), `countLabel` (graphiques).
-- **Un existant ignoré :** `selectedLabel` existe, mais la page des tâches et celle des routines le refont.
-- **Cible :** `plural` et `countOf` dans `lib/text.ts`.
-
-**Fait** : `plural` et `countOf` dans `lib/text.ts`, à la place du motif écrit à la main dans 22 fichiers. Une trentaine de formes plus libres (« lien(s) », pluriels d'adjectifs dans des phrases composées) restent à reprendre au cas par cas.
-
-### 18. Petits utilitaires de dates et de texte
-
-- **Jour de la semaine :** `weekdayOfDate` est en double, `weekdayOf` aussi.
-- **Écart en jours :** `daysBetween` est en double (accueil et code partagé).
-- **Noms des jours :** définis quatre fois. Les ordinaux, deux fois.
-- **Alias d'une ligne :** des alias de `fmt.day` dans cinq fichiers. `todayIso` est un alias de `localToday`.
-- **« Aujourd'hui » dans l'API :** calculé trois fois, de trois façons (heure du serveur, Europe/Paris, UTC).
-- **Texte sans accents :** la recherche GitHub (web et API), le code partagé et l'équipe de la trésorerie refont `normalize`.
-- **Cible :** `normalize` et `collator` déplacés dans le code partagé.
-
-**Fait** : `normalize` et `collator` sont dans le code partagé (`text.ts`), utilisés par le web, l'API et GitHub ; un seul `weekdayOfDate` ; une seule liste des noms des jours ; `daysBetween` partagé ; les alias de `fmt.day` et `todayIso` supprimés. « Aujourd'hui » de l'API : un seul `parisToday` (`apps/api/src/today.ts`), le jour à Paris quel que soit le fuseau du serveur. Restent les ordinaux en double.
-
-### 19. Messages d'erreur
-
-- **Le constat :** `onError: (error) => notifyError(error.message)` est écrit environ 124 fois.
-- **Cible :** un `onMutationError` exporté, ou une valeur par défaut dans l'enveloppe de mutations (point 1).
-
-**Fait** : `onMutationError` dans `lib/notify.tsx`, à la place de 177 copies.
-
-### 20. Code mort
-
-- **Fichiers web inutilisés :** `components/actions/SectionHeader.tsx`, `components/data-table/SortableRow.tsx`.
-- **Exports web jamais utilisés :** `TimeWindowCell` (environ 100 lignes), `categoryGrouping`, `PeopleBadges`, `isExpired`, `blankSheetItem`, `bulkCount`, `weekdayOfMonth`, `formatDayMonth`.
-- **Exports de l'API jamais utilisés :** `currentWeek`, `maybeWorkspace`, `enterWorkspace`, `modeOf`, `listCalendars`.
-- **Exports partagés jamais utilisés :** `SLOT_CONDITION_OPERATORS`, `windowsWithin`, `slotWindows`, `newRepetitionCase`, `casesOccurrences`, `zonedDate`, `periodRhythm`.
-- **Exports utilisés seulement dans leur fichier :** une trentaine côté web, une vingtaine côté API, une soixantaine dans le code partagé. Le mot-clé `export` y est en trop.
-
-**Fait** : `SortableRow.tsx` et une vingtaine de fonctions et composants jamais utilisés supprimés (web, API, code partagé) ; le mot-clé `export` retiré de 192 noms utilisés seulement dans leur fichier. `SectionHeader` est gardé : il servira de base aux cartes de section (point 8). Les alias de types jamais importés sont gardés : ils décrivent les schémas. `enterWorkspace` n'était pas mort : il sert au seed.
+- **`stopClick` :** redéclaré localement dans 6 fichiers de cellules.
+- **Erreurs :** `notifyError(e.message)` est utilisé au lieu de `onMutationError` dans 13 fichiers.
+- **Pluriels :** une trentaine sont encore écrits à la main (« + N autres » de l'accueil, factures en retard, import de relevé, mail, barre des routines).
+- **Tris et recherches :**
+  - `localeCompare` est utilisé au lieu de `collator` 6 fois ;
+  - 3 recherches comparent en minuscules au lieu de passer par `normalize`.
+- **Validation :**
+  - les drapeaux mail redéfinissent la règle de nom et la couleur ;
+  - deux expressions de couleur hexadécimale existent en plus de `colorSchema` ;
+  - les ressources de projet refont `requiredText` et `optionalText` ;
+  - le schéma d'une nouvelle liste d'achats est en double.
+- **Accessibilité dans un graphe** (cycle de blocages, prérequis des routines) : écrite deux fois. Cible : `reaches` dans `tree.ts`.
 
 ## Plan proposé
 
-1. **Sans risque, rapide (fait) :** le code mort (20), les petits utilitaires (17, 18, 19) et les capteurs de glisser-déposer (14).
-2. **Briques d'interface communes :**
-   - `FormActions` (7), `SettingsSection` (8) et `openFormPanel` partout (6) ;
-   - `SortableTabs` (3) ;
-   - `ItemBadge`, `ClientSelect` et les avatars restants (13).
-3. **Données :**
-   - l'enveloppe de mutations du web (1) ;
-   - côté API, l'ordre et le CRUD des listes, avec la suppression des mutations de déplacement en trop (2).
-4. **Comportements :**
-   - une action par opération, d'une ligne à plusieurs (4) ;
-   - les personnes (5) ;
-   - l'édition des cellules (12) ;
-   - les arbres (9).
-5. **Code partagé :** la séparation de `task-filters.ts` (15), la validation (16), les périodes (11) et les exports (10).
+1. **Bugs (1, 2) :** quelques lignes chacun.
+2. **Sans risque, rapide :**
+   - les utilitaires de collections (10) ;
+   - les dates et l'argent (11, 12) ;
+   - les petites redondances (22).
+3. **API, par blocs :**
+   - l'ordre et la position suivante, avec la suppression des mutations de déplacement en trop (3) ;
+   - les arbres (4) ;
+   - le CRUD des listes simples (5) ;
+   - les recherches « sinon introuvable » (6) ;
+   - le PDF et les tâches de fond (19, 20).
+4. **Web, contournements des briques communes :**
+   - les panneaux et les fenêtres (7) ;
+   - les menus et les boutons d'actions (8) ;
+   - les paramètres d'URL (9) ;
+   - les requêtes (18).
+5. **Web, nouveaux composants communs :**
+   - les blocs de page (13) ;
+   - les cartes et cellules des tâches (14) ;
+   - le mail (15) ;
+   - les restes des personnes et des listes (16, 17) ;
+   - les champs et badges (21).
 
 ## Déjà unifié
 
+- **Données du web :**
+  - `useInvalidatingMutation` et `patchQuery` (`lib/mutation.ts`) sous toutes les mutations, optimistes comprises.
+  - Une seule action par opération, sur une ligne comme sur plusieurs : `useTaskRowsActions`, `useRoutineRowsActions`, `rowMenuEntry`, et les dialogues des tâches sur une liste.
+  - Les mutations unitaires d'archivage, de suppression et de transfert sont supprimées de l'API.
 - **Tableaux et édition :**
   - un seul `DataTable` pour tous les tableaux de données ;
-  - une seule édition en masse (`bulkSaver`) ;
+  - une seule édition en masse (`bulkSaver`, `useEntityCellEdit`) ;
   - des cellules communes : `EditableCells`, `EditableTitle`, `cell-field`, les cellules assignés et projet ;
   - une seule ligne d'ajout (`AddRowField`) ;
-  - des actions de sélection communes (`selection-actions`) et un seul dialogue de clonage.
-- **Filtres :** les tableaux de bord et l'accueil filtrent les tâches dans le langage du tableau des tâches. L'ancien langage de filtres et les anciens schémas de vues sont supprimés.
-- **Listes paramétrables :** un seul modèle, `SettingsList`, plat ou en arbre, avec couleur, image, nom et glisser-déposer, lieux compris. Les items s'affichent avec leur avatar partout.
-- **Hiérarchies :** les arbres reposent sur `category-tree` ; tout item hiérarchisé s'affiche par son chemin complet ; les multi-selects empilent leurs valeurs.
-- **Utilitaires :** `lib/text` (`collator`, `normalize`), `lib/drag`, `lib/fill-height`, `localDay`. Les pièces communes sont sorties de `features/tasks` vers `components/`.
-- **Colonnes par défaut des vues de tâches :** elles passent par le panneau de colonnes générique.
+  - des actions de sélection communes (`selection-actions`).
+- **Interface :**
+  - `openFormPanel` et `openModal` ;
+  - `FormActions` et `DestructiveActions` ;
+  - `SettingsSection` ;
+  - `SortableTabs` et `useTabParam` ;
+  - `ItemBadge`, `ClientSelect`, `TaskProgress`, `confirmPlanDelete`.
+- **Personnes :** `components/people`, avec un schéma de clés, `PeopleSelect`, `PeopleCell`, `PersonOption` et `PersonAvatar` ; `AssigneesSelect` et `AssigneesCell` pour les évènements aussi.
+- **Listes paramétrables :** un seul modèle, `SettingsList`, plat ou en arbre, avec couleur, image, nom et glisser-déposer, lieux compris. Les items s'affichent avec leur avatar partout ; côté API, `settings-lists`.
+- **Hiérarchies :**
+  - les arbres reposent sur `tree` ;
+  - `tree.ts` (partagé) fait les parcours et les chemins ;
+  - tout item hiérarchisé s'affiche par son chemin complet.
+- **Code partagé :**
+  - `filters.ts` et `task-columns.ts` ;
+  - `periods.ts` ;
+  - `rules.ts` ;
+  - `text.ts` ;
+  - `table-views.ts`.
+- **Utilitaires :**
+  - `lib/download`, `lib/text`, `lib/drag`, `lib/fill-height`, `lib/notify` (`onMutationError`) ;
+  - `localDay` ;
+  - `parisToday` dans l'API.
+- **Filtres :** les tableaux de bord et l'accueil filtrent les tâches dans le langage du tableau des tâches.

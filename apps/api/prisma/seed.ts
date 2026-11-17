@@ -1,7 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
-import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces';
+import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspace/workspaces';
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
@@ -21,13 +21,13 @@ import {
   TIME_ZONE,
 } from './fixtures/factories';
 import { addDays, DEFAULT_RECURRENCE, emptyTableFilter, type Recurrence } from '@ordo/shared';
-import { createAlarm } from '../src/services/alarms';
-import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar-events';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/task-recurrence';
-import { createView } from '../src/services/task-views';
-import { createTimeEntry } from '../src/services/time-entries';
-import { saveScheduleType, subscribeScheduleKind } from '../src/services/work-schedules';
-import { subscribe } from '../src/services/calendars';
+import { createAlarm } from '../src/services/tasks/alarms';
+import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
+import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/tasks/task-recurrence';
+import { createView } from '../src/services/tasks/task-views';
+import { createTimeEntry } from '../src/services/tasks/time-entries';
+import { saveScheduleType, subscribeScheduleKind } from '../src/services/calendar/work-schedules';
+import { subscribe } from '../src/services/calendar/calendars';
 import { seedAccounting } from './fixtures/accounting';
 import { seedSprintsAndDashboards } from './fixtures/dashboards';
 import { initialsIcon } from './fixtures/images';

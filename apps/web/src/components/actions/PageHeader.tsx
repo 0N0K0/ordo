@@ -1,6 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { PageTitle } from '../PageTitle';
+import { PageTitle } from '../page/PageTitle';
 
 /**
  * Header of every page: its title (on a phone: the header of the app shows it from the tablet on), then its actions on

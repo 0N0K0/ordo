@@ -1,9 +1,9 @@
 import { EVENT_SCOPES } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as categories from '../../services/calendar-categories';
-import * as calendars from '../../services/calendars';
-import * as events from '../../services/calendar-events';
-import * as schedules from '../../services/work-schedules';
+import * as categories from '../../services/calendar/calendar-categories';
+import * as calendars from '../../services/calendar/calendars';
+import * as events from '../../services/calendar/calendar-events';
+import * as schedules from '../../services/calendar/work-schedules';
 import { builder } from '../builder';
 
 builder.prismaObject('CalendarCategory', {

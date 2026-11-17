@@ -1246,104 +1246,6 @@ export type ReorderSettingsItemsMutationVariables = Exact<{
 
 export type ReorderSettingsItemsMutation = { reorderSettingsItems: boolean };
 
-export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
-
-export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type CompanyProfileQuery = { companyProfile: { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
-
-export type DocumentSequencesQueryVariables = Exact<{
-  year: number;
-}>;
-
-
-export type DocumentSequencesQuery = { documentSequences: Array<{ type: AccountingDocumentType, year: number, nextNumber: number, minimum: number }> };
-
-export type ClientBillingQueryVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, name: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
-
-export type UpdateCompanyProfileMutationVariables = Exact<{
-  input: CompanyProfileInput;
-}>;
-
-
-export type UpdateCompanyProfileMutation = { updateCompanyProfile: { name: string } };
-
-export type SetCompanyLogoMutationVariables = Exact<{
-  file?: File | null | undefined;
-}>;
-
-
-export type SetCompanyLogoMutation = { setCompanyLogo: { logoUrl: string | null } };
-
-export type SetDocumentSequenceMutationVariables = Exact<{
-  type: AccountingDocumentType;
-  year: number;
-  nextNumber: number;
-}>;
-
-
-export type SetDocumentSequenceMutation = { setDocumentSequence: boolean };
-
-export type UpdateClientDetailsMutationVariables = Exact<{
-  id: string | number;
-  input: ClientDetailsInput;
-}>;
-
-
-export type UpdateClientDetailsMutation = { updateClientDetails: { id: string } };
-
-export type CreateClientServiceMutationVariables = Exact<{
-  clientId: string | number;
-  input: ClientServiceInput;
-}>;
-
-
-export type CreateClientServiceMutation = { createClientService: { id: string } };
-
-export type UpdateClientServiceMutationVariables = Exact<{
-  id: string | number;
-  input: ClientServiceInput;
-}>;
-
-
-export type UpdateClientServiceMutation = { updateClientService: { id: string } };
-
-export type DeleteClientServiceMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteClientServiceMutation = { deleteClientService: boolean };
-
-export type CreateClientContactMutationVariables = Exact<{
-  clientId: string | number;
-  input: ClientContactInput;
-}>;
-
-
-export type CreateClientContactMutation = { createClientContact: { id: string } };
-
-export type UpdateClientContactMutationVariables = Exact<{
-  id: string | number;
-  input: ClientContactInput;
-}>;
-
-
-export type UpdateClientContactMutation = { updateClientContact: { id: string } };
-
-export type DeleteClientContactMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteClientContactMutation = { deleteClientContact: boolean };
-
 export type CatalogItemsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -1640,6 +1542,104 @@ export type DeleteImportedDocumentMutationVariables = Exact<{
 
 
 export type DeleteImportedDocumentMutation = { deleteImportedDocument: boolean };
+
+export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
+
+export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CompanyProfileQuery = { companyProfile: { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
+
+export type DocumentSequencesQueryVariables = Exact<{
+  year: number;
+}>;
+
+
+export type DocumentSequencesQuery = { documentSequences: Array<{ type: AccountingDocumentType, year: number, nextNumber: number, minimum: number }> };
+
+export type ClientBillingQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, name: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
+
+export type UpdateCompanyProfileMutationVariables = Exact<{
+  input: CompanyProfileInput;
+}>;
+
+
+export type UpdateCompanyProfileMutation = { updateCompanyProfile: { name: string } };
+
+export type SetCompanyLogoMutationVariables = Exact<{
+  file?: File | null | undefined;
+}>;
+
+
+export type SetCompanyLogoMutation = { setCompanyLogo: { logoUrl: string | null } };
+
+export type SetDocumentSequenceMutationVariables = Exact<{
+  type: AccountingDocumentType;
+  year: number;
+  nextNumber: number;
+}>;
+
+
+export type SetDocumentSequenceMutation = { setDocumentSequence: boolean };
+
+export type UpdateClientDetailsMutationVariables = Exact<{
+  id: string | number;
+  input: ClientDetailsInput;
+}>;
+
+
+export type UpdateClientDetailsMutation = { updateClientDetails: { id: string } };
+
+export type CreateClientServiceMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type CreateClientServiceMutation = { createClientService: { id: string } };
+
+export type UpdateClientServiceMutationVariables = Exact<{
+  id: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type UpdateClientServiceMutation = { updateClientService: { id: string } };
+
+export type DeleteClientServiceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientServiceMutation = { deleteClientService: boolean };
+
+export type CreateClientContactMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type CreateClientContactMutation = { createClientContact: { id: string } };
+
+export type UpdateClientContactMutationVariables = Exact<{
+  id: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type UpdateClientContactMutation = { updateClientContact: { id: string } };
+
+export type DeleteClientContactMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientContactMutation = { deleteClientContact: boolean };
 
 export type DocumentStatusesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2455,18 +2455,6 @@ export type DeleteLibraryDocumentsMutationVariables = Exact<{
 
 export type DeleteLibraryDocumentsMutation = { deleteLibraryDocuments: boolean };
 
-export type WatchedMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type WatchedMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
-
-export type WatchedUnreadMailsQueryVariables = Exact<{
-  accountId: string | number;
-}>;
-
-
-export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
-
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
 export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, labelIds: Array<string>, done: boolean, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
@@ -2804,6 +2792,18 @@ export type DeleteMailSearchMutationVariables = Exact<{
 
 
 export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
+
+export type WatchedMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WatchedMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
+
+export type WatchedUnreadMailsQueryVariables = Exact<{
+  accountId: string | number;
+}>;
+
+
+export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4589,19 +4589,6 @@ export type MoveProjectStatusMutationVariables = Exact<{
 
 export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
 
-export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
-
-export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
-  id: string | number;
-  at: string;
-}>;
-
-
-export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
-
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4654,6 +4641,19 @@ export type DeleteWorkspaceMutationVariables = Exact<{
 
 export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 
+export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+
+export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
+  id: string | number;
+  at: string;
+}>;
+
+
+export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
+
 export type UploadAttachmentMutationVariables = Exact<{
   file: File;
 }>;
@@ -4679,37 +4679,6 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
-export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
-    fragment CompanyProfileFields on CompanyProfile {
-  name
-  contact
-  legalForm
-  capital
-  registration
-  siren
-  siret
-  activityCode
-  vatNumber
-  vatApplicable
-  vatExemptionText
-  address
-  email
-  phone
-  website
-  logoUrl
-  bankName
-  accountHolder
-  iban
-  bic
-  paymentTerms
-  paymentDays
-  paymentMethods
-  lateInterest
-  otherMentions
-  referenceLabel
-  quoteValidityDays
-}
-    `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
 export const AccountingDocumentListFieldsFragmentDoc = new TypedDocumentString(`
     fragment AccountingDocumentListFields on AccountingDocument {
   id
@@ -4907,6 +4876,37 @@ export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
   sentVia
 }
     `, {"fragmentName":"ImportedDocumentFields"}) as unknown as TypedDocumentString<ImportedDocumentFieldsFragment, unknown>;
+export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  contact
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}
+    `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
   id
@@ -5355,150 +5355,6 @@ export const ReorderSettingsItemsDocument = new TypedDocumentString(`
   reorderSettingsItems(kind: $kind, ids: $ids)
 }
     `) as unknown as TypedDocumentString<ReorderSettingsItemsMutation, ReorderSettingsItemsMutationVariables>;
-export const CompanyProfileDocument = new TypedDocumentString(`
-    query CompanyProfile {
-  companyProfile {
-    ...CompanyProfileFields
-  }
-}
-    fragment CompanyProfileFields on CompanyProfile {
-  name
-  contact
-  legalForm
-  capital
-  registration
-  siren
-  siret
-  activityCode
-  vatNumber
-  vatApplicable
-  vatExemptionText
-  address
-  email
-  phone
-  website
-  logoUrl
-  bankName
-  accountHolder
-  iban
-  bic
-  paymentTerms
-  paymentDays
-  paymentMethods
-  lateInterest
-  otherMentions
-  referenceLabel
-  quoteValidityDays
-}`) as unknown as TypedDocumentString<CompanyProfileQuery, CompanyProfileQueryVariables>;
-export const DocumentSequencesDocument = new TypedDocumentString(`
-    query DocumentSequences($year: Int!) {
-  documentSequences(year: $year) {
-    type
-    year
-    nextNumber
-    minimum
-  }
-}
-    `) as unknown as TypedDocumentString<DocumentSequencesQuery, DocumentSequencesQueryVariables>;
-export const ClientBillingDocument = new TypedDocumentString(`
-    query ClientBilling($id: ID!) {
-  client(id: $id) {
-    id
-    name
-    kind
-    firstName
-    lastName
-    address
-    email
-    phones
-    website
-    vatNumber
-    siren
-    siret
-    activityCode
-    services {
-      id
-      name
-      address
-      email
-      phones
-    }
-    contacts {
-      id
-      serviceId
-      firstName
-      lastName
-      email
-      jobTitle
-      phones
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<ClientBillingQuery, ClientBillingQueryVariables>;
-export const UpdateCompanyProfileDocument = new TypedDocumentString(`
-    mutation UpdateCompanyProfile($input: CompanyProfileInput!) {
-  updateCompanyProfile(input: $input) {
-    name
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateCompanyProfileMutation, UpdateCompanyProfileMutationVariables>;
-export const SetCompanyLogoDocument = new TypedDocumentString(`
-    mutation SetCompanyLogo($file: File) {
-  setCompanyLogo(file: $file) {
-    logoUrl
-  }
-}
-    `) as unknown as TypedDocumentString<SetCompanyLogoMutation, SetCompanyLogoMutationVariables>;
-export const SetDocumentSequenceDocument = new TypedDocumentString(`
-    mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
-  setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
-}
-    `) as unknown as TypedDocumentString<SetDocumentSequenceMutation, SetDocumentSequenceMutationVariables>;
-export const UpdateClientDetailsDocument = new TypedDocumentString(`
-    mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {
-  updateClientDetails(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientDetailsMutation, UpdateClientDetailsMutationVariables>;
-export const CreateClientServiceDocument = new TypedDocumentString(`
-    mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {
-  createClientService(clientId: $clientId, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateClientServiceMutation, CreateClientServiceMutationVariables>;
-export const UpdateClientServiceDocument = new TypedDocumentString(`
-    mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {
-  updateClientService(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientServiceMutation, UpdateClientServiceMutationVariables>;
-export const DeleteClientServiceDocument = new TypedDocumentString(`
-    mutation DeleteClientService($id: ID!) {
-  deleteClientService(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteClientServiceMutation, DeleteClientServiceMutationVariables>;
-export const CreateClientContactDocument = new TypedDocumentString(`
-    mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {
-  createClientContact(clientId: $clientId, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateClientContactMutation, CreateClientContactMutationVariables>;
-export const UpdateClientContactDocument = new TypedDocumentString(`
-    mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {
-  updateClientContact(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientContactMutation, UpdateClientContactMutationVariables>;
-export const DeleteClientContactDocument = new TypedDocumentString(`
-    mutation DeleteClientContact($id: ID!) {
-  deleteClientContact(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
 export const CatalogItemsDocument = new TypedDocumentString(`
     query CatalogItems {
   catalogItems {
@@ -5961,6 +5817,150 @@ export const DeleteImportedDocumentDocument = new TypedDocumentString(`
   deleteImportedDocument(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteImportedDocumentMutation, DeleteImportedDocumentMutationVariables>;
+export const CompanyProfileDocument = new TypedDocumentString(`
+    query CompanyProfile {
+  companyProfile {
+    ...CompanyProfileFields
+  }
+}
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  contact
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}`) as unknown as TypedDocumentString<CompanyProfileQuery, CompanyProfileQueryVariables>;
+export const DocumentSequencesDocument = new TypedDocumentString(`
+    query DocumentSequences($year: Int!) {
+  documentSequences(year: $year) {
+    type
+    year
+    nextNumber
+    minimum
+  }
+}
+    `) as unknown as TypedDocumentString<DocumentSequencesQuery, DocumentSequencesQueryVariables>;
+export const ClientBillingDocument = new TypedDocumentString(`
+    query ClientBilling($id: ID!) {
+  client(id: $id) {
+    id
+    name
+    kind
+    firstName
+    lastName
+    address
+    email
+    phones
+    website
+    vatNumber
+    siren
+    siret
+    activityCode
+    services {
+      id
+      name
+      address
+      email
+      phones
+    }
+    contacts {
+      id
+      serviceId
+      firstName
+      lastName
+      email
+      jobTitle
+      phones
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ClientBillingQuery, ClientBillingQueryVariables>;
+export const UpdateCompanyProfileDocument = new TypedDocumentString(`
+    mutation UpdateCompanyProfile($input: CompanyProfileInput!) {
+  updateCompanyProfile(input: $input) {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCompanyProfileMutation, UpdateCompanyProfileMutationVariables>;
+export const SetCompanyLogoDocument = new TypedDocumentString(`
+    mutation SetCompanyLogo($file: File) {
+  setCompanyLogo(file: $file) {
+    logoUrl
+  }
+}
+    `) as unknown as TypedDocumentString<SetCompanyLogoMutation, SetCompanyLogoMutationVariables>;
+export const SetDocumentSequenceDocument = new TypedDocumentString(`
+    mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
+  setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
+}
+    `) as unknown as TypedDocumentString<SetDocumentSequenceMutation, SetDocumentSequenceMutationVariables>;
+export const UpdateClientDetailsDocument = new TypedDocumentString(`
+    mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {
+  updateClientDetails(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientDetailsMutation, UpdateClientDetailsMutationVariables>;
+export const CreateClientServiceDocument = new TypedDocumentString(`
+    mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {
+  createClientService(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientServiceMutation, CreateClientServiceMutationVariables>;
+export const UpdateClientServiceDocument = new TypedDocumentString(`
+    mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {
+  updateClientService(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientServiceMutation, UpdateClientServiceMutationVariables>;
+export const DeleteClientServiceDocument = new TypedDocumentString(`
+    mutation DeleteClientService($id: ID!) {
+  deleteClientService(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientServiceMutation, DeleteClientServiceMutationVariables>;
+export const CreateClientContactDocument = new TypedDocumentString(`
+    mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {
+  createClientContact(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientContactMutation, CreateClientContactMutationVariables>;
+export const UpdateClientContactDocument = new TypedDocumentString(`
+    mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {
+  updateClientContact(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientContactMutation, UpdateClientContactMutationVariables>;
+export const DeleteClientContactDocument = new TypedDocumentString(`
+    mutation DeleteClientContact($id: ID!) {
+  deleteClientContact(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
 export const DocumentStatusesDocument = new TypedDocumentString(`
     query DocumentStatuses {
   documentStatuses {
@@ -6956,27 +6956,6 @@ export const DeleteLibraryDocumentsDocument = new TypedDocumentString(`
   deleteLibraryDocuments(ids: $ids)
 }
     `) as unknown as TypedDocumentString<DeleteLibraryDocumentsMutation, DeleteLibraryDocumentsMutationVariables>;
-export const WatchedMailAccountsDocument = new TypedDocumentString(`
-    query WatchedMailAccounts {
-  mailAccounts {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<WatchedMailAccountsQuery, WatchedMailAccountsQueryVariables>;
-export const WatchedUnreadMailsDocument = new TypedDocumentString(`
-    query WatchedUnreadMails($accountId: ID!) {
-  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
-    messages {
-      uid
-      subject
-      from {
-        name
-        address
-      }
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {
@@ -7441,6 +7420,27 @@ export const DeleteMailSearchDocument = new TypedDocumentString(`
   deleteMailSearch(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteMailSearchMutation, DeleteMailSearchMutationVariables>;
+export const WatchedMailAccountsDocument = new TypedDocumentString(`
+    query WatchedMailAccounts {
+  mailAccounts {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedMailAccountsQuery, WatchedMailAccountsQueryVariables>;
+export const WatchedUnreadMailsDocument = new TypedDocumentString(`
+    query WatchedUnreadMails($accountId: ID!) {
+  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
+    messages {
+      uid
+      subject
+      from {
+        name
+        address
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
 export const RoutinesDataDocument = new TypedDocumentString(`
     query RoutinesData {
   routineCategories {
@@ -9850,54 +9850,6 @@ export const MoveProjectStatusDocument = new TypedDocumentString(`
   moveProjectStatus(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
-export const ElsewhereAlarmsDocument = new TypedDocumentString(`
-    query ElsewhereAlarms {
-  alarms {
-    ...AlarmFields
-    task {
-      id
-      number
-      title
-      projectId
-    }
-    project {
-      id
-      title
-    }
-  }
-  runningTimeEntry {
-    id
-    startedAt
-    endedAt
-    pausedAt
-    pausedSeconds
-    duration
-  }
-}
-    fragment AlarmFields on Alarm {
-  id
-  title
-  note
-  type
-  startDate
-  time
-  frequency
-  interval
-  weekdays
-  endDate
-  recurrence
-  minutes
-  projectId
-  taskId
-  enabled
-  lastFiredAt
-  createdAt
-}`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
-export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
-    mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
-  markAlarmFired(id: $id, at: $at)
-}
-    `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {
@@ -9950,6 +9902,54 @@ export const DeleteWorkspaceDocument = new TypedDocumentString(`
   deleteWorkspace(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteWorkspaceMutation, DeleteWorkspaceMutationVariables>;
+export const ElsewhereAlarmsDocument = new TypedDocumentString(`
+    query ElsewhereAlarms {
+  alarms {
+    ...AlarmFields
+    task {
+      id
+      number
+      title
+      projectId
+    }
+    project {
+      id
+      title
+    }
+  }
+  runningTimeEntry {
+    id
+    startedAt
+    endedAt
+    pausedAt
+    pausedSeconds
+    duration
+  }
+}
+    fragment AlarmFields on Alarm {
+  id
+  title
+  note
+  type
+  startDate
+  time
+  frequency
+  interval
+  weekdays
+  endDate
+  recurrence
+  minutes
+  projectId
+  taskId
+  enabled
+  lastFiredAt
+  createdAt
+}`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
+export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
+    mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
+  markAlarmFired(id: $id, at: $at)
+}
+    `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
 export const UploadAttachmentDocument = new TypedDocumentString(`
     mutation UploadAttachment($file: File!) {
   uploadAttachment(file: $file) {

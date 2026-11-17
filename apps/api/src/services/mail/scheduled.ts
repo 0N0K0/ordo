@@ -6,7 +6,7 @@ import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
 import { deliverMessage, type SendMailInput } from './sender';
-import { forEachWorkspace } from '../workspaces';
+import { forEachWorkspace } from '../workspace/workspaces';
 
 /**
  * Schedules a mail: the message is built now (files included, dated of its sending time) and kept until then;

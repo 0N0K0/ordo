@@ -1,5 +1,5 @@
-import { iconUrl } from '../../services/icons';
-import * as lists from '../../services/settings-lists';
+import { iconUrl } from '../../services/core/icons';
+import * as lists from '../../services/core/settings-lists';
 import { builder } from '../builder';
 
 const SettingsListKindEnum = builder.enumType('SettingsListKind', {
