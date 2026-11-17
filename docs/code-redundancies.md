@@ -91,6 +91,13 @@ La trésorerie et le calendrier pourraient reposer sur le générique avec un fi
 - `useTaskSelectionActions` et `useRoutineSelectionActions` refont les actions groupées (fermer ou cocher, dupliquer, archiver, supprimer) à côté des actions génériques `deleteRowsAction` et `duplicateRowsAction`.
 - `CloneTaskDialog` (une tâche) et `BulkCloneDialog` (plusieurs) se recoupent.
 
+**Fait** :
+
+- Les actions groupées reposent sur des briques communes de `components/data-table/selection-actions.tsx` : `switchRowsAction` (fermer / rouvrir, cocher / décocher, archiver / restaurer, avec annulation), `duplicateRowsAction`, `deleteRowsAction` (une requête groupée possible) et `outermost` (une ligne sous une autre cochée part avec elle).
+- Un seul dialogue de clonage, `CloneTasksDialog`, pour une tâche ou plusieurs.
+
+Restent propres à chaque domaine : le report au lendemain des routines, le transfert et la suppression des tâches (leurs dialogues ont des choix à eux).
+
 ### 8. Deux panneaux de colonnes et deux calculs de hauteur
 
 - Colonnes : `features/tasks/views/ColumnsPanel.tsx` (réglages des colonnes par défaut des tâches) et `DataColumnsPanel` générique.

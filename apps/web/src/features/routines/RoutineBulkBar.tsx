@@ -1,7 +1,7 @@
-import { ArchiveIcon, ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ArchiveIcon, ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
+
 import type { SelectionAction } from '../../components/data-table/SelectionBar';
-import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
+import { deleteRowsAction, duplicateRowsAction, outermost, switchRowsAction } from '../../components/data-table/selection-actions';
 import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { routinesLabel } from './routine-cell-edit';
 import { isDone, movableOccurrence } from './routine-format';
@@ -17,29 +17,23 @@ export function useRoutineSelectionActions() {
   const { bulkArchive, bulkDone, bulkRemove, create, copySubRoutines } = useRoutineMutations();
   const { data } = useRoutinesData();
   const postpone = usePostponeRoutine();
-  const [duplicating, setDuplicating] = useState(false);
   return (routines: Routine[], onClear: () => void): SelectionAction[] => {
     const ids = routines.map((routine) => routine.id);
     const label = routinesLabel(ids.length);
     const allArchived = routines.every((routine) => routine.archived);
     const allDone = routines.every((routine) => routine.currentDate === null || isDone(routine));
     const movable = routines.filter((routine) => !routine.archived && movableOccurrence(routine));
-    const onError = (error: Error) => notifyError(error.message);
+    const byId = new Map((data?.routines ?? []).map((routine) => [routine.id, routine]));
 
     return [
-      {
-        label: allDone ? 'Décocher' : 'Cocher',
-        icon: allDone ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />,
+      switchRowsAction({
+        on: allDone,
+        labels: ['Cocher', 'Décocher'],
+        icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: bulkDone.isPending,
-        onClick: () =>
-          bulkDone.mutate(
-            { ids, done: !allDone },
-            {
-              onSuccess: (count) => notifyWithUndo(`${routinesLabel(count)} ${allDone ? 'décochée' : 'cochée'}${count > 1 ? 's' : ''}.`, () => bulkDone.mutate({ ids, done: allDone }, { onError })),
-              onError,
-            },
-          ),
-      },
+        apply: (done) => bulkDone.mutateAsync({ ids, done }),
+        done: (done) => `${label} ${done ? 'cochée' : 'décochée'}${ids.length > 1 ? 's' : ''}.`,
+      }),
       {
         label: 'Reporter au lendemain',
         icon: <ArrowBendUpRightIcon aria-hidden />,
@@ -48,66 +42,39 @@ export function useRoutineSelectionActions() {
           for (const routine of movable) postpone(routine);
         },
       },
-      {
-        label: 'Dupliquer',
-        icon: <CopyIcon aria-hidden />,
-        loading: duplicating,
-        onClick: async () => {
-          setDuplicating(true);
-          try {
-            // Each with its sub-routines (one under another checked routine comes with it).
-            const checked = new Set(ids);
-            const byId = new Map((data?.routines ?? []).map((routine) => [routine.id, routine]));
-            const under = (routine: Routine) => {
-              for (let parent = routine.parentId ? byId.get(routine.parentId) : undefined; parent; parent = parent.parentId ? byId.get(parent.parentId) : undefined)
-                if (checked.has(parent.id)) return true;
-              return false;
-            };
-            for (const routine of routines.filter((item) => !under(item))) {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
-              if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
-            }
-            notifySuccess(`${label} dupliquée${ids.length > 1 ? 's' : ''}.`);
-          } catch (error) {
-            onError(error as Error);
-          } finally {
-            setDuplicating(false);
-          }
+      // Each with its sub-routines (one under another checked routine comes with it).
+      duplicateRowsAction(
+        outermost(
+          routines,
+          (routine) => routine.id,
+          (id) => byId.get(id)?.parentId,
+        ),
+        {
+          duplicate: async (routine) => {
+            const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
+            if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
+          },
+          done: `${label} dupliquée${ids.length > 1 ? 's' : ''}.`,
+          loading: create.isPending || copySubRoutines.isPending,
         },
-      },
-      {
-        label: allArchived ? 'Restaurer' : 'Archiver',
-        icon: allArchived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+      ),
+      switchRowsAction({
+        on: allArchived,
+        labels: ['Archiver', 'Restaurer'],
+        icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
         loading: bulkArchive.isPending,
-        onClick: () =>
-          bulkArchive.mutate(
-            { ids, archived: !allArchived },
-            {
-              onSuccess: () => {
-                notifyWithUndo(`${label} ${allArchived ? 'restaurée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`, () => bulkArchive.mutate({ ids, archived: allArchived }, { onError }));
-                onClear();
-              },
-              onError,
-            },
-          ),
-      },
-      {
-        label: 'Supprimer',
-        icon: <TrashIcon aria-hidden />,
+        apply: (archived) => bulkArchive.mutateAsync({ ids, archived }),
+        done: (archived) => `${label} ${archived ? 'archivée' : 'restaurée'}${ids.length > 1 ? 's' : ''}.`,
+        clear: onClear,
+      }),
+      deleteRowsAction(routines, {
+        title: 'Supprimer les routines',
+        risks: `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
+        removeAll: () => bulkRemove.mutateAsync(ids),
+        done: `${label} supprimée${ids.length > 1 ? 's' : ''}.`,
+        clear: onClear,
         loading: bulkRemove.isPending,
-        destructive: {
-          title: 'Supprimer les routines',
-          risks: `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
-        },
-        onClick: () =>
-          bulkRemove.mutate(ids, {
-            onSuccess: (count) => {
-              notifySuccess(`${routinesLabel(count)} supprimée${count > 1 ? 's' : ''}.`);
-              onClear();
-            },
-            onError,
-          }),
-      },
+      }),
     ];
   };
 }

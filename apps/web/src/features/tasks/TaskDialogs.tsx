@@ -1,10 +1,11 @@
 import { Alert, Button, Checkbox, Group, Radio, Stack, Text } from '@mantine/core';
+import { countSubtasks } from './task-links';
 import { useState } from 'react';
 import { useTaskLink } from './use-task-link';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
-import { useCloneTask, useDeleteTask, useTransferTask, type Task } from './api';
+import { useDeleteTask, useTransferTask, type Task } from './api';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskRef, type TaskContext } from './use-task-context';
 
@@ -12,16 +13,6 @@ interface DialogProps {
   task: Task;
   context: TaskContext;
   onDone: () => void;
-}
-
-/**
- * Number of sub-tasks of a task, at any depth.
- * @param {TaskContext} context Task context.
- * @param {string} taskId Task id.
- * @returns {number} Count.
- */
-function countSubtasks(context: TaskContext, taskId: string): number {
-  return context.childrenOf(taskId).reduce((sum, child) => sum + 1 + countSubtasks(context, child.id), 0);
 }
 
 /**
@@ -150,53 +141,3 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
   );
 }
 
-/**
- * Clone confirmation, optionally with the sub-tasks. Opens the clone.
- * @param {DialogProps} props Component props.
- * @returns {JSX.Element} Dialog content.
- */
-export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
-  const cloneTask = useCloneTask();
-  const link = useTaskLink();
-  const subtasks = countSubtasks(context, task.id);
-
-  /**
-   * Clones the task.
-   * @returns {void}
-   */
-  const handleConfirm = () => {
-    cloneTask.mutate(
-      // Its sub-tasks are cloned with it, under the clone.
-      { id: task.id, includeSubtasks: true },
-      {
-        onSuccess: (clone) => {
-          notifySuccess(`Tâche ${taskName(task)} clonée${clone.number === null ? "" : ` en #${clone.number}`}.`);
-          onDone();
-          link.open(clone.id);
-        },
-        onError: (error) => notifyError(error.message),
-      },
-    );
-  };
-
-  return (
-    <Stack gap="md">
-      <Text size="sm">
-        Tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
-      </Text>
-      {subtasks > 0 && (
-        <Text size="sm">
-          {subtasks === 1 ? 'Sa sous-tâche est clonée' : `Ses ${subtasks} sous-tâches sont clonées`} avec elle, sous le clone.
-        </Text>
-      )}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button onClick={handleConfirm} loading={cloneTask.isPending} data-autofocus>
-          Cloner
-        </Button>
-      </Group>
-    </Stack>
-  );
-}

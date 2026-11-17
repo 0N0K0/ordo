@@ -2,12 +2,12 @@ import { closePanel, openPanel } from '../../../components/panels/panels';
 import { modals } from '@mantine/modals';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
-import { notifyError, notifyWithUndo } from '../../../lib/notify';
 import type { SelectionAction } from '../../../components/data-table/SelectionBar';
 import { useBulkTaskMutations, useSetTasksClosed, type Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 import { useBulkUndo } from './bulk-undo';
-import { BulkCloneDialog, BulkDeleteDialog, BulkTransferDialog, type DialogProps } from './BulkDialogs';
+import { BulkDeleteDialog, BulkTransferDialog, CloneTasksDialog, type DialogProps } from './BulkDialogs';
+import { switchRowsAction } from '../../../components/data-table/selection-actions';
 import { tasksLabel } from './bulk-label';
 
 
@@ -54,37 +54,27 @@ export function useTaskSelectionActions(context: TaskContext | null) {
   };
 
   return [
-        {
-          label: allClosed ? 'Rouvrir' : 'Fermer',
-          icon: allClosed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />,
+        switchRowsAction({
+          on: allClosed,
+          labels: ['Fermer', 'Rouvrir'],
+          icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
           loading: setClosed.isPending,
-          onClick: () =>
-            setClosed.mutate(
-              { ids, closed: !allClosed },
-              {
-                onSuccess: () => notifyWithUndo(`${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`, undo.closed(tasks, !allClosed)),
-                onError: (error) => notifyError(error.message),
-              },
-            ),
-        },
-        { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => openDialog('Cloner les tâches', BulkCloneDialog) },
+          apply: (closed) => setClosed.mutateAsync({ ids, closed }),
+          done: (closed) => `${tasksLabel(ids.length)} ${closed ? 'fermée' : 'rouverte'}${ids.length > 1 ? 's' : ''}.`,
+          undo: (closed) => undo.closed(tasks, closed),
+        }),
+        { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => openDialog(tasks.length > 1 ? 'Cloner les tâches' : 'Cloner la tâche', CloneTasksDialog) },
         { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openDialog('Transférer les tâches', BulkTransferDialog, true) },
-        {
-          label: allArchived ? 'Désarchiver' : 'Archiver',
-          icon: allArchived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+        switchRowsAction({
+          on: allArchived,
+          labels: ['Archiver', 'Désarchiver'],
+          icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
           loading: archive.isPending,
-          onClick: () =>
-            archive.mutate(
-              { ids, archived: !allArchived },
-              {
-                onSuccess: () => {
-                  notifyWithUndo(`${tasksLabel(ids.length)} ${allArchived ? 'désarchivée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`, undo.archived(tasks, !allArchived));
-                  onClear();
-                },
-                onError: (error) => notifyError(error.message),
-              },
-            ),
-        },
+          apply: (archived) => archive.mutateAsync({ ids, archived }),
+          done: (archived) => `${tasksLabel(ids.length)} ${archived ? 'archivée' : 'désarchivée'}${ids.length > 1 ? 's' : ''}.`,
+          undo: (archived) => undo.archived(tasks, archived),
+          clear: onClear,
+        }),
         { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => openDialog('Supprimer les tâches', BulkDeleteDialog) },
     ];
   };

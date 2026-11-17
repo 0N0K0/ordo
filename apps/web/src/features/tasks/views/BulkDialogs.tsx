@@ -6,7 +6,10 @@ import { tasksLabel } from './bulk-label';
 import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
 import { useBulkTaskMutations, useCloneTask, type Task } from '../api';
 import { ProjectSelect } from '../task-ui';
-import type { TaskContext } from '../use-task-context';
+import { taskName, type TaskContext } from '../use-task-context';
+import { useTaskLink } from '../use-task-link';
+import { countSubtasks } from '../task-links';
+import { outermost } from '../../../components/data-table/selection-actions';
 
 export interface DialogProps {
   tasks: Task[];
@@ -79,18 +82,30 @@ export function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
 }
 
 /**
- * Bulk clone confirmation: each task cloned in turn with its sub-tasks (one under another checked task comes with it).
+ * Clone of one task or of several, confirmed: each one cloned in turn with its sub-tasks, under its clone (a task under
+ * another one cloned comes with it); all the fields, the assignees and the links copied, not the comments. A single
+ * clone opens.
  * @param {DialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
-export function BulkCloneDialog({ tasks, context, onDone }: DialogProps) {
+export function CloneTasksDialog({ tasks, context, onDone }: DialogProps) {
   const cloneTask = useCloneTask();
+  const link = useTaskLink();
   const [pending, setPending] = useState(false);
-  const withSubtasks = tasks.some((task) => context.childrenOf(task.id).length > 0);
+  const single = tasks.length === 1 ? tasks[0] : null;
+  const subtasks = tasks.reduce((count, task) => count + countSubtasks(context, task.id), 0);
   return (
     <Stack gap="md">
-      <Text size="sm">{tasksLabel(tasks.length)} seront clonées : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.</Text>
-      {withSubtasks && <Text size="sm">Leurs sous-tâches sont clonées avec elles, sous leur clone.</Text>}
+      <Text size="sm">
+        {single ? 'La tâche sera clonée' : `${tasksLabel(tasks.length)} seront clonées`} : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
+      </Text>
+      {subtasks > 0 && (
+        <Text size="sm">
+          {single
+            ? (subtasks === 1 ? 'Sa sous-tâche est clonée' : `Ses ${subtasks} sous-tâches sont clonées`) + ' avec elle, sous le clone.'
+            : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
+        </Text>
+      )}
       <Group justify="flex-end" gap="sm">
         <Button variant="default" onClick={() => onDone(false)}>
           Annuler
@@ -102,16 +117,16 @@ export function BulkCloneDialog({ tasks, context, onDone }: DialogProps) {
             setPending(true);
             try {
               // A task already cloned with its parent is not cloned again.
-              const ids = new Set(tasks.map((task) => task.id));
-              const under = (task: Task) => {
-                for (let parent = task.parentId ? context.taskById.get(task.parentId) : undefined; parent; parent = parent.parentId ? context.taskById.get(parent.parentId) : undefined)
-                  if (ids.has(parent.id)) return true;
-                return false;
-              };
-              const roots = tasks.filter((task) => !under(task));
-              for (const task of roots) await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
-              notifySuccess(`${tasksLabel(tasks.length)} clonée${tasks.length > 1 ? 's' : ''}.`);
+              const roots = outermost(
+                tasks,
+                (task) => task.id,
+                (id) => context.taskById.get(id)?.parentId,
+              );
+              let last: { id: string; number: number | null } | null = null;
+              for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
+              notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} clonée${tasks.length > 1 ? 's' : ''}.`);
               onDone(true);
+              if (single && last) link.open(last.id);
             } catch (error) {
               notifyError((error as Error).message);
             } finally {

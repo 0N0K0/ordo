@@ -5,7 +5,8 @@ import type { RowMenuEntry } from '../../components/data-table/RowActions';
 import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useSetTaskArchived, type Task } from './api';
 import { TaskCreateForm } from './TaskCreateForm';
-import { CloneTaskDialog, DeleteTaskDialog, TransferTaskDialog } from './TaskDialogs';
+import { DeleteTaskDialog, TransferTaskDialog } from './TaskDialogs';
+import { CloneTasksDialog } from './views/BulkDialogs';
 import { taskName, type TaskContext } from './use-task-context';
 
 let modalCount = 0;
@@ -55,7 +56,7 @@ export function useTaskActions(context: TaskContext | null) {
    * @param {Task} task Task.
    * @returns {void}
    */
-  const clone = (task: Task) => context && openFormPanel('Cloner la tâche', (close) => <CloneTaskDialog task={task} context={context} onDone={close} />);
+  const clone = (task: Task) => context && openFormPanel('Cloner la tâche', (close) => <CloneTasksDialog tasks={[task]} context={context} onDone={close} />);
 
   /**
    * Opens the transfer dialog.

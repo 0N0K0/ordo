@@ -49,3 +49,13 @@ export function subtreeIds(context: TaskContext, taskId: string): Set<string> {
  * @returns {string} Path.
  */
 export const taskPath = (task: { id: string; projectId: string | null }) => (task.projectId ? `/projects/${task.projectId}?tab=tasks&task=${task.id}` : `/tasks?task=${task.id}`);
+
+/**
+ * Number of sub-tasks of a task, at any depth.
+ * @param {TaskContext} context Task context.
+ * @param {string} taskId Task id.
+ * @returns {number} Count.
+ */
+export function countSubtasks(context: TaskContext, taskId: string): number {
+  return context.childrenOf(taskId).reduce((sum, child) => sum + 1 + countSubtasks(context, child.id), 0);
+}
