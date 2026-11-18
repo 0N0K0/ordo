@@ -6,7 +6,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
-import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -15,10 +15,12 @@ import { bulkSaver, type BulkChange } from '../../../components/data-table/selec
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from '../api';
+import { treasuryKey, useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from '../api';
 import { DetailsToggle, SettledCell } from './entry-cells';
 import { useEntryEnv, type EntryEnv } from '../lib/entry-env';
 import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
@@ -139,7 +141,8 @@ const ENTRY_VIEWS: FirstTableView[] = [
 /**
  * Actual movements in saved views (this month, this year by month, all by default), filtered, sorted, grouped and
  * exported as every table: execution and value dates, payer or payee, category, method, documents settled and linked
- * entries; money in and out of what is shown, linked ones offset.
+ * entries; money in and out of what is shown, linked ones offset. Archived entries are hidden unless the view includes
+ * them, and read only; they still count in the balances, the projection and the statements (real money).
  * @param {EntriesPanelProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -147,6 +150,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   // Every entry: the views choose their period and account.
   const { data: entries, isPending } = useTreasuryEntries({ from: '1900-01-01', to: '2999-12-31', accountId: null });
   const { deleteEntry } = useTreasuryMutations();
+  const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
   const env = useEntryEnv(accounts);
   const entryComments = useCommentCounts(
@@ -165,9 +169,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
     [env, entryComments],
   );
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
-  const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
-  // A change made on the bulk selection of a column saves each entry it fits (none: left as it is).
-  const bulk = bulkSaver<TreasuryEntry, Partial<EntryValues>>(view, (entry, change) => Object.keys(change).length > 0 && saveEntry(entry, change));
+  const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS, archived: (entry) => entry.archived });
+  // A change made on the bulk selection of a column saves each entry it fits (none: left as it is; archived ones are read only).
+  const bulk = bulkSaver<TreasuryEntry, Partial<EntryValues>>(view, (entry, change) => !entry.archived && Object.keys(change).length > 0 && saveEntry(entry, change));
   const actual = view.rows;
   const totals = periodTotals(actual);
   // Split entries whose lines are shown.
@@ -234,39 +238,61 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
           const groupTotals = periodTotals(rows);
           return `+${fmt.money(groupTotals.incoming)} · −${fmt.money(groupTotals.outgoing)}`;
         }}
-        cells={(entry) => ({
-          ...entryFieldCells(entry, env, (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>)),
-          date: <EditableDate value={String(entry.date).slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
-          label: (
-            <Group gap={4} wrap="nowrap">
-              <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && bulk('label')(entry, { label })} />
-              <EntryUrl url={entry.url} label={entry.label} />
-              {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
-            </Group>
-          ),
-          settled: <SettledCell entry={entry} />,
-          amount: (
-            <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
-              <EditableNumber
-                amount
-                value={entry.amount}
-                label={`Montant de ${entry.label}`}
-                suffix="€"
-                signed
-                validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
-                onSave={(amount) => amount !== null && bulk('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
-              />
-            </Text>
-          ),
-          comments: columns.find((column) => column.id === 'comments')?.text?.(entry),
-        })}
-        details={(entry) => expanded.has(entry.id) && <EntryLinesTable entry={entry} env={env} save={saveEntry} />}
+        isArchived={(entry) => entry.archived}
+        cells={(entry) =>
+          entry.archived
+            ? {
+                // Read only: the texts of the columns.
+                ...Object.fromEntries(columns.map((column) => [column.id, column.text?.(entry)])),
+                label: (
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="sm" truncate>
+                      {entry.label}
+                    </Text>
+                    <ArchivedBadge size="xs" />
+                  </Group>
+                ),
+                settled: <SettledCell entry={entry} />,
+              }
+            : {
+                ...entryFieldCells(entry, env, (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>)),
+                date: <EditableDate value={String(entry.date).slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
+                label: (
+                  <Group gap={4} wrap="nowrap">
+                    <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && bulk('label')(entry, { label })} />
+                    <EntryUrl url={entry.url} label={entry.label} />
+                    {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
+                  </Group>
+                ),
+                settled: <SettledCell entry={entry} />,
+                amount: (
+                  <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
+                    <EditableNumber
+                      amount
+                      value={entry.amount}
+                      label={`Montant de ${entry.label}`}
+                      suffix="€"
+                      signed
+                      validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
+                      onSave={(amount) => amount !== null && bulk('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                    />
+                  </Text>
+                ),
+                comments: columns.find((column) => column.id === 'comments')?.text?.(entry),
+              }
+        }
+        details={(entry) => !entry.archived && expanded.has(entry.id) && <EntryLinesTable entry={entry} env={env} save={saveEntry} />}
         actions={(entry) => (
           <RowActions
             name={entry.label}
-            primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
+            primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
-              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+              !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+              {
+                label: entry.archived ? 'Restaurer' : 'Archiver',
+                icon: entry.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                onClick: () => void archiveWithUndo(setArchived, { ids: [entry.id], archived: !entry.archived, label: `« ${entry.label} »` }),
+              },
               {
                 label: 'Supprimer',
                 icon: <TrashIcon aria-hidden />,
@@ -289,6 +315,13 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         )}
         selectionLabel={(count) => selectedLabel(count, ['mouvement', 'mouvements'], false)}
         selectionActions={(rows, clear) => [
+          archiveRowsAction({
+            archived: rows.every((entry) => entry.archived),
+            apply: (archived) => setArchived.mutateAsync({ ids: rows.map((entry) => entry.id), archived }),
+            label: countOf(rows.length, 'mouvement'),
+            count: rows.length,
+            clear,
+          }),
           deleteRowsAction(rows, {
             title: 'Supprimer les mouvements',
             risks: `${countOf(rows.length, 'mouvement')} seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,

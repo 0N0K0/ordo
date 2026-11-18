@@ -1,3 +1,4 @@
+import { assertNotArchived } from '../../services/core/archive';
 import { iconUrl } from '../../services/core/icons';
 import * as lists from '../../services/core/settings-lists';
 import { builder } from '../builder';
@@ -62,7 +63,11 @@ builder.mutationFields((t) => ({
     description: 'Changes the color and / or the image of an item of a settings list; gives the URL of its image.',
     nullable: true,
     args: { kind: t.arg({ type: SettingsListKindEnum, required: true }), id: t.arg.id({ required: true }), input: t.arg({ type: SettingsItemLookInput, required: true }) },
-    resolve: async (_root, { kind, id, input }) => iconUrl(await lists.setLook(kind, id, input)),
+    resolve: async (_root, { kind, id, input }) => {
+      // An archived item is read only.
+      await assertNotArchived(kind, id);
+      return iconUrl(await lists.setLook(kind, id, input));
+    },
   }),
   reorderSettingsItems: t.boolean({
     description: 'Puts the items of a flat settings list in the order given.',

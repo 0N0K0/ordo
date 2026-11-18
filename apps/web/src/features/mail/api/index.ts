@@ -32,6 +32,7 @@ export async function fetchMailDraft(location: { accountId: string; folder: stri
 graphql(`
   fragment MailAccountFields on MailAccount {
     id
+    archived
     name
     email
     displayName
@@ -332,6 +333,7 @@ const MailLabelsDocument = graphql(`
   query MailLabels {
     mailLabels {
       id
+      archived
       name
       color
       iconUrl

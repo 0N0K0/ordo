@@ -25,6 +25,7 @@ const RoutinesDataDocument = graphql(`
   query RoutinesData {
     routineCategories {
       id
+      archived
       name
       color
       iconUrl

@@ -1,7 +1,8 @@
 import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
+import { assertNotArchived } from '../core/archive';
 import { clientError } from '../../graphql/errors';
-import { findAccount } from './accounts';
+import { findActiveAccount } from './accounts';
 import { buildMessage, type MailFields } from './compose';
 import { withImap, withMailbox } from './imap';
 import { specialFolder } from './organize';
@@ -49,6 +50,7 @@ export interface DraftView {
  * @returns {Promise<void>}
  */
 export async function deleteDraft(accountId: string, folder: string, uid: number): Promise<void> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
     await withMailbox(client, folder, async () => {
       await client.messageDelete([uid], { uid: true });
@@ -63,7 +65,7 @@ export async function deleteDraft(accountId: string, folder: string, uid: number
  * @returns {Promise<SavedDraft>} Location of the saved draft and its files.
  */
 export async function saveDraft(input: SaveDraftInput): Promise<SavedDraft> {
-  const account = await findAccount(input.accountId);
+  const account = await findActiveAccount(input.accountId);
   if (input.projectId && !(await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }))) {
     throw clientError('BAD_USER_INPUT', 'Projet introuvable.');
   }

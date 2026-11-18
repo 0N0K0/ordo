@@ -5,14 +5,19 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { openMoveProducts } from '../lib/open-move-products';
+import { withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
+import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
 import { blankInput, EMPTY_GROUPS_LABEL, categoriesForBaseList, usePeople, type ShoppingGrouping } from '../lib/shopping-format';
@@ -27,7 +32,7 @@ import { EditableCheck, EditableSelect } from '../../../components/data-table/ce
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../../stock/api';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
 
@@ -80,7 +85,8 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 
 /**
  * A base list: its products as the tree of their categories (or by store), each marked missing or not and changed
- * in place, moved to another category by drag and drop; the missing ones make a new list.
+ * in place, moved to another category by drag and drop; the missing ones make a new list. The archived products are
+ * hidden until « Afficher les archivés », read only, left out of the lists made; an archived base list is read only.
  * @param {{ baseList: ShoppingBaseList }} props Component props.
  * @returns {JSX.Element} Base list.
  */
@@ -93,8 +99,27 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
   const places = categoryPaths(locations ?? []);
-  const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
-  const missing = products.filter((product) => product.missing);
+  const setArchived = useSetArchived('SHOPPING_PRODUCT', [shoppingKey]);
+  const [showArchived, setShowArchived] = useState(false);
+  const all = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
+  const products = [...visibleItems(all, showArchived)];
+  // The archived products are not on the lists made.
+  const missing = products.filter((product) => product.missing && !product.archived);
+  // An archived base list is read only.
+  const locked = baseList.archived;
+  const otherBaseLists = unarchived(data?.shoppingBaseLists ?? []).filter((other) => other.id !== baseList.id).length;
+  /**
+   * Archives or restores products, with an undo.
+   * @param {ShoppingProduct[]} targets Products.
+   * @param {boolean} archived Archives (else restores).
+   * @returns {void}
+   */
+  const archiveProducts = (targets: ShoppingProduct[], archived: boolean) =>
+    void archiveWithUndo(setArchived, {
+      ids: targets.map((product) => product.id),
+      archived,
+      label: targets.length === 1 ? `Produit « ${targets[0]!.name} »` : countOf(targets.length, 'produit'),
+    });
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
   const productComments = useCommentCounts(
     'SHOPPING_PRODUCT',
@@ -167,7 +192,14 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         hiddenByDefault: true,
         sortValue: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : null),
         text: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : ''),
-        filter: { kind: 'choice', value: (product) => product.stockLocationId ?? null, options: [...places].map(([value, label]) => ({ value, label })) },
+        filter: {
+          kind: 'choice',
+          value: (product) => product.stockLocationId ?? null,
+          options: withArchived(
+            [...places].map(([value, label]) => ({ value, label })),
+            locations ?? [],
+          ),
+        },
         groupable: true,
       },
     ],
@@ -201,18 +233,14 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         manualText="Sans tri : les produits par nom, dans leurs catégories."
         actions={
           <Group gap="sm" wrap="nowrap">
-            <ActionButton
-              priority="secondary"
-              icon={<ArrowsLeftRightIcon aria-hidden />}
-              disabled={products.length === 0 || (data?.shoppingBaseLists.length ?? 0) < 2}
-              onClick={() => openMoveProducts(baseList)}
-            >
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((product) => product.archived).length} />
+            <ActionButton priority="secondary" icon={<ArrowsLeftRightIcon aria-hidden />} disabled={locked || products.length === 0 || otherBaseLists === 0} onClick={() => openMoveProducts(baseList)}>
               Déplacer des produits
             </ActionButton>
-            <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
+            <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} disabled={locked} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
               Nouveau produit
             </ActionButton>
-            <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
+            <Button leftSection={<ListPlusIcon aria-hidden />} disabled={locked || missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
               Générer une liste ({missing.length})
             </Button>
           </Group>
@@ -234,10 +262,13 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           view={view}
           items={products}
           selectionLabel={(count) => selectedLabel(count, ['produit', 'produits'], false)}
+          readOnly={locked}
+          rowReadOnly={(product) => product.archived}
           selectionActions={(rows, clear) => [
             {
               label: 'Déplacer vers une autre référence…',
               icon: <ArrowsLeftRightIcon aria-hidden />,
+              disabled: locked || rows.some((product) => product.archived),
               onClick: () =>
                 openMoveProducts(
                   baseList,
@@ -252,6 +283,13 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
               done: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'retiré')}.`,
               clear,
             }),
+            archiveRowsAction({
+              archived: rows.every((product) => product.archived),
+              apply: (archived) => setArchived.mutateAsync({ ids: rows.map((product) => product.id), archived }),
+              label: countOf(rows.length, 'produit'),
+              count: rows.length,
+              clear,
+            }),
           ]}
           grouping={grouping}
           showEmpty={showEmpty}
@@ -262,17 +300,37 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
           }}
           label={`Produits de ${baseList.name}`}
-          onSave={(product, input) => mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })}
-          toggle={MISSING_TOGGLE((ids, missing) => mutations.setMissing.mutate({ ids, missing }, { onError }))}
+          onSave={(product, input) =>
+            !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })
+          }
+          toggle={MISSING_TOGGLE((ids, missing) => {
+            const open = ids.filter((id) => !all.find((product) => product.id === id)?.archived);
+            if (open.length) mutations.setMissing.mutate({ ids: open, missing }, { onError });
+          })}
+          badge={(product) => product.archived && <ArchivedBadge size="xs" />}
           summary={(items) => `${items.filter((product) => product.missing).length} manquant(s) sur ${items.length}`}
           extraCells={(product) => ({
-            stockTracked: <EditableCheck value={product.stockTracked} label={`${product.name} suivie en stock`} onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })} />,
-            consumable: <EditableCheck value={product.consumable} label={`${product.name} consommable`} onSave={(consumable) => stockBulk('consumable')(product, { consumable })} />,
+            stockTracked: (
+              <EditableCheck
+                value={product.stockTracked}
+                label={`${product.name} suivie en stock`}
+                readOnly={locked || product.archived}
+                onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })}
+              />
+            ),
+            consumable: (
+              <EditableCheck
+                value={product.consumable}
+                label={`${product.name} consommable`}
+                readOnly={locked || product.archived}
+                onSave={(consumable) => stockBulk('consumable')(product, { consumable })}
+              />
+            ),
             autoStock: (
               <EditableCheck
                 value={product.autoStock}
                 label={`${product.name} ajoutée au stock une fois achetée`}
-                readOnly={!product.stockTracked}
+                readOnly={locked || product.archived || !product.stockTracked}
                 onSave={(autoStock) => stockBulk('autoStock')(product, (target) => (target.stockTracked ? { autoStock } : {}))}
               />
             ),
@@ -281,7 +339,8 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
                 value={product.stockLocationId ?? null}
                 label={`Emplacement en stock de ${product.name}`}
                 nullable
-                {...treeSelectProps(categoryOptions(locations ?? []))}
+                readOnly={locked || product.archived}
+                {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], product.stockLocationId)))}
                 onSave={(stockLocationId) => stockBulk('stockLocation')(product, { stockLocationId })}
               />
             ),
@@ -299,11 +358,19 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           actions={(product) => (
             <RowActions
               name={product.name}
-              primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }}
+              primary={
+                !locked &&
+                !product.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }
+              }
               items={[
-                ...((data?.shoppingBaseLists.length ?? 0) > 1
+                ...(!locked && !product.archived && otherBaseLists > 0
                   ? [{ label: 'Déplacer vers une autre référence…', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openMoveProducts(baseList, [product.id]) }]
                   : []),
+                {
+                  label: product.archived ? 'Restaurer' : 'Archiver',
+                  icon: product.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                  onClick: () => archiveProducts([product], !product.archived),
+                },
                 {
                   label: 'Retirer',
                   icon: <TrashIcon aria-hidden />,
@@ -315,7 +382,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           )}
         />
       )}
-      {missing.length > 0 && (
+      {missing.length > 0 && !locked && (
         <Text size="xs" c="dimmed">
           Cocher un produit comme acheté sur une liste le retire des manquants.{' '}
           <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, { onError })}>

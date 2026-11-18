@@ -10,7 +10,7 @@ import { DatePickerInput } from '@mantine/dates';
 
 import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -21,7 +21,10 @@ import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 import { useWorkspace } from '../../workspace/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
-import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, type AccountingDocument } from '../api/documents';
+import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { accountingQueryKey } from '../api';
 import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { DeductDepositMenu } from './DeductDepositMenu';
@@ -111,6 +114,12 @@ function Editor({ document }: { document: AccountingDocument }) {
   const [timeSeconds, setTimeSeconds] = useState(() => new Map(document.timeEntries.map((entry) => [entry.id, entry.duration ?? 0])));
   const readOnly = document.status === 'FINAL';
   const isTemplate = document.status === 'TEMPLATE';
+  // Archived (or the model of an archived recurring invoice): read only, nothing made from it; its PDF stays.
+  const { data: recurringInvoices } = useRecurringInvoices();
+  const archivedRecurring = isTemplate && Boolean(recurringInvoices?.find((item) => item.templateId === document.id)?.archived);
+  const archived = document.archived || archivedRecurring;
+  const locked = readOnly || archived;
+  const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   const isQuote = document.type === 'QUOTE';
   // Fully paid final invoice: it can be printed receipted.
   const receiptable = readOnly && (document.type === 'INVOICE' || document.type === 'DEPOSIT_INVOICE') && (document.paid ?? 0) > 0 && (document.balance ?? 1) <= 0;
@@ -126,11 +135,11 @@ function Editor({ document }: { document: AccountingDocument }) {
 
   // Leaving with unsaved changes asks for confirmation.
   useEffect(() => {
-    if (!dirty || readOnly) return;
+    if (!dirty || locked) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, readOnly]);
+  }, [dirty, locked]);
 
   /**
    * Saves the draft.
@@ -256,7 +265,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
     );
 
-  const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
+  const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT' && !archived;
   const billedIds = values.timeEntryIds ?? [];
 
   /**
@@ -304,6 +313,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             <Badge variant="light" color={readOnly ? 'green' : isTemplate ? 'grape' : 'gray'}>
               {readOnly ? 'Définitif' : isTemplate ? 'Modèle' : 'Brouillon'}
             </Badge>
+            {archived && <ArchivedBadge feminine={archivedRecurring} />}
           </Group>
           {document.sourceId && (
             <Text size="sm" c="dimmed">
@@ -338,21 +348,23 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Button>
             </Tooltip>
           )}
-          {readOnly && (
+          {readOnly && !archived && (
             <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
               Envoyer
             </Button>
           )}
-          {!readOnly && (
+          {!locked && (
             <Button variant="default" onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
               Enregistrer
             </Button>
           )}
           {document.status === 'DRAFT' && (
             <>
-              <Button leftSection={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
-                Valider
-              </Button>
+              {!archived && (
+                <Button leftSection={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
+                  Valider
+                </Button>
+              )}
               <Tooltip label="Supprimer le brouillon">
                 <ActionIcon variant="subtle" color="red" size="lg" aria-label="Supprimer le brouillon" onClick={confirmDelete}>
                   <TrashIcon aria-hidden />
@@ -360,7 +372,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Tooltip>
             </>
           )}
-          {readOnly && isQuote && (
+          {readOnly && !archived && isQuote && (
             <>
               <Button variant="default" onClick={() => openDepositForm({ quoteId: document.id })}>
                 Facture d’acompte
@@ -370,17 +382,32 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Button>
             </>
           )}
-          {readOnly && isInvoice && (
+          {readOnly && !archived && isInvoice && (
             <Button variant="default" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
               Créer un avoir
             </Button>
           )}
-          {document.type === 'INVOICE' && !isTemplate && (
+          {document.type === 'INVOICE' && !isTemplate && !archived && (
             <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
               Rendre récurrente
             </Button>
           )}
+          {/* The model of a recurring invoice is archived with it, from the list of the recurring invoices. */}
           {!isTemplate && (
+            <Tooltip label={document.archived ? 'Restaurer' : 'Archiver'}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="lg"
+                aria-label={document.archived ? 'Restaurer' : 'Archiver'}
+                loading={setArchived.isPending}
+                onClick={() => void archiveWithUndo(setArchived, { ids: [document.id], archived: !document.archived, label: `« ${document.number ?? document.title ?? 'Brouillon'} »` })}
+              >
+                {document.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {!isTemplate && !archived && (
             <Tooltip label="Dupliquer en brouillon">
               <ActionIcon
                 variant="subtle"
@@ -401,10 +428,18 @@ function Editor({ document }: { document: AccountingDocument }) {
         </Group>
       </Group>
 
-      {readOnly && (
-        <Alert color="green" icon={<CheckCircleIcon aria-hidden />}>
-          Document définitif : il ne peut plus être modifié. Ses pièces jointes restent modifiables.
+      {archived ? (
+        <Alert color="gray" icon={<ArchiveIcon aria-hidden />}>
+          {archivedRecurring
+            ? 'Facture récurrente archivée : son modèle est en lecture seule et aucune facture n’est plus émise. Restaurez-la depuis la liste des factures récurrentes pour la modifier.'
+            : `Document archivé : masqué des listes et en lecture seule.${readOnly ? ' Il reste valable (numéro et PDF conservés).' : ''} Restaurez-le pour le modifier.`}
         </Alert>
+      ) : (
+        readOnly && (
+          <Alert color="green" icon={<CheckCircleIcon aria-hidden />}>
+            Document définitif : il ne peut plus être modifié. Ses pièces jointes restent modifiables.
+          </Alert>
+        )
       )}
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
         <Text size="sm">
@@ -437,7 +472,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <ClientSelect
                   required
-                  readOnly={readOnly}
+                  readOnly={locked}
                   {...form.getInputProps('clientId')}
                   onChange={(clientId) => clientId && form.setValues({ clientId, serviceId: null, contactId: null, projectId: null })}
                 />
@@ -445,7 +480,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label="Projet"
                   clearable
                   searchable
-                  readOnly={readOnly}
+                  readOnly={locked}
                   placeholder="Aucun"
                   {...treeSelectProps(clientProjectOptions(workspace, values.clientId, { keepId: values.projectId }))}
                   {...form.getInputProps('projectId')}
@@ -453,7 +488,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <Select
                   label="Service"
                   clearable
-                  readOnly={readOnly}
+                  readOnly={locked}
                   placeholder="Aucun"
                   data={(client?.services ?? []).map((service) => ({ value: service.id, label: service.name }))}
                   {...form.getInputProps('serviceId')}
@@ -461,7 +496,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <Select
                   label="Contact"
                   clearable
-                  readOnly={readOnly}
+                  readOnly={locked}
                   placeholder="Aucun"
                   data={(client?.contacts ?? [])
                     .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
@@ -471,7 +506,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <DatePickerInput
                   label="Date du document"
                   required
-                  readOnly={readOnly}
+                  readOnly={locked}
                   // Not before the latest document of its type (models of recurring invoices are dated later).
                   minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
                   description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${fmt.day(latestDate)}, date du dernier document de ce type.` : undefined}
@@ -480,27 +515,27 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <DatePickerInput
                   label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
                   clearable
-                  readOnly={readOnly}
+                  readOnly={locked}
                   {...form.getInputProps('dueDate')}
                 />
-                <DatePickerInput label="Début de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceStart')} />
-                <DatePickerInput label="Fin de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceEnd')} />
+                <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceStart')} />
+                <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceEnd')} />
               </SimpleGrid>
             </Section>
 
             <Section title="Contenu">
-              <TextInput label="Objet" readOnly={readOnly} {...form.getInputProps('title')} />
+              <TextInput label="Objet" readOnly={locked} {...form.getInputProps('title')} />
               <Group gap="sm" align="flex-end" grow>
-                <TextInput label="Libellé de la référence" readOnly={readOnly} {...form.getInputProps('referenceLabel')} />
-                <TextInput label="Référence du client" readOnly={readOnly} {...form.getInputProps('referenceValue')} />
+                <TextInput label="Libellé de la référence" readOnly={locked} {...form.getInputProps('referenceLabel')} />
+                <TextInput label="Référence du client" readOnly={locked} {...form.getInputProps('referenceValue')} />
               </Group>
-              <Textarea label="Introduction" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('introduction')} />
+              <Textarea label="Introduction" autosize minRows={2} readOnly={locked} {...form.getInputProps('introduction')} />
               <Divider label="Lignes" labelPosition="left" />
               <LinesEditor
                 lines={values.lines}
                 totals={totals.lines}
                 onChange={(lines) => form.setFieldValue('lines', lines)}
-                readOnly={readOnly}
+                readOnly={locked}
                 vatApplicable={values.vatApplicable}
                 currency={currency}
                 errors={form.errors}
@@ -537,7 +572,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   )}
                 </Group>
               )}
-              <Textarea label="Conclusion" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('conclusion')} />
+              <Textarea label="Conclusion" autosize minRows={2} readOnly={locked} {...form.getInputProps('conclusion')} />
             </Section>
 
             <Section title="Conditions et mentions">
@@ -546,7 +581,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label="Mode de facturation"
                   placeholder="Au mois, tous les 5 du mois…"
                   description="Choisissez ou complétez."
-                  readOnly={readOnly}
+                  readOnly={locked}
                   data={BILLING_SCHEDULE_PRESETS}
                   {...form.getInputProps('billingSchedule')}
                 />
@@ -555,7 +590,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <Autocomplete
                   label="Conditions de règlement"
                   placeholder="À réception"
-                  readOnly={readOnly}
+                  readOnly={locked}
                   data={PAYMENT_TERMS_PRESETS}
                   {...form.getInputProps('paymentTerms')}
                   onChange={(paymentTerms) => {
@@ -565,12 +600,12 @@ function Editor({ document }: { document: AccountingDocument }) {
                   }}
                 />
               )}
-              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={readOnly} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
+              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={locked} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
               {isQuote && (
                 <DiscountInput
                   label="Acompte à la commande"
                   placeholder="Aucun"
-                  readOnly={readOnly}
+                  readOnly={locked}
                   style={{ flex: 1 }}
                   error={form.errors.depositValue}
                   description={
@@ -586,19 +621,19 @@ function Editor({ document }: { document: AccountingDocument }) {
                 />
               )}
               {document.type !== 'CREDIT_NOTE' && (
-                <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={readOnly} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
+                <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={locked} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
               )}
               {document.type !== 'CREDIT_NOTE' && client?.kind === 'COMPANY' && (
                 <Text size="xs" c="dimmed">
                   Client professionnel : l’indemnité forfaitaire de 40 € pour frais de recouvrement est ajoutée au document.
                 </Text>
               )}
-              <Textarea label="Autres mentions" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('otherMentions')} />
+              <Textarea label="Autres mentions" autosize minRows={2} readOnly={locked} {...form.getInputProps('otherMentions')} />
               <Group gap="lg">
-                <Switch label="Afficher le RIB" disabled={readOnly} {...form.getInputProps('showBankDetails', { type: 'checkbox' })} />
+                <Switch label="Afficher le RIB" disabled={locked} {...form.getInputProps('showBankDetails', { type: 'checkbox' })} />
                 <Switch
                   label="TVA non applicable"
-                  disabled={readOnly}
+                  disabled={locked}
                   checked={!values.vatApplicable}
                   onChange={(event) => form.setFieldValue('vatApplicable', !event.currentTarget.checked)}
                 />
@@ -612,7 +647,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           <Stack gap="md">
             {readOnly && <TrackingPanel document={document} onRemind={() => openDocumentMail(true)} remindPending={preparingMail} />}
             <Section title="Totaux">
-              {!readOnly && (
+              {!locked && (
                 <DiscountInput
                   label="Remise générale"
                   style={{ flex: 1 }}
@@ -648,7 +683,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 </Table.Tbody>
               </Table>
             </Section>
-            <AttachmentsSection document={document} />
+            <AttachmentsSection document={document} readOnly={archived} />
             {document.derived.length > 0 && (
               <Section title="Documents liés">
                 {document.derived.map((item) => (
@@ -694,16 +729,17 @@ function TotalRow({ label, value, currency, strong }: { label: string; value: nu
 }
 
 /**
- * Files attached to a document (signed quote, purchase order, specifications…).
- * @param {{ document: AccountingDocument }} props Component props.
+ * Files attached to a document (signed quote, purchase order, specifications…); only opened when read only.
+ * @param {{ document: AccountingDocument, readOnly?: boolean }} props Document, read only (archived). Optional.
  * @returns {JSX.Element} Section.
  */
-function AttachmentsSection({ document }: { document: AccountingDocument }) {
+function AttachmentsSection({ document, readOnly = false }: { document: AccountingDocument; readOnly?: boolean }) {
   const { addAttachments, removeAttachment } = useDocumentMutations();
   return (
     <Section
       title="Pièces jointes"
       actions={
+        !readOnly && (
         <FileButton
           multiple
           onChange={(files) =>
@@ -717,6 +753,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
             </Button>
           )}
         </FileButton>
+        )
       }
     >
       {document.attachments.length === 0 ? (
@@ -729,16 +766,18 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
                 <PaperclipIcon aria-hidden /> {attachment.name}
               </Group>
             </FileLink>
-            <Tooltip label="Retirer">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label={`Retirer ${attachment.name}`}
-                onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })}
-              >
-                <XIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            {!readOnly && (
+              <Tooltip label="Retirer">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  aria-label={`Retirer ${attachment.name}`}
+                  onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })}
+                >
+                  <XIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Group>
         ))
       )}

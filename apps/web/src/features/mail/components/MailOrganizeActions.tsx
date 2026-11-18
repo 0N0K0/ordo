@@ -6,6 +6,7 @@ import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, Flag
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
 import type { MailGroup } from '../lib/mail-groups';
+import { unarchived } from '../../../lib/archive';
 
 interface MailOrganizeActionsProps {
   /** Mails, by account and folder (a search may gather several). */
@@ -31,7 +32,9 @@ interface MailOrganizeActionsProps {
  */
 export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageLabels, noMove }: MailOrganizeActionsProps) {
   const { mark, spam, move } = useMailActions();
-  const { data: labels } = useMailLabels();
+  // An archived flag is not put on mails anymore (it can still be taken off).
+  const { data: allLabels } = useMailLabels();
+  const labels = unarchived(allLabels ?? [], labelIds);
   const accountIds = [...new Set(groups.map((group) => group.accountId))];
   // Moving needs the folders of a single account.
   const oneAccount = accountIds.length === 1 ? accountIds[0] : null;
@@ -71,7 +74,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
           </Tooltip>
         </Menu.Target>
         <Menu.Dropdown>
-          {(labels ?? []).map((label) => {
+          {labels.map((label) => {
             const on = labelIds.includes(label.id);
             return (
               <Menu.Item
@@ -84,7 +87,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
               </Menu.Item>
             );
           })}
-          {(labels ?? []).length > 0 && <Menu.Divider />}
+          {labels.length > 0 && <Menu.Divider />}
           <Menu.Item leftSection={<GearIcon aria-hidden />} onClick={onManageLabels}>
             Gérer les drapeaux…
           </Menu.Item>

@@ -100,7 +100,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     'ROUTINE',
     useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
   );
-  const { options: beneficiaryGroups } = useBeneficiaries();
+  const { choices: beneficiaryChoices } = useBeneficiaries();
   const byId = useMemo(() => mapById(routines), [routines]);
   const doable = useMemo(() => (routine: Routine) => slotRules.allowed(routineDoable(routine)), [slotRules]);
   const columns = useMemo(
@@ -114,10 +114,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             doable,
             comments,
             slotKinds: scheduleChoices(schedules).options,
-            beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
+            beneficiaries: beneficiaryChoices,
           })
         : [],
-    [today, byId, categories, context, doable, comments, schedules, beneficiaryGroups],
+    [today, byId, categories, context, doable, comments, schedules, beneficiaryChoices],
   );
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
@@ -246,7 +246,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
-          rowMenuEntry(rowActions.duplicate),
+          !readOnly && rowMenuEntry(rowActions.duplicate),
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),

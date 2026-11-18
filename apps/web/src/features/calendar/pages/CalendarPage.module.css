@@ -125,6 +125,13 @@
     border-style: dashed !important;
   }
 
+  /* Archived event (or of an archived calendar), shown on demand: read only, faded. */
+  .archived {
+    /* Effets */
+    opacity: 0.45;
+    filter: grayscale(0.6);
+  }
+
   /* Several calendars: a stripe of the calendar color on the left. */
   .calendarStripe {
     /* Bordures */

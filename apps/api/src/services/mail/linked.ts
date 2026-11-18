@@ -144,7 +144,8 @@ async function followConversations(): Promise<void> {
     const projectsOf = new Map<string, Set<string>>();
     for (const item of linked) projectsOf.set(item.messageId, (projectsOf.get(item.messageId) ?? new Set()).add(item.projectId));
 
-    const accounts = await prisma.mailAccount.findMany({ select: { id: true } });
+    // An archived account is not followed anymore.
+    const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
     for (const account of accounts) {
       const found: { folder: string; uid: number; projects: Set<string> }[] = [];
       try {

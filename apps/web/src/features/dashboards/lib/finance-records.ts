@@ -1,5 +1,6 @@
 import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, EVERYDAY_CONTEXT, mapById, offsetLinkedMovements, plannedContext, round2, splitAmounts } from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
+import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -68,7 +69,7 @@ function paymentKeys(document: ChartDocument): Key[] {
 }
 
 /**
- * Documents of a chart (filters and project scope applied), Ordo's and imported ones.
+ * Documents of a chart (filters and project scope applied), Ordo’s and imported ones; the archived ones left out.
  * @param {AccountingDocumentSummary[]} documents Documents of Ordo.
  * @param {ImportedDocument[]} imported Imported documents.
  * @param {ChartConfig} config Configuration.
@@ -77,7 +78,8 @@ function paymentKeys(document: ChartDocument): Key[] {
  */
 function chartDocuments(documents: AccountingDocumentSummary[], imported: ImportedDocument[], config: ChartConfig, projects: Set<string> | null): ChartDocument[] {
   const filter = config.documents;
-  const own: ChartDocument[] = documents.map((document) => ({
+  // Archived documents are left out (hidden from the day-to-day views).
+  const own: ChartDocument[] = unarchived(documents).map((document) => ({
     id: document.id,
     type: document.type,
     draft: document.status === 'DRAFT',
@@ -97,7 +99,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
     overdue: document.overdue ?? false,
   }));
   const before: ChartDocument[] = filter.includeImported
-    ? imported.map((document) => ({
+    ? unarchived(imported).map((document) => ({
         id: document.id,
         type: document.type,
         draft: false,

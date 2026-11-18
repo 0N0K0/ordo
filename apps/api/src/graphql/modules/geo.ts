@@ -17,6 +17,7 @@ const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
     color: t.exposeString('color', { nullable: true }),
     iconUrl: t.string({ nullable: true, description: 'Image shown as its avatar (none: its initials on its color).', resolve: (place) => iconUrl(place.iconId) }),
     position: t.exposeInt('position'),
+    archived: t.exposeBoolean('archived'),
   }),
 });
 

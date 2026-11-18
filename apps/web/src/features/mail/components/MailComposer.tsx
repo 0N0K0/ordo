@@ -12,6 +12,7 @@ import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } fr
 import { MailBody } from './MailBody';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
+import { unarchived } from '../../../lib/archive';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -72,7 +73,9 @@ type SaveState = { status: 'idle' } | { status: 'saving' } | { status: 'saved'; 
  * @returns {JSX.Element} Form.
  */
 export function MailComposer({ options, onDone }: { options: ComposeOptions; onDone: () => void }) {
-  const { data: accounts } = useMailAccounts();
+  // The archived accounts do not send.
+  const { data: allAccounts } = useMailAccounts();
+  const accounts = allAccounts && unarchived(allAccounts);
   const { send, saveDraft, deleteDraft, schedule } = useMailActions();
   const [scheduling, setScheduling] = useState(false);
   const [sendAt, setSendAt] = useState<string | null>(null);

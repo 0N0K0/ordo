@@ -1,6 +1,7 @@
 import { mailAccountFormSchema, signatureSchema, type MailAccountFormValues } from '@ordo/shared';
 import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
+import { assertNotArchived } from '../core/archive';
 import type { MailAccount } from '../../generated/prisma/client';
 import { clientError, errorMessage, fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
@@ -34,6 +35,17 @@ export function createSmtpTransport(
  */
 export async function findAccount(id: string): Promise<MailAccount> {
   const account = await orNotFound(prisma.mailAccount.findUnique({ where: { id } }), 'Boîte mail');
+  return account;
+}
+
+/**
+ * Loads an account that can be used (to send, to change its mails): NOT_FOUND, or BAD_USER_INPUT when it is archived.
+ * @param {string} id Account id.
+ * @returns {Promise<MailAccount>} Account.
+ */
+export async function findActiveAccount(id: string): Promise<MailAccount> {
+  const account = await findAccount(id);
+  await assertNotArchived('MAIL_ACCOUNT', id);
   return account;
 }
 
@@ -126,7 +138,7 @@ export async function createMailAccount(input: MailAccountFormValues): Promise<M
  * @returns {Promise<MailAccount>} Account.
  */
 export async function updateMailAccount(id: string, input: MailAccountFormValues): Promise<MailAccount> {
-  assertPasswordsForServers(parseInput(mailAccountFormSchema, input), await findAccount(id));
+  assertPasswordsForServers(parseInput(mailAccountFormSchema, input), await findActiveAccount(id));
   const account = await prisma.mailAccount.update({ where: { id }, data: accountData(input, false) });
   closeImap(id);
   return account;
@@ -139,7 +151,7 @@ export async function updateMailAccount(id: string, input: MailAccountFormValues
  * @returns {Promise<MailAccount>} Account.
  */
 export async function setMailSignature(id: string, signature: string): Promise<MailAccount> {
-  await findAccount(id);
+  await findActiveAccount(id);
   const html = parseInput(signatureSchema, signature).trim();
   return prisma.mailAccount.update({ where: { id }, data: { signature: html ? sanitizeMailHtml(html) : null } });
 }
@@ -162,6 +174,6 @@ export async function deleteMailAccount(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveMailAccount(id: string, index: number): Promise<void> {
-  await findAccount(id);
+  await findActiveAccount(id);
   await moveInList('mailAccount', id, index);
 }

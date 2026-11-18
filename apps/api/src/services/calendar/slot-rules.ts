@@ -47,7 +47,8 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
   const [{ slots, known }, tasks, events] = await Promise.all([
     workspaceSlots(addDays(now.date, -1), now.date),
     prisma.task.findMany({ where: { closedAt: null, archivedAt: null }, select: { id: true, slotRule: true, assignees: { select: { id: true } } } }),
-    eventOccurrences(addDays(now.date, -1), now.date),
+    // Archived events (and those of archived calendars) keep nobody busy.
+    eventOccurrences(addDays(now.date, -1), now.date, undefined, true),
   ]);
   const at = new Date();
   return tasks

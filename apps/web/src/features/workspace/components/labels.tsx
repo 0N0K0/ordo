@@ -88,7 +88,7 @@ export function CategoriesInput({ categories, value, onChange, error }: Categori
       <BatchMultiSelect
         label="Catégories"
         placeholder={value.length ? undefined : 'Aucune'}
-        {...listSelectProps(categories)}
+        {...listSelectProps(categories, undefined, value)}
         value={value}
         onChange={onChange}
         error={error}
@@ -120,7 +120,7 @@ export function StatusInput({ statuses, value, onChange, error }: StatusInputPro
       <Select
         label="Statut"
         placeholder="Aucun"
-        {...listSelectProps([...statuses].sort(byPosition))}
+        {...listSelectProps([...statuses].sort(byPosition), undefined, value)}
         leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
         value={value}
         onChange={onChange}

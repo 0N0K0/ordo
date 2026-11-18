@@ -1,12 +1,12 @@
 import { plural, countOf } from '../../../lib/text';
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
-import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -23,15 +23,18 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { useShoppingData } from '../../shopping/api';
-import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
+import { stockKey, useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { LotsTable } from './LotsTable';
 import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
 import { StockMoveForm } from './StockMoveForm';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
+import { archiveWithUndo, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -41,7 +44,7 @@ const SOON = 3;
 /**
  * Items of the stock in a table like every other (grouped, filtered, sorted by any column; each field changed in
  * place and in bulk): their quantity (that of their lots, unfolded under them), what is used up, added, lost by hand,
- * their history; an inventory made from it.
+ * their history; an inventory made from it. The archived items are hidden until « Afficher les archivés », read only.
  * @returns {JSX.Element} Table.
  */
 export function StockTable() {
@@ -51,6 +54,9 @@ export function StockTable() {
   const people = usePeople();
   const mutations = useStockMutations();
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
+  const setArchived = useSetArchived('STOCK_ITEM', [stockKey]);
+  const [showArchived, setShowArchived] = useState(false);
+  const rows = visibleItems(items ?? [], showArchived);
   const today = localToday();
   const soon = addDays(today, SOON);
   const places = categoryPaths(locations ?? []);
@@ -75,7 +81,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : null),
       text: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: categoryOptions(locations ?? []) },
+      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: withArchived(categoryOptions(locations ?? []), locations ?? []) },
       groupable: true,
     },
     {
@@ -85,7 +91,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : null),
       text: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: categoryOptions(categories) },
+      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: withArchived(categoryOptions(categories), categories) },
       groupable: true,
     },
     {
@@ -183,9 +189,13 @@ export function StockTable() {
       (item) => item.note,
     ),
   ];
-  const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: items ?? [], title: 'Inventaire' });
+  const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: [...rows], title: 'Inventaire' });
   const onError = { onError: onMutationError };
-  const bulk = bulkSaver<StockItem, Change>(view, (item, change) => Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, onError));
+  // The archived items are left as they are.
+  const bulk = bulkSaver<StockItem, Change>(
+    view,
+    (item, change) => !item.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, onError),
+  );
   const toggle = (id: string) =>
     setUnfolded((current) => {
       const next = new Set(current);
@@ -198,7 +208,16 @@ export function StockTable() {
       framed
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
+      isArchived={(item) => item.archived}
+      readOnly={(item) => item.archived}
       selectionActions={(rows, clear) => [
+        archiveRowsAction({
+          archived: rows.every((item) => item.archived),
+          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
+          label: countOf(rows.length, 'article'),
+          count: rows.length,
+          clear,
+        }),
         deleteRowsAction(rows, {
           title: 'Supprimer les articles',
           risks: `${countOf(rows.length, 'article')} seront supprimés du stock avec leurs lots et leur historique. Cette action est irréversible.`,
@@ -212,11 +231,12 @@ export function StockTable() {
         searchLabel: 'Rechercher (article, description)',
         actions: (
           <Group gap="sm">
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(items ?? []).filter((item) => item.archived).length} />
             <ActionButton
               priority="secondary"
               icon={<ListChecksIcon aria-hidden />}
               onClick={() => openFormPanel('Faire l’inventaire', (close) => <StockCountForm onDone={close} />, 'lg')}
-              disabled={!items?.length}
+              disabled={!rows.some((item) => !item.archived)}
             >
               Faire l’inventaire
             </ActionButton>
@@ -233,13 +253,15 @@ export function StockTable() {
         />
       }
       getKey={(item) => item.id}
-      details={(item) => (unfolded.has(item.id) ? <LotsTable item={item} /> : null)}
+      details={(item) => (unfolded.has(item.id) ? <LotsTable item={item} readOnly={item.archived} /> : null)}
       cells={(item) => {
         const first = nextExpiry(item);
+        const readOnly = item.archived;
         return {
           label: (
             <Group gap={4} wrap="nowrap">
-              <EditableText value={item.label} label={`Libellé de ${item.label}`} strong onSave={(label) => label && bulk('label')(item, { label })} />
+              <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={readOnly} onSave={(label) => label && bulk('label')(item, { label })} />
+              {item.archived && <ArchivedBadge size="xs" />}
               {item.lots.length > 1 && (
                 <Button variant="subtle" color="gray" size="compact-xs" aria-expanded={unfolded.has(item.id)} onClick={() => toggle(item.id)}>
                   lots ({item.lots.length})
@@ -252,7 +274,8 @@ export function StockTable() {
               value={item.locationId ?? null}
               label={`Emplacement de ${item.label}`}
               nullable
-              {...treeSelectProps(categoryOptions(locations ?? []))}
+              readOnly={readOnly}
+              {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], item.locationId)))}
               onSave={(locationId) => bulk('location')(item, { locationId })}
             />
           ),
@@ -261,7 +284,8 @@ export function StockTable() {
               value={item.categoryId ?? null}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(categoryOptions(categories))}
+              readOnly={readOnly}
+              {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, item.categoryId)))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),
@@ -270,7 +294,7 @@ export function StockTable() {
               {fmt.number(item.quantity, 3)}
             </Text>
           ),
-          unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
+          unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
           expiry: first && (
             <Badge size="sm" variant="light" tt="none" color={first < today ? 'red' : first <= soon ? 'orange' : 'gray'} leftSection={first <= soon ? <WarningIcon aria-hidden /> : undefined}>
               {fmt.day(first)}
@@ -296,6 +320,7 @@ export function StockTable() {
               value={rowPeopleKeys(item)}
               label={`Bénéficiaires de ${item.label}`}
               data={people.options}
+              readOnly={readOnly}
               onSave={(keys) =>
                 bulk('people')(item, (target) => {
                   const before = rowPeopleKeys(item);
@@ -306,21 +331,33 @@ export function StockTable() {
               }
             />
           ),
-          perishable: <EditableCheck value={item.perishable} label={`${item.label} périssable`} onSave={(perishable) => bulk('perishable')(item, { perishable })} />,
-          note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          perishable: <EditableCheck value={item.perishable} label={`${item.label} périssable`} readOnly={readOnly} onSave={(perishable) => bulk('perishable')(item, { perishable })} />,
+          note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
         };
       }}
       actions={(item) => (
         <RowActions
           name={item.label}
-          primary={{
-            label: 'Retirer 1',
-            icon: <MinusIcon aria-hidden />,
-            onClick: () => mutations.move.mutate({ itemId: item.id, kind: 'CONSUMPTION', quantity: 1, lotId: null, expiresAt: null, note: null }, onError),
-          }}
+          primary={
+            !item.archived && {
+              label: 'Retirer 1',
+              icon: <MinusIcon aria-hidden />,
+              onClick: () => mutations.move.mutate({ itemId: item.id, kind: 'CONSUMPTION', quantity: 1, lotId: null, expiresAt: null, note: null }, onError),
+            }
+          }
           items={[
-            { label: 'Consommer, ajouter, perdre…', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(item.label, (close) => <StockMoveForm item={item} onDone={close} />) },
+            // Archived: read only.
+            !item.archived && {
+              label: 'Consommer, ajouter, perdre…',
+              icon: <PlusIcon aria-hidden />,
+              onClick: () => openFormPanel(item.label, (close) => <StockMoveForm item={item} onDone={close} />),
+            },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, onClick: () => openFormPanel(`Historique · ${item.label}`, () => <MovementsTable itemId={item.id} />, 'lg') },
+            {
+              label: item.archived ? 'Restaurer' : 'Archiver',
+              icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+              onClick: () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `Article « ${item.label} »` }),
+            },
             {
               label: 'Supprimer',
               icon: <TrashIcon aria-hidden />,

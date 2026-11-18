@@ -21,8 +21,9 @@ import { Prisma, type CalendarEvent, type CalendarEventException } from '../../g
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
-import { assertProjectContributors } from '../workspace/contributors';
+import { assertActiveContributors, assertActiveRelations, assertProjectContributors } from '../workspace/contributors';
 import { assertAllExist, assertExists } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived } from '../core/archive';
 
 export interface CalendarLink {
   url: string;
@@ -64,6 +65,8 @@ export interface EventOccurrence {
   projectId: string | null;
   /** Calendar of the event (of its series). */
   calendarId: string;
+  /** The event (its series) is archived: hidden by default, read only. */
+  archived: boolean;
   contributorIds: string[];
   /** Relations without contributor taking part. */
   relationIds: string[];
@@ -154,22 +157,48 @@ async function saveRoutineLinks(formerId: string | null, eventId: string, fields
 }
 
 /**
- * Contributors of an event (they may stay when its project changes).
+ * Contributors, categories, beneficiaries and relations of an event (they may stay when its project changes, or once
+ * archived).
  * @param {string} id Event.
- * @returns {Promise<string[]>} Ids.
+ * @returns {Promise<[string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids and relation ids (beneficiaries or linked).
  */
-async function eventContributorIds(id: string): Promise<string[]> {
-  return ((await prisma.calendarEvent.findUnique({ where: { id }, select: { contributors: { select: { id: true } } } }))?.contributors ?? []).map((contributor) => contributor.id);
+async function eventKept(id: string): Promise<[string[], string[], string[], string[]]> {
+  const event = await prisma.calendarEvent.findUnique({
+    where: { id },
+    select: {
+      contributors: { select: { id: true } },
+      categories: { select: { id: true } },
+      beneficiaries: { select: { id: true } },
+      beneficiaryRelations: { select: { id: true } },
+      relations: { select: { id: true } },
+    },
+  });
+  const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
+  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)]];
+}
+
+/**
+ * Refuses a change of an archived event, or of an event of an archived calendar.
+ * @param {Pick<CalendarEvent, 'id' | 'calendarId'>} event Event.
+ * @returns {Promise<void>}
+ */
+async function assertEventWritable(event: Pick<CalendarEvent, 'id' | 'calendarId'>): Promise<void> {
+  await assertNotArchived('calendarEvent', event.id);
+  await assertNotArchived('calendar', event.calendarId);
 }
 
 /**
  * Validates event fields and the project, contributors (of the project only, those already there stay), relations
- * and categories they point to.
+ * and categories they point to. Its calendar must not be archived, nor its new categories, beneficiaries and relations
+ * (those already there stay).
  * @param {CalendarEventInput} input Event fields.
  * @param {string[]} [keep] Contributors already on the event. Optional.
+ * @param {string[]} [keepCategories] Categories already on the event. Optional.
+ * @param {string[]} [keepBeneficiaries] Beneficiaries (contributors) already on the event. Optional.
+ * @param {string[]} [keepRelations] Relations already on the event (beneficiaries or linked). Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
-async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
+async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = []) {
   const event = parseInput(calendarEventInputSchema, input);
   await assertExists(prisma.project, event.projectId, 'Projet');
   await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
@@ -177,7 +206,14 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, event.relationIds, 'Relation');
+  await assertActiveContributors(event.beneficiaryIds, keepBeneficiaries, 'beneficiaryIds');
+  await assertActiveRelations(event.beneficiaryRelationIds, keepRelations, 'beneficiaryIds');
+  await assertActiveRelations(event.relationIds, keepRelations, 'relationIds');
   await assertAllExist(prisma.calendarCategory, event.categoryIds, 'Catégorie');
+  await assertNoneArchived(
+    'calendarCategory',
+    event.categoryIds.filter((id) => !keepCategories.includes(id)),
+  );
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
@@ -207,7 +243,9 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
     event.travelBefore = 0;
     event.travelAfter = 0;
   }
-  return { ...event, calendarId: await resolveCalendarId(event.calendarId) };
+  const calendarId = await resolveCalendarId(event.calendarId);
+  await assertNotArchived('calendar', calendarId);
+  return { ...event, calendarId };
 }
 
 /**
@@ -332,7 +370,8 @@ async function updateEventFields(
   occurrenceDate?: string | null,
 ): Promise<CalendarEvent> {
   const event = await findEvent(id);
-  const fields = await parseEvent(input, await eventContributorIds(id));
+  await assertEventWritable(event);
+  const fields = await parseEvent(input, ...(await eventKept(id)));
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = {
     contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
@@ -484,6 +523,7 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     travelAfter: change?.travelAfter ?? event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
+    archived: event.archivedAt !== null,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     relationIds: event.relations.map((relation) => relation.id),
     beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
@@ -520,15 +560,17 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
  * @param {string} from First date.
  * @param {string} to Last date.
  * @param {string[]} [calendarIds] Only the events of these calendars. Optional.
+ * @param {boolean} [activeOnly] Without the archived events nor those of archived calendars. Optional. Default = all.
  * @returns {Promise<EventOccurrence[]>} Occurrences, by start.
  */
-export async function eventOccurrences(from: string, to: string, calendarIds?: string[]): Promise<EventOccurrence[]> {
+export async function eventOccurrences(from: string, to: string, calendarIds?: string[], activeOnly = false): Promise<EventOccurrence[]> {
   const events = await prisma.calendarEvent.findMany({
     // Recurring events may occur in the period whatever their first date.
     where: {
       startDate: { lte: parseDay(addDays(to, 62)) },
       OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }],
       ...(calendarIds ? { calendarId: { in: calendarIds } } : {}),
+      ...(activeOnly ? { archivedAt: null, calendar: { archivedAt: null } } : {}),
     },
     include: occurrenceInclude,
   });
@@ -551,7 +593,8 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
 }
 
 /**
- * Occurrences, in a period, of the calendars of other workspaces this one shows (read in their workspaces).
+ * Occurrences, in a period, of the calendars of other workspaces this one shows (read in their workspaces), archived
+ * events and calendars left out.
  * @param {string} from First date.
  * @param {string} to Last date.
  * @returns {Promise<EventOccurrence[]>} Occurrences, by start.
@@ -563,7 +606,7 @@ export async function subscribedOccurrences(from: string, to: string): Promise<E
     entry.calendarIds.push(subscription.calendarId);
     byWorkspace.set(subscription.workspace.id, entry);
   }
-  const lists = await Promise.all([...byWorkspace.values()].map(({ workspace, calendarIds }) => runInWorkspace(workspace, () => eventOccurrences(from, to, calendarIds))));
+  const lists = await Promise.all([...byWorkspace.values()].map(({ workspace, calendarIds }) => runInWorkspace(workspace, () => eventOccurrences(from, to, calendarIds, true))));
   return lists.flat().sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
@@ -626,6 +669,7 @@ async function findEventWithRelations(id: string): Promise<EventWithRelations> {
  */
 export async function setEventCalledOff(id: string, scope: EventScope, occurrenceDate: string | null | undefined, calledOff: boolean): Promise<void> {
   const event = await findEventWithRelations(id);
+  await assertEventWritable(event);
   const occurrence = occurrenceOf(event, occurrenceDate);
   if (!occurrence || scope === 'ALL') {
     await prisma.$transaction([
@@ -681,8 +725,9 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
  */
 export async function postponeCalendarEvent(id: string, occurrenceDate: string | null | undefined, input: CalendarEventInput): Promise<CalendarEvent> {
   const event = await findEvent(id);
+  await assertEventWritable(event);
   const occurrence = occurrenceOf(event, occurrenceDate);
-  const fields = await parseEvent({ ...input, recurrence: null }, await eventContributorIds(id));
+  const fields = await parseEvent({ ...input, recurrence: null }, ...(await eventKept(id)));
   const created = await prisma.calendarEvent.create({
     data: {
       ...eventData(fields),

@@ -19,6 +19,7 @@ import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from '.
 import * as fmt from '../../../lib/format';
 import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -84,7 +85,8 @@ export function OverdueInvoicesPanel() {
   const { sendReminders } = useTrackingMutations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [accountId, setAccountId] = useState<string | null>(null);
-  const account = accountId ?? accounts?.[0]?.id ?? null;
+  // The archived accounts are not offered.
+  const account = accountId ?? unarchived(accounts ?? [])[0]?.id ?? null;
   const remindable = (invoices ?? []).filter((invoice) => invoice.billingEmail);
   const chosen = remindable.filter((invoice) => selected.has(invoice.id));
   const stale = remindable.filter((invoice) => (daysSinceReminder(invoice, today) ?? Infinity) >= REMIND_AFTER_DAYS);
@@ -179,7 +181,14 @@ export function OverdueInvoicesPanel() {
                   Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
                 </Button>
                 {accounts && accounts.length > 1 && (
-                  <Select aria-label="Boîte d’envoi" w={240} allowDeselect={false} data={accounts.map((item) => ({ value: item.id, label: item.email }))} value={account} onChange={setAccountId} />
+                  <Select
+                    aria-label="Boîte d’envoi"
+                    w={240}
+                    allowDeselect={false}
+                    data={unarchived(accounts, account).map((item) => ({ value: item.id, label: item.email }))}
+                    value={account}
+                    onChange={setAccountId}
+                  />
                 )}
                 <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
                   Relancer{chosen.length ? ` (${chosen.length})` : ''}

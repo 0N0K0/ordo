@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import { Prisma, type CatalogItem } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 import { requirePro } from '../workspace/workspaces';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Prisma data of a validated catalogue item.
@@ -30,13 +31,15 @@ export function createCatalogItem(input: CatalogItemInput): Promise<CatalogItem>
 }
 
 /**
- * Updates (or archives) a catalogue item; the documents already written keep their lines.
+ * Updates (or archives) a catalogue item; the documents already written keep their lines. An archived one is only
+ * changed when restored by it.
  * @param {string} id Item id.
  * @param {CatalogItemInput} input Item.
  * @returns {Promise<CatalogItem>} Item.
  */
 export async function updateCatalogItem(id: string, input: CatalogItemInput): Promise<CatalogItem> {
-  await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }), 'Article');
+  const current = await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { archived: true } }), 'Article');
+  if (current.archived && input.archived) await assertNotArchived('CATALOG_ITEM', id);
   return prisma.catalogItem.update({ where: { id }, data: itemData(input) });
 }
 

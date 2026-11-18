@@ -9,7 +9,7 @@ import { MailCountBadges } from './MailCountBadges';
  */
 export function MailNavBadge() {
   const { data: accounts } = useMailAccounts();
-  const enabled = (accounts?.length ?? 0) > 0;
+  const enabled = (accounts ?? []).some((account) => !account.archived);
   const { data: unread } = useUnreadMailCount(enabled);
   const { data: todo } = useTodoMailCount(enabled);
   if (!unread && !todo) return null;

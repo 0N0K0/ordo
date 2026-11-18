@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Loads a sprint or throws NOT_FOUND.
@@ -64,7 +65,10 @@ export async function createSprint(projectId: string, input: SprintInput): Promi
  * @returns {Promise<Sprint>} Updated sprint.
  */
 export async function updateSprint(id: string, input: SprintInput): Promise<Sprint> {
-  await findSprint(id);
+  const sprint = await findSprint(id);
+  // Read only when archived, or in an archived project.
+  await assertNotArchived('sprint', id);
+  await assertNotArchived('project', sprint.projectId);
   return prisma.sprint.update({ where: { id }, data: sprintData(input) });
 }
 

@@ -13,13 +13,13 @@ export const NameColorPatch = builder.inputType('NameColorPatch', {
   fields: (t) => ({ name: t.string(), color: t.string() }),
 });
 
-/** Prisma model of an item of a simple list: an id, a name, a required color and a manual position. */
+/** Prisma model of an item of a simple list: an id, a name, a required color, a manual position and its archive date. */
 type LabelModel = {
-  [Name in keyof PrismaTypes]: PrismaTypes[Name]['Shape'] extends { id: string; name: string; color: string; position: number } ? Name : never;
+  [Name in keyof PrismaTypes]: PrismaTypes[Name]['Shape'] extends { id: string; name: string; color: string; position: number; archivedAt: Date | null } ? Name : never;
 }[keyof PrismaTypes];
 
 /**
- * Defines the GraphQL object of an item of a simple list, exposing its id, name, color and position.
+ * Defines the GraphQL object of an item of a simple list, exposing its id, name, color, position and whether it is archived.
  * @param {LabelModel} name Prisma model (and GraphQL type) name.
  * @param {{ description?: string; colorDescription?: string }} [options] Descriptions of the type and of its color.
  * @returns {void}
@@ -34,6 +34,7 @@ export function labelObject(name: LabelModel, options: { description?: string; c
       name: t.exposeString('name'),
       color: t.exposeString('color', colorDescription === undefined ? {} : { description: colorDescription }),
       position: t.exposeInt('position'),
+      archived: t.boolean({ description: 'Archived: hidden by default, read only.', select: { archivedAt: true }, resolve: (item) => item.archivedAt !== null }),
     }),
   });
 }

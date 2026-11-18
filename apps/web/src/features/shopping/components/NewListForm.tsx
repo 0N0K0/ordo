@@ -11,6 +11,7 @@ import { useShoppingData, useShoppingMutations } from '../api';
 import { taskOptions } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 const schema = shoppingListFormSchema.extend({ baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -36,8 +37,9 @@ interface NewListFormProps {
  */
 export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewListFormProps) {
   const { data } = useShoppingData();
-  const missingOf = (id: string) => (data?.shoppingProducts ?? []).filter((product) => product.baseListId === id && product.missing).length;
-  const baseLists = data?.shoppingBaseLists ?? [];
+  // The archived base lists and products are left out.
+  const missingOf = (id: string) => (data?.shoppingProducts ?? []).filter((product) => product.baseListId === id && product.missing && !product.archived).length;
+  const baseLists = unarchived(data?.shoppingBaseLists ?? []);
   const { perso } = useActiveWorkspace();
   const { context } = useTaskContext();
   const { createList } = useShoppingMutations();

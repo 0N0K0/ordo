@@ -13,7 +13,7 @@ export interface NewTaskDefaults extends Partial<TaskInputValues> {
 
 /**
  * Values of a new task created in a group: the group's status, priority, type, assignee, milestone, sprint,
- * parent, project or state. The "none" group sets nothing.
+ * parent, project or state. The "none" group sets nothing, nor the group of an archived value (not given anymore).
  * @param {TaskGroupBy} groupBy Grouping field.
  * @param {string} key Group key (value id, or "none").
  * @param {TaskContext} context Task context.
@@ -27,22 +27,22 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
     case 'project':
       return { projectId: key };
     case 'status':
-      return { statusId: key };
+      return context.statusById.get(key)?.archived ? {} : { statusId: key };
     case 'priority':
-      return { priorityId: key };
+      return context.priorityById.get(key)?.archived ? {} : { priorityId: key };
     case 'type':
-      return { typeId: key };
+      return context.typeById.get(key)?.archived ? {} : { typeId: key };
     case 'assignees':
-      return { assigneeIds: [key] };
+      return context.contributorById.get(key)?.archived ? {} : { assigneeIds: [key] };
     case 'tags':
-      return { tagIds: [key] };
+      return context.tagById.get(key)?.archived ? {} : { tagIds: [key] };
     case 'milestone': {
       const milestone = context.milestoneById.get(key);
-      return milestone ? { milestoneId: key, projectId: milestone.projectId } : {};
+      return milestone ? { ...(!milestone.archived && { milestoneId: key }), projectId: milestone.projectId } : {};
     }
     case 'sprint': {
       const sprint = context.sprintById.get(key);
-      return sprint ? { sprintIds: [key], projectId: sprint.projectId } : {};
+      return sprint ? { ...(!sprint.archived && { sprintIds: [key] }), projectId: sprint.projectId } : {};
     }
     case 'parent': {
       const parent = context.taskById.get(key);

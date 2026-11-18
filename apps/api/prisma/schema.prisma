@@ -399,6 +399,8 @@ model ProjectCategory {
   position    Int       @default(0)
   /// Hex color, e.g. #228be6.
   color       String
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   projects    Project[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -419,6 +421,8 @@ model ProjectStatus {
   color       String
   /// Display order in lists and selects.
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   projects    Project[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -436,6 +440,8 @@ model Contributor {
   handle                String
   iconId                String?
   icon                  Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt            DateTime?
   createdAt             DateTime            @default(now())
   tasks                 Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
@@ -492,6 +498,8 @@ model TaskStatus {
   color       String
   category    TaskStatusCategory @default(TODO)
   position    Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime           @default(now())
   tasks       Task[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -510,6 +518,8 @@ model TaskPriority {
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   tasks       Task[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -528,6 +538,8 @@ model TaskType {
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   tasks       Task[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -547,6 +559,8 @@ model TaskTag {
   /// Hex color, e.g. #228be6.
   color       String
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   tasks       Task[]    @relation("TaskTags")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -836,6 +850,8 @@ model Milestone {
   description String?
   dueDate     DateTime? @db.Date
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tasks       Task[]
@@ -859,6 +875,8 @@ model Sprint {
   endDate           DateTime  @db.Date
   /// Iteration of a GitHub board the sprint mirrors.
   githubIterationId String?   @unique
+  /// Archived: hidden by default and read only until restored.
+  archivedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   tasks             Task[]    @relation("TaskSprints")
@@ -935,6 +953,8 @@ model Dashboard {
   project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name        String
   position    Int              @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime         @default(now())
   charts      DashboardChart[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1169,6 +1189,8 @@ model MailAccount {
   /// HTML signature added to new mails.
   signature    String?
   position     Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt   DateTime?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
   messages     MailMessage[]
@@ -1227,6 +1249,8 @@ model MailLabel {
   icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
@@ -1323,6 +1347,8 @@ model Calendar {
   icon          Icon?                  @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color         String
   position      Int                    @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt    DateTime?
   createdAt     DateTime               @default(now())
   events        CalendarEvent[]
   /// Other workspaces showing it (read only).
@@ -1361,6 +1387,8 @@ model CalendarCategory {
   parent      CalendarCategory?  @relation("CalendarCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
   children    CalendarCategory[] @relation("CalendarCategoryTree")
   position    Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime           @default(now())
   events      CalendarEvent[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1426,6 +1454,8 @@ model CalendarEvent {
   tasks                Task[]                   @relation("CalendarEventTasks")
   /// Routines of a day the event is about (their occurrence of that day is done during it).
   routineLinks         CalendarEventRoutine[]
+  /// Archived: hidden by default and read only until restored.
+  archivedAt           DateTime?
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
   /// Comments (markdown).
@@ -1513,6 +1543,8 @@ model ScheduleType {
   /// Its days in the month: BACKGROUND, BORDER or NONE.
   monthDisplay  String                     @default("BACKGROUND")
   position      Int                        @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt    DateTime?
   createdAt     DateTime                   @default(now())
   schedules     WorkSchedule[]
   /// Other workspaces showing its schedules.
@@ -1567,6 +1599,8 @@ model WorkSchedule {
   cases         Json          @default("[]")
   /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
   exceptions    Json          @default("[]")
+  /// Archived: hidden by default and read only until restored.
+  archivedAt    DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   /// Routines following it.
@@ -1722,6 +1756,8 @@ model AccountingDocument {
   totalVat            Decimal                  @default(0) @db.Decimal(14, 2)
   totalGross          Decimal                  @default(0) @db.Decimal(14, 2)
   finalizedAt         DateTime?
+  /// Archived: hidden by default and read only until restored.
+  archivedAt          DateTime?
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   lines               AccountingLine[]
@@ -1822,6 +1858,8 @@ model RecurringInvoice {
   /// Final invoices (numbered at once) rather than drafts to check.
   autoFinalize Boolean              @default(false)
   active       Boolean              @default(true)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt   DateTime?
   createdAt    DateTime             @default(now())
   generated    AccountingDocument[] @relation("RecurringGenerated")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1915,6 +1953,8 @@ model ImportedDocument {
   /// Tracking status, set by hand (its payments are not followed by Ordo).
   trackingStatusId String?
   trackingStatus   DocumentStatus?        @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt       DateTime?
   createdAt        DateTime               @default(now())
   allocations      TreasuryAllocation[]
   /// Deposit invoices made in Ordo from this imported quote.
@@ -1963,6 +2003,8 @@ model DocumentStatus {
   color             String
   category          DocumentStatusCategory
   position          Int                    @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt        DateTime?
   createdAt         DateTime               @default(now())
   documents         AccountingDocument[]
   /// Imported documents with this status.
@@ -2081,6 +2123,8 @@ model TreasuryContext {
   icon        Icon?                   @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int                     @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime                @default(now())
   periods     TreasuryContextPeriod[]
   lines       TreasuryEntryLine[]
@@ -2101,6 +2145,8 @@ model TreasuryRelation {
   /// Contributor this person also is (on projects, tasks…), if any.
   contributorId         String?
   contributor           Contributor?        @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt            DateTime?
   createdAt             DateTime            @default(now())
   lines                 TreasuryEntryLine[]
   budgets               TreasuryBudget[]
@@ -2145,6 +2191,8 @@ model TreasuryBudget {
   /// Repeated every n months (none: that month only), until a month included (none: no end).
   repeatEvery Int?
   repeatUntil DateTime?         @db.Date
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   /// Comments (markdown).
   comments    Comment[]
@@ -2204,6 +2252,8 @@ model TreasuryCategory {
   children           TreasuryCategory[]  @relation("TreasuryCategoryTree")
   /// Manual order among siblings.
   position           Int                 @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt         DateTime?
   createdAt          DateTime            @default(now())
   entries            TreasuryEntry[]
   lines              TreasuryEntryLine[]
@@ -2232,6 +2282,8 @@ model TreasuryPaymentMethod {
   position    Int             @default(0)
   incoming    Boolean         @default(true)
   outgoing    Boolean         @default(true)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime        @default(now())
   entries     TreasuryEntry[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -2292,6 +2344,8 @@ model TreasuryEntry {
   url              String?
   /// Forecast only: repetition from `date` (shared recurrence rule); realized dates become exceptions.
   recurrence       Json?
+  /// Archived: hidden by default and read only until restored.
+  archivedAt       DateTime?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   allocations      TreasuryAllocation[]
@@ -2363,6 +2417,8 @@ model Place {
   parentId    String?
   parent      Place?    @relation("PlaceZones", fields: [parentId], references: [id], onDelete: Cascade)
   zones       Place[]   @relation("PlaceZones")
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
@@ -2387,6 +2443,8 @@ model ShoppingCategory {
   position       Int                @default(0)
   /// Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
   baseLists      ShoppingBaseList[] @relation("ShoppingCategoryBaseLists")
+  /// Archived: hidden by default and read only until restored.
+  archivedAt     DateTime?
   createdAt      DateTime           @default(now())
   products       ShoppingProduct[]
   items          ShoppingItem[]
@@ -2410,6 +2468,8 @@ model ShoppingStore {
   icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int               @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
@@ -2431,6 +2491,8 @@ model ShoppingStorage {
   icon        Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int               @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
@@ -2455,6 +2517,8 @@ model ShoppingUnit {
   /// Unused (labels have one).
   color       String    @default("gray")
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
@@ -2473,6 +2537,8 @@ model ShoppingBaseList {
   /// Color of the item (none: gray).
   color       String?
   position    Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime           @default(now())
   products    ShoppingProduct[]
   categories  ShoppingCategory[] @relation("ShoppingCategoryBaseLists")
@@ -2516,6 +2582,8 @@ model ShoppingProduct {
   members         Contributor[]      @relation("ShoppingProductMembers")
   relations       TreasuryRelation[] @relation("ShoppingProductRelations")
   position        Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt      DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   items           ShoppingItem[]
@@ -2561,6 +2629,8 @@ model ShoppingList {
   /// Treasury entry paying the list.
   entryId         String?
   entry           TreasuryEntry?     @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt      DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   items           ShoppingItem[]
@@ -2636,6 +2706,8 @@ model StockLocation {
   children    StockLocation[]   @relation("StockLocationTree")
   /// Manual order among siblings.
   position    Int               @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   products    ShoppingProduct[]
   items       StockItem[]
@@ -2668,6 +2740,8 @@ model StockItem {
   members     Contributor[]      @relation("StockItemMembers")
   relations   TreasuryRelation[] @relation("StockItemRelations")
   position    Int                @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   lots        StockLot[]
@@ -2803,6 +2877,8 @@ model SheetCategory {
   icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
   color       String
   position    Int       @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   sheets      Sheet[]   @relation("SheetCategories")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -2821,6 +2897,8 @@ model Sheet {
   projectId      String?
   project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   position       Int             @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt     DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   items          SheetItem[]
@@ -2970,6 +3048,8 @@ model RoutineCategory {
   children    RoutineCategory[] @relation("RoutineCategoryTree")
   /// Manual order among siblings.
   position    Int               @default(0)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   routines    Routine[]         @relation("RoutineCategories")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

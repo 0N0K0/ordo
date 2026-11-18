@@ -16,7 +16,7 @@ import {
   type WorkScheduleInput,
   workScheduleSchema,
 } from '@ordo/shared';
-import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -30,14 +30,16 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
+import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
 import { describeScheduleCase, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -113,7 +115,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               clearable
               searchable
               onCreate={(name) => saveType.mutateAsync({ id: null, input: { name, color, ...DEFAULT_SCHEDULE_DISPLAY } })}
-              {...listSelectProps(types ?? [])}
+              {...listSelectProps(types ?? [], undefined, schedule?.typeId)}
               {...form.getInputProps('typeId')}
             />
           </Group>
@@ -162,7 +164,9 @@ function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
 }
 
 /**
- * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, delete.
+ * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, archive,
+ * restore, delete. Archived ones (hidden unless the view includes them) are read only, still followed by the routines
+ * using them.
  * Their kinds and the subscriptions are in the settings of the calendar. They show in the calendar; in a
  * professional workspace, they are the working hours (compared with the timers, events outside them told).
  * @returns {JSX.Element} Manager.
@@ -172,6 +176,14 @@ export function WorkSchedulesManager() {
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
   const { remove, update } = useWorkScheduleMutations();
+  const setArchived = useSetArchived('WORK_SCHEDULE', [calendarQueryKey]);
+
+  /**
+   * Archives a schedule or restores it, with an undo.
+   * @param {WorkSchedule} schedule Schedule.
+   * @returns {void}
+   */
+  const toggleArchived = (schedule: WorkSchedule) => void archiveWithUndo(setArchived, { ids: [schedule.id], archived: !schedule.archived, label: `« ${schedule.name} »`, feminine: true });
 
   /**
    * Saves fields of a schedule changed in their cells (its hours and exceptions kept).
@@ -180,6 +192,8 @@ export function WorkSchedulesManager() {
    * @returns {void}
    */
   const saveSchedule = (schedule: WorkSchedule, change: Partial<WorkScheduleInput>) => {
+    // Archived: read only (a bulk change skips it).
+    if (schedule.archived) return;
     const input = {
       name: schedule.name,
       startDate: dayOf(schedule.startDate),
@@ -240,7 +254,10 @@ export function WorkSchedulesManager() {
       filter: {
         kind: 'choice',
         value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name, color: type.color ?? 'gray', iconUrl: type.iconUrl }))],
+        options: [
+          { value: NO_KIND, label: defaultName },
+          ...(types ?? []).map((type) => ({ value: type.id, label: type.name, color: type.color ?? 'gray', iconUrl: type.iconUrl, archived: type.archived })),
+        ],
       },
       groupable: true,
     },
@@ -288,6 +305,7 @@ export function WorkSchedulesManager() {
     getKey: ({ schedule }) => schedule.id,
     columns,
     rows,
+    archived: ({ schedule }) => schedule.archived,
     title: perso ? 'Plages' : 'Horaires de travail',
     first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
@@ -314,7 +332,17 @@ export function WorkSchedulesManager() {
           view={view}
           bar={{ searchLabel: 'Rechercher (nom, type, exception)…' }}
           selectionLabel={(count) => selectedLabel(count, ['plage', 'plages'])}
+          isArchived={({ schedule }) => schedule.archived}
           selectionActions={(rows, clear) => [
+            archiveRowsAction({
+              archived: rows.every(({ schedule }) => schedule.archived),
+              apply: (archived) => setArchived.mutateAsync({ ids: rows.map(({ schedule }) => schedule.id), archived }),
+              label: countOf(rows.length, 'plage'),
+              count: rows.length,
+              feminine: true,
+              loading: setArchived.isPending,
+              clear,
+            }),
             deleteRowsAction(rows, {
               title: 'Supprimer les plages',
               risks: `${countOf(rows.length, 'plage')} et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
@@ -331,6 +359,41 @@ export function WorkSchedulesManager() {
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
             const kindName = type?.name ?? defaultName;
+            // Archived: read only.
+            if (schedule.archived) {
+              return {
+                name: (
+                  <Group gap="xs" wrap="nowrap">
+                    <Text size="sm" fw={600}>
+                      {schedule.name}
+                    </Text>
+                    <ArchivedBadge feminine size="xs" />
+                  </Group>
+                ),
+                type: (
+                  <Group gap="xs" wrap="nowrap">
+                    <ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />
+                    <Text size="sm">{kindName}</Text>
+                  </Group>
+                ),
+                start: <Text size="sm">{fmt.day(String(schedule.startDate))}</Text>,
+                end: <Text size="sm">{schedule.endDate ? fmt.day(String(schedule.endDate)) : 'Sans fin'}</Text>,
+                hours: (
+                  <Stack gap={0}>
+                    {readScheduleCases(schedule.cases, String(schedule.startDate)).map((item, index) => (
+                      <Text key={index} size="xs">
+                        {describeScheduleCase(item, String(schedule.startDate))}
+                      </Text>
+                    ))}
+                  </Stack>
+                ),
+                state: (
+                  <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
+                    {STATE_LABELS[rowState]}
+                  </Badge>
+                ),
+              };
+            }
             return {
               name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && bulk('name')(row, { name })} />,
               type: (
@@ -338,7 +401,7 @@ export function WorkSchedulesManager() {
                   value={schedule.typeId ?? NO_KIND}
                   label={`Type de ${schedule.name}`}
                   leftSection={<ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />}
-                  {...listSelectProps([{ id: NO_KIND, name: defaultName, color: defaultKind?.color ?? null }, ...(types ?? [])])}
+                  {...listSelectProps([{ id: NO_KIND, name: defaultName, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
@@ -397,9 +460,12 @@ export function WorkSchedulesManager() {
           actions={({ schedule }) => (
             <RowActions
               name={schedule.name}
-              primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
+              primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
               items={[
-                { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
+                !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
+                schedule.archived
+                  ? { label: 'Restaurer', icon: <ArrowCounterClockwiseIcon aria-hidden />, onClick: () => toggleArchived(schedule) }
+                  : { label: 'Archiver', icon: <ArchiveIcon aria-hidden />, onClick: () => toggleArchived(schedule) },
                 { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(schedule) },
               ]}
             />

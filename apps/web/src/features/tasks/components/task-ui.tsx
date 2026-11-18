@@ -68,7 +68,7 @@ export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSe
   return (
     <CreatableSelect
       onCreate={kind ? create : undefined}
-      {...listSelectProps(labels)}
+      {...listSelectProps(labels, undefined, value)}
       leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={onChange}
@@ -97,7 +97,7 @@ export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
       onCreate={create}
       label="Étiquettes"
       placeholder={value.length ? undefined : 'Aucune'}
-      {...listSelectProps(tags)}
+      {...listSelectProps(tags, undefined, value)}
       value={value}
       onChange={onChange}
       searchable

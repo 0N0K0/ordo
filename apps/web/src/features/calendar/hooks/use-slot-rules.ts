@@ -31,6 +31,8 @@ interface SlotKindOption {
   value: string;
   label: string;
   group: string;
+  /** Kind archived: no longer offered, but still read (and kept where chosen). Optional. */
+  archived?: boolean;
 }
 
 /** Task or routine, as far as when it can be done goes: its slot rule, its assignees, and the task it is. */
@@ -136,7 +138,7 @@ export function useSlotRules(): SlotRules {
 
     const kinds: SlotKindOption[] = [
       { value: DEFAULT_SLOT_KIND, label: defaultKind?.name ?? 'Travail', group: 'Cet espace' },
-      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.name, group: 'Cet espace' })),
+      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.name, group: 'Cet espace', archived: type.archived })),
       ...(foreignKinds ?? [])
         .filter((kind) => kind.subscribed)
         .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.name} (${kind.workspaceName})`, group: kind.workspaceName })),

@@ -4,6 +4,7 @@ import { onMutationError } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
 import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Sheets of a routine, an event or a task, each times a multiplier, saved as they change: each occurrence (or the
@@ -17,8 +18,13 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const { setLinks } = useSheetMutations();
   const current = (links ?? []).map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier }));
   const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, { onError: onMutationError });
-  const options = (sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.name }));
-  const free = options.filter((option) => !current.some((link) => link.sheetId === option.value));
+  // The archived sheets are not offered (those linked already stay).
+  const options = unarchived(
+    sheets ?? [],
+    current.map((link) => link.sheetId),
+  ).map((sheet) => ({ value: sheet.id, label: sheet.name }));
+  const archivedIds = new Set((sheets ?? []).filter((sheet) => sheet.archived).map((sheet) => sheet.id));
+  const free = options.filter((option) => !archivedIds.has(option.value) && !current.some((link) => link.sheetId === option.value));
   return (
     <Stack gap={6}>
       <Text size="sm" fw={500}>

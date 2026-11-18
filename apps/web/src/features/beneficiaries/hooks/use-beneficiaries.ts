@@ -1,4 +1,5 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
+import { unarchived } from '../../../lib/archive';
 import { queryClient } from '../../../lib/query-client';
 import { treasurySettingsKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -37,9 +38,10 @@ function namesOf(value: Beneficiaries, contributorName: ReadonlyMap<string, stri
 
 /**
  * People a task, a routine or an event can be for: the contributors, and the relations without contributor (one with
- * a contributor is that contributor; one already chosen stays offered). Names and grouped options.
+ * a contributor is that contributor; one already chosen stays offered); the archived ones left out, except those
+ * already chosen. Names, grouped options, and the choices of a column filter (all of them, the archived flagged).
  * @param {Beneficiaries} [chosen] Beneficiaries already chosen. Optional.
- * @returns {{ options: object[], names: (value: Beneficiaries) => string[] }} Options and names.
+ * @returns {{ options: object[], names: (value: Beneficiaries) => string[], choices: object[] }} Options, names and filter choices.
  */
 export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], beneficiaryRelationIds: [] }) {
   const { context } = useTaskContext();
@@ -49,10 +51,13 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
   const contributorName = new Map(contributors.map((contributor) => [contributor.id, context?.contributorName(contributor) ?? contributor.name]));
   const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
   const options = [
-    { group: 'Contributeurs', items: contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)! })) },
+    {
+      group: 'Contributeurs',
+      items: unarchived(contributors, chosen.beneficiaryIds).map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)! })),
+    },
     {
       group: 'Proches',
-      items: relations
+      items: unarchived(relations, chosen.beneficiaryRelationIds)
         .filter((relation) => !relation.contributorId || chosen.beneficiaryRelationIds.includes(relation.id))
         .map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
     },
@@ -63,7 +68,12 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
    * @returns {string[]} Names.
    */
   const names = (value: Beneficiaries) => namesOf(value, contributorName, relationName);
-  return { options, names };
+  // Column filters: archived ones keep their labels, offered only while in the filter.
+  const choices = [
+    ...contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)!, archived: contributor.archived })),
+    ...relations.filter((relation) => !relation.contributorId).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
+  ];
+  return { options, names, choices };
 }
 
 /**

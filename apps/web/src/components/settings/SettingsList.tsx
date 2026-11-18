@@ -1,13 +1,16 @@
 import { ActionIcon, Button, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
-import { useEffect, type ReactNode } from 'react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../lib/archive';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
 import { categoryTree } from '../tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';
+import { ShowArchivedSwitch } from '../filters/ShowArchivedSwitch';
 import { openFormPanel } from '../panels/panels';
+import { ArchivedBadge } from './ItemBadge';
 import { useReorderSettingsItems, type SettingsListKind } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';
@@ -16,7 +19,7 @@ interface SettingsListProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
   title: string;
   description: ReactNode;
-  /** « le statut », « la catégorie »: in the messages. */
+  /** « le statut », « la catégorie »: in the messages (a noun after « la » agrees in the feminine: « archivée »). */
   noun: string;
   items: readonly C[];
   /** A tree: items under others, moved under another by drag and drop. Optional. Default = false. */
@@ -66,7 +69,9 @@ interface SettingsListProps<C extends SettingsItem, E extends object> {
 /**
  * Settings list, flat or tree (every one of the app): each item with its avatar (its image, or its initials on its
  * color), its name and number of uses; added, edited (name, color, image, parent, fields of the list) in the side
- * panel, deleted once confirmed, reordered — and in a tree put under another — by drag and drop.
+ * panel, archived or restored (with an undo), deleted once confirmed, reordered — and in a tree put under another — by
+ * drag and drop. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
+ * badge, read only (neither edited nor moved, nor given sub-items).
  * @param {SettingsListProps<C, E>} props Component props.
  * @returns {JSX.Element} List.
  */
@@ -99,6 +104,11 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   adderRef,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
+  const setArchived = useSetArchived(kind);
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = items.filter((item) => item.archived).length;
+  const shown = visibleItems(items, showArchived);
+  const feminine = noun.startsWith('la ');
 
   /**
    * Opens the form of an item in the side panel.
@@ -143,15 +153,32 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
    */
   const handleMove = (id: string, parentId: string | null, index: number) => {
     const onError = onMutationError;
+    // The index is among the siblings shown: the archived ones hidden keep their place among all of them.
+    const order = categoryTree(items)
+      .map(({ category }) => category)
+      .filter((other) => other.id !== id);
+    const siblings = order.filter((other) => (other.parentId ?? null) === parentId);
+    const shownSiblings = siblings.filter((other) => showArchived || !other.archived);
+    const before = shownSiblings[index];
+    const last = shownSiblings[shownSiblings.length - 1];
+    const fullIndex = before ? siblings.indexOf(before) : last ? siblings.indexOf(last) + 1 : 0;
     if (move) {
-      move(id, parentId, index).catch(onError);
+      move(id, parentId, fullIndex).catch(onError);
       return;
     }
-    const ids = categoryTree(items)
-      .map(({ category }) => category.id)
-      .filter((other) => other !== id);
-    ids.splice(index, 0, id);
+    const ids = order.map((other) => other.id);
+    ids.splice(before ? ids.indexOf(before.id) : last ? ids.indexOf(last.id) + 1 : 0, 0, id);
     reorder.mutate({ kind, ids }, { onError });
+  };
+
+  /**
+   * Archives or restores an item, told with an undo.
+   * @param {C} item Item.
+   * @param {string} path Its full name.
+   * @returns {void}
+   */
+  const toggleArchived = (item: C, path: string) => {
+    void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${path} »`, feminine });
   };
 
   /**
@@ -187,6 +214,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
       actions={
         <>
           <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
             {headerActions}
             <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
               Ajouter
@@ -197,16 +225,16 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
     >
       {loading ? (
         <ListSkeleton items={3} />
-      ) : items.length === 0 ? (
+      ) : shown.length === 0 ? (
         <Group gap="sm">
           <ThemeIcon variant="light" color="gray" radius="xl">
             <TagIcon aria-hidden />
           </ThemeIcon>
-          <EmptyState compact message="Aucun élément pour le moment." />
+          <EmptyState compact message={items.length === 0 ? 'Aucun élément pour le moment.' : 'Tous les éléments sont archivés.'} />
         </Group>
       ) : (
         <CategoryTree
-          categories={items}
+          categories={shown}
           nested={nested}
           storageKey={storageKey}
           renderMeta={
@@ -218,20 +246,33 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                 )
               : undefined
           }
-          renderBadges={renderBadges}
+          renderBadges={(item) => (
+            <>
+              {item.archived && <ArchivedBadge feminine={feminine} size="xs" />}
+              {renderBadges?.(item)}
+            </>
+          )}
+          locked={(item) => item.archived}
           renderActions={({ category, path }) => (
             <>
               {renderActions?.(category)}
-              {nested && (
+              {nested && !category.archived && (
                 <Tooltip label="Ajouter un sous-élément">
                   <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un sous-élément à ${path}`} onClick={() => openForm({ parentId: category.id })}>
                     <PlusIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
               )}
-              <Tooltip label="Modifier">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ item: category })}>
-                  <PencilSimpleIcon aria-hidden />
+              {!category.archived && (
+                <Tooltip label="Modifier">
+                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ item: category })}>
+                    <PencilSimpleIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              <Tooltip label={category.archived ? 'Restaurer' : 'Archiver'}>
+                <ActionIcon variant="subtle" color="gray" aria-label={`${category.archived ? 'Restaurer' : 'Archiver'} ${path}`} onClick={() => toggleArchived(category, path)}>
+                  {category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
                 </ActionIcon>
               </Tooltip>
               <Tooltip label={undeletable?.(category) ?? 'Supprimer'}>
@@ -242,14 +283,12 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
             </>
           )}
           onMove={handleMove}
-          canMove={
-            canMove
-              ? (id, parentId) => {
-                  const item = items.find((other) => other.id === id);
-                  return !item || canMove(item, parentId);
-                }
-              : undefined
-          }
+          canMove={(id, parentId) => {
+            // Nothing goes under an archived item (read only).
+            if (parentId && items.find((other) => other.id === parentId)?.archived) return false;
+            const item = items.find((other) => other.id === id);
+            return !item || !canMove || canMove(item, parentId);
+          }}
         />
       )}
     </SettingsSection>

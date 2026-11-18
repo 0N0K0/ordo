@@ -4,6 +4,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { useShoppingData, useShoppingMutations, type ShoppingCategory } from '../api';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Categories of the products, as a tree: add a category or a sub-category, edit (name, color — the one of its parent
@@ -42,7 +43,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
             label="Références"
             description="Celles où elle est proposée. Aucune : toutes (une sous-catégorie sans liste prend celles de sa catégorie parente)."
             placeholder={form.getValues().baseListIds.length ? undefined : 'Toutes'}
-            data={baseLists.map((baseList) => ({ value: baseList.id, label: baseList.name }))}
+            data={unarchived(baseLists, form.getValues().baseListIds).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
             clearable
             {...form.getInputProps('baseListIds')}
           />

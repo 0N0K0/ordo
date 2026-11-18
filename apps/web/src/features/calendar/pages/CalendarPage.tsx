@@ -51,7 +51,8 @@ import { slotColumns } from '../lib/slot-columns';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { occurrenceSpan, scheduleSources } from '../lib/calendar-events';
+import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleSources } from '../lib/calendar-events';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
 import { SubscribedEvent } from '../components/SubscribedEvent';
@@ -86,6 +87,8 @@ interface Filters {
   hiddenScheduleIds?: string[];
   /** Hours of the week and the day by 5 minutes (instead of 30). */
   fineSlots?: boolean;
+  /** Archived events and calendars shown too (read only). */
+  archived?: boolean;
 }
 
 /** Tabs of the settings sidebar. */
@@ -133,9 +136,13 @@ export function CalendarPage() {
     defaultValue: false,
   });
   const [title, setTitle] = useState('');
-  const events = useCalendarEvents(range);
+  // Archived ones too: shown on demand.
+  const events = useCalendarEvents(range, true);
   const hidden = useMemo(() => new Set(filters.hiddenCalendarIds ?? []), [filters.hiddenCalendarIds]);
-  const ownCalendars = useMemo(() => calendarsData?.calendars ?? [], [calendarsData]);
+  // Archived events and calendars: hidden until asked, read only.
+  const showArchived = filters.archived === true;
+  const archivedCalendars = useMemo(() => archivedCalendarIds(calendarsData?.calendars), [calendarsData]);
+  const ownCalendars = useMemo(() => (calendarsData?.calendars ?? []).filter((calendar) => showArchived || !calendar.archived), [calendarsData, showArchived]);
   const subscriptions = useMemo(() => calendarsData?.calendarSubscriptions ?? [], [calendarsData]);
   const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
@@ -198,6 +205,8 @@ export function CalendarPage() {
     const striped = ownCalendars.length + subscriptions.length > 1;
     for (const occurrence of events.data ?? []) {
       if (hidden.has(occurrence.calendarId)) continue;
+      const archived = isArchivedOccurrence(occurrence, archivedCalendars);
+      if (archived && !showArchived) continue;
       const category = occurrence.categoryIds.map((id) => categoryById.get(id)).find(Boolean);
       const ofCalendar = calendarColor.get(occurrence.calendarId) ?? DEFAULT_COLOR;
       const color = category?.color ?? (occurrence.projectId ? context.projectById.get(occurrence.projectId)?.color : null) ?? ofCalendar;
@@ -207,8 +216,15 @@ export function CalendarPage() {
         ...occurrenceSpan(occurrence),
         backgroundColor: color,
         borderColor: striped ? ofCalendar : color,
+        // Archived: read only, faded.
+        ...(archived && { editable: false }),
         extendedProps: { kind: 'event', occurrence },
-        classNames: [...(striped ? [classes.calendarStripe] : []), ...(occurrence.occurrenceDate ? [classes.recurring] : []), ...(occurrence.calledOff ? [classes.closed] : [])],
+        classNames: [
+          ...(striped ? [classes.calendarStripe] : []),
+          ...(occurrence.occurrenceDate ? [classes.recurring] : []),
+          ...(occurrence.calledOff ? [classes.closed] : []),
+          ...(archived ? [classes.archived] : []),
+        ],
       });
       // Travel to the event and back, in the week and the day: hatched blocks in its color, against it, opening it.
       if (!occurrence.allDay && view !== 'dayGridMonth') {
@@ -242,7 +258,7 @@ export function CalendarPage() {
             borderColor: color,
             textColor: 'var(--mantine-color-dimmed)',
             extendedProps: { kind: 'travel', occurrence },
-            classNames: [classes.travel, ...(occurrence.calledOff ? [classes.closed] : [])],
+            classNames: [classes.travel, ...(occurrence.calledOff ? [classes.closed] : []), ...(archived ? [classes.archived] : [])],
           });
         }
       }
@@ -319,8 +335,9 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { rule, color, name, foreign, display } of sources) {
-        if (!foreign && editingSlots) {
+      for (const { schedule, rule, color, name, foreign, display } of sources) {
+        // An archived schedule (read only) stays in the background.
+        if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
           for (const slot of plannedSlots([rule], range.from, range.to)) {
             const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
@@ -594,6 +611,8 @@ export function CalendarPage() {
     events.data,
     subscribedEvents.data,
     ownCalendars,
+    archivedCalendars,
+    showArchived,
     subscriptions,
     hidden,
     filters,
@@ -900,6 +919,7 @@ export function CalendarPage() {
                       })
                     }
                   />
+                  <ShowArchivedSwitch checked={showArchived} onChange={(archived) => setFilters({ ...filters, archived })} />
                 </Stack>
                 <Stack gap="xs">
                   <Text size="sm" fw={500}>
@@ -1015,7 +1035,7 @@ export function CalendarPage() {
             openEvent({
               defaults: {
                 // A new event goes into the first calendar shown.
-                calendarId: ownCalendars.find((calendar) => !hidden.has(calendar.id))?.id ?? null,
+                calendarId: ownCalendars.find((calendar) => !calendar.archived && !hidden.has(calendar.id))?.id ?? null,
                 ...(info.allDay
                   ? {
                       allDay: true,

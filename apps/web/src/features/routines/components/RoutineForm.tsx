@@ -3,6 +3,7 @@ import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/c
 import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
+import { unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -181,7 +182,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
                 clearable
                 searchable
-                {...treeSelectProps(categoryOptions(data?.routineCategories ?? []))}
+                // Archived categories are no longer offered, but those of the routine stay.
+                {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
                 nothingFoundMessage="Aucune catégorie : tapez son nom pour la créer"
                 {...form.getInputProps('categoryIds')}
               />

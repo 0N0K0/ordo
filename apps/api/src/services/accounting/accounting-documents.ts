@@ -9,6 +9,7 @@ import { scopeOf, statusOf } from './document-statuses';
 import { syncPaymentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
 import { assertExists } from '../core/lookup';
+import { assertNotArchived } from '../core/archive';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -301,6 +302,9 @@ export async function createDocument(
 export async function updateDocument(id: string, input: AccountingDocumentInput): Promise<AccountingDocument> {
   const document = await findDocument(id);
   assertEditable(document);
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
+  // The model of a recurring invoice is read only with it.
+  if (document.status === 'TEMPLATE') await assertNotArchived('RECURRING_INVOICE', (await prisma.recurringInvoice.findFirst({ where: { templateId: id }, select: { id: true } }))?.id);
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
   await assertDeductions(fields.lines, fields.clientId);
@@ -381,6 +385,7 @@ export async function buyerSnapshot(document: AccountingDocument) {
 export async function finalizeDocument(id: string): Promise<AccountingDocument> {
   const document = await findDocument(id);
   if (document.status !== 'DRAFT') throw clientError('BAD_USER_INPUT', 'Seul un brouillon peut être validé.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   const company = await getCompanyProfile();
   if (!company.name.trim()) throw clientError('BAD_USER_INPUT', 'Renseignez le nom de votre société (Paramètres › Société) avant de valider.');
   if (!document.lines.some((line) => line.kind !== 'TEXT')) throw clientError('BAD_USER_INPUT', 'Le document n’a aucune ligne chiffrée.');
@@ -469,6 +474,7 @@ export async function createFromDocument(
   requirePro('facturation');
   const source = await findDocument(sourceId);
   if (source.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Validez d’abord le document d’origine.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', sourceId);
   const allowed =
     (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) ||
     ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
@@ -579,6 +585,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
   if (input.quoteId) {
     const quote = await findDocument(input.quoteId);
     if (quote.type !== 'QUOTE' || quote.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis validé.');
+    await assertNotArchived('ACCOUNTING_DOCUMENT', quote.id);
     const totals = documentTotals(quote);
     const reference = { number: quote.number, totalNet: totals.totalNet, currency: quote.currency, issueDate: quote.issueDate };
     const bases = totals.vat.filter((item) => item.base > 0);
@@ -614,6 +621,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
   if (!imported) throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
   if (imported.type !== 'QUOTE') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
   if (!imported.clientId) throw clientError('BAD_USER_INPUT', 'Rattachez d’abord le devis importé à un client.');
+  await assertNotArchived('IMPORTED_DOCUMENT', imported.id);
   const totalNet = toCents(Number(imported.totalNet));
   const totalVat = toCents(Number(imported.totalVat));
   // The rate of the quote, from its totals, matched to the nearest usual rate.
@@ -641,6 +649,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
  */
 export async function duplicateDocument(id: string, issueDate: string): Promise<AccountingDocument> {
   const source = await findDocument(id);
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   // A deposit invoice stays tied to its quote.
   const deposit = source.type === 'DEPOSIT_INVOICE';
   return createDocument(
@@ -694,6 +703,7 @@ export async function editableFields(document: DocumentWithLines): Promise<Accou
  */
 export async function addDocumentAttachments(id: string, files: File[]): Promise<void> {
   await findDocument(id);
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   for (const file of files) {
     if (file.size > 10 * 1024 * 1024) throw clientError('BAD_USER_INPUT', `« ${file.name} » est trop lourd (10 Mo maximum).`);
     await prisma.attachment.create({ data: { ...attachmentData(file.name, Buffer.from(await file.arrayBuffer())), accountingDocumentId: id } });
@@ -708,6 +718,7 @@ export async function addDocumentAttachments(id: string, files: File[]): Promise
  */
 export async function setDocumentProject(id: string, projectId: string | null): Promise<void> {
   await findDocument(id);
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   await assertExists(prisma.project, projectId, 'Projet');
   await prisma.accountingDocument.update({ where: { id }, data: { projectId } });
 }
@@ -720,6 +731,7 @@ export async function setDocumentProject(id: string, projectId: string | null): 
 export async function removeDocumentAttachment(attachmentId: string): Promise<void> {
   const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId }, select: { accountingDocumentId: true } });
   if (!attachment?.accountingDocumentId) throw notFound('Pièce jointe');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', attachment.accountingDocumentId);
   await prisma.attachment.delete({ where: { id: attachmentId } });
 }
 

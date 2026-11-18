@@ -205,8 +205,9 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
   for (const copy of linked ?? []) linkedIds.set(copy.accountId!, [...(linkedIds.get(copy.accountId!) ?? []), copy.messageId]);
   if (linked && !linkedIds.size) return { messages: [], total: 0 };
   const accountFilter = [...(criteria.accountIds.length ? [criteria.accountIds] : []), ...(linked ? [[...linkedIds.keys()]] : [])];
+  // The archived accounts are left out of the searches across accounts (searched only when asked by name).
   const accounts = await prisma.mailAccount.findMany({
-    where: accountFilter.length ? { AND: accountFilter.map((ids) => ({ id: { in: ids } })) } : {},
+    where: { AND: [...accountFilter.map((ids) => ({ id: { in: ids } })), ...(criteria.accountIds.length ? [] : [{ archivedAt: null }])] },
     select: { id: true },
   });
   const skipped = linked ? SKIPPED_FOR_PROJECT : SKIPPED;

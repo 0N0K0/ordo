@@ -1,4 +1,4 @@
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { personKey } from '../../../components/people/people-keys';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from '../api';
@@ -14,7 +14,7 @@ interface ItemNames {
   categories: readonly ShoppingCategory[];
   stores: readonly ShoppingStore[];
   /** Ways of keeping. Optional. */
-  storages?: readonly { id: string; name: string }[];
+  storages?: readonly { id: string; name: string; archived?: boolean }[];
   /** Names of the members and relations. */
   members: ReadonlyMap<string, string>;
   relations: ReadonlyMap<string, string>;
@@ -45,7 +45,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       hiddenByDefault: grouping === 'category',
       sortValue: (item) => categoryOf(item) || null,
       text: categoryOf,
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: categoryOptions(names.categories) },
+      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: withArchived(categoryOptions(names.categories), names.categories) },
     },
     {
       id: 'store',
@@ -55,7 +55,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       hiddenByDefault: grouping === 'store',
       sortValue: (item) => storeOf(item) || null,
       text: storeOf,
-      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.name })) },
+      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })) },
     },
     {
       id: 'quantity',
@@ -94,7 +94,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
         options: [
           { value: NOT_PERISHABLE, label: 'Non périssable' },
           { value: PERISHABLE, label: 'Périssable, sans mode' },
-          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.name })),
+          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.name, archived: storage.archived })),
         ],
       },
     },

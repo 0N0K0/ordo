@@ -276,7 +276,8 @@ export async function calendarIcs(calendarId: string | null): Promise<{ name: st
   const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { name: true } }) : null;
   if (calendarId && !calendar) throw notFound('Calendrier');
   const events = await prisma.calendarEvent.findMany({
-    where: calendarId ? { calendarId } : {},
+    // Archived events left out, and the archived calendars from the file of all of them.
+    where: calendarId ? { calendarId, archivedAt: null } : { archivedAt: null, calendar: { archivedAt: null } },
     include: { exceptions: true, categories: { select: { name: true } } },
     orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
   });

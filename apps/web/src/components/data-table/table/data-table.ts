@@ -18,6 +18,23 @@ export interface ColumnChoice {
   iconUrl?: string | null;
   /** A parent shown greyed out (its children offered, not it). Optional. */
   disabled?: boolean;
+  /**
+   * Archived value: kept for the labels (groups, saved filters) but not offered in the filter, unless it is in it.
+   * Optional.
+   */
+  archived?: boolean;
+}
+
+/**
+ * Choices of a column filter flagged archived after their items (settings items, sprints…): they keep their labels,
+ * and the filter offers them only while they are in it.
+ * @param {readonly ColumnChoice[]} options Choices, valued by item id.
+ * @param {readonly { id: string, archived?: boolean | null }[]} items Items of the choices.
+ * @returns {ColumnChoice[]} Choices.
+ */
+export function withArchived(options: readonly ColumnChoice[], items: readonly { id: string; archived?: boolean | null }[]): ColumnChoice[] {
+  const archived = new Set(items.filter((item) => item.archived).map((item) => item.id));
+  return options.map((option) => (archived.has(option.value) ? { ...option, archived: true } : option));
 }
 
 /**

@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import { Prisma, type AccountingDocument } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storeAttachment } from '../core/attachments';
+import { assertNotArchived } from '../core/archive';
 import { scopeOf, statusOf } from './document-statuses';
 import { parisToday } from '../../today';
 
@@ -124,6 +125,7 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
 async function finalDocument(id: string): Promise<AccountingDocument> {
   const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id } }), 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Le suivi ne concerne que les documents validés.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   return document;
 }
 
@@ -137,6 +139,8 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
   const document = await finalDocument(id);
   const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
   if (!status || status.scope !== scopeOf(document.type)) throw notFound('Statut');
+  // An archived status stays the one of its documents, but is not given any more.
+  if (status.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', status.id);
   return prisma.accountingDocument.update({
     where: { id },
     data: {
@@ -185,8 +189,10 @@ export function sendingData(options: { date?: string | null; via?: string | null
 export async function markSent(id: string, options: { date?: string | null; via?: string | null; statusId?: string | null } = {}): Promise<AccountingDocument> {
   const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } }), 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
+  if (chosen && chosen.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', chosen.id);
   const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
   return prisma.accountingDocument.update({
     where: { id },
@@ -244,6 +250,7 @@ export async function addReminder(id: string, note: string | null): Promise<void
  * @returns {Promise<void>}
  */
 export async function deleteReminder(id: string): Promise<void> {
+  await assertNotArchived('ACCOUNTING_DOCUMENT', (await prisma.documentReminder.findUnique({ where: { id }, select: { documentId: true } }))?.documentId);
   const { count } = await prisma.documentReminder.deleteMany({ where: { id } });
   if (!count) throw notFound('Relance');
 }
@@ -259,7 +266,10 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const payment = parseInput(documentPaymentSchema, input);
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } });
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: payment.accountId }, select: { id: true } }), 'Compte');
+  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId);
+  await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId);
   const refund = document.type === 'CREDIT_NOTE';
   if (payment.methodId) {
     const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');

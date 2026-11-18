@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { notFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 
 export interface Label {
   id: string;
@@ -79,7 +80,7 @@ export function createLabelService(
     },
 
     /**
-     * Updates a label.
+     * Updates a label (refused when it is archived).
      * @param {string} id Label id.
      * @param {{ name?: string | null, color?: string | null }} input Changes, with the extra fields.
      * @returns {Promise<Label>} Updated label.
@@ -89,6 +90,7 @@ export function createLabelService(
       input: { name?: string | null; color?: string | null } & Record<string, unknown>,
     ): Promise<Label> {
       if (!(await delegate().findUnique({ where: { id } }))) throw notFound(messages.notFound);
+      await assertNotArchived(model, id);
       // null means "unchanged" for these required fields.
       const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? undefined]));
       const data = parseInput(

@@ -2,6 +2,7 @@ import { collator } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
+import { assertNotArchived } from '../core/archive';
 import { clientError, notFound } from '../../graphql/errors';
 import { withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
@@ -195,7 +196,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
 export async function todoMails(): Promise<number> {
-  const accounts = await prisma.mailAccount.findMany({ select: { id: true } });
+  const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
   const counts = await Promise.all(
     accounts.map((account) =>
       listFolders(account.id)
@@ -211,7 +212,7 @@ export async function todoMails(): Promise<number> {
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
 export async function unreadInboxes(): Promise<number> {
-  const accounts = await prisma.mailAccount.findMany({ select: { id: true } });
+  const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
   const counts = await Promise.all(
     accounts.map((account) =>
       withImap(account.id, async (client) => (await client.status('INBOX', { unseen: true })) || null)
@@ -441,6 +442,7 @@ export async function readMessage(accountId: string, folder: string, uid: number
  * @returns {Promise<void>}
  */
 export async function setSeen(accountId: string, folder: string, uids: number[], seen: boolean): Promise<void> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
     await withMailbox(client, folder, async () => {
       if (seen) await client.messageFlagsAdd(uids, ['\\Seen'], { uid: true });
@@ -457,6 +459,7 @@ export async function setSeen(accountId: string, folder: string, uids: number[],
  * @returns {Promise<void>}
  */
 export async function deleteMessages(accountId: string, folder: string, uids: number[]): Promise<void> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
     const trash = await findSpecialFolder(client, '\\Trash');
     await withMailbox(client, folder, async () => {

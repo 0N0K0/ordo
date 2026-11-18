@@ -6,7 +6,10 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
-import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -21,7 +24,7 @@ import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -163,12 +166,13 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
 
 /**
  * Catalogue of products and services: default title, unit, price and VAT of the lines, added, edited,
- * archived or deleted.
+ * archived (not offered any more, read only; its views « Actifs » / « Archivés ») or restored, or deleted.
  * @returns {JSX.Element} Panel.
  */
 export function CatalogPanel() {
   const { data: items, isPending } = useCatalogItems();
   const { remove, update } = useCatalogMutations();
+  const setArchived = useSetArchived('CATALOG_ITEM', [accountingQueryKey]);
 
   /**
    * Saves a field of an item changed in its cell.
@@ -205,7 +209,8 @@ export function CatalogPanel() {
     title: 'Catalogue',
     first: CATALOG_VIEWS,
   });
-  const bulk = bulkSaver(view, saveItem);
+  // An archived item is read only (restored by « Restaurer » or its « Archivé » cell).
+  const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => (!item.archived || 'archived' in change) && saveItem(item, change));
 
   /**
    * Opens the item form.
@@ -243,6 +248,13 @@ export function CatalogPanel() {
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
       selectionActions={(rows, clear) => [
+        archiveRowsAction({
+          archived: rows.every((item) => item.archived),
+          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
+          label: countOf(rows.length, 'article'),
+          count: rows.length,
+          clear,
+        }),
         deleteRowsAction(rows, {
           title: 'Supprimer les articles',
           risks: `${countOf(rows.length, 'article')} seront supprimés du catalogue ; les documents qui les utilisent gardent leurs lignes.`,
@@ -267,12 +279,13 @@ export function CatalogPanel() {
       }
       verticalSpacing="xs"
       getKey={(item) => item.id}
-      rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
+      isArchived={(item) => item.archived}
       cells={(item) => ({
         title: (
           <>
             <Group gap={6} wrap="nowrap">
-              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong onSave={(title) => title && bulk('title')(item, { title })} />
+              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong readOnly={item.archived} onSave={(title) => title && bulk('title')(item, { title })} />
+              {item.archived && <ArchivedBadge size="xs" />}
               {item.kind === 'DISBURSEMENT' && (
                 <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
                   Débours
@@ -290,6 +303,7 @@ export function CatalogPanel() {
           <EditableSelect
             value={item.kind}
             label={`Nature de ${item.title}`}
+            readOnly={item.archived}
             data={[
               { value: 'ITEM', label: 'Prestation' },
               { value: 'DISBURSEMENT', label: 'Débours' },
@@ -301,6 +315,7 @@ export function CatalogPanel() {
           <EditableSelect
             value={item.unit}
             label={`Unité de ${item.title}`}
+            readOnly={item.archived}
             data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
             onSave={(unit) => unit && bulk('unit')(item, { unit: unit as CatalogItemInput['unit'] })}
           />
@@ -310,6 +325,7 @@ export function CatalogPanel() {
             amount
             value={item.unitPrice}
             label={`Prix HT de ${item.title}`}
+            readOnly={item.archived}
             suffix="€"
             signed={item.kind === 'DISBURSEMENT'}
             onSave={(unitPrice) => unitPrice !== null && bulk('price')(item, { unitPrice })}
@@ -322,6 +338,7 @@ export function CatalogPanel() {
             <EditableSelect
               value={String(item.vatRate)}
               label={`TVA de ${item.title}`}
+              readOnly={item.archived}
               data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
@@ -331,8 +348,15 @@ export function CatalogPanel() {
       actions={(item) => (
         <RowActions
           name={item.title}
-          primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
-          items={[{ label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) }]}
+          primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
+          items={[
+            {
+              label: item.archived ? 'Restaurer' : 'Archiver',
+              icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+              onClick: () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${item.title} »` }),
+            },
+            { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
+          ]}
         />
       )}
     />

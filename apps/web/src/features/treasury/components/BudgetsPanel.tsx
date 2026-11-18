@@ -2,7 +2,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { plural, countOf } from '../../../lib/text';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { itemChoices, listSelectProps } from '../../../components/settings/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -10,7 +10,9 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
-import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -21,8 +23,8 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from '../api';
-import { categoryOptions, categoryPaths } from '../lib/categories';
+import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from '../api';
+import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -30,7 +32,7 @@ import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -208,7 +210,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             required
             searchable
             onCreate={(name) => createCategory.mutateAsync({ name, color, direction: direction ?? 'OUT', parentId: null })}
-            {...treeSelectProps(categoryOptions(categories, direction))}
+            {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
             nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
             description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
             {...form.getInputProps('categoryId')}
@@ -219,12 +221,18 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
               searchable
-              data={memberRelationOptions(members, settings?.treasuryRelations ?? [], { withMe: false })}
+              data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { withMe: false })}
               value={memberOrRelationKey(values)}
               onChange={(key) => form.setValues(memberOrRelation(key))}
               error={form.errors.memberId}
             />
-            <Select label="Contexte" placeholder={EVERYDAY_CONTEXT} clearable {...listSelectProps(settings?.treasuryContexts ?? [])} {...form.getInputProps('contextId')} />
+            <Select
+              label="Contexte"
+              placeholder={EVERYDAY_CONTEXT}
+              clearable
+              {...listSelectProps(settings?.treasuryContexts ?? [], undefined, budget?.contextId)}
+              {...form.getInputProps('contextId')}
+            />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <Select
@@ -276,7 +284,8 @@ type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
  * is left), what is out of budget (no budget for its member, context and category), and the budgets defined.
  * A movement without lines is mine, a budget without member is mine; a budget covers the sub-categories of its
- * category that have none of their own.
+ * category that have none of their own. Archived budgets are hidden unless the view includes them, read only, and do not
+ * count (their movements are out of budget).
  * @returns {JSX.Element} Panel.
  */
 export function BudgetsPanel() {
@@ -284,6 +293,7 @@ export function BudgetsPanel() {
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();
+  const setArchived = useSetArchived('TREASURY_BUDGET', [treasuryKey]);
 
   /**
    * Saves fields of a budget changed in their cells (its repetitions follow, as from its form).
@@ -344,8 +354,10 @@ export function BudgetsPanel() {
   const whoChoices = [
     { value: ME_KEY, label: `${me?.name ?? 'Moi'} (moi)` },
     ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })),
-    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
+    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
   ];
+  // Archived relations, offered only where they are the value already.
+  const archivedWho = new Set((settings?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => personKey('relation', relation.id)));
   /**
    * What is out of budget, counted as the budgets count it: spent (money out) or received (money in) by the direction of
    * its category; without category, signed.
@@ -422,7 +434,7 @@ export function BudgetsPanel() {
       size: 160,
       sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
       text: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT),
-      filter: { kind: 'choice', value: (row) => row.contextId ?? ME_KEY, options: [{ value: ME_KEY, label: EVERYDAY_CONTEXT }, ...[...contextName].map(([value, label]) => ({ value, label }))] },
+      filter: { kind: 'choice', value: (row) => row.contextId ?? ME_KEY, options: [{ value: ME_KEY, label: EVERYDAY_CONTEXT }, ...itemChoices(settings?.treasuryContexts ?? [])] },
       groupable: true,
     },
     {
@@ -433,7 +445,7 @@ export function BudgetsPanel() {
       locked: true,
       sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
       text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
-      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: [...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')] },
+      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: categoryChoices(categories) },
       groupable: true,
     },
   ];
@@ -524,6 +536,7 @@ export function BudgetsPanel() {
     getKey: (budget: TreasuryBudget) => budget.id,
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
+    archived: (budget) => budget.archived,
     columns: [
       {
         id: 'month',
@@ -559,7 +572,8 @@ export function BudgetsPanel() {
     ],
   });
 
-  const bulk = bulkSaver<TreasuryBudget, Partial<BudgetValues>>(definedView, (budget, change) => Object.keys(change).length > 0 && saveBudget(budget, change));
+  // Archived budgets are read only.
+  const bulk = bulkSaver<TreasuryBudget, Partial<BudgetValues>>(definedView, (budget, change) => !budget.archived && Object.keys(change).length > 0 && saveBudget(budget, change));
 
   return (
     <Stack gap="md">
@@ -685,7 +699,15 @@ export function BudgetsPanel() {
           <DataTable
             view={definedView}
             selectionLabel={(count) => selectedLabel(count, ['budget', 'budgets'], false)}
+            isArchived={(budget) => budget.archived}
             selectionActions={(rows, clear) => [
+              archiveRowsAction({
+                archived: rows.every((budget) => budget.archived),
+                apply: (archived) => setArchived.mutateAsync({ ids: rows.map((budget) => budget.id), archived }),
+                label: countOf(rows.length, 'budget'),
+                count: rows.length,
+                clear,
+              }),
               deleteRowsAction(rows, {
                 title: 'Supprimer les budgets',
                 risks: `${countOf(rows.length, 'budget')} et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
@@ -696,119 +718,143 @@ export function BudgetsPanel() {
             ]}
             verticalSpacing={4}
             getKey={(budget) => budget.id}
-            cells={(budget) => ({
-              month: (
-                <MonthCell
-                  value={budget.month}
-                  label="Premier mois du budget"
-                  onSave={(month) => month && bulk('month')(budget, (row) => (row.repeatUntil && row.repeatUntil < month ? {} : { month }))}
-                />
-              ),
-              repeat: (
-                <EditableSelect
-                  value={budget.repeatEvery ? String(budget.repeatEvery) : 'ONCE'}
-                  label="Répétition du budget"
-                  data={[
-                    ...REPEAT_CHOICES,
-                    ...(budget.repeatEvery && !REPEAT_CHOICES.some((choice) => choice.value === String(budget.repeatEvery))
-                      ? [{ value: String(budget.repeatEvery), label: repeatLabel(budget.repeatEvery) }]
-                      : []),
+            cells={(budget) =>
+              budget.archived
+                ? {
+                    // Read only.
+                    ...keyContent(budget),
+                    month: (
+                      <Group gap={4} wrap="nowrap">
+                        <Text size="sm">{monthLabel(budget.month)}</Text>
+                        <ArchivedBadge size="xs" />
+                      </Group>
+                    ),
+                    amount: `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${fmt.money(budget.amount)}`,
+                    repeat: repeatLabel(budget.repeatEvery ?? null),
+                    until: budget.repeatEvery ? (budget.repeatUntil ? monthLabel(budget.repeatUntil) : 'Sans fin') : monthLabel(budget.month),
+                  }
+                : {
+                    month: (
+                      <MonthCell
+                        value={budget.month}
+                        label="Premier mois du budget"
+                        onSave={(month) => month && bulk('month')(budget, (row) => (row.repeatUntil && row.repeatUntil < month ? {} : { month }))}
+                      />
+                    ),
+                    repeat: (
+                      <EditableSelect
+                        value={budget.repeatEvery ? String(budget.repeatEvery) : 'ONCE'}
+                        label="Répétition du budget"
+                        data={[
+                          ...REPEAT_CHOICES,
+                          ...(budget.repeatEvery && !REPEAT_CHOICES.some((choice) => choice.value === String(budget.repeatEvery))
+                            ? [{ value: String(budget.repeatEvery), label: repeatLabel(budget.repeatEvery) }]
+                            : []),
+                        ]}
+                        onSave={(every) => every && bulk('repeat')(budget, { repeatEvery: every === 'ONCE' ? null : Number(every) })}
+                      />
+                    ),
+                    until: budget.repeatEvery ? (
+                      <MonthCell
+                        value={budget.repeatUntil ?? null}
+                        label="Dernier mois du budget"
+                        nullable
+                        minMonth={budget.month}
+                        onSave={(repeatUntil) => bulk('until')(budget, (row) => (!row.repeatEvery || (repeatUntil && repeatUntil < row.month) ? {} : { repeatUntil }))}
+                      />
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        {monthLabel(budget.month)}
+                      </Text>
+                    ),
+                    ...keyContent(budget),
+                    who: (
+                      <EditableSelect
+                        value={whoKey(budget)}
+                        label="Bénéficiaire du budget"
+                        nullable
+                        data={whoChoices.filter((choice) => choice.value !== ME_KEY && (!archivedWho.has(choice.value) || choice.value === whoKey(budget)))}
+                        onSave={(key) => bulk('who')(budget, memberOrRelation(key))}
+                      />
+                    ),
+                    context: (
+                      <EditableSelect
+                        value={budget.contextId ?? null}
+                        label="Contexte du budget"
+                        nullable
+                        data={unarchived(settings?.treasuryContexts ?? [], budget.contextId).map((item) => ({ value: item.id, label: item.name }))}
+                        onSave={(contextId) => bulk('context')(budget, { contextId })}
+                      />
+                    ),
+                    category: (
+                      <EditableSelect
+                        value={budget.categoryId}
+                        label="Catégorie du budget"
+                        {...treeSelectProps([...categoryOptions(categories, 'OUT', undefined, budget.categoryId), ...categoryOptions(categories, 'IN', undefined, budget.categoryId)])}
+                        onSave={(categoryId) => categoryId && bulk('category')(budget, { categoryId })}
+                      />
+                    ),
+                    // Money out budgeted below zero, money in above: the amount is typed positive.
+                    amount: (
+                      <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'}>
+                        <EditableNumber
+                          amount
+                          value={budget.amount}
+                          label="Montant du budget"
+                          suffix="€"
+                          validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
+                          onSave={(amount) => amount !== null && bulk('amount')(budget, { amount })}
+                        />
+                      </Text>
+                    ),
+                  }
+            }
+            actions={(budget) => {
+              const archiveItem = {
+                label: budget.archived ? 'Restaurer' : 'Archiver',
+                icon: budget.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                onClick: () => void archiveWithUndo(setArchived, { ids: [budget.id], archived: !budget.archived, label: 'Budget' }),
+              };
+              return (
+                <RowActions
+                  name="le budget"
+                  primary={budget.archived ? archiveItem : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
+                  items={[
+                    !budget.archived && {
+                      label: 'Dupliquer',
+                      icon: <CopyIcon aria-hidden />,
+                      onClick: () =>
+                        // A new budget with its values, to change (month, category…) before it is saved.
+                        openBudget({
+                          copy: true,
+                          defaults: {
+                            month: budget.month,
+                            memberId: budget.memberId ?? null,
+                            relationId: budget.relationId ?? null,
+                            contextId: budget.contextId ?? null,
+                            categoryId: budget.categoryId,
+                            amount: budget.amount,
+                            repeatEvery: budget.repeatEvery ?? null,
+                            repeatUntil: budget.repeatUntil ?? null,
+                          },
+                        }),
+                    },
+                    !budget.archived && archiveItem,
+                    {
+                      label: 'Supprimer',
+                      icon: <TrashIcon aria-hidden />,
+                      danger: true,
+                      onClick: () =>
+                        confirmDestructive({
+                          title: 'Supprimer le budget',
+                          risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                          onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: onMutationError }),
+                        }),
+                    },
                   ]}
-                  onSave={(every) => every && bulk('repeat')(budget, { repeatEvery: every === 'ONCE' ? null : Number(every) })}
                 />
-              ),
-              until: budget.repeatEvery ? (
-                <MonthCell
-                  value={budget.repeatUntil ?? null}
-                  label="Dernier mois du budget"
-                  nullable
-                  minMonth={budget.month}
-                  onSave={(repeatUntil) => bulk('until')(budget, (row) => (!row.repeatEvery || (repeatUntil && repeatUntil < row.month) ? {} : { repeatUntil }))}
-                />
-              ) : (
-                <Text size="sm" c="dimmed">
-                  {monthLabel(budget.month)}
-                </Text>
-              ),
-              ...keyContent(budget),
-              who: (
-                <EditableSelect
-                  value={whoKey(budget)}
-                  label="Bénéficiaire du budget"
-                  nullable
-                  data={whoChoices.filter((choice) => choice.value !== ME_KEY)}
-                  onSave={(key) => bulk('who')(budget, memberOrRelation(key))}
-                />
-              ),
-              context: (
-                <EditableSelect
-                  value={budget.contextId ?? null}
-                  label="Contexte du budget"
-                  nullable
-                  data={[...contextName].map(([value, label]) => ({ value, label }))}
-                  onSave={(contextId) => bulk('context')(budget, { contextId })}
-                />
-              ),
-              category: (
-                <EditableSelect
-                  value={budget.categoryId}
-                  label="Catégorie du budget"
-                  {...treeSelectProps([...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')])}
-                  onSave={(categoryId) => categoryId && bulk('category')(budget, { categoryId })}
-                />
-              ),
-              // Money out budgeted below zero, money in above: the amount is typed positive.
-              amount: (
-                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'}>
-                  <EditableNumber
-                    amount
-                    value={budget.amount}
-                    label="Montant du budget"
-                    suffix="€"
-                    validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
-                    onSave={(amount) => amount !== null && bulk('amount')(budget, { amount })}
-                  />
-                </Text>
-              ),
-            })}
-            actions={(budget) => (
-              <RowActions
-                name="le budget"
-                primary={{ label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
-                items={[
-                  {
-                    label: 'Dupliquer',
-                    icon: <CopyIcon aria-hidden />,
-                    onClick: () =>
-                      // A new budget with its values, to change (month, category…) before it is saved.
-                      openBudget({
-                        copy: true,
-                        defaults: {
-                          month: budget.month,
-                          memberId: budget.memberId ?? null,
-                          relationId: budget.relationId ?? null,
-                          contextId: budget.contextId ?? null,
-                          categoryId: budget.categoryId,
-                          amount: budget.amount,
-                          repeatEvery: budget.repeatEvery ?? null,
-                          repeatUntil: budget.repeatUntil ?? null,
-                        },
-                      }),
-                  },
-                  {
-                    label: 'Supprimer',
-                    icon: <TrashIcon aria-hidden />,
-                    danger: true,
-                    onClick: () =>
-                      confirmDestructive({
-                        title: 'Supprimer le budget',
-                        risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                        onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: onMutationError }),
-                      }),
-                  },
-                ]}
-              />
-            )}
+              );
+            }}
           />
         )}
       </Paper>

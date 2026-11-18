@@ -12,6 +12,7 @@ import { useShoppingData } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchived, unarchivedOffered } from '../../../lib/archive';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -26,7 +27,8 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
   const { data: locations } = useStockLocations();
   const { createItem } = useStockMutations();
   const people = usePeople();
-  const products = data?.shoppingProducts ?? [];
+  // The archived references, places and categories are not offered.
+  const products = unarchived(data?.shoppingProducts ?? []);
   const byName = new Map(products.map((product) => [product.name, product]));
   const form = useAppForm<Values>({
     initialValues: { productId: null, label: '', categoryId: null, unit: null, locationId, note: null, perishable: false, memberIds: [], relationIds: [], quantity: null, expiresAt: null },
@@ -63,8 +65,22 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           error={form.errors.label}
         />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-          <Select label="Emplacement" placeholder="Aucun" clearable searchable {...treeSelectProps(categoryOptions(locations ?? []))} {...form.getInputProps('locationId')} />
-          <Select label="Catégorie" placeholder="Aucune" clearable searchable {...treeSelectProps(categoryOptions(data?.shoppingCategories ?? []))} {...form.getInputProps('categoryId')} />
+          <Select
+            label="Emplacement"
+            placeholder="Aucun"
+            clearable
+            searchable
+            {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [])))}
+            {...form.getInputProps('locationId')}
+          />
+          <Select
+            label="Catégorie"
+            placeholder="Aucune"
+            clearable
+            searchable
+            {...treeSelectProps(categoryOptions(data?.shoppingCategories ?? [], undefined, unarchivedOffered(data?.shoppingCategories ?? [])))}
+            {...form.getInputProps('categoryId')}
+          />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
           <QuantityInput

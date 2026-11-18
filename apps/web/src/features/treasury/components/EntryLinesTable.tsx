@@ -1,6 +1,7 @@
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey } from '../../../components/people/people-keys';
+import { unarchived } from '../../../lib/archive';
 import { Checkbox, Text } from '@mantine/core';
-import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
+import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -8,7 +9,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { categoryOptions } from '../lib/categories';
+import { categoryChoices, categoryOptions } from '../lib/categories';
 import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
 import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
@@ -56,7 +57,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const projectName = (row: LineRow) => (row.line.projectId ? (env.projectNames.get(row.line.projectId) ?? '') : '');
   const whomChoices = [
     ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })),
-    ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
+    ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
   ];
   return [
     { id: 'label', bulk: true, label: 'Libellé', size: 200, locked: true, sortValue: (row) => row.line.label ?? null, text: (row) => row.line.label ?? '' },
@@ -80,7 +81,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       filter: {
         kind: 'choice',
         value: (row) => row.line.categoryId,
-        options: [...categoryOptions(env.settings?.treasuryCategories ?? [], 'OUT'), ...categoryOptions(env.settings?.treasuryCategories ?? [], 'IN')],
+        options: categoryChoices(env.settings?.treasuryCategories ?? []),
       },
       groupable: true,
     },
@@ -94,7 +95,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       filter: {
         kind: 'choice',
         value: (row) => row.line.contextId ?? ME,
-        options: [{ value: ME, label: EVERYDAY_CONTEXT }, ...itemOptions(env.settings?.treasuryContexts ?? [])],
+        options: [{ value: ME, label: EVERYDAY_CONTEXT }, ...itemChoices(env.settings?.treasuryContexts ?? [])],
       },
       groupable: true,
     },
@@ -220,7 +221,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={whomKey(line) === ME ? null : whomKey(line)}
               label={`Bénéficiaire de ${name}`}
               nullable
-              data={memberRelationOptions(env.settings?.treasuryMembers ?? [], env.settings?.treasuryRelations ?? [], { withMe: false })}
+              data={memberRelationOptions(env.settings?.treasuryMembers ?? [], unarchived(env.settings?.treasuryRelations ?? [], line.relationId), { withMe: false })}
               // A loan is with a relation only.
               onSave={(key) =>
                 saveLine('whom', row, (target) => ({
@@ -236,7 +237,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={`Catégorie de ${name}`}
               nullable
               // A line going the other way (a refund in a purchase…) takes a category of that way.
-              {...treeSelectProps(categoryOptions(categories, row.amount < 0 ? 'OUT' : 'IN'))}
+              {...treeSelectProps(categoryOptions(categories, row.amount < 0 ? 'OUT' : 'IN', undefined, line.categoryId))}
               // A category of money out goes to the lines of money out only (and in to in).
               onSave={(categoryId) => saveLine('category', row, (target) => (categoryId && !categoryForDirection(categories, categoryId, target.amount < 0 ? 'OUT' : 'IN') ? {} : { categoryId }))}
             />
@@ -246,7 +247,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={line.contextId}
               label={`Contexte de ${name}`}
               nullable
-              {...listSelectProps(env.settings?.treasuryContexts ?? [])}
+              {...listSelectProps(env.settings?.treasuryContexts ?? [], undefined, line.contextId)}
               onSave={(contextId) => saveLine('context', row, { contextId })}
             />
           ),
