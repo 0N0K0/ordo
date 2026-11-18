@@ -29,15 +29,6 @@ interface TimeLineOptions {
 }
 
 /**
- * Printed day: "5 mars 2026".
- * @param {string} day YYYY-MM-DD.
- * @returns {string} Day.
- */
-function printedDay(day: string): string {
-  return fmt.day(day);
-}
-
-/**
  * Quantity of a duration in the billed unit: hours (2 decimals) or days (3 decimals).
  * @param {number} seconds Duration.
  * @param {TimeLineOptions} options Unit, day length and rounding.
@@ -76,9 +67,9 @@ export function timeLines(entries: BillableTime[], options: TimeLineOptions): Ac
     groups.set(key, group);
   };
   for (const entry of sorted) {
-    if (options.grouping === 'TOTAL') add('total', options.title, entry.seconds, entry.description && `${printedDay(entry.day)} : ${entry.description}`);
-    else if (options.grouping === 'DAY') add(entry.day, `${options.title} — ${printedDay(entry.day)}`, entry.seconds, entry.description);
-    else if (options.grouping === 'ENTRY') add(entry.id, `${options.title} — ${printedDay(entry.day)}`, entry.seconds, entry.description);
+    if (options.grouping === 'TOTAL') add('total', options.title, entry.seconds, entry.description && `${fmt.day(entry.day)} : ${entry.description}`);
+    else if (options.grouping === 'DAY') add(entry.day, `${options.title} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
+    else if (options.grouping === 'ENTRY') add(entry.id, `${options.title} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
     else if (entry.tasks.length === 0) add('', options.title, entry.seconds, entry.description);
     else for (const task of entry.tasks) add(`task:${task}`, task, entry.seconds / entry.tasks.length, entry.description);
   }

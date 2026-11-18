@@ -6,7 +6,7 @@ import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/rea
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -93,10 +93,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                     accept="image/png,image/jpeg"
                     onChange={(file) =>
                       file &&
-                      setLogo.mutate(file, {
-                        onSuccess: () => notifySuccess('Logo enregistré.'),
-                        onError: onMutationError,
-                      })
+                      setLogo.mutate(file, toastCallbacks('Logo enregistré.'))
                     }
                   >
                     {(props) => (
@@ -372,10 +369,7 @@ function NumberingSettings() {
                       onClick={() =>
                         setSequence.mutate(
                           { type: sequence.type, year, nextNumber: value },
-                          {
-                            onSuccess: () => notifySuccess('Numérotation enregistrée.'),
-                            onError: onMutationError,
-                          },
+                          toastCallbacks('Numérotation enregistrée.'),
                         )
                       }
                     >

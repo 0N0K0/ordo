@@ -16,7 +16,7 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from '../api';
 import { SheetLinksField } from './SheetLinksField';
@@ -72,7 +72,6 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
     },
   ];
   const view = useDataView({ tableKey: 'checklist', getKey: (item) => item.id, columns, rows: list?.items ?? [], title: 'Liste à cocher' });
-  const onError = { onError: onMutationError };
 
   /**
    * Saves a change of an item (its other fields kept).
@@ -81,7 +80,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
    * @returns {void}
    */
   const saveItem = (item: ChecklistItem, change: ItemChange) => {
-    if (change.checked !== undefined) return mutations.setChecked.mutate({ ids: [item.id], checked: change.checked }, onError);
+    if (change.checked !== undefined) return mutations.setChecked.mutate({ ids: [item.id], checked: change.checked }, ON_ERROR);
     if (!Object.keys(change).length) return;
     mutations.updateChecklistItem.mutate(
       {
@@ -97,7 +96,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           ...change,
         },
       },
-      onError,
+      ON_ERROR,
     );
   };
   const bulk = bulkSaver<ChecklistItem, ItemChange>(view, saveItem);
@@ -144,7 +143,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
                 confirmDestructive({
                   title: 'Refaire la liste',
                   risks: 'La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu.',
-                  onConfirm: () => mutations.resetChecklist.mutate(list.id, { onSuccess: () => notifySuccess('Liste refaite.'), ...onError }),
+                  onConfirm: () => mutations.resetChecklist.mutate(list.id, toastCallbacks('Liste refaite.')),
                 })
               }
             >
@@ -190,7 +189,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           ),
         })}
         actions={(item) => (
-          <RowActions name={item.label} items={[{ label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => mutations.removeChecklistItem.mutate(item.id, onError) }]} />
+          <RowActions name={item.label} items={[{ label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => mutations.removeChecklistItem.mutate(item.id, ON_ERROR) }]} />
         )}
         addRow={(group) => {
           // In a group, the item takes its value (its category, unit…); none where it cannot be given.

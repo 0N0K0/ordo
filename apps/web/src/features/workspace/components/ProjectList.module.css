@@ -1,5 +1,5 @@
 @layer app {
-  /* Row of the list (drop rules: TreeRow.module.css): a border between the projects. */
+  /* Row of the list (drop rules: components/tree/tree-drop.module.css): a border between the projects. */
   .row {
     /* Bordures */
     border-top: 1px solid var(--mantine-color-default-border);

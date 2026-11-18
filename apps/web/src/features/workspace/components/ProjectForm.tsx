@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { descendantIds, useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
-import { IconField, type IconValue } from './IconField';
+import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectDepth, projectHeight, projectOptions } from '../lib/tree';

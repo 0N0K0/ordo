@@ -2,6 +2,7 @@ import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import { assertNotArchived } from '../core/archive';
 import { clientError } from '../../graphql/errors';
+import { assertExists } from '../core/lookup';
 import { findActiveAccount } from './accounts';
 import { buildMessage, type MailFields } from './compose';
 import { withImap, withMailbox } from './imap';
@@ -66,9 +67,7 @@ export async function deleteDraft(accountId: string, folder: string, uid: number
  */
 export async function saveDraft(input: SaveDraftInput): Promise<SavedDraft> {
   const account = await findActiveAccount(input.accountId);
-  if (input.projectId && !(await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }))) {
-    throw clientError('BAD_USER_INPUT', 'Projet introuvable.');
-  }
+  await assertExists(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const context = Buffer.from(JSON.stringify({ projectId: input.projectId ?? null })).toString('base64');
   const message = await buildMessage(account, input, { draft: true, headers: { 'X-Ordo-Draft': context } });
   const messageId = /^Message-ID:\s*<([^>]+)>/im.exec(message.copy.toString('utf8', 0, 8192))?.[1];

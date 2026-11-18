@@ -50,18 +50,6 @@ export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOpera
   category: { in: 'est', notIn: 'n’est pas' },
 };
 
-export const PERIOD_LABELS: Record<string, string> = {
-  thisWeek: 'Cette semaine',
-  lastWeek: 'La semaine dernière',
-  nextWeek: 'La semaine prochaine',
-  thisMonth: 'Ce mois-ci',
-  lastMonth: 'Le mois dernier',
-  nextMonth: 'Le mois prochain',
-  thisYear: 'Cette année',
-  lastYear: 'L’année dernière',
-  nextYear: 'L’année prochaine',
-};
-
 /**
  * Operators of a field, from the kinds of the fields filtered.
  * @param {Record<F, FilterFieldKind>} kinds Kind of each field.

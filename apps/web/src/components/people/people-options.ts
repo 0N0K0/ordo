@@ -1,7 +1,7 @@
 import { useActiveWorkspace } from '../../features/workspaces/api';
 
 /** Option of a select of people. */
-export interface PersonChoice {
+interface PersonChoice {
   value: string;
   label: string;
 }
@@ -18,6 +18,13 @@ export interface PeopleGroup {
  * @returns {string} Name shown.
  */
 export const personName = (person: { name: string; isMe: boolean }): string => (person.isMe ? `${person.name} (moi)` : person.name);
+
+/**
+ * Name of the user among people: « Prénom (moi) », « Moi » when the user is not one of them.
+ * @param {{ name: string } | null | undefined} me The user as one of the people. Optional.
+ * @returns {string} Name shown.
+ */
+export const meName = (me: { name: string } | null | undefined): string => (me ? `${me.name} (moi)` : 'Moi');
 
 /**
  * Options of a select of people, grouped: « Contributeurs », then « Relations » in a pro workspace or « Proches » in a

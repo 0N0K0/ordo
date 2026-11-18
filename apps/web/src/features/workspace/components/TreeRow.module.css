@@ -40,7 +40,7 @@
     }
 
     &[data-dragging] {
-      opacity: 0.4;
+      opacity: var(--onoko-dragging-opacity);
     }
 
     /* Animation */
@@ -127,24 +127,9 @@
     color: var(--mantine-color-dimmed);
   }
 
+  /* Shown on hover of the row ([data-reveal], styles/reveal.css). */
   .actions {
     /* Agencement */
     flex: none;
-
-    /* Effets */
-    opacity: 0;
-
-    .row:hover &,
-    .row:focus-within &,
-    .row[data-menu-open] & {
-      opacity: 1;
-    }
-
-    @media (hover: none) {
-      opacity: 1;
-    }
-
-    /* Animation */
-    transition: opacity 120ms ease;
   }
 }

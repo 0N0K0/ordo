@@ -62,3 +62,15 @@ export function checked<T>(schema: CellSchema<T>, value: unknown, fallback: stri
   accepted(result.error.issues[0]?.message ?? fallback);
   return null;
 }
+
+/**
+ * Accessible label of a cell field, the same in every table: « Statut de la tâche #12 », or, on a selection,
+ * « Statut (appliqué aux 3 cellules sélectionnées) ».
+ * @param {string} field Field name.
+ * @param {string} of Its item (« de la tâche #12 », « de Ménage »).
+ * @param {number} count Number of rows the edit applies to.
+ * @returns {string} Label.
+ */
+export function cellLabel(field: string, of: string, count: number): string {
+  return count > 1 ? `${field} (appliqué aux ${count} cellules sélectionnées)` : `${field} ${of}`;
+}

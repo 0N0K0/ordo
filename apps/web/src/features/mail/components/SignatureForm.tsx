@@ -1,7 +1,7 @@
+import { formCallbacks } from '../../../lib/form';
 import { Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { RichEditor } from '../../../components/rich-text/RichEditor';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { RichEditor } from './RichEditor';
 import { useMailAccountMutations, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -23,13 +23,7 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
       <FormActions onCancel={onDone} loading={setSignature.isPending} onSubmit={() =>
             setSignature.mutate(
               { id: account.id, signature: html === '<p></p>' ? '' : html },
-              {
-                onSuccess: () => {
-                  notifySuccess('Signature enregistrée.');
-                  onDone();
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Signature enregistrée.', onDone),
             )
           } />
     </Stack>

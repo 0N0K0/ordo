@@ -1,5 +1,5 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import type { RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { FileArrowUpIcon, FileTextIcon } from '@phosphor-icons/react';
 import { DepositInvoiceForm } from '../components/DepositInvoiceForm';

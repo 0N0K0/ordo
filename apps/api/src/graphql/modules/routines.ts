@@ -145,7 +145,6 @@ builder.prismaObject('Routine', {
     travelBefore: t.exposeInt('travelBefore', { description: 'Minutes to get there.' }),
     travelAfter: t.exposeInt('travelAfter', { description: 'Minutes to get back.' }),
     position: t.exposeInt('position'),
-    archived: t.boolean({ resolve: (routine) => routine.archivedAt !== null }),
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
     beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations it is for.')),

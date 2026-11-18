@@ -1,15 +1,17 @@
+import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Stack, Tooltip } from '@mantine/core';
 import { ArrowBendDoubleUpLeftIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, CheckCircleIcon, FlagIcon, EnvelopeSimpleIcon, LinkBreakIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -79,13 +81,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmUnlink = (copyId: string) => {
-    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(copyId, {
-                onSuccess: () => {
-                  notifySuccess('Mail détaché du projet.');
-                  onDeleted();
-                },
-                onError: onMutationError,
-              }); } });
+    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(copyId, formCallbacks(null, 'Mail détaché du projet.', onDeleted)); } });
   };
 
   // Opens the draft in the writing form; its next save replaces it.
@@ -131,13 +127,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
   const confirmDelete = () => {
     confirmDestructive({ title: 'Supprimer le mail', risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.', onConfirm: () => { remove.mutate(
                 { accountId, folder, uids: [uid] },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Mail supprimé.');
-                    onDeleted();
-                  },
-                  onError: onMutationError,
-                },
+                formCallbacks(null, 'Mail supprimé.', onDeleted),
               ); } });
   };
 
@@ -149,18 +139,10 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    */
   const confirmDeleteDraft = () => {
     confirmDestructive({ title: 'Supprimer le brouillon', risks: (
-<>
-<Text size="sm">Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</Text>
-</>
+<>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</>
 ), onConfirm: () => { deleteDraft.mutate(
                 { accountId, folder, uid },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Brouillon supprimé.');
-                    onDeleted();
-                  },
-                  onError: onMutationError,
-                },
+                formCallbacks(null, 'Brouillon supprimé.', onDeleted),
               ); } });
   };
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;
@@ -197,11 +179,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 <EnvelopeSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Supprimer">
-              <ActionIcon variant="subtle" color="red" aria-label="Supprimer le mail" onClick={confirmDelete}>
-                <TrashIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <RemoveButton label="Supprimer" aria-label="Supprimer le mail" onClick={confirmDelete} />
           </Group>
         }
         extra={

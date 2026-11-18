@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
@@ -5,7 +6,7 @@ import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useStockMutations } from '../../stock/api';
 import { useStockProposal } from '../../stock/hooks/use-stock-proposal';
 import { deliveryWindow } from '../lib/delivery-format';
@@ -197,7 +198,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 onClick={() =>
                   setDeliveryReceived.mutate(
                     { id: delivery.id, received: true },
-                    { onSuccess: (ids) => (notifySuccess('Livraison réceptionnée.'), propose(list.items.filter((item) => ids.includes(item.id)))), onError: onMutationError },
+                    formCallbacks(null, 'Livraison réceptionnée.', (ids) => propose(list.items.filter((item) => ids.includes(item.id)))),
                   )
                 }
               >

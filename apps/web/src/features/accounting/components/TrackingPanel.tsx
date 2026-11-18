@@ -1,3 +1,5 @@
+import { SubSection } from '../../../components/page/SubSection';
+import { formCallbacks } from '../../../lib/form';
 import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -9,9 +11,9 @@ import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PaperclipIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import type { AccountingDocument } from '../api/documents';
-import { Section } from './EditorSection';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { PaymentForm } from './PaymentForm';
 import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
@@ -47,13 +49,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
             date &&
             accept.mutate(
               { id: document.id, date, file },
-              {
-                onSuccess: () => {
-                  notifySuccess('Devis accepté.');
-                  onDone();
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Devis accepté.', onDone),
             )
           } />
     </Stack>
@@ -74,13 +70,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
       <FormActions onCancel={onDone} submitLabel="Noter" submitIcon={<NotePencilIcon aria-hidden />} loading={addReminder.isPending} onSubmit={() =>
             addReminder.mutate(
               { id: documentId, note: note.trim() || null },
-              {
-                onSuccess: () => {
-                  notifySuccess('Relance notée.');
-                  onDone();
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Relance notée.', onDone),
             )
           } />
     </Stack>
@@ -103,7 +93,6 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
   const scoped = (statuses ?? []).filter((status) => status.scope === (isQuote ? 'QUOTE' : 'INVOICE'));
   const money = (amount: number) => fmt.money(amount, document.currency);
   const balance = document.balance ?? 0;
-  const onError = onMutationError;
   const locked = document.archived;
 
   /**
@@ -131,7 +120,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
     );
 
   return (
-    <Section title="Suivi">
+    <SettingsSection title="Suivi">
       <Select
         label="Statut"
         {...listSelectProps(scoped, undefined, document.trackingStatus?.id)}
@@ -144,7 +133,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           // A "sent" status asks when and how it was sent.
           if (scoped.find((status) => status.id === statusId)?.category === 'SENT') {
             openDialog('sent', statusId);
-          } else mutations.setStatus.mutate({ id: document.id, statusId }, { onError });
+          } else mutations.setStatus.mutate({ id: document.id, statusId }, ON_ERROR);
         }}
       />
       {document.overdue && (
@@ -173,7 +162,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   <PaperclipIcon aria-hidden /> {document.signedFileName}
                 </Group>
               </FileLink>
-              {!locked && <RemoveButton variant="field" label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })} />}
+              {!locked && <RemoveButton variant="field" label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, ON_ERROR)} />}
             </Group>
           )}
           {!locked && (
@@ -230,12 +219,12 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
       )}
 
       {!isQuote && !isCredit && (balance > 0 || document.reminders.length > 0) && (
-        <Stack gap={6}>
-          <Group justify="space-between">
-            <Text size="sm" fw={600}>
-              Relances
-            </Text>
-            {balance > 0 && !locked && (
+        <SubSection
+          title="Relances"
+          gap={6}
+          action={
+            balance > 0 &&
+            !locked && (
               <Group gap={4}>
                 <Button size="compact-xs" variant="default" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
@@ -244,8 +233,9 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   Noter
                 </Button>
               </Group>
-            )}
-          </Group>
+            )
+          }
+        >
           {document.reminders.length === 0 ? (
             <EmptyState compact message="Aucune relance." />
           ) : (
@@ -255,13 +245,13 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   {fmt.day(reminder.date)}
                   {reminder.note ? ` · ${reminder.note}` : ''}
                 </Text>
-                {!locked && <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, { onError })} />}
+                {!locked && <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, ON_ERROR)} />}
               </Group>
             ))
           )}
-        </Stack>
+        </SubSection>
       )}
 
-    </Section>
+    </SettingsSection>
   );
 }

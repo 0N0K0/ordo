@@ -59,5 +59,7 @@ export function moveToIndex<T extends { id: string }>(list: readonly T[], id: st
   const moved = list.find((item) => item.id === id);
   if (!moved) return null;
   const others = list.filter((item) => item.id !== id);
-  return [...others.slice(0, index), moved, ...others.slice(index)];
+  // Bounded as the server does (moveInOrder): the order shown is the one saved.
+  const target = Math.max(0, Math.min(index, others.length));
+  return [...others.slice(0, target), moved, ...others.slice(target)];
 }

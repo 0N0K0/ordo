@@ -21,3 +21,17 @@ export function normalize(text: string): string {
 export function safeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|\0]/g, '-');
 }
+
+/** Suffix of the name of a copy. */
+const COPY_SUFFIX = ' (copie)';
+
+/**
+ * Name of a copy: « Nom (copie) »; with a length, the name is cut so that the suffix stays.
+ * @param {string} name Name of the original.
+ * @param {number} [max] Longest name. Optional.
+ * @returns {string} Name of the copy.
+ */
+export function copyName(name: string, max?: number): string {
+  if (max === undefined || name.length + COPY_SUFFIX.length <= max) return `${name}${COPY_SUFFIX}`;
+  return `${name.slice(0, Math.max(0, max - COPY_SUFFIX.length)).trimEnd()}${COPY_SUFFIX}`;
+}

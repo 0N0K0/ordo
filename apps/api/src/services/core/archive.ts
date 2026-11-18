@@ -6,12 +6,6 @@ import { SETTINGS_LISTS } from './settings-lists';
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
 
-/** Column telling an element is archived: the date it was (`archivedAt`), or the former flag (`archived`). */
-type ArchiveField = 'archivedAt' | 'archived';
-
-/** Lists archived with the former flag rather than a date. */
-const FLAGGED = new Set<string>(['treasuryAccount', 'treasuryCounterparty', 'catalogItem']);
-
 /** Main elements of the features archived through the generic mutation, by kind: the Prisma model of each. */
 const MAIN = {
   MILESTONE: 'milestone',
@@ -66,13 +60,6 @@ const isKind = (target: ArchivableKind | ArchivableModel): target is ArchivableK
 const modelOf = (target: ArchivableKind | ArchivableModel): ArchivableModel => (isKind(target) ? ARCHIVABLE[target] : target);
 
 /**
- * Column telling an element of a model is archived.
- * @param {ArchivableModel} model Model.
- * @returns {ArchiveField} Column.
- */
-const fieldOf = (model: ArchivableModel): ArchiveField => (FLAGGED.has(model) ? 'archived' : 'archivedAt');
-
-/**
  * Delegate of a model.
  * @param {ArchivableModel} model Model.
  * @returns {ArchiveDelegate} Its Prisma delegate (scoped to the current workspace, as every model).
@@ -80,12 +67,11 @@ const fieldOf = (model: ArchivableModel): ArchiveField => (FLAGGED.has(model) ? 
 const delegate = (model: ArchivableModel) => (prisma as unknown as Record<string, ArchiveDelegate>)[model];
 
 /**
- * Condition of the elements archived, or not, of a model.
- * @param {ArchivableModel} model Model.
+ * Condition of the elements archived, or not (every model tells it by its `archivedAt` date).
  * @param {boolean} archived Archived ones (else the others).
  * @returns {Record<string, unknown>} Prisma `where`.
  */
-const archivedWhere = (model: ArchivableModel, archived: boolean): Record<string, unknown> => (fieldOf(model) === 'archived' ? { archived } : { archivedAt: archived ? { not: null } : null });
+const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archivedAt: archived ? { not: null } : null });
 
 /**
  * Archives or restores elements of a kind, all at once (an id given twice counts once). Archiving keeps the date of
@@ -100,8 +86,7 @@ export async function setArchived(kind: ArchivableKind, ids: readonly string[], 
   const unique = [...new Set(ids)];
   await assertAllExist(delegate(model), unique, 'Élément');
   if (!unique.length) return;
-  const data = fieldOf(model) === 'archived' ? { archived } : { archivedAt: archived ? new Date() : null };
-  await delegate(model).updateMany({ where: { id: { in: unique }, ...archivedWhere(model, !archived) }, data });
+  await delegate(model).updateMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, data: { archivedAt: archived ? new Date() : null } });
 }
 
 /**
@@ -124,7 +109,7 @@ export async function assertNotArchived(target: ArchivableKind | ArchivableModel
 export async function assertNoneArchived(target: ArchivableKind | ArchivableModel, ids: readonly string[] | null | undefined): Promise<void> {
   if (!ids?.length) return;
   const model = modelOf(target);
-  if ((await delegate(model).count({ where: { id: { in: [...new Set(ids)] }, ...archivedWhere(model, true) } })) > 0) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  if ((await delegate(model).count({ where: { id: { in: [...new Set(ids)] }, ...archivedWhere(true) } })) > 0) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
 }
 
 /**

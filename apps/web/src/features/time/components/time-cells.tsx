@@ -4,7 +4,7 @@ import { formatDuration, parseDuration } from '@ordo/shared';
 import { useState } from 'react';
 import { EditableDate, EditableMultiSelect, EditablePopoverCell, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
 
-import { localDay, localParts } from '../../../lib/dates';
+import { localDay, localInstant, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
@@ -25,13 +25,13 @@ type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryVa
  * @returns {JSX.Element} Cell.
  */
 export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
-  const start = localParts(new Date(entry.startedAt));
+  const start = localParts(entry.startedAt);
   if (readOnly) return <>{fmt.dayLong(entry.startedAt)}</>;
   return (
     <EditableDate
       value={start.date}
       label="Jour de ce temps"
-      onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: new Date(`${date}T${localParts(new Date(row.startedAt)).time}`).toISOString() }))}
+      onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: localInstant(date, localParts(row.startedAt).time).toISOString() }))}
     />
   );
 }
@@ -42,13 +42,13 @@ export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readO
  * @returns {JSX.Element} Cell.
  */
 export function TimeStartCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
-  const start = localParts(new Date(entry.startedAt));
+  const start = localParts(entry.startedAt);
   if (readOnly) return <>{start.time}</>;
   return (
     <EditableTime
       label="Heure de début de ce temps"
       value={start.time}
-      onSave={(time) => time && save(entry, (row) => ({ startedAt: new Date(`${localParts(new Date(row.startedAt)).date}T${time}`).toISOString() }))}
+      onSave={(time) => time && save(entry, (row) => ({ startedAt: localInstant(localParts(row.startedAt).date, time).toISOString() }))}
     />
   );
 }
@@ -129,7 +129,7 @@ export function TimeTasksCell({ entry, context, readOnly, save }: { entry: TimeE
  */
 export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
   const [opened, setOpened] = useState(false);
-  const day = localDay(new Date(entry.startedAt));
+  const day = localDay(entry.startedAt);
   const { data: events } = useCalendarEvents(opened ? { from: day, to: day } : null);
   const current = entryEventKey(entry);
   const options = dayEventOptions(events ?? [], day);

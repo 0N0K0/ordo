@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { isUnderOrSelf } from '@ordo/shared';
 import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
 import { Select, Stack, Text, Textarea } from '@mantine/core';
@@ -7,7 +8,6 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -101,7 +101,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
         onSubmit={() =>
           recordCount.mutate(
             { locationId, note: note || null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
-            { onSuccess: () => (notifySuccess(`Inventaire enregistré (${countOf(counts.size, 'article')}).`), onDone()), onError: onMutationError },
+            formCallbacks(null, `Inventaire enregistré (${countOf(counts.size, 'article')}).`, onDone),
           )
         }
       />

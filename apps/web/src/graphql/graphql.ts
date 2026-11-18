@@ -226,7 +226,6 @@ export type CalendarLinkInput = {
 };
 
 export type CatalogItemInput = {
-  archived: boolean;
   description?: string | null | undefined;
   /** ITEM or DISBURSEMENT. */
   kind: AccountingLineKind;
@@ -1079,7 +1078,6 @@ export type TravelMode =
   | 'FOOT';
 
 export type TreasuryAccountInput = {
-  archived: boolean;
   name: string;
   openingBalance: number;
   openingDate: string;
@@ -1120,7 +1118,6 @@ export type TreasuryContextPeriodInput = {
 };
 
 export type TreasuryCounterpartyInput = {
-  archived: boolean;
   name: string;
   note?: string | null | undefined;
 };
@@ -1234,6 +1231,60 @@ export type WorkspaceInput = {
 export type WorkspaceKind =
   | 'PERSO'
   | 'PRO';
+
+export type TaskViewsQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+  kind?: ViewKind | null | undefined;
+  tableKey?: string | null | undefined;
+}>;
+
+
+export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
+
+export type CreateTaskViewMutationVariables = Exact<{
+  input: TaskViewInput;
+}>;
+
+
+export type CreateTaskViewMutation = { createTaskView: { id: string } };
+
+export type UpdateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  input: TaskViewUpdateInput;
+}>;
+
+
+export type UpdateTaskViewMutation = { updateTaskView: { id: string } };
+
+export type DuplicateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+}>;
+
+
+export type DuplicateTaskViewMutation = { duplicateTaskView: { id: string } };
+
+export type DeleteTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskViewMutation = { deleteTaskView: boolean };
+
+export type SetDefaultTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type SetDefaultTaskViewMutation = { setDefaultTaskView: boolean };
+
+export type MoveTaskViewMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskViewMutation = { moveTaskView: boolean };
 
 export type SetSettingsItemLookMutationVariables = Exact<{
   kind: SettingsListKind;
@@ -1876,13 +1927,20 @@ export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never
 
 export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeName: string | null, typeId: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceName: string }> };
 
-export type SaveScheduleTypeMutationVariables = Exact<{
-  id?: string | number | null | undefined;
+export type CreateScheduleTypeMutationVariables = Exact<{
   input: ScheduleTypeInput;
 }>;
 
 
-export type SaveScheduleTypeMutation = { saveScheduleType: string };
+export type CreateScheduleTypeMutation = { createScheduleType: { id: string } };
+
+export type UpdateScheduleTypeMutationVariables = Exact<{
+  id: string | number;
+  input: ScheduleTypeInput;
+}>;
+
+
+export type UpdateScheduleTypeMutation = { updateScheduleType: { id: string } };
 
 export type DeleteScheduleTypeMutationVariables = Exact<{
   id: string | number;
@@ -2684,21 +2742,19 @@ export type DeleteMailFolderMutationVariables = Exact<{
 export type DeleteMailFolderMutation = { deleteMailFolder: boolean };
 
 export type CreateMailLabelMutationVariables = Exact<{
-  name: string;
-  color: string;
+  input: NameColorInput;
 }>;
 
 
-export type CreateMailLabelMutation = { createMailLabel: string };
+export type CreateMailLabelMutation = { createMailLabel: { id: string } };
 
 export type UpdateMailLabelMutationVariables = Exact<{
   id: string | number;
-  name: string;
-  color: string;
+  input: NameColorPatch;
 }>;
 
 
-export type UpdateMailLabelMutation = { updateMailLabel: boolean };
+export type UpdateMailLabelMutation = { updateMailLabel: { id: string } };
 
 export type DeleteMailLabelMutationVariables = Exact<{
   id: string | number;
@@ -3068,7 +3124,7 @@ export type CreateSheetCategoryMutationVariables = Exact<{
 }>;
 
 
-export type CreateSheetCategoryMutation = { createSheetCategory: string };
+export type CreateSheetCategoryMutation = { createSheetCategory: { id: string } };
 
 export type UpdateSheetCategoryMutationVariables = Exact<{
   id: string | number;
@@ -3076,7 +3132,7 @@ export type UpdateSheetCategoryMutationVariables = Exact<{
 }>;
 
 
-export type UpdateSheetCategoryMutation = { updateSheetCategory: boolean };
+export type UpdateSheetCategoryMutation = { updateSheetCategory: { id: string } };
 
 export type DeleteSheetCategoryMutationVariables = Exact<{
   id: string | number;
@@ -3221,7 +3277,7 @@ export type CreateShoppingUnitMutationVariables = Exact<{
 }>;
 
 
-export type CreateShoppingUnitMutation = { createShoppingUnit: string };
+export type CreateShoppingUnitMutation = { createShoppingUnit: { id: string } };
 
 export type UpdateShoppingUnitMutationVariables = Exact<{
   id: string | number;
@@ -3229,7 +3285,7 @@ export type UpdateShoppingUnitMutationVariables = Exact<{
 }>;
 
 
-export type UpdateShoppingUnitMutation = { updateShoppingUnit: boolean };
+export type UpdateShoppingUnitMutation = { updateShoppingUnit: { id: string } };
 
 export type DeleteShoppingUnitMutationVariables = Exact<{
   id: string | number;
@@ -3251,7 +3307,7 @@ export type CreateShoppingStorageMutationVariables = Exact<{
 }>;
 
 
-export type CreateShoppingStorageMutation = { createShoppingStorage: string };
+export type CreateShoppingStorageMutation = { createShoppingStorage: { id: string } };
 
 export type UpdateShoppingStorageMutationVariables = Exact<{
   id: string | number;
@@ -3259,7 +3315,7 @@ export type UpdateShoppingStorageMutationVariables = Exact<{
 }>;
 
 
-export type UpdateShoppingStorageMutation = { updateShoppingStorage: boolean };
+export type UpdateShoppingStorageMutation = { updateShoppingStorage: { id: string } };
 
 export type DeleteShoppingStorageMutationVariables = Exact<{
   id: string | number;
@@ -3280,7 +3336,7 @@ export type CreateShoppingStoreMutationVariables = Exact<{
 }>;
 
 
-export type CreateShoppingStoreMutation = { createShoppingStore: string };
+export type CreateShoppingStoreMutation = { createShoppingStore: { id: string } };
 
 export type UpdateShoppingStoreMutationVariables = Exact<{
   id: string | number;
@@ -3288,7 +3344,7 @@ export type UpdateShoppingStoreMutationVariables = Exact<{
 }>;
 
 
-export type UpdateShoppingStoreMutation = { updateShoppingStore: boolean };
+export type UpdateShoppingStoreMutation = { updateShoppingStore: { id: string } };
 
 export type DeleteShoppingStoreMutationVariables = Exact<{
   id: string | number;
@@ -3857,60 +3913,6 @@ export type SetTasksClosedMutationVariables = Exact<{
 
 
 export type SetTasksClosedMutation = { setTasksClosed: boolean };
-
-export type TaskViewsQueryVariables = Exact<{
-  projectId?: string | number | null | undefined;
-  kind?: ViewKind | null | undefined;
-  tableKey?: string | null | undefined;
-}>;
-
-
-export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
-
-export type CreateTaskViewMutationVariables = Exact<{
-  input: TaskViewInput;
-}>;
-
-
-export type CreateTaskViewMutation = { createTaskView: { id: string } };
-
-export type UpdateTaskViewMutationVariables = Exact<{
-  id: string | number;
-  input: TaskViewUpdateInput;
-}>;
-
-
-export type UpdateTaskViewMutation = { updateTaskView: { id: string } };
-
-export type DuplicateTaskViewMutationVariables = Exact<{
-  id: string | number;
-  name: string;
-}>;
-
-
-export type DuplicateTaskViewMutation = { duplicateTaskView: { id: string } };
-
-export type DeleteTaskViewMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteTaskViewMutation = { deleteTaskView: boolean };
-
-export type SetDefaultTaskViewMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type SetDefaultTaskViewMutation = { setDefaultTaskView: boolean };
-
-export type MoveTaskViewMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskViewMutation = { moveTaskView: boolean };
 
 export type BulkUpdateTasksMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
@@ -5282,6 +5284,53 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   position
   iconUrl
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const TaskViewsDocument = new TypedDocumentString(`
+    query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
+  taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
+    id
+    name
+    config
+    isDefault
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
+export const CreateTaskViewDocument = new TypedDocumentString(`
+    mutation CreateTaskView($input: TaskViewInput!) {
+  createTaskView(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskViewMutation, CreateTaskViewMutationVariables>;
+export const UpdateTaskViewDocument = new TypedDocumentString(`
+    mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
+  updateTaskView(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskViewMutation, UpdateTaskViewMutationVariables>;
+export const DuplicateTaskViewDocument = new TypedDocumentString(`
+    mutation DuplicateTaskView($id: ID!, $name: String!) {
+  duplicateTaskView(id: $id, name: $name) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DuplicateTaskViewMutation, DuplicateTaskViewMutationVariables>;
+export const DeleteTaskViewDocument = new TypedDocumentString(`
+    mutation DeleteTaskView($id: ID!) {
+  deleteTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskViewMutation, DeleteTaskViewMutationVariables>;
+export const SetDefaultTaskViewDocument = new TypedDocumentString(`
+    mutation SetDefaultTaskView($id: ID!) {
+  setDefaultTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<SetDefaultTaskViewMutation, SetDefaultTaskViewMutationVariables>;
+export const MoveTaskViewDocument = new TypedDocumentString(`
+    mutation MoveTaskView($id: ID!, $index: Int!) {
+  moveTaskView(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
 export const SetSettingsItemLookDocument = new TypedDocumentString(`
     mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {
   setSettingsItemLook(kind: $kind, id: $id, input: $input)
@@ -6220,11 +6269,20 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SubscribedWorkSchedulesQuery, SubscribedWorkSchedulesQueryVariables>;
-export const SaveScheduleTypeDocument = new TypedDocumentString(`
-    mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
-  saveScheduleType(id: $id, input: $input)
+export const CreateScheduleTypeDocument = new TypedDocumentString(`
+    mutation CreateScheduleType($input: ScheduleTypeInput!) {
+  createScheduleType(input: $input) {
+    id
+  }
 }
-    `) as unknown as TypedDocumentString<SaveScheduleTypeMutation, SaveScheduleTypeMutationVariables>;
+    `) as unknown as TypedDocumentString<CreateScheduleTypeMutation, CreateScheduleTypeMutationVariables>;
+export const UpdateScheduleTypeDocument = new TypedDocumentString(`
+    mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {
+  updateScheduleType(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateScheduleTypeMutation, UpdateScheduleTypeMutationVariables>;
 export const DeleteScheduleTypeDocument = new TypedDocumentString(`
     mutation DeleteScheduleType($id: ID!) {
   deleteScheduleType(id: $id)
@@ -7250,13 +7308,17 @@ export const DeleteMailFolderDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteMailFolderMutation, DeleteMailFolderMutationVariables>;
 export const CreateMailLabelDocument = new TypedDocumentString(`
-    mutation CreateMailLabel($name: String!, $color: String!) {
-  createMailLabel(name: $name, color: $color)
+    mutation CreateMailLabel($input: NameColorInput!) {
+  createMailLabel(input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<CreateMailLabelMutation, CreateMailLabelMutationVariables>;
 export const UpdateMailLabelDocument = new TypedDocumentString(`
-    mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {
-  updateMailLabel(id: $id, name: $name, color: $color)
+    mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {
+  updateMailLabel(id: $id, input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<UpdateMailLabelMutation, UpdateMailLabelMutationVariables>;
 export const DeleteMailLabelDocument = new TypedDocumentString(`
@@ -7748,12 +7810,16 @@ export const UseSheetDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<UseSheetMutation, UseSheetMutationVariables>;
 export const CreateSheetCategoryDocument = new TypedDocumentString(`
     mutation CreateSheetCategory($input: NameColorInput!) {
-  createSheetCategory(input: $input)
+  createSheetCategory(input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<CreateSheetCategoryMutation, CreateSheetCategoryMutationVariables>;
 export const UpdateSheetCategoryDocument = new TypedDocumentString(`
     mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {
-  updateSheetCategory(id: $id, input: $input)
+  updateSheetCategory(id: $id, input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<UpdateSheetCategoryMutation, UpdateSheetCategoryMutationVariables>;
 export const DeleteSheetCategoryDocument = new TypedDocumentString(`
@@ -7982,12 +8048,16 @@ export const MoveShoppingCategoryDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<MoveShoppingCategoryMutation, MoveShoppingCategoryMutationVariables>;
 export const CreateShoppingUnitDocument = new TypedDocumentString(`
     mutation CreateShoppingUnit($input: NameColorInput!) {
-  createShoppingUnit(input: $input)
+  createShoppingUnit(input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<CreateShoppingUnitMutation, CreateShoppingUnitMutationVariables>;
 export const UpdateShoppingUnitDocument = new TypedDocumentString(`
     mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {
-  updateShoppingUnit(id: $id, input: $input)
+  updateShoppingUnit(id: $id, input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<UpdateShoppingUnitMutation, UpdateShoppingUnitMutationVariables>;
 export const DeleteShoppingUnitDocument = new TypedDocumentString(`
@@ -8002,12 +8072,16 @@ export const MoveShoppingProductsDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<MoveShoppingProductsMutation, MoveShoppingProductsMutationVariables>;
 export const CreateShoppingStorageDocument = new TypedDocumentString(`
     mutation CreateShoppingStorage($input: NameColorInput!) {
-  createShoppingStorage(input: $input)
+  createShoppingStorage(input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<CreateShoppingStorageMutation, CreateShoppingStorageMutationVariables>;
 export const UpdateShoppingStorageDocument = new TypedDocumentString(`
     mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {
-  updateShoppingStorage(id: $id, input: $input)
+  updateShoppingStorage(id: $id, input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<UpdateShoppingStorageMutation, UpdateShoppingStorageMutationVariables>;
 export const DeleteShoppingStorageDocument = new TypedDocumentString(`
@@ -8022,12 +8096,16 @@ export const DuplicateShoppingItemDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<DuplicateShoppingItemMutation, DuplicateShoppingItemMutationVariables>;
 export const CreateShoppingStoreDocument = new TypedDocumentString(`
     mutation CreateShoppingStore($input: NameColorInput!) {
-  createShoppingStore(input: $input)
+  createShoppingStore(input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<CreateShoppingStoreMutation, CreateShoppingStoreMutationVariables>;
 export const UpdateShoppingStoreDocument = new TypedDocumentString(`
     mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {
-  updateShoppingStore(id: $id, input: $input)
+  updateShoppingStore(id: $id, input: $input) {
+    id
+  }
 }
     `) as unknown as TypedDocumentString<UpdateShoppingStoreMutation, UpdateShoppingStoreMutationVariables>;
 export const DeleteShoppingStoreDocument = new TypedDocumentString(`
@@ -8724,53 +8802,6 @@ export const SetTasksClosedDocument = new TypedDocumentString(`
   setTasksClosed(ids: $ids, closed: $closed)
 }
     `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
-export const TaskViewsDocument = new TypedDocumentString(`
-    query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
-  taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
-    id
-    name
-    config
-    isDefault
-    position
-  }
-}
-    `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
-export const CreateTaskViewDocument = new TypedDocumentString(`
-    mutation CreateTaskView($input: TaskViewInput!) {
-  createTaskView(input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateTaskViewMutation, CreateTaskViewMutationVariables>;
-export const UpdateTaskViewDocument = new TypedDocumentString(`
-    mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
-  updateTaskView(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateTaskViewMutation, UpdateTaskViewMutationVariables>;
-export const DuplicateTaskViewDocument = new TypedDocumentString(`
-    mutation DuplicateTaskView($id: ID!, $name: String!) {
-  duplicateTaskView(id: $id, name: $name) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<DuplicateTaskViewMutation, DuplicateTaskViewMutationVariables>;
-export const DeleteTaskViewDocument = new TypedDocumentString(`
-    mutation DeleteTaskView($id: ID!) {
-  deleteTaskView(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteTaskViewMutation, DeleteTaskViewMutationVariables>;
-export const SetDefaultTaskViewDocument = new TypedDocumentString(`
-    mutation SetDefaultTaskView($id: ID!) {
-  setDefaultTaskView(id: $id)
-}
-    `) as unknown as TypedDocumentString<SetDefaultTaskViewMutation, SetDefaultTaskViewMutationVariables>;
-export const MoveTaskViewDocument = new TypedDocumentString(`
-    mutation MoveTaskView($id: ID!, $index: Int!) {
-  moveTaskView(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
 export const BulkUpdateTasksDocument = new TypedDocumentString(`
     mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {
   bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)

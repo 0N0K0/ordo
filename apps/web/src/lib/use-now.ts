@@ -15,18 +15,17 @@ export function useNow(active: boolean, everyMs = 1000): number {
     let timer = 0;
     /**
      * Waits for the next change of the interval on the clock, then for each one after.
+     * @param {number} [delay] Wait before the next refresh, in ms. Optional. Default = until the next change of the interval.
      * @returns {void}
      */
-    const schedule = () => {
-      timer = window.setTimeout(
-        () => {
-          setNow(Date.now());
-          schedule();
-        },
-        everyMs - (Date.now() % everyMs) + 50,
-      );
+    const schedule = (delay = everyMs - (Date.now() % everyMs) + 50) => {
+      timer = window.setTimeout(() => {
+        setNow(Date.now());
+        schedule();
+      }, delay);
     };
-    schedule();
+    // Refreshed at once: the time kept while frozen (since the mount) is old.
+    schedule(0);
     return () => window.clearTimeout(timer);
   }, [active, everyMs]);
   return now;

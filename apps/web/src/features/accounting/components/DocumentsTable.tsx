@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -13,7 +14,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { openImportForm } from '../lib/imported-form';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
@@ -31,12 +32,12 @@ import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
 import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { useSetArchived } from '../../../lib/archive';
-import { archiveEntry } from '../lib/archive-entry';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -53,13 +54,6 @@ const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
  * @returns {string} Text.
  */
 const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
-
-/**
- * Month of a date, in words.
- * @param {string | null | undefined} date YYYY-MM-DD.
- * @returns {string} "Août 2026", empty without date.
- */
-const monthText = (date: string | null | undefined) => (date ? fmt.capitalize(fmt.month(date.slice(0, 7))) : '');
 
 /**
  * Columns of the documents (type and client only where they vary).
@@ -90,16 +84,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       text: (row) => fmt.day(row.document.issueDate),
       filter: { kind: 'date', value: (row) => row.document.issueDate },
     },
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 140,
-      hiddenByDefault: true,
-      sortValue: (row) => row.document.issueDate.slice(0, 7),
-      text: (row) => monthText(row.document.issueDate),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', (row) => row.document.issueDate, 140),
     {
       id: 'dueDate',
       label: 'Échéance',
@@ -109,16 +94,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       text: (row) => (row.document.dueDate ? fmt.day(row.document.dueDate) : ''),
       filter: { kind: 'date', value: (row) => row.document.dueDate ?? null },
     },
-    {
-      id: 'dueMonth',
-      label: 'Mois d’échéance',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: (row) => row.document.dueDate?.slice(0, 7) ?? null,
-      text: (row) => monthText(row.document.dueDate),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('dueMonth', 'Mois d’échéance', (row) => row.document.dueDate),
     {
       id: 'client',
       label: 'Client',
@@ -290,13 +266,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
           onClick: () =>
             duplicate.mutate(
               { id: document.id, issueDate: localToday() },
-              {
-                onSuccess: (id) => {
-                  notifySuccess('Document dupliqué en brouillon.');
-                  onDuplicated(id);
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Document dupliqué en brouillon.', (id) => onDuplicated(id)),
             ),
         },
         // A final document downloads its PDF; drafts have none yet.
@@ -339,7 +309,6 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const tracking = useTrackingMutations();
   const archiveOrdo = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   const archiveImported = useSetArchived('IMPORTED_DOCUMENT', [accountingQueryKey]);
-  const onError = { onError: onMutationError };
   const ordoComments = useCommentCounts(
     'DOCUMENT',
     documents.map((document) => document.id),
@@ -381,7 +350,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     const kept = targets.filter((row) => !row.document.archived && scopeOf(row.document.type) === scope && (row.kind === 'imported' || row.document.status === 'FINAL'));
     if (!kept.length) return;
     if (status.category !== 'SENT') {
-      for (const row of kept) (row.kind === 'ordo' ? tracking.setStatus : importedMutations.setStatus).mutate({ id: row.document.id, statusId: status.id }, onError);
+      for (const row of kept) (row.kind === 'ordo' ? tracking.setStatus : importedMutations.setStatus).mutate({ id: row.document.id, statusId: status.id }, ON_ERROR);
       return;
     }
     const [first] = kept;
@@ -406,11 +375,11 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   )('tracking');
   // An archived document is read only: left out of the changes of several rows.
   const bulkProject = bulkSaver<Row, string | null>(view, (row, projectId) => {
-    if (!row.document.archived) (row.kind === 'ordo' ? documentMutations.setProject : importedMutations.setProject).mutate({ id: row.document.id, projectId }, onError);
+    if (!row.document.archived) (row.kind === 'ordo' ? documentMutations.setProject : importedMutations.setProject).mutate({ id: row.document.id, projectId }, ON_ERROR);
   })('project');
   // Files join the documents of Ordo (an imported one has its single file).
   const bulkFiles = bulkSaver<Row, File[]>(view, (row, files) => {
-    if (row.kind === 'ordo' && !row.document.archived) documentMutations.addAttachments.mutate({ id: row.document.id, files }, onError);
+    if (row.kind === 'ordo' && !row.document.archived) documentMutations.addAttachments.mutate({ id: row.document.id, files }, ON_ERROR);
   })('attachments');
 
   /**
@@ -421,16 +390,9 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const confirmDelete = (document: ImportedDocument) => {
     confirmDestructive({
       title: 'Supprimer le document importé',
-      risks: (
-        <>
-          <Text size="sm">Le document importé {document.number} et son fichier seront supprimés définitivement d’Ordo. Cette action est irréversible.</Text>
-        </>
-      ),
+      risks: <>Le document importé {document.number} et son fichier seront supprimés définitivement d’Ordo. Cette action est irréversible.</>,
       onConfirm: () => {
-        remove.mutate(document.id, {
-          onSuccess: () => notifySuccess('Document importé supprimé.'),
-          onError: onMutationError,
-        });
+        remove.mutate(document.id, toastCallbacks('Document importé supprimé.'));
       },
     });
   };

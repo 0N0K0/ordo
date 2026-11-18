@@ -1,15 +1,15 @@
+import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { plural } from '../../../lib/text';
 import { Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { ByWorkspace } from '../../../components/settings/ByWorkspace';
+import { ByWorkspace } from './ByWorkspace';
 
-import { DEFAULT_SCHEDULE_DISPLAY, DEFAULT_SCHEDULE_KIND_NAME, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
-import { createdId } from '../../../components/settings/settings-api';
+import { DEFAULT_SCHEDULE_KIND_NAME, readScheduleDisplay } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 
 import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations } from '../api';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
@@ -26,7 +26,6 @@ function DefaultScheduleKind() {
   const { data: defaultKind } = useDefaultScheduleKind();
   const [opened, setOpened] = useState(false);
   if (!defaultKind) return null;
-  const onError = onMutationError;
   return (
     <SettingsSection title="Plages sans type">
       <Stack gap="xs">
@@ -38,7 +37,7 @@ function DefaultScheduleKind() {
             placeholder="Vert"
             aria-label="Couleur des plages sans type"
             defaultValue={defaultKind.color ?? ''}
-            onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, { onError })}
+            onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
           />
           <TextInput
             key={defaultKind.name}
@@ -54,13 +53,13 @@ function DefaultScheduleKind() {
               </Badge>
             }
             onBlur={(event) =>
-              event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, { onError })
+              event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, ON_ERROR)
             }
           />
           <LookToggle label="Affichage dans l’agenda" ariaLabel="Affichage des plages sans type" opened={opened} onToggle={() => setOpened(!opened)} />
         </Group>
         <LookPanel opened={opened}>
-          <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, { onError })} />
+          <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, ON_ERROR)} />
         </LookPanel>
       </Stack>
     </SettingsSection>
@@ -74,27 +73,15 @@ function DefaultScheduleKind() {
  */
 function ScheduleTypes() {
   const { data: types } = useScheduleTypes();
-  const { saveType, removeType } = useWorkScheduleMutations();
-  /**
-   * Input of a kind from the form values.
-   * @param {{ name: string, color: string } & ScheduleDisplay} values Values.
-   * @returns {{ name: string, color: string } & ScheduleDisplay} Input.
-   */
-  const input = (values: { name: string; color: string } & ScheduleDisplay) => ({ name: values.name, color: values.color, ...readScheduleDisplay(values) });
+  const { removeType } = useWorkScheduleMutations();
+  const kind = useScheduleTypeItems();
   return (
-    <SettingsList<NonNullable<typeof types>[number], ScheduleDisplay>
-      kind="SCHEDULE_TYPE"
+    <SettingsList
+      {...kind}
       title="Types de plages"
       description="Pour distinguer vos plages (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda."
       noun="le type"
       items={types ?? []}
-      schema={labelFormSchema}
-      extra={{
-        initial: (type) => (type ? readScheduleDisplay(type) : DEFAULT_SCHEDULE_DISPLAY),
-        render: (form) => <ScheduleLookEditor name={form.getValues().name} value={form.getValues()} onChange={(display) => form.setValues(display)} />,
-      }}
-      create={async (values) => createdId(await saveType.mutateAsync({ id: null, input: input(values) }))}
-      update={(id, values) => saveType.mutateAsync({ id, input: input(values) })}
       remove={(id) => removeType.mutateAsync(id)}
       deleteMessage={(type) => <>Le type « {type.name} » sera supprimé ; ses plages restent, sans type. Cette action est irréversible.</>}
     />
@@ -112,7 +99,6 @@ function ForeignSchedules() {
   const { subscribe, unsubscribe, setLook } = useWorkScheduleMutations();
   const [opened, setOpened] = useState<string | null>(null);
   if (!kinds?.length) return null;
-  const onError = onMutationError;
   return (
     <SettingsSection
       title="Plages des autres espaces"
@@ -131,7 +117,7 @@ function ForeignSchedules() {
                 workspaceName={kind.workspaceName}
                 hint={`${kind.scheduleCount} ${plural(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
                 subscribed={kind.subscribed}
-                onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, { onError })}
+                onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
                 actions={
                   kind.subscribed && (
                     <LookToggle
@@ -156,17 +142,17 @@ function ForeignSchedules() {
                       placeholder="Vert"
                       aria-label={`Couleur de ${kind.name} dans cet agenda`}
                       defaultValue={kind.color ?? ''}
-                      onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
+                      onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
                     />
                   </Group>
-                  <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
+                  <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />
                   {kind.customized && (
                     <div>
                       <Button
                         size="compact-xs"
                         variant="subtle"
                         leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-                        onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
+                        onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, ON_ERROR)}
                       >
                         Reprendre ceux du type
                       </Button>

@@ -1,3 +1,4 @@
+import { itemOptions } from '../../../components/items/item-look';
 import { unarchived } from '../../../lib/archive';
 import { useCalendars, useScheduleTypes, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
 
@@ -21,7 +22,7 @@ export function useAgendaLayerOptions() {
       ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}` })),
     ],
     calendars: [
-      ...unarchived(calendars?.calendars ?? []).map((calendar) => ({ value: calendar.id, label: calendar.name, color: calendar.color ?? 'gray', iconUrl: calendar.iconUrl })),
+      ...itemOptions(calendars?.calendars ?? []),
       ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.name} · ${subscription.workspace.name}` })),
     ],
   };

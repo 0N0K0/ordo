@@ -1,6 +1,6 @@
 import { Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import type { ReferenceTargets } from '../../../components/markdown/remark-references';
 

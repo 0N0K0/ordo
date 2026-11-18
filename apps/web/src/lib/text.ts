@@ -1,4 +1,4 @@
-export { collator, normalize } from '@ordo/shared';
+export { collator, copyName, normalize } from '@ordo/shared';
 
 /**
  * A word in the plural beyond one (« tâches »), in the singular for one or none (« tâche »), as French counts.
@@ -23,12 +23,11 @@ export function countOf(count: number, word: string, many?: string): string {
 }
 
 /**
- * Name of a copy: « Nom (copie) », cut to a length when there is one.
- * @param {string} name Name of the original.
- * @param {number} [max] Longest name. Optional.
- * @returns {string} Name of the copy.
+ * A text cut to a length, an ellipsis replacing its end: « rapport-annuel-2026-ver… ».
+ * @param {string} text Text.
+ * @param {number} max Most characters kept, the ellipsis included.
+ * @returns {string} Text, whole when short enough.
  */
-export function copyName(name: string, max?: number): string {
-  const copy = `${name} (copie)`;
-  return max === undefined ? copy : copy.slice(0, max);
+export function ellipsis(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }

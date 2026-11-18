@@ -813,7 +813,7 @@ export function DataTable<R>({
                   const id = header.column.id;
                   if (id === LEAD_COLUMN) {
                     return (
-                      <Table.Th key={header.id} px={4} style={{ width: header.column.getSize() }}>
+                      <Table.Th key={header.id} px={4} style={{ width: header.column.getSize() }} data-reveal-host>
                         <Group gap={2} wrap="nowrap">
                           {(rowDrag || tree) && <span className={classes.handleSpacer} />}
                           {checks && <AllRowsCheck selection={checks} />}
@@ -849,7 +849,7 @@ export function DataTable<R>({
                         ) : (
                           <span className={classes.label}>{column.label}</span>
                         )}
-                        <span className={classes.headerMenu}>
+                        <span className={classes.headerMenu} data-reveal>
                           <ColumnHeaderMenu
                             label={column.label}
                             sort={sortable ? (sort ?? null) : undefined}
@@ -948,6 +948,7 @@ function HeaderCell({ id, width, numeric, sort, children }: HeaderCellProps) {
       ref={setNodeRef}
       style={{ width, transform: CSS.Translate.toString(transform), transition }}
       className={classes.header}
+      data-reveal-host
       data-dragging={isDragging || undefined}
       data-numeric={numeric || undefined}
       aria-sort={sort ? (sort.desc ? 'descending' : 'ascending') : undefined}
@@ -988,6 +989,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, 
       label="Déplacer la ligne (horizontalement : son niveau)"
       size="sm"
       className={classes.handle}
+      reveal
       activator={setActivatorNodeRef}
       attributes={attributes}
       listeners={listeners}
@@ -1005,6 +1007,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, 
         attrs.ref(element);
       }}
       className={[classes.row, className].filter(Boolean).join(' ')}
+      data-reveal-host
       // Vertical only: the level being chosen shows through the indentation.
       style={{ ...(typeof style === 'object' ? style : {}), transform: CSS.Translate.toString(transform && { ...transform, x: 0 }), transition }}
       data-active={active || undefined}

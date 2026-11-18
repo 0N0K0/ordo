@@ -139,9 +139,19 @@ const SubscribedSchedulesDocument = graphql(`
   }
 `);
 
-const SaveScheduleTypeDocument = graphql(`
-  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
-    saveScheduleType(id: $id, input: $input)
+const CreateScheduleTypeDocument = graphql(`
+  mutation CreateScheduleType($input: ScheduleTypeInput!) {
+    createScheduleType(input: $input) {
+      id
+    }
+  }
+`);
+
+const UpdateScheduleTypeDocument = graphql(`
+  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {
+    updateScheduleType(id: $id, input: $input) {
+      id
+    }
   }
 `);
 
@@ -593,7 +603,8 @@ export function useWorkScheduleMutations() {
     create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
-    saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
+    createType: useCalendarMutation(async (input: { name: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
+    updateType: useCalendarMutation(async (variables: { id: string; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType),
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
     subscribe: useCalendarMutation(
       async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,

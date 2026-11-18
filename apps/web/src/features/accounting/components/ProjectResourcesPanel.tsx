@@ -1,18 +1,20 @@
+import { moveEntries } from '../../../components/actions/move-entries';
 import { SectionHeader } from '../../../components/page/SectionHeader';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import { FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import * as fmt from '../../../lib/format';
 
 /**
  * Icon of a link, from its site.
@@ -82,12 +84,10 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (resource: ProjectResource) => {
     confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
 <>
-<Text size="sm">
             {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
             irréversible.
-          </Text>
-</>
-), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: onMutationError }); } });
+          </>
+), onConfirm: () => { remove.mutate(resource.id, toastCallbacks('Ressource supprimée.')); } });
   };
 
   return (
@@ -99,7 +99,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
           <FileButton
             multiple
             onChange={(files) =>
-              files.length && addFiles.mutate({ projectId, files }, { onSuccess: () => notifySuccess('Fichiers ajoutés.'), onError: onMutationError })
+              files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))
             }
           >
             {(props) => (
@@ -134,15 +134,14 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                       </Anchor>
                     )}
                     <Text size="xs" c="dimmed" truncate>
-                      {resource.note ?? (resource.kind === 'LINK' ? resource.url : resource.size ? `${Math.max(1, Math.round(resource.size / 1024))} Ko` : '')}
+                      {resource.note ?? (resource.kind === 'LINK' ? resource.url : resource.size ? fmt.fileSize(resource.size) : '')}
                     </Text>
                   </Stack>
                 </Group>
                 <InlineActions
                   name={resource.title}
                   items={[
-                    { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: resource.id, index: index - 1 }) },
-                    { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === resources.length - 1, onClick: () => move.mutate({ id: resource.id, index: index + 1 }) },
+                    ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to })),
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(resource) },
                     { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(resource) },
                   ]}

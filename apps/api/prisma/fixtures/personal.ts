@@ -317,7 +317,7 @@ export async function seedPersonal({
   const out = (name: string) => categoryIds.get(`OUT:${name}`) ?? null;
   const card = (await createPaymentMethod({ name: 'Carte', incoming: false, outgoing: true })).id;
   const transfer = (await createPaymentMethod({ name: 'Virement', incoming: true, outgoing: true })).id;
-  const landlord = (await createCounterparty({ name: 'Régie Lyon Centre', note: null, archived: false })).id;
+  const landlord = (await createCounterparty({ name: 'Régie Lyon Centre', note: null })).id;
   const holidaysContext = (await saveContext(null, { name: 'Vacances', color: '#fab005' })).id;
   await saveContextPeriod(null, { contextId: holidaysContext, startDate: day(30), endDate: day(44), note: 'Gîte en Ardèche' });
   const entry = {

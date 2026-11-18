@@ -7,7 +7,7 @@ import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, 
 import classes from './CategoryTree.module.css';
 import { pointerPlace, treeCollision, useFolded } from './tree-dnd';
 import { useDragSensors } from '../../lib/drag';
-import treeRow from './TreeRow.module.css';
+import treeRow from './tree-drop.module.css';
 import { DragHandle } from '../actions/DragHandle';
 
 interface CategoryRowProps<C extends TreeCategory> {
@@ -51,7 +51,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
           {!nested ? null : folded !== undefined ? (
-            <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`${folded ? 'Déplier' : 'Replier'} ${path}`} aria-expanded={!folded} onClick={onToggle}>
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${path}`} aria-expanded={!folded} onClick={onToggle}>
               {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
             </ActionIcon>
           ) : (

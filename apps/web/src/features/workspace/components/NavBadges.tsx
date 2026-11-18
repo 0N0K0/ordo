@@ -1,3 +1,4 @@
+import { CountBadge } from '../../../components/feedback/CountBadge';
 import { Badge } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
@@ -17,11 +18,15 @@ import * as fmt from '../../../lib/format';
 export function TasksNavBadge() {
   const { context } = useTaskContext();
   const { tasks, overdue } = useMyTodayTasks(context, localToday());
-  if (!tasks?.length) return null;
+  if (!tasks) return null;
   return (
-    <Badge size="sm" variant={overdue ? 'filled' : 'light'} color={overdue ? 'red' : 'blue'} aria-label={`${tasks.length} tâches aujourd’hui${overdue ? `, dont ${overdue} en retard` : ''}`}>
-      {tasks.length}
-    </Badge>
+    <CountBadge
+      count={tasks.length}
+      size="sm"
+      variant={overdue ? 'filled' : 'light'}
+      color={overdue ? 'red' : 'blue'}
+      label={`${tasks.length} tâches aujourd’hui${overdue ? `, dont ${overdue} en retard` : ''}`}
+    />
   );
 }
 
@@ -32,12 +37,8 @@ export function TasksNavBadge() {
 export function AgendaNavBadge() {
   const today = localToday();
   const { data: events } = useCalendarEvents({ from: today, to: today });
-  if (!events?.length) return null;
-  return (
-    <Badge size="sm" variant="light" aria-label={`${events.length} évènements aujourd’hui`}>
-      {events.length}
-    </Badge>
-  );
+  if (!events) return null;
+  return <CountBadge count={events.length} size="sm" variant="light" label={`${events.length} évènements aujourd’hui`} />;
 }
 
 /**

@@ -1,14 +1,12 @@
-import { ActionIcon, Group, Popover, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { Group, Popover, Text, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { entrySeconds, formatClock } from '@ordo/shared';
-import { PauseIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
-import { onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimer, useTimeMutations, type TimeEntry } from '../api';
+import { useRunningTimer, type TimeEntry } from '../api';
 import { RunningTimer } from './TimerCard';
 import classes from './TimerWidget.module.css';
 import { useNow } from '../../../lib/use-now';
-import { useStopTimer } from '../hooks/use-stop-timer';
+import { TimerControls } from './TimerControls';
 
 /**
  * Header controls of the running timer: project and clock (opening the details), pause / resume, stop.
@@ -17,8 +15,6 @@ import { useStopTimer } from '../hooks/use-stop-timer';
  */
 function RunningControls({ entry }: { entry: TimeEntry }) {
   const { context } = useTaskContext();
-  const { setPaused } = useTimeMutations();
-  const { stopTimer, isPending } = useStopTimer();
   const [opened, { toggle, close }] = useDisclosure(false);
   const paused = entry.pausedAt !== null;
   const now = useNow(!paused);
@@ -40,21 +36,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
         </Popover.Target>
         <Popover.Dropdown>{context && <RunningTimer key={entry.id} entry={entry} context={context} popover />}</Popover.Dropdown>
       </Popover>
-      <Tooltip label={paused ? 'Reprendre' : 'Pause'}>
-        <ActionIcon
-          variant="subtle"
-          aria-label={paused ? 'Reprendre le chrono' : 'Mettre le chrono en pause'}
-          loading={setPaused.isPending}
-          onClick={() => setPaused.mutate(!paused, { onError: onMutationError })}
-        >
-          {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Arrêter et enregistrer">
-        <ActionIcon variant="subtle" aria-label="Arrêter le chrono" loading={isPending} onClick={() => stopTimer(entry)}>
-          <StopIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <TimerControls entry={entry} look="header" />
     </Group>
   );
 }

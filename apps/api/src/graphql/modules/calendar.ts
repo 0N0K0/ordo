@@ -7,7 +7,7 @@ import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, labelObject } from '../label-inputs';
+import { NameColorInput, labelMutations, labelObject } from '../label-inputs';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
@@ -458,16 +458,6 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), occurrenceDate: t.arg({ type: 'Date' }), input: t.arg({ type: CalendarEventInput, required: true }) },
     resolve: async (_root, { id, occurrenceDate, input }) => (await events.postponeCalendarEvent(id, occurrenceDate, eventInput(input))).id,
   }),
-  saveScheduleType: t.id({
-    args: { id: t.arg.id(), input: t.arg({ type: ScheduleTypeInput, required: true }) },
-    // Display values are checked by the service.
-    resolve: async (_root, { id, input }) => (await schedules.saveScheduleType(id ?? null, input as never)).id,
-  }),
-  deleteScheduleType: t.boolean({
-    description: 'Deletes a kind of time slots (its schedules stay, without kind).',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(schedules.deleteScheduleType(id)),
-  }),
   subscribeScheduleKind: t.boolean({
     description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.',
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
@@ -513,3 +503,6 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id, scope, occurrenceDate }) => done(events.deleteCalendarEvent(id, scope, occurrenceDate)),
   }),
 }));
+
+// Display values are checked by the service.
+labelMutations('ScheduleType', schedules.scheduleTypes, { create: ScheduleTypeInput, update: ScheduleTypeInput }, { delete: 'Deletes a kind of time slots (its schedules stay, without kind).' });

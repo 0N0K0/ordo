@@ -19,7 +19,7 @@ import {
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
 import { scheduleRules, useCalendarEvents, useForeignScheduleKinds, useScheduleSources } from '../api';
-import { localDay } from '../../../lib/dates';
+import { localDay, localInstant } from '../../../lib/dates';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 
@@ -162,9 +162,7 @@ export function useSlotRules(): SlotRules {
         for (let round = 0; round < 20; round++) {
           const moment = nextAllowed(ruleOf(item.slotRule), slots, localDay(at), fmt.time(at));
           if (!moment) return null;
-          const [hours, minutes] = moment.time.split(':').map(Number);
-          const [year, month, day] = moment.date.split('-').map(Number);
-          const candidate = new Date(year, month - 1, day, hours, minutes);
+          const candidate = localInstant(moment.date, moment.time);
           const busy = blockingAt(item, candidate);
           if (!busy) return candidate;
           at = busyUntil(busy);

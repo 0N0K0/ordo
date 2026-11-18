@@ -8,6 +8,7 @@ import './styles/layers.css';
 import './styles/tokens.css';
 import './styles/dialogs.css';
 import './styles/tabs.css';
+import './styles/reveal.css';
 
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';

@@ -1,4 +1,4 @@
-import { ActionsMenu } from '../data-table/cells/RowActions';
+import { ActionsMenu } from '../actions/ActionsMenu';
 import { FormActions } from '../dialogs/FormActions';
 import { Button, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, TrashIcon, ChatCircleTextIcon } from '@phosphor-icons/react';

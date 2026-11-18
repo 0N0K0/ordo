@@ -177,7 +177,6 @@ builder.prismaObject('Task', {
     githubNumber: t.exposeInt('githubNumber', { nullable: true }),
     githubLinked: t.boolean({ description: 'Synchronized with an item of a GitHub board.', resolve: (task) => task.githubItemId !== null }),
     position: t.exposeInt('position'),
-    archived: t.boolean({ resolve: (task) => task.archivedAt !== null }),
     closed: t.boolean({ description: 'Closed (done) task.', resolve: (task) => task.closedAt !== null }),
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

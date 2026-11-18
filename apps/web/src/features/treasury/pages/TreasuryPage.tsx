@@ -1,9 +1,10 @@
+import { formCallbacks } from '../../../lib/form';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
-import { plural, countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -11,13 +12,14 @@ import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skel
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from '../lib/entry-values';
 
-import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -26,7 +28,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import {
   treasuryKey,
   useForecastEntries,
@@ -62,6 +64,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 /**
  * Amount in euros, from currency units.
@@ -92,16 +95,7 @@ const NO_ACCOUNTS: TreasuryAccount[] = [];
  */
 function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefined, env: EntryEnv): DataColumn<ForecastRow>[] {
   return [
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: ({ item }) => item.date.slice(0, 7),
-      text: ({ item }) => fmt.capitalize(fmt.month(item.date.slice(0, 7))),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', ({ item }) => item.date),
     {
       id: 'date',
       label: 'Date d’exécution',
@@ -169,18 +163,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         loading={realize.isPending}
         disabled={!date || amount <= 0}
         onSubmit={() =>
-          date &&
-          item.entryId &&
-          realize.mutate(
-            { id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount },
-            {
-              onSuccess: () => {
-                notifySuccess('Mouvement enregistré.');
-                onDone();
-              },
-              onError: onMutationError,
-            },
-          )
+          date && item.entryId && realize.mutate({ id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount }, formCallbacks(null, 'Mouvement enregistré.', onDone))
         }
       />
     </Stack>
@@ -307,7 +290,6 @@ export function TreasuryPage() {
       // An entry has a table of lines (its split).
       dialog.kind === 'entry' ? 'lg' : 'md',
     );
-  const onError = onMutationError;
 
   if (accountsPending) return <DetailSkeleton />;
 
@@ -361,7 +343,7 @@ export function TreasuryPage() {
     <Stack gap="md">
       {header}
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
-        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
+        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(accounts.filter((account) => !account.archived).length, 'compte')} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <Figure
           label="En retard"
@@ -376,9 +358,9 @@ export function TreasuryPage() {
         />
       </SimpleGrid>
 
-      <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" mb="sm">
-          <Text fw={600}>Évolution du solde</Text>
+      <SettingsSection
+        title="Évolution du solde"
+        actions={
           <Group gap="xs">
             <PeriodNav
               current={periodFirst === calendarStart(scale, today)}
@@ -426,7 +408,8 @@ export function TreasuryPage() {
               }}
             />
           </Group>
-        </Group>
+        }
+      >
         {projectionPending ? (
           <BlockSkeleton height={11} />
         ) : (
@@ -448,7 +431,7 @@ export function TreasuryPage() {
             yAxisProps={{ width: 90 }}
           />
         )}
-      </Paper>
+      </SettingsSection>
 
       <PageTabs
         value={tab}
@@ -606,11 +589,7 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
-              const archiveItem = {
-                label: entry.archived ? 'Restaurer' : 'Archiver',
-                icon: entry.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                onClick: () => void archiveWithUndo(setArchived, { ids: [entry.id], archived: !entry.archived, label: `« ${entry.label} »`, feminine: forecast }),
-              };
+              const archiveItem = archiveEntry({ archived: entry.archived, label: `« ${entry.label} »`, feminine: forecast }, setArchived, entry.id);
               return (
                 <RowActions
                   name={item.label}
@@ -638,12 +617,12 @@ export function TreasuryPage() {
                           ? confirmDestructive({
                               title: 'Supprimer la prévision',
                               risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
+                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Prévision supprimée.')),
                             })
                           : confirmDestructive({
                               title: 'Supprimer le mouvement',
                               risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
+                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
                             }),
                     },
                   ]}

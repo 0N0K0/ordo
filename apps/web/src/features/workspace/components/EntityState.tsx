@@ -1,7 +1,5 @@
 import { BlockSkeleton, TextSkeleton } from '../../../components/feedback/Skeletons';
 import { Group, Skeleton, Stack } from '@mantine/core';
-import { MagnifyingGlassIcon } from '@phosphor-icons/react';
-import { PageMessage } from '../../../components/feedback/PageMessage';
 
 /**
  * Skeleton of a detail page while the workspace loads.
@@ -20,14 +18,4 @@ export function EntitySkeleton() {
       <BlockSkeleton height={5} />
     </Stack>
   );
-}
-
-/**
- * Shown when the client or project of the URL does not exist.
- * @param {object} props Component props.
- * @param {string} props.what Kind of entity ("Ce client", "Ce projet").
- * @returns {JSX.Element} Not found state.
- */
-export function EntityNotFound({ what }: { what: string }) {
-  return <PageMessage icon={<MagnifyingGlassIcon size="55%" aria-hidden />} title="Introuvable" message={`${what} n’existe pas ou a été supprimé.`} />;
 }

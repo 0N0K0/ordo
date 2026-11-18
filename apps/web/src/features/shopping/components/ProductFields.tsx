@@ -3,8 +3,9 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
-import { useShoppingData, useShoppingMutations } from '../api';
+import { useShoppingData } from '../api';
+import { useShoppingCategoryItems, useUnitItems } from '../hooks/use-settings-items';
+import { createSettingsItem, itemCreator } from '../../../components/settings/create-settings-item';
 import { categoriesForBaseList, unitOptions } from '../lib/shopping-format';
 
 interface UnitFieldProps extends Omit<SelectProps, 'data' | 'value' | 'onChange'> {
@@ -23,18 +24,14 @@ interface UnitFieldProps extends Omit<SelectProps, 'data' | 'value' | 'onChange'
  */
 export function UnitField({ value, onChange, current, ...props }: UnitFieldProps) {
   const { data } = useShoppingData();
-  const { createUnit } = useShoppingMutations();
-  const color = useDefaultColor();
+  const units = useUnitItems();
   return (
     <CreatableSelect
       label="Unité"
       description="Tapez une unité absente pour l’ajouter aux paramètres des achats."
       placeholder="Aucune"
       // A unit is kept by its name.
-      onCreate={async (name) => {
-        await createUnit.mutateAsync({ name, color });
-        return name;
-      }}
+      onCreate={async (name) => (await createSettingsItem('Nouvelle unité', units, name))?.name ?? null}
       data={unitOptions(unarchived(data?.shoppingUnits ?? []), current)}
       searchable
       clearable
@@ -62,8 +59,7 @@ interface ShoppingCategoryFieldProps extends Omit<SelectProps, 'data' | 'value' 
  */
 export function ShoppingCategoryField({ value, onChange, current, baseListId, ...props }: ShoppingCategoryFieldProps) {
   const { data } = useShoppingData();
-  const { createCategory } = useShoppingMutations();
-  const color = useDefaultColor();
+  const categoryItems = useShoppingCategoryItems();
   const categories = data?.shoppingCategories ?? [];
   return (
     <CreatableSelect
@@ -71,7 +67,7 @@ export function ShoppingCategoryField({ value, onChange, current, baseListId, ..
       placeholder="Aucune"
       clearable
       searchable
-      onCreate={(name) => createCategory.mutateAsync({ name, color, parentId: null })}
+      onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(categories), initial: baseListId ? { baseListIds: [baseListId] } : undefined })}
       {...treeSelectProps(categoryOptions(baseListId ? categoriesForBaseList(categories, baseListId) : categories, undefined, unarchivedOffered(categories, current)))}
       {...props}
       value={value}

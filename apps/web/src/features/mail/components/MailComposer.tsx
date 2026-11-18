@@ -1,11 +1,12 @@
 import { openModal } from '../../../components/panels/open-modal';
 import { WEEKDAY_LABELS } from '@ordo/shared';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { FileBadge } from '../../../components/items/FileBadge';
 import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RichEditor } from '../../../components/rich-text/RichEditor';
+import { RichEditor } from './RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailAccounts } from '../api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from '../lib/compose-options';
@@ -13,7 +14,6 @@ import { MailBody } from './MailBody';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -398,24 +398,10 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       {(files.length > 0 || (sourceFiles?.files.length ?? 0) > 0) && (
         <Group gap="xs">
           {sourceFiles?.files.map((file) => (
-            <Paper key={`source-${file.index}`} withBorder px="xs" py={2} radius="sm">
-              <Group gap={4} wrap="nowrap">
-                <Text size="xs">
-                  {file.filename} · {fmt.fileSize(file.size)}
-                </Text>
-                <RemoveButton variant="field" size="xs" label="Retirer" aria-label={`Retirer ${file.filename}`} onClick={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })} />
-              </Group>
-            </Paper>
+            <FileBadge key={`source-${file.index}`} name={file.filename} size={file.size} onRemove={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })} />
           ))}
           {files.map((file, index) => (
-            <Paper key={`${file.name}-${index}`} withBorder px="xs" py={2} radius="sm">
-              <Group gap={4} wrap="nowrap">
-                <Text size="xs">
-                  {file.name} · {fmt.fileSize(file.size)}
-                </Text>
-                <RemoveButton variant="field" size="xs" label="Retirer" aria-label={`Retirer ${file.name}`} onClick={() => setFiles(files.filter((_, item) => item !== index))} />
-              </Group>
-            </Paper>
+            <FileBadge key={`${file.name}-${index}`} name={file.name} size={file.size} onRemove={() => setFiles(files.filter((_, item) => item !== index))} />
           ))}
         </Group>
       )}

@@ -1,3 +1,4 @@
+import { safeFilename } from '@ordo/shared';
 /**
  * Blob of a base64 data URL.
  * @param {string} dataUrl Data URL.
@@ -32,7 +33,7 @@ export function download(content: Blob | string, filename: string): void {
  * @param {string} extension Extension.
  * @returns {string} File name.
  */
-export const fileName = (title: string, extension: string) => `${title.replace(/[\\/:*?"<>|]/g, '-')}.${extension}`;
+export const fileName = (title: string, extension: string) => `${safeFilename(title)}.${extension}`;
 
 /**
  * Message of a failed request: the error the API gives (as JSON or text), else the one given.

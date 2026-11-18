@@ -1,4 +1,4 @@
-import { done } from '../errors';
+import { clientError, done } from '../errors';
 import type { SheetSource } from '@ordo/shared';
 import { readSheetSources } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -6,7 +6,7 @@ import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
+import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { fromDecimal } from '../../services/core/decimal';
 
 /** Share of a sheet in an item of a list. */
@@ -167,6 +167,9 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
   relationIds: input.relationIds ?? [],
 });
 
+/** Refusal of a request about sheets of no owner. */
+const OWNER_REQUIRED = 'Une routine, un évènement ou une tâche.';
+
 /**
  * Owner of a checklist from the arguments: a routine or an event with its occurrence, or a task.
  * @param {{ routineId?: string | null, eventId?: string | null, taskId?: string | null, occurrenceDate?: string | null }} args Arguments.
@@ -174,10 +177,10 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
  */
 function ownerOf(args: { routineId?: string | null; eventId?: string | null; taskId?: string | null; occurrenceDate?: string | null }): sheets.SheetOwner {
   if (args.taskId) return { taskId: args.taskId };
-  if (!args.occurrenceDate) throw new Error('Date de l’occurrence requise.');
+  if (!args.occurrenceDate) throw clientError('BAD_USER_INPUT', 'Date de l’occurrence requise.');
   if (args.routineId) return { routineId: args.routineId, occurrenceDate: args.occurrenceDate };
   if (args.eventId) return { eventId: args.eventId, occurrenceDate: args.occurrenceDate };
-  throw new Error('Une routine, un évènement ou une tâche.');
+  throw clientError('BAD_USER_INPUT', OWNER_REQUIRED);
 }
 
 /** What using a sheet took from the stock. */
@@ -210,12 +213,7 @@ builder.queryFields((t) => ({
     type: ['SheetLink'],
     description: 'Sheets of a routine, an event or a task, in their order.',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id() },
-    resolve: (query, _root, args) =>
-      prisma.sheetLink.findMany({
-        ...query,
-        where: args.routineId ? { routineId: args.routineId } : args.eventId ? { eventId: args.eventId } : { taskId: args.taskId ?? '' },
-        orderBy: { position: 'asc' },
-      }),
+    resolve: (query, _root, args) => prisma.sheetLink.findMany({ ...query, where: sheets.ownerScope(args), orderBy: { position: 'asc' } }),
   }),
   checklist: t.prismaField({
     type: 'Checklist',
@@ -223,7 +221,7 @@ builder.queryFields((t) => ({
     description: 'Checklist of a routine or an event occurrence, or of a task: made of its sheets the first time it is asked (none without sheets).',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id(), occurrenceDate: t.arg({ type: 'Date' }) },
     resolve: async (query, _root, args) => {
-      const list = await sheets.checklist(ownerOf({ ...args, occurrenceDate: args.occurrenceDate ? args.occurrenceDate.slice(0, 10) : null }));
+      const list = await sheets.checklist(ownerOf({ ...args, occurrenceDate: args.occurrenceDate ?? null }));
       return list ? prisma.checklist.findUniqueOrThrow({ ...query, where: { id: list.id } }) : null;
     },
   }),
@@ -260,18 +258,6 @@ builder.mutationFields((t) => ({
     description: 'Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.',
     args: { id: t.arg.id({ required: true }), multiplier: t.arg.float({ required: true }) },
     resolve: (_root, { id, multiplier }) => stock.useSheet(id, multiplier),
-  }),
-  createSheetCategory: t.id({
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await sheets.sheetCategories.create(input)).id,
-  }),
-  updateSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(sheets.sheetCategories.update(id, { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) })),
-  }),
-  deleteSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(sheets.sheetCategories.remove(id)),
   }),
   duplicateSheet: t.id({ args: { id: t.arg.id({ required: true }) }, resolve: async (_root, { id }) => (await sheets.duplicateSheet(id)).id }),
   deleteSheet: t.boolean({
@@ -324,3 +310,5 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(sheets.deleteChecklistItem(id)),
   }),
 }));
+
+labelMutations('SheetCategory', sheets.sheetCategories, { create: NameColorInput, update: NameColorPatch });

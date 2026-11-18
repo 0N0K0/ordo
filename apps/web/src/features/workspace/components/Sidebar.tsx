@@ -1,10 +1,11 @@
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, CloseButton, Box, Group, Menu, NavLink, ScrollArea, Stack, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, CloseButton, Box, Group, NavLink, ScrollArea, Stack, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import { PackageIcon, ArchiveIcon, CheckIcon, FolderOpenIcon, FolderPlusIcon, MagnifyingGlassIcon, PlusIcon, SortAscendingIcon, SquaresFourIcon, UserPlusIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
+import { PackageIcon, ArchiveIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, SortAscendingIcon, SquaresFourIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -307,70 +308,32 @@ export function Sidebar() {
           onChange={(event) => setSearch(event.currentTarget.value)}
           style={{ flex: 1 }}
         />
-        <Menu position="bottom-end" withinPortal>
-          <Menu.Target>
+        <ActionsMenu
+          name="la barre latérale"
+          target={
             <Tooltip label="Trier">
               <ActionIcon variant="default" size="input-xs" aria-label="Trier">
                 <SortAscendingIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Label>Trier</Menu.Label>
-            <Menu.Item
-              leftSection={
-                sort === 'manual' ? (
-                  <CheckIcon aria-hidden />
-                ) : (
-                  <span style={{ width: '1.25em' }} />
-                )
-              }
-              onClick={() => setSort('manual')}
-            >
-              Ordre manuel
-            </Menu.Item>
-            <Menu.Item
-              leftSection={
-                sort === 'name' ? (
-                  <CheckIcon aria-hidden />
-                ) : (
-                  <span style={{ width: '1.25em' }} />
-                )
-              }
-              onClick={() => setSort('name')}
-            >
-              Alphabétique
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-        <Menu position="bottom-end" withinPortal>
-          <Menu.Target>
+          }
+          items={[
+            { section: 'Trier' },
+            { label: 'Ordre manuel', checked: sort === 'manual', onClick: () => setSort('manual') },
+            { label: 'Alphabétique', checked: sort === 'name', onClick: () => setSort('name') },
+          ]}
+        />
+        <ActionsMenu
+          name="la barre latérale"
+          target={
             <Tooltip label="Créer">
-              <ActionIcon
-                size="input-xs"
-                aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}
-              >
+              <ActionIcon size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
                 <PlusIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {!perso && (
-              <Menu.Item
-                leftSection={<UserPlusIcon aria-hidden />}
-                onClick={() => actions.openClientForm()}
-              >
-                Nouveau client
-              </Menu.Item>
-            )}
-            <Menu.Item
-              leftSection={<FolderPlusIcon aria-hidden />}
-              onClick={() => actions.openProjectForm()}
-            >
-              Nouveau projet
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+          }
+          items={newEntityEntries(actions, perso)}
+        />
       </Group>
 
       <ScrollArea style={{ flex: 1 }} px="xs" type="scroll">

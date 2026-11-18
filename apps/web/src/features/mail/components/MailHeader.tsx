@@ -1,9 +1,10 @@
-import { Avatar, Group, Paper, Stack, Text, Title } from '@mantine/core';
-import { PaperclipIcon } from '@phosphor-icons/react';
+import { PersonAvatar } from '../../../components/people/PersonOption';
+import { Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { addressLabel, fullDate, senderName, type Address } from '../lib/mail-format';
-import { FileLink } from '../../files/components/FileLink';
-import * as fmt from '../../../lib/format';
+import { FileBadge } from '../../../components/items/FileBadge';
+import { handleFileClick } from '../../files/lib/open-file';
+import { downloadUrl, viewableKind } from '../../files/lib/viewable';
 
 interface MailHeaderProps {
   subject: string;
@@ -32,7 +33,7 @@ export function MailHeader({ subject, from, to, cc, date, actions, extra }: Mail
         {actions}
       </Group>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        <Avatar name={senderName(from)} color="initials" />
+        <PersonAvatar name={senderName(from)} size="md" />
         <Stack gap={0} style={{ minWidth: 0 }}>
           <Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>
             {from.map(addressLabel).join(', ')}
@@ -60,19 +61,20 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
   if (files.length === 0) return null;
   return (
     <Group gap="xs">
-      {files.map((file) => (
-        <Paper key={file.key} withBorder px="xs" py={4} radius="sm">
-          <Group gap={6} wrap="nowrap">
-            <PaperclipIcon aria-hidden />
-            <FileLink url={file.url} name={file.name} size="sm">
-              {file.name}
-            </FileLink>
-            <Text size="xs" c="dimmed">
-              {fmt.fileSize(file.size)}
-            </Text>
-          </Group>
-        </Paper>
-      ))}
+      {files.map((file) => {
+        // A PDF or an image opens in the app's viewer, another file downloads.
+        const viewable = Boolean(viewableKind(file));
+        return (
+          <FileBadge
+            key={file.key}
+            name={file.name}
+            size={file.size}
+            href={viewable ? file.url : downloadUrl(file.url)}
+            target={viewable ? '_blank' : undefined}
+            onClick={(event) => handleFileClick(event, file)}
+          />
+        );
+      })}
     </Group>
   );
 }

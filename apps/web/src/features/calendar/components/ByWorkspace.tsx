@@ -1,6 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { WorkspaceKindIcon } from '../../features/workspaces/components/WorkspaceKindIcon';
+import { WorkspaceKindIcon } from '../../workspaces/components/WorkspaceKindIcon';
 
 /** Workspace an item comes from: its id, its name and, when known, its kind (its icon). */
 interface ItemWorkspace {

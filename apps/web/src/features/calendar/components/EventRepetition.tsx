@@ -1,6 +1,6 @@
 import { SimpleGrid, Stack, Switch } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, daysBetween, spanEnd, type DurationUnit, type Recurrence } from '@ordo/shared';
+import { addDays, daysBetween, spanEnd, type Recurrence, DURATION_UNITS } from '@ordo/shared';
 import { TimeField } from '../../../components/inputs/TimeField';
 import * as fmt from '../../../lib/format';
 import { PICKER_FORMATS } from '../../../lib/format';
@@ -17,9 +17,6 @@ interface EventTiming {
   endTime: string | null;
   recurrence: Recurrence | null;
 }
-
-/** Lengths an all-day repeated event can have besides its own days: weeks, months, up to a week or a month of the year. */
-const ALL_DAY_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'];
 
 /**
  * Days and hours of an event as text: "Lundi 3 novembre 2026, 9:00 – 10:00", "Du 3 au 5 novembre 2026".
@@ -73,7 +70,7 @@ export function EventRepetition({ value, onChange, ruleStart, error }: { value: 
               set({ recurrence: rule, ...(duration && draft.allDay ? { endDate: spanEnd(duration, draft.startDate) } : {}) });
             }}
             start={ruleStart}
-            durations={draft.allDay && draft.recurrence ? ALL_DAY_DURATIONS : undefined}
+            durations={draft.allDay && draft.recurrence ? DURATION_UNITS : undefined}
             footer={
               <Stack gap="sm">
                 <Switch

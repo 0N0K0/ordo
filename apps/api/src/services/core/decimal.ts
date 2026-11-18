@@ -1,4 +1,5 @@
 import { Prisma } from '../../generated/prisma/client';
+import { toCents } from '@ordo/shared';
 
 /**
  * Decimal column value of a number (a quantity, an amount…); none stays none.
@@ -20,4 +21,13 @@ export function fromDecimal(value: { toNumber(): number }): number;
 export function fromDecimal(value: { toNumber(): number } | null): number | null;
 export function fromDecimal(value: { toNumber(): number } | null): number | null {
   return value === null ? null : value.toNumber();
+}
+
+/**
+ * Cents of a decimal amount column value (none counts as 0).
+ * @param {{ toNumber(): number } | null} value Decimal amount.
+ * @returns {number} Cents.
+ */
+export function decimalCents(value: { toNumber(): number } | null): number {
+  return value === null ? 0 : toCents(value.toNumber());
 }

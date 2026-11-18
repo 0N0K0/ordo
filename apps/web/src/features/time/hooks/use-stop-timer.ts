@@ -1,5 +1,5 @@
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useTimeMutations, type TimeEntry } from '../api';
 
 /**
@@ -11,10 +11,7 @@ export function useStopTimer() {
   return {
     stopTimer: (entry: TimeEntry) => {
       const seconds = entrySeconds(entry);
-      stop.mutate(undefined, {
-        onSuccess: () => notifySuccess(`Temps enregistré : ${formatDuration(seconds)}.`),
-        onError: onMutationError,
-      });
+      stop.mutate(undefined, toastCallbacks(`Temps enregistré : ${formatDuration(seconds)}.`));
     },
     isPending: stop.isPending,
   };

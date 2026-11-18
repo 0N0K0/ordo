@@ -20,7 +20,7 @@ export function MailLabelsManager() {
       items={labels ?? []}
       schema={labelFormSchema}
       create={async (values) => createdId(await create.mutateAsync({ name: values.name, color: values.color }))}
-      update={(id, values) => update.mutateAsync({ id, name: values.name, color: values.color })}
+      update={(id, values) => update.mutateAsync({ id, input: { name: values.name, color: values.color } })}
       remove={(id) => remove.mutateAsync(id)}
       deleteMessage={(label) => <>Le drapeau « {label.name} » sera supprimé définitivement et retiré des mails qui l’ont. Cette action est irréversible.</>}
     />

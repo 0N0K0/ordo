@@ -7,12 +7,13 @@ import { listSelectProps } from '../../../components/items/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from '../hooks/use-task-link';
-import { useTaskLabelMutations, type Contributor, type Task, type TaskLabel, type TaskLabelKind } from '../api';
+import { type Contributor, type Task, type TaskLabel, type TaskLabelKind } from '../api';
+import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { taskRef, type TaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { personName } from '../../../components/people/people-options';
 
 /**
@@ -44,18 +45,18 @@ interface LabelSelectProps extends Omit<SelectProps, 'data'> {
   kind?: Exclude<TaskLabelKind, 'tag'>;
 }
 
+/** Titles of the panel creating a label. */
+const NEW_LABEL_TITLES: Record<TaskLabelKind, string> = { status: 'Nouveau statut', priority: 'Nouvelle priorité', type: 'Nouveau type', tag: 'Nouvelle étiquette' };
+
 /**
- * Creates a task label named as typed (the default color), resolving its id.
+ * Creates a task label named as typed: its settings form (color, image…) in the side panel, resolving its id.
  * @param {TaskLabelKind} kind Kind of label.
  * @returns {(name: string) => Promise<string | null>} Creator.
  */
 function useLabelCreator(kind: TaskLabelKind) {
-  const { create } = useTaskLabelMutations(kind);
-  const color = useDefaultColor();
-  return async (name: string) => {
-    const result = (await create.mutateAsync({ name, color })) as Record<string, { id: string } | undefined>;
-    return Object.values(result)[0]?.id ?? null;
-  };
+  const status = useTaskStatusItems();
+  const label = useTaskLabelItems(kind === 'status' ? 'tag' : kind);
+  return kind === 'status' ? itemCreator(NEW_LABEL_TITLES.status, status) : itemCreator(NEW_LABEL_TITLES[kind], label);
 }
 
 /**

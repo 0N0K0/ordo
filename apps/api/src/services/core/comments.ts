@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
 import { notFound, parseInput } from '../../graphql/errors';
-import { assertExists } from './lookup';
+import { assertExists, deleteOrNotFound } from './lookup';
 
 /** Items that take comments (tasks have their own), and their column on a comment. */
 export const COMMENT_TARGETS = {
@@ -101,6 +101,5 @@ export async function updateComment(id: string, body: string): Promise<Comment> 
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
-  await assertExists(prisma.comment, id, 'Commentaire');
-  await prisma.comment.delete({ where: { id } });
+  await deleteOrNotFound(prisma.comment, id, 'Commentaire');
 }

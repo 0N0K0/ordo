@@ -13,7 +13,7 @@ import { canHaveChildren } from '../lib/tree';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
 import { foldEntries } from '../lib/fold-entries';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 
 interface EntityMenuProps {
   entity: EntityRef;

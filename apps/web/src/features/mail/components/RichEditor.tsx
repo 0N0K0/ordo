@@ -1,13 +1,13 @@
-import { Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+
 import { getUploadImageExtension, Link, RichTextEditor } from '@mantine/tiptap';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { uploadAttachment } from '../../lib/attachments';
-import { notifyFailure } from '../../lib/notify';
-import classes from './RichEditor.module.css';
+import { uploadAttachment } from '../../../lib/attachments';
+import { notifyFailure } from '../../../lib/notify';
 
 interface RichEditorProps {
   /** HTML content. */
@@ -65,13 +65,7 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
     if (editor && value !== editor.getHTML()) editor.commands.setContent(value, { emitUpdate: false });
   }, [editor, value]);
 
-  return (
-    <div className={classes.root}>
-      {label && (
-        <Text size="sm" fw={500}>
-          {label}
-        </Text>
-      )}
+  const field = (
       <RichTextEditor
         editor={editor}
         onImageUpload={uploadImage}
@@ -110,6 +104,6 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
         </RichTextEditor.Toolbar>
         <RichTextEditor.Content style={{ minHeight }} />
       </RichTextEditor>
-    </div>
   );
+  return label ? <LabeledField label={label}>{field}</LabeledField> : field;
 }

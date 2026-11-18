@@ -1,3 +1,5 @@
+import { plural } from '../../../lib/text';
+import { formCallbacks } from '../../../lib/form';
 import * as fmt from '../../../lib/format';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { unarchived } from '../../../lib/archive';
@@ -18,7 +20,6 @@ import {
   type ChartSource,
 } from '@ordo/shared';
 import { useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from '../lib/aggregate';
 import { CalendarPeriodPicker } from './CalendarPeriodPicker';
@@ -97,13 +98,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
     setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Titre invalide.'));
     if (!titleResult.success || !validation.success) return;
     const input = { title: titleResult.data, config: validation.data, wide };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(chart ? 'Diagramme modifié.' : 'Diagramme ajouté.');
-        onDone();
-      },
-      onError: onMutationError,
-    };
+    const callbacks = formCallbacks(null, chart ? 'Diagramme modifié.' : 'Diagramme ajouté.', onDone);
     if (chart) updateChart.mutate({ id: chart.id, input }, callbacks);
     else createChart.mutate({ dashboardId, input }, callbacks);
   };
@@ -309,8 +304,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
           </Paper>
           {data && (
             <Text size="xs" c="dimmed">
-              {countLabel(config, data.taskCount)} compté
-              {data.taskCount > 1 ? 's' : ''}
+              {countLabel(config, data.taskCount)} {plural(data.taskCount, 'compté')}
               {source === 'tasks' && config.measure === 'effort' && ' · l’effort d’une tâche parente est celui de ses sous-tâches'}
               {source === 'tasks' && (config.dimension === 'assignees' || config.series === 'assignees') ? ' · une tâche à plusieurs assignés compte pour chacun' : ''}
             </Text>

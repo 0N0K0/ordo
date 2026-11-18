@@ -8,7 +8,7 @@ import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSche
 import { useMemo } from 'react';
 
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../../auth/api';
 import { NewPasswordFields } from '../../auth/components/NewPasswordFields';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -81,10 +81,7 @@ function EmailForm({ user }: { user: AccountUser }) {
    * @returns {void}
    */
   const handleCancel = () => {
-    cancelEmailChange.mutate(undefined, {
-      onSuccess: () => notifySuccess('Changement d’adresse annulé.'),
-      onError: onMutationError,
-    });
+    cancelEmailChange.mutate(undefined, toastCallbacks('Changement d’adresse annulé.'));
   };
 
   return (

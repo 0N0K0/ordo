@@ -17,6 +17,7 @@ import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { meName } from '../../../components/people/people-options';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -172,7 +173,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                           size="xs"
                           style={{ flex: 1, minWidth: 0 }}
                           aria-label={`Bénéficiaire de la ligne ${index + 1}`}
-                          placeholder={me ? `${me.name} (moi)` : 'Moi'}
+                          placeholder={meName(me)}
                           clearable
                           searchable
                           data={whomOptions}

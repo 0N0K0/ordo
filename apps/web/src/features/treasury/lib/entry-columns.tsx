@@ -10,6 +10,7 @@ import * as fmt from '../../../lib/format';
 import { categoryChoices, categoryOptions } from './categories';
 import { DocumentsCell, LinksCell, PayerCell, ProjectCell, RecurrenceCell } from '../components/entry-cells';
 import { entryLinks, payerKey, recurrenceText, type AnyEntry, type EntryEnv, type EntrySave } from './entry-env';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 /** Value of the rows without a value in a choice filter. */
 const NONE = 'none';
@@ -85,16 +86,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       text: (row) => (valueDate(row) ? fmt.day(valueDate(row)!) : ''),
       filter: { kind: 'date', value: valueDate },
     },
-    {
-      id: 'valueMonth',
-      label: 'Mois de valeur',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: (row) => valueDate(row)?.slice(0, 7) ?? null,
-      text: (row) => (valueDate(row) ? fmt.capitalize(fmt.month(valueDate(row)!.slice(0, 7))) : ''),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('valueMonth', 'Mois de valeur', valueDate),
     {
       id: 'payer',
       bulk: true,

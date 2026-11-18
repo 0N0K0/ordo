@@ -180,12 +180,16 @@ const MoveCategory = graphql(`
 `);
 const CreateUnit = graphql(`
   mutation CreateShoppingUnit($input: NameColorInput!) {
-    createShoppingUnit(input: $input)
+    createShoppingUnit(input: $input) {
+      id
+    }
   }
 `);
 const UpdateUnit = graphql(`
   mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {
-    updateShoppingUnit(id: $id, input: $input)
+    updateShoppingUnit(id: $id, input: $input) {
+      id
+    }
   }
 `);
 const DeleteUnit = graphql(`
@@ -201,12 +205,16 @@ const MoveProducts = graphql(`
 
 const CreateStorage = graphql(`
   mutation CreateShoppingStorage($input: NameColorInput!) {
-    createShoppingStorage(input: $input)
+    createShoppingStorage(input: $input) {
+      id
+    }
   }
 `);
 const UpdateStorage = graphql(`
   mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {
-    updateShoppingStorage(id: $id, input: $input)
+    updateShoppingStorage(id: $id, input: $input) {
+      id
+    }
   }
 `);
 const DeleteStorage = graphql(`
@@ -221,12 +229,16 @@ const DuplicateItem = graphql(`
 `);
 const CreateStore = graphql(`
   mutation CreateShoppingStore($input: NameColorInput!) {
-    createShoppingStore(input: $input)
+    createShoppingStore(input: $input) {
+      id
+    }
   }
 `);
 const UpdateStore = graphql(`
   mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {
-    updateShoppingStore(id: $id, input: $input)
+    updateShoppingStore(id: $id, input: $input) {
+      id
+    }
   }
 `);
 const DeleteStore = graphql(`

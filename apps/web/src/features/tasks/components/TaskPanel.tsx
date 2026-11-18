@@ -6,7 +6,7 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
@@ -16,7 +16,7 @@ import { Link, useSearchParams } from 'react-router';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useBulkTaskMutations, useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskAlarms } from '../../alarms/components/TaskAlarms';
@@ -28,7 +28,7 @@ import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useTaskContext, type TaskContext, taskName, taskRef } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -102,7 +102,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side.
+ * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side. An archived
+ * task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
  */
@@ -116,6 +117,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
+  const locked = task.archived;
 
   /**
    * Saves a change right away.
@@ -140,7 +142,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     else save({ title: result.data }, () => setTitleDraft(null));
   };
 
-  const onLinkError = { onError: onMutationError };
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
   const doneSubtasks = subtasks.filter((subtask) => context.isClosed(subtask)).length;
@@ -159,11 +160,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     const transfer = () =>
       transferTask.mutate(
         { ids: [task.id], projectId },
-        {
-          onSuccess: ({ removedLinks }) =>
-            notifySuccess(`Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
-          onError: onMutationError,
-        },
+        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
       );
     const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
     if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
@@ -206,6 +203,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               )}
             </Title>
             <Group gap="xs" wrap="nowrap">
+              {!locked && (
               <Button
                 variant="default"
                 size="xs"
@@ -221,9 +219,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               >
                 {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
               </Button>
-              <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
-                Modifier
-              </Button>
+              )}
+              {!locked && (
+                <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
+                  Modifier
+                </Button>
+              )}
               <ActionsMenu
                 name="la tâche"
                 items={actions.menu(task)}
@@ -276,7 +277,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               title="Description"
               gap="xs"
               action={
-                description === null && (
+                description === null && !locked && (
                   <Tooltip label="Modifier la description">
                     <ActionIcon
                       variant="subtle"
@@ -292,7 +293,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               }
             >
               {description === null ? (
-                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={(next) => save({ description: next })}>
+                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={locked ? undefined : (next) => save({ description: next })}>
                   {task.description}
                 </MarkdownView>
               ) : (
@@ -359,6 +360,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 4 }}>
+          {/* An archived task: every field and action of the side disabled. */}
+          <Fieldset variant="unstyled" disabled={locked}>
           <Stack gap="md">
             <ProjectSelect
               context={context}
@@ -477,24 +480,24 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               tasks={resolve(task.blockingIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, onLinkError)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, onLinkError)}
+              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR)}
+              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR)}
             />
             <LinkList
               label="Dépend de"
               tasks={resolve(task.blockedByIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, onLinkError)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, onLinkError)}
+              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR)}
+              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR)}
             />
             <LinkList
               label="Relative à"
               tasks={resolve(task.relatedIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, onLinkError)}
-              onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, onLinkError)}
+              onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR)}
+              onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR)}
             />
             <Divider />
             <TaskAlarms task={task} context={context} />
@@ -503,6 +506,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Divider />
             <SheetsSection owner={{ taskId: task.id }} name={task.title} />
           </Stack>
+          </Fieldset>
         </Grid.Col>
       </Grid>
     </Stack>

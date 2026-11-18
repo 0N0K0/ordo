@@ -1,3 +1,6 @@
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
+import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { BackLink } from '../../../components/page/BackLink';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -7,7 +10,7 @@ import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
@@ -17,8 +20,9 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockIcon,
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks, showFormError, useAppForm } from '../../../lib/form';
+import { notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
 import { useWorkspace } from '../../workspace/api';
@@ -28,7 +32,7 @@ import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, use
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
-import { Section } from './EditorSection';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { DeductDepositMenu } from './DeductDepositMenu';
 import { LinesEditor } from './LinesEditor';
@@ -199,13 +203,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, {
-                onSuccess: () => {
-                  notifySuccess('Brouillon supprimé.');
-                  void navigate('/accounting');
-                },
-                onError: onMutationError,
-              }); } });
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting'))); } });
   };
 
   /**
@@ -362,11 +360,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                   Valider
                 </Button>
               )}
-              <Tooltip label="Supprimer le brouillon">
-                <ActionIcon variant="subtle" color="red" size="lg" aria-label="Supprimer le brouillon" onClick={confirmDelete}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
+                Supprimer le brouillon
+              </DestructiveButton>
             </>
           )}
           {readOnly && !archived && isQuote && (
@@ -426,11 +422,11 @@ function Editor({ document }: { document: AccountingDocument }) {
       </Group>
 
       {archived ? (
-        <Alert color="gray" icon={<ArchiveIcon aria-hidden />}>
+        <ArchivedNotice>
           {archivedRecurring
             ? 'Facture récurrente archivée : son modèle est en lecture seule et aucune facture n’est plus émise. Restaurez-la depuis la liste des factures récurrentes pour la modifier.'
             : `Document archivé : masqué des listes et en lecture seule.${readOnly ? ' Il reste valable (numéro et PDF conservés).' : ''} Restaurez-le pour le modifier.`}
-        </Alert>
+        </ArchivedNotice>
       ) : (
         readOnly && (
           <NoticeAlert kind="success">
@@ -465,7 +461,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             </Paper>
           ) : (
           <Stack gap="md">
-            <Section title="Client et dates">
+            <SettingsSection title="Client et dates">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <ClientSelect
                   required
@@ -518,9 +514,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                 <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceStart')} />
                 <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceEnd')} />
               </SimpleGrid>
-            </Section>
+            </SettingsSection>
 
-            <Section title="Contenu">
+            <SettingsSection title="Contenu">
               <TextInput label="Objet" readOnly={locked} {...form.getInputProps('title')} />
               <Group gap="sm" align="flex-end" grow>
                 <TextInput label="Libellé de la référence" readOnly={locked} {...form.getInputProps('referenceLabel')} />
@@ -570,9 +566,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                 </Group>
               )}
               <Textarea label="Conclusion" autosize minRows={2} readOnly={locked} {...form.getInputProps('conclusion')} />
-            </Section>
+            </SettingsSection>
 
-            <Section title="Conditions et mentions">
+            <SettingsSection title="Conditions et mentions">
               {isQuote && (
                 <Autocomplete
                   label="Mode de facturation"
@@ -635,7 +631,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   onChange={(event) => form.setFieldValue('vatApplicable', !event.currentTarget.checked)}
                 />
               </Group>
-            </Section>
+            </SettingsSection>
           </Stack>
           )}
         </Grid.Col>
@@ -643,7 +639,7 @@ function Editor({ document }: { document: AccountingDocument }) {
         <Grid.Col span={{ base: 12, lg: 4 }}>
           <Stack gap="md">
             {readOnly && <TrackingPanel document={document} onRemind={() => openDocumentMail(true)} remindPending={preparingMail} />}
-            <Section title="Totaux">
+            <SettingsSection title="Totaux">
               {!locked && (
                 <DiscountInput
                   label="Remise générale"
@@ -679,10 +675,10 @@ function Editor({ document }: { document: AccountingDocument }) {
                   <TotalRow label={values.vatApplicable ? 'Total TTC' : 'Total'} value={totals.totalGross} currency={currency} strong />
                 </Table.Tbody>
               </Table>
-            </Section>
+            </SettingsSection>
             <AttachmentsSection document={document} readOnly={archived} />
             {document.derived.length > 0 && (
-              <Section title="Documents liés">
+              <SettingsSection title="Documents liés">
                 {document.derived.map((item) => (
                   <Group key={item.id} justify="space-between">
                     <Anchor component={Link} to={`/accounting/${item.id}`} size="sm">
@@ -693,7 +689,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                     </Text>
                   </Group>
                 ))}
-              </Section>
+              </SettingsSection>
             )}
             <Comments target="DOCUMENT" id={document.id} />
           </Stack>
@@ -733,7 +729,7 @@ function TotalRow({ label, value, currency, strong }: { label: string; value: nu
 function AttachmentsSection({ document, readOnly = false }: { document: AccountingDocument; readOnly?: boolean }) {
   const { addAttachments, removeAttachment } = useDocumentMutations();
   return (
-    <Section
+    <SettingsSection
       title="Pièces jointes"
       actions={
         !readOnly && (
@@ -741,7 +737,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
           multiple
           onChange={(files) =>
             files.length &&
-            addAttachments.mutate({ id: document.id, files }, { onSuccess: () => notifySuccess('Fichiers joints.'), onError: onMutationError })
+            addAttachments.mutate({ id: document.id, files }, toastCallbacks('Fichiers joints.'))
           }
         >
           {(props) => (
@@ -764,7 +760,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               </Group>
             </FileLink>
             {!readOnly && (
-              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })} />
+              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', (callbacks) => removeAttachment.mutate(attachment.id, callbacks))} />
             )}
           </Group>
         ))
@@ -772,7 +768,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
       <Text size="xs" c="dimmed">
         <FileArrowDownIcon aria-hidden /> Joints aux mails d’envoi du document.
       </Text>
-    </Section>
+    </SettingsSection>
   );
 }
 
@@ -785,7 +781,8 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
 export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
   if (isPending) return <DetailSkeleton fields={6} />;
-  if (error || !document) return <ErrorAlert>{error?.message ?? 'Document introuvable.'}</ErrorAlert>;
+  if (error) return <ErrorAlert>{error.message}</ErrorAlert>;
+  if (!document) return <DetailNotFound what="Ce document" backTo="/accounting" backLabel="Facturation" />;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;
 }

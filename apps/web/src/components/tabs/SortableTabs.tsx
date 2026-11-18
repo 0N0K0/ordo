@@ -1,11 +1,11 @@
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Group, Menu, Tabs, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Group, Tabs, Tooltip, type TabsTabProps } from '@mantine/core';
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
-import { ActionsMenu, type RowMenuEntry } from '../data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).
@@ -26,7 +26,7 @@ function SortableTab(props: TabsTabProps & { value: string }) {
 }
 
 /** Button after the tabs adding one: a click, or a menu of the ways to add one. */
-type AddTab = { label: string; onClick: () => void; menu?: never } | { label: string; menu: ReactNode; onClick?: never };
+type AddTab = { label: string; onClick: () => void; menu?: never } | { label: string; menu: readonly RowMenuEntry[]; onClick?: never };
 
 interface SortableTabsProps<T extends { id: string }> {
   items: T[];
@@ -116,12 +116,7 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
         </DndContext>
       </Tabs>
       {add.menu ? (
-        <Menu position="bottom-start" withinPortal shadow="md">
-          <Menu.Target>
-            <Tooltip label={add.label}>{addButton}</Tooltip>
-          </Menu.Target>
-          <Menu.Dropdown>{add.menu}</Menu.Dropdown>
-        </Menu>
+        <ActionsMenu name={add.label} position="bottom-start" target={<Tooltip label={add.label}>{addButton}</Tooltip>} items={add.menu} />
       ) : (
         <Tooltip label={add.label}>{addButton}</Tooltip>
       )}

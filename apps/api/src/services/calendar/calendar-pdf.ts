@@ -1,12 +1,12 @@
-import { addDays, colorSchema, daysBetween, parseDay, timeToMinutes } from '@ordo/shared';
+import { addDays, colorSchema, daySchema, daysBetween, timeToMinutes, weekdayText } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TABLE, PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
-const isoDate = z.iso.date();
+const isoDate = daySchema();
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/);
 const hexColor = colorSchema;
@@ -40,10 +40,9 @@ const calendarPdfSchema = reportHeadingSchema
 type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
 type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 
-const COLORS = { ...PDF_TEXT, border: '#d5dae0', light: '#f2f4f6', work: '#e6f4ea', today: '#fff8db' };
+const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, light: PDF_TABLE.fill, work: '#e6f4ea', today: '#fff8db' };
 const MARGIN = 28;
 const WEEKDAYS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
-const dayTitle = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /**
  * Color mixed with white.
@@ -101,7 +100,7 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
   const headerHeight = 16;
   days.forEach((day, index) => {
     if (day === today) doc.rect(columnX(index), area.y, columnWidth, headerHeight).fill(COLORS.today);
-    clippedText(doc, dayTitle.format(parseDay(day)), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
+    clippedText(doc, weekdayText(day), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
   });
   let y = area.y + headerHeight;
 

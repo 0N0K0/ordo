@@ -1,5 +1,5 @@
 import { type AccountingDocumentType, type Address, addressLines, depositAmount, type DocumentTotals, formatMoney, paidOnReceipt, printedDay, toCents, UNIT_LABELS } from '@ordo/shared';
-import { createPdf } from '../core/pdf-report';
+import { createPdf, PDF_TABLE, PDF_TEXT } from '../core/pdf-report';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import {
@@ -19,6 +19,7 @@ import {
   facturXmp,
   hasFacturX,
 } from './factur-x';
+import { decimalCents, fromDecimal } from '../core/decimal';
 
 
 const TYPE_TITLES: Record<AccountingDocumentType, string> = {
@@ -28,13 +29,7 @@ const TYPE_TITLES: Record<AccountingDocumentType, string> = {
   CREDIT_NOTE: 'Avoir',
 };
 
-const COLORS = {
-  text: '#1d232b',
-  muted: '#66707c',
-  border: '#dfe3e8',
-  fill: '#f2f4f6',
-  accent: '#aa9371',
-};
+const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, fill: PDF_TABLE.fill, accent: '#aa9371' };
 const PAGE = { margin: 34, bottom: 60 };
 /** Block of the totals, on the right: its width and the inset of its texts (the bank details follow it). */
 const TOTALS = { width: 250, inset: 8 };
@@ -536,7 +531,7 @@ function writeTotals(
   const discountValue =
     document.globalDiscountValue === null
       ? null
-      : Number(document.globalDiscountValue);
+      : fromDecimal(document.globalDiscountValue);
   const rows: { label: string; value: string; strong?: boolean }[] = [
     {
       label: adjusted
@@ -1198,7 +1193,7 @@ async function paidInvoicePayments(
   return allocations.map((allocation) => ({
     date: allocation.entry.date,
     method: allocation.entry.method?.name ?? null,
-    amount: toCents(Number(allocation.amount)),
+    amount: decimalCents(allocation.amount),
   }));
 }
 
@@ -1308,7 +1303,7 @@ export async function documentPdf(
   const deposit = isQuote
     ? depositAmount(
         document.depositType,
-        document.depositValue === null ? null : Number(document.depositValue),
+        fromDecimal(document.depositValue),
         totals.totalGross,
       )
     : 0;
@@ -1326,7 +1321,7 @@ export async function documentPdf(
           label: 'Acompte à la commande',
           value:
             document.depositType === 'PERCENT'
-              ? `${Number(document.depositValue).toLocaleString('fr-FR')} %, soit ${formatMoney(deposit, document.currency)}`
+              ? `${(fromDecimal(document.depositValue) ?? 0).toLocaleString('fr-FR')} %, soit ${formatMoney(deposit, document.currency)}`
               : formatMoney(deposit, document.currency),
         }
       : null,

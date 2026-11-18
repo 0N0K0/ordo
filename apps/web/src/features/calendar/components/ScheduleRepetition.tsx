@@ -1,7 +1,7 @@
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { type DurationUnit, type ScheduleCase, type ScheduleException, type ScheduleTimes } from '@ordo/shared';
+import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
@@ -19,9 +19,6 @@ interface ScheduleRepetitionValue {
   cases: ScheduleCase[];
   exceptions: ScheduleException[];
 }
-
-/** Every length an occurrence of a slot can have: days, weeks, months, up to a day, a week or a month of the year. */
-const SCHEDULE_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'];
 
 /**
  * Hours of a case: the whole day, or time ranges.
@@ -96,7 +93,7 @@ function ScheduleCases({ cases, onChange, start }: { cases: ScheduleCase[]; onCh
       start={start}
       multiple
       allowNone={false}
-      durations={SCHEDULE_DURATIONS}
+      durations={DURATION_UNITS}
       times={SCHEDULE_TIMES}
     />
   );

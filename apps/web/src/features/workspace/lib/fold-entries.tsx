@@ -1,5 +1,5 @@
 import { ArrowsInLineVerticalIcon, ArrowsOutLineVerticalIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
-import type { RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 
 /**
  * « Tout déplier » and « Tout replier » entries of a menu of the sidebar (a section, a client, a project).

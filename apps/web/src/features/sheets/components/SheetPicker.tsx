@@ -5,7 +5,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useSheets } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
+import { MultiplierInput } from './MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { unarchived } from '../../../lib/archive';
 import { useAsyncAction } from '../../../lib/use-async-action';

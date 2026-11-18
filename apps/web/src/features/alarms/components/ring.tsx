@@ -3,6 +3,7 @@ import { AlarmIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Alarm } from '../api';
 import { playChime } from '../lib/alarm-sound';
+import { localInstant } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { notifyInfo, type NotifyAction } from '../../../lib/notify';
 
@@ -67,7 +68,7 @@ export function ringAlarm(alarm: Pick<Alarm, 'title' | 'note'>, key: string, lin
  * @returns {Date} Start.
  */
 function occurrenceStart(occurrence: EventOccurrence): Date {
-  return occurrence.allDay ? new Date(`${occurrence.startDate}T00:00:00`) : new Date(occurrence.start);
+  return occurrence.allDay ? localInstant(occurrence.startDate) : new Date(occurrence.start);
 }
 
 /**

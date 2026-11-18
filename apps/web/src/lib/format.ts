@@ -6,27 +6,9 @@
  * a time, timestamp), shown in the user's time zone.
  */
 
-/** A calendar day (YYYY-MM-DD) or an instant. */
-type DateValue = string | number | Date;
-
-import { formatMoney } from '@ordo/shared';
+import { capitalize as capitalizeText, dateStyle, formatMoney, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
 
 const LOCALE = 'fr-FR';
-const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
-
-/**
- * Formatter of a style for calendar days (UTC) and one for instants (local time).
- * @param {Intl.DateTimeFormatOptions} options Style.
- * @returns {(value: DateValue) => string} Formatter.
- */
-function dateStyle(options: Intl.DateTimeFormatOptions): (value: DateValue) => string {
-  const calendar = new Intl.DateTimeFormat(LOCALE, { ...options, timeZone: 'UTC' });
-  const instant = new Intl.DateTimeFormat(LOCALE, options);
-  return (value) => {
-    if (typeof value === 'string' && CALENDAR_DAY.test(value)) return calendar.format(new Date(`${value.length === 7 ? `${value}-01` : value}T00:00:00Z`));
-    return instant.format(value instanceof Date ? value : new Date(value));
-  };
-}
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
@@ -35,7 +17,7 @@ export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' }
 export const dayShort = dateStyle({ day: 'numeric', month: 'short' });
 
 /** « ven. 13 nov. »: a day to plan, when its weekday matters (agenda, routines, home). */
-export const weekday = dateStyle({ weekday: 'short', day: 'numeric', month: 'short' });
+export const weekday = weekdayText;
 
 /** « vendredi 13 novembre 2026 »: a day heading, a day in a sentence. */
 export const dayLong = dateStyle({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -50,7 +32,7 @@ export const dateTimeShort = dateStyle({ weekday: 'short', day: 'numeric', month
 export const time = dateStyle({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 /** « novembre 2026 » (a month YYYY-MM is accepted). */
-export const month = dateStyle({ month: 'long', year: 'numeric' });
+export const month = monthText;
 
 /** « nov. 2026 »: a month on a chart axis. */
 export const monthShort = dateStyle({ month: 'short', year: 'numeric' });
@@ -66,26 +48,7 @@ export const exportDateTime = (value: DateValue) => `${exportDay(value)} ${time(
  * @param {string} text Text.
  * @returns {string} Text.
  */
-export const capitalize = (text: string) => text.replace(/^./, (letter) => letter.toUpperCase());
-
-const moneyFormats = new Map<string, Intl.NumberFormat>();
-const compactMoneyFormats = new Map<string, Intl.NumberFormat>();
-
-/**
- * Number format of a currency, made once.
- * @param {Map<string, Intl.NumberFormat>} cache Formats made.
- * @param {string} currency ISO code.
- * @param {Intl.NumberFormatOptions} options Style.
- * @returns {Intl.NumberFormat} Format.
- */
-function currencyFormat(cache: Map<string, Intl.NumberFormat>, currency: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
-  let format = cache.get(currency);
-  if (!format) {
-    format = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, ...options });
-    cache.set(currency, format);
-  }
-  return format;
-}
+export const capitalize = capitalizeText;
 
 /**
  * « 1 234,50 € »: an amount in units of its currency (euros, not cents).
@@ -93,7 +56,7 @@ function currencyFormat(cache: Map<string, Intl.NumberFormat>, currency: string,
  * @param {string} [currency='EUR'] ISO code. Optional. Default = EUR.
  * @returns {string} Text.
  */
-export const money = (amount: number, currency = 'EUR') => currencyFormat(moneyFormats, currency, {}).format(amount);
+export const money = (amount: number, currency = 'EUR') => moneyFormat(currency).format(amount);
 
 /**
  * « 1 234,50 € »: an amount in cents of its currency (accounting documents), as the API and the PDF write it.
@@ -116,9 +79,7 @@ export const currencySymbol = (currency = 'EUR') => (currency === 'EUR' ? '€' 
  * @param {string} [currency='EUR'] ISO code. Optional. Default = EUR.
  * @returns {string} Text.
  */
-export const moneyCompact = (amount: number, currency = 'EUR') => currencyFormat(compactMoneyFormats, currency, { notation: 'compact', maximumFractionDigits: 1 }).format(amount);
-
-const roundMoneyFormats = new Map<string, Intl.NumberFormat>();
+export const moneyCompact = (amount: number, currency = 'EUR') => moneyFormat(currency, { notation: 'compact', maximumFractionDigits: 1 }).format(amount);
 
 /**
  * « 1 235 € »: an amount without cents (chart).
@@ -126,7 +87,7 @@ const roundMoneyFormats = new Map<string, Intl.NumberFormat>();
  * @param {string} [currency='EUR'] ISO code. Optional. Default = EUR.
  * @returns {string} Text.
  */
-export const moneyRound = (amount: number, currency = 'EUR') => currencyFormat(roundMoneyFormats, currency, { maximumFractionDigits: 0 }).format(amount);
+export const moneyRound = (amount: number, currency = 'EUR') => moneyFormat(currency, { maximumFractionDigits: 0 }).format(amount);
 
 const numberFormats = new Map<number, Intl.NumberFormat>();
 

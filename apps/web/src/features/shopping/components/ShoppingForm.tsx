@@ -15,7 +15,8 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
+import { useStorageItems, useStoreItems } from '../hooks/use-settings-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from './ProductFields';
@@ -48,7 +49,8 @@ export interface ShoppingFormProps {
 export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const { data } = useShoppingData();
   const mutations = useShoppingMutations();
-  const color = useDefaultColor();
+  const stores = useStoreItems();
+  const storages = useStorageItems();
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
   const people = usePeople();
@@ -125,7 +127,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               placeholder="Aucun"
               clearable
               searchable
-              onCreate={(name) => mutations.createStore.mutateAsync({ name, color })}
+              onCreate={itemCreator('Nouveau magasin', stores)}
               {...listSelectProps(data?.shoppingStores ?? [], undefined, current?.storeId)}
               {...form.getInputProps('storeId')}
             />
@@ -155,7 +157,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 placeholder="Aucun"
                 clearable
                 searchable
-                onCreate={(name) => mutations.createStorage.mutateAsync({ name, color })}
+                onCreate={itemCreator('Nouveau mode de conservation', storages)}
                 {...listSelectProps(data?.shoppingStorages ?? [], undefined, current?.storageId)}
                 {...form.getInputProps('storageId')}
               />

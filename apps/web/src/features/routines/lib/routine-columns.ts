@@ -273,9 +273,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 120,
       numeric: true,
       hiddenByDefault: true,
-      sortValue: (routine) => commentTotal(comments, routine.id, routine.description) || null,
-      text: (routine) => String(commentTotal(comments, routine.id, routine.description) || ''),
-      filter: { kind: 'number', value: (routine) => commentTotal(comments, routine.id, routine.description) },
+      sortValue: (routine) => commentTotal(comments.get(routine.id), routine.description) || null,
+      text: (routine) => String(commentTotal(comments.get(routine.id), routine.description) || ''),
+      filter: { kind: 'number', value: (routine) => commentTotal(comments.get(routine.id), routine.description) },
     },
   ];
 }

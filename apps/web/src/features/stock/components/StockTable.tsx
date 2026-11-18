@@ -1,7 +1,7 @@
 import { plural, countOf } from '../../../lib/text';
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -16,10 +16,10 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import { localToday } from '../../../lib/dates';
+import { localDay, localToday } from '../../../lib/dates';
 import { addDays, mapById, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { useShoppingData } from '../../shopping/api';
@@ -32,7 +32,7 @@ import { StockMoveForm } from './StockMoveForm';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
-import { archiveWithUndo, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
@@ -160,7 +160,7 @@ export function StockTable() {
       hiddenByDefault: true,
       sortValue: (item) => item.updatedAt,
       text: (item) => fmt.day(item.updatedAt),
-      filter: { kind: 'date', value: (item) => item.updatedAt.slice(0, 10) },
+      filter: { kind: 'date', value: (item) => localDay(item.updatedAt) },
     },
     commentColumn<StockItem>(
       comments,
@@ -169,11 +169,10 @@ export function StockTable() {
     ),
   ];
   const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: [...rows], title: 'Inventaire' });
-  const onError = { onError: onMutationError };
   // The archived items are left as they are.
   const bulk = bulkSaver<StockItem, Change>(
     view,
-    (item, change) => !item.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, onError),
+    (item, change) => !item.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, ON_ERROR),
   );
   const toggle = (id: string) =>
     setUnfolded((current) => {
@@ -320,7 +319,7 @@ export function StockTable() {
             !item.archived && {
               label: 'Retirer 1',
               icon: <MinusIcon aria-hidden />,
-              onClick: () => mutations.move.mutate({ itemId: item.id, kind: 'CONSUMPTION', quantity: 1, lotId: null, expiresAt: null, note: null }, onError),
+              onClick: () => mutations.move.mutate({ itemId: item.id, kind: 'CONSUMPTION', quantity: 1, lotId: null, expiresAt: null, note: null }, ON_ERROR),
             }
           }
           items={[
@@ -331,11 +330,7 @@ export function StockTable() {
               onClick: () => openFormPanel(item.label, (close) => <StockMoveForm item={item} onDone={close} />),
             },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, onClick: () => openFormPanel(`Historique · ${item.label}`, () => <MovementsTable itemId={item.id} />, 'lg') },
-            {
-              label: item.archived ? 'Restaurer' : 'Archiver',
-              icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-              onClick: () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `Article « ${item.label} »` }),
-            },
+            archiveEntry({ archived: item.archived, label: `Article « ${item.label} »` }, setArchived, item.id),
             {
               label: 'Supprimer',
               icon: <TrashIcon aria-hidden />,
@@ -344,7 +339,7 @@ export function StockTable() {
                 confirmDestructive({
                   title: 'Supprimer l’article',
                   risks: `« ${item.label} », ses lots et son historique seront supprimés définitivement du stock.`,
-                  onConfirm: () => mutations.deleteItem.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), ...onError }),
+                  onConfirm: () => mutations.deleteItem.mutate(item.id, toastCallbacks('Article supprimé.')),
                 }),
             },
           ]}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
+import { daySchema } from '../dates/times';
 
 const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(255);
 const portSchema = z.number({ error: 'Port attendu.' }).int().min(1, 'Port invalide.').max(65_535, 'Port invalide.');
@@ -49,8 +50,8 @@ export const mailSearchCriteriaSchema = z
     subject: z.string().trim().max(200, '200 caractères maximum.').default(''),
     body: z.string().trim().max(200, '200 caractères maximum.').default(''),
     /** Dates included (YYYY-MM-DD). */
-    since: z.iso.date().nullable().default(null),
-    until: z.iso.date().nullable().default(null),
+    since: daySchema().nullable().default(null),
+    until: daySchema().nullable().default(null),
     attachments: z.boolean().default(false),
     /** Mails linked to this project (their copies in Ordo), found in the folders, the sent ones too. */
     projectId: z.string().max(100).nullable().default(null),

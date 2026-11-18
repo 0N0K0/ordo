@@ -1,42 +1,26 @@
-import { calendarEnd, calendarStart, shiftCalendar, type CalendarScale } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, filterPeriod, type CalendarScale, type DatePeriod } from '@ordo/shared';
 import * as fmt from './format';
 
-/** Period offered by the export forms. */
-export type PeriodPreset = 'month' | 'lastMonth' | 'quarter' | 'lastQuarter' | 'year' | 'lastYear' | 'custom';
+/** Period offered by the export forms: a period of the filters (« Ce mois-ci », « Le mois dernier »…), or dates chosen. */
+export type PeriodPreset = Extract<DatePeriod, 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'lastQuarter' | 'thisYear' | 'lastYear'> | 'custom';
+
+const PRESET_PERIODS = ['thisMonth', 'lastMonth', 'thisQuarter', 'lastQuarter', 'thisYear', 'lastYear'] as const satisfies readonly PeriodPreset[];
 
 export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
-  { value: 'month', label: 'Mois en cours' },
-  { value: 'lastMonth', label: 'Mois précédent' },
-  { value: 'quarter', label: 'Trimestre en cours' },
-  { value: 'lastQuarter', label: 'Trimestre précédent' },
-  { value: 'year', label: 'Année en cours' },
-  { value: 'lastYear', label: 'Année précédente' },
+  ...PRESET_PERIODS.map((value) => ({ value, label: DATE_PERIOD_LABELS[value] })),
   { value: 'custom', label: 'Dates choisies' },
 ];
 
 /**
- * First and last days of a preset period.
+ * First and last days of a preset period: the period of the filters (`filterPeriod`, whose end is the day after the
+ * last one), its end made inclusive for the export forms.
  * @param {Exclude<PeriodPreset, 'custom'>} preset Period.
  * @param {string} today Today (YYYY-MM-DD).
- * @returns {[string, string]} First and last days.
+ * @returns {[string, string]} First and last days (both included).
  */
 export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: string): [string, string] {
-  /**
-   * First and last days of a calendar period.
-   * @param {CalendarScale} scale Scale.
-   * @param {number} delta 0: the current one, -1: the previous one.
-   * @returns {[string, string]} First and last days.
-   */
-  const range = (scale: CalendarScale, delta: number): [string, string] => {
-    const start = shiftCalendar(scale, calendarStart(scale, today), delta);
-    return [start, calendarEnd(scale, start)];
-  };
-  if (preset === 'month') return range('month', 0);
-  if (preset === 'lastMonth') return range('month', -1);
-  if (preset === 'quarter') return range('quarter', 0);
-  if (preset === 'lastQuarter') return range('quarter', -1);
-  if (preset === 'year') return range('year', 0);
-  return range('year', -1);
+  const [first, after] = filterPeriod(preset, today);
+  return [first, addDays(after, -1)];
 }
 
 /**
@@ -58,16 +42,39 @@ export function periodName(scale: CalendarScale, start: string): string {
   return fmt.capitalize(fmt.month(start));
 }
 
-/** Presets of the current and previous periods of each scale. */
-const RELATIVE_PRESETS: Record<CalendarScale, [PeriodPreset, PeriodPreset]> = { month: ['month', 'lastMonth'], quarter: ['quarter', 'lastQuarter'], year: ['year', 'lastYear'] };
+/** Periods of the current and previous periods of each scale. */
+const RELATIVE_PERIODS: Record<CalendarScale, [DatePeriod, DatePeriod]> = { month: ['thisMonth', 'lastMonth'], quarter: ['thisQuarter', 'lastQuarter'], year: ['thisYear', 'lastYear'] };
 
 /**
- * Name of the current or previous period of a scale: "Mois en cours", "Trimestre précédent"…
+ * Name of the current or previous period of a scale: "Ce mois-ci", "Le trimestre dernier"…
  * @param {CalendarScale} scale Scale.
  * @param {boolean} previous The previous one rather than the current one.
  * @returns {string} Name.
  */
 export function relativePeriodName(scale: CalendarScale, previous: boolean): string {
-  const preset = RELATIVE_PRESETS[scale][previous ? 1 : 0];
-  return PERIOD_PRESETS.find((item) => item.value === preset)?.label ?? preset;
+  return DATE_PERIOD_LABELS[RELATIVE_PERIODS[scale][previous ? 1 : 0]];
+}
+
+/** Where a period (a sprint, an event, a schedule) stands at a moment. */
+export type PeriodState = 'upcoming' | 'current' | 'past';
+
+/** Label and color of each state of a period, the same everywhere (« Passée », as « une période »). */
+export const PERIOD_STATES: Record<PeriodState, { label: string; color: string }> = {
+  upcoming: { label: 'À venir', color: 'blue' },
+  current: { label: 'En cours', color: 'green' },
+  past: { label: 'Passée', color: 'gray' },
+};
+
+/**
+ * Where a period stands at a moment: to come before its start, past after its end, current in between.
+ * @param {T} start Its start (a day YYYY-MM-DD, or an instant in ms).
+ * @param {T | null} end Its end, of the same kind (null: none, never past).
+ * @param {T} now The moment, of the same kind.
+ * @param {{ endExclusive?: boolean }} [options] `endExclusive`: past from its end on (an instant), else after it (a last day). Optional.
+ * @returns {PeriodState} State.
+ */
+export function periodState<T extends string | number>(start: T, end: T | null, now: T, { endExclusive = false }: { endExclusive?: boolean } = {}): PeriodState {
+  if (start > now) return 'upcoming';
+  if (end !== null && (endExclusive ? end <= now : end < now)) return 'past';
+  return 'current';
 }

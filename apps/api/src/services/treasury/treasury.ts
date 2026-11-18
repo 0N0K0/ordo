@@ -5,7 +5,6 @@ import {
   occurrenceDates,
   parseDay,
   splitAmounts,
-  toCents,
   treasuryAccountSchema,
   treasuryEntrySchema,
   type TreasuryAccountInput,
@@ -20,6 +19,7 @@ import { documentBalances, importedBalances, syncPaymentStatus } from '../accoun
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
 /**
  * Balance of an account at the end of a day: opening balance plus its actual entries since the opening date.
@@ -33,7 +33,7 @@ export async function accountBalance(account: TreasuryAccount, date: string): Pr
     where: { accountId: account.id, status: 'ACTUAL', date: { gte: account.openingDate, lte: parseDay(date) } },
     _sum: { amount: true },
   });
-  return toCents(Number(account.openingBalance)) + toCents(Number(_sum.amount ?? 0));
+  return decimalCents(account.openingBalance) + decimalCents(_sum.amount);
 }
 
 /**
@@ -45,23 +45,23 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
   const data = parseInput(treasuryAccountSchema, input);
   const position = await nextPositionIn('treasuryAccount');
   return prisma.treasuryAccount.create({
-    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
+    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
   });
 }
 
 /**
- * Updates an account (name, opening balance and date) or archives it; an archived one is only changed when restored by it.
+ * Updates an account (name, opening balance and date); not an archived one (restore it first).
  * @param {string} id Account id.
- * @param {TreasuryAccountInput & { archived: boolean }} input Account.
+ * @param {TreasuryAccountInput} input Account.
  * @returns {Promise<TreasuryAccount>} Account.
  */
-export async function updateAccount(id: string, input: TreasuryAccountInput & { archived: boolean }): Promise<TreasuryAccount> {
+export async function updateAccount(id: string, input: TreasuryAccountInput): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  const current = await orNotFound(prisma.treasuryAccount.findUnique({ where: { id }, select: { archived: true } }), 'Compte');
-  if (current.archived && input.archived) await assertNotArchived('TREASURY_ACCOUNT', id);
+  await assertExists(prisma.treasuryAccount, id, 'Compte');
+  await assertNotArchived('TREASURY_ACCOUNT', id);
   return prisma.treasuryAccount.update({
     where: { id },
-    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), archived: input.archived },
+    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
   });
 }
 
@@ -177,7 +177,7 @@ function lineFields(line: ParsedLine, position: number) {
     position,
     label: line.label,
     mode: line.mode,
-    value: new Prisma.Decimal(line.value),
+    value: toDecimal(line.value),
     memberId: line.memberId,
     relationId: line.relationId ?? null,
     loan: line.loan,
@@ -298,7 +298,7 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     // Without a value date, the execution date.
     valueDate: parseDay(entry.valueDate ?? entry.date),
     label: entry.label,
-    amount: new Prisma.Decimal(entry.amount),
+    amount: toDecimal(entry.amount),
     categoryId: entry.categoryId,
     methodId: entry.methodId,
     clientId: entry.clientId,
@@ -330,7 +330,7 @@ function documentsData(entry: Awaited<ReturnType<typeof parseEntry>>, mode: 'con
  */
 function allocationsData(entry: Awaited<ReturnType<typeof parseEntry>>): Prisma.TreasuryAllocationCreateWithoutEntryInput[] {
   return entry.allocations.map((allocation) => ({
-    amount: new Prisma.Decimal(allocation.amount),
+    amount: toDecimal(allocation.amount),
     ...(allocation.documentId ? { document: { connect: { id: allocation.documentId } } } : {}),
     ...(allocation.importedDocumentId ? { importedDocument: { connect: { id: allocation.importedDocumentId } } } : {}),
   }));
@@ -438,7 +438,7 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     lines: forecast.lines.map((line) => ({
       label: line.label,
       mode: line.mode,
-      value: Number(line.value),
+      value: fromDecimal(line.value),
       memberId: line.memberId,
       categoryId: line.categoryId,
       contextId: line.contextId,
@@ -502,7 +502,7 @@ export interface Projection {
  * @returns {Promise<Projection>} Forecast.
  */
 export async function treasuryProjection(today: string, from: string, until: string): Promise<Projection> {
-  const accounts = await prisma.treasuryAccount.findMany({ where: { archived: false } });
+  const accounts = await prisma.treasuryAccount.findMany({ where: { archivedAt: null } });
   const accountIds = accounts.map((account) => account.id);
   const expected = (date: string) => (date < today ? today : date);
   const items: ProjectionItem[] = [];
@@ -524,7 +524,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         dueDate: date,
         label: entry.label,
         payerName: entry.client?.name ?? entry.counterparty?.name ?? null,
-        amount: toCents(Number(entry.amount)),
+        amount: decimalCents(entry.amount),
         kind: entry.status,
         overdue: date < today,
         entryId: entry.id,
@@ -593,7 +593,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         dueDate: paidOn,
         label: `${schedule.name} — ${schedule.template.client.name}`,
         payerName: schedule.template.client.name,
-        amount: toCents(Number(schedule.template.totalGross)),
+        amount: decimalCents(schedule.template.totalGross),
         kind: 'RECURRING_INVOICE',
         overdue: false,
         recurringInvoiceId: schedule.id,
@@ -616,12 +616,12 @@ export async function treasuryProjection(today: string, from: string, until: str
     const day = formatDay(entry.date);
     // Before its opening date, an account is not counted.
     if (day < (openingDates.get(entry.accountId) ?? '')) continue;
-    pastByDay.set(day, (pastByDay.get(day) ?? 0) + toCents(Number(entry.amount)));
+    pastByDay.set(day, (pastByDay.get(day) ?? 0) + decimalCents(entry.amount));
   }
   // An account opened during the period adds its opening balance that day.
   for (const account of accounts) {
     const day = formatDay(account.openingDate);
-    if (day >= start && day <= today) pastByDay.set(day, (pastByDay.get(day) ?? 0) + toCents(Number(account.openingBalance)));
+    if (day >= start && day <= today) pastByDay.set(day, (pastByDay.get(day) ?? 0) + decimalCents(account.openingBalance));
   }
   const series: Projection['series'] = [];
   let running = opening;

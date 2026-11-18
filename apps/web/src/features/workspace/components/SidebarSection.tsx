@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
 import { CaretRightIcon, DotsThreeIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { foldEntries } from '../lib/fold-entries';
 import classes from './SidebarSection.module.css';
 

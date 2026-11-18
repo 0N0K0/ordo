@@ -1,8 +1,9 @@
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { PAGES } from '../../../app/pages';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { BackLink } from '../../../components/page/BackLink';
 import { unarchived } from '../../../lib/archive';
-import { plural, countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -13,9 +14,7 @@ import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title } from '@m
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
-  ArrowLeftIcon,
   BankIcon,
-  BasketIcon,
   CalendarPlusIcon,
   DotsThreeVerticalIcon,
   ListPlusIcon,
@@ -33,7 +32,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { TaskRef } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from '../api';
@@ -194,7 +193,7 @@ export function ShoppingListPage() {
     for (const delivery of deliveries) {
       const own = (list?.items ?? []).filter((item) => item.deliveryId === delivery.id).map((item) => item.id);
       const next = delivery.id === deliveryId ? [...new Set([...own, ...ids])] : own.filter((id) => !ids.has(id));
-      if (next.length !== own.length || next.some((id) => !own.includes(id))) stockMutations.updateDelivery.mutate({ id: delivery.id, input: deliveryInput(delivery, next) }, { onError });
+      if (next.length !== own.length || next.some((id) => !own.includes(id))) stockMutations.updateDelivery.mutate({ id: delivery.id, input: deliveryInput(delivery, next) }, ON_ERROR);
     }
   };
   const bulkDelivery = bulkSaver<ShoppingItem, string | null>(
@@ -207,17 +206,7 @@ export function ShoppingListPage() {
     return <TableSkeleton rows={4} />;
   }
   if (!list) {
-    return (
-      <EmptyState
-        icon={<BasketIcon aria-hidden />}
-        message="Cette liste n’existe pas ou a été supprimée."
-        action={
-          <ActionButton priority="secondary" to="/shopping?tab=lists" icon={<ArrowLeftIcon aria-hidden />}>
-            Retour aux listes
-          </ActionButton>
-        }
-      />
-    );
+    return <DetailNotFound what="Cette liste" feminine backTo="/shopping?tab=lists" backLabel="Listes d’achats" />;
   }
 
   const tasks = listTasks(list, context);
@@ -228,7 +217,6 @@ export function ShoppingListPage() {
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
   // Its required items (the optional ones apart).
   const { bought, total: required } = shoppingProgress(list.items);
-  const onError = onMutationError;
 
   return (
     <Stack gap="lg">
@@ -314,7 +302,7 @@ export function ShoppingListPage() {
               </ActionButton>
             )}
             <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} disabled={list.archived} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
-              {list.remote ? `Commande · ${list.deliveries.filter((delivery) => !delivery.receivedAt).length} livraison(s) en cours` : 'Commande à distance'}
+              {list.remote ? `Commande · ${countOf(list.deliveries.filter((delivery) => !delivery.receivedAt).length, 'livraison')} en cours` : 'Commande à distance'}
             </ActionButton>
             <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
@@ -367,7 +355,7 @@ export function ShoppingListPage() {
                   onPick: baseLists.length ? () => openFormPanel('Ajouter des produits des références', (close) => <ProductPicker list={list} onDone={close} />) : undefined,
                 }
           }
-          onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}
+          onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, ON_ERROR)}
           extraCells={(item) => ({
             inStock: item.productId && inStock.has(item.productId) && (
               <Text span size="sm" c="dimmed" ff="monospace">
@@ -398,7 +386,7 @@ export function ShoppingListPage() {
               const changed = items.filter((item) => Boolean(item.purchasedAt) !== purchased);
               Promise.all(changed.map((item) => mutations.setPurchased.mutateAsync({ id: item.id, purchased })))
                 .then(() => purchased && changed.length > 0 && propose(changed))
-                .catch(onError);
+                .catch(onMutationError);
             },
           }}
           badge={(item) =>
@@ -418,7 +406,7 @@ export function ShoppingListPage() {
                   ? baseLists.map((baseList) => ({
                       label: `Ajouter à « ${baseList.name} »`,
                       icon: <ListPlusIcon aria-hidden />,
-                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, { onSuccess: () => notifySuccess(`Ajouté à « ${baseList.name} ».`), onError }),
+                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, toastCallbacks(`Ajouté à « ${baseList.name} ».`)),
                     }))
                   : []),
                 item.perishable && {
@@ -426,7 +414,7 @@ export function ShoppingListPage() {
                   icon: <CalendarPlusIcon aria-hidden />,
                   hint: 'Le même produit, acheté avec une autre date de péremption',
                   disabled: closed,
-                  onClick: () => mutations.duplicateItem.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ligne ajoutée : indiquez sa date.'), onError }),
+                  onClick: () => mutations.duplicateItem.mutate({ id: item.id }, toastCallbacks('Ligne ajoutée : indiquez sa date.')),
                 },
                 { label: 'Ajouter au stock…', icon: <ArchiveIcon aria-hidden />, onClick: () => openFormPanel('Ajouter au stock', (close) => <StockPurchaseForm items={[item]} onDone={close} />) },
                 {
@@ -435,7 +423,7 @@ export function ShoppingListPage() {
                   danger: true,
                   disabled: closed,
                   onClick: () => {
-                    const remove = () => mutations.deleteItem.mutate({ id: item.id }, { onError });
+                    const remove = () => mutations.deleteItem.mutate({ id: item.id }, ON_ERROR);
                     // An item of this list only is lost with it; a product of a base list can be added back.
                     if (item.productId) remove();
                     else

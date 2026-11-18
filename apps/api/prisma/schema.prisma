@@ -1256,6 +1256,7 @@ model MailLabel {
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([workspaceId, name])
   @@index([workspaceId])
 }
 
@@ -1881,8 +1882,8 @@ model CatalogItem {
   unitPrice   Decimal            @default(0) @db.Decimal(14, 4)
   /// Percent (20, 10, 5.5…).
   vatRate     Decimal            @default(20) @db.Decimal(5, 2)
-  /// Archived: kept on past documents, not offered any more.
-  archived    Boolean            @default(false)
+  /// Archived: kept on past documents, not offered any more (hidden by default and read only until restored).
+  archivedAt  DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   /// Comments (markdown).
@@ -2046,7 +2047,8 @@ model TreasuryAccount {
   openingBalance Decimal         @default(0) @db.Decimal(14, 4)
   openingDate    DateTime        @db.Date
   position       Int             @default(0)
-  archived       Boolean         @default(false)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt     DateTime?
   /// Columns of its bank statements (CSV), as last mapped at an import.
   csvMapping     Json?
   createdAt      DateTime        @default(now())
@@ -2305,7 +2307,8 @@ model TreasuryCounterparty {
   /// Manual order among its siblings (then by name).
   position    Int             @default(0)
   note        String?
-  archived    Boolean         @default(false)
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
   createdAt   DateTime        @default(now())
   entries     TreasuryEntry[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

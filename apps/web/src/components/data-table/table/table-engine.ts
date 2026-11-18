@@ -17,6 +17,7 @@ import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
 import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
+import { dayOf, monthOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
@@ -156,7 +157,7 @@ function meets<R>(
     }
     case 'date': {
       if (typeof value !== 'string') return false;
-      const day = value.slice(0, 10);
+      const day = dayOf(value);
       if (operator === 'within') {
         const [from, to] = filterPeriod(String(wanted), today, currentWeek());
         return day >= from && day < to;
@@ -241,7 +242,7 @@ function periodGroup(date: string, period: GroupPeriod): { key: string; label: s
       return { key: `${week.year}-W${String(week.week).padStart(2, '0')}`, label: `Semaine ${week.week} · ${week.year} (du ${fmt.dayShort(week.monday)})` };
     }
     case 'MONTH':
-      return { key: date.slice(0, 7), label: periodName('month', `${date.slice(0, 7)}-01`) };
+      return { key: monthOfDay(date), label: periodName('month', `${monthOfDay(date)}-01`) };
     case 'QUARTER': {
       const quarter = Math.ceil(month / 3);
       return { key: `${year}-Q${quarter}`, label: quarterName(date) };
@@ -285,7 +286,7 @@ function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key:
   if (filter?.kind === 'date') {
     const date = filter.value(row);
     if (!date) return none;
-    const group = periodGroup(date.slice(0, 10), period);
+    const group = periodGroup(dayOf(date), period);
     return [{ ...group, order: group.key }];
   }
   if (filter?.kind === 'choices') {

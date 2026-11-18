@@ -52,7 +52,7 @@ export function PlannedTime() {
     const slots = plannedSlots(scheduleRules(schedules), monday, sunday);
     const trackedByDay = new Map<string, number>();
     for (const entry of entries.data ?? []) {
-      const day = localParts(new Date(entry.startedAt)).date;
+      const day = localParts(entry.startedAt).date;
       trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + entrySeconds(entry, now));
     }
     return Array.from({ length }, (_, index) => {
