@@ -1,31 +1,29 @@
-import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { SegmentedControl, Select } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
 import { calendarStart, type CalendarScale, type ChartConfig } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { calendarParts } from '../lib/aggregate';
+import { relativePeriodName } from '../../../lib/periods';
 
 const SCALES: { value: CalendarScale; label: string }[] = [
   { value: 'month', label: 'Mois' },
   { value: 'quarter', label: 'Trimestre' },
   { value: 'year', label: 'Année' },
 ];
-const WHICH: Record<CalendarScale, { value: string; label: string }[]> = {
-  month: [
-    { value: '0', label: 'Mois en cours' },
-    { value: '-1', label: 'Mois précédent' },
-    { value: 'chosen', label: 'Mois choisi' },
-  ],
-  quarter: [
-    { value: '0', label: 'Trimestre en cours' },
-    { value: '-1', label: 'Trimestre précédent' },
-    { value: 'chosen', label: 'Trimestre choisi' },
-  ],
-  year: [
-    { value: '0', label: 'Année en cours' },
-    { value: '-1', label: 'Année précédente' },
-    { value: 'chosen', label: 'Année choisie' },
-  ],
-};
+/** Name of a chosen period of each scale. */
+const CHOSEN: Record<CalendarScale, string> = { month: 'Mois choisi', quarter: 'Trimestre choisi', year: 'Année choisie' };
+
+/**
+ * Which period of a scale: the current one, the previous one or a chosen one.
+ * @param {CalendarScale} scale Scale.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+const which = (scale: CalendarScale) => [
+  { value: '0', label: relativePeriodName(scale, false) },
+  { value: '-1', label: relativePeriodName(scale, true) },
+  { value: 'chosen', label: CHOSEN[scale] },
+];
 
 /**
  * Period of a chart as a calendar month, quarter or year: the current one (follows the date), the previous
@@ -39,10 +37,7 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
   const today = localToday();
   const set = (nextScale: CalendarScale, nextAnchor: string) => onChange(`${nextScale}:${nextAnchor}` as ChartConfig['period']);
   return (
-    <Stack gap={6}>
-      <Text size="sm" fw={500}>
-        Période
-      </Text>
+    <LabeledField label="Période">
       <SegmentedControl
         size="xs"
         data={SCALES}
@@ -53,7 +48,7 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
       <Select
         aria-label="Quelle période"
         allowDeselect={false}
-        data={WHICH[scale]}
+        data={which(scale)}
         value={chosen ? 'chosen' : anchor}
         onChange={(which) => which && set(scale, which === 'chosen' ? calendarStart(scale, today) : which)}
       />
@@ -63,6 +58,6 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
         ) : (
           <MonthPickerInput aria-label={scale === 'quarter' ? 'Un mois du trimestre' : 'Mois'} value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
         ))}
-    </Stack>
+    </LabeledField>
   );
 }

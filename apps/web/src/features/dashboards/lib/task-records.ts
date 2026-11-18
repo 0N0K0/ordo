@@ -2,6 +2,7 @@ import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimensio
 import { localDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
+import { leafEffort } from '../../tasks/lib/task-effort';
 import type { SprintTaskStatus } from '../api';
 import { aggregate, none, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../../lib/format';
@@ -24,11 +25,11 @@ function taskDay(task: Task, dimension: ChartDimension): string | null {
     case 'createdAt':
       return localDay(task.createdAt);
     case 'closedAt':
-      return task.closedAt ? localDay(String(task.closedAt)) : null;
+      return task.closedAt ? localDay(task.closedAt) : null;
     case 'startDate':
-      return task.startDate ? String(task.startDate) : null;
+      return task.startDate ? task.startDate : null;
     case 'endDate':
-      return task.endDate ? String(task.endDate) : null;
+      return task.endDate ? task.endDate : null;
     default:
       return null;
   }
@@ -156,7 +157,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
  */
 function valueOf(task: Task, measure: ChartMeasure, context: TaskContext): number {
   if (measure === 'count') return 1;
-  if (measure === 'effort') return context.childrenOf(task.id).length === 0 ? (task.effort ?? 0) : 0;
+  if (measure === 'effort') return leafEffort(task, context);
   if (measure === 'trackedTime') return task.trackedSeconds / 3600;
   return 0;
 }
@@ -196,10 +197,10 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
   const inSprint = tasks.filter((task) => task.sprintIds.includes(sprint.id));
   const total = inSprint.reduce((sum, task) => sum + valueOf(task, measure, context), 0);
   const days: string[] = [];
-  for (let day = String(sprint.startDate); day <= String(sprint.endDate); day = addDays(day, 1)) days.push(day);
+  for (let day = sprint.startDate; day <= sprint.endDate; day = addDays(day, 1)) days.push(day);
   const rows = days.map((day, index) => ({
     x: fmt.dayShort(day),
-    Restant: day > today ? null : round2(inSprint.filter((task) => !task.closedAt || localDay(String(task.closedAt)) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
+    Restant: day > today ? null : round2(inSprint.filter((task) => !task.closedAt || localDay(task.closedAt) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
     Idéal: round2(days.length > 1 ? total * (1 - index / (days.length - 1)) : 0),
   }));
   return {

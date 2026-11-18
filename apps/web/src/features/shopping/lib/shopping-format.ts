@@ -1,10 +1,12 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
+import { personName, usePeopleOptions } from '../../../components/people/people-options';
 import { mapById, byPosition, lineageOf } from '@ordo/shared';
 import { categoryTree } from '../../../components/tree/category-tree';
 import { useTreasurySettings } from '../../treasury/api';
 import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from '../api';
+import * as fmt from '../../../lib/format';
 
 /** Units offered (any other can be typed). */
 /**
@@ -327,12 +329,13 @@ export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<st
 export function usePeople() {
   const { data } = useTreasurySettings();
   const { context } = useTaskContext();
-  const members = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
+  const buildOptions = usePeopleOptions();
+  const members = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, personName(contributor)]));
   const relations = new Map((data?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
-  const options = [
-    { group: 'Contributeurs', items: [...members].map(([id, name]) => ({ value: personKey('member', id), label: name })) },
-    { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })) },
-  ].filter((group) => group.items.length > 0);
+  const options = buildOptions(
+    [...members].map(([id, name]) => ({ value: personKey('member', id), label: name })),
+    [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
+  );
   const byKey = new Map([...[...members].map(([id, name]) => [personKey('member', id), name] as const), ...[...relations].map(([id, name]) => [personKey('relation', id), name] as const)]);
   return { members, relations, byKey, options };
 }
@@ -403,3 +406,10 @@ export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], con
 
 /** Color of the units (they show none: the color rule asks for one). */
 export const UNIT_COLOR = '#868e96';
+
+/**
+ * « Gâteau · 1,5 »: a sheet an item of a list comes from, with its share (none: its name alone).
+ * @param {{ name: string, quantity: number | null }} source Sheet and share.
+ * @returns {string} Text.
+ */
+export const sheetSourceText = (source: { name: string; quantity: number | null }) => (source.quantity !== null ? `${source.name} · ${fmt.number(source.quantity, 3)}` : source.name);

@@ -1,3 +1,4 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { plural } from '../../../lib/text';
 import { normalize } from '@ordo/shared';
@@ -5,8 +6,8 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
+import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -336,13 +337,13 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   if (loginPending || isPending || !context) return <FormSkeleton fields={3} />;
   if (!login) {
     return (
-      <Alert color="yellow" icon={<WarningIcon aria-hidden />}>
+      <NoticeAlert kind="info">
         GitHub n’est pas connecté : ajoutez un jeton dans{' '}
         <Anchor component={Link} to="/settings?tab=github" size="sm">
           Paramètres › GitHub
         </Anchor>
         .
-      </Alert>
+      </NoticeAlert>
     );
   }
 
@@ -416,7 +417,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <Text size="sm" c="dimmed">
                 {link.linkedTaskCount} {plural(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
-                {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(new Date(link.lastSyncAt))}`}
+                {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(link.lastSyncAt)}`}
               </Text>
             </Stack>
             <Group gap="xs">

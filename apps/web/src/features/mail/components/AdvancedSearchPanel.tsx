@@ -1,5 +1,5 @@
 import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { FloppyDiskIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';

@@ -1,4 +1,4 @@
-import { Group, Paper, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
@@ -7,6 +7,7 @@ import { useTimeEntriesSince } from '../api';
 import { useNow } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 /**
  * Tracked time against planned time.
@@ -65,9 +66,8 @@ export function PlannedTime() {
   const week = days.reduce((sum, day) => ({ planned: sum.planned + day.planned, tracked: sum.tracked + day.tracked }), { planned: 0, tracked: 0 });
 
   return (
-    <Paper withBorder radius="md" p="md">
+    <SettingsSection title="Prévu et réalisé">
       <Stack gap="sm">
-        <Text fw={600}>Prévu et réalisé</Text>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <Gauge label="Aujourd’hui" tracked={todayRow?.tracked ?? 0} planned={todayRow?.planned ?? 0} />
           <Gauge label="Cette semaine" tracked={week.tracked} planned={week.planned} />
@@ -97,6 +97,6 @@ export function PlannedTime() {
           Temps prévu par vos plages de travail (Agenda › Plages de travail), hors pauses.
         </Text>
       </Stack>
-    </Paper>
+    </SettingsSection>
   );
 }

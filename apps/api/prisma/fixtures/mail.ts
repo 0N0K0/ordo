@@ -6,7 +6,7 @@ import { prisma } from '../../src/db';
 import type { Project } from '../../src/generated/prisma/client';
 import { closeImap } from '../../src/services/mail/imap';
 import { copyToProject } from '../../src/services/mail/linked';
-import { createLabel, markMails } from '../../src/services/mail/organize';
+import { mailLabels, markMails } from '../../src/services/mail/organize';
 import { fetchParsed } from '../../src/services/mail/reader';
 import { scheduleMail } from '../../src/services/mail/scheduled';
 import { createSearch } from '../../src/services/mail/searches';
@@ -359,7 +359,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   }
 
   // --- Flags, done mails and search folders (reused when they exist: the kept mail accounts may use them) ------
-  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { name } })) ?? (await createLabel({ name, color }));
+  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { name } })) ?? (await mailLabels.create({ name, color }));
   const urgent = (await label('Urgent', '#fa5252')).id;
   const billing = (await label('À facturer', '#fab005')).id;
   await label('Personnel', '#e64980');

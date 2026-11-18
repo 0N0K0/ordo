@@ -1,6 +1,6 @@
 import { Badge, Group, Menu, UnstyledButton } from '@mantine/core';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { ItemBadge } from '../../../components/items/ItemBadge';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
 import { onMutationError } from '../../../lib/notify';

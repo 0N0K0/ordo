@@ -1,5 +1,6 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { Divider, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -65,10 +66,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           clearable
           {...form.getInputProps('accountIds')}
         />
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Dossiers
-          </Text>
+        <LabeledField label="Dossiers">
           <SegmentedControl
             data={[
               { value: 'inbox', label: 'Réception' },
@@ -78,11 +76,8 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
             value={values.scope}
             onChange={(scope) => form.setValues({ scope: scope as MailSearchCriteria['scope'], folder: scope === 'folder' ? criteria.folder : null })}
           />
-        </Stack>
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Mails
-          </Text>
+        </LabeledField>
+        <LabeledField label="Mails">
           <SegmentedControl
             data={[
               { value: 'todo', label: 'À traiter' },
@@ -92,7 +87,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
             value={values.state}
             onChange={(state) => form.setFieldValue('state', state as MailSearchCriteria['state'])}
           />
-        </Stack>
+        </LabeledField>
         <BatchMultiSelect
           label="Drapeaux"
           description="Les mails ayant l’un de ces drapeaux."

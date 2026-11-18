@@ -1,12 +1,13 @@
-import { Alert, Checkbox, Radio, Stack, Text } from '@mantine/core';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { Checkbox, Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
 import { useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { outermost } from '../../../components/data-table/selection/selection-actions';
 import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
+import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { countOf, plural } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
 import { countSubtasks } from '../lib/task-links';
@@ -15,6 +16,7 @@ import { taskName, taskRef } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useBulkUndo } from '../lib/bulk-undo';
 import { removedLinksNote, tasksLabel } from '../lib/bulk-label';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 /**
  * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
@@ -152,9 +154,9 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
         onChange={(event) => setNone(event.currentTarget.checked)}
       />
       {leavesTree && (
-        <Alert color="yellow" icon={<ErrorIcon />}>
+        <NoticeAlert kind="warning">
           Ce projet n’appartient pas à la même arborescence : la tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle seront retirés.
-        </Alert>
+        </NoticeAlert>
       )}
       <FormActions
         onCancel={() => onDone(false)}
@@ -177,8 +179,27 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
 export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
   const cloneTask = useCloneTask();
   const link = useTaskLink();
-  const [pending, setPending] = useState(false);
   const single = tasks.length === 1 ? tasks[0] : null;
+  const { run: clone, loading: pending } = useAsyncAction(
+    async () => {
+      // A task already cloned with its parent is not cloned again.
+      const roots = outermost(
+        tasks,
+        (task) => task.id,
+        (id) => context.taskById.get(id)?.parentId,
+      );
+      let last: { id: string; number: number | null } | null = null;
+      for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
+      return last;
+    },
+    {
+      onDone: (last) => {
+        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
+        onDone(true);
+        if (single && last) link.open(last.id);
+      },
+    },
+  );
   const subtasks = tasks.reduce((count, task) => count + countSubtasks(context, task.id), 0);
   return (
     <Stack gap="md">
@@ -192,32 +213,7 @@ export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
             : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
         </Text>
       )}
-      <FormActions
-        onCancel={() => onDone(false)}
-        submitLabel="Cloner"
-        loading={pending}
-        autoFocus
-        onSubmit={async () => {
-          setPending(true);
-          try {
-            // A task already cloned with its parent is not cloned again.
-            const roots = outermost(
-              tasks,
-              (task) => task.id,
-              (id) => context.taskById.get(id)?.parentId,
-            );
-            let last: { id: string; number: number | null } | null = null;
-            for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
-            notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
-            onDone(true);
-            if (single && last) link.open(last.id);
-          } catch (error) {
-            notifyFailure(error);
-          } finally {
-            setPending(false);
-          }
-        }}
-      />
+      <FormActions onCancel={() => onDone(false)} submitLabel="Cloner" loading={pending} autoFocus onSubmit={() => void clone()} />
     </Stack>
   );
 }

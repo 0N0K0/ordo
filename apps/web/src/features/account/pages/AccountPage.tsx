@@ -1,9 +1,11 @@
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PAGES } from '../../../app/pages';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { Alert, Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
+import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
 import { useMemo } from 'react';
-import { InfoFeedbackIcon } from '../../../components/feedback/feedback-icons';
+
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../../auth/api';
@@ -97,7 +99,7 @@ function EmailForm({ user }: { user: AccountUser }) {
         Adresse actuelle : <strong>{user.email}</strong>
       </Text>
       {user.pendingEmail && (
-        <Alert color="blue" title="Confirmation en attente" icon={<InfoFeedbackIcon />}>
+        <NoticeAlert kind="info" title="Confirmation en attente">
           <Stack gap="xs" align="flex-start">
             <Text size="sm">
               Un lien a été envoyé à <strong>{user.pendingEmail}</strong>. L’adresse sera remplacée une fois le lien
@@ -107,7 +109,7 @@ function EmailForm({ user }: { user: AccountUser }) {
               Annuler le changement
             </Button>
           </Stack>
-        </Alert>
+        </NoticeAlert>
       )}
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
@@ -178,7 +180,7 @@ export function AccountPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Mon compte" />
+      <PageHeader title={PAGES.account.title} />
       <SettingsSection title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
         <UsernameForm key={user.username} user={user} />
       </SettingsSection>

@@ -1,18 +1,20 @@
 import { ColorField } from '../../../components/inputs/ColorField';
 import { plural } from '../../../lib/text';
-import { ActionIcon, Badge, Button, Collapse, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from '../../../components/settings/ByWorkspace';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+
 import { DEFAULT_SCHEDULE_DISPLAY, DEFAULT_SCHEDULE_KIND_NAME, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
-import { ArrowCounterClockwiseIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { onMutationError } from '../../../lib/notify';
 
 import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations } from '../api';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
+import { LookPanel, LookToggle } from './LookToggle';
+import { SubscriptionRow } from './SubscriptionRow';
 
 /**
  * Schedules without kind: their name, color and display in the calendar (a setting apart, not an item of the list of
@@ -26,9 +28,8 @@ function DefaultScheduleKind() {
   if (!defaultKind) return null;
   const onError = onMutationError;
   return (
-    <Paper withBorder radius="md" p="md">
+    <SettingsSection title="Plages sans type">
       <Stack gap="xs">
-        <Text fw={600}>Plages sans type</Text>
         <Group gap="xs" wrap="nowrap">
           <ColorField
             key={defaultKind.color ?? 'none'}
@@ -56,19 +57,13 @@ function DefaultScheduleKind() {
               event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, { onError })
             }
           />
-          <Tooltip label="Affichage dans l’agenda">
-            <ActionIcon variant={opened ? 'light' : 'subtle'} color="gray" aria-label="Affichage des plages sans type" aria-expanded={opened} onClick={() => setOpened(!opened)}>
-              <SlidersHorizontalIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <LookToggle label="Affichage dans l’agenda" ariaLabel="Affichage des plages sans type" opened={opened} onToggle={() => setOpened(!opened)} />
         </Group>
-        <Collapse expanded={opened}>
-          <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-            <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, { onError })} />
-          </Paper>
-        </Collapse>
+        <LookPanel opened={opened}>
+          <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, { onError })} />
+        </LookPanel>
       </Stack>
-    </Paper>
+    </SettingsSection>
   );
 }
 
@@ -130,69 +125,55 @@ function ForeignSchedules() {
           const look = { color: kind.color ?? null, ...readScheduleDisplay(kind) };
           return (
             <Stack key={key} gap={6} pl="md">
-              <Group gap="sm" wrap="nowrap">
-                <ItemAvatar name={kind.name} color={kind.color ?? 'green'} />
-                <Text size="sm" style={{ flex: 1 }}>
-                  {kind.name}
-                  <Text span size="xs" c="dimmed">
-                    {' '}
-                    · {kind.scheduleCount} {plural(kind.scheduleCount, 'plage')}
-                    {kind.customized ? ' · affichage personnalisé' : ''}
-                  </Text>
-                </Text>
-                {kind.subscribed && (
-                  <Tooltip label="Couleur et affichage dans cet agenda">
-                    <ActionIcon
-                      variant={opened === key ? 'light' : 'subtle'}
-                      color="gray"
-                      aria-label={`Affichage de ${kind.name} (${kind.workspaceName})`}
-                      aria-expanded={opened === key}
-                      onClick={() => setOpened(opened === key ? null : key)}
-                    >
-                      <SlidersHorizontalIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                )}
-                <Switch
-                  label="Abonné"
-                  aria-label={`Abonnement à ${kind.name} (${kind.workspaceName})`}
-                  checked={kind.subscribed}
-                  onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(target, { onError })}
-                />
-              </Group>
-              <Collapse expanded={kind.subscribed && opened === key}>
-                <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-                  <Stack gap={6}>
-                    <Group gap="xs" align="center">
-                      <Text size="xs" w={120}>
-                        Couleur
-                      </Text>
-                      <ColorField
-                        key={kind.color ?? 'none'}
-                        size="xs"
-                        w={140}
-                        placeholder="Vert"
-                        aria-label={`Couleur de ${kind.name} dans cet agenda`}
-                        defaultValue={kind.color ?? ''}
-                        onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
-                      />
-                    </Group>
-                    <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
-                    {kind.customized && (
-                      <div>
-                        <Button
-                          size="compact-xs"
-                          variant="subtle"
-                          leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-                          onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
-                        >
-                          Reprendre ceux du type
-                        </Button>
-                      </div>
-                    )}
-                  </Stack>
-                </Paper>
-              </Collapse>
+              <SubscriptionRow
+                name={kind.name}
+                color={kind.color ?? 'green'}
+                workspaceName={kind.workspaceName}
+                hint={`${kind.scheduleCount} ${plural(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
+                subscribed={kind.subscribed}
+                onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, { onError })}
+                actions={
+                  kind.subscribed && (
+                    <LookToggle
+                      label="Couleur et affichage dans cet agenda"
+                      ariaLabel={`Affichage de ${kind.name} (${kind.workspaceName})`}
+                      opened={opened === key}
+                      onToggle={() => setOpened(opened === key ? null : key)}
+                    />
+                  )
+                }
+              />
+              <LookPanel opened={kind.subscribed && opened === key}>
+                <Stack gap={6}>
+                  <Group gap="xs" align="center">
+                    <Text size="xs" w={120}>
+                      Couleur
+                    </Text>
+                    <ColorField
+                      key={kind.color ?? 'none'}
+                      size="xs"
+                      w={140}
+                      placeholder="Vert"
+                      aria-label={`Couleur de ${kind.name} dans cet agenda`}
+                      defaultValue={kind.color ?? ''}
+                      onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
+                    />
+                  </Group>
+                  <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
+                  {kind.customized && (
+                    <div>
+                      <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
+                        onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
+                      >
+                        Reprendre ceux du type
+                      </Button>
+                    </div>
+                  )}
+                </Stack>
+              </LookPanel>
             </Stack>
           );
         }}

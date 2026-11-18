@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
@@ -32,8 +32,8 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
       label: delivery?.label ?? null,
       trackingUrl: delivery?.trackingUrl ?? null,
       pickup: delivery?.pickup ?? false,
-      windowFrom: delivery?.windowFrom ? String(delivery.windowFrom).slice(0, 10) : null,
-      windowTo: delivery?.windowTo ? String(delivery.windowTo).slice(0, 10) : null,
+      windowFrom: delivery?.windowFrom ? delivery.windowFrom : null,
+      windowTo: delivery?.windowTo ? delivery.windowTo : null,
       address: delivery?.address ?? null,
       lat: delivery?.lat ?? null,
       lon: delivery?.lon ?? null,
@@ -44,7 +44,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
   const values = form.getValues();
   const address: AddressValue = { text: values.address ?? '', point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null };
   const handleSubmit = form.onSubmit((input) => {
-    const callbacks = { onSuccess: () => (notifySuccess(delivery ? 'Livraison modifiée.' : 'Livraison ajoutée.'), onDone()), onError: (error: Error) => showFormError(form, error) };
+    const callbacks = formCallbacks(form, delivery ? 'Livraison modifiée.' : 'Livraison ajoutée.', onDone);
     if (delivery) updateDelivery.mutate({ id: delivery.id, input }, callbacks);
     else createDelivery.mutate({ listId: list.id, input }, callbacks);
   });
@@ -158,7 +158,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
                       )}
                       {delivery.receivedAt && (
                         <Badge size="xs" variant="light" color="green" tt="none">
-                          réceptionnée le {fmt.day(new Date(delivery.receivedAt))}
+                          réceptionnée le {fmt.day(delivery.receivedAt)}
                         </Badge>
                       )}
                     </Group>

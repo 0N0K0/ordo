@@ -2,7 +2,7 @@ import { Button, FileButton, Group, Input, Stack, Text } from '@mantine/core';
 import { ICON_MIME_TYPES, MAX_ICON_BYTES } from '@ordo/shared';
 import { ImageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
-import { EntityAvatar } from '../../../components/settings/EntityAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 
 export interface IconValue {
   /** Newly chosen file. */
@@ -61,7 +61,7 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
   return (
     <Input.Wrapper label="Icône" error={localError ?? error}>
       <Group gap="md" mt={4}>
-        <EntityAvatar name={name || '?'} iconUrl={shownUrl} color={color} size="lg" radius="md" contain={contain} />
+        <ItemAvatar name={name || '?'} iconUrl={shownUrl} color={color ?? 'initials'} size="lg" radius="md" contain={contain} />
         <Stack gap={4}>
           <Group gap="xs">
             <FileButton onChange={handleFile} accept={ICON_MIME_TYPES.join(',')}>

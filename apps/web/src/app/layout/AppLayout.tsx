@@ -1,6 +1,6 @@
 import { SidePanelHost } from '../../components/panels/SidePanel';
 import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
-import { useDisclosure, useLocalStorage, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -26,6 +26,7 @@ import { TimerWidget } from '../../features/time/components/TimerWidget';
 import { useResizablePanel } from './use-resizable-panel';
 import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
 import { ResizeHandle } from './ResizeHandle';
+import { useIsPhone } from '../../lib/use-is-phone';
 
 /**
  * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
@@ -38,7 +39,7 @@ export function AppLayout() {
   // Open state of the sidebar, kept (each window its own).
   const [sidebarShown, setSidebarShown] = useLocalStorage({ key: 'ordo.sidebar.opened', sync: false, defaultValue: true });
   const sidebar = useResizablePanel({ ...SIDEBAR_PANEL, opened: sidebarShown, setOpened: setSidebarShown });
-  const mobile = useMediaQuery('(max-width: 48em)');
+  const mobile = useIsPhone();
   const [mobileOpened, mobileSidebar] = useDisclosure(false);
   const { pathname } = useLocation();
 

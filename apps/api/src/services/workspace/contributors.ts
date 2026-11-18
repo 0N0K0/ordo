@@ -6,6 +6,8 @@ import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { assertAllExist } from '../core/lookup';
 import { ARCHIVED_MESSAGE, assertNotArchived } from '../core/archive';
+import { lineageIds } from '../core/trees';
+import { connectIds } from '../core/relations';
 
 /**
  * Creates a contributor.
@@ -27,7 +29,7 @@ export async function createContributor(input: {
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
   try {
     return await prisma.contributor.create({
-      data: { ...data, iconId, projects: { connect: (input.projectIds ?? []).map((id) => ({ id })) } },
+      data: { ...data, iconId, projects: { connect: connectIds(input.projectIds ?? []) } },
     });
   } catch (error) {
     await deleteOrphanIcons([iconId]);
@@ -68,7 +70,7 @@ export async function updateContributor(
   try {
     const updated = await prisma.contributor.update({
       where: { id },
-      data: { ...data, iconId, ...(input.projectIds && { projects: { set: input.projectIds.map((projectId) => ({ id: projectId })) } }) },
+      data: { ...data, iconId, ...(input.projectIds && { projects: { set: connectIds(input.projectIds) } }) },
     });
     if (iconId !== undefined) await deleteOrphanIcons([contributor.iconId]);
     return updated;
@@ -138,7 +140,7 @@ export async function setProjectContributors(projectId: string, contributorIds: 
   await assertActiveContributors(contributorIds, current.map((contributor) => contributor.id), 'contributorIds');
   await prisma.project.update({
     where: { id: projectId },
-    data: { contributors: { set: contributorIds.map((contributorId) => ({ id: contributorId })) } },
+    data: { contributors: { set: connectIds(contributorIds) } },
   });
 }
 
@@ -171,7 +173,7 @@ export async function attachAssignees(assignments: { projectId: string; contribu
     if (connect.length > 0) {
       await prisma.contributor.update({
         where: { id: contributor.id },
-        data: { projects: { connect: connect.map((projectId) => ({ id: projectId })) } },
+        data: { projects: { connect: connectIds(connect) } },
       });
     }
   }
@@ -191,8 +193,7 @@ export async function assertProjectContributors(projectId: string | null, ids: s
   const added = ids.filter((id) => !keep.includes(id));
   await assertActiveContributors(added, [], field);
   if (!projectId || added.length === 0) return;
-  const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const scope = lineageOf(new Map(projects.map((project) => [project.id, project])), projectId).map((project) => project.id);
+  const scope = await lineageIds('project', projectId);
   const allowed = await prisma.contributor.count({ where: { id: { in: added }, OR: [{ userId: { not: null } }, { projects: { some: { id: { in: scope } } } }] } });
   if (allowed !== new Set(added).size) {
     const message = 'Seuls les contributeurs du projet peuvent être choisis.';

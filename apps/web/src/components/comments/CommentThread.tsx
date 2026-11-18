@@ -44,7 +44,7 @@ interface ThreadComment {
 }
 
 /** Saves of a thread: each calls `done` once saved (errors are told by the caller). */
-interface ThreadActions {
+export interface ThreadActions {
   add: (body: string, done: () => void) => void;
   update: (id: string, body: string, done?: () => void) => void;
   remove: (id: string) => void;
@@ -86,7 +86,7 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
               @{comment.githubAuthor} sur GitHub
             </Text>
           )}
-          <Tooltip label={fmt.dateTime(new Date(comment.createdAt))}>
+          <Tooltip label={fmt.dateTime(comment.createdAt)}>
             <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
               {fromNow(comment.createdAt)}
             </Text>

@@ -1,9 +1,10 @@
 import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { useState } from 'react';
+
 import type { ExportScheme } from '../lib/chart-image';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 /** Settings of an image export. */
 interface ImageExportSettings {
@@ -38,13 +39,13 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
     key: 'ordo.dashboards.imageExport',
     defaultValue: { scheme: 'light' as ImageExportSettings['scheme'], orientation: 'landscape', ratio: '16:9', size: '1920' },
   });
-  const [loading, setLoading] = useState(false);
   const ratio = RATIOS.find((item) => item.value === stored.ratio) ?? RATIOS[0];
   const long = (SIZES.find((item) => item.value === stored.size) ?? SIZES[1]).long;
   const short = Math.round(long / ratio.ratio);
   const portrait = stored.orientation === 'portrait' && ratio.ratio !== 1;
   const width = portrait ? short : long;
   const height = portrait ? long : short;
+  const { run: exportImage, loading } = useAsyncAction(() => onExport({ scheme: stored.scheme, width, height }), { onDone });
   const set = (changes: Partial<typeof stored>) => setStored({ ...stored, ...changes });
 
   return (
@@ -81,17 +82,7 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
       <Text size="sm" c="dimmed">
         Image PNG de {fmt.number(width, 0)} × {fmt.number(height, 0)} px.
       </Text>
-      <FormActions
-        onCancel={onDone}
-        submitLabel="Exporter"
-        loading={loading}
-        onSubmit={() => {
-          setLoading(true);
-          onExport({ scheme: stored.scheme, width, height })
-            .then(onDone)
-            .finally(() => setLoading(false));
-        }}
-      />
+      <FormActions onCancel={onDone} submitLabel="Exporter" loading={loading} onSubmit={() => void exportImage()} />
     </Stack>
   );
 }

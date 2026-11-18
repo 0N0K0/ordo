@@ -34,7 +34,9 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
 import { archiveWithUndo, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
+import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -61,7 +63,6 @@ export function StockTable() {
   const soon = addDays(today, SOON);
   const places = categoryPaths(locations ?? []);
   const categories = shopping?.shoppingCategories ?? [];
-  const categoryNames = categoryPaths(categories);
   const products = mapById(shopping?.shoppingProducts ?? []);
   const comments = useCommentCounts(
     'STOCK_ITEM',
@@ -84,26 +85,9 @@ export function StockTable() {
       filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: withArchived(categoryOptions(locations ?? []), locations ?? []) },
       groupable: true,
     },
-    {
-      id: 'category',
-      label: 'Catégorie',
-      size: 170,
-      bulk: true,
-      sortValue: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : null),
-      text: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: withArchived(categoryOptions(categories), categories) },
-      groupable: true,
-    },
-    {
-      id: 'quantity',
-      label: 'Quantité',
-      size: 110,
-      numeric: true,
-      sortValue: (item) => item.quantity,
-      text: (item) => fmt.number(item.quantity, 3),
-      filter: { kind: 'number', value: (item) => item.quantity },
-    },
-    { id: 'unit', label: 'Unité', size: 90, bulk: true, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '', groupable: true },
+    categoryColumn<StockItem>(categories),
+    quantityColumn<StockItem>({ size: 110, bulk: false }),
+    unitColumn<StockItem>({ groupable: true }),
     {
       id: 'expiry',
       label: 'Péremption',
@@ -118,7 +102,7 @@ export function StockTable() {
       label: 'Lots',
       size: 170,
       hiddenByDefault: true,
-      text: (item) => item.lots.map((lot) => `${fmt.number(lot.quantity, 3)}${lot.expiresAt ? ` · ${fmt.day(String(lot.expiresAt))}` : ''}`).join(', '),
+      text: (item) => item.lots.map((lot) => `${fmt.number(lot.quantity, 3)}${lot.expiresAt ? ` · ${fmt.day(lot.expiresAt)}` : ''}`).join(', '),
       filter: { kind: 'number', value: (item) => item.lots.length },
     },
     {
@@ -142,16 +126,7 @@ export function StockTable() {
       filter: { kind: 'boolean', value: (item) => item.perishable },
       groupable: true,
     },
-    {
-      id: 'consumable',
-      label: 'Consommable',
-      size: 120,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.consumable ? 1 : 0),
-      text: (item) => (item.consumable ? 'Consommable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.consumable },
-      groupable: true,
-    },
+    consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
     {
       id: 'reference',
       label: 'Référence',
@@ -173,15 +148,15 @@ export function StockTable() {
       text: (item) => (value(item) === null ? '' : fmt.money(value(item)!)),
       filter: { kind: 'number', value },
     },
-    { id: 'note', label: 'Description', size: 220, bulk: true, hiddenByDefault: true, sortValue: (item) => item.note ?? null, text: (item) => item.note ?? '' },
+    noteColumn<StockItem>({ hiddenByDefault: true }),
     {
       id: 'updatedAt',
       label: 'Modifié le',
       size: 130,
       hiddenByDefault: true,
-      sortValue: (item) => String(item.updatedAt),
-      text: (item) => fmt.day(new Date(item.updatedAt)),
-      filter: { kind: 'date', value: (item) => String(item.updatedAt).slice(0, 10) },
+      sortValue: (item) => item.updatedAt,
+      text: (item) => fmt.day(item.updatedAt),
+      filter: { kind: 'date', value: (item) => item.updatedAt.slice(0, 10) },
     },
     commentColumn<StockItem>(
       comments,
@@ -280,12 +255,11 @@ export function StockTable() {
             />
           ),
           category: (
-            <EditableSelect
+            <CategoryCell
               value={item.categoryId ?? null}
+              categories={categories}
               label={`Catégorie de ${item.label}`}
-              nullable
               readOnly={readOnly}
-              {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, item.categoryId)))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),
@@ -294,7 +268,7 @@ export function StockTable() {
               {fmt.number(item.quantity, 3)}
             </Text>
           ),
-          unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
+          unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
           expiry: first && (
             <Badge size="sm" variant="light" tt="none" color={first < today ? 'red' : first <= soon ? 'orange' : 'gray'} leftSection={first <= soon ? <WarningIcon aria-hidden /> : undefined}>
               {fmt.day(first)}
@@ -308,7 +282,7 @@ export function StockTable() {
                   {lot.expiresAt && (
                     <Text span size="sm" c="dimmed">
                       {' '}
-                      · {fmt.day(String(lot.expiresAt))}
+                      · {fmt.day(lot.expiresAt)}
                     </Text>
                   )}
                 </Text>

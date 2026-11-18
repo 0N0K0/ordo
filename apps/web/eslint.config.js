@@ -61,7 +61,8 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
-    files: ['src/components/inputs/BatchMultiSelect.tsx'],
+    // BatchMultiSelect wraps MultiSelect; fmt.moneyCents is the shared formatMoney.
+    files: ['src/components/inputs/BatchMultiSelect.tsx', 'src/lib/format.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
 ])

@@ -1,6 +1,6 @@
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { personKey } from '../../../components/people/people-keys';
-import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
+import { categoryColumn, quantityColumn, unitColumn } from './product-columns';
 import type { ShoppingCategory, ShoppingStore } from '../api';
 import { rowPeopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../../lib/format';
@@ -28,25 +28,14 @@ interface ItemNames {
  * @returns {DataColumn<T>[]} Columns.
  */
 export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping, names: ItemNames, extra: DataColumn<T>[] = []): DataColumn<T>[] {
-  const paths = categoryPaths(names.categories);
   const storeName = new Map(names.stores.map((store) => [store.id, store.name]));
-  const categoryOf = (item: T) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const storeOf = (item: T) => (item.storeId ? (storeName.get(item.storeId) ?? '') : '');
   const storageName = new Map((names.storages ?? []).map((storage) => [storage.id, storage.name]));
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
     { id: 'name', label: 'Label', size: 260, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
-    {
-      id: 'category',
-      bulk: true,
-      label: 'Catégorie',
-      size: 150,
-      hiddenByDefault: grouping === 'category',
-      sortValue: (item) => categoryOf(item) || null,
-      text: categoryOf,
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: withArchived(categoryOptions(names.categories), names.categories) },
-    },
+    categoryColumn<T>(names.categories, { size: 150, hiddenByDefault: grouping === 'category', groupable: false }),
     {
       id: 'store',
       bulk: true,
@@ -57,17 +46,8 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       text: storeOf,
       filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })) },
     },
-    {
-      id: 'quantity',
-      bulk: true,
-      label: 'Quantité',
-      size: 88,
-      numeric: true,
-      sortValue: (item) => item.quantity ?? null,
-      text: (item) => (item.quantity == null ? '' : String(item.quantity).replace('.', ',')),
-      filter: { kind: 'number', value: (item) => item.quantity ?? null },
-    },
-    { id: 'unit', bulk: true, label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '' },
+    quantityColumn<T>({ size: 88 }),
+    unitColumn<T>({ size: 100 }),
     {
       id: 'unitPrice',
       bulk: true,

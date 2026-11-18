@@ -1,10 +1,7 @@
-import { EmptyState } from '../../feedback/EmptyState';
-import { ActionIcon, Badge, Button, ColorSwatch, Group, Table, Text } from '@mantine/core';
-import { CaretRightIcon, FunnelSimpleIcon } from '@phosphor-icons/react';
+import { ActionIcon, Badge, ColorSwatch, Group, Table, Text } from '@mantine/core';
+import { CaretRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { emptyTableFilter } from '@ordo/shared';
 import classes from './DataTable.module.css';
-import type { DataView } from '../views/use-data-view';
 
 interface GroupHeaderRowProps {
   label: string;
@@ -51,28 +48,5 @@ export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggl
         </Group>
       </Table.Td>
     </Table.Tr>
-  );
-}
-
-/**
- * What a table shows when its view keeps none of its rows: the search and the filters cleared from it.
- * @param {{ view: DataView<R> }} props Component props.
- * @returns {JSX.Element} Empty state.
- */
-export function NoMatch<R>({ view }: { view: DataView<R> }) {
-  return (
-    <EmptyState
-      icon={<FunnelSimpleIcon aria-hidden />}
-      message={view.total === 0 ? 'Rien pour le moment.' : 'Aucune ligne ne correspond à cette vue.'}
-      action={
-        <>
-          {view.total > 0 && (
-            <Button size="xs" variant="default" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
-              Effacer la recherche et les filtres
-            </Button>
-          )}
-        </>
-      }
-    />
   );
 }

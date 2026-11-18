@@ -1,7 +1,9 @@
 import { dayInMonth, daysInMonth } from '@ordo/shared';
 import { z } from 'zod';
+import { isoWeekday, parseDay, weekdayOfDate } from './days';
+import { daySchema } from './times';
 
-const isoDate = z.iso.date({ error: 'Date invalide.' });
+export { parseDay };
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
@@ -35,13 +37,6 @@ export interface Span {
   start: string;
   end: string;
 }
-
-/**
- * ISO weekday of a date.
- * @param {string} date YYYY-MM-DD.
- * @returns {number} 1 (Monday) to 7 (Sunday).
- */
-const weekdayOfDate = (date: string) => isoWeekday(parseDay(date));
 
 /**
  * Sunday ending the ISO week of a given number in the ISO year of a date, or of the next ISO year when that week
@@ -143,16 +138,16 @@ export const recurrenceSchema = z
     month: z.number().int().min(1).max(12).nullish(),
     week: z.number().int().min(1).max(53).nullish(),
     /** Last date, included. */
-    until: isoDate.nullable(),
+    until: daySchema().nullable(),
     /** Number of occurrences. */
     count: z.number().int().min(1, 'Au moins 1.').max(9999, '9 999 maximum.').nullable(),
     /** Dates that do not occur (occurrences deleted one by one). */
-    exceptions: z.array(isoDate).max(5000),
+    exceptions: z.array(daySchema()).max(5000),
     /** How long each occurrence lasts from its first day (none: a day, or the length of the event). */
     duration: occurrenceDurationSchema.nullish(),
     /** Paused periods, dates included. */
     pauses: z
-      .array(z.object({ from: isoDate, to: isoDate }).refine((pause) => pause.to >= pause.from, 'La fin de la pause doit suivre son début.'))
+      .array(z.object({ from: daySchema(), to: daySchema() }).refine((pause) => pause.to >= pause.from, 'La fin de la pause doit suivre son début.'))
       .max(100),
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
@@ -174,15 +169,6 @@ export const DEFAULT_RECURRENCE: Recurrence = {
 const DAY_MS = 86_400_000;
 
 /**
- * Date of a YYYY-MM-DD string, at midnight UTC (calendar arithmetic, no time zone).
- * @param {string} date Calendar date.
- * @returns {Date} Date.
- */
-export function parseDay(date: string): Date {
-  return new Date(`${date}T00:00:00.000Z`);
-}
-
-/**
  * Date at midnight UTC of a YYYY-MM-DD day that may be missing: null and undefined are kept (a field cleared, or left
  * unchanged).
  * @param {string | null | undefined} date Day.
@@ -199,6 +185,16 @@ export function parseOptionalDay<T extends string | null | undefined>(date: T): 
  */
 export function formatDay(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Day as printed in documents and mails: DD/MM/YYYY.
+ * @param {string | Date} day YYYY-MM-DD, or a date at midnight UTC.
+ * @returns {string} DD/MM/YYYY.
+ */
+export function printedDay(day: string | Date): string {
+  const [year, month, date] = (typeof day === 'string' ? day : formatDay(day)).slice(0, 10).split('-');
+  return `${date}/${month}/${year}`;
 }
 
 /**
@@ -219,15 +215,6 @@ export function addDays(date: string, days: number): string {
  */
 export function daysBetween(from: string, to: string): number {
   return Math.round((parseDay(to).getTime() - parseDay(from).getTime()) / DAY_MS);
-}
-
-/**
- * ISO weekday, 1 (Monday) to 7 (Sunday).
- * @param {Date} date UTC date.
- * @returns {number} Weekday.
- */
-function isoWeekday(date: Date): number {
-  return ((date.getUTCDay() + 6) % 7) + 1;
 }
 
 /**

@@ -1,9 +1,11 @@
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PAGES } from '../../../app/pages';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { Alert, Button, Stack, Text } from '@mantine/core';
-import { AlarmIcon, BellRingingIcon, PlusIcon } from '@phosphor-icons/react';
+import { Button, Stack, Text } from '@mantine/core';
+import { AlarmIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { AlarmList } from '../components/AlarmList';
@@ -27,18 +29,14 @@ export function AlarmsPage() {
 
   return (
     <Stack gap="lg" className={classes.root}>
-      <PageHeader title="Alarmes" actions={<ActionButton
+      <PageHeader title={PAGES.alarms.title} actions={<ActionButton
           icon={<PlusIcon aria-hidden />}
           onClick={() => openForm()}
           disabled={!context}
         >Nouvelle alarme</ActionButton>} />
 
       {permission === 'default' && (
-        <Alert
-          color="blue"
-          icon={<BellRingingIcon aria-hidden />}
-          title="Notifications du navigateur"
-        >
+        <NoticeAlert kind="info" title="Notifications du navigateur">
           <Stack gap="xs" align="flex-start">
             <Text size="sm">
               Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo
@@ -54,7 +52,7 @@ export function AlarmsPage() {
               Autoriser les notifications
             </Button>
           </Stack>
-        </Alert>
+        </NoticeAlert>
       )}
 
       {isPending || !context ? (

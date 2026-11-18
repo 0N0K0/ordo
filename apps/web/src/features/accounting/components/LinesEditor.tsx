@@ -1,8 +1,9 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Badge, Button, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -113,7 +114,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
               label={line.kind === 'DEDUCTION' ? 'Montant HT déduit' : 'Prix unitaire HT'}
               size="xs"
               w={150}
-              suffix=" €"
+              currency={currency}
               readOnly={readOnly}
               value={line.unitPrice}
               onChange={(value) => update({ unitPrice: typeof value === 'number' ? value : 0 })}
@@ -222,15 +223,9 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
       ))}
       {!readOnly && (
         <Group gap="xs">
-          <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('ITEM', defaultRate)])}>
-            Article
-          </Button>
-          <Button size="xs" variant="default" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('DISBURSEMENT', 0)])}>
-            Débours
-          </Button>
-          <Button size="xs" variant="default" color="gray" leftSection={<TextAaIcon aria-hidden />} onClick={() => onChange([...lines, newLine('TEXT', 0)])}>
-            Texte
-          </Button>
+          <AddItemButton onClick={() => onChange([...lines, newLine('ITEM', defaultRate)])}>Ajouter un article</AddItemButton>
+          <AddItemButton onClick={() => onChange([...lines, newLine('DISBURSEMENT', 0)])}>Ajouter un débours</AddItemButton>
+          <AddItemButton onClick={() => onChange([...lines, newLine('TEXT', 0)])}>Ajouter un texte</AddItemButton>
           {offered.length > 0 && (
             <Select
               size="xs"

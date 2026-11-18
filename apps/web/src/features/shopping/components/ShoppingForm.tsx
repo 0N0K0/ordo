@@ -1,17 +1,15 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { categoryOptions } from '../../../components/tree/category-tree';
 import { DatePickerInput } from '@mantine/dates';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { categoriesForBaseList, rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { rowPeopleKeys, rowPeopleOf, sheetSourceText, usePeople } from '../lib/shopping-format';
+import { listSelectProps } from '../../../components/items/item-look';
 import { Anchor, Checkbox, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from '../api';
-import { treeSelectProps } from '../../../components/tree/tree-select';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -20,7 +18,7 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
-import { unarchived, unarchivedOffered } from '../../../lib/archive';
+import { ShoppingCategoryField, UnitField } from './ProductFields';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -78,13 +76,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const pending = mutations.createProduct.isPending || mutations.updateProduct.isPending || mutations.addItem.isPending || mutations.updateItem.isPending;
 
   const handleSubmit = form.onSubmit((values) => {
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(current ? 'Modifié.' : 'Ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, current ? 'Modifié.' : 'Ajouté.', onDone);
     if (target.kind === 'product') {
       if (target.product) mutations.updateProduct.mutate({ id: target.product.id, input: values }, callbacks);
       else mutations.createProduct.mutate(values, callbacks);
@@ -106,7 +98,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             <Text size="xs" c="dimmed">
               Vient {target.item.sheetSources.length > 1 ? 'des fiches' : 'de la fiche'}{' '}
               <Anchor component={Link} to="/sheets" size="xs">
-                {target.item.sheetSources.map((source) => `${source.name}${source.quantity !== null ? ` (${String(source.quantity).replace('.', ',')})` : ''}`).join(', ')}
+                {target.item.sheetSources.map(sheetSourceText).join(', ')}
               </Anchor>
               .
             </Text>
@@ -121,21 +113,12 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             />
           )}
           <SimpleGrid cols={{ base: 1, xs: 2 }}>
-            <CreatableSelect
-              label="Catégorie"
-              placeholder="Aucune"
-              clearable
-              searchable
-              onCreate={(name) => mutations.createCategory.mutateAsync({ name, color, parentId: null })}
-              {...treeSelectProps(
-                categoryOptions(
-                  target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? []),
-                  undefined,
-                  // The archived ones are not offered, but the current one.
-                  unarchivedOffered(data?.shoppingCategories ?? [], current?.categoryId),
-                ),
-              )}
+            <ShoppingCategoryField
+              current={current?.categoryId}
+              baseListId={target.kind === 'product' ? values.baseListId : null}
               {...form.getInputProps('categoryId')}
+              value={values.categoryId ?? null}
+              onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)}
             />
             <CreatableSelect
               label="Magasin"
@@ -155,24 +138,10 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               {...form.getInputProps('quantity')}
               onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
             />
-            <CreatableSelect
-              label="Unité"
-              description="Tapez une unité absente pour l’ajouter aux paramètres des achats."
-              placeholder="Aucune"
-              // A unit is kept by its name.
-              onCreate={async (name) => {
-                await mutations.createUnit.mutateAsync({ name, color });
-                return name;
-              }}
-              data={unitOptions(unarchived(data?.shoppingUnits ?? []), current?.unit)}
-              searchable
-              clearable
-              {...form.getInputProps('unit')}
-            />
+            <UnitField current={current?.unit} {...form.getInputProps('unit')} value={values.unit} onChange={(unit) => form.setFieldValue('unit', unit ?? '')} />
             <AmountInput
               label="Prix unitaire estimé"
               min={0}
-              suffix=" €"
               allowNegative={false}
               {...form.getInputProps('unitPrice')}
               onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}

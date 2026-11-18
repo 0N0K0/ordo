@@ -42,7 +42,7 @@ import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-con
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
 import { ARCHIVED_MESSAGE, archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, type ExportScheme } from '../lib/chart-image';
 import { download, fileName } from '../../../lib/download';
@@ -55,6 +55,7 @@ import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -135,7 +136,6 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const printView = useRef<HTMLDivElement>(null);
   // Drawn off screen at the size of an export while it is made.
   const [printSize, setPrintSize] = useState<{ width: number; height: number } | null>(null);
-  const [exporting, setExporting] = useState(false);
   const description = describeChart(config, context);
 
   // The dashboard export asks every chart for its image.
@@ -156,6 +156,19 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     });
     return () => void registry.delete(chart.id);
   }, [captures, chart.id, chart.title, data, description]);
+
+  // The chart as a PDF (light colors, page format).
+  const { run: exportPdf, loading: exportingPdf } = useAsyncAction(async () => {
+    const capture = captures.current.get(chart.id);
+    if (!capture) return;
+    const image = await capture({ scheme: 'light', render: PRINT_SIZE });
+    await downloadChartsPdf({ title: chart.title, subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`, charts: [image] });
+  });
+  // The data of the chart as a PDF table.
+  const { run: exportTablePdf, loading: exportingTable } = useAsyncAction(async () => {
+    if (data) await downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`);
+  });
+  const exporting = exportingPdf || exportingTable;
 
   /**
    * Exports the chart as a PDF (light colors, page format), or asks the settings of an image (colors,
@@ -184,17 +197,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       );
       return;
     }
-    setExporting(true);
-    capture({ scheme: 'light', render: PRINT_SIZE })
-      .then((image) =>
-        downloadChartsPdf({
-          title: chart.title,
-          subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`,
-          charts: [image],
-        }),
-      )
-      .catch(onMutationError)
-      .finally(() => setExporting(false));
+    void exportPdf();
   };
 
   /**
@@ -282,13 +285,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 label: 'Exporter les données (PDF)',
                 icon: <TableIcon aria-hidden />,
                 disabled: !data || data.empty,
-                onClick: () => {
-                  if (!data) return;
-                  setExporting(true);
-                  downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
-                    .catch(onMutationError)
-                    .finally(() => setExporting(false));
-                },
+                onClick: () => void exportTablePdf(),
               },
               ...(readOnly ? [] : [{ label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: confirmDelete }]),
             ]}
@@ -328,7 +325,6 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const { data: dashboards, isPending, error } = useDashboards(projectId);
   const mutations = useDashboardMutations();
   const captures: Captures = useRef(new Map());
-  const [exporting, setExporting] = useState(false);
   const setArchived = useSetArchived('DASHBOARD', [dashboardsKey]);
   // Archived dashboards: hidden until asked, read only (their charts with them).
   const [showArchived, setShowArchived] = useState(false);
@@ -465,29 +461,17 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     );
   };
 
-  /**
-   * Exports every chart of the dashboard in one PDF, one chart per page.
-   * @returns {void}
-   */
-  const exportDashboard = () => {
+  // Every chart of the dashboard in one PDF, one chart per page.
+  const { run: exportDashboard, loading: exporting } = useAsyncAction(async () => {
     if (!current) return;
-    setExporting(true);
-    Promise.all(
+    const charts = await Promise.all(
       current.charts
         .map((chart) => captures.current.get(chart.id))
         .filter((capture) => capture !== undefined)
         .map((capture) => capture({ scheme: 'light', render: PRINT_SIZE })),
-    )
-      .then((charts) =>
-        downloadChartsPdf({
-          title: `${title} — ${current.name}`,
-          subtitle: `${countOf(charts.length, 'diagramme')} · exporté le ${fmt.exportDateTime(new Date())}`,
-          charts,
-        }),
-      )
-      .catch(onMutationError)
-      .finally(() => setExporting(false));
-  };
+    );
+    await downloadChartsPdf({ title: `${title} — ${current.name}`, subtitle: `${countOf(charts.length, 'diagramme')} · exporté le ${fmt.exportDateTime(new Date())}`, charts });
+  });
 
   if (error) {
     return <ErrorAlert>{error.message}</ErrorAlert>;
@@ -541,7 +525,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
           <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
-          <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
+          <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={() => void exportDashboard()}>
             Exporter en PDF
           </ActionButton>
           <ActionButton

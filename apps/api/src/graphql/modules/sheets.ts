@@ -7,8 +7,7 @@ import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
 import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
-
-const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
+import { fromDecimal } from '../../services/core/decimal';
 
 /** Share of a sheet in an item of a list. */
 export const SheetSourceRef = builder.objectRef<SheetSource>('SheetSource').implement({
@@ -27,7 +26,7 @@ builder.prismaObject('SheetItem', {
     productId: t.exposeID('productId', { nullable: true }),
     label: t.exposeString('label'),
     categoryId: t.exposeID('categoryId', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => float(item.quantity) }),
+    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
     consumable: t.exposeBoolean('consumable', { description: 'Used up when the sheet is used (taken from the stock).' }),
@@ -80,7 +79,7 @@ builder.prismaObject('ChecklistItem', {
     productId: t.exposeID('productId', { nullable: true }),
     label: t.exposeString('label'),
     categoryId: t.exposeID('categoryId', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => float(item.quantity) }),
+    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
     sources: t.field({ type: [SheetSourceRef], resolve: (item) => readSheetSources(item.sources) }),
@@ -170,14 +169,14 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
 
 /**
  * Owner of a checklist from the arguments: a routine or an event with its occurrence, or a task.
- * @param {{ routineId?: string | number | null, eventId?: string | number | null, taskId?: string | number | null, occurrenceDate?: string | null }} args Arguments.
+ * @param {{ routineId?: string | null, eventId?: string | null, taskId?: string | null, occurrenceDate?: string | null }} args Arguments.
  * @returns {sheets.SheetOwner} Owner.
  */
-function ownerOf(args: { routineId?: string | number | null; eventId?: string | number | null; taskId?: string | number | null; occurrenceDate?: string | null }): sheets.SheetOwner {
-  if (args.taskId) return { taskId: String(args.taskId) };
+function ownerOf(args: { routineId?: string | null; eventId?: string | null; taskId?: string | null; occurrenceDate?: string | null }): sheets.SheetOwner {
+  if (args.taskId) return { taskId: args.taskId };
   if (!args.occurrenceDate) throw new Error('Date de l’occurrence requise.');
-  if (args.routineId) return { routineId: String(args.routineId), occurrenceDate: args.occurrenceDate };
-  if (args.eventId) return { eventId: String(args.eventId), occurrenceDate: args.occurrenceDate };
+  if (args.routineId) return { routineId: args.routineId, occurrenceDate: args.occurrenceDate };
+  if (args.eventId) return { eventId: args.eventId, occurrenceDate: args.occurrenceDate };
   throw new Error('Une routine, un évènement ou une tâche.');
 }
 
@@ -264,15 +263,15 @@ builder.mutationFields((t) => ({
   }),
   createSheetCategory: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await sheets.createSheetCategory(input)).id,
+    resolve: async (_root, { input }) => (await sheets.sheetCategories.create(input)).id,
   }),
   updateSheetCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(sheets.updateSheetCategory(id, { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) })),
+    resolve: (_root, { id, input }) => done(sheets.sheetCategories.update(id, { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) })),
   }),
   deleteSheetCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(sheets.deleteSheetCategory(id)),
+    resolve: (_root, { id }) => done(sheets.sheetCategories.remove(id)),
   }),
   duplicateSheet: t.id({ args: { id: t.arg.id({ required: true }) }, resolve: async (_root, { id }) => (await sheets.duplicateSheet(id)).id }),
   deleteSheet: t.boolean({

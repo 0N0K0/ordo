@@ -1,4 +1,3 @@
-import { rethrowUnique } from '../../graphql/errors';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
   defaultScheduleKindSchema,
@@ -18,7 +17,9 @@ import {
   type WorkScheduleInput,
   type WorkScheduleRule,
 } from "@ordo/shared";
-import { nextPositionIn } from '../core/ordering';
+import { BY_POSITION } from '../core/ordering';
+import { createLabelService } from '../core/labels';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from "../../db";
 import {
@@ -26,7 +27,7 @@ import {
   type ScheduleType,
   type WorkSchedule,
 } from "../../generated/prisma/client";
-import { clientError, notFound, parseInput } from "../../graphql/errors";
+import { clientError, notFound, orNotFound, parseInput } from "../../graphql/errors";
 import { currentWorkspaceId } from "../../workspace-context";
 
 /**
@@ -65,14 +66,7 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  */
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
-  if (
-    schedule.typeId &&
-    !(await prisma.scheduleType.findUnique({
-      where: { id: schedule.typeId },
-      select: { id: true },
-    }))
-  )
-    throw notFound("Type de plage");
+  await assertExists(prisma.scheduleType, schedule.typeId, "Type de plage");
   if (schedule.typeId !== currentTypeId) await assertNotArchived('scheduleType', schedule.typeId);
   return {
     typeId: schedule.typeId ?? null,
@@ -110,11 +104,10 @@ export async function updateWorkSchedule(
   id: string,
   input: WorkScheduleInput,
 ): Promise<WorkSchedule> {
-  const current = await prisma.workSchedule.findUnique({
-    where: { id },
-    select: { id: true, typeId: true },
-  });
-  if (!current) throw notFound("Plage de travail");
+  const current = await orNotFound(
+    prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true } }),
+    "Plage de travail",
+  );
   await assertNotArchived('workSchedule', id);
   const data = await scheduleData(input, current.typeId);
   return prisma.workSchedule.update({ where: { id }, data });
@@ -126,9 +119,11 @@ export async function updateWorkSchedule(
  * @returns {Promise<void>}
  */
 export async function deleteWorkSchedule(id: string): Promise<void> {
-  const { count } = await prisma.workSchedule.deleteMany({ where: { id } });
-  if (!count) throw notFound("Plage de travail");
+  await deleteOrNotFound(prisma.workSchedule, id, "Plage de travail");
 }
+
+/** Kinds of time slots; the schedules of a deleted one stay, without kind. */
+const scheduleTypes = createLabelService<ScheduleType>("scheduleType", { notFound: "Type de plage", conflict: "Un type porte déjà ce nom." }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
@@ -136,28 +131,11 @@ export async function deleteWorkSchedule(id: string): Promise<void> {
  * @param {ScheduleTypeInput} input Name, color and display.
  * @returns {Promise<ScheduleType>} Kind.
  */
-export async function saveScheduleType(
+export function saveScheduleType(
   id: string | null,
   input: ScheduleTypeInput,
 ): Promise<ScheduleType> {
-  const data = parseInput(scheduleTypeSchema, input);
-  if (
-    id &&
-    !(await prisma.scheduleType.findUnique({
-      where: { id },
-      select: { id: true },
-    }))
-  )
-    throw notFound("Type de plage");
-  await assertNotArchived('scheduleType', id);
-  try {
-    if (id) return await prisma.scheduleType.update({ where: { id }, data });
-    return await prisma.scheduleType.create({
-      data: { ...data, position: await nextPositionIn('scheduleType') },
-    });
-  } catch (error) {
-    rethrowUnique(error, "Un type porte déjà ce nom.");
-  }
+  return id ? scheduleTypes.update(id, input) : scheduleTypes.create(input);
 }
 
 /**
@@ -165,9 +143,8 @@ export async function saveScheduleType(
  * @param {string} id Kind.
  * @returns {Promise<void>}
  */
-export async function deleteScheduleType(id: string): Promise<void> {
-  const { count } = await prisma.scheduleType.deleteMany({ where: { id } });
-  if (!count) throw notFound("Type de plage");
+export function deleteScheduleType(id: string): Promise<void> {
+  return scheduleTypes.remove(id);
 }
 
 /** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */
@@ -347,13 +324,13 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
   );
   const workspaces = await unscopedPrisma.workspace.findMany({
     where: { id: { not: currentWorkspaceId() } },
-    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    orderBy: BY_POSITION,
     select: {
       id: true,
       name: true,
       ...defaultKindSelect,
       scheduleTypes: {
-        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        orderBy: BY_POSITION,
         select: {
           id: true,
           name: true,
@@ -482,13 +459,7 @@ export async function subscribeScheduleKind(
       "BAD_USER_INPUT",
       "Ces plages appartiennent déjà à cet espace.",
     );
-  if (
-    !(await unscopedPrisma.workspace.findUnique({
-      where: { id: sourceWorkspaceId },
-      select: { id: true },
-    }))
-  )
-    throw notFound("Espace");
+  await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, "Espace");
   if (
     typeId &&
     !(await unscopedPrisma.scheduleType.findFirst({

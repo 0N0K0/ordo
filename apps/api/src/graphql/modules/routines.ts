@@ -305,11 +305,11 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
 });
 
 /**
- * Optional id as a string or null.
- * @param {string | number | null | undefined} id GraphQL id.
+ * Optional id or null.
+ * @param {string | null | undefined} id GraphQL id.
  * @returns {string | null} Id.
  */
-const idOrNull = (id: string | number | null | undefined) => (id === null || id === undefined ? null : String(id));
+const idOrNull = (id: string | null | undefined) => id ?? null;
 
 /**
  * Routine input with omitted optional fields as null.
@@ -528,7 +528,7 @@ builder.mutationFields((t) => ({
     description: 'Applies the same changes to several routines; returns how many changed.',
     args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
     resolve: (_root, { ids, changes }) => {
-      const list = (value: (string | number)[] | null | undefined) => (value ? value.map(String) : undefined);
+      const list = (value: string[] | null | undefined) => value ?? undefined;
       return routines.bulkUpdateRoutines(ids, {
         addCategoryIds: list(changes.addCategoryIds),
         removeCategoryIds: list(changes.removeCategoryIds),

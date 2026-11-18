@@ -120,7 +120,7 @@ export function describeDuration(duration: Duration): string {
  */
 export function describeCase<T>(item: RepetitionCase<T>, start: string, options: { weekly?: boolean; times?: RepetitionTimes<T> } = {}): string {
   const ruleStart = item.since && item.since > start ? item.since : start;
-  const period = [item.since && `du ${fmt.dayShort(new Date(`${item.since}T00:00:00Z`))}`, item.until && `au ${fmt.dayShort(new Date(`${item.until}T00:00:00Z`))}`].filter(Boolean).join(' ');
+  const period = [item.since && `du ${fmt.dayShort(item.since)}`, item.until && `au ${fmt.dayShort(item.until)}`].filter(Boolean).join(' ');
   return [
     period && fmt.capitalize(period),
     item.rule ? describeRecurrence(item.rule, ruleStart, options.weekly !== false) : 'Ne se répète pas',

@@ -504,11 +504,11 @@ builder.mutationFields((t) => ({
   }),
   createMailLabel: t.id({
     args: { name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
-    resolve: async (_root, args) => (await organize.createLabel(args)).id,
+    resolve: async (_root, args) => (await organize.mailLabels.create(args)).id,
   }),
   updateMailLabel: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
-    resolve: (_root, { id, ...input }) => done(organize.updateLabel(id, input)),
+    resolve: (_root, { id, ...input }) => done(organize.mailLabels.update(id, input)),
   }),
   deleteMailLabel: t.boolean({
     args: { id: t.arg.id({ required: true }) },

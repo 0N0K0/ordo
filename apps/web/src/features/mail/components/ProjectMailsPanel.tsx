@@ -1,9 +1,9 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { MailListControls } from './MailListControls';
 import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ActionIcon, Box, Button, Grid, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useState, type CSSProperties } from 'react';
@@ -18,6 +18,7 @@ import { MailSearchList } from './MailSearchFolders';
 import { openSearchForm } from '../lib/open-search-form';
 import panel from './ProjectMailsPanel.module.css';
 import { useMailComposer } from '../hooks/use-mail-composer';
+import { useMailSearch } from '../hooks/use-mail-search';
 import { unarchived } from '../../../lib/archive';
 
 type SortBy = 'date' | 'correspondent' | 'subject';
@@ -32,10 +33,9 @@ type SortBy = 'date' | 'correspondent' | 'subject';
 function ProjectLiveMails({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const { data: accounts } = useMailAccounts();
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebouncedValue(search, 400);
-  const [advanced, setAdvanced] = useState<MailSearchCriteria | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Text and advanced search, in the URL (apart from the other parameters of the project page).
+  const mailSearch = useMailSearch('mail');
+  const { text: search, debouncedText: debouncedSearch, advanced, advancedOpen, setAdvancedOpen } = mailSearch;
   const [sortParam, setSortParam] = useState('date-desc');
   const [doneFilter, setDoneFilter] = useState<DoneFilter>('all');
   const [page, setPage] = useState(1);
@@ -69,7 +69,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                     Recherche avancée
                   </Text>
                   <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" onClick={() => setAdvancedOpen((value) => !value)}>
+                    <Button size="compact-xs" variant="subtle" onClick={() => setAdvancedOpen(!advancedOpen)}>
                       {advancedOpen ? 'Masquer les critères' : 'Modifier'}
                     </Button>
                     <Button
@@ -77,8 +77,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                       variant="subtle"
                       color="gray"
                       onClick={() => {
-                        setAdvanced(null);
-                        setAdvancedOpen(false);
+                        mailSearch.setAdvanced(null);
                         reset();
                       }}
                     >
@@ -96,12 +95,12 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                     leftSection={<MagnifyingGlassIcon aria-hidden />}
                     value={search}
                     onChange={(event) => {
-                      setSearch(event.currentTarget.value);
+                      mailSearch.setText(event.currentTarget.value);
                       reset();
                     }}
                   />
                   <Tooltip label="Recherche avancée">
-                    <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((value) => !value)}>
+                    <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(!advancedOpen)}>
                       <SlidersHorizontalIcon aria-hidden />
                     </ActionIcon>
                   </Tooltip>
@@ -113,12 +112,11 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                   folder="INBOX"
                   value={advanced ?? { ...EMPTY_MAIL_SEARCH, scope: 'all' }}
                   onSearch={(next) => {
-                    setAdvanced(next);
+                    mailSearch.setAdvanced(next);
                     reset();
                   }}
                   onClear={() => {
-                    setAdvanced(null);
-                    setAdvancedOpen(false);
+                    mailSearch.setAdvanced(null);
                     reset();
                   }}
                   onSave={(next) => openSearchForm(undefined, () => notifySuccess('Dossier de recherche créé (page Mails).'), { ...next, projectId })}

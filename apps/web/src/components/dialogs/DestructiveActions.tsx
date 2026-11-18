@@ -1,5 +1,6 @@
 import { Button, Group, type ButtonProps } from '@mantine/core';
-import type { ComponentPropsWithoutRef } from 'react';
+import { TrashIcon } from '@phosphor-icons/react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 interface DestructiveActionsProps {
   onConfirm: () => void;
@@ -36,4 +37,17 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
  */
 export function DestructiveButton(props: Omit<ButtonProps, 'variant' | 'color'> & Omit<ComponentPropsWithoutRef<'button'>, 'color'>) {
   return <Button {...props} variant="light" color="red" />;
+}
+
+/**
+ * « Supprimer » button of a form (its trash icon, in red); the deletion asks for a confirmation (confirmDestructive).
+ * @param {{ onClick: () => void, loading?: boolean, children?: ReactNode }} props Component props: the label defaults to « Supprimer ».
+ * @returns {JSX.Element} Button.
+ */
+export function DeleteButton({ onClick, loading = false, children = 'Supprimer' }: { onClick: () => void; loading?: boolean; children?: ReactNode }) {
+  return (
+    <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
+      {children}
+    </DestructiveButton>
+  );
 }

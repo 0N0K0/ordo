@@ -10,7 +10,7 @@ type Delivery = ShoppingList['deliveries'][number];
  * @returns {string} Text.
  */
 export function deliveryWindow(delivery: Delivery): string {
-  const from = delivery.windowFrom ? fmt.day(String(delivery.windowFrom)) : null;
+  const from = delivery.windowFrom ? fmt.day(delivery.windowFrom) : null;
   const to = delivery.windowTo ? fmt.day(String(delivery.windowTo)) : null;
   if (from && to && from !== to) return `du ${from} au ${to}`;
   return from || to ? `le ${from ?? to}` : '';
@@ -26,8 +26,8 @@ export const deliveryInput = (delivery: Delivery, itemIds: string[]): ShoppingDe
   label: delivery.label ?? null,
   trackingUrl: delivery.trackingUrl ?? null,
   pickup: delivery.pickup,
-  windowFrom: delivery.windowFrom ? String(delivery.windowFrom).slice(0, 10) : null,
-  windowTo: delivery.windowTo ? String(delivery.windowTo).slice(0, 10) : null,
+  windowFrom: delivery.windowFrom ? delivery.windowFrom : null,
+  windowTo: delivery.windowTo ? delivery.windowTo : null,
   address: delivery.address ?? null,
   lat: delivery.lat ?? null,
   lon: delivery.lon ?? null,

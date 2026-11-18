@@ -1,3 +1,4 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { plural } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
@@ -177,10 +178,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
       )}
       <TextInput label="Libellé des lignes" value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Une ligne
-          </Text>
+        <LabeledField label="Une ligne">
           <SegmentedControl
             size="xs"
             data={[
@@ -192,11 +190,8 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
             value={grouping}
             onChange={(value) => setGrouping(value as TimeGrouping)}
           />
-        </Stack>
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Facturé à
-          </Text>
+        </LabeledField>
+        <LabeledField label="Facturé à">
           <SegmentedControl
             size="xs"
             data={[
@@ -206,13 +201,12 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
             value={unit}
             onChange={(value) => setUnit(value as 'HOUR' | 'DAY')}
           />
-        </Stack>
+        </LabeledField>
       </SimpleGrid>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <AmountInput
           label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'}
           min={0}
-          suffix=" €"
           value={unitPrice}
           onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)}
         />

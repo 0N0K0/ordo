@@ -1,10 +1,11 @@
-import { Anchor, Badge, Button, ColorSwatch, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, ColorSwatch, Group, Stack, Text } from '@mantine/core';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import type { CalendarSubscription, EventOccurrence } from '../api';
 import * as fmt from '../../../lib/format';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 /**
  * When an occurrence takes place, in words.
@@ -68,14 +69,13 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
           {link.label || link.url}
         </Anchor>
       ))}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onClose}>
-          Fermer
-        </Button>
-        <Button leftSection={<ArrowSquareOutIcon aria-hidden />} onClick={() => switchWorkspace(subscription.workspace.id, `/calendar?date=${occurrence.startDate}`)}>
-          Ouvrir dans « {subscription.workspace.name} »
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onClose}
+        cancelLabel="Fermer"
+        submitIcon={<ArrowSquareOutIcon aria-hidden />}
+        submitLabel={`Ouvrir dans « ${subscription.workspace.name} »`}
+        onSubmit={() => switchWorkspace(subscription.workspace.id, `/calendar?date=${occurrence.startDate}`)}
+      />
     </Stack>
   );
 }

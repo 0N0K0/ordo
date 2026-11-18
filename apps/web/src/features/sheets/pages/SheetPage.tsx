@@ -1,14 +1,16 @@
-import { listSelectProps } from '../../../components/settings/item-look';
-import { Anchor, Button, Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { listSelectProps } from '../../../components/items/item-look';
+import { BackLink } from '../../../components/page/BackLink';
+import { Button, Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -16,9 +18,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
-import { treeSelectProps } from '../../../components/tree/tree-select';
-import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import * as fmt from '../../../lib/format';
+
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -27,14 +27,14 @@ import { useShoppingData } from '../../shopping/api';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
-import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { SheetsSettings } from '../components/SheetsSettings';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
-import { ConservationCell, PeopleCell, StoreCell } from '../../shopping/components/shopping-cells';
+import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { usePeople } from '../../shopping/lib/shopping-format';
 import { shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
@@ -165,12 +165,10 @@ export function SheetPage() {
   const productName = new Map(products.map((product) => [product.id, product.name]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
   const people = usePeople();
-  const paths = categoryPaths(shoppingCategories);
   const comments = useCommentCounts(
     'SHEET_ITEM',
     (sheet?.items ?? []).map((item) => item.id),
   );
-  const categoryName = (item: SheetDetailItem) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const columns: DataColumn<SheetDetailItem>[] = [
     { id: 'label', label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     {
@@ -183,44 +181,10 @@ export function SheetPage() {
       filter: { kind: 'boolean', value: (item) => Boolean(item.productId) },
       groupable: true,
     },
-    {
-      id: 'category',
-      label: 'Catégorie',
-      size: 170,
-      bulk: true,
-      sortValue: (item) => categoryName(item) || null,
-      text: categoryName,
-      filter: {
-        kind: 'choice',
-        value: (item) => item.categoryId ?? null,
-        options: withArchived(
-          [...paths].map(([value, name]) => ({ value, label: name })),
-          shoppingCategories,
-        ),
-      },
-      groupable: true,
-    },
-    {
-      id: 'quantity',
-      label: 'Quantité',
-      size: 100,
-      numeric: true,
-      bulk: true,
-      sortValue: (item) => item.quantity ?? null,
-      text: (item) => (item.quantity === null || item.quantity === undefined ? '' : fmt.number(item.quantity, 3)),
-      filter: { kind: 'number', value: (item) => item.quantity ?? null },
-    },
-    { id: 'unit', label: 'Unité', size: 90, bulk: true, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '', groupable: true },
-    {
-      id: 'consumable',
-      label: 'Consommable',
-      size: 120,
-      bulk: true,
-      sortValue: (item) => (item.consumable ? 1 : 0),
-      text: (item) => (item.consumable ? 'Consommable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.consumable },
-      groupable: true,
-    },
+    categoryColumn<SheetDetailItem>(shoppingCategories),
+    quantityColumn<SheetDetailItem>(),
+    unitColumn<SheetDetailItem>({ groupable: true }),
+    consumableColumn<SheetDetailItem>(),
     // As the items of the shopping lists.
     ...sheetShoppingColumns<SheetDetailItem>({
       categories: shoppingCategories,
@@ -230,7 +194,7 @@ export function SheetPage() {
       relations: people.relations,
     }),
     optionalColumn<SheetDetailItem>(),
-    { id: 'note', label: 'Description', size: 240, bulk: true, sortValue: (item) => item.note ?? null, text: (item) => item.note ?? '' },
+    noteColumn<SheetDetailItem>({ size: 240 }),
     commentColumn<SheetDetailItem>(
       comments,
       (item) => item.id,
@@ -273,9 +237,7 @@ export function SheetPage() {
 
   return (
     <Stack gap="lg">
-      <Anchor component={Link} to="/sheets" size="sm">
-        <ArrowLeftIcon aria-hidden style={{ verticalAlign: 'middle' }} /> Fiches
-      </Anchor>
+      <BackLink to="/sheets">Fiches</BackLink>
       <PageHeader
         title={
           sheet.archived ? (
@@ -323,7 +285,7 @@ export function SheetPage() {
         }
       />
       {/* Made again once saved (its texts are those of the sheet). */}
-      <SheetFields key={`${sheet.id}:${String(sheet.updatedAt)}`} sheet={sheet} />
+      <SheetFields key={`${sheet.id}:${sheet.updatedAt}`} sheet={sheet} />
       <DataTable
         framed
         view={view}
@@ -372,19 +334,18 @@ export function SheetPage() {
             />
           ),
           category: (
-            <EditableSelect
+            <CategoryCell
               value={item.categoryId ?? null}
+              categories={shoppingCategories}
               readOnly={locked}
               label={`Catégorie de ${item.label}`}
-              nullable
-              {...treeSelectProps(categoryOptions(shoppingCategories, undefined, unarchivedOffered(shoppingCategories, item.categoryId)))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),
           quantity: (
             <EditableNumber value={item.quantity ?? null} readOnly={locked} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />
           ),
-          unit: <EditableText value={item.unit ?? null} readOnly={locked} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
+          unit: <UnitCell value={item.unit ?? null} readOnly={locked} label={`Unité de ${item.label}`} onSave={(unit) => bulk('unit')(item, { unit })} />,
           consumable: <EditableCheck value={item.consumable} readOnly={locked} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
           store: (
             <StoreCell

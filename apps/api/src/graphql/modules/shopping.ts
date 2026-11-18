@@ -7,8 +7,7 @@ import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
 import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
-
-const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
+import { fromDecimal } from '../../services/core/decimal';
 
 builder.prismaObject('ShoppingCategory', {
   description: 'Category of the shopping products, in a tree.',
@@ -51,15 +50,15 @@ builder.prismaObject('ShoppingProduct', {
     storeId: t.exposeID('storeId', { nullable: true }),
     url: t.exposeString('url', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (product) => float(product.quantity) }),
+    quantity: t.float({ nullable: true, resolve: (product) => fromDecimal(product.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (product) => float(product.unitPrice) }),
+    unitPrice: t.float({ nullable: true, resolve: (product) => fromDecimal(product.unitPrice) }),
     perishable: t.exposeBoolean('perishable'),
     storageId: t.exposeID('storageId', { nullable: true }),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true, description: 'Date of the last purchase: once past, the product is marked missing.' }),
     missing: t.exposeBoolean('missing'),
     lastPurchasedAt: t.expose('lastPurchasedAt', { type: 'DateTime', nullable: true }),
-    lastPrice: t.float({ nullable: true, resolve: (product) => float(product.lastPrice) }),
+    lastPrice: t.float({ nullable: true, resolve: (product) => fromDecimal(product.lastPrice) }),
     memberIds: t.idList(relationIds('members')),
     relationIds: t.idList(relationIds('relations')),
   }),
@@ -76,9 +75,9 @@ builder.prismaObject('ShoppingItem', {
     storeId: t.exposeID('storeId', { nullable: true }),
     url: t.exposeString('url', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => float(item.quantity) }),
+    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (item) => float(item.unitPrice) }),
+    unitPrice: t.float({ nullable: true, resolve: (item) => fromDecimal(item.unitPrice) }),
     perishable: t.exposeBoolean('perishable'),
     storageId: t.exposeID('storageId', { nullable: true }),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
@@ -241,15 +240,15 @@ builder.mutationFields((t) => ({
   }),
   createShoppingStore: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createStore(input)).id,
+    resolve: async (_root, { input }) => (await shopping.shoppingStores.create(input)).id,
   }),
   updateShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateStore(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
+    resolve: (_root, { id, input }) => done(shopping.shoppingStores.update(id, input)),
   }),
   deleteShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteStore(id)),
+    resolve: (_root, { id }) => done(shopping.shoppingStores.remove(id)),
   }),
   createShoppingUnit: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
@@ -272,15 +271,15 @@ builder.mutationFields((t) => ({
   }),
   createShoppingStorage: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createStorage(input)).id,
+    resolve: async (_root, { input }) => (await shopping.shoppingStorages.create(input)).id,
   }),
   updateShoppingStorage: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateStorage(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
+    resolve: (_root, { id, input }) => done(shopping.shoppingStorages.update(id, input)),
   }),
   deleteShoppingStorage: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteStorage(id)),
+    resolve: (_root, { id }) => done(shopping.shoppingStorages.remove(id)),
   }),
   createShoppingBaseList: t.id({
     args: { name: t.arg.string({ required: true }) },

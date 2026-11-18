@@ -1,12 +1,11 @@
-import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
+import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
-import { ArrowBendUpRightIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
+import { ArrowBendUpRightIcon } from '@phosphor-icons/react';
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useNow } from '../../../lib/use-now';
-import { useStopTimer } from '../../time/hooks/use-stop-timer';
-import { useTimeMutations, type TimeEntry } from '../../time/api';
+import { TimerToggle } from '../../time/components/TimerToggle';
+import type { TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useRoutineMutations, type Routine } from '../api';
 import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from '../lib/routine-format';
@@ -86,33 +85,11 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
  * @returns {JSX.Element} Cell.
  */
 export function ChronoCell({ routine, running }: { routine: Routine; running: TimeEntry | null | undefined }) {
-  const { start } = useTimeMutations();
-  const { stopTimer, isPending } = useStopTimer();
   const mine = running?.routineId === routine.id ? running : null;
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap">
-      {mine ? (
-        <Tooltip label="Arrêter le chrono">
-          <ActionIcon variant="light" color="red" size="sm" loading={isPending} aria-label={`Arrêter le chrono de ${routine.title}`} onClick={() => stopTimer(mine)}>
-            <StopIcon weight="fill" aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      ) : (
-        <Tooltip label={running ? 'Démarrer le chrono (celui en cours s’arrête)' : 'Démarrer le chrono'}>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            loading={start.isPending}
-            disabled={routine.archived}
-            aria-label={`Démarrer le chrono de ${routine.title}`}
-            onClick={() => start.mutate({ routineId: routine.id, taskIds: [] }, { onSuccess: () => notifySuccess('Chrono démarré.'), onError: onMutationError })}
-          >
-            <PlayIcon weight="fill" aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      )}
+      <TimerToggle name={routine.title} mine={mine} othersRunning={Boolean(running) && !mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
       </Text>

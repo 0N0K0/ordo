@@ -1,4 +1,5 @@
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PAGES } from '../../../app/pages';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { Stack } from '@mantine/core';
 import { DashboardBoard } from '../components/DashboardBoard';
 
@@ -9,7 +10,7 @@ import { DashboardBoard } from '../components/DashboardBoard';
 export function DashboardsPage() {
   return (
     <Stack gap="lg">
-      <PageHeader title="Tableaux de bord" />
+      <PageHeader title={PAGES.dashboards.title} />
       <DashboardBoard projectId={null} title="Tous les projets" />
     </Stack>
   );

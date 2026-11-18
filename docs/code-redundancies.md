@@ -164,6 +164,8 @@ Correction : passer la chaîne `AAAA-MM-JJ` à `fmt`.
 
 ## Plan proposé
 
+**Fait le 18 novembre 2026** : points 1 à 16 et décisions 1 à 20. Restent à part : l'`AddRowField` des fiches et checklists (tableaux groupés : la ligne d'ajout devrait prendre la catégorie du groupe), quelques `formCallbacks` et `LabeledField` aux variantes particulières.
+
 1. **Bugs (1 à 3).**
 2. **Briques contournées, sans décision (4, 8 à 11) :** mécanique.
 3. **API, blocs (5 à 7)**, avec les décisions sur les noms en double et les arbres.

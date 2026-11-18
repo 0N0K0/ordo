@@ -1,7 +1,7 @@
 import * as fmt from '../../../lib/format';
 import { unarchived } from '../../../lib/archive';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
-import { Alert, Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
   CHART_BUCKETS,
   CHART_PERIODS,
@@ -28,6 +28,7 @@ import { DatasetsEditor } from './DatasetsEditor';
 import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 
 const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   bar: 'Barres',
@@ -297,11 +298,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
               <DatasetsEditor config={config} change={change} context={context} />
             </>
           )}
-          {!validation.success && (
-            <Alert color="red" p="xs">
-              {validation.error.issues[0]?.message}
-            </Alert>
-          )}
+          {!validation.success && <ErrorAlert p="xs">{validation.error.issues[0]?.message}</ErrorAlert>}
         </Stack>
       </Grid.Col>
       <Grid.Col span={{ base: 12, md: 7 }}>

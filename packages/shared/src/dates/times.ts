@@ -10,13 +10,19 @@ export const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export const timeOfDaySchema = z.string().regex(TIME_OF_DAY_PATTERN, 'Heure attendue (HH:MM).');
 
 /**
- * Day field written YYYY-MM-DD (its form only).
+ * Day field written YYYY-MM-DD, a day that exists (not the 31st of February).
  * @param {string} [message] Error message. Optional. Default = « Date invalide. ».
- * @returns {z.ZodString} Schema.
+ * @returns {z.ZodISODate} Schema.
  */
 export function daySchema(message = 'Date invalide.') {
-  return z.string({ error: message }).regex(DAY_PATTERN, message);
+  return z.iso.date({ error: message });
 }
+
+/** Required start day field. */
+export const startDaySchema = daySchema('La date de début est requise.');
+
+/** Required end day field. */
+export const endDaySchema = daySchema('La date de fin est requise.');
 
 /**
  * Minutes since midnight of a time of the day.

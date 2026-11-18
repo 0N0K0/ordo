@@ -12,6 +12,7 @@ import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from '../../../lib/use-now';
 import { useStopTimer } from '../hooks/use-stop-timer';
+import { useStartTimer } from '../hooks/use-start-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -35,7 +36,7 @@ interface TimerStartFormProps {
  * @returns {JSX.Element} Form.
  */
 export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [], popover, onStarted }: TimerStartFormProps) {
-  const { start } = useTimeMutations();
+  const { startTimer, isPending: starting } = useStartTimer();
   const [projectId, setProjectId] = useState<string | null>(defaultProjectId ?? null);
   const [taskIds, setTaskIds] = useState<string[]>(defaultTaskIds);
   const [description, setDescription] = useState('');
@@ -46,17 +47,11 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
       onSubmit={(event) => {
         event.preventDefault();
         if (!projectId) return;
-        start.mutate(
-          { projectId, taskIds, description },
-          {
-            onSuccess: () => {
-              setTaskIds([]);
-              setDescription('');
-              onStarted?.();
-            },
-            onError: onMutationError,
-          },
-        );
+        startTimer({ projectId, taskIds, description }, () => {
+          setTaskIds([]);
+          setDescription('');
+          onStarted?.();
+        });
       }}
     >
       <Stack gap="sm">
@@ -83,7 +78,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           value={description}
           onChange={(event) => setDescription(event.currentTarget.value)}
         />
-        <FormActions submitLabel="Démarrer" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={start.isPending} />
+        <FormActions submitLabel="Démarrer" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={starting} />
       </Stack>
     </form>
   );
@@ -140,7 +135,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           </Text>
           <Text size="xs" c="dimmed">
             {paused ? 'En pause' : 'En cours'} — depuis{' '}
-            {fmt.time(new Date(entry.startedAt))} ·{' '}
+            {fmt.time(entry.startedAt)} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
                 {context.projectById.get(entry.projectId)?.title ?? 'Projet'}

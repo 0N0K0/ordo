@@ -1,10 +1,11 @@
+import { copyName } from '../../../lib/text';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { timeTasks } from '../../time/lib/time-tasks';
@@ -86,7 +87,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      title: alarm ? (copy ? `${alarm.title} (copie)` : alarm.title) : (defaults?.title ?? ''),
+      title: alarm ? (copy ? copyName(alarm.title) : alarm.title) : (defaults?.title ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -104,13 +105,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
 
   const handleSubmit = form.onSubmit((values) => {
     const input: AlarmInput = { ...values, ...legacyFields(values.recurrence), note: values.note || null, minutes: tracking ? values.minutes : null };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.', onDone);
     if (alarm && !copy) update.mutate({ id: alarm.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });

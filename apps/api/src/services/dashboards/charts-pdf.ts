@@ -1,13 +1,11 @@
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, REPORT_MARGIN, startReport } from '../core/pdf-report';
+import { PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
 
 const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
 
 /** Charts drawn by the app (PNG images) to print. */
-const chartsPdfSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  subtitle: z.string().max(500).default(''),
+const chartsPdfSchema = reportHeadingSchema.extend({
   charts: z
     .array(
       z.object({
@@ -39,13 +37,7 @@ export async function chartsPdf(input: ChartsPdfInput): Promise<Buffer> {
     const width = doc.page.width - 2 * MARGIN;
     let y = top;
     if (index === 0) {
-      doc.font('bold').fontSize(16).fillColor(COLORS.text).text(data.title, MARGIN, y, { width });
-      y = doc.y + 2;
-      if (data.subtitle) {
-        doc.font('regular').fontSize(8.5).fillColor(COLORS.muted).text(data.subtitle, MARGIN, y, { width });
-        y = doc.y;
-      }
-      y += 12;
+      y = writeHeading(doc, data, { x: MARGIN, y, width }) + 12;
     }
     // The image already shows the chart title.
     if (chart.description) {

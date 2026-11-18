@@ -2,8 +2,8 @@ import { SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@m
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Address, type Phone } from '@ordo/shared';
 import { AddressFields } from '../../../components/address/AddressFields';
 import { PhonesField } from '../../../components/address/PhonesField';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -66,13 +66,7 @@ export function ClientDetailsForm({ client, onDone }: { client: ClientBilling; o
       onSubmit={form.onSubmit((values) =>
         updateDetails.mutate(
           { id: client.id, input: values },
-          {
-            onSuccess: () => {
-              notifySuccess('Coordonnées enregistrées.');
-              onDone();
-            },
-            onError: (error) => showFormError(form, error),
-          },
+          formCallbacks(form, 'Coordonnées enregistrées.', onDone),
         ),
       )}
     >
@@ -135,13 +129,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
     },
     schema: clientServiceSchema,
   });
-  const callbacks = {
-    onSuccess: () => {
-      notifySuccess(service ? 'Service modifié.' : 'Service ajouté.');
-      onDone();
-    },
-    onError: (error: Error) => showFormError(form, error),
-  };
+  const callbacks = formCallbacks(form, service ? 'Service modifié.' : 'Service ajouté.', onDone);
   return (
     <form
       noValidate
@@ -195,13 +183,7 @@ export function ClientContactForm({
     },
     schema: clientContactSchema,
   });
-  const callbacks = {
-    onSuccess: () => {
-      notifySuccess(contact ? 'Contact modifié.' : 'Contact ajouté.');
-      onDone();
-    },
-    onError: (error: Error) => showFormError(form, error),
-  };
+  const callbacks = formCallbacks(form, contact ? 'Contact modifié.' : 'Contact ajouté.', onDone);
   return (
     <form
       noValidate

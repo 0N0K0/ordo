@@ -57,11 +57,13 @@ export function useReorderSettingsItems() {
 }
 
 /**
- * Id of the item a creation gave: its result (`{ id }`), or the result of the mutation (`{ createX: { id } }`).
+ * Id of the item a creation gave: the id itself, its result (`{ id }`), or the result of the mutation (`{ createX: { id } }`).
  * @param {unknown} result Result of a creation.
  * @returns {string} Id.
  */
 export function createdId(result: unknown): string {
+  // A mutation giving the id itself (a string has values too: its characters).
+  if (typeof result === 'string') return result;
   const record = (result ?? {}) as Record<string, unknown>;
   if (typeof record.id === 'string') return record.id;
   const value = Object.values(record)[0];

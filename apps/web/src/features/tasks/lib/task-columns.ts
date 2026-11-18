@@ -89,11 +89,12 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @returns {TaskStatusCategory | null} Category.
    */
   const categoryOf = (task: Task): TaskStatusCategory | null => (task.statusId ? ((context.statusById.get(task.statusId)?.category as TaskStatusCategory | undefined) ?? null) : null);
-  const day = (value: unknown) => String(value).slice(0, 10);
+  // Day of an instant of an event (its ISO text).
+  const day = (value: string) => value.slice(0, 10);
   // Relative sprints, from today.
   const sprints = context.sprints;
-  const past = sprints.filter((sprint) => day(sprint.endDate) < today);
-  const future = sprints.filter((sprint) => day(sprint.startDate) > today);
+  const past = sprints.filter((sprint) => sprint.endDate < today);
+  const future = sprints.filter((sprint) => sprint.startDate > today);
   /**
    * The best sprint of each project tree.
    * @param {typeof sprints} candidates Sprints.
@@ -110,11 +111,11 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     return new Set([...best.values()].map((sprint) => sprint.id));
   };
   const relative: Record<string, Set<string>> = {
-    current: new Set(sprints.filter((sprint) => day(sprint.startDate) <= today && day(sprint.endDate) >= today).map((sprint) => sprint.id)),
+    current: new Set(sprints.filter((sprint) => sprint.startDate <= today && sprint.endDate >= today).map((sprint) => sprint.id)),
     past: new Set(past.map((sprint) => sprint.id)),
     future: new Set(future.map((sprint) => sprint.id)),
-    previous: bestPerTree(past, (a, b) => day(a.endDate) > day(b.endDate)),
-    next: bestPerTree(future, (a, b) => day(a.startDate) < day(b.startDate)),
+    previous: bestPerTree(past, (a, b) => a.endDate > b.endDate),
+    next: bestPerTree(future, (a, b) => a.startDate < b.startDate),
   };
   const me = context.contributors.find((contributor) => contributor.isMe)?.id ?? null;
   /**
@@ -211,13 +212,13 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.commentCount + (row.task.description?.trim() ? 1 : 0) : null) };
       case 'startDate':
       case 'endDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ? day(row.task[id]) : null) : day(id === 'startDate' ? row.event.start : row.event.end)) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : day(id === 'startDate' ? row.event.start : row.event.end)) };
       case 'deadline':
       case 'minDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? day(row.task[id]) : null) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? row.task[id] : null) };
       case 'createdAt':
       case 'updatedAt':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(String(row.task[id])) : null) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
       case 'slots':
         // Kinds of slots its rule names, during or out of.
         return {
@@ -297,7 +298,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       text: (row) => (row.kind === 'task' ? (row.task.description ?? '') : (row.event.description ?? '')),
     },
     flag('closed', 'Fermée', (task) => context.isClosed(task)),
-    flag('overdue', 'En retard', (task) => task.deadline !== null && day(task.deadline) < today && !context.isClosed(task)),
+    flag('overdue', 'En retard', (task) => task.deadline !== null && task.deadline < today && !context.isClosed(task)),
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task)),
     flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0),
     flag('archived', 'Archivée', (task) => task.archived),

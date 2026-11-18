@@ -1,4 +1,4 @@
-import { CheckCircleIcon, InfoIcon, WarningCircleIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, InfoIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 
 // One icon per feedback type, shared by alerts and toasts.
 
@@ -24,4 +24,12 @@ export function ErrorIcon() {
  */
 export function InfoFeedbackIcon() {
   return <InfoIcon aria-hidden />;
+}
+
+/**
+ * Warning feedback icon.
+ * @returns {JSX.Element} Icon.
+ */
+export function WarningFeedbackIcon() {
+  return <WarningIcon aria-hidden />;
 }

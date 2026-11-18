@@ -2,8 +2,8 @@ import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { Select, Text } from '@mantine/core';
 import { formatDuration, parseDuration } from '@ordo/shared';
 import { useState } from 'react';
-import { EditableDate, EditableMultiSelect, EditablePopoverCell, EditableText } from '../../../components/data-table/cells/EditableCells';
-import { TimeField } from '../../../components/inputs/TimeField';
+import { EditableDate, EditableMultiSelect, EditablePopoverCell, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
+
 import { localDay, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
@@ -26,7 +26,7 @@ type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryVa
  */
 export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
   const start = localParts(new Date(entry.startedAt));
-  if (readOnly) return <>{fmt.dayLong(new Date(entry.startedAt))}</>;
+  if (readOnly) return <>{fmt.dayLong(entry.startedAt)}</>;
   return (
     <EditableDate
       value={start.date}
@@ -45,13 +45,10 @@ export function TimeStartCell({ entry, readOnly, save }: { entry: TimeEntry; rea
   const start = localParts(new Date(entry.startedAt));
   if (readOnly) return <>{start.time}</>;
   return (
-    <TimeField
-      variant="unstyled"
-      size="xs"
-      aria-label="Heure de début de ce temps"
+    <EditableTime
+      label="Heure de début de ce temps"
       value={start.time}
-      onChange={(time) => time && time !== start.time && save(entry, (row) => ({ startedAt: new Date(`${localParts(new Date(row.startedAt)).date}T${time}`).toISOString() }))}
-      onClick={stopClick}
+      onSave={(time) => time && save(entry, (row) => ({ startedAt: new Date(`${localParts(new Date(row.startedAt)).date}T${time}`).toISOString() }))}
     />
   );
 }

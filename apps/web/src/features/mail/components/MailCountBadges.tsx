@@ -1,4 +1,5 @@
-import { Badge, Tooltip } from '@mantine/core';
+import { CountBadge } from '../../../components/feedback/CountBadge';
+import { Tooltip } from '@mantine/core';
 import { plural } from '../../../lib/text';
 
 interface MailCountBadgesProps {
@@ -22,16 +23,12 @@ export function MailCountBadges({ todo, unread, compact = false }: MailCountBadg
     <>
       {todo > 0 && (
         <Tooltip label={`${todo} à traiter`}>
-          <Badge size={size} variant="light" color="orange" circle={compact && todo < 10} aria-label={`${todo} à traiter`}>
-            {todo}
-          </Badge>
+          <CountBadge count={todo} size={size} variant="light" color="orange" label={`${todo} à traiter`} />
         </Tooltip>
       )}
       {unread > 0 && (
         <Tooltip label={unreadLabel}>
-          <Badge size={size} variant="filled" circle={compact && unread < 10} aria-label={unreadLabel}>
-            {unread}
-          </Badge>
+          <CountBadge count={unread} size={size} label={unreadLabel} />
         </Tooltip>
       )}
     </>

@@ -1,8 +1,8 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ByWorkspace } from '../../../components/settings/ByWorkspace';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Button, Group, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Stack, Tooltip } from '@mantine/core';
 import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -11,6 +11,7 @@ import { onMutationError } from '../../../lib/notify';
 
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { SubscriptionRow } from './SubscriptionRow';
 
 /**
  * Calendars of the workspace, as every settings list: added, edited (name, color, image), reordered by drag and drop,
@@ -73,27 +74,19 @@ function OtherCalendars() {
       {isPending ? (
         <ListSkeleton items={2} />
       ) : !calendars?.length ? (
-        <Group gap="sm">
-          <ThemeIcon variant="light" color="gray" radius="xl">
-            <CalendarBlankIcon aria-hidden />
-          </ThemeIcon>
-          <EmptyState compact message="Aucun autre espace pour le moment." />
-        </Group>
+        <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Aucun autre espace pour le moment." />
       ) : (
         <ByWorkspace items={calendars} workspaceOf={(calendar) => calendar.workspace}>
           {(calendar) => (
-            <Group key={calendar.id} gap="sm" wrap="nowrap" pl="lg">
-              <ItemAvatar name={calendar.name} color={calendar.color} />
-              <Text size="sm" style={{ flex: 1 }} truncate>
-                {calendar.name}
-              </Text>
-              <Switch
-                aria-label={`Abonnement à ${calendar.name} (${calendar.workspace.name})`}
-                label="Abonné"
-                checked={calendar.subscribed}
-                onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(calendar.id, { onError })}
-              />
-            </Group>
+            <SubscriptionRow
+              key={calendar.id}
+              pl="lg"
+              name={calendar.name}
+              color={calendar.color}
+              workspaceName={calendar.workspace.name}
+              subscribed={calendar.subscribed}
+              onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(calendar.id, { onError })}
+            />
           )}
         </ByWorkspace>
       )}

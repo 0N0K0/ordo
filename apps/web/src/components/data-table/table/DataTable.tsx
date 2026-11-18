@@ -3,7 +3,7 @@ import { ActionIcon, Group, Paper, Stack, Table, type TableProps, type TableTrPr
 import { closestCenter, DndContext, pointerWithin, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { CaretRightIcon } from '@phosphor-icons/react';
 import {
   columnResizingFeature,
   columnSizingFeature,
@@ -23,7 +23,8 @@ import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
 import { columnFilter } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
-import { GroupHeaderRow, NoMatch } from './GroupHeaderRow';
+import { GroupHeaderRow } from './GroupHeaderRow';
+import { NoMatch } from '../../feedback/NoMatch';
 import { ROW_ACTIONS_WIDTH } from '../cells/RowActions';
 import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
@@ -35,6 +36,7 @@ import { BulkTableContext } from '../selection/bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from '../views/use-data-view';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
+import { DragHandle } from '../../actions/DragHandle';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 interface LeadingCell<R> {
@@ -982,18 +984,15 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, 
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
-    <ActionIcon
-      ref={setActivatorNodeRef}
-      variant="subtle"
-      color="gray"
+    <DragHandle
+      label="Déplacer la ligne (horizontalement : son niveau)"
       size="sm"
       className={classes.handle}
-      aria-label="Déplacer la ligne (horizontalement : son niveau)"
-      {...attributes}
-      {...listeners}
-    >
-      <DotsSixVerticalIcon aria-hidden />
-    </ActionIcon>
+      activator={setActivatorNodeRef}
+      attributes={attributes}
+      listeners={listeners}
+      dragging={isDragging}
+    />
   ) : (
     <span className={classes.handleSpacer} />
   );

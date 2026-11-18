@@ -1,9 +1,10 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { Button, Group, Text } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
-import { onMutationError } from '../../../lib/notify';
 import type { Task } from '../../tasks/api';
-import { useRunningTimer, useTimeMutations } from '../api';
+import { useRunningTimer } from '../api';
+import { useStartTimer } from '../hooks/use-start-timer';
 
 /**
  * Time tracked on a task (its share of each time entry), and a button starting the timer on it.
@@ -12,13 +13,10 @@ import { useRunningTimer, useTimeMutations } from '../api';
  */
 export function TaskTime({ task }: { task: Task }) {
   const running = useRunningTimer();
-  const { start } = useTimeMutations();
+  const { startTimer, isPending } = useStartTimer();
   const onThisTask = running.data?.taskIds.includes(task.id) ?? false;
   return (
-    <Stack gap={2}>
-      <Text size="sm" fw={500}>
-        Temps passé
-      </Text>
+    <LabeledField label="Temps passé">
       <Group gap="sm" justify="space-between" wrap="nowrap">
         <Text size="sm" c={task.trackedSeconds ? undefined : 'dimmed'}>
           {task.trackedSeconds ? formatDuration(task.trackedSeconds) : 'Aucun'}
@@ -32,17 +30,15 @@ export function TaskTime({ task }: { task: Task }) {
             size="compact-sm"
             variant="default"
             leftSection={<PlayIcon aria-hidden />}
-            loading={start.isPending}
+            loading={isPending}
             disabled={task.archived}
             title={running.data ? 'Arrête le chrono en cours et en démarre un sur cette tâche' : undefined}
-            onClick={() =>
-              start.mutate({ projectId: task.projectId, taskIds: [task.id] }, { onError: onMutationError })
-            }
+            onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
           >
-            Chrono
+            Démarrer le chrono
           </Button>
         )}
       </Group>
-    </Stack>
+    </LabeledField>
   );
 }

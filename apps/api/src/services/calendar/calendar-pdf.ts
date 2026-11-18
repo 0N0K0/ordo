@@ -2,7 +2,7 @@ import { addDays, colorSchema, daysBetween, parseDay, timeToMinutes } from '@ord
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, startReport } from '../core/pdf-report';
+import { PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -12,10 +12,8 @@ const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]
 const hexColor = colorSchema;
 
 /** A view of the calendar, as displayed (filters applied), to print. */
-const calendarPdfSchema = z
-  .object({
-    title: z.string().trim().min(1).max(200),
-    subtitle: z.string().max(500).default(''),
+const calendarPdfSchema = reportHeadingSchema
+  .extend({
     view: z.enum(['month', 'week', 'day']),
     /** First and last days shown, included. */
     from: isoDate,
@@ -312,12 +310,7 @@ export async function calendarPdf(input: CalendarPdfInput): Promise<Buffer> {
   const { doc, top, finish } = await startReport({ title: view.title });
 
   const width = doc.page.width - 2 * MARGIN;
-  doc.font('bold').fontSize(14).fillColor(COLORS.text).text(view.title, MARGIN, top, { width, lineBreak: false });
-  let y = top + 20;
-  if (view.subtitle) {
-    doc.font('regular').fontSize(8).fillColor(COLORS.muted).text(view.subtitle, MARGIN, y, { width, lineBreak: false, ellipsis: true });
-    y += 13;
-  }
+  const y = writeHeading(doc, view, { x: MARGIN, y: top, width }) + 4;
   const area = { x: MARGIN, y: y + 2, width, height: doc.page.height - doc.page.margins.bottom - y - 2 };
   if (view.view === 'month') drawMonth(doc, view, area, today);
   else drawTimeGrid(doc, view, area, today);

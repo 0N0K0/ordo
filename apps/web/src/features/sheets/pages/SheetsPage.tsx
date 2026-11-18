@@ -1,5 +1,6 @@
+import { PAGES } from '../../../app/pages';
 import { Stack } from '@mantine/core';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { SheetsSettings } from '../components/SheetsSettings';
 import { SheetsTable } from '../components/SheetsTable';
 
@@ -10,7 +11,7 @@ import { SheetsTable } from '../components/SheetsTable';
 export function SheetsPage() {
   return (
     <Stack gap="lg">
-      <PageHeader title="Fiches" />
+      <PageHeader title={PAGES.sheets.title} />
       <SheetsTable />
       <SheetsSettings />
     </Stack>

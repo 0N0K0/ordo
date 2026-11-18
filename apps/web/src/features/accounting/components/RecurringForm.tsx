@@ -25,7 +25,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
   const { create, update } = useRecurringMutations();
   const stored = recurring ? recurrenceSchema.safeParse(recurring.recurrence) : null;
   const [name, setName] = useState(recurring?.name ?? '');
-  const [startDate, setStartDate] = useState<string>(recurring ? String(recurring.startDate) : localToday());
+  const [startDate, setStartDate] = useState<string>(recurring ? recurring.startDate : localToday());
   const [rule, setRule] = useState<Recurrence | null>(stored?.success ? stored.data : { ...DEFAULT_RECURRENCE, frequency: 'MONTHLY' });
   const [autoFinalize, setAutoFinalize] = useState(recurring?.autoFinalize ?? false);
   const [active, setActive] = useState(recurring?.active ?? true);

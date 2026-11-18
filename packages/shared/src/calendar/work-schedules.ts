@@ -5,10 +5,8 @@ import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type 
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { weekdayOfDate } from '../dates/weeks';
-import { timeOfDaySchema } from '../dates/times';
+import { timeOfDaySchema, daySchema } from '../dates/times';
 import { daysInMonth, monthFromIndex, monthIndex } from '../dates/months';
-
-const isoDate = z.iso.date({ error: 'Date invalide.' });
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
@@ -51,12 +49,12 @@ const scheduleCaseSchema = z
     /** Days each occurrence lasts, from its first day (weekdays, every n days, nth weekday…); 1: that day only. */
     days: z.number().int().min(1, 'Au moins 1 jour.').max(366, '366 jours au plus.').default(1),
     /** First day of the rhythm (its week for WEEKLY); none: the start of the period. */
-    from: isoDate.nullable().default(null),
+    from: daySchema().nullable().default(null),
     allDay: z.boolean().default(false),
     ranges: z.array(timeRangeSchema).max(12, '12 tranches au plus.').default([]),
     /** First and last days it applies (none: the whole period), dates included. */
-    since: isoDate.nullable().default(null),
-    until: isoDate.nullable().default(null),
+    since: daySchema().nullable().default(null),
+    until: daySchema().nullable().default(null),
   })
   .superRefine((item, context) => {
     if (item.since && item.until && item.until < item.since) context.addIssue({ code: 'custom', path: ['until'], message: 'La fin doit suivre le début.' });
@@ -93,8 +91,8 @@ const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).s
 export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 
 const exceptionFields = {
-  from: isoDate,
-  to: isoDate,
+  from: daySchema(),
+  to: daySchema(),
   label: z.string().trim().max(100, '100 caractères maximum.').default(''),
 };
 
@@ -108,8 +106,8 @@ export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 export const workScheduleSchema = z
   .object({
     name: requiredText(100),
-    startDate: isoDate,
-    endDate: isoDate.nullable(),
+    startDate: daySchema(),
+    endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
     /** Kind of time it plans; none: working hours. */
@@ -387,7 +385,7 @@ export function readScheduleExceptions(value: unknown): ScheduleException[] {
 
 /** Former format of a schedule (slots per weekday every n weeks, pauses), read to convert it. */
 const legacySlotSchema = z.object({ weekday: z.number().int().min(1).max(7), start: timeOfDaySchema, end: timeOfDaySchema, allDay: z.boolean().default(false) });
-const legacyPauseSchema = z.object({ from: isoDate, to: isoDate, label: z.string().default('') });
+const legacyPauseSchema = z.object({ from: daySchema(), to: daySchema(), label: z.string().default('') });
 
 /**
  * Cases and exceptions of a schedule stored in the former format: the weekdays with the same hours become one

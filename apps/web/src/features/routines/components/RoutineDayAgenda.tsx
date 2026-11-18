@@ -10,7 +10,7 @@ import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../../lib/dates';
 import { notifyWithUndo, onMutationError } from '../../../lib/notify';
-import { useCalendarEvents, useCalendars, useDefaultScheduleKind, useScheduleTypes, useSubscribedCalendarEvents, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
+import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
 import { occurrenceSpan, scheduleSources } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
@@ -60,8 +60,7 @@ const stateOf = (item: HistoryItem, today: string): ItemState => (item.check ? '
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {string} HH:MM.
  */
-const proposedTime = (item: HistoryItem, today: string) =>
-  item.check ? fmt.time(new Date(item.check.doneAt)) : (item.dueTime ?? item.fromTime ?? (item.date === today ? fmt.time(new Date()) : '12:00'));
+const proposedTime = (item: HistoryItem, today: string) => (item.check ? fmt.time(item.check.doneAt) : (item.dueTime ?? item.fromTime ?? (item.date === today ? fmt.time(new Date()) : '12:00')));
 
 interface TickFormProps {
   item: HistoryItem;
@@ -114,10 +113,10 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
         {fmt.dayLong(item.date)}
         {window ? ` · ${window}` : ''} ·{' '}
         <Text span c={`${STATES[state].color}.7`}>
-          {state === 'done' ? `faite à ${fmt.time(new Date(item.check!.doneAt))}` : STATES[state].text}
+          {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
         </Text>
       </Text>
-      <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(String(value))} />
+      <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(value)} />
       <TimeInput
         label={item.check ? 'Faite à' : 'Faite à (heure prévue par défaut)'}
         value={time}
@@ -164,10 +163,7 @@ interface RoutineDayAgendaProps {
 export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDayAgendaProps) {
   const range = useMemo(() => ({ from: day, to: day }), [day]);
   const { data: calendars } = useCalendars();
-  const { data: schedules } = useWorkSchedules();
-  const { data: foreign } = useSubscribedSchedules();
-  const { data: types } = useScheduleTypes();
-  const { data: defaultKind } = useDefaultScheduleKind();
+  const { schedules, foreign, types, defaultKind } = useScheduleSources();
   const shownCalendars = new Set(layers.calendarIds);
   const subscriptions = (calendars?.calendarSubscriptions ?? []).filter((subscription) => shownCalendars.has(subscription.calendarId));
   const ownEvents = useCalendarEvents(layers.calendarIds.length ? range : null);

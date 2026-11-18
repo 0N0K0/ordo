@@ -1,3 +1,4 @@
+import { copyName } from '../../../lib/text';
 import { useSetParams } from '../../../lib/search-params';
 import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -151,7 +152,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, name: `${view.name} (copie)`.slice(0, 60) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
+    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, name: copyName(view.name, 60) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
 
     /**
      * Deletes a view.

@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, type Recurrence, ruleValues, zonedInstant } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { CalendarEvent, CalendarEventException } from '../../generated/prisma/client';
 import { notFound } from '../../graphql/errors';
@@ -97,13 +97,11 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
  * @returns {string[]} RRULE content line, and RDATE ones for the months lacking the day.
  */
 function rrule(rule: Recurrence, start: string, time: string | null, timeZone: string): string[] {
-  const first = parseDay(start);
-  const isoWeekday = ((first.getUTCDay() + 6) % 7) + 1;
   // Values of the monthly and yearly modes: chosen, else those of the first date.
   const values = ruleValues(rule, start);
   const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.interval}`];
   if (rule.frequency === 'WEEKLY') {
-    parts.push(`BYDAY=${(rule.weekdays.length ? rule.weekdays : [isoWeekday]).map((day) => WEEKDAYS[day - 1]).join(',')}`, 'WKST=MO');
+    parts.push(`BYDAY=${(rule.weekdays.length ? rule.weekdays : [weekdayOfDate(start)]).map((day) => WEEKDAYS[day - 1]).join(',')}`, 'WKST=MO');
   }
   if (rule.frequency === 'MONTHLY') {
     if (rule.monthlyMode === 'WEEKDAY') parts.push(`BYDAY=${values.position}${WEEKDAYS[values.weekday - 1]}`);

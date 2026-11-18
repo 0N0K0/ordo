@@ -1,9 +1,7 @@
-import { ActionIcon, Menu } from '@mantine/core';
+import { ActionIcon } from '@mantine/core';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
-  ArrowsInLineVerticalIcon,
-  ArrowsOutLineVerticalIcon,
   DotsThreeIcon,
   FolderPlusIcon,
   PencilSimpleIcon,
@@ -14,6 +12,8 @@ import { useWorkspace } from '../api';
 import { canHaveChildren } from '../lib/tree';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
+import { foldEntries } from '../lib/fold-entries';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 
 interface EntityMenuProps {
   entity: EntityRef;
@@ -40,8 +40,13 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
   const kind = entity.type === 'client' ? 'le client' : 'le projet';
 
   return (
-    <Menu opened={opened} onChange={onChange} position="bottom-start" withinPortal shadow="md" width={220}>
-      <Menu.Target>
+    <ActionsMenu
+      name={`${kind} ${entityLabel(entity)}`}
+      opened={opened}
+      onChange={onChange}
+      position="bottom-start"
+      inRow
+      target={
         <ActionIcon
           variant="subtle"
           color="gray"
@@ -52,68 +57,30 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
         >
           <DotsThreeIcon weight="bold" aria-hidden />
         </ActionIcon>
-      </Menu.Target>
-      <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
-        {entity.type === 'client' && !item.archived && (
-          <Menu.Item
-            leftSection={<FolderPlusIcon aria-hidden />}
-            onClick={() => actions.openProjectForm(undefined, { clientId: item.id })}
-          >
-            Ajouter un projet
-          </Menu.Item>
-        )}
-        {canAddSubProject && (
-          <Menu.Item
-            leftSection={<FolderPlusIcon aria-hidden />}
-            onClick={() => actions.openProjectForm(undefined, { parentId: item.id })}
-          >
-            Ajouter un sous-projet
-          </Menu.Item>
-        )}
-        {foldable && (
-          <>
-            <Menu.Item
-              leftSection={<ArrowsOutLineVerticalIcon aria-hidden />}
-              onClick={() => expansion!.setSubtreeExpanded(entity, true)}
-            >
-              Tout déplier
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<ArrowsInLineVerticalIcon aria-hidden />}
-              onClick={() => expansion!.setSubtreeExpanded(entity, false)}
-            >
-              Tout replier
-            </Menu.Item>
-            <Menu.Divider />
-          </>
-        )}
-        <Menu.Item
-          leftSection={<PencilSimpleIcon aria-hidden />}
-          onClick={() =>
-            entity.type === 'client' ? actions.openClientForm(entity.item) : actions.openProjectForm(entity.item)
-          }
-        >
-          Modifier
-        </Menu.Item>
-        {!item.archived && (
-          <Menu.Item
-            leftSection={<StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />}
-            onClick={() => actions.setFavorite(entity, !item.favorite)}
-          >
-            {item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          </Menu.Item>
-        )}
-        <Menu.Item
-          leftSection={item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-          onClick={() => actions.setArchived(entity, !item.archived)}
-        >
-          {item.archived ? 'Restaurer' : 'Archiver'}
-        </Menu.Item>
-        <Menu.Divider />
-        <Menu.Item color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => actions.confirmDelete(entity)}>
-          Supprimer
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
+      }
+      items={[
+        entity.type === 'client' &&
+          !item.archived && { label: 'Ajouter un projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm(undefined, { clientId: item.id }) },
+        canAddSubProject && { label: 'Ajouter un sous-projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm(undefined, { parentId: item.id }) },
+        ...(foldable ? foldEntries((expanded) => expansion!.setSubtreeExpanded(entity, expanded)) : []),
+        'divider',
+        {
+          label: 'Modifier',
+          icon: <PencilSimpleIcon aria-hidden />,
+          onClick: () => (entity.type === 'client' ? actions.openClientForm(entity.item) : actions.openProjectForm(entity.item)),
+        },
+        !item.archived && {
+          label: item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+          icon: <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />,
+          onClick: () => actions.setFavorite(entity, !item.favorite),
+        },
+        {
+          label: item.archived ? 'Restaurer' : 'Archiver',
+          icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+          onClick: () => actions.setArchived(entity, !item.archived),
+        },
+        { label: 'Supprimer', icon: <TrashIcon aria-hidden />, onClick: () => actions.confirmDelete(entity), danger: true },
+      ]}
+    />
   );
 }

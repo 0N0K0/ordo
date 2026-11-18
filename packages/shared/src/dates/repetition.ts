@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { addDays, maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, spanEnd, type Recurrence, type Span } from './recurrence';
-
-const isoDate = z.iso.date({ error: 'Date invalide.' });
+import { daySchema } from './times';
 
 /** Fields common to the cases of every repetition: its period and its rule (with how long each occurrence lasts). */
 const repetitionCaseFields = {
   /** First and last days it applies (none: those of what repeats), dates included. */
-  since: isoDate.nullable().default(null),
-  until: isoDate.nullable().default(null),
+  since: daySchema().nullable().default(null),
+  until: daySchema().nullable().default(null),
   /** First day its rhythm counts from, when not its first day (cases converted from an older form). */
-  anchor: isoDate.nullable().default(null),
+  anchor: daySchema().nullable().default(null),
   /** None: a single occurrence, on its first day. */
   rule: recurrenceSchema.nullable(),
 };
@@ -93,7 +92,7 @@ const taskCasesSchema = z.object({
     .array(repetitionCaseSchema(z.null().default(null)))
     .min(1, 'Ajoutez au moins un cas.')
     .max(20, '20 cas au plus.'),
-  exceptions: z.array(isoDate).max(5000).default([]),
+  exceptions: z.array(daySchema()).max(5000).default([]),
 });
 type TaskCases = z.infer<typeof taskCasesSchema>;
 

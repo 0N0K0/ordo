@@ -1,6 +1,7 @@
-import { Alert, Button, Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { Button, Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
 import { mailAccountFormSchema, type MailAccountFormValues } from '@ordo/shared';
-import { CheckCircleIcon } from '@phosphor-icons/react';
+
 import { useEffect, useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
@@ -201,9 +202,9 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
         </Fieldset>
 
         {tested && (
-          <Alert color="green" icon={<CheckCircleIcon aria-hidden />}>
+          <NoticeAlert kind="success">
             Connexion réussie à la réception et à l’envoi.
-          </Alert>
+          </NoticeAlert>
         )}
         <Group justify="space-between" gap="sm">
           <Button

@@ -1,0 +1,25 @@
+import { Button } from '@mantine/core';
+import { PlusIcon } from '@phosphor-icons/react';
+import type { ReactNode } from 'react';
+
+interface AddItemButtonProps {
+  /** Precise label: « Ajouter un numéro », « Ajouter une ligne »… */
+  children: ReactNode;
+  onClick: () => void;
+  /** Nothing left to add. Optional. Default = false. */
+  disabled?: boolean;
+}
+
+/**
+ * Button adding an item to a list of a form (a phone number, a line, a case…), the same everywhere: subtle, small, a
+ * « + » and a precise label, on the left under the list.
+ * @param {AddItemButtonProps} props Component props.
+ * @returns {JSX.Element} Button.
+ */
+export function AddItemButton({ children, onClick, disabled = false }: AddItemButtonProps) {
+  return (
+    <Button size="xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={onClick} disabled={disabled} style={{ alignSelf: 'flex-start' }}>
+      {children}
+    </Button>
+  );
+}

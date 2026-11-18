@@ -1,7 +1,7 @@
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';

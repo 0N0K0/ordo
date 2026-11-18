@@ -9,6 +9,7 @@ import { useMe } from '../../auth/api';
 import { unarchived } from '../../../lib/archive';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from '../api';
+import { personName } from '../../../components/people/people-options';
 
 export interface TaskContext {
   tasks: Task[];
@@ -192,7 +193,7 @@ export function useTaskContext() {
         if (scopes.length === 0) return offered;
         return offered.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || scopes.every((scope) => contributor.projectIds.some((id) => scope.has(id))));
       },
-      contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
+      contributorName: personName,
       taskById: mapById(tasks),
       taskLabel: taskPath,
       milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.title}`,

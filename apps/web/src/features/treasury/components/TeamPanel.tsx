@@ -2,23 +2,23 @@ import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PersonOption } from '../../../components/people/PersonOption';
-import { listSelectProps } from '../../../components/settings/item-look';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { PersonOption, PersonRow } from '../../../components/people/PersonOption';
+import { listSelectProps } from '../../../components/items/item-look';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { ActionIcon, Avatar, Badge, Button, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
 import { useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { showFormError, useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
@@ -30,13 +30,7 @@ import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-
-/**
- * Day in words.
- * @param {unknown} day YYYY-MM-DD.
- * @returns {string} "12 août 2026".
- */
-const formatDay = (day: unknown) => fmt.day(String(day));
+import { InlineActions } from '../../../components/data-table/cells/RowActions';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -81,14 +75,20 @@ export function TeamMembers() {
             <Table.Tr key={member.id}>
               <Table.Td>
                 <Group gap="xs" wrap="nowrap">
-                  <Avatar src={member.avatarUrl} size="sm" name={member.name} color="initials" />
-                  <Text size="sm">{member.name}</Text>
-                  {member.isMe && (
-                    <Badge size="xs" variant="light">
-                      Moi
-                    </Badge>
-                  )}
-                  {member.archived && <ArchivedBadge size="xs" />}
+                  <PersonRow
+                    name={member.name}
+                    avatarUrl={member.avatarUrl}
+                    badges={
+                      <>
+                        {member.isMe && (
+                          <Badge size="xs" variant="light">
+                            Moi
+                          </Badge>
+                        )}
+                        {member.archived && <ArchivedBadge size="xs" />}
+                      </>
+                    }
+                  />
                 </Group>
               </Table.Td>
               <Table.Td w={1}>
@@ -202,8 +202,8 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
   const form = useAppForm<{ contextId: string; startDate: string; endDate: string; note: string | null }>({
     initialValues: {
       contextId: period?.contextId ?? unarchived(contexts)[0]?.id ?? '',
-      startDate: period ? String(period.startDate) : '',
-      endDate: period ? String(period.endDate) : '',
+      startDate: period ? period.startDate : '',
+      endDate: period ? period.endDate : '',
       note: period?.note ?? null,
     },
     schema: treasuryContextPeriodSchema,
@@ -212,10 +212,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
     <form
       noValidate
       onSubmit={form.onSubmit((input) =>
-        saveContextPeriod.mutate(
-          { id: period?.id ?? null, input: { ...input, note: input.note || null } },
-          { onSuccess: () => (notifySuccess(period ? 'Période modifiée.' : 'Période planifiée.'), onDone()), onError: (error) => showFormError(form, error) },
-        ),
+        saveContextPeriod.mutate({ id: period?.id ?? null, input: { ...input, note: input.note || null } }, formCallbacks(form, period ? 'Période modifiée.' : 'Période planifiée.', onDone)),
       )}
     >
       <Stack gap="sm">
@@ -290,17 +287,10 @@ function Contexts() {
             </ActionButton>
           </>
         }
+        description="Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées."
       >
-        <Text size="xs" c="dimmed" mb="xs">
-          Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées.
-        </Text>
         {periods.length === 0 ? (
-          <Group gap="xs" py="xs">
-            <CalendarBlankIcon aria-hidden />
-            <Text size="sm" c="dimmed">
-              {contexts.length ? 'Aucune période planifiée.' : 'Créez d’abord un contexte.'}
-            </Text>
-          </Group>
+          <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message={contexts.length ? 'Aucune période planifiée.' : 'Créez d’abord un contexte.'} />
         ) : (
           <Table verticalSpacing={4}>
             <Table.Tbody>
@@ -322,31 +312,29 @@ function Contexts() {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">
-                        {formatDay(period.startDate)} → {formatDay(period.endDate)}
+                        {fmt.day(period.startDate)} → {fmt.day(period.endDate)}
                       </Text>
                     </Table.Td>
                     <Table.Td w={1}>
                       {/* A period is part of its context: read only while it is archived. */}
                       {!item?.archived && (
-                        <Group gap={2} wrap="nowrap">
-                          <Button size="compact-xs" variant="subtle" onClick={() => openPeriod(period)}>
-                            Modifier
-                          </Button>
-                          <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="red"
-                            onClick={() =>
-                              confirmDestructive({
-                                title: 'Supprimer la période',
-                                risks: `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                                onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
-                              })
-                            }
-                          >
-                            Supprimer
-                          </Button>
-                        </Group>
+                        <InlineActions
+                          name={`la période ${item?.name ?? ''} du ${fmt.day(period.startDate)}`}
+                          items={[
+                            { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openPeriod(period) },
+                            {
+                              label: 'Supprimer',
+                              icon: <TrashIcon aria-hidden />,
+                              danger: true,
+                              onClick: () =>
+                                confirmDestructive({
+                                  title: 'Supprimer la période',
+                                  risks: `La période « ${item?.name ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                                  onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
+                                }),
+                            },
+                          ]}
+                        />
                       )}
                     </Table.Td>
                   </Table.Tr>
@@ -465,10 +453,8 @@ export function TeamRelations() {
           </ActionButton>
         </>
       }
+      description="Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers."
     >
-      <Text size="xs" c="dimmed" mb="xs">
-        Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.
-      </Text>
       {relations.length === 0 ? (
         <EmptyState compact message="Aucune relation." />
       ) : (
@@ -495,35 +481,28 @@ export function TeamRelations() {
                   </Text>
                 </Table.Td>
                 <Table.Td w={1}>
-                  <Group gap={2} wrap="nowrap">
-                    {!relation.archived && (
-                      <Button size="compact-xs" variant="subtle" onClick={() => openRelation(relation)}>
-                        Modifier
-                      </Button>
-                    )}
-                    <Button
-                      size="compact-xs"
-                      variant="subtle"
-                      leftSection={relation.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-                      onClick={() => void archiveWithUndo(setArchived, { ids: [relation.id], archived: !relation.archived, label: `« ${relation.name} »`, feminine: true })}
-                    >
-                      {relation.archived ? 'Restaurer' : 'Archiver'}
-                    </Button>
-                    <Button
-                      size="compact-xs"
-                      variant="subtle"
-                      color="red"
-                      onClick={() =>
-                        confirmDestructive({
-                          title: 'Supprimer la relation',
-                          risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                          onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: onMutationError }),
-                        })
-                      }
-                    >
-                      Supprimer
-                    </Button>
-                  </Group>
+                  <InlineActions
+                    name={relation.name}
+                    items={[
+                      !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
+                      {
+                        label: relation.archived ? 'Restaurer' : 'Archiver',
+                        icon: relation.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                        onClick: () => void archiveWithUndo(setArchived, { ids: [relation.id], archived: !relation.archived, label: `« ${relation.name} »`, feminine: true }),
+                      },
+                      {
+                        label: 'Supprimer',
+                        icon: <TrashIcon aria-hidden />,
+                        danger: true,
+                        onClick: () =>
+                          confirmDestructive({
+                            title: 'Supprimer la relation',
+                            risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                            onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: onMutationError }),
+                          }),
+                      },
+                    ]}
+                  />
                 </Table.Td>
               </Table.Tr>
             ))}

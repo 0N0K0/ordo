@@ -1,10 +1,9 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
 import { removedLinksNote } from '../lib/bulk-label';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { ItemBadge } from '../../../components/items/ItemBadge';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
-import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -21,19 +20,18 @@ import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
+
+
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, cellMulti as sharedMulti, stopClick } from '../../../components/data-table/cells/cell-field';
-import { EditableNumber } from '../../../components/data-table/cells/EditableCells';
+import { cellCombobox as sharedCombobox, stopClick } from '../../../components/data-table/cells/cell-field';
+import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
+import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 
 /** Select fields of the cells, a click kept from the row. */
 const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
 
-/** Multi-select fields of the cells, a click kept from the row. */
-const cellMulti = { ...sharedMulti, onClick: stopClick } as const;
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -175,28 +173,19 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
 export function TagsCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'tags');
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={fieldLabel('Étiquettes', task, count)}
       items={task.tagIds.flatMap((id) => {
         const tag = context.tagById.get(id);
         return tag ? [{ id, label: tag.name, icon: <ItemAvatar name={tag.name} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
       })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={fieldLabel('Étiquettes', task, count)}
-          {...listSelectProps(context.tags, undefined, task.tagIds)}
-          value={task.tagIds}
-          onChange={(tagIds) => {
-            const { added, removed } = listDiff(task.tagIds, tagIds);
-            apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={task.tagIds.length ? undefined : '—'}
-          searchable
-          nothingFoundMessage="Aucune étiquette (Paramètres › Tâches)"
-        />
-      )}
+      {...listSelectProps(context.tags, undefined, task.tagIds)}
+      value={task.tagIds}
+      onSave={(tagIds) => {
+        const { added, removed } = listDiff(task.tagIds, tagIds);
+        apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
+      }}
+      nothingFoundMessage="Aucune étiquette (Paramètres › Tâches)"
     />
   );
 }
@@ -211,28 +200,19 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
   const { apply, count } = useCellEdit(task, 'sprint');
   const sprints = context.sprintsFor(task.projectId, task.sprintIds);
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={fieldLabel('Sprints', task, count)}
       items={task.sprintIds.flatMap((id) => {
         const sprint = sprints.find((item) => item.id === id) ?? context.sprints.find((item) => item.id === id);
         return sprint ? [{ id, label: context.sprintLabel(sprint) }] : [];
       })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={fieldLabel('Sprints', task, count)}
-          data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
-          value={task.sprintIds}
-          onChange={(sprintIds) => {
-            const { added, removed } = listDiff(task.sprintIds, sprintIds);
-            apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={task.sprintIds.length ? undefined : '—'}
-          searchable
-          nothingFoundMessage="Aucun sprint dans ce projet"
-        />
-      )}
+      data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
+      value={task.sprintIds}
+      onSave={(sprintIds) => {
+        const { added, removed } = listDiff(task.sprintIds, sprintIds);
+        apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
+      }}
+      nothingFoundMessage="Aucun sprint dans ce projet"
     />
   );
 }
@@ -276,7 +256,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
   const onError = { onError: onMutationError };
   const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={label}
       items={task.blockedByIds.flatMap((id) => {
         const blocker = context.taskById.get(id);
@@ -286,38 +266,25 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
                 id,
                 label: `${context.taskLabel(blocker, task.projectId)}`,
                 title: `${context.taskLabel(blocker, task.projectId)}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
-                icon: blocker.closed ? (
-                  <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
-                ) : (
-                  <HourglassMediumIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ flexShrink: 0 }} />
-                ),
+                icon: <DependencyIcon done={blocker.closed} />,
               },
             ]
           : [];
       })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={label}
-          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
-          value={task.blockedByIds}
-          onChange={(ids) => {
-            // On a selection, each selected task gets (or loses) the same blockers.
-            for (const target of targets) {
-              for (const id of ids.filter((item) => !task.blockedByIds.includes(item) && item !== target)) {
-                taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, onError);
-              }
-              for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
-                taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, onError);
-              }
-            }
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={task.blockedByIds.length ? undefined : '—'}
-          searchable
-          nothingFoundMessage="Aucune tâche"
-        />
-      )}
+      data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
+      value={task.blockedByIds}
+      onSave={(ids) => {
+        // On a selection, each selected task gets (or loses) the same blockers.
+        for (const target of targets) {
+          for (const id of ids.filter((item) => !task.blockedByIds.includes(item) && item !== target)) {
+            taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, onError);
+          }
+          for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
+            taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, onError);
+          }
+        }
+      }}
+      nothingFoundMessage="Aucune tâche"
     />
   );
 }
@@ -423,28 +390,19 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
     }
   };
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={label}
       items={ids.flatMap((id) => {
         const other = context.taskById.get(id);
         return other ? [{ id, label: `${context.taskLabel(other, task.projectId)}`, title: `${context.taskLabel(other, task.projectId)}${other.closed ? ' (fermée)' : ''}` }] : [];
       })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={label}
-          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
-          value={ids}
-          onChange={(next) => {
-            for (const id of next.filter((item) => !ids.includes(item))) link(id, true);
-            for (const id of ids.filter((item) => !next.includes(item))) link(id, false);
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={ids.length ? undefined : '—'}
-          searchable
-          nothingFoundMessage="Aucune tâche"
-        />
-      )}
+      data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
+      value={ids}
+      onSave={(next) => {
+        for (const id of next.filter((item) => !ids.includes(item))) link(id, true);
+        for (const id of ids.filter((item) => !next.includes(item))) link(id, false);
+      }}
+      nothingFoundMessage="Aucune tâche"
     />
   );
 }

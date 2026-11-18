@@ -7,7 +7,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -16,7 +16,7 @@ import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCompanyProfile } from '../api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from '../api/catalog';
@@ -118,13 +118,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
       <form
         noValidate
         onSubmit={form.onSubmit(() => {
-          const callbacks = {
-            onSuccess: () => {
-              notifySuccess(item ? 'Article modifié.' : 'Article ajouté au catalogue.');
-              onDone();
-            },
-            onError: (error: Error) => showFormError(form, error),
-          };
+          const callbacks = formCallbacks(form, item ? 'Article modifié.' : 'Article ajouté au catalogue.', onDone);
           // The raw values: the API validates (and trims) them.
           if (item) update.mutate({ id: item.id, input: form.values }, callbacks);
           else create.mutate(form.values, callbacks);
@@ -143,7 +137,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
           <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
           <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
             <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
-            <AmountInput label="Prix unitaire HT" suffix=" €" {...form.getInputProps('unitPrice')} />
+            <AmountInput label="Prix unitaire HT" {...form.getInputProps('unitPrice')} />
             {!disbursement && (
               <Select
                 label="TVA"
@@ -326,7 +320,6 @@ export function CatalogPanel() {
             value={item.unitPrice}
             label={`Prix HT de ${item.title}`}
             readOnly={item.archived}
-            suffix="€"
             signed={item.kind === 'DISBURSEMENT'}
             onSave={(unitPrice) => unitPrice !== null && bulk('price')(item, { unitPrice })}
           />

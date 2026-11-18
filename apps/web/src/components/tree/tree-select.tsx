@@ -1,7 +1,7 @@
 import { Group, Text, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { ItemAvatar } from '../settings/ItemAvatar';
-import { hasAvatar } from '../settings/item-look';
+import { ItemAvatar } from '../items/ItemAvatar';
+import { hasAvatar } from '../items/item-look';
 import { normalize } from '../../lib/text';
 
 /** Node of a tree offered in a select. */

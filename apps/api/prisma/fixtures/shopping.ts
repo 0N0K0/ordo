@@ -8,8 +8,8 @@ import {
   createCategory,
   createList,
   createProduct,
-  createStorage,
-  createStore,
+  shoppingStorages,
+  shoppingStores,
   setItemPurchased,
   setListClosed,
 } from '../../src/services/shopping/shopping';
@@ -38,7 +38,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     ['Bureau Vallée', '#fd7e14'],
     ['En ligne', '#7950f2'],
   ] as const) {
-    stores.set(name, (await createStore({ name, color })).id);
+    stores.set(name, (await shoppingStores.create({ name, color })).id);
   }
   const storages = new Map<string, string>();
   for (const [name, color] of [
@@ -46,7 +46,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     ['Congélateur', '#4c6ef5'],
     ['Placard', '#fab005'],
   ] as const) {
-    storages.set(name, (await createStorage({ name, color })).id);
+    storages.set(name, (await shoppingStorages.create({ name, color })).id);
   }
 
   // --- Base lists and categories ----------------------------------------------------------------------

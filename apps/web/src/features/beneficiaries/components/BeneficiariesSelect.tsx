@@ -1,4 +1,5 @@
-import { PeopleCell, PeopleSelect } from '../../../components/people/PeopleSelect';
+import { PeopleSelect } from '../../../components/people/PeopleSelect';
+import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
 import { beneficiariesOf, beneficiaryKeys, useBeneficiaries, type Beneficiaries } from '../hooks/use-beneficiaries';
 
 /** Label of the field, everywhere. */
@@ -40,5 +41,5 @@ export function BeneficiariesSelect({ value, onChange, description = 'Pour qui c
  */
 export function BeneficiariesCell({ value, label, readOnly = false, onSave }: { value: Beneficiaries; label: string; readOnly?: boolean; onSave: (value: Beneficiaries) => void }) {
   const { options } = useBeneficiaries(value);
-  return <PeopleCell label={label} value={beneficiaryKeys(value)} data={options} readOnly={readOnly} onSave={(next) => onSave(beneficiariesOf(next))} />;
+  return <EditableMultiSelect label={label} value={beneficiaryKeys(value)} data={options} readOnly={readOnly} onSave={(next) => onSave(beneficiariesOf(next))} />;
 }

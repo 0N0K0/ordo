@@ -1,18 +1,17 @@
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
 import { describeSlotCondition } from '../lib/slot-condition-text';
-import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
+
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { unarchivedOffered } from '../../../lib/archive';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
 import { useWorkSchedules } from '../../calendar/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
+
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
@@ -22,10 +21,10 @@ import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { routineTreeOptions } from '../lib/routine-format';
-import { cellMulti } from '../../../components/data-table/cells/cell-field';
-import { EditableNumber } from '../../../components/data-table/cells/EditableCells';
+import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../../tasks/components/context-cells';
+import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 
 /**
  * Accessible label of a cell, with the number of routines it changes on a selection.
@@ -95,28 +94,19 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
   const { apply, count } = useRoutineCellEdit(routine, 'categories');
   const placed = categoryTree(categories);
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={fieldLabel('Catégories', routine, count)}
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
         .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.name} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={fieldLabel('Catégories', routine, count)}
-          {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, routine.categoryIds)))}
-          value={routine.categoryIds}
-          onChange={(categoryIds) => {
-            const { added, removed } = listDiff(routine.categoryIds, categoryIds);
-            apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={routine.categoryIds.length ? undefined : '—'}
-          nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
-          searchable
-        />
-      )}
+      {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, routine.categoryIds)))}
+      value={routine.categoryIds}
+      onSave={(categoryIds) => {
+        const { added, removed } = listDiff(routine.categoryIds, categoryIds);
+        apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
+      }}
+      nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
     />
   );
 }
@@ -157,7 +147,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
   const byId = mapById(routines);
   const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
-    <StackedMultiCell
+    <EditableMultiSelect
       label={fieldLabel('Dépendances', routine, count)}
       readOnly={readOnly}
       items={routine.requiredIds.flatMap((id) => {
@@ -168,30 +158,17 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
                 id,
                 label: routinePath(required, byId),
                 title: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
-                icon: waiting.has(id) ? (
-                  <HourglassMediumIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ flexShrink: 0 }} />
-                ) : (
-                  <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
-                ),
+                icon: <DependencyIcon done={!waiting.has(id)} />,
               },
             ]
           : [];
       })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={fieldLabel('Dépendances', routine, count)}
-          {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
-          value={routine.requiredIds}
-          onChange={(requiredIds) => {
-            const { added, removed } = listDiff(routine.requiredIds, requiredIds);
-            apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={routine.requiredIds.length ? undefined : '—'}
-          searchable
-        />
-      )}
+      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
+      value={routine.requiredIds}
+      onSave={(requiredIds) => {
+        const { added, removed } = listDiff(routine.requiredIds, requiredIds);
+        apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
+      }}
     />
   );
 }

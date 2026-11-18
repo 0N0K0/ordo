@@ -1,15 +1,15 @@
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Badge, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { BellIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { TimeField } from '../../../components/inputs/TimeField';
+
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { onMutationError } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
 import { useRoutineMutations, type Routine } from '../api';
 import { useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
-import { EditableMultiSelect, EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
+import { EditableMultiSelect, EditableNumber, EditablePopoverCell, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { OpensOnInput } from './OpensOnInput';
@@ -96,13 +96,10 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
     );
   }
   return (
-    <TimeField
-      variant="unstyled"
-      size="xs"
-      aria-label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
+    <EditableTime
+      label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
       value={routine[field] ?? ''}
-      onChange={(value) => value !== (routine[field] ?? '') && apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
-      onClick={stopClick}
+      onSave={(value) => apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
       clearable
     />
   );
@@ -141,28 +138,16 @@ export function LocationCell({ routine }: { routine: Routine }) {
  */
 export function TravelCell({ routine, field }: { routine: Routine; field: 'travelBefore' | 'travelAfter' }) {
   const { apply } = useRoutineCellEdit(routine, field);
-  const [draft, setDraft] = useState<string | number | null>(null);
   return (
-    <NumberInput
-      variant="unstyled"
-      size="xs"
-      aria-label={`${field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour'} (${routine.title})`}
+    <EditableNumber
+      label={`${field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour'} (${routine.title})`}
       min={0}
       max={24 * 60}
-      allowDecimal={false}
-      suffix=" min"
-      hideControls
-      placeholder="—"
-      value={draft ?? (routine[field] || '')}
-      onChange={setDraft}
-      onBlur={() => {
-        if (draft === null) return;
-        setDraft(null);
-        const minutes = draft === '' ? 0 : Number(draft);
-        if (Number.isFinite(minutes) && minutes !== routine[field]) apply({ [field]: minutes });
-      }}
-      onClick={stopClick}
-      styles={{ input: { textAlign: 'right' } }}
+      decimals={0}
+      suffix="min"
+      nullable
+      value={routine[field] || null}
+      onSave={(minutes) => apply({ [field]: minutes ?? 0 })}
     />
   );
 }

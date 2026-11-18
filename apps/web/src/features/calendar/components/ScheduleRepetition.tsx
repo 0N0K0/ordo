@@ -1,7 +1,8 @@
-import { ActionIcon, Button, Checkbox, Divider, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { type DurationUnit, type ScheduleCase, type ScheduleException, type ScheduleTimes } from '@ordo/shared';
-import { PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+
 import { useState, type ReactNode } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
@@ -9,6 +10,7 @@ import { RepetitionField } from '../../../components/recurrence/RepetitionField'
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
 import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
 interface ScheduleRepetitionValue {
@@ -51,33 +53,20 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
               <TimeField size="xs" aria-label={`Début, cas ${index + 1}`} value={range.start} onChange={(start) => setRange(position, { start })} />
               <Text size="sm">à</Text>
               <TimeField size="xs" aria-label={`Fin, cas ${index + 1}`} value={range.end} onChange={(end) => setRange(position, { end })} />
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                aria-label="Retirer ces horaires"
-                onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })}
-              >
-                <XIcon aria-hidden />
-              </ActionIcon>
+              <RemoveButton label="Retirer ces horaires" size="sm" onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })} />
             </Group>
           ))}
-          <div>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              leftSection={<PlusIcon aria-hidden />}
-              onClick={() => {
-                const last = value.ranges.at(-1);
-                onChange({
-                  ...value,
-                  ranges: [...value.ranges, last ? { start: last.end < '13:00' ? '14:00' : last.end, end: last.end < '13:00' ? '18:00' : '23:59' } : { start: '09:00', end: '12:30' }],
-                });
-              }}
-            >
-              Ajouter des horaires
-            </Button>
-          </div>
+          <AddItemButton
+            onClick={() => {
+              const last = value.ranges.at(-1);
+              onChange({
+                ...value,
+                ranges: [...value.ranges, last ? { start: last.end < '13:00' ? '14:00' : last.end, end: last.end < '13:00' ? '18:00' : '23:59' } : { start: '09:00', end: '12:30' }],
+              });
+            }}
+          >
+            Ajouter des horaires
+          </AddItemButton>
         </Stack>
       )}
     </Group>
@@ -139,14 +128,14 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
   return (
     <Stack gap="md">
       <Group grow align="flex-start">
-        <DatePickerInput label="À partir du" required placeholder="À choisir" value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: String(date) })} />
+        <DatePickerInput label="À partir du" required placeholder="À choisir" value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
         <DatePickerInput
           label="Jusqu’au"
           clearable
           placeholder="Sans fin"
           minDate={draft.startDate || undefined}
           value={draft.endDate}
-          onChange={(date) => setDraft({ ...draft, endDate: date ? String(date) : null })}
+          onChange={(date) => setDraft({ ...draft, endDate: date ? date : null })}
         />
       </Group>
       <Divider label="Cas" labelPosition="left" />
@@ -161,8 +150,8 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
           <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
             <Stack gap="xs">
               <Group gap={6} wrap="nowrap" align="flex-end">
-                <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
-                <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
+                <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: date })} />
+                <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: date })} />
                 <TextInput
                   label="Motif"
                   size="xs"
@@ -171,17 +160,12 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
                   value={exception.label}
                   onChange={(event) => setException(index, { label: event.currentTarget.value })}
                 />
-                <Tooltip label="Retirer l’exception">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    mb={4}
-                    aria-label={`Retirer l’exception ${index + 1}`}
-                    onClick={() => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) })}
-                  >
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <RemoveButton
+                  label="Retirer l’exception"
+                  mb={4}
+                  aria-label={`Retirer l’exception ${index + 1}`}
+                  onClick={() => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) })}
+                />
               </Group>
               <Checkbox
                 size="xs"
@@ -194,16 +178,9 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
           </Paper>
         );
       })}
-      <div>
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          leftSection={<PlusIcon aria-hidden />}
-          onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: localToday(), to: localToday(), label: 'Congés', cases: [] }] })}
-        >
-          Ajouter une exception
-        </Button>
-      </div>
+      <AddItemButton onClick={() => setDraft({ ...draft, exceptions: [...draft.exceptions, { from: localToday(), to: localToday(), label: 'Congés', cases: [] }] })}>
+        Ajouter une exception
+      </AddItemButton>
     </Stack>
   );
 }

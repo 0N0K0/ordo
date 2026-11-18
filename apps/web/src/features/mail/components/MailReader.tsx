@@ -1,15 +1,15 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
+import { ItemBadge } from '../../../components/items/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { ArrowBendDoubleUpLeftIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, CheckCircleIcon, FlagIcon, EnvelopeSimpleIcon, LinkBreakIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -20,6 +20,7 @@ import { MailBody } from './MailBody';
 import { MailFiles, MailHeader } from './MailHeader';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { Comments } from '../../comments/components/Comments';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 /**
  * Message read on the server, as a source of reply or forward.
@@ -27,7 +28,7 @@ import { Comments } from '../../comments/components/Comments';
  * @returns {SourceMail} Source.
  */
 function sourceOf(mail: MailView): SourceMail {
-  return { ...mail, date: String(mail.date), location: { accountId: mail.accountId, folder: mail.folder, uid: mail.uid } };
+  return { ...mail, date: mail.date, location: { accountId: mail.accountId, folder: mail.folder, uid: mail.uid } };
 }
 
 interface MailReaderProps {
@@ -61,7 +62,6 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
   const { setSeen, remove, deleteDraft, unlink } = useMailActions();
   // From a project, its copy of the mail (to unlink it).
   const { data: projectMails } = useProjectMails(projectId ?? '', Boolean(projectId));
-  const [resuming, setResuming] = useState(false);
   const compose = useMailComposer();
   const own = (accounts ?? []).map((account) => account.email);
   const queryClient = useQueryClient();
@@ -87,6 +87,33 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 onError: onMutationError,
               }); } });
   };
+
+  // Opens the draft in the writing form; its next save replaces it.
+  const { run: resume, loading: resuming } = useAsyncAction(
+    async () => {
+      const draft = await fetchMailDraft({ accountId, folder, uid });
+      const parts = splitDraftHtml(draft.html ?? `<p>${escapeHtml(draft.text ?? '').replace(/\n/g, '<br>')}</p>`);
+      compose({
+        accountId,
+        to: draft.to.map((item) => item.address),
+        cc: draft.cc.map((item) => item.address),
+        bcc: draft.bcc.map((item) => item.address),
+        subject: draft.subject,
+        body: parts.body,
+        withSignature: parts.withSignature,
+        quote: parts.quote,
+        inReplyTo: draft.inReplyTo,
+        references: draft.references,
+        projectId: draft.projectId,
+        sourceFiles: {
+          from: { accountId, folder, uid },
+          files: draft.attachments.filter((file) => !file.inline).map(({ index, filename, size }) => ({ index, filename, size })),
+        },
+        draft: { accountId, folder, uid },
+      });
+    },
+    { fallback: 'Brouillon illisible.' },
+  );
 
   if (isPending) return <DetailSkeleton fields={0} />;
   if (error || !mail) {
@@ -117,40 +144,6 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
   const files = mail.attachments.filter((file) => !file.inline);
 
   /**
-   * Opens the draft in the writing form; its next save replaces it.
-   * @returns {Promise<void>}
-   */
-  const resume = async () => {
-    setResuming(true);
-    try {
-      const draft = await fetchMailDraft({ accountId, folder, uid });
-      const parts = splitDraftHtml(draft.html ?? `<p>${escapeHtml(draft.text ?? '').replace(/\n/g, '<br>')}</p>`);
-      compose({
-        accountId,
-        to: draft.to.map((item) => item.address),
-        cc: draft.cc.map((item) => item.address),
-        bcc: draft.bcc.map((item) => item.address),
-        subject: draft.subject,
-        body: parts.body,
-        withSignature: parts.withSignature,
-        quote: parts.quote,
-        inReplyTo: draft.inReplyTo,
-        references: draft.references,
-        projectId: draft.projectId,
-        sourceFiles: {
-          from: { accountId, folder, uid },
-          files: draft.attachments.filter((file) => !file.inline).map(({ index, filename, size }) => ({ index, filename, size })),
-        },
-        draft: { accountId, folder, uid },
-      });
-    } catch (failure) {
-      notifyError(failure instanceof Error ? failure.message : 'Brouillon illisible.');
-    } finally {
-      setResuming(false);
-    }
-  };
-
-  /**
    * Asks for confirmation before deleting the draft for good.
    * @returns {void}
    */
@@ -179,7 +172,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
         from={mail.from}
         to={mail.to}
         cc={mail.cc}
-        date={String(mail.date)}
+        date={mail.date}
         actions={
           <Group gap={4} wrap="nowrap">
             {!isDraft && (

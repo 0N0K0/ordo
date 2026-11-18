@@ -1,12 +1,13 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural, countOf } from '../../../lib/text';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
-import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
+import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -14,8 +15,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
-import { treeSelectProps } from '../../../components/tree/tree-select';
-import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
+
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
@@ -24,7 +24,8 @@ import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetPicker } from './SheetPicker';
-import { unarchivedOffered } from '../../../lib/archive';
+
+import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -40,8 +41,6 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
   const mutations = useSheetMutations();
   const [label, setLabel] = useState('');
   const categories = shopping?.shoppingCategories ?? [];
-  const paths = categoryPaths(categories);
-  const categoryName = (item: ChecklistItem) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const columns: DataColumn<ChecklistItem>[] = [
     {
       id: 'done',
@@ -53,46 +52,11 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       filter: { kind: 'boolean', value: (item) => Boolean(item.checkedAt) },
     },
     { id: 'label', label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-    {
-      id: 'quantity',
-      label: 'Quantité',
-      size: 100,
-      numeric: true,
-      bulk: true,
-      sortValue: (item) => item.quantity ?? null,
-      text: (item) => (item.quantity === null || item.quantity === undefined ? '' : fmt.number(item.quantity, 3)),
-      filter: { kind: 'number', value: (item) => item.quantity ?? null },
-    },
-    { id: 'unit', label: 'Unité', size: 90, bulk: true, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '' },
-    {
-      id: 'category',
-      label: 'Catégorie',
-      size: 160,
-      bulk: true,
-      sortValue: (item) => categoryName(item) || null,
-      text: categoryName,
-      filter: {
-        kind: 'choice',
-        value: (item) => item.categoryId ?? null,
-        options: withArchived(
-          [...paths].map(([value, name]) => ({ value, label: name })),
-          categories,
-        ),
-      },
-      groupable: true,
-    },
-    {
-      id: 'consumable',
-      label: 'Consommable',
-      size: 120,
-      bulk: true,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.consumable ? 1 : 0),
-      text: (item) => (item.consumable ? 'Consommable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.consumable },
-      groupable: true,
-    },
-    { id: 'note', label: 'Description', size: 220, bulk: true, hiddenByDefault: true, sortValue: (item) => item.note ?? null, text: (item) => item.note ?? '' },
+    quantityColumn<ChecklistItem>(),
+    unitColumn<ChecklistItem>(),
+    categoryColumn<ChecklistItem>(categories, { size: 160 }),
+    consumableColumn<ChecklistItem>({ hiddenByDefault: true }),
+    noteColumn<ChecklistItem>({ hiddenByDefault: true }),
     {
       id: 'sources',
       label: 'Fiches',
@@ -209,16 +173,8 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           done: <EditableCheck value={Boolean(item.checkedAt)} label={`${item.label} fait`} onSave={(checked) => bulk('done')(item, { checked })} />,
           label: <EditableText value={item.label} label={`Libellé de ${item.label}`} onSave={(next) => next && bulk('label')(item, { label: next })} />,
           quantity: <EditableNumber value={item.quantity ?? null} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />,
-          unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
-          category: (
-            <EditableSelect
-              value={item.categoryId ?? null}
-              label={`Catégorie de ${item.label}`}
-              nullable
-              {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, item.categoryId)))}
-              onSave={(categoryId) => bulk('category')(item, { categoryId })}
-            />
-          ),
+          unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} onSave={(unit) => bulk('unit')(item, { unit })} />,
+          category: <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${item.label}`} onSave={(categoryId) => bulk('category')(item, { categoryId })} />,
           note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
           // Ticked, a consumable item that is a reference is taken from the stock.
           consumable: <EditableCheck value={item.consumable} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,

@@ -1,6 +1,7 @@
+import { PAGES } from '../../../app/pages';
 import { countBy } from '@ordo/shared';
 import { useSetParams } from '../../../lib/search-params';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
@@ -67,7 +68,7 @@ export function SettingsPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Paramètres" />
+      <PageHeader title={PAGES.settings.title} />
       <PageTabs
         value={tab}
         onChange={(value) =>

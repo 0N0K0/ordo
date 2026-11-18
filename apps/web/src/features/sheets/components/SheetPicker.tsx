@@ -7,6 +7,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { unarchived } from '../../../lib/archive';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
@@ -30,7 +31,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
   const sheets = all && unarchived(all);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [multiplier, setMultiplier] = useState<number>(1);
-  const [pending, setPending] = useState(false);
+  const { run: add, loading: pending } = useAsyncAction(() => (sheetId ? onAdd(sheetId, multiplier) : Promise.resolve()), { success: 'Fiche ajoutée.', onDone });
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
@@ -75,23 +76,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           ))}
         </Stack>
       )}
-      <FormActions
-        onCancel={onDone}
-        submitLabel="Ajouter"
-        disabled={!sheetId}
-        loading={pending}
-        onSubmit={() => {
-          if (!sheetId) return;
-          setPending(true);
-          onAdd(sheetId, multiplier)
-            .then(() => {
-              notifySuccess('Fiche ajoutée.');
-              onDone();
-            })
-            .catch(onMutationError)
-            .finally(() => setPending(false));
-        }}
-      />
+      <FormActions onCancel={onDone} submitLabel="Ajouter" disabled={!sheetId} loading={pending} onSubmit={() => void add()} />
     </Stack>
   );
 }

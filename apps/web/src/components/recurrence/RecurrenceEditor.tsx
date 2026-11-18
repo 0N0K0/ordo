@@ -1,10 +1,13 @@
-import { ActionIcon, Button, Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { LabeledField } from '../inputs/LabeledField';
+import { AddItemButton } from '../actions/AddItemButton';
+import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
-import { PauseIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { PauseIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { DeletedDates } from './DeletedDates';
 import { describeRecurrence, MONTHS, WEEKDAY_NAMES } from './describe-recurrence';
+import { RemoveButton } from '../actions/RemoveButton';
 
 const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'NONE', label: 'Ne se répète pas' },
@@ -251,20 +254,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             )}
           </Group>
 
-          <Stack gap={4}>
-            <Group gap="xs">
-              <Text size="sm" fw={500}>
-                Pauses
-              </Text>
-              <Button
-                size="compact-xs"
-                variant="subtle"
-                leftSection={<PlusIcon aria-hidden />}
-                onClick={() => update({ pauses: [...rule.pauses, { from: start, to: start }] })}
-              >
-                Ajouter une pause
-              </Button>
-            </Group>
+          <LabeledField label="Pauses">
             {rule.pauses.map((pause, index) => (
               <Group key={index} gap="xs" wrap="nowrap">
                 <PauseIcon aria-hidden />
@@ -280,16 +270,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   popoverProps={comboboxProps}
                   style={{ flex: 1 }}
                 />
-                <Tooltip label="Retirer la pause">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Retirer la pause ${index + 1}`}
-                    onClick={() => update({ pauses: rule.pauses.filter((_, position) => position !== index) })}
-                  >
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <RemoveButton label="Retirer la pause" aria-label={`Retirer la pause ${index + 1}`} onClick={() => update({ pauses: rule.pauses.filter((_, position) => position !== index) })} />
               </Group>
             ))}
             {rule.pauses.length === 0 && (
@@ -297,7 +278,8 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                 Aucune occurrence pendant une pause (congés…), la répétition reprend ensuite.
               </Text>
             )}
-          </Stack>
+            <AddItemButton onClick={() => update({ pauses: [...rule.pauses, { from: start, to: start }] })}>Ajouter une pause</AddItemButton>
+          </LabeledField>
 
           <DeletedDates dates={rule.exceptions} onChange={(dates) => update({ exceptions: dates })} />
 

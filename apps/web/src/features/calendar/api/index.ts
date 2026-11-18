@@ -572,6 +572,19 @@ export function useSubscribedSchedules() {
 }
 
 /**
+ * What the slots of the agenda are drawn from: the schedules of the workspace, those shown from the other workspaces,
+ * the kinds of slots and the kind of the schedules without any (undefined while loading).
+ * @returns {{ schedules: object[] | undefined, foreign: object[] | undefined, types: object[] | undefined, defaultKind: object | undefined }} Sources.
+ */
+export function useScheduleSources() {
+  const { data: schedules } = useWorkSchedules();
+  const { data: foreign } = useSubscribedSchedules();
+  const { data: types } = useScheduleTypes();
+  const { data: defaultKind } = useDefaultScheduleKind();
+  return { schedules, foreign, types, defaultKind };
+}
+
+/**
  * Working hours edition.
  * @returns {object} Mutations.
  */
@@ -605,14 +618,14 @@ export function useWorkScheduleMutations() {
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
 export function scheduleRules(
-  schedules: readonly { id: string; name: string; startDate: unknown; endDate?: unknown; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+  schedules: readonly { id: string; name: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null }[],
 ): WorkScheduleRule[] {
   return schedules.map((schedule) => ({
     id: schedule.id,
     name: schedule.name,
-    startDate: String(schedule.startDate),
-    endDate: schedule.endDate ? String(schedule.endDate) : null,
-    cases: readScheduleCases(schedule.cases, String(schedule.startDate)),
+    startDate: schedule.startDate,
+    endDate: schedule.endDate || null,
+    cases: readScheduleCases(schedule.cases, schedule.startDate),
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
   }));

@@ -1,29 +1,32 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { copyName } from '../../../lib/text';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { PICKER_FORMATS } from '../../../lib/format';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { listSelectProps } from '../../../components/items/item-look';
 
 import { TimeField } from '../../../components/inputs/TimeField';
-import { ActionIcon, Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
-import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from '../api';
 import { archivedCalendarIds } from '../lib/calendar-events';
 import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
-import { useTimeMutations } from '../../time/api';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { useStartTimer } from '../../time/hooks/use-start-timer';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
@@ -42,6 +45,7 @@ import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -139,7 +143,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { create: createCategory } = useCalendarCategoryMutations();
   const color = useDefaultColor();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const { start: startTimer } = useTimeMutations();
+  const { startTimer, isPending: timerStarting } = useStartTimer();
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -154,19 +158,16 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
    */
   const handleTimer = () => {
     if (!occurrence || !values.projectId) return;
-    startTimer.mutate(
-      {
-        projectId: values.projectId,
-        // Tasks of the event belonging to its project tree (a timer only takes those).
-        taskIds: (values.taskIds ?? []).filter((id) => {
-          const task = context.taskById.get(id);
-          return task !== undefined && context.rootOf(task.projectId) === context.rootOf(values.projectId!);
-        }),
-        description: values.title,
-        event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
-      },
-      { onSuccess: () => notifySuccess('Chrono lancé sur l’évènement.'), onError: onMutationError },
-    );
+    startTimer({
+      projectId: values.projectId,
+      // Tasks of the event belonging to its project tree (a timer only takes those).
+      taskIds: (values.taskIds ?? []).filter((id) => {
+        const task = context.taskById.get(id);
+        return task !== undefined && context.rootOf(task.projectId) === context.rootOf(values.projectId!);
+      }),
+      description: values.title,
+      event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
+    });
   };
   const { data: categories } = useCalendarCategories();
   const { data: treasury } = useTreasurySettings();
@@ -224,7 +225,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const chosenLinks = new Set((values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`));
   const routineOptions = [
     ...new Map(
-      [...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: String(item.date) })), ...(values.routineLinks ?? [])].map((link) => [`${link.routineId}|${link.date}`, link]),
+      [...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [`${link.routineId}|${link.date}`, link]),
     ).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
@@ -247,13 +248,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
 
   const handleSubmit = form.onSubmit(async (input) => {
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(occurrence ? 'Évènement modifié.' : 'Évènement créé.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, occurrence ? 'Évènement modifié.' : 'Évènement créé.', onDone);
     if (!occurrence) {
       create.mutate(input, callbacks);
       return;
@@ -412,20 +407,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
         />
 
-        <Stack gap={4}>
-          <Group gap="xs">
-            <Text size="sm" fw={500}>
-              Liens
-            </Text>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              leftSection={<PlusIcon aria-hidden />}
-              onClick={() => form.setFieldValue('links', [...values.links, { url: '', label: '' }])}
-            >
-              Ajouter un lien
-            </Button>
-          </Group>
+        <LabeledField label="Liens">
           {values.links.map((_, index) => (
             <Group key={index} gap="xs" wrap="nowrap" align="flex-start">
               <TextInput
@@ -436,20 +418,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 {...form.getInputProps(`links.${index}.url`)}
               />
               <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
-              <Tooltip label="Retirer le lien">
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  mt={4}
-                  aria-label={`Retirer le lien ${index + 1}`}
-                  onClick={() => form.setFieldValue('links', values.links.filter((__, position) => position !== index))}
-                >
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton label="Retirer le lien" mt={4} aria-label={`Retirer le lien ${index + 1}`} onClick={() => form.setFieldValue('links', values.links.filter((__, position) => position !== index))} />
             </Group>
           ))}
-        </Stack>
+          <AddItemButton onClick={() => form.setFieldValue('links', [...values.links, { url: '', label: '' }])}>Ajouter un lien</AddItemButton>
+        </LabeledField>
 
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <Select
@@ -554,9 +527,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         {occurrence && (
           <Group gap="sm">
-            <Tooltip label={values.projectId ? 'Lance un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
-              <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
-                Chronométrer
+            <Tooltip label={values.projectId ? 'Démarre un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
+              <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
+                Démarrer le chrono
               </Button>
             </Tooltip>
             {occurrence.trackedSeconds > 0 && (
@@ -576,70 +549,73 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         />
         </Stack>
         </Fieldset>
-        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={String(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
         {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
 
-        <Group justify="space-between" gap="sm">
-          {occurrence && readOnly ? (
-            <Group gap={4}>
-              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
-                Supprimer
-              </DestructiveButton>
-              {!calendarArchived && (
-                <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
-                  Restaurer
-                </Button>
-              )}
-            </Group>
-          ) : occurrence ? (
-            <Group gap={4}>
-              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
-                Supprimer
-              </DestructiveButton>
-              {onDuplicate && (
-                <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
-                  <Button
-                    variant="subtle"
-                    color="gray"
-                    leftSection={<CopyIcon aria-hidden />}
-                    onClick={() =>
-                      // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                      onDuplicate({ ...values, title: `${values.title} (copie)`, recurrence: recurring ? null : (values.recurrence ?? null) })
-                    }
-                  >
-                    Dupliquer
-                  </Button>
-                </Tooltip>
-              )}
-              {occurrence.calledOff ? (
-                <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
-                  Rétablir
-                </Button>
-              ) : (
-                <>
-                  <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
-                    Annuler l’évènement
-                  </Button>
-                  <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
-                    Reporter
-                  </Button>
-                </>
-              )}
-              <Button variant="subtle" color="gray" leftSection={<ArchiveIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
-                Archiver
-              </Button>
-            </Group>
-          ) : (
-            <span />
-          )}
-          {readOnly ? (
+        {readOnly ? (
+          <Group justify="space-between" gap="sm">
+            {occurrence ? (
+                <Group gap={4}>
+                  <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
+                  {!calendarArchived && (
+                    <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
+                      Restaurer
+                    </Button>
+                  )}
+                </Group>
+            ) : (
+              <span />
+            )}
             <Button variant="default" onClick={onDone}>
               Fermer
             </Button>
-          ) : (
-            <FormActions onCancel={onDone} submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'} loading={create.isPending || update.isPending} />
-          )}
-        </Group>
+          </Group>
+        ) : (
+          <FormActions
+            onCancel={onDone}
+            submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'}
+            loading={create.isPending || update.isPending}
+            danger={
+              occurrence && (
+                <>
+                <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
+                {onDuplicate && (
+                  <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
+                    <Button
+                      variant="subtle"
+                      color="gray"
+                      leftSection={<CopyIcon aria-hidden />}
+                      onClick={() =>
+                        // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                        onDuplicate({ ...values, title: copyName(values.title), recurrence: recurring ? null : (values.recurrence ?? null) })
+                      }
+                    >
+                      Dupliquer
+                    </Button>
+                  </Tooltip>
+                )}
+                {occurrence.calledOff ? (
+                  <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
+                    Rétablir
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
+                      Annuler l’évènement
+                    </Button>
+                    <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
+                      Reporter
+                    </Button>
+                  </>
+                )}
+                <Button variant="subtle" color="gray" leftSection={<ArchiveIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
+                  Archiver
+                </Button>
+                </>
+              )
+            }
+          />
+        )}
       </Stack>
     </form>
   );

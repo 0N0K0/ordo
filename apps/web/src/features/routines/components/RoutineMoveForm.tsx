@@ -1,8 +1,9 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
-import { ActionIcon, Button, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { ArrowRightIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, CalendarXIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { SubSection } from '../../../components/page/SubSection';
@@ -14,6 +15,7 @@ import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type Routi
 import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
 import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Short date of a calendar date: "jeu. 13 nov.".
@@ -129,10 +131,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               onChange={setTo}
               data-autofocus
             />
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>
-                Horaires
-              </Text>
+            <LabeledField label="Horaires">
               {times.map((item, index) => (
                 <Group key={index} gap={6} wrap="nowrap">
                   <TimeField
@@ -156,7 +155,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   L’heure maximale doit suivre l’heure de début.
                 </Text>
               )}
-            </Stack>
+            </LabeledField>
           </>
         ) : (
           <Text size="sm" c="dimmed">
@@ -176,18 +175,13 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                       ? 'autres horaires'
                       : `${shortText(item.to)} (${item.to > item.from ? 'reportée' : 'avancée'}${item.times ? ', autres horaires' : ''})`}
                 </Text>
-                <Tooltip label="Remettre à son jour">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label={`Remettre l’occurrence du ${fmt.dayLong(item.from)} à son jour`}
-                    loading={removeMove.isPending && removeMove.variables?.from === item.from}
-                    onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: onMutationError })}
-                  >
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <RemoveButton
+                  label="Remettre à son jour"
+                  size="sm"
+                  aria-label={`Remettre l’occurrence du ${fmt.dayLong(item.from)} à son jour`}
+                  loading={removeMove.isPending && removeMove.variables?.from === item.from}
+                  onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: onMutationError })}
+                />
               </Group>
             ))}
           </SubSection>
@@ -198,6 +192,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           </Button>
           {date && (
             <DestructiveButton
+              leftSection={<CalendarXIcon aria-hidden />}
               loading={deleteOccurrence.isPending}
               onClick={() =>
                 confirmDestructive({

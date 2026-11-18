@@ -1,6 +1,5 @@
-import { createRequire } from 'node:module';
-import { type AccountingDocumentType, type Address, addressLines, depositAmount, type DocumentTotals, formatMoney, paidOnReceipt, toCents, UNIT_LABELS } from '@ordo/shared';
-import PDFDocument from 'pdfkit';
+import { type AccountingDocumentType, type Address, addressLines, depositAmount, type DocumentTotals, formatMoney, paidOnReceipt, printedDay, toCents, UNIT_LABELS } from '@ordo/shared';
+import { createPdf } from '../core/pdf-report';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import {
@@ -21,13 +20,6 @@ import {
   hasFacturX,
 } from './factur-x';
 
-const require = createRequire(import.meta.url);
-// Embedded fonts: PDF/A does not allow the standard (non-embedded) ones.
-export const FONTS = {
-  regular:
-    require.resolve('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
-  bold: require.resolve('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
-};
 
 const TYPE_TITLES: Record<AccountingDocumentType, string> = {
   QUOTE: 'Devis',
@@ -48,14 +40,6 @@ const PAGE = { margin: 34, bottom: 60 };
 const TOTALS = { width: 250, inset: 8 };
 
 const countryNames = new Intl.DisplayNames('fr', { type: 'region' });
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
-
-/**
- * Printed date (dd/mm/yyyy).
- * @param {Date} date Calendar date (midnight UTC).
- * @returns {string} Date.
- */
-const printedDate = (date: Date) => dateFormat.format(date);
 
 /**
  * Lines of an address, the country spelled out (omitted for France).
@@ -963,14 +947,14 @@ function writeHeader(
     );
   const isQuote = document.type === 'QUOTE';
   const facts: [string, string | null][] = [
-    ['Date', printedDate(document.issueDate)],
+    ['Date', printedDay(document.issueDate)],
     [
       isQuote ? 'Valable jusqu’au' : 'Échéance',
       // Paid on receipt: no date to wait for.
       !isQuote && paidOnReceipt(document.paymentTerms)
         ? 'À réception'
         : document.dueDate
-          ? printedDate(document.dueDate)
+          ? printedDay(document.dueDate)
           : null,
     ],
     [
@@ -978,8 +962,8 @@ function writeHeader(
       document.serviceStart
         ? document.serviceEnd &&
           document.serviceEnd.getTime() !== document.serviceStart.getTime()
-          ? `du ${printedDate(document.serviceStart)} au ${printedDate(document.serviceEnd)}`
-          : printedDate(document.serviceStart)
+          ? `du ${printedDay(document.serviceStart)} au ${printedDay(document.serviceEnd)}`
+          : printedDay(document.serviceStart)
         : null,
     ],
     [
@@ -1134,7 +1118,7 @@ function writeFooters(
   draft: boolean,
   document: DocumentWithLines,
 ): void {
-  const reference = `${TYPE_TITLES[document.type]} ${draft ? 'provisoire' : 'N° ' + document.number} du ${printedDate(document.issueDate)}`;
+  const reference = `${TYPE_TITLES[document.type]} ${draft ? 'provisoire' : 'N° ' + document.number} du ${printedDay(document.issueDate)}`;
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index++) {
     doc.switchToPage(index);
@@ -1267,7 +1251,7 @@ export async function documentPdf(
     ? `${typeTitle} ${document.number}${payments ? ' acquittée' : ''}`
     : `${typeTitle} (brouillon)`;
 
-  const doc = new PDFDocument({
+  const { doc, end } = createPdf({
     size: 'A4',
     margins: {
       top: PAGE.margin,
@@ -1275,21 +1259,9 @@ export async function documentPdf(
       right: PAGE.margin,
       bottom: PAGE.bottom,
     },
-    bufferPages: true,
     pdfVersion: '1.7',
     subset: 'PDF/A-3b',
-    font: FONTS.regular,
-    lang: 'fr-FR',
-    displayTitle: true,
-    info: { Title: title, Creator: 'Ordo', Producer: 'Ordo' },
-  });
-  doc.registerFont('regular', FONTS.regular);
-  doc.registerFont('bold', FONTS.bold);
-  const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const done = new Promise<void>((resolve, reject) => {
-    doc.on('end', resolve);
-    doc.on('error', reject);
+    title,
   });
 
   const flow = new Flow(doc);
@@ -1322,10 +1294,10 @@ export async function documentPdf(
     const last = payments[payments.length - 1];
     writeSection(doc, flow, 'Facture acquittée', [
       ...payments.map((payment) => ({
-        label: `Réglée le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
+        label: `Réglée le ${printedDay(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
         value: formatMoney(payment.amount, document.currency),
       })),
-      { label: '', value: `Pour acquit, le ${printedDate(last.date)}.` },
+      { label: '', value: `Pour acquit, le ${printedDay(last.date)}.` },
     ]);
   }
   if (document.conclusion) {
@@ -1421,7 +1393,5 @@ export async function documentPdf(
     doc.file(Buffer.from(xml, 'utf8'), options);
     doc.appendXML(facturXmp());
   }
-  doc.end();
-  await done;
-  return { content: Buffer.concat(chunks), filename: `${title}.pdf` };
+  return { content: await end(), filename: `${title}.pdf` };
 }

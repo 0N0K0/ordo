@@ -1,5 +1,5 @@
 @layer app {
-  /* From md on (tablet, 720px = 45em, by the breakpoints of the design system); none on a phone. */
+  /* From the tablet on (768px = 48em, the tablet breakpoint); none on a phone. */
   .title {
     /* Agencement */
     display: none;
@@ -11,7 +11,7 @@
     /* Espacement */
     gap: var(--mantine-spacing-xs);
 
-    @media (min-width: 45em) {
+    @media (min-width: $tablet-breakpoint) {
       /* Agencement */
       display: flex;
     }

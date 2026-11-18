@@ -6,7 +6,6 @@ import * as contributors from '../../services/workspace/contributors';
 import * as milestones from '../../services/tasks/milestones';
 import * as sprints from '../../services/tasks/sprints';
 import { iconUrl } from '../../services/core/icons';
-import type { Label } from '../../services/tasks/labels';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as taskRecurrence from '../../services/tasks/task-recurrence';
@@ -15,7 +14,7 @@ import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
 import * as workspaces from '../../services/workspace/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { labelObject } from '../label-inputs';
+import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
 
@@ -645,40 +644,9 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-// Statuses, priorities and types share the same CRUD.
-const labelKinds = [
-  { type: 'TaskStatus', suffix: 'TaskStatus', service: taskStatuses, model: () => prisma.taskStatus },
-  { type: 'TaskPriority', suffix: 'TaskPriority', service: taskPriorities, model: () => prisma.taskPriority },
-  { type: 'TaskType', suffix: 'TaskType', service: taskTypes, model: () => prisma.taskType },
-  { type: 'TaskTag', suffix: 'TaskTag', service: taskTags, model: () => prisma.taskTag },
-] as const;
-
-for (const kind of labelKinds) {
-  const type = kind.type as 'TaskStatus';
-  const model = kind.model as () => typeof prisma.taskStatus;
-
-  /**
-   * Reloads a label with the fields requested by the query.
-   * @param {object} query Pothos Prisma selection.
-   * @param {Label} label Saved label.
-   * @returns {Promise<object>} Label.
-   */
-  const reload = (query: object, label: Label) => model().findUniqueOrThrow({ ...query, where: { id: label.id } });
-
-  builder.mutationFields((t) => ({
-    [`create${kind.suffix}`]: t.prismaField({
-      type,
-      args: { input: t.arg({ type: LabelInput, required: true }) },
-      resolve: async (query, _root, { input }) => reload(query, await kind.service.create(input)),
-    }),
-    [`update${kind.suffix}`]: t.prismaField({
-      type,
-      args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelUpdateInput, required: true }) },
-      resolve: async (query, _root, { id, input }) => reload(query, await kind.service.update(id, input)),
-    }),
-    [`delete${kind.suffix}`]: t.boolean({
-      args: { id: t.arg.id({ required: true }) },
-      resolve: (_root, { id }) => done(kind.service.remove(id)),
-    }),
-  }));
-}
+// Statuses, priorities, types and tags share the same CRUD.
+const labelInputs = { create: LabelInput, update: LabelUpdateInput };
+labelMutations('TaskStatus', taskStatuses, labelInputs);
+labelMutations('TaskPriority', taskPriorities, labelInputs);
+labelMutations('TaskType', taskTypes, labelInputs);
+labelMutations('TaskTag', taskTags, labelInputs);

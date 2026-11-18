@@ -1,12 +1,13 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { listSelectProps } from '../../../components/settings/item-look';
-import { Alert, Anchor, Select, Stack } from '@mantine/core';
+import { listSelectProps } from '../../../components/items/item-look';
+import { Anchor, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../../treasury/api';
 import { useTrackingMutations } from '../api/tracking';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -72,35 +73,26 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
   });
   if (open.length === 0) {
     return (
-      <Alert color="blue">
+      <NoticeAlert kind="info">
         Créez d’abord un compte dans la{' '}
         <Anchor component={Link} to="/treasury" onClick={onDone}>
           trésorerie
         </Anchor>
         .
-      </Alert>
+      </NoticeAlert>
     );
   }
   return (
     <form
       noValidate
       onSubmit={form.onSubmit((input) =>
-        recordPayment.mutate(
-          { id: document.id, input },
-          {
-            onSuccess: () => {
-              notifySuccess(document.type === 'CREDIT_NOTE' ? 'Remboursement enregistré.' : 'Paiement enregistré.');
-              onDone();
-            },
-            onError: (error) => showFormError(form, error),
-          },
-        ),
+        recordPayment.mutate({ id: document.id, input }, formCallbacks(form, document.type === 'CREDIT_NOTE' ? 'Remboursement enregistré.' : 'Paiement enregistré.', onDone)),
       )}
     >
       <Stack gap="sm">
         <Select label="Compte" required {...listSelectProps(open)} allowDeselect={false} {...form.getInputProps('accountId')} />
         <DatePickerInput label="Date" required {...form.getInputProps('date')} />
-        <AmountInput label="Montant" required min={0} suffix=" €" {...form.getInputProps('amount')} />
+        <AmountInput label="Montant" required min={0} {...form.getInputProps('amount')} />
         <Select
           label="Moyen de paiement"
           clearable

@@ -1,7 +1,8 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
+import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
-import { InfoIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import { UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -402,10 +403,10 @@ export function CompanySettings() {
     <Stack gap="lg">
       <SettingsSection title="Ma société" description="Imprimée sur les devis, factures et avoirs.">
           {!isPending && profile && !profile.name && (
-            <Alert color="blue" icon={<InfoIcon aria-hidden />}>
+            <NoticeAlert kind="info">
               Renseignez au moins le nom de la société avant d’éditer des
               documents.
-            </Alert>
+            </NoticeAlert>
           )}
           {isPending || !profile ? (
             <FormSkeleton fields={8} />

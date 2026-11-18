@@ -17,8 +17,9 @@ import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generate
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
-import { assertAllExist, assertExists } from '../core/lookup';
+import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { connectIds } from '../core/relations';
 
 /**
  * Balance of an account at the end of a day: opening balance plus its actual entries since the opening date.
@@ -71,8 +72,7 @@ export async function updateAccount(id: string, input: TreasuryAccountInput & { 
  */
 export async function deleteAccount(id: string): Promise<void> {
   if (await prisma.treasuryEntry.count({ where: { accountId: id } })) throw clientError('BAD_USER_INPUT', 'Ce compte a des mouvements : archivez-le plutôt.');
-  const { count } = await prisma.treasuryAccount.deleteMany({ where: { id } });
-  if (!count) throw notFound('Compte');
+  await deleteOrNotFound(prisma.treasuryAccount, id, 'Compte');
 }
 
 /**
@@ -196,12 +196,11 @@ function lineFields(line: ParsedLine, position: number) {
  * @returns {object} Relation data.
  */
 function lineRelations(line: ParsedLine, mode: 'connect' | 'set') {
-  const of = (ids: string[]) => [...new Set(ids)].map((id) => ({ id }));
   return {
-    libraryDocuments: { [mode]: of(line.libraryDocumentIds) },
-    projectResources: { [mode]: of(line.projectResourceIds) },
-    links: { [mode]: of(line.linkedLineIds) },
-    linkedEntries: { [mode]: of(line.linkedEntryIds) },
+    libraryDocuments: { [mode]: connectIds(line.libraryDocumentIds) },
+    projectResources: { [mode]: connectIds(line.projectResourceIds) },
+    links: { [mode]: connectIds(line.linkedLineIds) },
+    linkedEntries: { [mode]: connectIds(line.linkedEntryIds) },
     ...(mode === 'set' ? { linkedBy: { set: [] } } : {}),
   } as Pick<Prisma.TreasuryEntryLineCreateWithoutEntryInput, 'libraryDocuments' | 'projectResources' | 'links' | 'linkedEntries'>;
 }
@@ -243,7 +242,7 @@ async function saveLines(tx: Prisma.TransactionClient, entryId: string, lines: r
 async function parseEntry(input: TreasuryEntryInput, id: string | null = null, previous: EntryRefs | null = null) {
   const entry = parseInput(treasuryEntrySchema, input);
   await assertNoNewArchived(entry, previous);
-  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }), 'Compte');
+  await assertExists(prisma.treasuryAccount, entry.accountId, 'Compte');
   await assertExists(prisma.project, entry.projectId, 'Projet');
   await assertExists(prisma.client, entry.clientId, 'Client');
   await assertExists(prisma.treasuryCounterparty, entry.counterpartyId, 'Tiers');
@@ -319,8 +318,8 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
  */
 function documentsData(entry: Awaited<ReturnType<typeof parseEntry>>, mode: 'connect' | 'set') {
   return {
-    libraryDocuments: { [mode]: [...new Set(entry.libraryDocumentIds)].map((id) => ({ id })) },
-    projectResources: { [mode]: [...new Set(entry.projectResourceIds)].map((id) => ({ id })) },
+    libraryDocuments: { [mode]: connectIds(entry.libraryDocumentIds) },
+    projectResources: { [mode]: connectIds(entry.projectResourceIds) },
   } as { libraryDocuments: { connect: { id: string }[] }; projectResources: { connect: { id: string }[] } };
 }
 
@@ -350,7 +349,7 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
       ...documentsData(entry, 'connect'),
       allocations: { create: allocationsData(entry) },
       lines: { create: linesData(entry.lines) },
-      links: { connect: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+      links: { connect: connectIds(entry.linkedEntryIds) },
     },
   });
   await syncPaymentStatus(entry.allocations.map((allocation) => allocation.documentId));
@@ -376,7 +375,7 @@ export async function updateEntry(id: string, input: TreasuryEntryInput): Promis
         ...documentsData(entry, 'set'),
         allocations: { deleteMany: {}, create: allocationsData(entry) },
         // A link is kept once, from this side.
-        links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+        links: { set: connectIds(entry.linkedEntryIds) },
         linkedBy: { set: [] },
         // Split, it is linked through its lines only.
         ...(entry.lines.length ? { linkedByLines: { set: [] } } : {}),

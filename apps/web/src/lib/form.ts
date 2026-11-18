@@ -1,7 +1,7 @@
 import { schemaResolver, useForm, type UseFormReturnType } from '@mantine/form';
 import { useEffect, useRef } from 'react';
 import { GraphQLRequestError } from './graphql-client';
-import { notifyFailure } from './notify';
+import { notifyFailure, notifySuccess } from './notify';
 
 type Schema = Parameters<typeof schemaResolver>[0];
 
@@ -56,4 +56,22 @@ export function showFormError<Values>(form: UseFormReturnType<Values>, error: un
   }
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
   notifyFailure(error);
+}
+
+/**
+ * Callbacks of the mutation of a form: once saved, a toast tells it and the form closes; an error goes to its fields
+ * (or a toast).
+ * @param {UseFormReturnType<Values>} form Form.
+ * @param {string} message Message once saved (« Jalon créé. »).
+ * @param {() => void} [onDone] Closes the form. Optional.
+ * @returns {{ onSuccess: () => void, onError: (error: Error) => void }} Callbacks.
+ */
+export function formCallbacks<Values>(form: UseFormReturnType<Values>, message: string, onDone?: () => void): { onSuccess: () => void; onError: (error: Error) => void } {
+  return {
+    onSuccess: () => {
+      notifySuccess(message);
+      onDone?.();
+    },
+    onError: (error) => showFormError(form, error),
+  };
 }

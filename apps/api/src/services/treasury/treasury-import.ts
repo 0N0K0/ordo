@@ -1,9 +1,10 @@
 import { parseDay, statementImportSchema, type StatementImportInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { realizeForecast } from './treasury';
 import { assertNotArchived } from '../core/archive';
+import { assertExists } from '../core/lookup';
 
 /**
  * Imports the operations of a bank statement into an account (chosen and checked in the preview): each one
@@ -14,7 +15,7 @@ import { assertNotArchived } from '../core/archive';
  */
 export async function importStatement(input: StatementImportInput): Promise<{ created: number; realized: number }> {
   const data = parseInput(statementImportSchema, input);
-  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: data.accountId }, select: { id: true } }), 'Compte');
+  await assertExists(prisma.treasuryAccount, data.accountId, 'Compte');
   await assertNotArchived('TREASURY_ACCOUNT', data.accountId);
   if (data.mapping) await prisma.treasuryAccount.update({ where: { id: data.accountId }, data: { csvMapping: data.mapping as Prisma.InputJsonValue } });
   let created = 0;

@@ -1,9 +1,11 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { TravelField } from '../../geo/components/TravelField';
-import { ActionIcon, Button, Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
-import { BellIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
@@ -21,6 +23,7 @@ import { describeSlotCondition } from '../lib/slot-condition-text';
 import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -71,10 +74,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
    */
   const update = (position: number, changes: Partial<RoutineSlot>) => onChange(moments.map((moment, other) => (other === position ? { ...moment, ...changes } : moment)));
   return (
-    <Stack gap={4}>
-      <Text size="sm" fw={500}>
-        Moments de la journée
-      </Text>
+    <LabeledField label="Moments de la journée">
       {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
           <TimeField
@@ -93,9 +93,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
           />
           <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
           {(allowEmpty || moments.length > 1) && (
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))}>
-              <XIcon aria-hidden />
-            </ActionIcon>
+            <RemoveButton label="Retirer le moment" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
           )}
         </Group>
       ))}
@@ -104,12 +102,8 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
           Aucun : chaque horaire des plages choisies est un moment.
         </Text>
       )}
-      <div>
-        <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...moments, ANY_TIME])}>
-          Ajouter un moment
-        </Button>
-      </div>
-    </Stack>
+      <AddItemButton onClick={() => onChange([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
+    </LabeledField>
   );
 }
 
@@ -185,7 +179,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
   const start = draft.startDate || localToday();
   return (
     <Stack gap="md">
-      <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: String(date) })} />
+      <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
       <RepetitionEditor<RoutineTimes>
         mode={draft.mode}
         onModeChange={(mode) =>

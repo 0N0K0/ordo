@@ -6,12 +6,13 @@ import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useShoppingData } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { ShoppingCategoryField, UnitField } from '../../shopping/components/ProductFields';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 
 type Values = NewStockItemInput & Record<string, unknown>;
@@ -35,9 +36,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
     schema: newStockItemSchema,
   });
   const values = form.getValues();
-  const handleSubmit = form.onSubmit((input) =>
-    createItem.mutate(input, { onSuccess: () => (notifySuccess('Article ajouté au stock.'), onDone()), onError: (error: Error) => showFormError(form, error) }),
-  );
+  const handleSubmit = form.onSubmit((input) => createItem.mutate(input, formCallbacks(form, 'Article ajouté au stock.', onDone)));
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
@@ -73,14 +72,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
             {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [])))}
             {...form.getInputProps('locationId')}
           />
-          <Select
-            label="Catégorie"
-            placeholder="Aucune"
-            clearable
-            searchable
-            {...treeSelectProps(categoryOptions(data?.shoppingCategories ?? [], undefined, unarchivedOffered(data?.shoppingCategories ?? [])))}
-            {...form.getInputProps('categoryId')}
-          />
+          <ShoppingCategoryField {...form.getInputProps('categoryId')} value={values.categoryId ?? null} onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
           <QuantityInput
@@ -90,7 +82,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
             {...form.getInputProps('quantity')}
             onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
           />
-          <Autocomplete label="Unité" data={(data?.shoppingUnits ?? []).map((unit) => unit.name)} value={values.unit ?? ''} onChange={(unit) => form.setFieldValue('unit', unit || null)} />
+          <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit ?? null} onChange={(unit) => form.setFieldValue('unit', unit)} />
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}

@@ -1,6 +1,6 @@
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { ActionIcon, Badge, FileButton, Group, Tooltip } from '@mantine/core';
-import { PaperclipIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { PaperclipIcon, PlusIcon } from '@phosphor-icons/react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
@@ -8,6 +8,7 @@ import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { openFile } from '../../files/lib/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them); read only
@@ -74,10 +75,10 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
             onClick={() => openFile({ url: attachment.url, name: attachment.name })}
             rightSection={
               !document.archived && (
-                <ActionIcon
+                <RemoveButton
+                  variant="field"
                   size="xs"
-                  variant="transparent"
-                  color="gray"
+                  label="Retirer la pièce jointe"
                   aria-label={`Retirer ${attachment.name}`}
                   onClick={(event) => {
                     stopClick(event);
@@ -87,9 +88,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
                       onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: onMutationError }),
                     });
                   }}
-                >
-                  <XIcon aria-hidden />
-                </ActionIcon>
+                />
               )
             }
           >

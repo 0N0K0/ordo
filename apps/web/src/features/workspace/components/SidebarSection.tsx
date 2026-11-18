@@ -1,11 +1,8 @@
-import { ActionIcon, Badge, Collapse, Group, Menu, Text, UnstyledButton } from '@mantine/core';
-import {
-  ArrowsInLineVerticalIcon,
-  ArrowsOutLineVerticalIcon,
-  CaretRightIcon,
-  DotsThreeIcon,
-} from '@phosphor-icons/react';
+import { ActionIcon, Badge, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
+import { CaretRightIcon, DotsThreeIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import { foldEntries } from '../lib/fold-entries';
 import classes from './SidebarSection.module.css';
 
 interface SidebarSectionProps {
@@ -15,8 +12,8 @@ interface SidebarSectionProps {
   onToggle: () => void;
   /** Expands or collapses every node of the section; omitted when nothing can be folded. */
   onSetAllExpanded?: (expanded: boolean) => void;
-  /** Extra menu entries (Menu.Item), shown above the fold options. */
-  actions?: ReactNode;
+  /** Extra menu entries, shown above the fold options. */
+  actions?: RowMenuEntry[];
   children: ReactNode;
 }
 
@@ -28,7 +25,7 @@ interface SidebarSectionProps {
  * @param {boolean} props.opened Whether the section is open.
  * @param {() => void} props.onToggle Toggles the section.
  * @param {(expanded: boolean) => void} [props.onSetAllExpanded] Folds or unfolds every node. Optional.
- * @param {ReactNode} [props.actions] Extra menu entries. Optional.
+ * @param {RowMenuEntry[]} [props.actions] Extra menu entries. Optional.
  * @param {ReactNode} props.children Section content.
  * @returns {JSX.Element} Section.
  */
@@ -57,35 +54,15 @@ export function SidebarSection({
             </Badge>
           )}
         </UnstyledButton>
-        {(onSetAllExpanded || actions) && (
-          <Menu position="bottom-end" withinPortal shadow="md">
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions sur la section ${title}`}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              {actions}
-              {actions && onSetAllExpanded && <Menu.Divider />}
-              {onSetAllExpanded && (
-                <>
-                  <Menu.Item
-                    leftSection={<ArrowsOutLineVerticalIcon aria-hidden />}
-                    onClick={() => onSetAllExpanded(true)}
-                  >
-                    Tout déplier
-                  </Menu.Item>
-                  <Menu.Item
-                    leftSection={<ArrowsInLineVerticalIcon aria-hidden />}
-                    onClick={() => onSetAllExpanded(false)}
-                  >
-                    Tout replier
-                  </Menu.Item>
-                </>
-              )}
-            </Menu.Dropdown>
-          </Menu>
-        )}
+        <ActionsMenu
+          name={`la section ${title}`}
+          target={
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions sur la section ${title}`}>
+              <DotsThreeIcon weight="bold" aria-hidden />
+            </ActionIcon>
+          }
+          items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]}
+        />
       </div>
       <Collapse expanded={opened} transitionDuration={150}>
         {children}

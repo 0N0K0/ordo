@@ -1,4 +1,4 @@
-import { PeopleCell } from '../../../components/people/PeopleSelect';
+import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
 import { PersonAvatar, PersonOption } from '../../../components/people/PersonOption';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -32,7 +32,7 @@ interface AssigneesCellProps {
  */
 export function AssigneesCell({ value, projectId, projectIds, context, label, readOnly = false, onSave }: AssigneesCellProps) {
   return (
-    <PeopleCell
+    <EditableMultiSelect
       label={label}
       readOnly={readOnly}
       value={value}

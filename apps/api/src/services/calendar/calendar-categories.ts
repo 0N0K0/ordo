@@ -1,50 +1,25 @@
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
-import { assertTreeParent } from '../core/trees';
-import { prisma } from '../../db';
+import { treeListService } from '../core/trees';
 import type { CalendarCategory } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
-import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
+import { parseInput } from '../../graphql/errors';
 
-/**
- * Loads a category or throws NOT_FOUND.
- * @param {string} id Category id.
- * @returns {Promise<CalendarCategory>} Category.
- */
-async function findCategory(id: string): Promise<CalendarCategory> {
-  const category = await orNotFound(prisma.calendarCategory.findUnique({ where: { id } }), 'Catégorie');
-  return category;
-}
-
-/**
- * Checks a parent: it exists and is not the category itself or one of its descendants.
- * @param {string | null} parentId Parent.
- * @param {string | null} id Category being moved, if any.
- * @returns {Promise<void>}
- */
-async function assertParent(parentId: string | null, id: string | null): Promise<void> {
-  await assertTreeParent('calendarCategory', parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories.' });
-}
-
-/**
- * Next position among the children of a parent.
- * @param {string | null} parentId Parent.
- * @returns {Promise<number>} Position.
- */
-async function nextPosition(parentId: string | null): Promise<number> {
-  return nextPositionIn('calendarCategory', { parentId });
-}
+/** Categories of the events, in a tree; a deleted one's sub-categories go up a level, its events only lose it. */
+const categories = treeListService<CalendarCategory, CalendarCategoryFormValues>(
+  'calendarCategory',
+  { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories.' },
+  {
+    parse: (input) => parseInput(calendarCategoryFormSchema, input),
+    moveInput: (category, parentId) => ({ name: category.name, color: category.color, parentId }),
+  },
+);
 
 /**
  * Creates a category at the end of its parent's children.
  * @param {CalendarCategoryFormValues} input Category.
  * @returns {Promise<CalendarCategory>} Category.
  */
-export async function createCalendarCategory(input: CalendarCategoryFormValues): Promise<CalendarCategory> {
-  const data = parseInput(calendarCategoryFormSchema, input);
-  await assertParent(data.parentId, null);
-  await assertNotArchived('calendarCategory', data.parentId);
-  return prisma.calendarCategory.create({ data: { ...data, position: await nextPosition(data.parentId) } });
+export function createCalendarCategory(input: CalendarCategoryFormValues): Promise<CalendarCategory> {
+  return categories.create(input);
 }
 
 /**
@@ -53,40 +28,26 @@ export async function createCalendarCategory(input: CalendarCategoryFormValues):
  * @param {CalendarCategoryFormValues} input Category.
  * @returns {Promise<CalendarCategory>} Category.
  */
-export async function updateCalendarCategory(id: string, input: CalendarCategoryFormValues): Promise<CalendarCategory> {
-  const category = await findCategory(id);
-  await assertNotArchived('calendarCategory', id);
-  const data = parseInput(calendarCategoryFormSchema, input);
-  await assertParent(data.parentId, id);
-  const moved = data.parentId !== category.parentId;
-  // An archived category takes no new sub-category.
-  if (moved) await assertNotArchived('calendarCategory', data.parentId);
-  return prisma.calendarCategory.update({
-    where: { id },
-    data: { ...data, ...(moved && { position: await nextPosition(data.parentId) }) },
-  });
+export function updateCalendarCategory(id: string, input: CalendarCategoryFormValues): Promise<CalendarCategory> {
+  return categories.update(id, input);
 }
 
 /**
- * Deletes a category with its sub-categories (events only lose them).
+ * Deletes a category: its sub-categories go up a level (under its parent), its events only lose it.
  * @param {string} id Category id.
  * @returns {Promise<void>}
  */
-export async function deleteCalendarCategory(id: string): Promise<void> {
-  await findCategory(id);
-  await prisma.calendarCategory.delete({ where: { id } });
+export function deleteCalendarCategory(id: string): Promise<void> {
+  return categories.remove(id);
 }
 
 /**
- * Moves a category among its siblings, under another parent first when one is given.
+ * Moves a category under another parent (or to the top level), then among its siblings.
  * @param {string} id Category id.
- * @param {number} index Target index among its (new) siblings.
- * @param {string | null} [parentId] New parent (null: top level); unchanged when omitted. Optional.
+ * @param {string | null | undefined} parentId New parent, null for the top level; undefined: unchanged.
+ * @param {number | null} [index] Index among its (new) siblings; last when omitted. Optional.
  * @returns {Promise<void>}
  */
-export async function moveCalendarCategory(id: string, index: number, parentId?: string | null): Promise<void> {
-  let category = await findCategory(id);
-  await assertNotArchived('calendarCategory', id);
-  if (parentId !== undefined && parentId !== category.parentId) category = await updateCalendarCategory(id, { name: category.name, color: category.color, parentId });
-  await moveInList('calendarCategory', id, index, { parentId: category.parentId });
+export function moveCalendarCategory(id: string, parentId: string | null | undefined, index?: number | null): Promise<void> {
+  return categories.move(id, parentId, index);
 }

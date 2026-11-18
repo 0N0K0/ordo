@@ -10,10 +10,10 @@ import * as fmt from '../../../lib/format';
  */
 export function eventWhen(event: EventOccurrence, side: 'start' | 'end', numeric = false): string {
   if (event.allDay) {
-    const day = String(side === 'start' ? event.startDate : event.endDate);
+    const day = side === 'start' ? event.startDate : event.endDate;
     return numeric ? fmt.exportDay(day) : fmt.day(day);
   }
-  const at = new Date(String(side === 'start' ? event.start : event.end));
+  const at = new Date(side === 'start' ? event.start : event.end);
   return numeric ? fmt.exportDateTime(at) : fmt.dateTime(at);
 }
 
@@ -37,6 +37,6 @@ export const EVENT_STATES: Record<EventState, { label: string; color: string }> 
 export function eventState(event: EventOccurrence, now: number): EventState {
   if (event.calledOff) return 'cancelled';
   if (event.postponedTo.length > 0) return 'postponed';
-  if (now < new Date(String(event.start)).getTime()) return 'upcoming';
-  return now < new Date(String(event.end)).getTime() ? 'ongoing' : 'over';
+  if (now < new Date(event.start).getTime()) return 'upcoming';
+  return now < new Date(event.end).getTime() ? 'ongoing' : 'over';
 }

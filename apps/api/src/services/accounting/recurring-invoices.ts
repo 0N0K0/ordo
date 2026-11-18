@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence, requiredText } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence, requiredText, startDaySchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
@@ -9,11 +9,12 @@ import { storedRecurrence } from '../calendar/calendar-events';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { requirePro } from '../workspace/workspaces';
 import { assertNotArchived } from '../core/archive';
+import { assertExists } from '../core/lookup';
 
 const settingsSchema = z.object({
   name: requiredText(200),
   recurrence: recurrenceSchema,
-  startDate: z.iso.date({ error: 'La date de début est requise.' }),
+  startDate: startDaySchema,
   autoFinalize: z.boolean(),
   active: z.boolean(),
 });
@@ -68,7 +69,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
  * @returns {Promise<RecurringInvoice>} Recurring invoice.
  */
 export async function updateRecurringInvoice(id: string, input: RecurringSettings, today: string): Promise<RecurringInvoice> {
-  await orNotFound(prisma.recurringInvoice.findUnique({ where: { id } }), 'Facture récurrente');
+  await assertExists(prisma.recurringInvoice, id, 'Facture récurrente');
   await assertNotArchived('RECURRING_INVOICE', id);
   const settings = parseInput(settingsSchema, input);
   const next = nextIssueDate(settings.recurrence, settings.startDate, today > settings.startDate ? today : settings.startDate);

@@ -1,8 +1,8 @@
-import { plural, countOf } from '../../../lib/text';
+import { plural, countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
@@ -24,15 +24,15 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
 import { describeScheduleCase, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
 import { Comments } from '../../comments/components/Comments';
@@ -67,11 +67,11 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      name: schedule?.name ?? (copyOf ? `${copyOf.name} (copie)` : 'Semaine type'),
+      name: schedule?.name ?? (copyOf ? copyName(copyOf.name) : 'Semaine type'),
       // A copy has no dates: to choose.
-      startDate: schedule ? String(schedule.startDate) : copyOf ? '' : localToday(),
-      endDate: schedule?.endDate ? String(schedule.endDate) : null,
-      cases: schedule ? readScheduleCases(schedule.cases, String(schedule.startDate)) : copyOf ? readScheduleCases(copyOf.cases, String(copyOf.startDate)) : [newScheduleCase(localToday())],
+      startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
+      endDate: schedule?.endDate ? schedule.endDate : null,
+      cases: schedule ? readScheduleCases(schedule.cases, schedule.startDate) : copyOf ? readScheduleCases(copyOf.cases, copyOf.startDate) : [newScheduleCase(localToday())],
       exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
       typeId: schedule?.typeId ?? copyOf?.typeId ?? null,
     },
@@ -84,13 +84,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
         noValidate
         onSubmit={form.onSubmit(
           (input) => {
-            const callbacks = {
-              onSuccess: () => {
-                notifySuccess(schedule ? 'Plages modifiées.' : 'Plages créées.');
-                onDone();
-              },
-              onError: (error: Error) => showFormError(form, error),
-            };
+            const callbacks = formCallbacks(form, schedule ? 'Plages modifiées.' : 'Plages créées.', onDone);
             if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
             else create.mutate(input, callbacks);
           },
@@ -145,21 +139,14 @@ type ScheduleRow = { schedule: WorkSchedule; state: ScheduleState; exceptions: R
 const NO_KIND = 'none';
 
 /**
- * Day of a date of a schedule.
- * @param {unknown} value Date of the API (YYYY-MM-DD…).
- * @returns {string} YYYY-MM-DD.
- */
-const dayOf = (value: unknown): string => String(value).slice(0, 10);
-
-/**
  * State of a schedule on a day: current, upcoming or past.
  * @param {WorkSchedule} schedule Schedule.
  * @param {string} today YYYY-MM-DD.
  * @returns {ScheduleState} State.
  */
 function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
-  if (String(schedule.startDate) > today) return 'UPCOMING';
-  if (schedule.endDate && String(schedule.endDate) < today) return 'PAST';
+  if (schedule.startDate > today) return 'UPCOMING';
+  if (schedule.endDate && schedule.endDate < today) return 'PAST';
   return 'CURRENT';
 }
 
@@ -196,9 +183,9 @@ export function WorkSchedulesManager() {
     if (schedule.archived) return;
     const input = {
       name: schedule.name,
-      startDate: dayOf(schedule.startDate),
-      endDate: schedule.endDate ? dayOf(schedule.endDate) : null,
-      cases: readScheduleCases(schedule.cases, dayOf(schedule.startDate)),
+      startDate: schedule.startDate,
+      endDate: schedule.endDate ? schedule.endDate : null,
+      cases: readScheduleCases(schedule.cases, schedule.startDate),
       exceptions: readScheduleExceptions(schedule.exceptions),
       typeId: schedule.typeId ?? null,
       ...change,
@@ -266,25 +253,25 @@ export function WorkSchedulesManager() {
       bulk: true,
       label: 'Début',
       size: 120,
-      sortValue: ({ schedule }) => String(schedule.startDate),
-      text: ({ schedule }) => fmt.day(String(schedule.startDate)),
-      filter: { kind: 'date', value: ({ schedule }) => dayOf(schedule.startDate) },
+      sortValue: ({ schedule }) => schedule.startDate,
+      text: ({ schedule }) => fmt.day(schedule.startDate),
+      filter: { kind: 'date', value: ({ schedule }) => schedule.startDate },
     },
     {
       id: 'end',
       bulk: true,
       label: 'Fin',
       size: 120,
-      sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31'),
-      text: ({ schedule }) => (schedule.endDate ? fmt.day(String(schedule.endDate)) : 'Sans fin'),
-      filter: { kind: 'date', value: ({ schedule }) => (schedule.endDate ? dayOf(schedule.endDate) : null) },
+      sortValue: ({ schedule }) => (schedule.endDate ? schedule.endDate : '9999-12-31'),
+      text: ({ schedule }) => (schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'),
+      filter: { kind: 'date', value: ({ schedule }) => (schedule.endDate ? schedule.endDate : null) },
     },
     {
       id: 'hours',
       label: 'Horaires',
       size: 320,
       text: ({ schedule, exceptions }) =>
-        [...readScheduleCases(schedule.cases, String(schedule.startDate)).map((item) => describeScheduleCase(item, String(schedule.startDate))), ...exceptions.map((exception) => exception.label)]
+        [...readScheduleCases(schedule.cases, schedule.startDate).map((item) => describeScheduleCase(item, schedule.startDate)), ...exceptions.map((exception) => exception.label)]
           .filter(Boolean)
           .join(' ; '),
     },
@@ -376,13 +363,13 @@ export function WorkSchedulesManager() {
                     <Text size="sm">{kindName}</Text>
                   </Group>
                 ),
-                start: <Text size="sm">{fmt.day(String(schedule.startDate))}</Text>,
-                end: <Text size="sm">{schedule.endDate ? fmt.day(String(schedule.endDate)) : 'Sans fin'}</Text>,
+                start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
+                end: <Text size="sm">{schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'}</Text>,
                 hours: (
                   <Stack gap={0}>
-                    {readScheduleCases(schedule.cases, String(schedule.startDate)).map((item, index) => (
+                    {readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
                       <Text key={index} size="xs">
-                        {describeScheduleCase(item, String(schedule.startDate))}
+                        {describeScheduleCase(item, schedule.startDate)}
                       </Text>
                     ))}
                   </Stack>
@@ -407,26 +394,26 @@ export function WorkSchedulesManager() {
               ),
               start: (
                 <EditableDate
-                  value={dayOf(schedule.startDate)}
+                  value={schedule.startDate}
                   label={`Début de ${schedule.name}`}
-                  onSave={(startDate) => startDate && bulk('start')(row, (target) => (target.schedule.endDate && dayOf(target.schedule.endDate) < startDate ? {} : { startDate }))}
+                  onSave={(startDate) => startDate && bulk('start')(row, (target) => (target.schedule.endDate && target.schedule.endDate < startDate ? {} : { startDate }))}
                 />
               ),
               end: (
                 <EditableDate
-                  value={schedule.endDate ? dayOf(schedule.endDate) : null}
+                  value={schedule.endDate ? schedule.endDate : null}
                   label={`Fin de ${schedule.name}`}
                   nullable
-                  minDate={dayOf(schedule.startDate)}
-                  onSave={(endDate) => bulk('end')(row, (target) => (endDate && endDate < dayOf(target.schedule.startDate) ? {} : { endDate }))}
+                  minDate={schedule.startDate}
+                  onSave={(endDate) => bulk('end')(row, (target) => (endDate && endDate < target.schedule.startDate ? {} : { endDate }))}
                 />
               ),
               hours: (
                 <>
                   <Stack gap={0}>
-                    {readScheduleCases(schedule.cases, String(schedule.startDate)).map((item, index) => (
+                    {readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
                       <Text key={index} size="xs">
-                        {describeScheduleCase(item, String(schedule.startDate))}
+                        {describeScheduleCase(item, schedule.startDate)}
                       </Text>
                     ))}
                     {exceptions.length > 0 && (

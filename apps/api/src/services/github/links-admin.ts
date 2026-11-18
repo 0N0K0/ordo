@@ -7,6 +7,7 @@ import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board
 import { githubToken } from './client';
 import { currentWorkspaceId } from '../../workspace-context';
 import { assertNotArchived } from '../core/archive';
+import { assertExists } from '../core/lookup';
 
 /**
  * Saves the personal access token after checking it on GitHub.
@@ -84,7 +85,7 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
  * @returns {Promise<GithubProjectLink>} Link.
  */
 export async function saveGithubLink(projectId: string, input: LinkInput): Promise<GithubProjectLink> {
-  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
   const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { title: true } } } });
   if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.title} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
@@ -182,7 +183,7 @@ export async function unlinkGithubProject(projectId: string): Promise<void> {
 export async function setContributorGithubLogin(id: string, login: string | null): Promise<void> {
   const value = login?.trim().replace(/^@/, '') || null;
   if (value && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(value)) throw clientError('BAD_USER_INPUT', 'Login GitHub invalide.');
-  await orNotFound(prisma.contributor.findUnique({ where: { id }, select: { id: true } }), 'Contributeur');
+  await assertExists(prisma.contributor, id, 'Contributeur');
   await assertNotArchived('contributor', id);
   const taken = value ? await prisma.contributor.findFirst({ where: { githubLogin: { equals: value, mode: 'insensitive' }, id: { not: id } }, select: { name: true } }) : null;
   if (taken) throw clientError('CONFLICT', `Ce login GitHub est déjà celui de ${taken.name}.`);
