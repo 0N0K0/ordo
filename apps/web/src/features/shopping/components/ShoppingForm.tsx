@@ -2,7 +2,7 @@ import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { DatePickerInput } from '@mantine/dates';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { categoriesForBaseList, listTasks, rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
+import { categoriesForBaseList, rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { Anchor, Checkbox, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
@@ -10,7 +10,7 @@ import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } 
 
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
-import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from '../api';
+import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from '../api';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -52,11 +52,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const color = useDefaultColor();
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
-  // Item of a list of projects: their contributors are the members offered.
-  const { data: lists } = useShoppingLists();
-  const list = target.kind === 'item' ? lists?.find((item) => item.id === target.listId) : undefined;
-  const projectIds = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
-  const people = usePeople(projectIds, current?.memberIds ?? []);
+  const people = usePeople();
   const form = useAppForm<FormValues>({
     initialValues: {
       name: current?.name ?? '',

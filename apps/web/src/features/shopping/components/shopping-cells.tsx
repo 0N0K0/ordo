@@ -68,18 +68,16 @@ interface PeopleCellProps {
   relationIds: string[];
   label: string;
   readOnly?: boolean;
-  /** Projects of the list: its contributors are the members offered. Optional. */
-  projectIds?: string[];
   onSave: (people: { memberIds: string[]; relationIds: string[] }) => void;
 }
 
 /**
- * "Pour" cell: members of the team or household and relations the row is for (saved when the list closes).
+ * "Pour" cell: contributors and relations the row is for (saved when the list closes).
  * @param {PeopleCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function PeopleCell({ memberIds, relationIds, label, readOnly = false, projectIds, onSave }: PeopleCellProps) {
-  const people = usePeople(projectIds, memberIds);
+export function PeopleCell({ memberIds, relationIds, label, readOnly = false, onSave }: PeopleCellProps) {
+  const people = usePeople();
   const value = rowPeopleKeys({ memberIds, relationIds });
   return (
     <SharedPeopleCell

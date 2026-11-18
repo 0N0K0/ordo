@@ -241,11 +241,13 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
  * @returns {JSX.Element} Cell.
  */
 export function AssigneesCell({ task, context }: { task: Task; context: TaskContext }) {
-  const { apply, count } = useCellEdit(task, 'assignees');
+  const { apply, count, targets } = useCellEdit(task, 'assignees');
   return (
     <SharedAssigneesCell
       value={task.assigneeIds}
       projectId={task.projectId}
+      // A selection: the contributors of all its projects.
+      projectIds={targets.length > 1 ? targets.map((id) => context.taskById.get(id)?.projectId ?? null) : undefined}
       context={context}
       label={fieldLabel('Assignés', task, count)}
       onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}

@@ -1,3 +1,6 @@
+import { prisma } from '../../db';
+import { assertAllExist } from '../core/lookup';
+
 /** Include of the people (members, relations) of a product, an item or a sheet item. */
 export const withPeople = { members: { select: { id: true } }, relations: { select: { id: true } } } as const;
 
@@ -24,3 +27,13 @@ export const peopleIds = (record: WithPeople): { memberIds: string[]; relationId
   memberIds: record.members.map((member) => member.id),
   relationIds: record.relations.map((relation) => relation.id),
 });
+
+/**
+ * Checks the people a product, an item or a sheet item is for: beneficiaries, so any contributor and any relation.
+ * @param {{ memberIds?: readonly string[] | null, relationIds?: readonly string[] | null }} input Contributors and relations chosen.
+ * @returns {Promise<void>}
+ */
+export async function assertPeople(input: { memberIds?: readonly string[] | null; relationIds?: readonly string[] | null }): Promise<void> {
+  await assertAllExist(prisma.contributor, input.memberIds, 'Membre');
+  await assertAllExist(prisma.treasuryRelation, input.relationIds, 'Relation');
+}

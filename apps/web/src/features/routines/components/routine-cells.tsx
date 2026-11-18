@@ -12,7 +12,7 @@ import { describeRecurrence } from '../../../components/recurrence/describe-recu
 import { useWorkSchedules } from '../../calendar/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
-import type { Routine, RoutineCategory } from '../api';
+import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
@@ -127,12 +127,15 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
  * @returns {JSX.Element} Cell.
  */
 export function AssigneesCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
-  const { apply, count } = useRoutineCellEdit(routine, 'assignees');
+  const { apply, count, targets } = useRoutineCellEdit(routine, 'assignees');
+  const { data } = useRoutinesData();
+  const routineById = mapById(data?.routines ?? []);
   return (
     <SharedAssigneesCell
       value={routine.assigneeIds}
-      // Of a routine of a project: its contributors only (its current assignees stay).
+      // Of a routine of a project: its contributors only (its current assignees stay); of a selection, those of all its projects.
       projectId={routine.projectId ?? null}
+      projectIds={targets.length > 1 ? targets.map((id) => routineById.get(id)?.projectId ?? null) : undefined}
       context={context}
       label={fieldLabel('Assignés', routine, count)}
       readOnly={readOnly}

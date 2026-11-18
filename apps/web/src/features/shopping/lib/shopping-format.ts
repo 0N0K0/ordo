@@ -319,22 +319,18 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
 export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<string>) => rows.filter((row) => !row.parents.some((id) => collapsed.has(id)));
 
 /**
- * Members of the team or household and relations, by id, to name the people of a product or an item. For an item of a
- * list of a project, the members offered are the contributors of the project (those chosen stay); relations always.
- * @param {string[]} [projectIds] Projects of the list (through its tasks); none: every member. Optional.
- * @param {string[]} [keep] Members already chosen, offered anyway. Optional.
+ * People a product, an item or a sheet item can be for, by id, and their names: beneficiaries, so any contributor and
+ * any relation, whatever the project.
  * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[] }} Names (also by
  *   people key) and select options.
  */
-export function usePeople(projectIds: string[] = [], keep: string[] = []) {
+export function usePeople() {
   const { data } = useTreasurySettings();
   const { context } = useTaskContext();
-  const members = new Map((data?.treasuryMembers ?? []).map((member) => [member.id, member.isMe ? 'Moi' : member.name]));
+  const members = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
   const relations = new Map((data?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
-  // Members are contributors: of a project, its contributors only.
-  const allowed = projectIds.length && context ? new Set(context.assignableFor(projectIds, keep).map((contributor) => contributor.id)) : null;
   const options = [
-    { group: 'Membres', items: [...members].filter(([id]) => !allowed || allowed.has(id)).map(([id, name]) => ({ value: personKey('member', id), label: name })) },
+    { group: 'Contributeurs', items: [...members].map(([id, name]) => ({ value: personKey('member', id), label: name })) },
     { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })) },
   ].filter((group) => group.items.length > 0);
   const byKey = new Map([...[...members].map(([id, name]) => [personKey('member', id), name] as const), ...[...relations].map(([id, name]) => [personKey('relation', id), name] as const)]);

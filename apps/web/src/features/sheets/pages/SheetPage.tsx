@@ -343,7 +343,6 @@ export function SheetPage() {
               memberIds={item.memberIds}
               relationIds={item.relationIds}
               label={`Bénéficiaires de ${item.label}`}
-              projectIds={sheet.projectId ? [sheet.projectId] : undefined}
               onSave={(chosen) =>
                 bulk('people')(item, (target) => ({
                   memberIds: applyDiff(target.memberIds, item.memberIds, chosen.memberIds),

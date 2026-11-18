@@ -28,7 +28,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - `services/shopping/stock.ts:126-129` accepte tout contributeur ;
 - `services/shopping/sheets.ts` ne vérifie rien.
 
-À décider : la règle commune (probablement celle des achats).
+**Fait** (règle du 18 novembre 2026) : les bénéficiaires peuvent être n'importe qui (tout contributeur, toute relation) ; les contributeurs, n'importe qui sans projet, sinon les seuls contributeurs du projet. `assertPeople` (`services/shopping/people.ts`) vaut pour les achats, le stock et les fiches, et `usePeople` offre tous les contributeurs. Les assignés des tâches passent par `assertProjectContributors`, comme les routines et les évènements, au lieu d'être rattachés d'office au projet ; seul le transfert d'une tâche rattache encore ses assignés au projet cible.
 
 ### 4. Petites incohérences
 
@@ -188,11 +188,10 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 Reste à décider :
 
-1. La règle des personnes des achats (3), puis `assertPeople`.
-2. Erreur de champ ou NOT_FOUND pour un bénéficiaire introuvable (4).
-3. Le format d'erreur des routes REST (7).
-4. La forme des trimestres, puis `periodName` (21).
-5. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
+1. Erreur de champ ou NOT_FOUND pour un bénéficiaire introuvable (4).
+2. Le format d'erreur des routes REST (7).
+3. La forme des trimestres, puis `periodName` (21).
+4. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
 
 ## Restent à part
 

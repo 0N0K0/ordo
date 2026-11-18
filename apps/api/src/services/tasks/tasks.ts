@@ -5,7 +5,7 @@ import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { attachAssignees } from '../workspace/contributors';
+import { assertProjectContributors, attachAssignees } from '../workspace/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
 import { assertAllExist, assertExists } from '../core/lookup';
@@ -241,6 +241,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
   if (input.parentId) await assertParent(input.parentId, projectId, null);
   if (input.milestoneId) await assertMilestone(input.milestoneId, projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, projectId);
+  await assertProjectContributors(projectId, input.assigneeIds ?? [], [], 'assigneeIds');
 
   const task = await prisma.task.create({
     data: {
@@ -260,7 +261,6 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
       tags: { connect: (input.tagIds ?? []).map((id) => ({ id })) },
     },
   });
-  if (projectId) await attachAssignees([{ projectId, contributorIds: input.assigneeIds ?? [] }]);
   return task;
 }
 
@@ -280,6 +280,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const previous = input.assigneeIds
     ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
     : [];
+  if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
 
   const updated = await prisma.task.update({
     where: { id },
@@ -297,11 +298,6 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       ...(input.tagIds && { tags: { set: input.tagIds.map((tagId) => ({ id: tagId })) } }),
     },
   });
-  // Only new assignees: a contributor detached from the project on purpose stays detached.
-  if (input.assigneeIds) {
-    const added = input.assigneeIds.filter((assigneeId) => !previous.includes(assigneeId));
-    if (task.projectId) await attachAssignees([{ projectId: task.projectId, contributorIds: added }]);
-  }
   return updated;
 }
 
@@ -733,9 +729,11 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
 
   const tasks = await prisma.task.findMany({
     where: { id: { in: ids } },
-    select: { id: true, projectId: true, startDate: true, endDate: true },
+    select: { id: true, projectId: true, startDate: true, endDate: true, assignees: { select: { id: true } } },
   });
   for (const task of tasks) {
+    // Of a project: its contributors only (those already assigned stay).
+    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds');
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.
@@ -774,7 +772,6 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         )
       : []),
   ]);
-  await attachAssignees(tasks.flatMap((task) => (task.projectId ? [{ projectId: task.projectId, contributorIds: changes.addAssigneeIds ?? [] }] : [])));
 }
 
 /**

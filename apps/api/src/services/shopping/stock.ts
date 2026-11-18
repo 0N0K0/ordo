@@ -25,7 +25,7 @@ import {
 import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
-import { peopleData, peopleIds } from './people';
+import { peopleData, peopleIds, assertPeople } from './people';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { assertAllExist, assertExists } from '../core/lookup';
@@ -125,8 +125,7 @@ async function assertItemRefs(data: StockItemInput): Promise<void> {
   await assertExists(prisma.shoppingProduct, data.productId, 'Référence');
   await assertExists(prisma.shoppingCategory, data.categoryId, 'Catégorie');
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertAllExist(prisma.contributor, data.memberIds, 'Membre');
-  await assertAllExist(prisma.treasuryRelation, data.relationIds, 'Relation');
+  await assertPeople(data);
 }
 
 /**

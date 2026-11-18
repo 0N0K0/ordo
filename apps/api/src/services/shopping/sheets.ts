@@ -23,7 +23,7 @@ import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist,
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
 import { copyOf, findList, nextPosition } from './shopping';
-import { peopleData, peopleIds, withPeople } from './people';
+import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
 import { assertAllExist, assertExists } from '../core/lookup';
 
@@ -207,6 +207,7 @@ export async function addSheetItem(sheetId: string, input: SheetItemInput): Prom
   await findSheet(sheetId);
   const data = parseInput(sheetItemSchema, input);
   await assertProducts([data]);
+  await assertPeople(data);
   const position = await nextPositionIn('sheetItem', { sheetId });
   return prisma.sheetItem.create({ data: { ...sheetItemFields(data, 'connect'), sheetId, position } });
 }
@@ -258,6 +259,7 @@ export async function updateSheetItem(id: string, input: SheetItemInput): Promis
   await orNotFound(prisma.sheetItem.findUnique({ where: { id }, select: { id: true } }), 'Élément');
   const data = parseInput(sheetItemSchema, input);
   await assertProducts([data]);
+  await assertPeople(data);
   return prisma.sheetItem.update({ where: { id }, data: sheetItemFields(data, 'set') });
 }
 

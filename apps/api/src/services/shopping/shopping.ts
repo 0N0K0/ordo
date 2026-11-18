@@ -20,7 +20,7 @@ import {
 import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { syncPurchaseStock } from './stock';
-import { peopleData, peopleIds, withPeople, type WithPeople } from './people';
+import { peopleData, peopleIds, withPeople, type WithPeople, assertPeople } from './people';
 import {
   Prisma,
   type ShoppingBaseList,
@@ -34,24 +34,11 @@ import {
 } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { isMember } from '../treasury/treasury-team';
 import { assertAllExist, assertExists } from '../core/lookup';
 
 const decimal = (value: number | null) => (value === null ? null : new Prisma.Decimal(value));
 const number = (value: Prisma.Decimal | null) => (value === null ? null : Number(value));
 const day = (value: string | null) => (value === null ? null : parseDay(value));
-
-/**
- * Checks the members of the team or household and the relations a product or an item is for.
- * @param {string[]} memberIds Members.
- * @param {string[]} relationIds Relations.
- * @returns {Promise<void>}
- */
-async function assertPeople(memberIds: string[], relationIds: string[]): Promise<void> {
-  const members = await prisma.contributor.findMany({ where: { id: { in: memberIds } }, select: { teamMember: true, userId: true } });
-  if (members.length !== new Set(memberIds).size || !members.every(isMember)) throw notFound('Membre');
-  await assertAllExist(prisma.treasuryRelation, relationIds, 'Relation');
-}
 
 /**
  * Checks the category and the store of a product or an item.
@@ -104,7 +91,7 @@ async function parseShopping<T extends typeof shoppingItemSchema | typeof shoppi
   const parsed = parseInput(schema, input) as ReturnType<T['parse']>;
   await assertPlaces(parsed);
   await assertStorage(parsed.perishable ? parsed.storageId : null);
-  await assertPeople(parsed.memberIds, parsed.relationIds);
+  await assertPeople(parsed);
   return parsed;
 }
 
