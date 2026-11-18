@@ -20,7 +20,7 @@ import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/rea
 import { z } from 'zod';
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ON_ERROR } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { BaseList } from './BaseList';
@@ -153,7 +153,7 @@ export function BaseLists() {
         actions={(baseList) => [
           // Archived: read only.
           ...(baseList.archived ? [] : [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]),
-          archiveEntry({ archived: baseList.archived, label: `Référence « ${baseList.name} »`, feminine: true }, setArchived, baseList.id),
+          archiveEntry({ archived: baseList.archived, type: 'Référence', name: baseList.name, feminine: true }, setArchived, baseList.id),
         ]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}

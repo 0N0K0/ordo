@@ -1,5 +1,5 @@
-import { graphql } from '../graphql';
-import { execute } from './graphql-client';
+import { graphql } from '../../graphql';
+import { execute } from '../../lib/graphql-client';
 
 const UploadAttachmentDocument = graphql(`
   mutation UploadAttachment($file: File!) {

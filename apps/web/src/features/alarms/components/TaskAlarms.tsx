@@ -25,11 +25,11 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
 
   return (
     <SubSection
-      title="Alertes"
+      title="Alarmes"
       gap="xs"
       action={
         <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={create}>
-          Nouvelle alerte
+          Nouvelle alarme
         </ActionButton>
       }
     >
@@ -38,7 +38,7 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
       ) : alarms.length ? (
         <AlarmList alarms={alarms} context={context} openForm={openForm} showTarget={false} />
       ) : (
-        <EmptyState compact icon={<AlarmIcon aria-hidden />} message="Aucune alerte pour cette tâche." />
+        <EmptyState compact icon={<AlarmIcon aria-hidden />} message="Aucune alarme pour cette tâche." />
       )}
     </SubSection>
   );

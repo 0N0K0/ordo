@@ -1,4 +1,4 @@
-import { PersonRow } from '../../../components/people/PersonOption';
+import { PersonRow } from '../../../components/people/people-rows';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -8,7 +8,7 @@ import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icon
 
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
@@ -153,7 +153,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                   // Archived: read only (restored to be edited).
                   !contributor.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
                   // The user's own profile can be neither archived nor deleted.
-                  !contributor.isMe && archiveEntry({ archived: contributor.archived, label: contributor.name }, setArchived, contributor.id),
+                  !contributor.isMe && archiveEntry({ archived: contributor.archived, type: 'Contributeur', name: contributor.name }, setArchived, contributor.id),
                   !contributor.isMe && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(contributor) },
                 ]}
               />

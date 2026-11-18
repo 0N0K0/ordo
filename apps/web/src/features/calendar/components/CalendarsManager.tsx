@@ -3,7 +3,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ByWorkspace } from './ByWorkspace';
 
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { Button, Stack, Tooltip } from '@mantine/core';
+import { Stack } from '@mantine/core';
+import { CalendarsIcsButton } from './CalendarsIcsButton';
 import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -33,13 +34,7 @@ function OwnCalendars() {
       loading={isPending}
       schema={calendarFormSchema}
       {...listMutations({ create, update, remove: { mutateAsync: ({ id }: { id: string }) => remove.mutateAsync(id) } })}
-      headerActions={
-        <Tooltip label="Tous les calendriers de l’espace, dans un fichier pour un autre agenda (Google, Apple, Outlook…)">
-          <Button component="a" href={calendarIcsUrl(null)} download variant="default" leftSection={<DownloadSimpleIcon aria-hidden />} disabled={!calendars.length}>
-            Tout exporter (.ics)
-          </Button>
-        </Tooltip>
-      }
+      headerActions={<CalendarsIcsButton disabled={!calendars.length} />}
       renderActions={(calendar) => (
         <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download aria-label={`Exporter ${calendar.name} (.ics)`}>
           <DownloadSimpleIcon aria-hidden />

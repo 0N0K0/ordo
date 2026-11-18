@@ -1,9 +1,9 @@
-import { LabeledField } from '../inputs/LabeledField';
-import { AddItemButton } from '../actions/AddItemButton';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Group, TextInput } from '@mantine/core';
 import type { Phone } from '@ordo/shared';
 import { PhoneIcon } from '@phosphor-icons/react';
-import { RemoveButton } from '../actions/RemoveButton';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Phone numbers with a label each ("Standard", "Mobile"…).

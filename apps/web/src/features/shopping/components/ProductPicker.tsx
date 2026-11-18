@@ -3,6 +3,7 @@ import { formCallbacks } from '../../../lib/form';
 import { categoryPaths } from '../../../components/tree/category-tree';
 
 import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -96,9 +97,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
           <Stack gap="md">
             {groups.map(({ baseList, products: items }) => (
               <Stack key={baseList.id} gap={6}>
-                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                  {baseList.name}
-                </Text>
+                <Caption>{baseList.name}</Caption>
                 {items.map((product) => {
                   const present = inList.has(product.id);
                   const path = product.categoryId ? pathOf.get(product.categoryId) : undefined;

@@ -26,7 +26,7 @@
 
     &[data-done] {
       /* Effets */
-      opacity: 0.55;
+      opacity: var(--onoko-muted-opacity);
     }
   }
 
@@ -67,7 +67,7 @@
       text-decoration: line-through;
 
       /* Effets */
-      opacity: 0.55;
+      opacity: var(--onoko-muted-opacity);
     }
   }
 

@@ -108,7 +108,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
 }
 
 /**
- * « Alertes » cell: the active alerts of the task (a bell), and a button adding one (not to an archived task).
+ * « Alarmes » cell: the active alarms of the task (a bell), and a button adding one (not to an archived task).
  * @param {{ task: Task, context: TaskContext, count: number }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -122,7 +122,7 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         </Badge>
       )}
       {!task.archived && (
-        <IconAction label="Nouvelle alerte" size="sm" aria-label={`Nouvelle alerte pour ${task.title}`} onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}>
+        <IconAction label="Nouvelle alarme" size="sm" aria-label={`Nouvelle alarme pour ${task.title}`} onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}>
             <PlusIcon aria-hidden />
 </IconAction>
       )}

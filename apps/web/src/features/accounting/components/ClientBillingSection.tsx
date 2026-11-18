@@ -8,7 +8,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { addressLines, contactName, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
-import { countryName } from '../../../components/address/countries';
+import { countryName } from '../lib/countries';
 
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';

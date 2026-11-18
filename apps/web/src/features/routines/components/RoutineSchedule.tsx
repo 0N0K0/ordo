@@ -330,12 +330,12 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         </Stack>
       </SimpleGrid>
       <RemindersSelect
-        label="Alertes"
+        label="Rappels"
         description={
-          timed ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.' : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
+          timed ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.' : 'Donnez-lui un horaire ou une plage pour recevoir des rappels.'
         }
         leftSection={<BellIcon aria-hidden />}
-        emptyLabel="Aucune"
+        emptyLabel="Aucun"
         disabled={!timed}
         presets={ROUTINE_REMINDERS}
         value={values.reminders}

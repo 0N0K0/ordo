@@ -19,7 +19,7 @@ import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -579,7 +579,7 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
-              const archiveItem = archiveEntry({ archived: entry.archived, label: `« ${entry.label} »`, feminine: forecast }, setArchived, entry.id);
+              const archiveItem = archiveEntry({ archived: entry.archived, type: forecast ? 'Prévision' : 'Mouvement', name: entry.label, feminine: forecast }, setArchived, entry.id);
               return (
                 <RowActions
                   name={item.label}

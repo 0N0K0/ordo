@@ -266,7 +266,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           withColumnBorders
           fz="xs"
           verticalSpacing={2}
-          rowProps={(row) => ({ opacity: row.index < mapping.skipRows ? 0.4 : 1 })}
+          isDone={(row) => row.index < mapping.skipRows}
           cells={(row) => Object.fromEntries(Array.from({ length: columns }, (_, index) => [`c${index}`, row.cells[index] ?? '']))}
           actions={() => null}
           actionsWidth={8}
@@ -378,7 +378,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         toolbar={false}
         maxHeight="55vh"
         verticalSpacing={4}
-        rowProps={(row) => ({ opacity: ticked(row) ? 1 : 0.5 })}
+        isDone={(row) => !ticked(row)}
         leading={{
           width: 36,
           header: (

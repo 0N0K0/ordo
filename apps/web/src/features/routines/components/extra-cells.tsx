@@ -156,7 +156,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
   return (
     <EditablePopoverCell
       width={280}
-      label={routineCellLabel('Alertes', routine, count)}
+      label={routineCellLabel('Rappels', routine, count)}
       readOnly={readOnly}
       target={
         <>
@@ -174,7 +174,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
     >
       <Stack gap="xs">
         <RemindersSelect
-          label="Alertes"
+          label="Rappels"
           presets={ROUTINE_REMINDERS}
           value={routine.reminders}
           // On a selection, those added here are added to each routine, those removed here removed.
@@ -188,7 +188,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
           comboboxProps={{ withinPortal: false }}
         />
         <Text size="xs" c="dimmed">
-          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucune alerte.'}
+          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucun rappel.'}
         </Text>
       </Stack>
     </EditablePopoverCell>

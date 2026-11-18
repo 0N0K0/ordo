@@ -136,7 +136,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'alarms',
-      label: 'Alertes',
+      label: 'Rappels',
       size: 100,
       hiddenByDefault: true,
       bulk: true,

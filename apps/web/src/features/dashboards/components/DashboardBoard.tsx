@@ -10,7 +10,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -39,7 +39,7 @@ import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-con
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
 import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, type ExportScheme } from '../lib/chart-image';
 import { download, fileName } from '../../../lib/download';
@@ -51,7 +51,7 @@ import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
-import { FormActions } from '../../../components/dialogs/FormActions';
+import { openNameForm } from '../../../components/dialogs/open-name-form';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
 /** Image of a chart as exported. */
@@ -340,44 +340,15 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
    * @param {Dashboard} [dashboard] Dashboard to rename. Optional.
    * @returns {void}
    */
-  const askName = (dashboard?: Dashboard) => {
-    let name = dashboard?.name ?? (dashboards?.length ? '' : 'KPI');
-    /**
-     * Saves the name typed, then closes the panel.
-     * @param {() => void} close Closes the panel.
-     * @returns {void}
-     */
-    const submit = (close: () => void) => {
-      const result = dashboardNameSchema.safeParse(name);
-      if (!result.success) {
-        notifyError(result.error.issues[0]?.message ?? 'Nom invalide.');
-        return;
-      }
-      close();
-      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, ON_ERROR);
-      else
-        mutations.create.mutate(
-          { name: result.data, projectId },
-          {
-            onSuccess: (id) => select(id),
-            onError: onMutationError,
-          },
-        );
-    };
-    openFormPanel(dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord', (close) => (
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit(close);
-        }}
-      >
-        <Stack gap="md">
-          <TextInput label="Nom" required data-autofocus defaultValue={name} placeholder="KPI, Sprint, Mensuel…" onChange={(event) => (name = event.currentTarget.value)} />
-          <FormActions onCancel={close} submitLabel={dashboard ? 'Renommer' : 'Créer'} />
-        </Stack>
-      </form>
-    ));
-  };
+  const askName = (dashboard?: Dashboard) =>
+    openNameForm(dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord', {
+      initial: dashboard?.name ?? (dashboards?.length ? '' : 'KPI'),
+      schema: dashboardNameSchema,
+      placeholder: 'KPI, Sprint, Mensuel…',
+      submitLabel: dashboard ? 'Renommer' : 'Créer',
+      onSubmit: (name) =>
+        dashboard ? mutations.rename.mutate({ id: dashboard.id, name }, ON_ERROR) : mutations.create.mutate({ name, projectId }, { onSuccess: (id) => select(id), onError: onMutationError }),
+    });
 
   /**
    * Asks for confirmation before deleting a dashboard.
@@ -481,7 +452,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           actions={(dashboard) => [
             // Archived: read only.
             ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]),
-            archiveEntry({ archived: dashboard.archived, label: `« ${dashboard.name} »` }, setArchived, dashboard.id),
+            archiveEntry({ archived: dashboard.archived, type: 'Tableau de bord', name: dashboard.name }, setArchived, dashboard.id),
           ]}
           onDelete={confirmDelete}
           add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}

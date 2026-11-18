@@ -36,7 +36,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { localDay } from '../../../lib/dates';
 import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time: the lists in progress, the closed ones. */

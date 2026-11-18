@@ -155,7 +155,7 @@ export const routineSchema = z
           .min(0)
           .max(24 * 60),
       )
-      .max(10, '10 alertes maximum.')
+      .max(10, '10 rappels maximum.')
       .default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: z

@@ -5,7 +5,7 @@
    * scrolls.
    */
   .panes {
-    @media (min-width: 88em) {
+    @media (min-width: $mantine-breakpoint-xl) {
       /* Dimension */
       height: var(--fill-height, auto);
     }
@@ -13,14 +13,14 @@
 
   /* Its columns and panes: those of the page Mails (MailPage.module.css). */
   .grid {
-    @media (min-width: 88em) {
+    @media (min-width: $mantine-breakpoint-xl) {
       /* Dimension */
       height: 100%;
     }
   }
 
   .scroll {
-    @media (min-width: 88em) {
+    @media (min-width: $mantine-breakpoint-xl) {
       /* Dimension */
       overflow-y: auto;
       overscroll-behavior: contain;

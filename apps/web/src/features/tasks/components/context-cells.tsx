@@ -1,6 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
-import { PersonAvatar, PersonOption } from '../../../components/people/PersonOption';
+import { PersonAvatar, PersonOption } from '../../../components/people/people-rows';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { TaskContext } from '../hooks/use-task-context';

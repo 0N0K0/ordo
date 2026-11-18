@@ -6,7 +6,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -330,7 +330,7 @@ export function CatalogPanel() {
           name={item.title}
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
           items={[
-            archiveEntry({ archived: item.archived, label: `« ${item.title} »` }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Article', name: item.title }, setArchived, item.id),
             rowMenuEntry(deleteItems([item])),
           ]}
         />

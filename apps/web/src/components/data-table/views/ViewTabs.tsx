@@ -1,93 +1,24 @@
 import { copyName } from '../../../lib/text';
 import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
-import { openFormPanel } from '../../panels/panels';
+import { openNameForm } from '../../dialogs/open-name-form';
 
-import { Indicator, Stack, TextInput } from '@mantine/core';
+import { Indicator } from '@mantine/core';
 import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from './published-height';
 
-import { FormActions } from '../../dialogs/FormActions';
-
-interface NameFormProps {
-  initial: string;
-  submitLabel: string;
-  onSubmit: (name: string) => void;
-  onCancel: () => void;
-}
-
-/**
- * View name prompt (create, rename).
- * @param {NameFormProps} props Component props.
- * @returns {JSX.Element} Form.
- */
-function NameForm({ initial, submitLabel, onSubmit, onCancel }: NameFormProps) {
-  const [name, setName] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-
-  /**
-   * Validates and submits the name.
-   * @returns {void}
-   */
-  const submit = () => {
-    const result = taskViewNameSchema.safeParse(name);
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Nom invalide.');
-      return;
-    }
-    onSubmit(result.data);
-  };
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit();
-      }}
-      noValidate
-    >
-      <Stack gap="md">
-        <TextInput
-          label="Nom de la vue"
-          required
-          data-autofocus
-          value={name}
-          error={error}
-          onChange={(event) => {
-            setName(event.currentTarget.value);
-            setError(null);
-          }}
-          onBlur={() => !taskViewNameSchema.safeParse(name).success && setError('Le nom est requis.')}
-        />
-        <FormActions onCancel={onCancel} submitLabel={submitLabel} />
-      </Stack>
-    </form>
-  );
-}
-
 /**
  * Asks for a view name in the side panel.
- * @param {string} title Modal title.
+ * @param {string} title Panel title.
  * @param {string} initial Initial name.
  * @param {string} submitLabel Submit button label.
  * @param {(name: string) => void} onSubmit Called with the name.
  * @returns {void}
  */
 function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
-  openFormPanel(title, (close) => (
-    <NameForm
-      initial={initial}
-      submitLabel={submitLabel}
-      onCancel={close}
-      onSubmit={(name) => {
-        close();
-        onSubmit(name);
-      }}
-    />
-  ));
+  openNameForm(title, { initial, label: 'Nom de la vue', schema: taskViewNameSchema, submitLabel, onSubmit });
 }
 
 /**

@@ -14,7 +14,7 @@
     /* Effets */
     &[data-done],
     &[data-archived] {
-      opacity: 0.55;
+      opacity: var(--onoko-muted-opacity);
     }
 
     &[data-done] input[aria-label^='Titre'] {

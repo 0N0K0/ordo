@@ -18,7 +18,7 @@ import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons
 
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -184,7 +184,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                     actions={[
                       // Archived (or of an archived project): read only.
                       !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                      archiveEntry({ archived: milestone.archived, label: `Jalon « ${milestone.title} »` }, setArchived, milestone.id),
+                      archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.title }, setArchived, milestone.id),
                       { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
                     ]}
                     progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}

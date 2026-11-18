@@ -31,7 +31,7 @@ import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
@@ -293,7 +293,7 @@ export function SheetPage() {
                   formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
                 ),
             },
-            archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
+            archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.name, feminine: true }, setArchived, sheet.id),
             remove,
           ],
         }}

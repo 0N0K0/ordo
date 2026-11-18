@@ -67,12 +67,14 @@ interface ActionsMenuProps {
   /** What the actions are about (« Actions de … »). */
   name: string;
   items: readonly RowMenuEntry[];
-  /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
+  /** Button opening the menu, when it is not a « … » one (a sort, a caret, a labelled button). Optional. Default = three vertical dots. */
   target?: ReactNode;
-  /** In a clickable row (a folder, a search): its clicks stay in the menu. Optional. */
+  /** In a clickable or draggable row (a folder, a search, a tree): its clicks and pointer presses stay in the menu. Optional. */
   inRow?: boolean;
   /** Size of the default button. Optional. */
   size?: ActionIconProps['size'];
+  /** Look of the default button: « subtle » in a row or a list, « default » (bordered) next to buttons (a header). Optional. Default = « subtle ». */
+  variant?: 'subtle' | 'default';
   /** Something runs (an export): the default button spins. Optional. */
   loading?: boolean;
   /** Where the menu opens. Optional. Default = « bottom-end ». */
@@ -97,7 +99,22 @@ interface ActionsMenuProps {
  * @param {ActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu, nothing without action.
  */
-export function ActionsMenu({ name, items, target, inRow = false, size, loading, position = 'bottom-end', opened, onChange, hover = false, keepOpen = false, width, maxHeight }: ActionsMenuProps) {
+export function ActionsMenu({
+  name,
+  items,
+  target,
+  inRow = false,
+  size,
+  variant = 'subtle',
+  loading,
+  position = 'bottom-end',
+  opened,
+  onChange,
+  hover = false,
+  keepOpen = false,
+  width,
+  maxHeight,
+}: ActionsMenuProps) {
   const menu = menuEntries(items);
   if (menu.length === 0) return null;
   return (
@@ -113,7 +130,15 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
     >
       <Menu.Target>
         {target ?? (
-          <ActionIcon variant="subtle" color="gray" size={size} loading={loading} aria-label={`Actions de ${name}`} onClick={inRow ? (event) => event.stopPropagation() : undefined}>
+          <ActionIcon
+            variant={variant}
+            color={variant === 'subtle' ? 'gray' : undefined}
+            size={size}
+            loading={loading}
+            aria-label={`Actions de ${name}`}
+            onClick={inRow ? (event) => event.stopPropagation() : undefined}
+            onPointerDown={inRow ? (event) => event.stopPropagation() : undefined}
+          >
             <DotsThreeVerticalIcon weight="bold" aria-hidden />
           </ActionIcon>
         )}

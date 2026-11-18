@@ -1,6 +1,5 @@
 import { Group, NumberInput, Select } from '@mantine/core';
-import { ONE_DAY, type Duration, type DurationUnit } from '@ordo/shared';
-import { MONTHS } from './describe-recurrence';
+import { monthOptions, ONE_DAY, type Duration, type DurationUnit } from '@ordo/shared';
 import { plural } from '../../lib/text';
 
 const UNIT_LABELS: Record<DurationUnit, string> = {
@@ -11,7 +10,6 @@ const UNIT_LABELS: Record<DurationUnit, string> = {
   TO_WEEK: 'Jusqu’à une semaine de l’année',
   TO_MONTH: 'Jusqu’à la fin d’un mois',
 };
-const MONTH_OPTIONS = MONTHS.map((name, index) => ({ value: String(index + 1), label: name }));
 
 interface DurationFieldsProps {
   value: Duration;
@@ -72,7 +70,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
             aria-label="Mois du dernier jour"
             placeholder="du même mois"
             clearable
-            data={MONTH_OPTIONS}
+            data={monthOptions}
             value={value.month ? String(value.month) : null}
             comboboxProps={comboboxProps}
             onChange={(month) => onChange({ ...value, month: month ? Number(month) : null })}
@@ -96,7 +94,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
           size="xs"
           w={150}
           aria-label="Dernier mois"
-          data={MONTH_OPTIONS}
+          data={monthOptions}
           value={String(value.month ?? 1)}
           allowDeselect={false}
           comboboxProps={comboboxProps}

@@ -51,23 +51,27 @@ export interface ScheduleSource {
 }
 
 /**
+ * Name of a layer of slots, the same everywhere (the agenda, its layers, the day of a routine): « Nom (Type) », and
+ * « · Espace » after it for a schedule of another workspace.
+ * @param {string} name Name of the schedule.
+ * @param {string | null | undefined} type Name of its kind (none, or the same: left out).
+ * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
+ * @returns {string} Name.
+ */
+export function scheduleLayerName(name: string, type: string | null | undefined, workspace?: string): string {
+  return `${name}${type && type !== name ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
+}
+
+/**
  * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
- * those of other workspaces subscribed to (their name followed by their workspace).
+ * those of other workspaces subscribed to, each named « Nom (Type) » (`scheduleLayerName`).
  * @param {readonly WorkSchedule[]} own Schedules of the workspace.
  * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
  * @param {readonly ScheduleType[]} types Kinds of slots.
  * @param {DefaultKind} defaultKind Default kind of the workspace.
- * @param {{ kindNames?: boolean }} [options] Named after their kind (« Travail », « Travail · Atelier ») rather than
- *   their own name. Optional. Default = own name.
  * @returns {ScheduleSource[]} Sources.
  */
-export function scheduleSources(
-  own: readonly WorkSchedule[],
-  foreign: readonly ForeignSchedule[],
-  types: readonly ScheduleType[],
-  defaultKind: DefaultKind,
-  { kindNames = false }: { kindNames?: boolean } = {},
-): ScheduleSource[] {
+export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly ForeignSchedule[], types: readonly ScheduleType[], defaultKind: DefaultKind): ScheduleSource[] {
   const typeOf = mapById(types);
   return [
     ...own.map((schedule) => {
@@ -77,7 +81,7 @@ export function scheduleSources(
         schedule,
         rule: scheduleRules([schedule])[0],
         color: kind?.color ?? null,
-        name: kindNames ? (kind?.name ?? schedule.name) : schedule.name,
+        name: scheduleLayerName(schedule.name, kind?.name),
         foreign: false,
         display: readScheduleDisplay(kind),
       };
@@ -86,7 +90,7 @@ export function scheduleSources(
       schedule,
       rule: scheduleRules([schedule])[0],
       color: schedule.color ?? null,
-      name: `${kindNames ? (schedule.typeName ?? schedule.name) : schedule.name} · ${schedule.workspaceName}`,
+      name: scheduleLayerName(schedule.name, schedule.typeName, schedule.workspaceName),
       foreign: true,
       display: readScheduleDisplay(schedule),
     })),

@@ -5,5 +5,8 @@
 
     /* Opacity of a dragged row, card, tab or column header. */
     --onoko-dragging-opacity: 0.5;
+
+    /* Opacity of what is set back (decision U): archived, done or closed, or left out (an unticked or skipped row). */
+    --onoko-muted-opacity: 0.5;
   }
 }

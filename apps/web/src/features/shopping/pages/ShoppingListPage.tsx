@@ -1,6 +1,6 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { PAGES } from '../../../app/pages';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
 import { unarchived } from '../../../lib/archive';
 import { countOf, plural } from '../../../lib/text';
@@ -10,13 +10,12 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
 
 import {
   ArchiveIcon,
   BankIcon,
   CalendarPlusIcon,
-  DotsThreeVerticalIcon,
   ListPlusIcon,
   PencilSimpleIcon,
   PencilSimpleLineIcon,
@@ -302,16 +301,7 @@ export function ShoppingListPage() {
             <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
-            <ListActionsMenu
-              list={list}
-              grouping={grouping}
-              onDeleted={() => navigate('/shopping?tab=lists')}
-              target={
-                <ActionIcon variant="default" size="input-sm" aria-label={`Actions de la liste ${list.name}`}>
-                  <DotsThreeVerticalIcon aria-hidden />
-                </ActionIcon>
-              }
-            />
+            <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate('/shopping?tab=lists')} header />
           </Group>
         }
       />

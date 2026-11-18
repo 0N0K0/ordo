@@ -3,7 +3,7 @@ import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PersonOption, PersonRow } from '../../../components/people/PersonOption';
+import { PersonOption, PersonRow } from '../../../components/people/people-rows';
 import { listSelectProps } from '../../../components/items/item-look';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { createdId } from '../../../components/settings/settings-api';
@@ -15,7 +15,7 @@ import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput } from 
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveEntry, unarchived, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { useState } from 'react';
@@ -96,7 +96,7 @@ export function TeamMembers() {
                   <InlineActions
                     name={member.name}
                     items={[
-                      archiveEntry({ archived: member.archived, label: member.name }, setArchived, member.id),
+                      archiveEntry({ archived: member.archived, type: 'Membre', name: member.name }, setArchived, member.id),
                       {
                         label: 'Retirer',
                         hint: `Retirer du ${team.toLowerCase()} (reste contributeur)`,
@@ -462,7 +462,7 @@ export function TeamRelations() {
                     name={relation.name}
                     items={[
                       !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
-                      archiveEntry({ archived: relation.archived, label: `« ${relation.name} »`, feminine: true }, setArchived, relation.id),
+                      archiveEntry({ archived: relation.archived, type: 'Relation', name: relation.name, feminine: true }, setArchived, relation.id),
                       {
                         label: 'Supprimer',
                         icon: <TrashIcon aria-hidden />,

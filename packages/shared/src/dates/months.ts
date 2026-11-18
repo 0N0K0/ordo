@@ -1,4 +1,35 @@
 import { yearOfDay } from './days';
+
+/** Names of the months, January first: « janvier », « février »… */
+export const MONTH_LABELS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] as const;
+
+/** Options of a choice of a month, January (« 1 ») first, the same everywhere (repetitions, durations, routines). */
+export const monthOptions: { value: string; label: string }[] = MONTH_LABELS.map((label, index) => ({ value: String(index + 1), label }));
+
+/**
+ * Month after a day of it: « d’avril », « de mai ».
+ * @param {number} month 1 to 12.
+ * @returns {string} Words.
+ */
+export function ofMonth(month: number): string {
+  const name = MONTH_LABELS[month - 1];
+  return /^[aeiou]/.test(name) ? `d’${name}` : `de ${name}`;
+}
+
+/**
+ * Ordinal of a number in French, the same everywhere (decision V): « 1er », « 2e », « 3e ».
+ * @param {number} value Number (1 or more).
+ * @returns {string} Ordinal.
+ */
+export function ordinal(value: number): string {
+  return value === 1 ? '1er' : `${value}e`;
+}
+
+/** Names of the positions of a weekday in its month (decision V): « 1er » to « 4e », and « dernier » (-1). */
+export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordinal(2), 3: ordinal(3), 4: ordinal(4), [-1]: 'dernier' };
+
+/** Options of a choice of the position of a weekday in its month (« le 2e mardi »), the last one at the end. */
+export const positionOptions: { value: string; label: string }[] = [1, 2, 3, 4, -1].map((position) => ({ value: String(position), label: POSITION_LABELS[position] }));
 /**
  * Number of days of a month.
  * @param {number} year Year.

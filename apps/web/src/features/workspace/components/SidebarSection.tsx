@@ -1,6 +1,6 @@
 import { FoldChevron } from '../../../components/actions/FoldChevron';
-import { ActionIcon, Badge, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
-import { DotsThreeIcon } from '@phosphor-icons/react';
+import { Badge, Collapse, Group, UnstyledButton } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { foldEntries } from '../lib/fold-entries';
@@ -45,9 +45,7 @@ export function SidebarSection({
         <UnstyledButton className={classes.toggle} onClick={onToggle} aria-expanded={opened}>
           <Group gap={6} wrap="nowrap">
             <FoldChevron expanded={opened} />
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              {title}
-            </Text>
+            <Caption>{title}</Caption>
           </Group>
           {count > 0 && (
             <Badge size="xs" variant="light" color="gray">
@@ -57,11 +55,7 @@ export function SidebarSection({
         </UnstyledButton>
         <ActionsMenu
           name={`la section ${title}`}
-          target={
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions sur la section ${title}`}>
-              <DotsThreeIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          }
+          size="sm"
           items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]}
         />
       </div>

@@ -7,6 +7,15 @@ export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
   CREDIT_NOTE: 'Avoir',
 };
 
+/**
+ * Whether a document type is named in the feminine (« Facture « F-12 » archivée. »).
+ * @param {AccountingDocumentType} type Type.
+ * @returns {boolean} Feminine.
+ */
+export function isFeminineDocumentType(type: AccountingDocumentType): boolean {
+  return type === 'INVOICE' || type === 'DEPOSIT_INVOICE';
+}
+
 export const NEW_DOCUMENT_TITLES: Record<AccountingDocumentType, string> = {
   QUOTE: 'Nouveau devis',
   INVOICE: 'Nouvelle facture',

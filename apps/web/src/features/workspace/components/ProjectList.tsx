@@ -1,6 +1,7 @@
 import { projectPath } from '../../../app/pages';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
-import { ArchivedBadge, ItemBadge } from '../../../components/items/ItemBadge';
+import { ItemBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
@@ -85,7 +86,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       <UnstyledButton component={Link} to={projectPath(project.id)} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="sm" wrap="nowrap">
           <ItemAvatar name={project.title} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />
-          <Text size="sm" style={{ flex: 1 }} opacity={project.archived ? 0.6 : 1} truncate>
+          <Text size="sm" style={{ flex: 1, opacity: project.archived ? 'var(--onoko-muted-opacity)' : undefined }} truncate>
             {project.title}
           </Text>
           <ItemBadge item={status} />

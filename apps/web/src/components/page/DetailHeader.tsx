@@ -1,5 +1,4 @@
-import { ActionIcon, Group, Stack, Title } from '@mantine/core';
-import { DotsThreeVerticalIcon } from '@phosphor-icons/react';
+import { Group, Stack, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
 import { BackLink } from './BackLink';
@@ -49,17 +48,7 @@ export function DetailHeader({ back, page, title, order = 2, badges, subtitle, a
         {(actions || menu) && (
           <Group gap="xs" ml="auto" wrap="wrap">
             {actions}
-            {menu && (
-              <ActionsMenu
-                name={menu.name}
-                items={menu.items}
-                target={
-                  <ActionIcon variant="default" size={compact ? 'input-xs' : 'input-sm'} aria-label={`Actions de ${menu.name}`}>
-                    <DotsThreeVerticalIcon weight="bold" aria-hidden />
-                  </ActionIcon>
-                }
-              />
-            )}
+            {menu && <ActionsMenu name={menu.name} items={menu.items} variant="default" size={compact ? 'input-xs' : 'input-sm'} />}
           </Group>
         )}
       </Group>

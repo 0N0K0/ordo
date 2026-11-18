@@ -24,7 +24,7 @@ import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
 import { describeScheduleCase, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
 import { Comments } from '../../comments/components/Comments';
@@ -441,7 +441,7 @@ export function WorkSchedulesManager() {
               primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
               items={[
                 !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                archiveEntry({ archived: schedule.archived, label: `« ${schedule.name} »`, feminine: true }, setArchived, schedule.id),
+                archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.name, feminine: true }, setArchived, schedule.id),
                 rowMenuEntry(deleteSchedules([row])),
               ]}
             />

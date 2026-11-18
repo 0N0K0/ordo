@@ -304,7 +304,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     flag('archived', 'Archivée', (task) => task.archived),
     flag('doableNow', 'Faisable maintenant', (task) => extras.doableIds?.has(task.id) ?? false),
     flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
-    flag('hasAlarms', 'A des alertes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
+    flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
     flag('hasComments', 'A des commentaires', (task) => task.commentCount > 0 || Boolean(task.description?.trim())),
     {
       id: 'statusCategory',

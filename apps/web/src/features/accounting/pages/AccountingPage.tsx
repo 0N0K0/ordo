@@ -39,7 +39,7 @@ import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/Setting
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
@@ -216,7 +216,7 @@ function RecurringList() {
           primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
             { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
-            archiveEntry({ archived: item.archived, label: `« ${item.name} »`, feminine: true }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Facture récurrente', name: item.name, feminine: true }, setArchived, item.id),
             rowMenuEntry(deleteRecurring([item])),
           ]}
         />

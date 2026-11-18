@@ -17,7 +17,7 @@ import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icon
 
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -177,7 +177,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 actions={[
                   // Archived (or of an archived project): read only.
                   !sprint.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
-                  archiveEntry({ archived: sprint.archived, label: `Sprint « ${sprint.name} »` }, setArchived, sprint.id),
+                  archiveEntry({ archived: sprint.archived, type: 'Sprint', name: sprint.name }, setArchived, sprint.id),
                   { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
                 ]}
                 progress={

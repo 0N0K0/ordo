@@ -15,7 +15,7 @@ import { useDataView, type FirstTableView, withinFilter } from '../../../compone
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 
@@ -244,7 +244,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
               !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
-              archiveEntry({ archived: entry.archived, label: `« ${entry.label} »` }, setArchived, entry.id),
+              archiveEntry({ archived: entry.archived, type: 'Mouvement', name: entry.label }, setArchived, entry.id),
               rowMenuEntry(deleteEntries.movements([entry])),
             ]}
           />

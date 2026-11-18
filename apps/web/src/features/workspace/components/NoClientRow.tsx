@@ -1,6 +1,7 @@
 import { FoldChevron } from '../../../components/actions/FoldChevron';
-import { ActionIcon, Text, UnstyledButton } from '@mantine/core';
-import { DotsThreeIcon, FolderPlusIcon } from '@phosphor-icons/react';
+import { UnstyledButton } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
+import { FolderPlusIcon } from '@phosphor-icons/react';
 import { forwardRef, useState, type CSSProperties } from 'react';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -60,9 +61,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
             <FoldChevron expanded={expanded} />
           )}
         </span>
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          {perso ? 'Tous les projets' : 'Sans client'}
-        </Text>
+        <Caption>{perso ? 'Tous les projets' : 'Sans client'}</Caption>
       </UnstyledButton>
 
       {hasMenu && (
@@ -72,11 +71,8 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
             opened={menuOpened}
             onChange={setMenuOpened}
             position="bottom-start"
-            target={
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions sur les projets sans client" onPointerDown={(event) => event.stopPropagation()}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            }
+            inRow
+            size="sm"
             items={[
               canAddProject && { label: 'Ajouter un projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm() },
               'divider',

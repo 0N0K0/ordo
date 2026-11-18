@@ -93,7 +93,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
                 items={[
                   { label: 'Description', icon: <NotePencilIcon aria-hidden />, onClick: () => setShowDescription((value) => !value) },
                   ...moveEntries(index, count, (to) => onMove(to - index)),
-                  { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: onRemove },
+                  { label: 'Retirer la ligne', icon: <TrashIcon aria-hidden />, danger: true, onClick: onRemove },
                 ]}
               />
             </Group>

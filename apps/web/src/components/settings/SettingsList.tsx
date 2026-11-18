@@ -11,7 +11,7 @@ import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';
 import { ShowArchivedSwitch } from '../filters/ShowArchivedSwitch';
 import { openFormPanel } from '../panels/panels';
-import { ArchivedBadge } from '../items/ItemBadge';
+import { ArchivedBadge } from '../feedback/ArchivedBadge';
 import { useReorderSettingsItems } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemKind, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';

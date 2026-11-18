@@ -17,7 +17,7 @@ import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
 import { openDepositForm } from '../lib/new-document';
 import { openFile } from '../../files/lib/open-file';
 import { downloadUrl } from '../../files/lib/viewable';
@@ -31,7 +31,7 @@ import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
 import { archiveRowsAction, deleteItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
@@ -259,7 +259,11 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         },
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
-        archiveEntry({ archived: document.archived, label: `« ${document.number ?? document.title ?? 'Brouillon'} »` }, setArchived, document.id),
+        archiveEntry(
+          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+          setArchived,
+          document.id,
+        ),
       ]}
     />
   );
@@ -566,7 +570,11 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
                     onClick: () => openDepositForm({ importedQuoteId: row.document.id }),
                   },
                 !row.document.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(row.document as ImportedDocument) },
-                archiveEntry({ archived: row.document.archived, label: `« ${row.document.number} »` }, archiveImported, row.document.id),
+                archiveEntry(
+                  { archived: row.document.archived, type: DOCUMENT_TYPE_LABELS[row.document.type], name: row.document.number, feminine: isFeminineDocumentType(row.document.type) },
+                  archiveImported,
+                  row.document.id,
+                ),
                 rowMenuEntry(deleteImported([row.document as ImportedDocument])),
               ]}
             />

@@ -1,5 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { Group, Stack, Title } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';

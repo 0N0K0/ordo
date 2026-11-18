@@ -192,23 +192,16 @@
     }
 
     /* Effets */
-    &[data-archived] {
-      opacity: 0.6;
+    &[data-archived],
+    &[data-done] {
+      opacity: var(--onoko-muted-opacity);
     }
 
     &[data-dragging] {
       opacity: var(--onoko-dragging-opacity);
     }
 
-    /* Future parent of the dragged row. */
-    &[data-drop-target] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 1px solid var(--mantine-primary-color-filled);
-      outline-offset: -1px;
-    }
+    /* Future parent of the dragged row ([data-drop-target]): styles/drop.css. */
   }
 
   /* First cell of a tree: indented by its level. */

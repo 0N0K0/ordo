@@ -5,7 +5,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { Badge, Box, Button, Grid, Group, Paper, Stack, Text } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { useParams } from 'react-router';
@@ -16,7 +16,7 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { useImportedDocument, useImportedDocumentMutations } from '../api/documents';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
 import { StatusMenu } from '../components/TrackingBadge';
 import { chooseTrackingStatus } from '../lib/sent-dialog';
 import * as fmt from '../../../lib/format';
@@ -81,7 +81,12 @@ export function ImportedDocumentPage() {
             )}
           </>
         }
-        menu={{ name: `« ${document.number} »`, items: [archiveEntry({ archived: document.archived, label: `« ${document.number} »` }, setArchived, document.id)] }}
+        menu={{
+          name: `« ${document.number} »`,
+          items: [
+            archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number, feminine: isFeminineDocumentType(document.type) }, setArchived, document.id),
+          ],
+        }}
       />
 
       <Grid gap="md">

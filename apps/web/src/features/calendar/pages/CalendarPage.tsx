@@ -19,7 +19,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -35,7 +35,6 @@ import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
 import { entryEventKey, eventKey } from '../../time/lib/time-events';
 import {
-  calendarIcsUrl,
   useCalendarCategories,
   useCalendarEventMutations,
   useCalendarEvents,
@@ -52,7 +51,7 @@ import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleSources } from '../lib/calendar-events';
+import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleLayerName, scheduleSources } from '../lib/calendar-events';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -60,6 +59,7 @@ import { SubscribedEvent } from '../components/SubscribedEvent';
 import { useEventForm } from '../hooks/use-event-form';
 import { CalendarCategoriesManager } from '../components/CalendarCategoriesManager';
 import { CalendarsManager } from '../components/CalendarsManager';
+import { CalendarsIcsButton } from '../components/CalendarsIcsButton';
 import { ScheduleSettings } from '../components/ScheduleSettings';
 import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -737,10 +737,10 @@ export function CalendarPage() {
   const scheduleChoices = [
     ...(schedules ?? []).map((schedule) => ({
       id: schedule.id,
-      label: schedule.name,
+      label: scheduleLayerName(schedule.name, ((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)?.name),
       color: (schedule.typeId ? typeById.get(schedule.typeId)?.color : undefined) ?? defaultKind?.color ?? 'green',
     })),
-    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: `${schedule.name} · ${schedule.workspaceName}`, color: schedule.color ?? 'green' })),
+    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerName(schedule.name, schedule.typeName, schedule.workspaceName), color: schedule.color ?? 'green' })),
   ];
   const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
@@ -861,11 +861,7 @@ export function CalendarPage() {
                       Vue en PDF
                     </Button>
                   </Tooltip>
-                  <Tooltip label="Les calendriers de l’espace, pour un autre agenda (Google, Apple, Outlook…)">
-                    <Button component="a" href={calendarIcsUrl(null)} download variant="default" leftSection={<DownloadSimpleIcon aria-hidden />}>
-                      Calendriers (.ics)
-                    </Button>
-                  </Tooltip>
+                  <CalendarsIcsButton />
                 </Group>
               </SettingsSection>
             </Stack>

@@ -2,11 +2,11 @@ import { LabeledField } from '../inputs/LabeledField';
 import { AddItemButton } from '../actions/AddItemButton';
 import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS, weekdayOptions, monthOptions, positionOptions } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { DeletedDates } from './DeletedDates';
-import { describeRecurrence, MONTHS, WEEKDAY_NAMES } from './describe-recurrence';
+import { describeRecurrence } from './describe-recurrence';
 import { RemoveButton } from '../actions/RemoveButton';
 import { plural } from '../../lib/text';
 
@@ -36,15 +36,6 @@ interface RecurrenceEditorProps {
   exceptions?: ReactNode;
 }
 
-const POSITIONS = [
-  { value: '1', label: '1er' },
-  { value: '2', label: '2e' },
-  { value: '3', label: '3e' },
-  { value: '4', label: '4e' },
-  { value: '-1', label: 'dernier' },
-];
-const WEEKDAYS = WEEKDAY_NAMES.map((name, index) => ({ value: String(index + 1), label: name }));
-const MONTH_OPTIONS = MONTHS.map((name, index) => ({ value: String(index + 1), label: name }));
 
 /**
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
@@ -70,7 +61,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
       size="xs"
       w={130}
       aria-label="Jour de la semaine"
-      data={WEEKDAYS}
+      data={weekdayOptions}
       value={String(values.weekday)}
       allowDeselect={false}
       comboboxProps={comboboxProps}
@@ -172,7 +163,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   size="xs"
                   w={110}
                   aria-label="Rang"
-                  data={POSITIONS}
+                  data={positionOptions}
                   value={String(values.position)}
                   allowDeselect={false}
                   comboboxProps={comboboxProps}
@@ -186,7 +177,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                 size="xs"
                 w={130}
                 aria-label="Mois"
-                data={MONTH_OPTIONS}
+                data={monthOptions}
                 value={String(values.month)}
                 allowDeselect={false}
                 comboboxProps={comboboxProps}

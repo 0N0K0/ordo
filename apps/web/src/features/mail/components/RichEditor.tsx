@@ -6,7 +6,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { uploadAttachment } from '../../../lib/attachments';
+import { uploadAttachment } from '../../../components/markdown/attachments';
 import { notifyFailure } from '../../../lib/notify';
 
 interface RichEditorProps {

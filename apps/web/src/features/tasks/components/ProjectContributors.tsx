@@ -1,6 +1,6 @@
 import { projectPath } from '../../../app/pages';
 import { settingsPath } from '../../../app/layout/page-settings';
-import { PersonRow } from '../../../components/people/PersonOption';
+import { PersonRow } from '../../../components/people/people-rows';
 import { ancestorsOf } from '@ordo/shared';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -14,7 +14,7 @@ import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTaskContext } from '../hooks/use-task-context';
 import { countOf } from '../../../lib/text';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**

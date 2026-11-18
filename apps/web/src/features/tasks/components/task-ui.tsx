@@ -2,7 +2,7 @@ import { unarchived } from '../../../lib/archive';
 import { mapById } from '@ordo/shared';
 import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { PersonOption } from '../../../components/people/PersonOption';
+import { PersonOption } from '../../../components/people/people-rows';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';

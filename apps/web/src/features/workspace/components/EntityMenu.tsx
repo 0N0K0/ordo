@@ -1,6 +1,4 @@
-import { ActionIcon } from '@mantine/core';
 import {
-  DotsThreeIcon,
   FolderPlusIcon,
   PencilSimpleIcon,
   StarIcon,
@@ -45,22 +43,12 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
       onChange={onChange}
       position="bottom-start"
       inRow
-      target={
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={`Actions sur ${kind} ${entityLabel(entity)}`}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <DotsThreeIcon weight="bold" aria-hidden />
-        </ActionIcon>
-      }
+      size="sm"
       items={[
         entity.type === 'client' &&
           !item.archived && { label: 'Ajouter un projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm(undefined, { clientId: item.id }) },
         canAddSubProject && { label: 'Ajouter un sous-projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm(undefined, { parentId: item.id }) },
+        'divider',
         ...(foldable ? foldEntries((expanded) => expansion!.setSubtreeExpanded(entity, expanded)) : []),
         'divider',
         // An archived client or project is read only: restore it first.
@@ -74,7 +62,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           icon: <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />,
           onClick: () => actions.setFavorite(entity, !item.favorite),
         },
-        archiveEntry({ archived: item.archived, label: `« ${entityLabel(entity)} »`, cascade: entity.type === 'client' ? 'avec ses projets' : undefined }, actions.archiver(entity), item.id),
+        archiveEntry({ archived: item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', name: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined }, actions.archiver(entity), item.id),
         { label: 'Supprimer', icon: <TrashIcon aria-hidden />, onClick: () => actions.confirmDelete(entity), danger: true },
       ]}
     />

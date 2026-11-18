@@ -1,8 +1,8 @@
 import { Button } from '@mantine/core';
 import { FunnelSimpleIcon, FunnelXIcon } from '@phosphor-icons/react';
 import { emptyTableFilter } from '@ordo/shared';
-import type { DataView } from '../data-table/views/use-data-view';
-import { EmptyState } from './EmptyState';
+import type { DataView } from '../views/use-data-view';
+import { EmptyState } from '../../feedback/EmptyState';
 
 /**
  * What a table shows when its view keeps none of its rows: the search and the filters cleared from it.
@@ -15,13 +15,11 @@ export function NoMatch<R>({ view }: { view: DataView<R> }) {
       icon={<FunnelSimpleIcon aria-hidden />}
       message={view.total === 0 ? 'Rien pour le moment.' : 'Aucune ligne ne correspond à cette vue.'}
       action={
-        <>
-          {view.total > 0 && (
-            <Button size="xs" variant="default" leftSection={<FunnelXIcon aria-hidden />} onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
-              Effacer la recherche et les filtres
-            </Button>
-          )}
-        </>
+        view.total > 0 && (
+          <Button size="xs" variant="default" leftSection={<FunnelXIcon aria-hidden />} onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
+            Effacer la recherche et les filtres
+          </Button>
+        )
       }
     />
   );

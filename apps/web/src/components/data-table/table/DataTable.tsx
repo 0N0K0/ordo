@@ -27,7 +27,7 @@ import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, w
 import { columnFilter } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
-import { NoMatch } from '../../feedback/NoMatch';
+import { NoMatch } from './NoMatch';
 import { ROW_ACTIONS_WIDTH } from '../cells/RowActions';
 import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
@@ -103,6 +103,8 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   isActive?: (row: R) => boolean;
   /** The row is archived (dimmed). Optional. */
   isArchived?: (row: R) => boolean;
+  /** The row is done, closed or left out (dimmed, as an archived one). Optional. */
+  isDone?: (row: R) => boolean;
   /** The row is read only (shown among the others: no drag, no check, no cell selection). Optional. */
   readOnly?: (row: R) => boolean;
   /** Rows still loading: a skeleton in place of the table. Optional. Default = false. */
@@ -328,6 +330,7 @@ export function DataTable<R>({
   addRow,
   isActive,
   isArchived,
+  isDone,
   readOnly,
   loading = false,
   toolbar = true,
@@ -647,6 +650,7 @@ export function DataTable<R>({
             dropTarget={projection?.parentId === row.id}
             active={isActive?.(data) ?? false}
             archived={isArchived?.(data) ?? false}
+            done={isDone?.(data) ?? false}
             checked={checks?.isChecked(key) ?? false}
             rowProps={rowProps?.(data) ?? {}}
           >
@@ -924,6 +928,7 @@ interface DataRowProps {
   dropTarget: boolean;
   active: boolean;
   archived: boolean;
+  done: boolean;
   checked: boolean;
   rowProps: TableTrProps;
   /** Cells, receiving the drag handle to place in the first cell. */
@@ -936,7 +941,7 @@ interface DataRowProps {
  * @param {DataRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, rowProps, children }: DataRowProps) {
+function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, checked, rowProps, children }: DataRowProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
@@ -967,6 +972,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, 
       style={{ ...(typeof style === 'object' ? style : {}), transform: CSS.Translate.toString(transform && { ...transform, x: 0 }), transition }}
       data-active={active || undefined}
       data-archived={archived || undefined}
+      data-done={done || undefined}
       data-selected={checked || undefined}
       data-dragging={isDragging || undefined}
       data-drop-target={dropTarget || undefined}

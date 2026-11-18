@@ -25,7 +25,7 @@ import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
 import { archivedCalendarIds } from '../lib/calendar-events';
 import { archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useStartTimer } from '../../time/hooks/use-start-timer';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
@@ -235,7 +235,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const recurring = occurrence?.occurrenceDate != null;
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
-  const archiveMenu = occurrence && <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, label: `« ${occurrence.title} »` }, setArchived, occurrence.eventId, onDone)]} />;
+  const archiveMenu = occurrence && <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.title }, setArchived, occurrence.eventId, onDone)]} />;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
 

@@ -39,7 +39,7 @@ interface SortableTabsProps<T extends { id: string }> {
   label: (item: T) => ReactNode;
   /** Before the content of a tab (avatar, default star…). Optional. */
   leftSection?: (item: T) => ReactNode;
-  /** Name of a tab for its menu button (« Actions sur … »). */
+  /** Name of a tab for its menu button (« Actions de … »). */
   name: (item: T) => string;
   /** First entries of the menu of the selected tab (edit, duplicate…), before the moves. */
   actions: (item: T) => readonly RowMenuEntry[];
@@ -94,7 +94,7 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
                       <ActionsMenu
                         name={name(item)}
                         target={
-                          <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions sur ${name(item)}`} onClick={(event) => event.stopPropagation()}>
+                          <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions de ${name(item)}`} onClick={(event) => event.stopPropagation()}>
                             <CaretDownIcon aria-hidden />
                           </ActionIcon>
                         }

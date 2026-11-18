@@ -19,6 +19,9 @@ export const WEEKDAY_LABELS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'
 /** Short names of the days of the week, Monday first: « lun. », « mar. »… */
 export const WEEKDAY_SHORT_LABELS = WEEKDAY_LABELS.map((label) => `${label.slice(0, 3)}.`);
 
+/** Options of a choice of a day of the week, Monday (« 1 ») first, the same everywhere (repetitions, routines). */
+export const weekdayOptions: { value: string; label: string }[] = WEEKDAY_LABELS.map((label, index) => ({ value: String(index + 1), label }));
+
 /**
  * Days of a week: from its first day to its last one included (8 from a day to the same day).
  * @param {WeekSpan} week Week.

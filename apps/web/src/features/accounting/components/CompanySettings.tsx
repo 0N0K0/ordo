@@ -4,7 +4,7 @@ import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput,
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { AddressFields } from '../../../components/address/AddressFields';
+import { AddressFields } from './AddressFields';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';

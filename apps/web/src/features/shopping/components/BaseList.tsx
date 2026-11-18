@@ -9,7 +9,7 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, BasketIcon
 
 import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { openMoveProducts } from '../lib/open-move-products';
 import { withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';

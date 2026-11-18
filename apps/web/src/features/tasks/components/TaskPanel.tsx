@@ -4,7 +4,7 @@ import { PAGES, projectPath } from '../../../app/pages';
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';

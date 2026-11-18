@@ -177,6 +177,8 @@ _Créés par nos propres lots (à ne plus jamais reproduire) : l'état « Affich
 
 ## Plan proposé
 
+**Avancement (18 novembre 2026) :** lots 1 à 4 faits (bugs, briques contournées, doublons avec Q, R, S, libellés et styles avec T, U, V, rangement) ; copier-coller : 65 copies (639 lignes) au début du round, 4 (35 lignes) à la fin. **Le renommage `label` (décision O) est reporté à une session dédiée**, après les tests dans le navigateur et le déploiement du reste.
+
 **Garde-fous de chaque lot** (pour ne plus créer de doublons) :
 
 - factoriser dès la deuxième copie, avant de rendre le lot ;

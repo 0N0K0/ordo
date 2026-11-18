@@ -12,7 +12,7 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -791,7 +791,7 @@ export function BudgetsPanel() {
                   }
             }
             actions={(budget) => {
-              const archiveItem = archiveEntry({ archived: budget.archived, label: 'Budget' }, setArchived, budget.id);
+              const archiveItem = archiveEntry({ archived: budget.archived, type: 'Budget', name: paths.get(budget.categoryId) ?? '' }, setArchived, budget.id);
               return (
                 <RowActions
                   name="le budget"

@@ -169,7 +169,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         ]}
         bar={{ searchLabel: 'Rechercher (élément, description)' }}
         getKey={(item) => item.id}
-        rowProps={(item) => ({ style: item.checkedAt ? { opacity: 0.6 } : undefined })}
+        isDone={(item) => Boolean(item.checkedAt)}
         cells={(item) => ({
           done: <EditableCheck value={Boolean(item.checkedAt)} label={`${item.label} fait`} onSave={(checked) => bulk('done')(item, { checked })} />,
           label: <EditableText value={item.label} label={`Libellé de ${item.label}`} onSave={(next) => next && bulk('label')(item, { label: next })} />,

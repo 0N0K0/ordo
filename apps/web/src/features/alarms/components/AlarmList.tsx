@@ -64,7 +64,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
         const task = showTarget && alarm.taskId ? context.taskById.get(alarm.taskId) : undefined;
         const project = showTarget && alarm.projectId ? context.projectById.get(alarm.projectId) : undefined;
         return (
-          <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? 1 : 0.6 }}>
+          <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? undefined : 'var(--onoko-muted-opacity)' }}>
             <Group justify="space-between" wrap="nowrap" align="flex-start">
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Group gap="xs">

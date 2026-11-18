@@ -1,10 +1,7 @@
-import { parseDay, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
+import { MONTH_LABELS, ofMonth, POSITION_LABELS, ruleValues, WEEKDAY_LABELS, type Duration, type Recurrence, type RepetitionCase } from '@ordo/shared';
 import type { RepetitionTimes } from './RepetitionEditor';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
-
-export const WEEKDAY_NAMES: readonly string[] = WEEKDAY_LABELS;
-const ORDINALS = ['', '1er', '2e', '3e', '4e'];
 
 /**
  * Nth weekday as text: "le 2e mardi", "le dernier vendredi".
@@ -13,19 +10,8 @@ const ORDINALS = ['', '1er', '2e', '3e', '4e'];
  * @returns {string} Label.
  */
 function nthWeekday(position: number, weekday: number): string {
-  return `le ${position === -1 ? 'dernier' : ORDINALS[position]} ${WEEKDAY_NAMES[weekday - 1]}`;
+  return `le ${POSITION_LABELS[position]} ${WEEKDAY_LABELS[weekday - 1]}`;
 }
-
-/**
- * Month after a day of it: "d’avril", "de mai".
- * @param {number} month 1 to 12.
- * @returns {string} Label.
- */
-export function ofMonth(month: number): string {
-  const name = MONTHS[month - 1];
-  return /^[aeiou]/.test(name) ? `d’${name}` : `de ${name}`;
-}
-export const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
 /**
  * Formats a YYYY-MM-DD date: "3 novembre 2026".
@@ -34,16 +20,6 @@ export const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'j
  */
 export function formatLongDate(date: string): string {
   return fmt.dayInWords(date);
-}
-
-/**
- * Month of a date after a day of it: "d’avril", "de mai".
- * @param {string} date Calendar date.
- * @returns {string} Label.
- */
-export function monthOf(date: string): string {
-  const month = MONTHS[parseDay(date).getUTCMonth()];
-  return /^[aeiou]/.test(month) ? `d’${month}` : `de ${month}`;
 }
 
 /**
@@ -62,7 +38,7 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
       text = n === 1 ? 'Tous les jours' : `Tous les ${n} jours`;
       break;
     case 'WEEKLY': {
-      const days = (rule.weekdays.length ? rule.weekdays : [values.weekday]).map((weekday) => WEEKDAY_NAMES[weekday - 1]);
+      const days = (rule.weekdays.length ? rule.weekdays : [values.weekday]).map((weekday) => WEEKDAY_LABELS[weekday - 1]);
       const list = days.length === 5 && !days.includes('samedi') && !days.includes('dimanche') ? 'du lundi au vendredi' : `le ${days.join(', le ')}`;
       const weeks = rule.weekParity ? `Les semaines ${rule.weekParity === 'EVEN' ? 'paires' : 'impaires'}` : n === 1 ? 'Toutes les semaines' : `Toutes les ${n} semaines`;
       text = weekdays ? `${weeks} ${list}` : weeks;
@@ -74,10 +50,10 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
     case 'YEARLY':
       text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} ${
         rule.monthlyMode === 'WEEK'
-          ? `le ${WEEKDAY_NAMES[values.weekday - 1]} de la semaine ${values.week}`
+          ? `le ${WEEKDAY_LABELS[values.weekday - 1]} de la semaine ${values.week}`
           : rule.monthlyMode === 'WEEKDAY'
             ? `${nthWeekday(values.position, values.weekday)} ${ofMonth(values.month)}`
-            : `le ${values.monthDay} ${MONTHS[values.month - 1]}`
+            : `le ${values.monthDay} ${MONTH_LABELS[values.month - 1]}`
       }`;
       break;
   }
@@ -101,11 +77,11 @@ export function describeDuration(duration: Duration): string {
     case 'MONTHS':
       return duration.count > 1 ? `pendant ${duration.count} mois` : 'tout le mois';
     case 'TO_DAY':
-      return `jusqu’au ${duration.day ?? ''}${duration.month ? ` ${MONTHS[duration.month - 1]}` : ''}`;
+      return `jusqu’au ${duration.day ?? ''}${duration.month ? ` ${MONTH_LABELS[duration.month - 1]}` : ''}`;
     case 'TO_WEEK':
       return `jusqu’à la semaine ${duration.week ?? ''}`;
     case 'TO_MONTH':
-      return `jusqu’à fin ${duration.month ? MONTHS[duration.month - 1] : ''}`;
+      return `jusqu’à fin ${duration.month ? MONTH_LABELS[duration.month - 1] : ''}`;
   }
 }
 

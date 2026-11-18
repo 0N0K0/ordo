@@ -6,7 +6,7 @@ import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -149,7 +149,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       },
     );
 
-  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, label: `Liste « ${list.name} »`, feminine: true }, setArchived, list.id);
+  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', name: list.name, feminine: true }, setArchived, list.id);
   const exports: RowMenuEntry[] = [
     {
       label: 'Copier en texte',
@@ -215,8 +215,8 @@ interface ListActionsMenuProps {
   list: ShoppingList;
   /** Grouping of the exports (as the list is shown). */
   grouping: ShoppingGrouping;
-  /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
-  target?: ReactNode;
+  /** In the header of the list's page, next to its buttons (a bordered button). Optional. Default = false. */
+  header?: boolean;
   /** After the list is deleted (leaves its page). Optional. */
   onDeleted?: () => void;
 }
@@ -226,6 +226,6 @@ interface ListActionsMenuProps {
  * @param {ListActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu.
  */
-export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActionsMenuProps) {
-  return <ActionsMenu name={`la liste ${list.name}`} items={useListActions(list, grouping, onDeleted)} target={target} />;
+export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
+  return <ActionsMenu name={`la liste ${list.name}`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
 }

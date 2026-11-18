@@ -1,5 +1,5 @@
 import * as fmt from '../../../lib/format';
-import { PersonAvatar } from '../../../components/people/PersonOption';
+import { PersonAvatar } from '../../../components/people/people-rows';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { addressLabel, senderName, type Address } from '../lib/mail-format';

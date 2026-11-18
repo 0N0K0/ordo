@@ -1,0 +1,15 @@
+@layer states {
+  /*
+   * Future parent of what is dragged, the same in a table (a row, a group heading: [data-drop-target]) and in a tree
+   * ([data-drop='INSIDE']): tinted and outlined, over the hover and selection backgrounds of the rows.
+   */
+  [data-drop-target],
+  [data-drop='INSIDE'] {
+    /* Arrière-Plan */
+    background-color: var(--mantine-primary-color-light);
+
+    /* Bordures */
+    outline: 1px solid var(--mantine-primary-color-filled);
+    outline-offset: -1px;
+  }
+}

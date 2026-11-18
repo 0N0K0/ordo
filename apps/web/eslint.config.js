@@ -37,10 +37,18 @@ const RESTRICTED_PATHS = [
     importNames: ['TimeInput'],
     message: 'Utiliser TimePicker : 24 h et libellés par défaut (app/theme).',
   },
+  {
+    name: '@phosphor-icons/react',
+    importNames: ['DotsThreeIcon', 'DotsThreeVerticalIcon', 'DotsThreeOutlineIcon', 'DotsThreeOutlineVerticalIcon', 'DotsThreeCircleIcon', 'DotsThreeCircleVerticalIcon'],
+    message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux, décision T ; variant="default" à côté de boutons).',
+  },
 ];
 
-// The same, Menu allowed: ActionsMenu itself and the genuinely special menus.
+// The same, Menu allowed: the genuinely special menus.
 const RESTRICTED_PATHS_BUT_MENU = RESTRICTED_PATHS.filter((path) => !path.importNames.includes('Menu'));
+
+// ActionsMenu itself: wraps Menu and draws the « … » button.
+const RESTRICTED_PATHS_ACTIONS_MENU = RESTRICTED_PATHS_BUT_MENU.filter((path) => path.name !== '@phosphor-icons/react');
 
 // The shared bricks (components/, lib/) never depend on a feature.
 const NO_FEATURES = {
@@ -74,6 +82,26 @@ export default defineConfig([
         {
           selector: "CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]",
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
+        },
+        // Rows set back: the states of DataTable (decision U), not an opacity of their own.
+        {
+          selector: "JSXAttribute[name.name='rowProps'] Property[key.name='opacity']",
+          message: 'Utiliser isArchived / isDone de DataTable : une opacité « atténué » (--onoko-muted-opacity) partout.',
+        },
+        // The .ics of every calendar: one button.
+        {
+          selector: "CallExpression[callee.name='calendarIcsUrl'] > Literal[raw='null']",
+          message: 'Utiliser CalendarsIcsButton (features/calendar/components) : un seul libellé, « Tout exporter (.ics) ».',
+        },
+        // Captions in capitals: one look (weight 600).
+        {
+          selector: "JSXOpeningElement[name.name='Text']:has(JSXAttribute[name.name='tt'][value.value='uppercase'])",
+          message: 'Utiliser Caption (components/page/Caption) : petites capitales atténuées, graisse 600, partout.',
+        },
+        // Names of months, weekdays and positions: one list each, in @ordo/shared (decision V).
+        {
+          selector: "Literal[value=/^(janvier|premier|deuxième|1er)$/]",
+          message: 'Utiliser MONTH_LABELS / monthOptions, WEEKDAY_LABELS / weekdayOptions, POSITION_LABELS / positionOptions ou ordinal (@ordo/shared) : « 1er / 2e / dernier » partout.',
         },
         // Toasts: errors stay, the others close on their own, one style.
         {
@@ -239,7 +267,7 @@ export default defineConfig([
   {
     // ActionsMenu wraps Menu.
     files: ['src/components/actions/ActionsMenu.tsx'],
-    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_BUT_MENU, patterns: [NO_FEATURES] }] },
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
   },
   {
     // Menus of their own: the tree of the saved places in an address field; the library, to be rewritten.

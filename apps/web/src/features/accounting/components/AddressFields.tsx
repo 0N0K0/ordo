@@ -1,9 +1,9 @@
-import { AddItemButton } from '../actions/AddItemButton';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Fieldset, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { EMPTY_ADDRESS, type Address } from '@ordo/shared';
 
-import { COUNTRY_OPTIONS } from './countries';
-import { RemoveButton } from '../actions/RemoveButton';
+import { COUNTRY_OPTIONS } from '../lib/countries';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 interface AddressFieldsProps {
   legend: string;

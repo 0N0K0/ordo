@@ -34,7 +34,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 
@@ -330,7 +330,7 @@ export function StockTable() {
               onClick: () => openFormPanel(item.label, (close) => <StockMoveForm item={item} onDone={close} />),
             },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, onClick: () => openFormPanel(`Historique · ${item.label}`, () => <MovementsTable itemId={item.id} />, 'lg') },
-            archiveEntry({ archived: item.archived, label: `Article « ${item.label} »` }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Article', name: item.label }, setArchived, item.id),
             rowMenuEntry(deleteItems([item])),
           ]}
         />

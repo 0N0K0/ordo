@@ -30,11 +30,11 @@ import { useWorkspace } from '../../workspace/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
 import { DeductDepositMenu } from './DeductDepositMenu';
 import { LinesEditor } from './LinesEditor';
 import { openDepositForm } from '../lib/new-document';
@@ -333,7 +333,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           </>
         }
         // The model of a recurring invoice is archived with it, from the list of the recurring invoices.
-        menu={isTemplate ? undefined : { name: documentName, items: [archiveEntry({ archived: document.archived, label: documentName }, setArchived, document.id)] }}
+        menu={isTemplate ? undefined : { name: documentName, items: [archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) }, setArchived, document.id)] }}
         actions={
           <>
           {/* A final document shows its PDF in the page. */}

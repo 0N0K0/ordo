@@ -239,8 +239,8 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                 </Tooltip>
               )}
               {alarmCounts.has(task.id) && (
-                <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alerte')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
-                  <AlarmIcon aria-label="Alertes" className={classes.recurring} />
+                <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alarme')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
+                  <AlarmIcon aria-label="Alarmes" className={classes.recurring} />
                 </Tooltip>
               )}
             </>
@@ -337,6 +337,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         readOnly={(row) => row.kind === 'event'}
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
+        isDone={(row) => row.kind === 'task' && row.task.closed}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (

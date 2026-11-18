@@ -3,7 +3,8 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Box, Button, Group, NavLink, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, NavLink, Stack, Text } from '@mantine/core';
+import { requiredText } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
@@ -24,7 +25,7 @@ import { useState, type ReactNode } from 'react';
 import { notifySuccess } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
-import { FormActions } from '../../../components/dialogs/FormActions';
+import { openNameForm } from '../../../components/dialogs/open-name-form';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -47,37 +48,8 @@ interface SelectedFolder {
   folder: string;
 }
 
-/**
- * Name of a folder to create or rename.
- * @param {{ initial: string, label: string, onSubmit: (name: string) => Promise<unknown>, onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
- */
-function FolderNameForm({ initial, label, onSubmit, onDone }: { initial: string; label: string; onSubmit: (name: string) => Promise<unknown>; onDone: () => void }) {
-  const [name, setName] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!name.trim()) {
-          setError('Le nom est requis.');
-          return;
-        }
-        setLoading(true);
-        onSubmit(name.trim())
-          .then(onDone)
-          .catch((failure: Error) => setError(failure.message))
-          .finally(() => setLoading(false));
-      }}
-    >
-      <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus value={name} error={error} onChange={(event) => setName(event.currentTarget.value)} />
-        <FormActions onCancel={onDone} submitLabel={label} loading={loading} />
-      </Stack>
-    </form>
-  );
-}
+/** Rule of the name of a folder. */
+const FOLDER_NAME = requiredText(255);
 
 interface AccountFoldersProps {
   account: MailAccount;
@@ -191,9 +163,12 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askCreate = (parent: string | null) => {
-    openFormPanel(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', (close) => (
-      <FolderNameForm initial="" label="Créer" onDone={close} onSubmit={(name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.'))} />
-    ));
+    openNameForm(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', {
+      initial: '',
+      schema: FOLDER_NAME,
+      submitLabel: 'Créer',
+      onSubmit: (name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.')),
+    });
   };
 
   /**
@@ -202,19 +177,16 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askRename = (folder: { path: string; name: string }) => {
-    openFormPanel('Renommer le dossier', (close) => (
-      <FolderNameForm
-        initial={folder.name}
-        label="Renommer"
-        onDone={close}
-        onSubmit={(name) =>
-          rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
-            notifySuccess('Dossier renommé.');
-            if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
-          })
-        }
-      />
-    ));
+    openNameForm('Renommer le dossier', {
+      initial: folder.name,
+      schema: FOLDER_NAME,
+      submitLabel: 'Renommer',
+      onSubmit: (name) =>
+        rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
+          notifySuccess('Dossier renommé.');
+          if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+        }),
+    });
   };
 
   /**

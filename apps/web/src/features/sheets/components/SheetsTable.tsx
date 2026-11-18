@@ -27,7 +27,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { SheetUseForm } from './SheetUseForm';
 import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { deleteSheetsAction } from '../lib/delete-sheets';
 
 /**
@@ -236,7 +236,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
                 onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
               },
               !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
-              archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
+              archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.name, feminine: true }, setArchived, sheet.id),
               rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}
           />

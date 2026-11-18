@@ -9,7 +9,7 @@ import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIco
 
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
@@ -94,7 +94,7 @@ export function MailAccountsManager() {
                   // Archived: read only.
                   !account.archived && { label: 'Signature', icon: <SignatureIcon aria-hidden />, onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />) },
                   !account.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />) },
-                  archiveEntry({ archived: account.archived, label: `Boîte « ${account.name} »`, feminine: true }, setArchived, account.id),
+                  archiveEntry({ archived: account.archived, type: 'Boîte', name: account.name, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />
