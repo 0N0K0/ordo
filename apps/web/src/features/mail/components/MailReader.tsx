@@ -79,7 +79,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmUnlink = (copyId: string) => {
-    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', onConfirm: () => { unlink.mutate(copyId, {
+    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(copyId, {
                 onSuccess: () => {
                   notifySuccess('Mail détaché du projet.');
                   onDeleted();

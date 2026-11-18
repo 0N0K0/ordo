@@ -1,4 +1,5 @@
 import { PICKER_FORMATS } from '../../../lib/format';
+import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -110,6 +111,7 @@ export function RoutineOccurrenceForm({
               <DeleteButton onClick={onDelete} />
               <Button
                 variant="subtle"
+                leftSection={<ArrowSquareOutIcon aria-hidden />}
                 onClick={() => {
                   onClose();
                   openRoutineForm({ routine: occurrence.routine });

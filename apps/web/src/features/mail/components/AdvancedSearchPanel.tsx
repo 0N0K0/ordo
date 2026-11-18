@@ -2,7 +2,7 @@ import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
-import { FloppyDiskIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
+import { FloppyDiskIcon, MagnifyingGlassIcon, EraserIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useMailLabels } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -106,7 +106,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
               Enregistrer en dossier de recherche
             </Button>
             <Group gap="xs">
-              <Button size="xs" variant="default" onClick={onClear}>
+              <Button size="xs" variant="default" leftSection={<EraserIcon aria-hidden />} onClick={onClear}>
                 Effacer
               </Button>
               <Button size="xs" type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />}>

@@ -1,4 +1,5 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { FloppyDiskIcon } from '@phosphor-icons/react';
 import { Anchor, Button, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -43,7 +44,7 @@ export function ResetPasswordPage() {
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <NewPasswordFields form={form} autoFocus />
-            <Button type="submit" loading={resetPassword.isPending} fullWidth>
+            <Button type="submit" leftSection={<FloppyDiskIcon aria-hidden />} loading={resetPassword.isPending} fullWidth>
               Enregistrer
             </Button>
           </Stack>

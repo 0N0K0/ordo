@@ -3,7 +3,7 @@ import { BackLink } from '../../../components/page/BackLink';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
@@ -108,7 +108,7 @@ export function ImportedDocumentPage() {
                       </Button>
                     ) : (
                       !document.archived && (
-                        <Button variant="default" onClick={() => openImportForm(document)}>
+                        <Button variant="default" leftSection={<PaperclipIcon aria-hidden />} onClick={() => openImportForm(document)}>
                           Joindre le fichier
                         </Button>
                       )

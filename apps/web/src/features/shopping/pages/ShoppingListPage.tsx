@@ -115,7 +115,14 @@ export function ShoppingListPage() {
   );
   const columns = itemColumns<ShoppingItem>(
     grouping,
-    { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    {
+      categories: data?.shoppingCategories ?? [],
+      stores: data?.shoppingStores ?? [],
+      storages: data?.shoppingStorages ?? [],
+      members: people.members,
+      relations: people.relations,
+      archivedPeople: people.archived,
+    },
     [
       optionalColumn<ShoppingItem>(),
       {

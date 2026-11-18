@@ -18,6 +18,8 @@ interface ItemNames {
   /** Names of the members and relations. */
   members: ReadonlyMap<string, string>;
   relations: ReadonlyMap<string, string>;
+  /** People keys of the archived members and relations: offered in the filter only when already in it. Optional. */
+  archivedPeople?: ReadonlySet<string>;
 }
 
 /**
@@ -101,7 +103,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
         options: [
           ...[...names.members].map(([id, name]) => ({ value: personKey('member', id), label: name })),
           ...[...names.relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
-        ],
+        ].map((option) => (names.archivedPeople?.has(option.value) ? { ...option, archived: true } : option)),
       },
     },
     { id: 'url', bulk: true, label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },

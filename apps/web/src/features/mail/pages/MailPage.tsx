@@ -11,7 +11,7 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { mapById } from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -181,10 +181,10 @@ export function MailPage() {
                     Recherche avancée
                   </Text>
                   <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
+                    <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
                       {advancedOpen ? 'Masquer les critères' : 'Modifier'}
                     </Button>
-                    <Button size="compact-xs" variant="subtle" color="gray" onClick={() => mailSearch.setAdvanced(null, { page: null, uid: null })}>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<XIcon aria-hidden />} onClick={() => mailSearch.setAdvanced(null, { page: null, uid: null })}>
                       Quitter
                     </Button>
                   </Group>

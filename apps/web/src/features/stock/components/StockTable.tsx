@@ -112,7 +112,11 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => whom(item).join(', ') || null,
       text: (item) => whom(item).join(', '),
-      filter: { kind: 'choices', value: (item) => rowPeopleKeys(item), options: people.options.flatMap((group) => group.items) },
+      filter: {
+        kind: 'choices',
+        value: (item) => rowPeopleKeys(item),
+        options: people.options.flatMap((group) => group.items).map((option) => (people.archived.has(option.value) ? { ...option, archived: true } : option)),
+      },
       groupable: true,
     },
     {

@@ -1,4 +1,5 @@
 import { categoryOptions } from '../../../components/tree/category-tree';
+import { ClockIcon } from '@phosphor-icons/react';
 import { mapById } from '@ordo/shared';
 import { Paper, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -81,7 +82,15 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
           </Stack>
         </Paper>
       ))}
-      <FormActions onCancel={onDone} cancelLabel="Plus tard" submitLabel="Ajouter au stock" onSubmit={() => void add()} disabled={lines.every((line) => line.quantity <= 0)} loading={loading} />
+      <FormActions
+        onCancel={onDone}
+        cancelLabel="Plus tard"
+        cancelIcon={<ClockIcon aria-hidden />}
+        submitLabel="Ajouter au stock"
+        onSubmit={() => void add()}
+        disabled={lines.every((line) => line.quantity <= 0)}
+        loading={loading}
+      />
     </Stack>
   );
 }

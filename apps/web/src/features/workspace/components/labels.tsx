@@ -60,7 +60,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
           <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
           <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
-            <Button size="xs" loading={mutation.isPending} onClick={() => handleSubmit()}>
+            <Button size="xs" leftSection={<PlusIcon aria-hidden />} loading={mutation.isPending} onClick={() => handleSubmit()}>
               Créer
             </Button>
           </Group>

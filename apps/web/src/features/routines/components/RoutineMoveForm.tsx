@@ -3,7 +3,7 @@ import { PICKER_FORMATS } from '../../../lib/format';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { ArrowRightIcon, CalendarXIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { SubSection } from '../../../components/page/SubSection';
@@ -100,6 +100,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
    */
   const changeTimes = (index: number, changes: Partial<Times[number]>) => setEdited(times.map((item, other) => (other === index ? { ...item, ...changes } : item)));
   const submitLabel = !target || target === date ? 'Changer l’horaire' : target < date! ? 'Avancer' : 'Reporter';
+  const submitIcon = !target || target === date ? <ClockIcon aria-hidden /> : target < date! ? <ArrowBendUpLeftIcon aria-hidden /> : <ArrowBendUpRightIcon aria-hidden />;
 
   return (
     <form
@@ -187,7 +188,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           </SubSection>
         )}
         <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
+          <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onDone}>
             Fermer
           </Button>
           {date && (
@@ -199,6 +200,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   title: 'Annuler cette occurrence ?',
                   risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
                   confirmLabel: 'Annuler l’occurrence',
+                  confirmIcon: <CalendarXIcon aria-hidden />,
                   onConfirm: () =>
                     deleteOccurrence.mutate(
                       { id: routine.id, date, scope: 'THIS' },
@@ -217,7 +219,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             </DestructiveButton>
           )}
           {date && (
-            <Button type="submit" disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>
+            <Button type="submit" leftSection={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>
               {submitLabel}
             </Button>
           )}

@@ -1,4 +1,5 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { Anchor, Button, Stack, TextInput } from '@mantine/core';
 import { forgotPasswordFormSchema, type ForgotPasswordFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
@@ -42,7 +43,7 @@ export function ForgotPasswordPage() {
               required
               {...form.getInputProps('identifier')}
             />
-            <Button type="submit" loading={requestReset.isPending} fullWidth>
+            <Button type="submit" leftSection={<PaperPlaneTiltIcon aria-hidden />} loading={requestReset.isPending} fullWidth>
               Envoyer le lien
             </Button>
           </Stack>

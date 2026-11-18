@@ -1,5 +1,5 @@
 import { Button } from '@mantine/core';
-import { FunnelSimpleIcon } from '@phosphor-icons/react';
+import { FunnelSimpleIcon, FunnelXIcon } from '@phosphor-icons/react';
 import { emptyTableFilter } from '@ordo/shared';
 import type { DataView } from '../data-table/views/use-data-view';
 import { EmptyState } from './EmptyState';
@@ -17,7 +17,7 @@ export function NoMatch<R>({ view }: { view: DataView<R> }) {
       action={
         <>
           {view.total > 0 && (
-            <Button size="xs" variant="default" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
+            <Button size="xs" variant="default" leftSection={<FunnelXIcon aria-hidden />} onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
               Effacer la recherche et les filtres
             </Button>
           )}

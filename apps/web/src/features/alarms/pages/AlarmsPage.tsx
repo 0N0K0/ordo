@@ -5,7 +5,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Button, Stack, Text } from '@mantine/core';
-import { AlarmIcon, PlusIcon } from '@phosphor-icons/react';
+import { AlarmIcon, PlusIcon, BellIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { AlarmList } from '../components/AlarmList';
@@ -45,6 +45,7 @@ export function AlarmsPage() {
             <Button
               size="xs"
               variant="default"
+              leftSection={<BellIcon aria-hidden />}
               onClick={() =>
                 void Notification.requestPermission().then(setPermission)
               }

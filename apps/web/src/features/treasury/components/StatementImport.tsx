@@ -3,7 +3,7 @@ import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, Simp
 import { countOf, normalize, plural } from '../../../lib/text';
 import { listSelectProps } from '../../../components/items/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
-import { FileCsvIcon } from '@phosphor-icons/react';
+import { FileCsvIcon, ArrowLeftIcon, ArrowRightIcon, EyeIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from '../api';
@@ -248,7 +248,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           Les colonnes sont devinées, ou reprises du dernier import de ce compte. Une carte à débit différé n’apparaît qu’en une ligne par mois : importez-la, puis répartissez-la en achats, chacun à
           sa date.
         </Text>
-        <FormActions onCancel={onDone} submitLabel="Suivant" disabled={!accountId || !file || !mapping} onSubmit={() => setStep('columns')} />
+        <FormActions onCancel={onDone} submitLabel="Suivant" submitIcon={<ArrowRightIcon aria-hidden />} disabled={!accountId || !file || !mapping} onSubmit={() => setStep('columns')} />
       </Stack>
     );
   }
@@ -349,7 +349,15 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         <Text size="sm" c={rows.length ? 'dimmed' : 'red'}>
           {rows.length ? `${countOf(rows.length, 'opération')} ${plural(rows.length, 'lue')}.` : 'Aucune opération lue : vérifiez les colonnes et le format de date.'}
         </Text>
-        <FormActions onCancel={() => setStep('file')} cancelLabel="Retour" submitLabel="Aperçu" disabled={!rows.length || !mapping.labelColumns.length} onSubmit={() => setStep('preview')} />
+        <FormActions
+          onCancel={() => setStep('file')}
+          cancelLabel="Retour"
+          cancelIcon={<ArrowLeftIcon aria-hidden />}
+          submitLabel="Aperçu"
+          submitIcon={<EyeIcon aria-hidden />}
+          disabled={!rows.length || !mapping.labelColumns.length}
+          onSubmit={() => setStep('preview')}
+        />
       </Stack>
     );
   }
@@ -437,6 +445,8 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
       <FormActions
         onCancel={() => setStep('columns')}
         cancelLabel="Retour"
+        cancelIcon={<ArrowLeftIcon aria-hidden />}
+        submitIcon={<FileArrowUpIcon aria-hidden />}
         submitLabel={`Importer ${chosen.length} ${plural(chosen.length, 'opération')}`}
         loading={importStatement.isPending || existing.isFetching}
         disabled={!chosen.length}

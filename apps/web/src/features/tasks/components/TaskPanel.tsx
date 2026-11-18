@@ -9,7 +9,7 @@ import { SidePanel } from '../../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
@@ -177,6 +177,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         </>
       ),
       confirmLabel: 'Changer de projet',
+      confirmIcon: <ArrowsLeftRightIcon aria-hidden />,
       onConfirm: transfer,
     });
   };
@@ -220,7 +221,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               >
                 {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
               </Button>
-              <Button variant="default" size="xs" onClick={() => setTitleDraft(task.title)}>
+              <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
                 Modifier
               </Button>
               <ActionsMenu
@@ -254,12 +255,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               autoFocus
               style={{ flex: 1 }}
             />
-            <Button onClick={saveTitle} loading={updateTask.isPending}>
-              Enregistrer
-            </Button>
-            <Button variant="default" onClick={() => setTitleDraft(null)}>
-              Annuler
-            </Button>
+            <FormActions onCancel={() => setTitleDraft(null)} onSubmit={saveTitle} loading={updateTask.isPending} />
           </Group>
         )}
         <Group gap="xs">

@@ -2,7 +2,7 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
-import { UploadSimpleIcon } from '@phosphor-icons/react';
+import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -121,6 +121,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                       size="xs"
                       variant="subtle"
                       color="red"
+                      leftSection={<TrashIcon aria-hidden />}
                       onClick={() =>
                         setLogo.mutate(null, {
                           onError: onMutationError,
@@ -370,6 +371,7 @@ function NumberingSettings() {
                       size="xs"
                       variant="default"
                       disabled={value === sequence.nextNumber}
+                      leftSection={<FloppyDiskIcon aria-hidden />}
                       onClick={() =>
                         setSequence.mutate(
                           { type: sequence.type, year, nextNumber: value },

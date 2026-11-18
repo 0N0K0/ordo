@@ -1,4 +1,5 @@
 import { openFormPanel } from '../../../components/panels/panels';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -126,11 +127,11 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
       />
       <Group justify="flex-end" gap="sm">
         {item.check && routine && (
-          <Button variant="default" color="red" onClick={() => save(false)} loading={setDone.isPending}>
+          <Button variant="default" color="red" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
             Décocher
           </Button>
         )}
-        <Button onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
+        <Button leftSection={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
         </Button>
       </Group>

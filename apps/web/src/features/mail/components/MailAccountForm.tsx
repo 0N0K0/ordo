@@ -1,4 +1,5 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { PlugsConnectedIcon } from '@phosphor-icons/react';
 import { Button, Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
 import { mailAccountFormSchema, type MailAccountFormValues } from '@ordo/shared';
 
@@ -209,6 +210,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
         <Group justify="space-between" gap="sm">
           <Button
             variant="default"
+            leftSection={<PlugsConnectedIcon aria-hidden />}
             loading={test.isPending}
             onClick={() => {
               setTested(false);

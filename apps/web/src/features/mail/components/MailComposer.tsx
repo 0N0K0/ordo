@@ -3,7 +3,7 @@ import { WEEKDAY_LABELS } from '@ordo/shared';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from '../../../components/rich-text/RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -292,6 +292,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         </Button>
         <Button
           variant="default"
+          leftSection={<PencilSimpleLineIcon aria-hidden />}
           onClick={() => {
             close();
           }}
@@ -427,7 +428,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           )}
         </FileButton>
         <Group gap="sm">
-          <Button variant="default" onClick={requestClose}>
+          <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={requestClose}>
             Fermer
           </Button>
           <Popover opened={scheduling} onChange={setScheduling} position="top-end" shadow="md" withinPortal={false} trapFocus>

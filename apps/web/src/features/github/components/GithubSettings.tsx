@@ -3,7 +3,7 @@ import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
-import { GithubLogoIcon } from '@phosphor-icons/react';
+import { GithubLogoIcon, PlugsIcon, KeyIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from '../api';
@@ -56,7 +56,7 @@ export function GithubSettings() {
    * @returns {void}
    */
   const confirmRemove = () => {
-    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', onConfirm: () => { removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: onMutationError }); } });
+    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', confirmIcon: <PlugsIcon aria-hidden />, onConfirm: () => { removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: onMutationError }); } });
   };
 
   if (isPending) return <FormSkeleton fields={3} />;
@@ -108,11 +108,11 @@ export function GithubSettings() {
               style={{ flex: 1, maxWidth: 480 }}
               autoComplete="off"
             />
-            <Button type="submit" mt={25} loading={setToken.isPending} disabled={!token.trim()}>
+            <Button type="submit" mt={25} leftSection={<KeyIcon aria-hidden />} loading={setToken.isPending} disabled={!token.trim()}>
               {login ? 'Remplacer' : 'Connecter'}
             </Button>
             {login && (
-              <DestructiveButton mt={25} onClick={confirmRemove}>
+              <DestructiveButton mt={25} leftSection={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
                 Déconnecter
               </DestructiveButton>
             )}

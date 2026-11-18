@@ -71,7 +71,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   return (
     <Stack gap="sm">
       <TextInput label="Note" placeholder="Appel, courrier…" maxLength={500} value={note} onChange={(event) => setNote(event.currentTarget.value)} data-autofocus />
-      <FormActions onCancel={onDone} submitLabel="Noter" loading={addReminder.isPending} onSubmit={() =>
+      <FormActions onCancel={onDone} submitLabel="Noter" submitIcon={<NotePencilIcon aria-hidden />} loading={addReminder.isPending} onSubmit={() =>
             addReminder.mutate(
               { id: documentId, note: note.trim() || null },
               {

@@ -8,6 +8,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
+import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
 import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
@@ -175,25 +176,20 @@ function Editor({ document }: { document: AccountingDocument }) {
             avoir. Vérifiez la date ({fmt.day(values.issueDate)}) : les numéros se
             suivent dans l’ordre de validation.
           </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button
-              leftSection={<SealCheckIcon aria-hidden />}
-              onClick={() => {
-                close();
-                save(() =>
-                  void mutations.finalize
-                    .mutateAsync(document.id)
-                    .then((number) => notifySuccess(`Document validé : ${number}.`))
-                    .catch(onMutationError),
-                );
-              }}
-            >
-              Valider
-            </Button>
-            <Button variant="default" onClick={close}>
-              Annuler
-            </Button>
-          </Group>
+          <FormActions
+            onCancel={close}
+            submitLabel="Valider"
+            submitIcon={<SealCheckIcon aria-hidden />}
+            onSubmit={() => {
+              close();
+              save(() =>
+                void mutations.finalize
+                  .mutateAsync(document.id)
+                  .then((number) => notifySuccess(`Document validé : ${number}.`))
+                  .catch(onMutationError),
+              );
+            }}
+          />
         </Stack>
       ));
   };

@@ -1,4 +1,5 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
+import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { removedLinksNote } from '../lib/bulk-label';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -465,6 +466,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
       title: 'Changer de projet',
       risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon et ses sprints seront retirés.',
       confirmLabel: 'Changer de projet',
+      confirmIcon: <ArrowsLeftRightIcon aria-hidden />,
       onConfirm: transfer,
     });
   };

@@ -12,7 +12,7 @@ import { TimeField } from '../../../components/inputs/TimeField';
 import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
-import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -84,7 +84,7 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
         {!fields.allDay && <TimeField label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
-      <FormActions onCancel={onCancel} submitLabel="Reporter" loading={loading} disabled={!valid} onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })} />
+      <FormActions onCancel={onCancel} submitLabel="Reporter" submitIcon={<ArrowArcRightIcon aria-hidden />} loading={loading} disabled={!valid} onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })} />
     </Stack>
   );
 }
@@ -566,7 +566,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             ) : (
               <span />
             )}
-            <Button variant="default" onClick={onDone}>
+            <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onDone}>
               Fermer
             </Button>
           </Group>

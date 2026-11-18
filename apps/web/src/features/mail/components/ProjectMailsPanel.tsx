@@ -5,7 +5,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { ActionIcon, Box, Button, Grid, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
-import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { notifySuccess } from '../../../lib/notify';
@@ -69,13 +69,14 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
                     Recherche avancée
                   </Text>
                   <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" onClick={() => setAdvancedOpen(!advancedOpen)}>
+                    <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={() => setAdvancedOpen(!advancedOpen)}>
                       {advancedOpen ? 'Masquer les critères' : 'Modifier'}
                     </Button>
                     <Button
                       size="compact-xs"
                       variant="subtle"
                       color="gray"
+                      leftSection={<XIcon aria-hidden />}
                       onClick={() => {
                         mailSearch.setAdvanced(null);
                         reset();

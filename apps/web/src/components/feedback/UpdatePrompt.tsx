@@ -35,7 +35,7 @@ export function UpdatePrompt() {
       icon: <ArrowsClockwiseIcon />,
       title: 'Nouvelle version d’Ordo',
       lines: ['Rechargez pour l’utiliser.'],
-      actions: [{ label: 'Recharger', onClick: () => void updateServiceWorker(true) }],
+      actions: [{ label: 'Recharger', icon: <ArrowsClockwiseIcon aria-hidden />, onClick: () => void updateServiceWorker(true) }],
     });
   }, [needRefresh, updateServiceWorker]);
 

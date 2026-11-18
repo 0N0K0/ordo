@@ -127,7 +127,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   );
   const columns = itemColumns<ShoppingProduct>(
     grouping,
-    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations, archivedPeople: people.archived },
     [
       commentColumn<ShoppingProduct>(
         productComments,

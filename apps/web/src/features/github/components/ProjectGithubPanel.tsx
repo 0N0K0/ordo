@@ -7,7 +7,7 @@ import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -352,7 +352,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
   };
 
   if (!link) {
@@ -381,7 +381,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 style={{ flex: 1 }}
                 error={board.error?.message}
               />
-              <Button type="submit" loading={board.isFetching} disabled={!url.trim()}>
+              <Button type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />} loading={board.isFetching} disabled={!url.trim()}>
                 Charger
               </Button>
             </Group>

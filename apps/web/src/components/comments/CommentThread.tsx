@@ -1,7 +1,7 @@
 import { ActionsMenu } from '../data-table/cells/RowActions';
 import { FormActions } from '../dialogs/FormActions';
 import { Button, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
-import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, TrashIcon, ChatCircleTextIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { ListSkeleton } from '../feedback/Skeletons';
@@ -154,7 +154,7 @@ export function CommentThread({ comments, loading = false, actions, suggestions,
       )}
       <MarkdownEditor label="Ajouter un commentaire" value={body} onChange={setBody} suggestions={suggestions} minRows={3} placeholder="Écrivez un commentaire…" onSubmitShortcut={submit} />
       <Group justify="flex-end">
-        <Button onClick={submit} loading={actions.adding} disabled={!body.trim()}>
+        <Button leftSection={<ChatCircleTextIcon aria-hidden />} onClick={submit} loading={actions.adding} disabled={!body.trim()}>
           Commenter
         </Button>
       </Group>

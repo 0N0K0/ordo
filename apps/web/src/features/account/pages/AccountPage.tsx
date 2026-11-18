@@ -1,4 +1,5 @@
 import { PAGES } from '../../../app/pages';
+import { EnvelopeSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -52,7 +53,7 @@ function UsernameForm({ user }: { user: AccountUser }) {
           required
           {...form.getInputProps('currentPassword')}
         />
-        <FormActions submitLabel="Modifier l’identifiant" loading={changeUsername.isPending} />
+        <FormActions submitLabel="Modifier l’identifiant" submitIcon={<FloppyDiskIcon aria-hidden />} loading={changeUsername.isPending} />
       </Stack>
     </form>
   );
@@ -105,7 +106,7 @@ function EmailForm({ user }: { user: AccountUser }) {
               Un lien a été envoyé à <strong>{user.pendingEmail}</strong>. L’adresse sera remplacée une fois le lien
               ouvert.
             </Text>
-            <Button variant="subtle" size="xs" onClick={handleCancel} loading={cancelEmailChange.isPending}>
+            <Button variant="subtle" size="xs" leftSection={<XIcon aria-hidden />} onClick={handleCancel} loading={cancelEmailChange.isPending}>
               Annuler le changement
             </Button>
           </Stack>
@@ -120,7 +121,7 @@ function EmailForm({ user }: { user: AccountUser }) {
             required
             {...form.getInputProps('currentPassword')}
           />
-          <FormActions submitLabel="Changer d’adresse" loading={requestEmailChange.isPending} />
+          <FormActions submitLabel="Changer d’adresse" submitIcon={<EnvelopeSimpleIcon aria-hidden />} loading={requestEmailChange.isPending} />
         </Stack>
       </form>
     </Stack>
@@ -164,7 +165,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
           {...form.getInputProps('currentPassword')}
         />
         <NewPasswordFields form={form} userInputs={userInputs} />
-        <FormActions submitLabel="Modifier le mot de passe" loading={changePassword.isPending} />
+        <FormActions submitLabel="Modifier le mot de passe" submitIcon={<FloppyDiskIcon aria-hidden />} loading={changePassword.isPending} />
       </Stack>
     </form>
   );

@@ -1,5 +1,5 @@
 import { routineAlertTime } from '@ordo/shared';
-import { ArrowsClockwiseIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
 import { localToday } from '../../../lib/dates';
 import type { Routine } from '../../routines/api';
 import { isDone, windowText } from '../../routines/lib/routine-format';
@@ -40,7 +40,13 @@ export function ringRoutineReminders(routines: Routine[], now: Date, links: Ring
         const when = [windowText(slot), routine.location].filter(Boolean).join(' · ');
         const lines = [moment !== slot.fromTime && moment !== slot.dueTime ? `Partir à ${moment}` : null, when];
         systemNotification(routine.title, lines.filter(Boolean).join(' · ') || undefined, key);
-        notifyInfo({ id: key, icon: <ArrowsClockwiseIcon />, title: routine.title, lines, actions: [{ label: 'Marquer comme faite', onClick: () => markDone(routine, slot.index) }, ...links] });
+        notifyInfo({
+          id: key,
+          icon: <ArrowsClockwiseIcon />,
+          title: routine.title,
+          lines,
+          actions: [{ label: 'Marquer comme faite', icon: <CheckCircleIcon aria-hidden />, onClick: () => markDone(routine, slot.index) }, ...links],
+        });
       }
     }
   }

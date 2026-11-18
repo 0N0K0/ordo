@@ -2,7 +2,7 @@ import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Checkbox, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
-import { FilePdfIcon } from '@phosphor-icons/react';
+import { FilePdfIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -211,7 +211,7 @@ export function ImportedDocumentForm({
             {...form.getInputProps('settled', { type: 'checkbox' })}
           />
         )}
-        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} loading={create.isPending || update.isPending} />
+        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} submitIcon={document ? undefined : <FileArrowUpIcon aria-hidden />} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

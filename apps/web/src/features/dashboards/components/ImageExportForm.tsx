@@ -1,4 +1,5 @@
 import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { FileImageIcon } from '@phosphor-icons/react';
 import { useLocalStorage } from '@mantine/hooks';
 
 import type { ExportScheme } from '../lib/chart-image';
@@ -82,7 +83,7 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
       <Text size="sm" c="dimmed">
         Image PNG de {fmt.number(width, 0)} × {fmt.number(height, 0)} px.
       </Text>
-      <FormActions onCancel={onDone} submitLabel="Exporter" loading={loading} onSubmit={() => void exportImage()} />
+      <FormActions onCancel={onDone} submitLabel="Exporter" submitIcon={<FileImageIcon aria-hidden />} loading={loading} onSubmit={() => void exportImage()} />
     </Stack>
   );
 }

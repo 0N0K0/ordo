@@ -192,6 +192,7 @@ export function SheetPage() {
       storages: shopping?.shoppingStorages ?? [],
       members: people.members,
       relations: people.relations,
+      archivedPeople: people.archived,
     }),
     optionalColumn<SheetDetailItem>(),
     noteColumn<SheetDetailItem>({ size: 240 }),

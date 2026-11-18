@@ -323,8 +323,8 @@ export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<st
 /**
  * People a product, an item or a sheet item can be for, by id, and their names: beneficiaries, so any contributor and
  * any relation, whatever the project.
- * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[] }} Names (also by
- *   people key) and select options.
+ * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[], archived: Set<string> }} Names (also by
+ *   people key), select options and the people keys of the archived ones.
  */
 export function usePeople() {
   const { data } = useTreasurySettings();
@@ -337,7 +337,11 @@ export function usePeople() {
     [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
   );
   const byKey = new Map([...[...members].map(([id, name]) => [personKey('member', id), name] as const), ...[...relations].map(([id, name]) => [personKey('relation', id), name] as const)]);
-  return { members, relations, byKey, options };
+  const archived = new Set([
+    ...(context?.contributors ?? []).filter((contributor) => contributor.archived).map((contributor) => personKey('member', contributor.id)),
+    ...(data?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => personKey('relation', relation.id)),
+  ]);
+  return { members, relations, byKey, options, archived };
 }
 
 /**

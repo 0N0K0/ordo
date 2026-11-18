@@ -1,4 +1,5 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { CopyIcon } from '@phosphor-icons/react';
 import { Checkbox, Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
@@ -213,7 +214,7 @@ export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
             : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
         </Text>
       )}
-      <FormActions onCancel={() => onDone(false)} submitLabel="Cloner" loading={pending} autoFocus onSubmit={() => void clone()} />
+      <FormActions onCancel={() => onDone(false)} submitLabel="Cloner" submitIcon={<CopyIcon aria-hidden />} loading={pending} autoFocus onSubmit={() => void clone()} />
     </Stack>
   );
 }
