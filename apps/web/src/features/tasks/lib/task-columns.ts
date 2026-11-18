@@ -2,7 +2,7 @@ import { commentTotal } from '../../comments/lib/comment-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { personKey } from '../../../components/people/people-keys';
-import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
+import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, TASK_STATUS_CATEGORY_LABELS, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import type { EventOccurrence } from '../../calendar/api';
@@ -30,7 +30,7 @@ interface TaskColumnExtras {
 
 /** Categories of the statuses, in their order. */
 const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
-const STATUS_CATEGORY_LABELS: Record<TaskStatusCategory, string> = { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminé', CANCELLED: 'Annulé' };
+const STATUS_CATEGORY_LABELS = TASK_STATUS_CATEGORY_LABELS.status;
 
 /**
  * Tasks kept by a filter in the words of the task table (its columns), a search in their texts, the archived ones

@@ -1,3 +1,4 @@
+import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
 import type { EventOccurrence } from '../../calendar/api';
 import * as fmt from '../../../lib/format';
 
@@ -17,13 +18,11 @@ export function eventWhen(event: EventOccurrence, side: 'start' | 'end', numeric
   return numeric ? fmt.exportDateTime(at) : fmt.dateTime(at);
 }
 
-/** Where an event stands: to come, ongoing, over, cancelled or postponed. */
-type EventState = 'upcoming' | 'ongoing' | 'over' | 'cancelled' | 'postponed';
+/** Where an event stands: to come, ongoing, past (its period), cancelled or postponed. */
+type EventState = PeriodState | 'cancelled' | 'postponed';
 
 export const EVENT_STATES: Record<EventState, { label: string; color: string }> = {
-  upcoming: { label: 'À venir', color: 'blue' },
-  ongoing: { label: 'En cours', color: 'green' },
-  over: { label: 'Terminé', color: 'gray' },
+  ...PERIOD_STATES,
   cancelled: { label: 'Annulé', color: 'red' },
   postponed: { label: 'Reporté', color: 'orange' },
 };
@@ -37,6 +36,5 @@ export const EVENT_STATES: Record<EventState, { label: string; color: string }> 
 export function eventState(event: EventOccurrence, now: number): EventState {
   if (event.calledOff) return 'cancelled';
   if (event.postponedTo.length > 0) return 'postponed';
-  if (now < new Date(event.start).getTime()) return 'upcoming';
-  return now < new Date(event.end).getTime() ? 'ongoing' : 'over';
+  return periodState(new Date(event.start).getTime(), new Date(event.end).getTime(), now, { endExclusive: true });
 }

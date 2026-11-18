@@ -34,4 +34,5 @@ export * from './core/text';
 export * from './core/tree';
 export * from './core/collections';
 export * from './dates/periods';
+export * from './dates/format';
 export * from './core/rules';

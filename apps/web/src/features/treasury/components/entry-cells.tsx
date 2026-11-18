@@ -1,6 +1,8 @@
 import { ActionIcon, Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { FileBadge } from '../../../components/items/FileBadge';
+import { ellipsis } from '../../../lib/text';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
@@ -67,22 +69,13 @@ export function DocumentsCell({
       <StackedValues>
         {documents.map((document) => (
           <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
-            <Badge
-              size="sm"
-              variant="light"
-              color="gray"
-              leftSection={<PaperclipIcon aria-hidden />}
-              component="a"
+            <FileBadge
+              name={document.title}
               href={document.url}
               target="_blank"
-              rel="noopener noreferrer"
               // A file of the app (PDF, image) opens in its viewer.
-              onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
-              style={{ cursor: 'pointer' }}
-              tt="none"
-            >
-              {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
-            </Badge>
+              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
+            />
           </Tooltip>
         ))}
       </StackedValues>
@@ -129,7 +122,7 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
       <StackedValues>
         {links.map((link) => (
           <LinkBadge key={linkKey(link)} link={link} size="sm" variant="outline" withTooltip onUnlink={() => onSave(links.filter((other) => other !== link))}>
-            {link.entryLabel.length > 20 ? `${link.entryLabel.slice(0, 19)}…` : link.entryLabel} · {fmt.money(link.amount)}
+            {ellipsis(link.entryLabel, 20)} · {fmt.money(link.amount)}
           </LinkBadge>
         ))}
       </StackedValues>

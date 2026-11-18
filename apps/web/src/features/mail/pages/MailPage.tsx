@@ -8,16 +8,17 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Grid, Group, NavLink, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { mapById } from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, ClockCountdownIcon, EnvelopeSimpleIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from '../api';
 import { AccountFolders, type DraggedMails } from '../components/MailFolders';
-import { correspondent, listDate } from '../lib/mail-format';
+import { MailListItem } from '../components/MailListItem';
+import { MailListPane } from '../components/MailListPane';
 import { MailLabelsManager } from '../components/MailLabelsManager';
 import { MailSelectionBar } from '../components/MailOrganizeActions';
 import classes from './MailPage.module.css';
@@ -222,157 +223,115 @@ export function MailPage() {
                   onManageLabels={openSettings}
               />
             ) : (
-              <>
-            <Stack gap={6} p="xs" className={classes.listHeader}>
-              <Group gap={4} wrap="nowrap">
-                <TextInput
-                  size="xs"
-                  style={{ flex: 1 }}
-                  placeholder="Rechercher (objet, expéditeur, texte)"
-                  aria-label="Rechercher dans le dossier"
-                  leftSection={<MagnifyingGlassIcon aria-hidden />}
-                  value={search}
-                  onChange={(event) => {
-                    mailSearch.setText(event.currentTarget.value, { page: null });
-                  }}
-                />
-                <Tooltip label="Recherche avancée">
-                  <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
-                    <SlidersHorizontalIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-              {advancedOpen && accountId && (
-                <AdvancedSearchPanel
-                  accountId={accountId}
-                  folder={folder}
-                  value={null}
-                  onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
-                  onClear={() => mailSearch.setAdvancedOpen(false)}
-                  onSave={(criteria) => openSearchForm(undefined, (id) => update({ search: id, page: null, uid: null }), criteria)}
-                />
-              )}
-              <Group justify="space-between" gap="xs" wrap="nowrap">
-                <Checkbox
-                  size="xs"
-                  aria-label="Tout sélectionner sur la page"
-                  checked={selected.length > 0 && selected.length === (messages.data?.messages.length ?? 0)}
-                  indeterminate={selected.length > 0 && selected.length < (messages.data?.messages.length ?? 0)}
-                  disabled={!messages.data?.messages.length}
-                  onChange={(event) => setSelected(event.currentTarget.checked ? (messages.data?.messages ?? []).map((message) => message.uid) : [])}
-                />
-                {selected.length > 0 && accountId ? (
-                  <MailSelectionBar
-                    groups={[{ accountId, folder, uids: selected }]}
-                    done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
-                    labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
-                    onGone={() => {
-                      setSelected([]);
-                      if (uid !== null && selected.includes(uid)) update({ uid: null });
-                    }}
-                    onClear={() => setSelected([])}
-                    onManageLabels={openSettings}
-                  />
-                ) : (
-                  <MailListControls
-                    sorts={MAIL_SORTS}
-                    sort={sortParam}
-                    onSort={(value) => update({ sort: value === 'date-desc' ? null : value, page: null })}
-                    done={doneFilter}
-                    onDone={(value) => update({ state: value === 'all' ? null : value, page: null, uid: null })}
-                  />
-                )}
-              </Group>
-            </Stack>
-            {messages.error ? (
-              <ErrorAlert m="xs">
-                {messages.error.message}
-              </ErrorAlert>
-            ) : messages.isPending && accountId ? (
-              <ListSkeleton items={6} lines={2} />
-            ) : total === 0 ? (
-              <Box p="xl">
-                <EmptyState
-                  plain
-                  icon={<EnvelopeSimpleIcon aria-hidden />}
-                  message={debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
-                />
-              </Box>
-            ) : (
-              <div className={classes.paneScroll} style={{ opacity: messages.isPlaceholderData ? 0.6 : 1 }}>
+              <MailListPane
+                top={
+                  <>
+                    <Group gap={4} wrap="nowrap">
+                      <TextInput
+                        size="xs"
+                        style={{ flex: 1 }}
+                        placeholder="Rechercher (objet, expéditeur, texte)"
+                        aria-label="Rechercher dans le dossier"
+                        leftSection={<MagnifyingGlassIcon aria-hidden />}
+                        value={search}
+                        onChange={(event) => {
+                          mailSearch.setText(event.currentTarget.value, { page: null });
+                        }}
+                      />
+                      <Tooltip label="Recherche avancée">
+                        <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
+                          <SlidersHorizontalIcon aria-hidden />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                    {advancedOpen && accountId && (
+                      <AdvancedSearchPanel
+                        accountId={accountId}
+                        folder={folder}
+                        value={null}
+                        onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
+                        onClear={() => mailSearch.setAdvancedOpen(false)}
+                        onSave={(criteria) => openSearchForm(undefined, (id) => update({ search: id, page: null, uid: null }), criteria)}
+                      />
+                    )}
+                  </>
+                }
+                selection={{
+                  count: selected.length,
+                  total: messages.data?.messages.length ?? 0,
+                  onAll: (checked) => setSelected(checked ? (messages.data?.messages ?? []).map((message) => message.uid) : []),
+                }}
+                toolbar={
+                  selected.length > 0 && accountId ? (
+                    <MailSelectionBar
+                      groups={[{ accountId, folder, uids: selected }]}
+                      done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
+                      labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
+                      onGone={() => {
+                        setSelected([]);
+                        if (uid !== null && selected.includes(uid)) update({ uid: null });
+                      }}
+                      onClear={() => setSelected([])}
+                      onManageLabels={openSettings}
+                    />
+                  ) : (
+                    <MailListControls
+                      sorts={MAIL_SORTS}
+                      sort={sortParam}
+                      onSort={(value) => update({ sort: value === 'date-desc' ? null : value, page: null })}
+                      done={doneFilter}
+                      onDone={(value) => update({ state: value === 'all' ? null : value, page: null, uid: null })}
+                    />
+                  )
+                }
+                status={
+                  messages.error ? (
+                    <ErrorAlert m="xs">{messages.error.message}</ErrorAlert>
+                  ) : messages.isPending && accountId ? (
+                    <ListSkeleton items={6} lines={2} />
+                  ) : total === 0 ? (
+                    <Box p="xl">
+                      <EmptyState
+                        plain
+                        icon={<EnvelopeSimpleIcon aria-hidden />}
+                        message={debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
+                      />
+                    </Box>
+                  ) : undefined
+                }
+                stale={messages.isPlaceholderData}
+                page={page}
+                pages={pages}
+                onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
+              >
                 {messages.data?.messages.map((message) => {
                   const ticked = selected.includes(message.uid);
-                  const messageLabels = message.labelIds.map((id) => labelById.get(id)).filter((label) => label !== undefined);
                   return (
-                    <div
+                    <MailListItem
                       key={message.uid}
-                      role="button"
-                      tabIndex={0}
-                      className={classes.item}
-                      data-active={message.uid === uid || undefined}
-                      data-unread={!message.seen || undefined}
-                      data-done={message.done || undefined}
-                      data-selected={ticked || undefined}
-                      draggable={Boolean(accountId)}
-                      onDragStart={(event) => {
-                        if (!accountId) return;
-                        // The ticked mails, or this one.
-                        const uids = ticked ? selected : [message.uid];
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', `${countOf(uids.length, 'mail')}`);
-                        setDragged({ accountId, folder, uids });
-                      }}
+                      message={message}
+                      labels={message.labelIds.map((id) => labelById.get(id)).filter((label) => label !== undefined)}
+                      ownAddresses={ownAddresses}
+                      active={message.uid === uid}
+                      ticked={ticked}
+                      onTick={(checked) => setSelected(checked ? [...selected, message.uid] : selected.filter((item) => item !== message.uid))}
+                      onOpen={() => update({ uid: String(message.uid) })}
+                      onDragStart={
+                        accountId
+                          ? (event) => {
+                              // The ticked mails, or this one.
+                              const uids = ticked ? selected : [message.uid];
+                              event.dataTransfer.effectAllowed = 'move';
+                              event.dataTransfer.setData('text/plain', `${countOf(uids.length, 'mail')}`);
+                              setDragged({ accountId, folder, uids });
+                            }
+                          : undefined
+                      }
                       onDragEnd={() => setDragged(null)}
-                      onClick={() => update({ uid: String(message.uid) })}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') update({ uid: String(message.uid) });
-                      }}
-                    >
-                      <Group gap="xs" wrap="nowrap" align="flex-start">
-                        <Checkbox
-                          size="xs"
-                          mt={3}
-                          aria-label={`Sélectionner « ${message.subject} »`}
-                          checked={ticked}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => setSelected(event.currentTarget.checked ? [...selected, message.uid] : selected.filter((item) => item !== message.uid))}
-                        />
-                        <Box style={{ flex: 1, minWidth: 0 }}>
-                          <Group justify="space-between" wrap="nowrap" gap="xs">
-                            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-                              {message.done && <CheckCircleIcon weight="fill" color="var(--mantine-color-green-6)" aria-label="Traité" style={{ flex: 'none' }} />}
-                              <Text size="sm" truncate className={classes.sender}>
-                                {correspondent(message, ownAddresses)}
-                              </Text>
-                            </Group>
-                            <Group gap={4} wrap="nowrap">
-                              {messageLabels.map((label) => (
-                                <Tooltip key={label.id} label={label.name}>
-                                  <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau ${label.name}`} />
-                                </Tooltip>
-                              ))}
-                              {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}
-                              <Text size="xs" c="dimmed">
-                                {listDate(message.date)}
-                              </Text>
-                            </Group>
-                          </Group>
-                          <Text size="sm" truncate className={classes.subject}>
-                            {message.subject}
-                          </Text>
-                        </Box>
-                      </Group>
-                    </div>
+                    />
                   );
                 })}
-              </div>
-            )}
-            {pages > 1 && (
-              <Group justify="center" p="xs" className={classes.listFooter}>
-                <Pagination size="sm" total={pages} value={page} onChange={(value) => update({ page: value > 1 ? String(value) : null, uid: null })} />
-              </Group>
-            )}
-              </>
+              </MailListPane>
             )}
           </Paper>
         </Grid.Col>

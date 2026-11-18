@@ -13,7 +13,7 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { projectDepth, projectHeight } from '../lib/tree';
 import classes from './ProjectList.module.css';
 import { useDragSensors } from '../../../lib/drag';
-import treeRow from '../../../components/tree/TreeRow.module.css';
+import treeRow from '../../../components/tree/tree-drop.module.css';
 import { DragHandle } from '../../../components/actions/DragHandle';
 
 interface ProjectListProps {
@@ -75,7 +75,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
         <DragHandle label={`Déplacer ${project.title}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       )}
       {folded !== undefined ? (
-        <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.title}`} aria-expanded={!folded} onClick={onToggle}>
+        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.title}`} aria-expanded={!folded} onClick={onToggle}>
           {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
         </ActionIcon>
       ) : (

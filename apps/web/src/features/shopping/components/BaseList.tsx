@@ -136,7 +136,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         size: 120,
         sortValue: (product) => product.lastPurchasedAt ?? null,
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
+        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
       {
         id: 'missing',

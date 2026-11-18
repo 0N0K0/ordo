@@ -1,5 +1,5 @@
 import { Anchor, Button, Divider, Group, Stack, Text } from '@mantine/core';
-import { nextOccurrence } from '@ordo/shared';
+import { nextRing } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, TimerIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -23,8 +23,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
   const next = useMemo(() => {
     const now = new Date();
     return (alarms.data ?? [])
-      .filter((alarm) => alarm.enabled && alarm.type !== 'TRACKING_DURATION')
-      .map((alarm) => ({ alarm, at: nextOccurrence(alarm, now) }))
+      .map((alarm) => ({ alarm, at: nextRing(alarm, now) }))
       .filter((item): item is { alarm: (typeof item)['alarm']; at: Date } => item.at !== null)
       .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
   }, [alarms.data]);

@@ -22,7 +22,7 @@ import { useAppForm, formCallbacks } from '../../../lib/form';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
-import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from '../api';
+import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
 import { archivedCalendarIds } from '../lib/calendar-events';
 import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
@@ -31,7 +31,7 @@ import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { askScope } from '../lib/ask-scope';
+import { askScope, chooseScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from '../lib/event-input';
@@ -43,7 +43,8 @@ import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { EventRepetition } from './EventRepetition';
 import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
+import { useCalendarCategoryItems } from '../hooks/use-settings-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -135,8 +136,7 @@ interface EventFormProps {
  * @returns {JSX.Element} Form.
  */
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
-  const { create: createCategory } = useCalendarCategoryMutations();
-  const color = useDefaultColor();
+  const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
   const { startTimer, isPending: timerStarting } = useStartTimer();
 
@@ -249,13 +249,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
       create.mutate(input, callbacks);
       return;
     }
-    let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
-    if (recurring) {
-      const ruleChanged = JSON.stringify(input.recurrence) !== JSON.stringify(occurrence.recurrence);
-      const chosen = await askScope({ action: 'update', allowThis: !ruleChanged });
-      if (!chosen) return;
-      scope = chosen;
-    }
+    // A new rule applies from an occurrence on, never to this one alone.
+    const ruleChanged = JSON.stringify(input.recurrence) !== JSON.stringify(occurrence.recurrence);
+    const scope = await chooseScope(recurring, { action: 'update', allowThis: !ruleChanged });
+    if (!scope) return;
     update.mutate({ id: occurrence.eventId, input, scope, occurrenceDate: occurrence.occurrenceDate }, callbacks);
   });
 
@@ -267,10 +264,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     if (!occurrence) return;
     /**
      * Runs the deletion.
-     * @param {'THIS' | 'FOLLOWING' | 'ALL'} scope Scope.
+     * @param {CalendarEventScope} scope Scope.
      * @returns {void}
      */
-    const run = (scope: 'THIS' | 'FOLLOWING' | 'ALL') =>
+    const run = (scope: CalendarEventScope) =>
       remove.mutate(
         { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate },
         formCallbacks(null, 'Évènement supprimé.', onDone),
@@ -294,12 +291,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
    */
   const handleCalledOff = async (calledOff: boolean) => {
     if (!occurrence) return;
-    let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
-    if (recurring) {
-      const chosen = await askScope({ action: calledOff ? 'cancel' : 'restore' });
-      if (!chosen) return;
-      scope = chosen;
-    }
+    const scope = await chooseScope(recurring, { action: calledOff ? 'cancel' : 'restore' });
+    if (!scope) return;
     setCalledOff.mutate(
       { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff },
       formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone),
@@ -448,7 +441,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             {...form.getInputProps('relationIds')}
           />
           <BatchMultiSelect
-            onCreate={async (name) => (await createCategory.mutateAsync({ name, color, parentId: null })).id}
+            onCreate={itemCreator('Nouvelle catégorie d’agenda', categoryItems, { tree: unarchived(categories ?? []) })}
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
             // Archived categories are no longer offered, but those of the event stay.

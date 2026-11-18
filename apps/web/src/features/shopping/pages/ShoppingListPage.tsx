@@ -1,3 +1,4 @@
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { PAGES } from '../../../app/pages';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { BackLink } from '../../../components/page/BackLink';
@@ -13,9 +14,7 @@ import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title } from '@m
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
-  ArrowLeftIcon,
   BankIcon,
-  BasketIcon,
   CalendarPlusIcon,
   DotsThreeVerticalIcon,
   ListPlusIcon,
@@ -207,17 +206,7 @@ export function ShoppingListPage() {
     return <TableSkeleton rows={4} />;
   }
   if (!list) {
-    return (
-      <EmptyState
-        icon={<BasketIcon aria-hidden />}
-        message="Cette liste n’existe pas ou a été supprimée."
-        action={
-          <ActionButton priority="secondary" to="/shopping?tab=lists" icon={<ArrowLeftIcon aria-hidden />}>
-            Retour aux listes
-          </ActionButton>
-        }
-      />
-    );
+    return <DetailNotFound what="Cette liste" feminine backTo="/shopping?tab=lists" backLabel="Listes d’achats" />;
   }
 
   const tasks = listTasks(list, context);

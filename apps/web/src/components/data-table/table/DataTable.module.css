@@ -35,7 +35,7 @@
 
     /* Effets */
     &[data-dragging] {
-      opacity: 0.6;
+      opacity: var(--onoko-dragging-opacity);
     }
 
     /* Interaction */
@@ -59,21 +59,14 @@
     text-overflow: ellipsis;
   }
 
+  /* Shown on hover of its header ([data-reveal], styles/reveal.css) and while it is dragged. */
   .headerMenu {
     /* Agencement */
     display: inline-flex;
     flex: none;
 
     /* Effets */
-    opacity: 0;
-
-    .header:hover &,
-    &:focus-within,
     .header[data-dragging] & {
-      opacity: 1;
-    }
-
-    @media (hover: none) {
       opacity: 1;
     }
   }
@@ -190,23 +183,11 @@
 }
 
 @layer app {
-  /* Check box of a row: shown on hover or focus of its row (or of the header), when checked, or while rows are. */
+  /* Check box of a row: shown on hover or focus of its row or header cell ([data-reveal], styles/reveal.css), when checked, or while rows are. */
   .rowCheck {
     /* Effets */
-    opacity: 0;
-    transition: opacity 120ms ease;
-
-    tr:hover &,
-    tr:focus-within &,
     table[data-checking] &,
-    &:has(input:checked),
-    &:has(input:focus-visible) {
-      /* Effets */
-      opacity: 1;
-    }
-
-    /* Touch screens: no hover, always shown. */
-    @media (hover: none) {
+    &:has(input:checked) {
       opacity: 1;
     }
   }
@@ -227,7 +208,7 @@
     }
 
     &[data-dragging] {
-      opacity: 0.5;
+      opacity: var(--onoko-dragging-opacity);
     }
 
     /* Future parent of the dragged row. */
@@ -260,19 +241,8 @@
     width: calc(1.375rem * var(--mantine-scale));
   }
 
+  /* Shown on hover or focus of its row ([data-reveal], styles/reveal.css). */
   .handle {
-    /* Effets */
-    opacity: 0;
-
-    .row:hover &,
-    &:focus-visible {
-      opacity: 1;
-    }
-
-    @media (hover: none) {
-      opacity: 1;
-    }
-
     /* Interaction */
     cursor: grab;
   }

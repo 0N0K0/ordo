@@ -1,3 +1,4 @@
+import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
 import { itemChoices } from '../../../components/items/item-look';
 import { plural, countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -8,7 +9,6 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   mapById,
-  DEFAULT_SCHEDULE_DISPLAY,
   DEFAULT_SCHEDULE_KIND_NAME,
   readScheduleCases,
   readScheduleExceptions,
@@ -42,7 +42,8 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
+import { useScheduleTypeItems } from '../hooks/use-settings-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface ScheduleValues extends Record<string, unknown> {
@@ -62,8 +63,8 @@ interface ScheduleValues extends Record<string, unknown> {
  * @returns {JSX.Element} Form.
  */
 function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; copyOf?: WorkSchedule; onDone: () => void }) {
-  const { create, update, saveType } = useWorkScheduleMutations();
-  const color = useDefaultColor();
+  const { create, update } = useWorkScheduleMutations();
+  const typeItems = useScheduleTypeItems();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
@@ -109,7 +110,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
               clearable
               searchable
-              onCreate={(name) => saveType.mutateAsync({ id: null, input: { name, color, ...DEFAULT_SCHEDULE_DISPLAY } })}
+              onCreate={itemCreator('Nouveau type de plage', typeItems)}
               {...listSelectProps(types ?? [], undefined, schedule?.typeId)}
               {...form.getInputProps('typeId')}
             />
@@ -128,10 +129,13 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   );
 }
 
-/** State of a schedule today. */
+/** State of a schedule today (the values kept in the saved views' filters). */
 type ScheduleState = 'CURRENT' | 'UPCOMING' | 'PAST';
-const STATE_LABELS: Record<ScheduleState, string> = { CURRENT: 'En cours', UPCOMING: 'À venir', PAST: 'Passée' };
-const STATE_COLORS: Record<ScheduleState, string> = { CURRENT: 'green', UPCOMING: 'blue', PAST: 'gray' };
+/** State of its period, for its label and color. */
+const PERIOD_OF: Record<ScheduleState, PeriodState> = { CURRENT: 'current', UPCOMING: 'upcoming', PAST: 'past' };
+const STATE_OF: Record<PeriodState, ScheduleState> = { current: 'CURRENT', upcoming: 'UPCOMING', past: 'PAST' };
+const STATE_LABELS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].label])) as Record<ScheduleState, string>;
+const STATE_COLORS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].color])) as Record<ScheduleState, string>;
 const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PAST: 2 };
 
 /** Row of the table of the schedules: a schedule, its state today, its exceptions. */
@@ -146,9 +150,7 @@ const NO_KIND = 'none';
  * @returns {ScheduleState} State.
  */
 function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
-  if (schedule.startDate > today) return 'UPCOMING';
-  if (schedule.endDate && schedule.endDate < today) return 'PAST';
-  return 'CURRENT';
+  return STATE_OF[periodState(schedule.startDate, schedule.endDate ?? null, today)];
 }
 
 /**

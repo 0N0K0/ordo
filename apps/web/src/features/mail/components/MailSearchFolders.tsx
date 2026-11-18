@@ -2,19 +2,19 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
-import { plural } from '../../../lib/text';
+import { countOf } from '../../../lib/text';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Badge, Box, Checkbox, Group, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Group, NavLink, Text } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
-import { CheckCircleIcon, EnvelopeSimpleIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { EnvelopeSimpleIcon, FunnelIcon, MagnifyingGlassPlusIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
-import { correspondent, listDate } from '../lib/mail-format';
+import { MailListItem } from './MailListItem';
+import { MailListPane } from './MailListPane';
 import { groupMails } from '../lib/mail-groups';
 import { MailSelectionBar } from './MailOrganizeActions';
-import classes from '../pages/MailPage.module.css';
 import { openSearchForm } from '../lib/open-search-form';
 
 /**
@@ -142,105 +142,60 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   const messages = results.data?.messages ?? [];
   const selectedMessages = messages.filter((message) => selected.includes(mailKey(message)));
   return (
-    <>
-      <Group gap="xs" wrap="nowrap" p="xs" className={classes.listHeader} mih={44}>
-        <Checkbox
-          size="xs"
-          aria-label="Tout sélectionner sur la page"
-          checked={selected.length > 0 && selected.length === messages.length}
-          indeterminate={selected.length > 0 && selected.length < messages.length}
-          onChange={(event) => setSelected(event.currentTarget.checked ? messages.map(mailKey) : [])}
-        />
-        {selected.length > 0 ? (
-          <MailSelectionBar
-            groups={groupMails(selectedMessages)}
-            done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
-            labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
-            onGone={() => {
-              if (open && selected.includes(mailKey(open))) onOpenGone();
-              setSelected([]);
-            }}
-            onClear={() => setSelected([])}
-            onManageLabels={onManageLabels}
-            noMove={noMove}
-          />
-        ) : (
-          <Text size="xs" c="dimmed">
-            {total} {plural(total, 'mail')}
-          </Text>
-        )}
-      </Group>
-      <div className={classes.paneScroll} style={{ opacity: results.isPlaceholderData ? 0.6 : 1 }}>
-        {messages.map((message) => {
-          const active = open?.accountId === message.accountId && open.folder === message.folder && open.uid === message.uid;
-          const ticked = selected.includes(mailKey(message));
-          return (
-            <div
-              key={`${message.accountId}-${message.folder}-${message.uid}`}
-              role="button"
-              tabIndex={0}
-              className={classes.item}
-              data-active={active || undefined}
-              data-unread={!message.seen || undefined}
-              data-done={message.done || undefined}
-              data-selected={ticked || undefined}
-              onClick={() => onOpen(message)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') onOpen(message);
+    <MailListPane
+      selection={{ count: selected.length, total: messages.length, onAll: (checked) => setSelected(checked ? messages.map(mailKey) : []) }}
+      toolbar={
+        // Next to the box (not pushed to the right as the list controls of a folder).
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          {selected.length > 0 ? (
+            <MailSelectionBar
+              groups={groupMails(selectedMessages)}
+              done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
+              labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
+              onGone={() => {
+                if (open && selected.includes(mailKey(open))) onOpenGone();
+                setSelected([]);
               }}
-            >
-              <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Checkbox
-                  size="xs"
-                  mt={3}
-                  aria-label={`Sélectionner « ${message.subject} »`}
-                  checked={ticked}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={(event) => setSelected(event.currentTarget.checked ? [...selected, mailKey(message)] : selected.filter((key) => key !== mailKey(message)))}
-                />
-                <Box style={{ flex: 1, minWidth: 0 }}>
-                  <Group justify="space-between" wrap="nowrap" gap="xs">
-                    <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-                      {message.done && <CheckCircleIcon weight="fill" color="var(--mantine-color-green-6)" aria-label="Traité" style={{ flex: 'none' }} />}
-                      <Text size="sm" truncate className={classes.sender}>
-                        {correspondent(message, ownAddresses)}
-                      </Text>
-                    </Group>
-                    <Group gap={4} wrap="nowrap">
-                      {message.labelIds
-                        .map((id) => labels?.find((label) => label.id === id))
-                        .filter((label) => label !== undefined)
-                        .map((label) => (
-                          <Tooltip key={label.id} label={label.name}>
-                            <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau ${label.name}`} />
-                          </Tooltip>
-                        ))}
-                      {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}
-                      <Text size="xs" c="dimmed">
-                        {listDate(message.date)}
-                      </Text>
-                    </Group>
-                  </Group>
-                  <Text size="sm" truncate className={classes.subject}>
-                    {message.subject}
-                  </Text>
-                  <Box>
-                    <Badge size="xs" variant="light" color="gray">
-                      {several ? `${accounts?.find((account) => account.id === message.accountId)?.name ?? ''} · ` : ''}
-                      {message.folderName}
-                    </Badge>
-                  </Box>
-                </Box>
-              </Group>
-            </div>
-          );
-        })}
-      </div>
-      {pages > 1 && (
-        <Group justify="center" p="xs" className={classes.listFooter}>
-          <Pagination size="sm" total={pages} value={page} onChange={onPage} />
+              onClear={() => setSelected([])}
+              onManageLabels={onManageLabels}
+              noMove={noMove}
+            />
+          ) : (
+            <Text size="xs" c="dimmed">
+              {countOf(total, 'mail')}
+            </Text>
+          )}
         </Group>
-      )}
-    </>
+      }
+      stale={results.isPlaceholderData}
+      page={page}
+      pages={pages}
+      onPage={onPage}
+    >
+      {messages.map((message) => {
+        const key = mailKey(message);
+        const ticked = selected.includes(key);
+        return (
+          <MailListItem
+            key={key}
+            message={message}
+            labels={message.labelIds.map((id) => labels?.find((label) => label.id === id)).filter((label) => label !== undefined)}
+            ownAddresses={ownAddresses}
+            active={open?.accountId === message.accountId && open.folder === message.folder && open.uid === message.uid}
+            ticked={ticked}
+            onTick={(checked) => setSelected(checked ? [...selected, key] : selected.filter((item) => item !== key))}
+            onOpen={() => onOpen(message)}
+            footer={
+              <Box>
+                <Badge size="xs" variant="light" color="gray">
+                  {several ? `${accounts?.find((account) => account.id === message.accountId)?.name ?? ''} · ` : ''}
+                  {message.folderName}
+                </Badge>
+              </Box>
+            }
+          />
+        );
+      })}
+    </MailListPane>
   );
 }

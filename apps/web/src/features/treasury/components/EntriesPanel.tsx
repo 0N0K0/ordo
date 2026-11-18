@@ -32,6 +32,7 @@ import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -63,13 +64,6 @@ interface EntriesPanelProps {
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /**
- * Month of an entry, YYYY-MM.
- * @param {TreasuryEntry} entry Entry.
- * @returns {string} Month.
- */
-const monthOf = (entry: TreasuryEntry) => entry.date.slice(0, 7);
-
-/**
  * Columns of the entries: month (to group), execution date, label, amount, documents settled, then the columns every
  * table of entries shares.
  * @param {EntryEnv} env Names.
@@ -77,16 +71,7 @@ const monthOf = (entry: TreasuryEntry) => entry.date.slice(0, 7);
  */
 function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
   return [
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: monthOf,
-      text: (entry) => fmt.capitalize(fmt.month(monthOf(entry))),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', (entry) => entry.date),
     {
       id: 'date',
       bulk: true,

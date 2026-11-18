@@ -9,9 +9,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
-import { useSortable } from '@dnd-kit/sortable';
 import { SortableArea } from '../../../components/actions/sortable';
-import { sortableStyle } from '../../../components/actions/sortable-style';
+import { useSortableItem } from '../../../components/actions/use-sortable-item';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
@@ -94,19 +93,12 @@ interface SortableMilestoneProps {
  * @returns {JSX.Element} Card.
  */
 function SortableMilestone({ milestone, sortable, children }: SortableMilestoneProps) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: milestone.id, disabled: !sortable });
+  const { ref, style, dragging, handle } = useSortableItem(milestone.id, !sortable);
   return (
-    <Paper
-      ref={setNodeRef}
-      withBorder
-      radius="md"
-      p="md"
-      shadow={isDragging ? 'md' : undefined}
-      style={sortableStyle({ transform, transition, isDragging })}
-    >
+    <Paper ref={ref} withBorder radius="md" p="md" shadow={dragging ? 'md' : undefined} style={style}>
       <Group gap="sm" wrap="nowrap" align="flex-start">
         {sortable && (
-          <DragHandle label={`Déplacer le jalon ${milestone.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
+          <DragHandle label={`Déplacer le jalon ${milestone.title}`} {...handle} />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>

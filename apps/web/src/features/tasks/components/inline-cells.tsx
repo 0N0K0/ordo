@@ -23,7 +23,7 @@ import classes from '../../../components/data-table/cells/EditableCells.module.c
 
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, stopClick } from '../../../components/data-table/cells/cell-field';
+import { cellCombobox as sharedCombobox, cellLabel, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
@@ -41,7 +41,7 @@ const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
  * @returns {string} Label.
  */
 function fieldLabel(name: string, task: Task, count: number): string {
-  return count > 1 ? `${name} (appliqué aux ${count} cellules sélectionnées)` : `${name} de la tâche ${taskName(task)}`;
+  return cellLabel(name, `de la tâche ${taskName(task)}`, count);
 }
 
 /**

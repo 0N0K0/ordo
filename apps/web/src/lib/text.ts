@@ -21,3 +21,13 @@ export function plural(count: number, word: string, many = `${word}s`): string {
 export function countOf(count: number, word: string, many?: string): string {
   return `${count} ${plural(count, word, many)}`;
 }
+
+/**
+ * A text cut to a length, an ellipsis replacing its end: « rapport-annuel-2026-ver… ».
+ * @param {string} text Text.
+ * @param {number} max Most characters kept, the ellipsis included.
+ * @returns {string} Text, whole when short enough.
+ */
+export function ellipsis(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}

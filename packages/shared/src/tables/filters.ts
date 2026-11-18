@@ -31,10 +31,28 @@ export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNot
 
 /**
  * Relative date tokens: `today`, `today+3`, `today-7` (days from today),
- * or a period for `within`: `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisYear`, `lastYear`, `nextYear`,
+ * or a period for `within` (and the period presets of the export forms): `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`,
+ * `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `nextQuarter`, `thisYear`, `lastYear`, `nextYear`,
  * `past:7` / `next:7` (the last / next N days, today included).
  */
-const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisYear', 'lastYear', 'nextYear'] as const;
+export const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisQuarter', 'lastQuarter', 'nextQuarter', 'thisYear', 'lastYear', 'nextYear'] as const;
+export type DatePeriod = (typeof DATE_PERIODS)[number];
+
+/** Names of the periods, the same everywhere (filters, export forms, dashboards): « Ce mois-ci », « Le mois dernier »… */
+export const DATE_PERIOD_LABELS: Record<DatePeriod, string> = {
+  thisWeek: 'Cette semaine',
+  lastWeek: 'La semaine dernière',
+  nextWeek: 'La semaine prochaine',
+  thisMonth: 'Ce mois-ci',
+  lastMonth: 'Le mois dernier',
+  nextMonth: 'Le mois prochain',
+  thisQuarter: 'Ce trimestre',
+  lastQuarter: 'Le trimestre dernier',
+  nextQuarter: 'Le trimestre prochain',
+  thisYear: 'Cette année',
+  lastYear: 'L’année dernière',
+  nextYear: 'L’année prochaine',
+};
 
 const relativeDay = /^today([+-]\d{1,4})?$/;
 const rollingPeriod = /^(past|next):\d{1,4}$/;
@@ -58,7 +76,8 @@ export function filterDay(token: string, today: string): string {
 }
 
 /**
- * First day and the day after the last one of a period token (`thisWeek`, `lastMonth`, `past:7`, `next:30`…).
+ * First day and the day after the last one of a period token (`thisWeek`, `lastMonth`, `past:7`, `next:30`…): the end
+ * is exclusive (the filters compare `day < end`); `addDays(end, -1)` gives the last day.
  * Weeks are those of the workspace (Monday to Sunday by default).
  * @param {string} token Period token.
  * @param {string} today User's current day (YYYY-MM-DD).
@@ -72,8 +91,8 @@ export function filterPeriod(token: string, today: string, week: WeekSpan = DEFA
     return rolling[1] === 'past' ? [addDays(today, -(days - 1)), addDays(today, 1)] : [today, addDays(today, days)];
   }
   if (token.endsWith('Week')) return weekRange(today, week, token === 'lastWeek' ? -1 : token === 'nextWeek' ? 1 : 0);
-  const scale = token.endsWith('Year') ? 'year' : 'month';
-  const shift = token === 'lastYear' || token === 'lastMonth' ? -1 : token === 'nextYear' || token === 'nextMonth' ? 1 : 0;
+  const scale = token.endsWith('Year') ? 'year' : token.endsWith('Quarter') ? 'quarter' : 'month';
+  const shift = token.startsWith('last') ? -1 : token.startsWith('next') ? 1 : 0;
   const start = shiftCalendar(scale, calendarStart(scale, today), shift);
   return [start, shiftCalendar(scale, start, 1)];
 }

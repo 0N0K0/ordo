@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
-import { countBy, routineCategorySchema } from '@ordo/shared';
-import { createdId } from '../../../components/settings/settings-api';
+import { countBy } from '@ordo/shared';
+import { useRoutineCategoryItems } from '../hooks/use-category-items';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { useRoutineMutations, useRoutinesData } from '../api';
@@ -11,20 +11,15 @@ import { useRoutineMutations, useRoutinesData } from '../api';
  */
 export function RoutineSettings() {
   const { data } = useRoutinesData();
-  const { createCategory, updateCategory, moveCategory, deleteCategory } = useRoutineMutations();
+  const { moveCategory, deleteCategory } = useRoutineMutations();
+  const kind = useRoutineCategoryItems();
   const categories = data?.routineCategories ?? [];
   const usage = countBy(data?.routines ?? [], (routine) => routine.categoryIds);
-  /**
-   * Input of a category from the form values.
-   * @param {{ name: string, color: string, parentId: string | null }} values Values.
-   * @returns {object} Input.
-   */
-  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, parentId: values.parentId });
   return (
     <PageSettings title="Paramètres des routines">
       <Stack gap="md">
         <SettingsList
-          kind="ROUTINE_CATEGORY"
+          {...kind}
           nested
           title="Catégories"
           description="Classent les routines, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
@@ -32,9 +27,6 @@ export function RoutineSettings() {
           items={categories}
           usage={usage}
           usageNoun="routines"
-          schema={routineCategorySchema}
-          create={async (values) => createdId(await createCategory.mutateAsync(input(values)))}
-          update={(id, values) => updateCategory.mutateAsync({ id, input: input(values) })}
           remove={(id) => deleteCategory.mutateAsync(id)}
           move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
         />

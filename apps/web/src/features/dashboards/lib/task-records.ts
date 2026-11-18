@@ -1,4 +1,4 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2 } from '@ordo/shared';
+import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2, TASK_STATUS_CATEGORY_LABELS } from '@ordo/shared';
 import { localDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -7,12 +7,8 @@ import type { SprintTaskStatus } from '../api';
 import { aggregate, none, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../../lib/format';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  TODO: 'À faire',
-  IN_PROGRESS: 'En cours',
-  DONE: 'Terminée',
-  CANCELLED: 'Annulée',
-};
+/** Tasks grouped by the category of their status: « Terminée », « Annulée ». */
+const CATEGORY_LABELS: Record<string, string> = TASK_STATUS_CATEGORY_LABELS.task;
 
 /**
  * Day of a task for a date dimension, or null when the task has none.

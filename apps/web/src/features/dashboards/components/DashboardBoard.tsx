@@ -30,9 +30,8 @@ import {
   TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { useSortable } from '@dnd-kit/sortable';
 import { SortableArea } from '../../../components/actions/sortable';
-import { sortableStyle } from '../../../components/actions/sortable-style';
+import { useSortableItem } from '../../../components/actions/use-sortable-item';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -127,7 +126,7 @@ interface ChartCardProps {
  * @returns {JSX.Element} Card.
  */
 function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit, readOnly = false }: ChartCardProps) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: chart.id });
+  const { ref: sortableRef, style: sortableItemStyle, dragging, handle } = useSortableItem(chart.id);
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
@@ -214,20 +213,20 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
 
   return (
     <Paper
-      ref={setNodeRef}
+      ref={sortableRef}
       withBorder
       radius="md"
       p="md"
-      shadow={isDragging ? 'md' : undefined}
+      shadow={dragging ? 'md' : undefined}
       style={{
         gridColumn: chart.wide ? '1 / -1' : undefined,
         minWidth: 0,
-        ...sortableStyle({ transform, transition, isDragging }),
+        ...sortableItemStyle,
       }}
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          {!readOnly && <DragHandle label={`Déplacer ${chart.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />}
+          {!readOnly && <DragHandle label={`Déplacer ${chart.title}`} {...handle} />}
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}

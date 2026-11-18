@@ -1,9 +1,9 @@
+import { useSettingsTab } from '../../../app/layout/use-settings-tab';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Stack, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
 import { ClientBillingSection } from '../../accounting/components/ClientBillingSection';
@@ -14,11 +14,12 @@ import { ClientForm } from '../components/ClientForm';
 import { descendantIds, useWorkspace } from '../api';
 import { useEntityActions } from '../hooks/use-entity-actions';
 import { EntityHeader } from '../components/EntityHeader';
-import { EntityNotFound, EntitySkeleton } from '../components/EntityState';
+import { EntitySkeleton } from '../components/EntityState';
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ProjectList } from '../components/ProjectList';
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'billing' | 'client';
+const SETTINGS_TABS = ['billing', 'client'] as const;
 
 /**
  * Client detail page: header, its projects, then the accounting documents of the client and of its projects (and
@@ -30,14 +31,11 @@ export function ClientPage() {
   const { id } = useParams();
   const { data, isPending } = useWorkspace();
   const actions = useEntityActions();
-  const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({
-    key: 'ordo.client.settingsTab',
-    defaultValue: 'billing',
-  });
+  const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
 
   if (isPending) return <EntitySkeleton />;
   const client = data?.clients.find((item) => item.id === id);
-  if (!data || !client) return <EntityNotFound what="Ce client" />;
+  if (!data || !client) return <DetailNotFound what="Ce client" />;
 
   const projects = data.projects.filter((project) => project.clientId === client.id);
   // Its projects and their sub-projects: their documents show with its own.

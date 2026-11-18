@@ -1,9 +1,10 @@
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
 import { BackLink } from '../../../components/page/BackLink';
 import { Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -215,17 +216,7 @@ export function SheetPage() {
 
   if (isPending) return <DetailSkeleton />;
   if (!sheet)
-    return (
-      <EmptyState
-        icon={<ClipboardTextIcon aria-hidden />}
-        message="Cette fiche n’existe pas ou a été supprimée."
-        action={
-          <ActionButton priority="secondary" to="/sheets" icon={<ArrowLeftIcon aria-hidden />}>
-            Retour aux fiches
-          </ActionButton>
-        }
-      />
-    );
+    return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
 
   const locked = sheet.archived;
   const remove = {

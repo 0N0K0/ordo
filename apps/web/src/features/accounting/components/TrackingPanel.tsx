@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { AccountingDocument } from '../api/documents';
-import { Section } from './EditorSection';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { PaymentForm } from './PaymentForm';
 import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
@@ -120,7 +120,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
     );
 
   return (
-    <Section title="Suivi">
+    <SettingsSection title="Suivi">
       <Select
         label="Statut"
         {...listSelectProps(scoped, undefined, document.trackingStatus?.id)}
@@ -252,6 +252,6 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         </SubSection>
       )}
 
-    </Section>
+    </SettingsSection>
   );
 }

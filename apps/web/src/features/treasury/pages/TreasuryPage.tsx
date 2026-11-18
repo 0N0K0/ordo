@@ -12,7 +12,8 @@ import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skel
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from '../lib/entry-values';
 
-import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
@@ -63,6 +64,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 /**
  * Amount in euros, from currency units.
@@ -93,16 +95,7 @@ const NO_ACCOUNTS: TreasuryAccount[] = [];
  */
 function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefined, env: EntryEnv): DataColumn<ForecastRow>[] {
   return [
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: ({ item }) => item.date.slice(0, 7),
-      text: ({ item }) => fmt.capitalize(fmt.month(item.date.slice(0, 7))),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', ({ item }) => item.date),
     {
       id: 'date',
       label: 'Date d’exécution',
@@ -365,9 +358,9 @@ export function TreasuryPage() {
         />
       </SimpleGrid>
 
-      <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" mb="sm">
-          <Text fw={600}>Évolution du solde</Text>
+      <SettingsSection
+        title="Évolution du solde"
+        actions={
           <Group gap="xs">
             <PeriodNav
               current={periodFirst === calendarStart(scale, today)}
@@ -415,7 +408,8 @@ export function TreasuryPage() {
               }}
             />
           </Group>
-        </Group>
+        }
+      >
         {projectionPending ? (
           <BlockSkeleton height={11} />
         ) : (
@@ -437,7 +431,7 @@ export function TreasuryPage() {
             yAxisProps={{ width: 90 }}
           />
         )}
-      </Paper>
+      </SettingsSection>
 
       <PageTabs
         value={tab}

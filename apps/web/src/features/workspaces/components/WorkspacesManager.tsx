@@ -1,10 +1,11 @@
+import { moveEntries } from '../../../components/actions/move-entries';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
-import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowSquareOutIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, ON_ERROR, onMutationError } from '../../../lib/notify';
 
@@ -91,8 +92,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         <InlineActions
           name={workspace.name}
           items={[
-            { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: workspace.id, index: index - 1 }, ON_ERROR) },
-            { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => move.mutate({ id: workspace.id, index: index + 1 }, ON_ERROR) },
+            ...moveEntries(index, count, (to) => move.mutate({ id: workspace.id, index: to }, ON_ERROR)),
             { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
           ]}
         />

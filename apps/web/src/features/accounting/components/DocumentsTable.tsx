@@ -37,6 +37,7 @@ import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -53,13 +54,6 @@ const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
  * @returns {string} Text.
  */
 const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
-
-/**
- * Month of a date, in words.
- * @param {string | null | undefined} date YYYY-MM-DD.
- * @returns {string} "Août 2026", empty without date.
- */
-const monthText = (date: string | null | undefined) => (date ? fmt.capitalize(fmt.month(date.slice(0, 7))) : '');
 
 /**
  * Columns of the documents (type and client only where they vary).
@@ -90,16 +84,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       text: (row) => fmt.day(row.document.issueDate),
       filter: { kind: 'date', value: (row) => row.document.issueDate },
     },
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 140,
-      hiddenByDefault: true,
-      sortValue: (row) => row.document.issueDate.slice(0, 7),
-      text: (row) => monthText(row.document.issueDate),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', (row) => row.document.issueDate, 140),
     {
       id: 'dueDate',
       label: 'Échéance',
@@ -109,16 +94,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       text: (row) => (row.document.dueDate ? fmt.day(row.document.dueDate) : ''),
       filter: { kind: 'date', value: (row) => row.document.dueDate ?? null },
     },
-    {
-      id: 'dueMonth',
-      label: 'Mois d’échéance',
-      size: 150,
-      hiddenByDefault: true,
-      sortValue: (row) => row.document.dueDate?.slice(0, 7) ?? null,
-      text: (row) => monthText(row.document.dueDate),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('dueMonth', 'Mois d’échéance', (row) => row.document.dueDate),
     {
       id: 'client',
       label: 'Client',

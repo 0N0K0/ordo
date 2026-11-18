@@ -94,7 +94,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       hiddenByDefault: true,
       sortValue: (sheet) => sheet.updatedAt,
       text: (sheet) => fmt.day(sheet.updatedAt),
-      filter: { kind: 'date', value: (sheet) => localDay(new Date(sheet.updatedAt)) },
+      filter: { kind: 'date', value: (sheet) => localDay(sheet.updatedAt) },
     },
   ];
 }

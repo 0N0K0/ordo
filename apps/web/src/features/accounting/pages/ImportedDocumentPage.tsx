@@ -11,9 +11,9 @@ import { useParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
 import { FilePreview } from '../../files/components/FilePreview';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
-import { NotFoundPage } from '../../../app/NotFoundPage';
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { useImportedDocument, useImportedDocumentMutations } from '../api/documents';
-import { Section } from '../components/EditorSection';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { openImportForm } from '../lib/imported-form';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { StatusMenu } from '../components/TrackingBadge';
@@ -37,7 +37,7 @@ export function ImportedDocumentPage() {
   if (isLoading) {
     return <DetailSkeleton fields={6} />;
   }
-  if (!document) return <NotFoundPage />;
+  if (!document) return <DetailNotFound what="Ce document" backTo="/accounting" backLabel="Facturation" />;
 
   const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, name: document.fileName, mimeType: document.fileMimeType }) : null;
   const money = (amount: number) => fmt.money(amount, document.currency);
@@ -121,7 +121,7 @@ export function ImportedDocumentPage() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, lg: 4 }}>
           <Stack gap="md">
-            <Section title="Suivi">
+            <SettingsSection title="Suivi">
               <Group gap="xs">
                 <StatusMenu
                   type={document.type}
@@ -146,8 +146,8 @@ export function ImportedDocumentPage() {
                   </Badge>
                 )}
               </Group>
-            </Section>
-            <Section title="Informations">
+            </SettingsSection>
+            <SettingsSection title="Informations">
               <Stack gap={6}>
                 {facts.map(([label, value]) =>
                   value ? (
@@ -163,7 +163,7 @@ export function ImportedDocumentPage() {
                 )}
                 {document.note && <MarkdownView targets={NO_TARGETS}>{document.note}</MarkdownView>}
               </Stack>
-            </Section>
+            </SettingsSection>
             <Comments target="IMPORTED_DOCUMENT" id={document.id} />
           </Stack>
         </Grid.Col>

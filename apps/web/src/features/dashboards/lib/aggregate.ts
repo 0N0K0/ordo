@@ -212,7 +212,7 @@ const ROLLING_LABELS: Record<string, string> = {
 };
 
 /**
- * Name of a period: rolling ("12 derniers mois"), current or previous ("Mois en cours"), or chosen ("mars 2026",
+ * Name of a period: rolling ("12 derniers mois"), current or previous ("Ce mois-ci"), or chosen ("mars 2026",
  * "T2 2026", "2026").
  * @param {ChartConfig['period']} period Period.
  * @returns {string} Name.

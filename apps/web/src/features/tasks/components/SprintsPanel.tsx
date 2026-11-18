@@ -1,3 +1,4 @@
+import { PERIOD_STATES, periodState } from '../../../lib/periods';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
 
@@ -151,7 +152,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
           const doneEffort = effortOf(done);
           const start = sprint.startDate;
           const end = sprint.endDate;
-          const state = end < today ? { label: 'Terminé', color: 'gray' } : start > today ? { label: 'À venir', color: 'blue' } : { label: 'En cours', color: 'green' };
+          const state = PERIOD_STATES[periodState(start, end, today)];
           const late = end < today && done.length < tasks.length;
           return (
             <Paper key={sprint.id} withBorder radius="md" p="md">

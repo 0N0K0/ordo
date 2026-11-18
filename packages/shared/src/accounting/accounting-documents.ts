@@ -238,19 +238,21 @@ export function computeTotals(document: {
   };
 }
 
-/** Formats of the amounts made so far, by currency (making one is slow). */
+/** Formats of the amounts made so far, by currency and style (making one is slow). */
 const moneyFormats = new Map<string, Intl.NumberFormat>();
 
 /**
- * Format of the amounts of a currency, made once: "1 234,50 €".
+ * Format of the amounts of a currency, made once per style: "1 234,50 €" (compact, rounded… with options).
  * @param {string} currency ISO currency.
+ * @param {Intl.NumberFormatOptions} [options] Style beyond the currency (notation, digits). Optional.
  * @returns {Intl.NumberFormat} Format.
  */
-function moneyFormat(currency: string): Intl.NumberFormat {
-  let format = moneyFormats.get(currency);
+export function moneyFormat(currency: string, options: Intl.NumberFormatOptions = {}): Intl.NumberFormat {
+  const key = `${currency}|${JSON.stringify(options)}`;
+  let format = moneyFormats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat('fr-FR', { style: 'currency', currency });
-    moneyFormats.set(currency, format);
+    format = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, ...options });
+    moneyFormats.set(key, format);
   }
   return format;
 }

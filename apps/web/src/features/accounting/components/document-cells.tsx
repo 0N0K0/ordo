@@ -1,13 +1,13 @@
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Badge, FileButton, Group, Tooltip } from '@mantine/core';
-import { PaperclipIcon, PlusIcon } from '@phosphor-icons/react';
+import { ActionIcon, FileButton, Group, Tooltip } from '@mantine/core';
+import { PlusIcon } from '@phosphor-icons/react';
+import { FileBadge } from '../../../components/items/FileBadge';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import { openFile } from '../../files/lib/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them); read only
@@ -41,20 +41,13 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
   if (props.kind === 'imported') {
     const { document } = props;
     return document.fileUrl ? (
-      <Badge
-        size="sm"
-        variant="light"
-        color="gray"
-        tt="none"
-        leftSection={<PaperclipIcon aria-hidden />}
-        style={{ cursor: 'pointer' }}
+      <FileBadge
+        name={document.fileName ?? 'Fichier'}
         onClick={(event) => {
           stopClick(event);
           openFile({ url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
         }}
-      >
-        {document.fileName ?? 'Fichier'}
-      </Badge>
+      />
     ) : null;
   }
   const { document } = props;
@@ -63,32 +56,20 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick}>
       <StackedValues>
         {document.attachments.map((attachment) => (
-          <Badge
+          <FileBadge
             key={attachment.id}
-            size="sm"
-            variant="light"
-            color="gray"
-            tt="none"
-            leftSection={<PaperclipIcon aria-hidden />}
-            style={{ cursor: 'pointer' }}
+            name={attachment.name}
             onClick={() => openFile({ url: attachment.url, name: attachment.name })}
-            rightSection={
-              !document.archived && (
-                <RemoveButton
-                  variant="field"
-                  size="xs"
-                  label="Retirer la pièce jointe"
-                  aria-label={`Retirer ${attachment.name}`}
-                  onClick={(event) => {
+            removeLabel="Retirer la pièce jointe"
+            onRemove={
+              document.archived
+                ? undefined
+                : (event) => {
                     stopClick(event);
                     confirmRemoveAttachment(attachment, name, (callbacks) => removeAttachment.mutate(attachment.id, callbacks));
-                  }}
-                />
-              )
+                  }
             }
-          >
-            {attachment.name.length > 24 ? `${attachment.name.slice(0, 23)}…` : attachment.name}
-          </Badge>
+          />
         ))}
       </StackedValues>
       {!document.archived && (

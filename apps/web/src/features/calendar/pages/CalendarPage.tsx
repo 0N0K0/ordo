@@ -1,3 +1,4 @@
+import { useSettingsTab } from '../../../app/layout/use-settings-tab';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
@@ -93,7 +94,7 @@ interface Filters {
 }
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'display' | 'settings';
+const SETTINGS_TABS = ['display', 'settings'] as const;
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
 /** Rows of the collapsed all-day row (week and day views). */
@@ -722,10 +723,7 @@ export function CalendarPage() {
   };
 
   const api = () => calendarRef.current?.getApi();
-  const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({
-    key: 'ordo.calendar.settingsTab',
-    defaultValue: 'display',
-  });
+  const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
   // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to.
   const calendarChoices = [
     ...ownCalendars.map((calendar) => ({

@@ -9,7 +9,7 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
-import { localDay } from '../../../lib/dates';
+import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
@@ -80,9 +80,9 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const { setDone } = useRoutineMutations();
   const [time, setTime] = useState(() => proposedTime(item, today));
   // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
-  const [day, setDay] = useState(() => (item.check ? localDay(new Date(item.check.doneAt)) : item.date > today ? today : item.date));
+  const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.date > today ? today : item.date));
   const state = stateOf(item, today);
-  const at = new Date(`${day}T${time || '00:00'}:00`);
+  const at = localInstant(day, time || '00:00');
   // Now when the form opened: a later hour is refused.
   const now = useNow(false);
   const future = at.getTime() > now;

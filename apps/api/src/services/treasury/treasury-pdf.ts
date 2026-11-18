@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
+import { addDays, capitalize, formatDay, formatMoney, longDayText, mapById, monthText, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -26,9 +26,6 @@ const COLORS = { ...PDF_TEXT, ...PDF_TABLE, month: PDF_TABLE.group, in: '#2b8a3e
 const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 7.5;
-
-const longDate = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Printed amount.
@@ -148,7 +145,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   y =
     writeHeading(
       doc,
-      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · ') },
+      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') },
       { x: MARGIN, y, width: pageWidth },
     ) + 8;
   const figures = [
@@ -241,8 +238,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => formatDay(other.date).slice(0, 7) === month);
       const monthIn = ofMonth.filter(({ amount }) => amount > 0).reduce((sum, { amount }) => sum + amount, 0);
       const monthOut = -ofMonth.filter(({ amount }) => amount < 0).reduce((sum, { amount }) => sum + amount, 0);
-      const title = monthFormat.format(parseDay(`${month}-01`));
-      band(title.charAt(0).toUpperCase() + title.slice(1), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
+      band(capitalize(monthText(month)), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
     }
     // Accounts opened by then.
     for (const account of pendingOpenings.filter((item) => item.day <= day)) {

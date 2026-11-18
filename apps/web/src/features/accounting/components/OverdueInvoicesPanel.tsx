@@ -52,8 +52,8 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     label: 'Envoi',
     size: 230,
     sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(new Date(invoice.sentAt))) : ''),
-    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null) },
+    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
+    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
   },
   {
     id: 'balance',
@@ -69,7 +69,7 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     size: 200,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
     text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
-    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(new Date(invoice.lastReminderAt)) : null) },
+    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
 ];
@@ -227,7 +227,7 @@ export function OverdueInvoicesPanel() {
         }}
         cells={(invoice) => {
           // Reminders count from the sending.
-          const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
+          const sentDay = invoice.sentAt ? localDay(invoice.sentAt) : null;
           const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
           const since = daysSinceReminder(invoice, today);
           return {

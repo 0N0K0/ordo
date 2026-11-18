@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
+  DATE_PERIOD_LABELS,
   MAX_FILTER_DEPTH,
   VALUELESS_OPERATORS,
   type FilterConditionOf,
@@ -25,7 +26,7 @@ import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { localToday } from '../../lib/dates';
-import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
+import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
@@ -107,7 +108,7 @@ function PeriodValue({ value, onChange }: DayValueProps) {
         size="xs"
         aria-label="Période"
         data={[
-          ...Object.entries(PERIOD_LABELS).map(([key, label]) => ({ value: key, label })),
+          ...Object.entries(DATE_PERIOD_LABELS).map(([key, label]) => ({ value: key, label })),
           { value: 'past', label: 'Les N derniers jours' },
           { value: 'next', label: 'Les N prochains jours' },
         ]}

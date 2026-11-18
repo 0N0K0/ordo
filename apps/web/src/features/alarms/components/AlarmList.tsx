@@ -1,12 +1,11 @@
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
-import { nextOccurrence } from '@ordo/shared';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { describeAlarm } from '../lib/alarm-labels';
+import { describeAlarm, nextRing } from '../lib/alarm-labels';
 import { useAlarmMutations, type Alarm } from '../api';
 import type { AlarmFormOpener } from '../hooks/use-alarm-form';
 import * as fmt from '../../../lib/format';
@@ -61,7 +60,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
   return (
     <Stack gap="sm">
       {alarms.map((alarm) => {
-        const next = alarm.type === 'TRACKING_DURATION' ? null : nextOccurrence(alarm, now);
+        const next = nextRing(alarm, now);
         const task = showTarget && alarm.taskId ? context.taskById.get(alarm.taskId) : undefined;
         const project = showTarget && alarm.projectId ? context.projectById.get(alarm.projectId) : undefined;
         return (
@@ -77,7 +76,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   )}
                 </Group>
                 <Text size="sm">{describeAlarm(alarm)}</Text>
-                {alarm.enabled && next && (
+                {next && (
                   <Text size="xs" c="dimmed">
                     Prochaine : {fmt.dateTimeShort(next)}
                   </Text>

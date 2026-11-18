@@ -1,3 +1,4 @@
+import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../app/layout/use-settings-tab';
 import { PAGES } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
@@ -8,7 +9,6 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { recurrenceSchema } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -46,7 +46,7 @@ import * as fmt from '../../../lib/format';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'zip' | 'statuses' | 'company';
+const SETTINGS_TABS = ['zip', 'statuses', 'company'] as const;
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -255,14 +255,12 @@ export function AccountingPage() {
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
-  const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({ key: 'ordo.accounting.settingsTab', defaultValue: 'zip' });
-  // A tab of the settings asked in the address (the former company settings): opened, then dropped from it.
+  const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
+  // The former parameter of the tab of the settings (links, bookmarks): the one of every page.
   useEffect(() => {
     const asked = params.get('settingsTab');
-    if (!asked) return;
-    if (asked === 'zip' || asked === 'statuses' || asked === 'company') setSettingsTab(asked);
-    setParams({ settingsTab: null });
-  }, [params, setParams, setSettingsTab]);
+    if (asked) setParams({ settingsTab: null, [SETTINGS_TAB_PARAM]: asked });
+  }, [params, setParams]);
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
   // Years of the documents, offered by the download of a period.

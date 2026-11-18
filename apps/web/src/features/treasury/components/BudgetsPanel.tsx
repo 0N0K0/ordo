@@ -1,3 +1,5 @@
+import { useCategoryItems } from '../hooks/use-settings-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { openFormPanel } from '../../../components/panels/panels';
 import { plural, countOf } from '../../../lib/text';
@@ -8,7 +10,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
+import { Badge, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -24,7 +27,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { onMutationError, toastCallbacks } from '../../../lib/notify';
-import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from '../api';
+import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from '../api';
 import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -36,7 +39,6 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { meName, personName } from '../../../components/people/people-options';
 
@@ -62,6 +64,13 @@ const repeatLabel = (every: number | null) => (!every ? 'Ce mois seulement' : ev
 const monthLabel = (month: string) => fmt.month(month);
 
 /**
+ * Month in a table cell, capitalized as the « Mois » columns of the other tables.
+ * @param {string} month YYYY-MM.
+ * @returns {string} "Août 2026".
+ */
+const monthCellText = (month: string) => fmt.capitalize(fmt.month(month));
+
+/**
  * Month of a budget, picked in place (or cleared, when it may be empty).
  * @param {{ value: string | null, label: string, nullable?: boolean, minMonth?: string, onSave: (month: string | null) => void }} props Component props.
  * @returns {JSX.Element} Cell.
@@ -77,6 +86,8 @@ function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value
       minDate={minMonth ? `${minMonth}-01` : undefined}
       value={value ? `${value}-01` : null}
       valueFormat="MMMM YYYY"
+      // « Novembre 2026 », as the month of the other cells.
+      styles={{ input: { textTransform: 'capitalize' } }}
       popoverProps={{ withinPortal: true }}
       onChange={(next) => {
         const month = next ? next.slice(0, 7) : null;
@@ -115,8 +126,6 @@ interface BudgetValues extends Record<string, unknown> {
  * @returns {JSX.Element} Form.
  */
 function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; onDone: () => void }) {
-  const { createCategory } = useTreasuryMutations();
-  const color = useDefaultColor();
   const { data: settings } = useTreasurySettings();
   const { save } = useTreasuryBudgetMutations();
   const { perso } = useActiveWorkspace();
@@ -147,6 +156,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
     return !every ? 'ONCE' : every === 12 ? 'YEAR' : 'MONTHS';
   });
   const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
+  const categoryItems = useCategoryItems(direction);
 
   return (
     <Stack gap="lg">
@@ -192,7 +202,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             label="Catégorie"
             required
             searchable
-            onCreate={(name) => createCategory.mutateAsync({ name, color, direction: direction ?? 'OUT', parentId: null })}
+            onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: categories.filter((category) => category.direction === direction && !category.archived) })}
             {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
             nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
             description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
@@ -527,7 +537,7 @@ export function BudgetsPanel() {
         label: 'À partir de',
         size: 150,
         sortValue: (budget: TreasuryBudget) => budget.month,
-        text: (budget: TreasuryBudget) => monthLabel(budget.month),
+        text: (budget: TreasuryBudget) => monthCellText(budget.month),
         filter: { kind: 'date', value: (budget: TreasuryBudget) => `${budget.month}-01` },
       },
       {
@@ -548,7 +558,7 @@ export function BudgetsPanel() {
         label: 'Jusqu’à',
         size: 150,
         sortValue: (budget) => (budget.repeatEvery ? (budget.repeatUntil ?? '9999-12') : budget.month),
-        text: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? monthLabel(budget.repeatUntil) : 'Sans fin') : monthLabel(budget.month)),
+        text: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? monthCellText(budget.repeatUntil) : 'Sans fin') : monthCellText(budget.month)),
         filter: { kind: 'date', value: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? `${budget.repeatUntil}-01` : null) : `${budget.month}-01`) },
       },
       commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
@@ -567,10 +577,7 @@ export function BudgetsPanel() {
         </ActionButton>
       </Group>
 
-      <Paper withBorder radius="md" p="md">
-        <Title order={3} size="h5" mb="xs">
-          Budgets de {monthLabel(month)}
-        </Title>
+      <SettingsSection title={`Budgets de ${monthLabel(month)}`}>
         {isPending && !data ? (
           <TableSkeleton rows={3} />
         ) : budgeted.length === 0 ? (
@@ -619,19 +626,18 @@ export function BudgetsPanel() {
             }}
           />
         )}
-      </Paper>
+      </SettingsSection>
 
       {outside.length > 0 && (
-        <Paper withBorder radius="md" p="md">
-          <Group gap="xs" mb="xs">
-            <WarningIcon aria-hidden color="var(--mantine-color-orange-6)" />
-            <Title order={3} size="h5">
+        <SettingsSection
+          title={
+            <>
+              <WarningIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ verticalAlign: 'middle', marginRight: 'var(--mantine-spacing-xs)' }} />
               Hors budget
-            </Title>
-          </Group>
-          <Text size="xs" c="dimmed" mb="xs">
-            Mouvements sans budget pour leur membre, contexte et catégorie ce mois-ci.
-          </Text>
+            </>
+          }
+          description="Mouvements sans budget pour leur membre, contexte et catégorie ce mois-ci."
+        >
           <DataTable
             view={outsideView}
             verticalSpacing={6}
@@ -669,13 +675,10 @@ export function BudgetsPanel() {
               />
             )}
           />
-        </Paper>
+        </SettingsSection>
       )}
 
-      <Paper withBorder radius="md" p="md">
-        <Title order={3} size="h5" mb="xs">
-          Budgets définis
-        </Title>
+      <SettingsSection title="Budgets définis">
         {(data?.treasuryBudgets ?? []).length === 0 ? (
           <EmptyState compact message="Aucun budget." />
         ) : (
@@ -708,13 +711,13 @@ export function BudgetsPanel() {
                     ...keyContent(budget),
                     month: (
                       <Group gap={4} wrap="nowrap">
-                        <Text size="sm">{monthLabel(budget.month)}</Text>
+                        <Text size="sm">{monthCellText(budget.month)}</Text>
                         <ArchivedBadge size="xs" />
                       </Group>
                     ),
                     amount: `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${fmt.money(budget.amount)}`,
                     repeat: repeatLabel(budget.repeatEvery ?? null),
-                    until: budget.repeatEvery ? (budget.repeatUntil ? monthLabel(budget.repeatUntil) : 'Sans fin') : monthLabel(budget.month),
+                    until: budget.repeatEvery ? (budget.repeatUntil ? monthCellText(budget.repeatUntil) : 'Sans fin') : monthCellText(budget.month),
                   }
                 : {
                     month: (
@@ -747,7 +750,7 @@ export function BudgetsPanel() {
                       />
                     ) : (
                       <Text size="sm" c="dimmed">
-                        {monthLabel(budget.month)}
+                        {monthCellText(budget.month)}
                       </Text>
                     ),
                     ...keyContent(budget),
@@ -835,7 +838,7 @@ export function BudgetsPanel() {
             }}
           />
         )}
-      </Paper>
+      </SettingsSection>
     </Stack>
   );
 }

@@ -45,8 +45,9 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
     <div
       ref={ref}
       style={style}
-      className={classes.groupRow}
+      className={`${rowClasses.row} ${classes.groupRow}`}
       data-menu-open={menuOpened || undefined}
+      data-reveal-host
       role="treeitem"
       aria-level={1}
       aria-expanded={hasChildren ? expanded : undefined}
@@ -68,7 +69,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       </UnstyledButton>
 
       {hasMenu && (
-        <span className={classes.groupActions}>
+        <span className={rowClasses.actions} data-reveal>
           <ActionsMenu
             name="les projets sans client"
             opened={menuOpened}

@@ -2,5 +2,8 @@
   :root {
     /* Vertical rhythm of the design system: every height and vertical spacing lands on it. */
     --onoko-vertical-step: 24px;
+
+    /* Opacity of a dragged row, card, tab or column header. */
+    --onoko-dragging-opacity: 0.5;
   }
 }

@@ -1,7 +1,8 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
-import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
+import { PlayIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { onMutationError, toastCallbacks } from '../../../lib/notify';
@@ -11,7 +12,7 @@ import { useTimeMutations, type TimeEntry } from '../api';
 import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from '../../../lib/use-now';
-import { useStopTimer } from '../hooks/use-stop-timer';
+import { TimerControls } from './TimerControls';
 import { useStartTimer } from '../hooks/use-start-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -69,15 +70,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           />
           <TimeTasksSelect context={context} projectId={projectId} value={taskIds} onChange={setTaskIds} {...extra} />
         </div>
-        <Textarea
-          label="Description"
-          placeholder="Ce que vous faites…"
-          autosize
-          minRows={2}
-          maxRows={8}
-          value={description}
-          onChange={(event) => setDescription(event.currentTarget.value)}
-        />
+        <MarkdownEditor label="Description" placeholder="Ce que vous faites…" minRows={2} value={description} onChange={setDescription} suggestions={context.suggestionsFor(projectId)} />
         <FormActions submitLabel="Démarrer" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={starting} />
       </Stack>
     </form>
@@ -96,8 +89,7 @@ interface RunningTimerProps {
  * @returns {JSX.Element} Timer.
  */
 export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
-  const { setPaused, update, remove } = useTimeMutations();
-  const { stopTimer, isPending: stopping } = useStopTimer();
+  const { update, remove } = useTimeMutations();
   const paused = entry.pausedAt !== null;
   const now = useNow(!paused);
   const [description, setDescription] = useState(entry.description ?? '');
@@ -143,22 +135,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           </Text>
         </Stack>
         <Group gap="xs" wrap="nowrap">
-          <Tooltip label={paused ? 'Reprendre' : 'Pause'}>
-            <ActionIcon
-              size="lg"
-              variant="light"
-              aria-label={paused ? 'Reprendre' : 'Pause'}
-              loading={setPaused.isPending}
-              onClick={() => setPaused.mutate(!paused, { onError: onMutationError })}
-            >
-              {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Arrêter et enregistrer">
-            <ActionIcon size="lg" variant="filled" aria-label="Arrêter et enregistrer" loading={stopping} onClick={() => stopTimer(entry)}>
-              <StopIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <TimerControls entry={entry} size="lg" />
           <Tooltip label="Abandonner (sans enregistrer)">
             <ActionIcon size="lg" variant="subtle" color="gray" aria-label="Abandonner le chrono" onClick={confirmDiscard}>
               <TrashIcon aria-hidden />
@@ -177,14 +154,13 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
         />
         <TimeTasksSelect context={context} projectId={entry.projectId} value={entry.taskIds} onChange={(taskIds) => save({ taskIds })} {...extra} />
       </div>
-      <Textarea
+      <MarkdownEditor
         label="Description"
         placeholder="Ce que vous faites…"
-        autosize
         minRows={2}
-        maxRows={8}
         value={description}
-        onChange={(event) => setDescription(event.currentTarget.value)}
+        onChange={setDescription}
+        suggestions={context.suggestionsFor(entry.projectId)}
         onBlur={() => description !== (entry.description ?? '') && save({ description })}
       />
     </Stack>

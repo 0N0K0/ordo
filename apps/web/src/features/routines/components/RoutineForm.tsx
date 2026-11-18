@@ -4,7 +4,7 @@ import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/c
 import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { unarchivedOffered } from '../../../lib/archive';
+import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { onMutationError } from '../../../lib/notify';
@@ -18,7 +18,8 @@ import { BeneficiariesSelect } from '../../beneficiaries/components/Beneficiarie
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
-import { useDefaultColor } from '../../workspace/hooks/use-default-color';
+import { useRoutineCategoryItems } from '../hooks/use-category-items';
+import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SubSection } from '../../../components/page/SubSection';
 
@@ -73,8 +74,8 @@ export interface RoutineFormProps {
 export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
-  const { create, update, createCategory, copySubRoutines } = useRoutineMutations();
-  const color = useDefaultColor();
+  const { create, update, copySubRoutines } = useRoutineMutations();
+  const categoryItems = useRoutineCategoryItems();
   const routines = data?.routines ?? [];
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
@@ -174,7 +175,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 />
               )}
               <BatchMultiSelect
-                onCreate={(name) => createCategory.mutateAsync({ name, color, parentId: null })}
+                onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
                 label="Catégories"
                 placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
                 clearable

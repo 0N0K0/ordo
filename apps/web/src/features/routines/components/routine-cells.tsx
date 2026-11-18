@@ -1,3 +1,4 @@
+import { cellLabel } from '../../../components/data-table/cells/cell-field';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
@@ -27,13 +28,13 @@ import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell 
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 
 /**
- * Accessible label of a cell, with the number of routines it changes on a selection.
+ * Accessible label of a cell, mentioning the bulk edit of a selection.
  * @param {string} field Field name.
  * @param {Routine} routine Routine.
  * @param {number} count Routines changed by an edit.
  * @returns {string} Label.
  */
-const fieldLabel = (field: string, routine: Routine, count: number) => `${field} de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`;
+const fieldLabel = (field: string, routine: Routine, count: number) => cellLabel(field, `de ${routine.title}`, count);
 
 interface CellProps {
   routine: Routine;
@@ -224,7 +225,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
   const [opened, setOpened] = useState(false);
   return (
     <>
-      <UnstyledButton onClick={() => setOpened(true)} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`}>
+      <UnstyledButton onClick={() => setOpened(true)} disabled={readOnly} aria-label={fieldLabel('Modifier la répétition', routine, count)}>
         {children}
       </UnstyledButton>
       {/* Mounted when opened: its draft starts from the routine as it is then. */}

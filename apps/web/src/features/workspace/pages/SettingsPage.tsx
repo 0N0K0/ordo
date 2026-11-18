@@ -58,7 +58,7 @@ export function SettingsPage() {
   // Settings moved to their views.
   const moved: Record<string, string> = {
     tracking: perso ? "/" : "/accounting?settings=1",
-    company: perso ? "/" : "/accounting?settings=1&settingsTab=company",
+    company: perso ? "/" : "/accounting?settings=1&section=company",
     calendar: "/calendar?settings=1",
     mail: "/mail?settings=1",
     // In every view of tasks.

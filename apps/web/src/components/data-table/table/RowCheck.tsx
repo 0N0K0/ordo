@@ -12,6 +12,7 @@ export function RowCheck({ selection, rowKey, label }: { selection: RowSelection
     <Checkbox
       size="xs"
       className={classes.rowCheck}
+      wrapperProps={{ 'data-reveal': true }}
       aria-label={`Sélectionner ${label}`}
       checked={selection.isChecked(rowKey)}
       // A click checks the row, it does not open it.
@@ -33,6 +34,7 @@ export function AllRowsCheck({ selection }: { selection: RowSelection }) {
     <Checkbox
       size="xs"
       className={classes.rowCheck}
+      wrapperProps={{ 'data-reveal': true }}
       aria-label={all ? 'Tout décocher' : 'Tout cocher'}
       checked={all}
       indeterminate={count > 0 && !all}

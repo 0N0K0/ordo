@@ -12,8 +12,10 @@ interface DragHandleProps {
   /** The item is being dragged. */
   dragging: boolean;
   size?: ActionIconProps['size'];
-  /** Class of its own (shown on hover of its row…). Optional. */
+  /** Class of its own. Optional. */
   className?: string;
+  /** Shown only on hover or focus of its host (`data-reveal`, styles/reveal.css). Optional. */
+  reveal?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ interface DragHandleProps {
  * @param {DragHandleProps} props Component props.
  * @returns {JSX.Element} Handle.
  */
-export function DragHandle({ label, activator, attributes, listeners, dragging, size, className }: DragHandleProps) {
+export function DragHandle({ label, activator, attributes, listeners, dragging, size, className, reveal }: DragHandleProps) {
   return (
     <ActionIcon
       ref={activator}
@@ -29,6 +31,7 @@ export function DragHandle({ label, activator, attributes, listeners, dragging, 
       color="gray"
       size={size}
       className={className}
+      data-reveal={reveal || undefined}
       aria-label={label}
       style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
       {...attributes}

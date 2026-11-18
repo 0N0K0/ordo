@@ -2,7 +2,7 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
-import { addDays, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -37,10 +37,10 @@ import { countOf, plural } from '../../../lib/text';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
-  thisWeek: 'Cette semaine',
-  nextWeek: 'La semaine prochaine',
-  thisMonth: 'Ce mois-ci',
-  nextMonth: 'Le mois prochain',
+  thisWeek: DATE_PERIOD_LABELS.thisWeek,
+  nextWeek: DATE_PERIOD_LABELS.nextWeek,
+  thisMonth: DATE_PERIOD_LABELS.thisMonth,
+  nextMonth: DATE_PERIOD_LABELS.nextMonth,
   'next:7': '7 prochains jours',
   'next:30': '30 prochains jours',
   'next:90': '90 prochains jours',
@@ -289,7 +289,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         loading={isPending || tasksPending || !context}
         framed
         verticalSpacing={4}
-        className={classes.table}
         bar={{
           searchLabel: 'Rechercher (titre, numéro, description)',
           manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
@@ -337,7 +336,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         readOnly={(row) => row.kind === 'event'}
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
-        rowProps={() => ({ className: classes.row })}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (

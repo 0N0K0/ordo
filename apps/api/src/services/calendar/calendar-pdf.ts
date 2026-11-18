@@ -1,4 +1,4 @@
-import { addDays, colorSchema, daySchema, daysBetween, parseDay, timeToMinutes } from '@ordo/shared';
+import { addDays, colorSchema, daySchema, daysBetween, parseDay, timeToMinutes, weekdayText } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
@@ -43,7 +43,6 @@ type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, light: PDF_TABLE.fill, work: '#e6f4ea', today: '#fff8db' };
 const MARGIN = 28;
 const WEEKDAYS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
-const dayTitle = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /**
  * Color mixed with white.
@@ -101,7 +100,7 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
   const headerHeight = 16;
   days.forEach((day, index) => {
     if (day === today) doc.rect(columnX(index), area.y, columnWidth, headerHeight).fill(COLORS.today);
-    clippedText(doc, dayTitle.format(parseDay(day)), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
+    clippedText(doc, weekdayText(day), { x: columnX(index) + 3, y: area.y + 4, width: columnWidth - 6, height: 10, size: 7.5, color: COLORS.text, bold: true });
   });
   let y = area.y + headerHeight;
 
