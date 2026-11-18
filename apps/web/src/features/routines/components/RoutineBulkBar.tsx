@@ -1,8 +1,8 @@
 import { mapById } from '@ordo/shared';
-import { ArchiveIcon, ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
+import { ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
 
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { deleteRowsAction, duplicateRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteRowsAction, duplicateRowsAction, archiveRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
@@ -70,13 +70,13 @@ export function useRoutineRowsActions() {
           loading: create.isPending || copySubRoutines.isPending,
         },
       ),
-      archive: switchRowsAction({
-        on: allArchived,
-        labels: ['Archiver', 'Restaurer'],
-        icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
+      archive: archiveRowsAction({
+        archived: allArchived,
         loading: bulkArchive.isPending,
         apply: (archived) => bulkArchive.mutateAsync({ ids, archived }),
-        done: (archived) => `${label} ${plural(ids.length, archived ? 'archivée' : 'restaurée')}.`,
+        label,
+        count: ids.length,
+        feminine: true,
         clear: onClear,
       }),
       remove: deleteRowsAction(routines, {
