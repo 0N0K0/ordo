@@ -15,15 +15,7 @@ import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-enti
  * @param {ReactNode} [props.extraActions] Additional buttons. Optional.
  * @returns {JSX.Element} Header.
  */
-export function EntityHeader({
-  entity,
-  subtitle,
-  extraActions,
-}: {
-  entity: EntityRef;
-  subtitle?: ReactNode;
-  extraActions?: ReactNode;
-}) {
+export function EntityHeader({ entity, subtitle, extraActions }: { entity: EntityRef; subtitle?: ReactNode; extraActions?: ReactNode }) {
   const actions = useEntityActions();
   const { item } = entity;
   const label = entityLabel(entity);
@@ -37,18 +29,23 @@ export function EntityHeader({
             <Title order={1} size="h2">
               {label}
             </Title>
-            {item.archived && (
-              <ArchivedBadge />
-            )}
+            {item.archived && <ArchivedBadge />}
           </Group>
           {subtitle}
         </Stack>
       </Group>
       <Group gap="xs">
         {!item.archived && (
-          <IconAction label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} variant={item.favorite ? 'light' : 'default'} color={item.favorite ? 'yellow' : undefined} size="input-sm" aria-pressed={item.favorite} onClick={() => actions.setFavorite(entity, !item.favorite)}>
-              <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
-</IconAction>
+          <IconAction
+            label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            variant={item.favorite ? 'light' : 'default'}
+            color={item.favorite ? 'yellow' : undefined}
+            size="input-sm"
+            aria-pressed={item.favorite}
+            onClick={() => actions.setFavorite(entity, !item.favorite)}
+          >
+            <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
+          </IconAction>
         )}
         {extraActions}
       </Group>

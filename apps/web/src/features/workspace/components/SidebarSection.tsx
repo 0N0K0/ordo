@@ -30,15 +30,7 @@ interface SidebarSectionProps {
  * @param {ReactNode} props.children Section content.
  * @returns {JSX.Element} Section.
  */
-export function SidebarSection({
-  title,
-  count,
-  opened,
-  onToggle,
-  onSetAllExpanded,
-  actions,
-  children,
-}: SidebarSectionProps) {
+export function SidebarSection({ title, count, opened, onToggle, onSetAllExpanded, actions, children }: SidebarSectionProps) {
   return (
     <section className={classes.section}>
       <div className={classes.header}>
@@ -53,11 +45,7 @@ export function SidebarSection({
             </Badge>
           )}
         </UnstyledButton>
-        <ActionsMenu
-          name={`la section ${title}`}
-          size="sm"
-          items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]}
-        />
+        <ActionsMenu name={`la section ${title}`} size="sm" items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]} />
       </div>
       <Collapse expanded={opened} transitionDuration={150}>
         {children}

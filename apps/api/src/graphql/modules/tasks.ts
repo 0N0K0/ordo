@@ -48,8 +48,7 @@ builder.prismaObject('Attachment', {
     isImage: t.boolean({ description: 'Shown in place in markdown.', resolve: (attachment) => attachment.mimeType.startsWith('image/') }),
     url: t.string({
       // Parentheses are escaped too: the URL goes inside a markdown link.
-      resolve: (attachment) =>
-        `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
+      resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
     }),
   }),
 });
@@ -131,7 +130,10 @@ builder.prismaObject('TaskStatus', {
 
 for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) labelObject(name);
 
-const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const, description: 'What a saved view lists (TABLE: any other table, named by its key).' });
+const ViewKindEnum = builder.enumType('ViewKind', {
+  values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const,
+  description: 'What a saved view lists (TABLE: any other table, named by its key).',
+});
 
 builder.prismaObject('TaskView', {
   description: 'Saved view of the tasks or of the routines.',
@@ -198,10 +200,7 @@ builder.prismaObject('Task', {
     }),
     relatedIds: t.idList({
       select: { relationsA: { select: { taskBId: true } }, relationsB: { select: { taskAId: true } } },
-      resolve: (task) => [
-        ...task.relationsA.map((link) => link.taskBId),
-        ...task.relationsB.map((link) => link.taskAId),
-      ],
+      resolve: (task) => [...task.relationsA.map((link) => link.taskBId), ...task.relationsB.map((link) => link.taskAId)],
     }),
     commentCount: t.relationCount('comments'),
     recurrence: t.field({
@@ -215,8 +214,7 @@ builder.prismaObject('Task', {
     trackedSeconds: t.int({
       description: 'Tracked time in seconds: each finished time entry is shared equally between its tasks.',
       select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } } },
-      resolve: (task) =>
-        Math.round(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0)),
+      resolve: (task) => Math.round(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0)),
     }),
     comments: t.relation('comments', { query: { orderBy: { createdAt: 'asc' } } }),
   }),
@@ -365,8 +363,7 @@ builder.mutationFields((t) => ({
     type: TaskColumnDefaultsRef,
     description: 'Chooses the columns new task views start with; without columns, gives back the app’s.',
     args: { columnOrder: t.arg.stringList(), hiddenColumns: t.arg.stringList() },
-    resolve: (_root, { columnOrder, hiddenColumns }) =>
-      workspaces.setTaskColumnDefaults(columnOrder ? ({ columnOrder, hiddenColumns: hiddenColumns ?? [] } as never) : null),
+    resolve: (_root, { columnOrder, hiddenColumns }) => workspaces.setTaskColumnDefaults(columnOrder ? ({ columnOrder, hiddenColumns: hiddenColumns ?? [] } as never) : null),
   }),
 }));
 
@@ -390,7 +387,7 @@ builder.queryFields((t) => ({
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
-    description: 'Views of the tasks (or routines, by kind) of a project\'s tab, or of their page when projectId is omitted.',
+    description: "Views of the tasks (or routines, by kind) of a project's tab, or of their page when projectId is omitted.",
     args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }), tableKey: t.arg.string({ description: 'Table of the views of kind TABLE.' }) },
     resolve: (query, _root, { projectId, kind, tableKey }) =>
       prisma.taskView.findMany({ ...query, where: taskViews.viewScope(projectId ?? null, kind ?? 'TASKS', tableKey ?? null), orderBy: BY_POSITION }),
@@ -446,13 +443,10 @@ builder.mutationFields((t) => ({
   cloneTask: t.prismaField({
     type: 'Task',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, includeSubtasks }) =>
-      reloaded(prisma.task, query, tasks.cloneTask(id, includeSubtasks)),
+    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.cloneTask(id, includeSubtasks)),
   }),
   moveTask: t.boolean({
-    description:
-      'Places a task before another one in the manual order (at the end when beforeId is null), and under ' +
-      'parentId when given (null: top-level task; omitted: parent unchanged).',
+    description: 'Places a task before another one in the manual order (at the end when beforeId is null), and under ' + 'parentId when given (null: top-level task; omitted: parent unchanged).',
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
     resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
   }),
@@ -473,7 +467,11 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, closed }) => done(tasks.setTasksClosed(ids, closed)),
   }),
   bulkUpdateTasks: t.boolean({
-    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: BulkTaskInput, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    args: {
+      ids: t.arg.idList({ required: true }),
+      changes: t.arg({ type: BulkTaskInput, required: true }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+    },
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
@@ -506,14 +504,12 @@ builder.mutationFields((t) => ({
   updateTaskView: t.prismaField({
     type: 'TaskView',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskViewUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.taskView, query, taskViews.updateView(id, input)),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.taskView, query, taskViews.updateView(id, input)),
   }),
   duplicateTaskView: t.prismaField({
     type: 'TaskView',
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, name }) =>
-      reloaded(prisma.taskView, query, taskViews.duplicateView(id, name)),
+    resolve: async (query, _root, { id, name }) => reloaded(prisma.taskView, query, taskViews.duplicateView(id, name)),
   }),
   deleteTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -542,14 +538,12 @@ builder.mutationFields((t) => ({
   createMilestone: t.prismaField({
     type: 'Milestone',
     args: { input: t.arg({ type: MilestoneInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      reloaded(prisma.milestone, query, milestones.createMilestone(input)),
+    resolve: async (query, _root, { input }) => reloaded(prisma.milestone, query, milestones.createMilestone(input)),
   }),
   updateMilestone: t.prismaField({
     type: 'Milestone',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: MilestoneUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.milestone, query, milestones.updateMilestone(id, input)),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.milestone, query, milestones.updateMilestone(id, input)),
   }),
   deleteMilestone: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -579,14 +573,12 @@ builder.mutationFields((t) => ({
   addTaskComment: t.prismaField({
     type: 'TaskComment',
     args: { taskId: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { taskId, body }) =>
-      reloaded(prisma.taskComment, query, tasks.addComment(taskId, body)),
+    resolve: async (query, _root, { taskId, body }) => reloaded(prisma.taskComment, query, tasks.addComment(taskId, body)),
   }),
   updateTaskComment: t.prismaField({
     type: 'TaskComment',
     args: { id: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, body }) =>
-      reloaded(prisma.taskComment, query, tasks.updateComment(id, body)),
+    resolve: async (query, _root, { id, body }) => reloaded(prisma.taskComment, query, tasks.updateComment(id, body)),
   }),
   deleteTaskComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -606,8 +598,7 @@ builder.mutationFields((t) => ({
     type: 'Attachment',
     description: 'Stores a file to link from a markdown text (10 MB maximum).',
     args: { file: t.arg({ type: 'File', required: true }) },
-    resolve: async (query, _root, { file }) =>
-      reloaded(prisma.attachment, query, storeAttachment(file)),
+    resolve: async (query, _root, { file }) => reloaded(prisma.attachment, query, storeAttachment(file)),
   }),
   setProjectContributors: t.boolean({
     description: 'Sets the contributors directly attached to a project; tasks keep their assignees.',

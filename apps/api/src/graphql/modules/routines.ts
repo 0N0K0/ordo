@@ -14,7 +14,21 @@ import { treeItemObject } from '../label-inputs';
 treeItemObject('RoutineCategory', { description: 'Category of the routines, in a tree.', positionDescription: 'Manual order among its siblings.' });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { id: true, archivedAt: true, startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true, slotCondition: true } as const;
+const TIMING = {
+  id: true,
+  archivedAt: true,
+  startDate: true,
+  recurrence: true,
+  cases: true,
+  moves: true,
+  fromTime: true,
+  dueTime: true,
+  opensOn: true,
+  scheduleIds: true,
+  excludedScheduleIds: true,
+  moments: true,
+  slotCondition: true,
+} as const;
 
 const slotContexts = new WeakMap<Context, Promise<routines.ScheduleContext>>();
 
@@ -110,7 +124,12 @@ builder.prismaObject('Routine', {
       description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.',
       resolve: (routine) => readOpens(routine.opensOn),
     }),
-    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.', resolve: (routine) => readSlotRule(routine.slotRule) }),
+    slotRule: t.field({
+      type: 'JSON',
+      nullable: true,
+      description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.',
+      resolve: (routine) => readSlotRule(routine.slotRule),
+    }),
     windowFrom: t.string({
       nullable: true,
       description: 'Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.',
@@ -462,7 +481,11 @@ builder.mutationFields((t) => ({
     resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
   updateRoutine: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: RoutineInputType, required: true }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+    },
     resolve: (_root, { id, input, restoring }) => done(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
   }),
   patchRoutine: t.boolean({
@@ -489,7 +512,9 @@ builder.mutationFields((t) => ({
       // Times of its own: a single moment.
       if (input.fromTime !== undefined || input.dueTime !== undefined) {
         const current = await routines.momentOf(id);
-        changes.moments = [{ fromTime: input.fromTime !== undefined ? (input.fromTime ?? null) : current.fromTime, dueTime: input.dueTime !== undefined ? (input.dueTime ?? null) : current.dueTime, optional: false }];
+        changes.moments = [
+          { fromTime: input.fromTime !== undefined ? (input.fromTime ?? null) : current.fromTime, dueTime: input.dueTime !== undefined ? (input.dueTime ?? null) : current.dueTime, optional: false },
+        ];
       }
       if (input.startDate) changes.startDate = input.startDate;
       if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
@@ -583,7 +608,11 @@ builder.mutationFields((t) => ({
   setRoutineDone: t.field({
     type: 'Date',
     description: 'Ticks or unticks an occurrence (by default the current one); returns its date.',
-    args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }), slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }),
+    args: {
+      id: t.arg.id({ required: true }),
+      done: t.arg.boolean({ required: true }),
+      date: t.arg({ type: 'Date' }),
+      slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }),
       doneAt: t.arg({ type: 'DateTime', description: 'When it was done (ticked after the fact); now by default.' }),
     },
     resolve: async (_root, { id, done, date, slot, doneAt }) => parseDay(await routines.setRoutineDone(id, done, date ?? null, slot ?? null, doneAt ?? null)),

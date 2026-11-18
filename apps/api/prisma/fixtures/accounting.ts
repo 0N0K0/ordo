@@ -268,7 +268,18 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     counterpartyIds.set(name, (await createCounterparty({ name, note: null })).id);
   }
   const counterpartyOf = (name: string | undefined) => (name ? (counterpartyIds.get(name) ?? null) : null);
-  const entryBase = { valueDate: null, clientId: null, counterpartyId: null, projectId: null, note: null, recurrence: null, allocations: [], linkedEntryIds: [], libraryDocumentIds: [], projectResourceIds: [] };
+  const entryBase = {
+    valueDate: null,
+    clientId: null,
+    counterpartyId: null,
+    projectId: null,
+    note: null,
+    recurrence: null,
+    allocations: [],
+    linkedEntryIds: [],
+    libraryDocumentIds: [],
+    projectResourceIds: [],
+  };
   await createAccount({ name: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
 
   /**
@@ -303,7 +314,10 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     [
       day(-170),
       async () => {
-        const draft = await createDocument('INVOICE', await fields('INVOICE', archived, day(-170), { title: 'Site vitrine — solde', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 4)] }));
+        const draft = await createDocument(
+          'INVOICE',
+          await fields('INVOICE', archived, day(-170), { title: 'Site vitrine — solde', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 4)] }),
+        );
         ids.archived = await finalize(draft.id, day(-170));
       },
     ],
@@ -392,17 +406,17 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     [
       day(-90),
       async () => {
-        const draft = await createDocument('QUOTE', await fields('QUOTE', clientC, day(-90), { title: 'Site personnel', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 3)] }));
+        const draft = await createDocument(
+          'QUOTE',
+          await fields('QUOTE', clientC, day(-90), { title: 'Site personnel', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 3)] }),
+        );
         ids.refusedC = await finalize(draft.id, day(-90));
       },
     ],
     [
       day(-75),
       async () => {
-        const draft = await createDocument(
-          'QUOTE',
-          await fields('QUOTE', clientD, day(-75), { title: 'Audit de performance', dueDate: day(-45), lines: [line(item('Journée de conseil'), 2)] }),
-        );
+        const draft = await createDocument('QUOTE', await fields('QUOTE', clientD, day(-75), { title: 'Audit de performance', dueDate: day(-45), lines: [line(item('Journée de conseil'), 2)] }));
         ids.expiredD = await finalize(draft.id, day(-75));
       },
     ],
@@ -465,7 +479,13 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         // Tracked time of the client with the most of it, billed by the hour.
         const roots = clients.slice(0, 4).map((client) => ({ client: byId.get(client.id)!, ids: projects.filter((project) => project.clientId === client.id).map((project) => project.id) }));
         const counted = await Promise.all(
-          roots.map(async (root) => ({ ...root, entries: await prisma.timeEntry.findMany({ where: { projectId: { in: root.ids }, documentId: null, duration: { not: null }, startedAt: { lt: parseDay(day(-20)) } }, orderBy: { startedAt: 'asc' } }) })),
+          roots.map(async (root) => ({
+            ...root,
+            entries: await prisma.timeEntry.findMany({
+              where: { projectId: { in: root.ids }, documentId: null, duration: { not: null }, startedAt: { lt: parseDay(day(-20)) } },
+              orderBy: { startedAt: 'asc' },
+            }),
+          })),
         );
         const best = counted.sort((a, b) => b.entries.length - a.entries.length)[0];
         if (!best?.entries.length) return;
@@ -496,7 +516,9 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await issueDueInvoices(today);
 
   // --- Drafts ------------------------------------------------------------------------------------------
-  const unbilled = await prisma.timeEntry.findMany({ where: { projectId: { in: projects.filter((project) => project.clientId === clientD.id).map((project) => project.id) }, documentId: null, duration: { not: null } } });
+  const unbilled = await prisma.timeEntry.findMany({
+    where: { projectId: { in: projects.filter((project) => project.clientId === clientD.id).map((project) => project.id) }, documentId: null, duration: { not: null } },
+  });
   const draftSeconds = unbilled.slice(0, 4).reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
   await createDocument(
     'INVOICE',
@@ -506,7 +528,10 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       timeEntryIds: draftSeconds ? unbilled.slice(0, 4).map((entry) => entry.id) : [],
     }),
   );
-  await createDocument('QUOTE', await fields('QUOTE', clientD, day(-1), { title: 'Application mobile — première version', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 20)] }));
+  await createDocument(
+    'QUOTE',
+    await fields('QUOTE', clientD, day(-1), { title: 'Application mobile — première version', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 20)] }),
+  );
 
   // --- Tracking: sending, acceptance, refusal ----------------------------------------------------------
   const sent = async (id: string | undefined, date: string) => {
@@ -555,13 +580,72 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
 
   // --- Imported documents (issued before Ordo) ---------------------------------------------------------
   const importedBase = { dueDate: null, projectId: null, note: null, currency: 'EUR' };
-  await importDocument({ ...importedBase, type: 'INVOICE', number: 'FA-2025-118', issueDate: day(-210), dueDate: day(-180), clientId: clientA.id, clientName: null, title: 'Audit du site', totalNet: 1500, totalVat: 300, totalGross: 1800, settled: true }, null);
-  const unsettled = await importDocument(
-    { ...importedBase, type: 'INVOICE', number: 'FA-2025-131', issueDate: day(-195), dueDate: day(-165), clientId: clientD.id, clientName: null, title: 'Développement', totalNet: 2400, totalVat: 480, totalGross: 2880, settled: false },
+  await importDocument(
+    {
+      ...importedBase,
+      type: 'INVOICE',
+      number: 'FA-2025-118',
+      issueDate: day(-210),
+      dueDate: day(-180),
+      clientId: clientA.id,
+      clientName: null,
+      title: 'Audit du site',
+      totalNet: 1500,
+      totalVat: 300,
+      totalGross: 1800,
+      settled: true,
+    },
     null,
   );
-  await importDocument({ ...importedBase, type: 'QUOTE', number: 'DEV-2025-044', issueDate: day(-220), clientId: clientB.id, clientName: null, title: 'Refonte (première version)', totalNet: 6000, totalVat: 1200, totalGross: 7200, settled: true }, null);
-  await importDocument({ ...importedBase, type: 'INVOICE', number: '2025-07', issueDate: day(-240), clientId: null, clientName: 'Association Les Amis du Vélo', title: 'Affiche', totalNet: 350, totalVat: 0, totalGross: 350, settled: true }, null);
+  const unsettled = await importDocument(
+    {
+      ...importedBase,
+      type: 'INVOICE',
+      number: 'FA-2025-131',
+      issueDate: day(-195),
+      dueDate: day(-165),
+      clientId: clientD.id,
+      clientName: null,
+      title: 'Développement',
+      totalNet: 2400,
+      totalVat: 480,
+      totalGross: 2880,
+      settled: false,
+    },
+    null,
+  );
+  await importDocument(
+    {
+      ...importedBase,
+      type: 'QUOTE',
+      number: 'DEV-2025-044',
+      issueDate: day(-220),
+      clientId: clientB.id,
+      clientName: null,
+      title: 'Refonte (première version)',
+      totalNet: 6000,
+      totalVat: 1200,
+      totalGross: 7200,
+      settled: true,
+    },
+    null,
+  );
+  await importDocument(
+    {
+      ...importedBase,
+      type: 'INVOICE',
+      number: '2025-07',
+      issueDate: day(-240),
+      clientId: null,
+      clientName: 'Association Les Amis du Vélo',
+      title: 'Affiche',
+      totalNet: 350,
+      totalVat: 0,
+      totalGross: 350,
+      settled: true,
+    },
+    null,
+  );
   await createEntry({
     accountId: bank.id,
     status: 'ACTUAL',
@@ -577,10 +661,34 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
 
   // --- Expenses: repeated forecasts realized month after month, one-off movements, coming expenses -------
   const repeated = [
-    { label: 'Loyer du bureau', amount: -750, category: 'Loyer', method: 'Prélèvement', payee: 'Agence immobilière du Centre', start: day(-175), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
+    {
+      label: 'Loyer du bureau',
+      amount: -750,
+      category: 'Loyer',
+      method: 'Prélèvement',
+      payee: 'Agence immobilière du Centre',
+      start: day(-175),
+      recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }),
+    },
     { label: 'Abonnements logiciels', amount: -89, category: 'Logiciels', method: 'Carte', start: day(-170), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
-    { label: 'URSSAF', amount: -1450, category: 'Charges sociales', method: 'Prélèvement', payee: 'URSSAF', start: day(-165), recurrence: rule({ frequency: 'MONTHLY', interval: 3, monthlyMode: 'DAY' }) },
-    { label: 'Frais bancaires', amount: -18, category: 'Frais bancaires', method: 'Prélèvement', payee: 'Banque Populaire', start: day(-178), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
+    {
+      label: 'URSSAF',
+      amount: -1450,
+      category: 'Charges sociales',
+      method: 'Prélèvement',
+      payee: 'URSSAF',
+      start: day(-165),
+      recurrence: rule({ frequency: 'MONTHLY', interval: 3, monthlyMode: 'DAY' }),
+    },
+    {
+      label: 'Frais bancaires',
+      amount: -18,
+      category: 'Frais bancaires',
+      method: 'Prélèvement',
+      payee: 'Banque Populaire',
+      start: day(-178),
+      recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }),
+    },
   ];
   for (const forecast of repeated) {
     const created = await createEntry({
@@ -642,7 +750,15 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     { date: day(60), label: 'Subvention région (solde)', amount: 3000, category: 'Subventions', method: 'Virement', payee: 'Région' },
   ]) {
     const { category: name, method, payee, ...fields } = entry;
-    await createEntry({ ...entryBase, ...fields, accountId: bank.id, status: 'FORECAST', categoryId: categoryOf(name, entry.amount), methodId: methodOf(method), counterpartyId: counterpartyOf(payee) });
+    await createEntry({
+      ...entryBase,
+      ...fields,
+      accountId: bank.id,
+      status: 'FORECAST',
+      categoryId: categoryOf(name, entry.amount),
+      methodId: methodOf(method),
+      counterpartyId: counterpartyOf(payee),
+    });
   }
 
   // --- Categories of the movements of the invoices and credit notes paid ---------------------------------

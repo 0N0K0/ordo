@@ -12,13 +12,7 @@ type Schema = Parameters<typeof schemaResolver>[0];
  * @param {Schema} options.schema Standard schema (zod) validating the values.
  * @returns {UseFormReturnType<Values>} Mantine form.
  */
-export function useAppForm<Values extends Record<string, unknown>>({
-  initialValues,
-  schema,
-}: {
-  initialValues: Values;
-  schema: Schema;
-}): UseFormReturnType<Values> {
+export function useAppForm<Values extends Record<string, unknown>>({ initialValues, schema }: { initialValues: Values; schema: Schema }): UseFormReturnType<Values> {
   const formRef = useRef<UseFormReturnType<Values> | null>(null);
 
   const form = useForm<Values>({

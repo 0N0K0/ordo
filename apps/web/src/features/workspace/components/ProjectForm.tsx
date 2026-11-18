@@ -100,14 +100,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
       <Stack gap="md">
         <TextInput label="Titre" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('title')} />
         <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
-          <Select
-            label="Projet parent"
-            placeholder="Aucun (projet racine)"
-            {...treeSelectProps(parentOptions)}
-            searchable
-            clearable
-            {...form.getInputProps('parentId')}
-          />
+          <Select label="Projet parent" placeholder="Aucun (projet racine)" {...treeSelectProps(parentOptions)} searchable clearable {...form.getInputProps('parentId')} />
           {!perso && (
             <Select
               label="Client"
@@ -129,9 +122,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
             onChange={(value) => form.setFieldValue('statusId', value)}
             error={form.errors.statusId as string | undefined}
           />
-          <ColorField
-            placeholder="Aucune"
-            {...form.getInputProps('color')} />
+          <ColorField placeholder="Aucune" {...form.getInputProps('color')} />
         </SimpleGrid>
         <CategoriesInput
           categories={workspace?.projectCategories ?? []}
@@ -144,14 +135,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           <DatePickerInput label="Fin" placeholder="—" clearable {...period.end} />
         </SimpleGrid>
         <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
-        <IconField
-          value={icon}
-          onChange={setIcon}
-          currentUrl={project?.iconUrl ?? null}
-          name={form.values.title}
-          color={form.values.color || null}
-          error={form.errors.icon as string | undefined}
-        />
+        <IconField value={icon} onChange={setIcon} currentUrl={project?.iconUrl ?? null} name={form.values.title} color={form.values.color || null} error={form.errors.icon as string | undefined} />
         <FormActions onCancel={onDone} submitLabel={project ? 'Enregistrer' : 'Créer le projet'} loading={pending} />
       </Stack>
     </form>

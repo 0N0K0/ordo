@@ -1,4 +1,16 @@
-import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, parseOptionalDay, splitAmounts, type TreasuryAccountInput, treasuryAccountSchema, type TreasuryEntryInput, treasuryEntrySchema } from '@ordo/shared';
+import {
+  addDays,
+  daysBetween,
+  formatDay,
+  occurrenceDates,
+  parseDay,
+  parseOptionalDay,
+  splitAmounts,
+  type TreasuryAccountInput,
+  treasuryAccountSchema,
+  type TreasuryEntryInput,
+  treasuryEntrySchema,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generated/prisma/client';
@@ -138,11 +150,35 @@ async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.
   await assertNoneArchived('TREASURY_CATEGORY', added([entry.categoryId, ...entry.lines.map((line) => line.categoryId)], [previous?.categoryId, ...lines.map((line) => line.categoryId)]));
   await assertNoneArchived('TREASURY_PAYMENT_METHOD', added([entry.methodId], [previous?.methodId]));
   await assertNoneArchived('TREASURY_COUNTERPARTY', added([entry.counterpartyId], [previous?.counterpartyId]));
-  await assertNoneArchived('TREASURY_CONTEXT', added(entry.lines.map((line) => line.contextId), lines.map((line) => line.contextId)));
-  await assertNoneArchived('TREASURY_RELATION', added(entry.lines.map((line) => line.relationId), lines.map((line) => line.relationId)));
+  await assertNoneArchived(
+    'TREASURY_CONTEXT',
+    added(
+      entry.lines.map((line) => line.contextId),
+      lines.map((line) => line.contextId),
+    ),
+  );
+  await assertNoneArchived(
+    'TREASURY_RELATION',
+    added(
+      entry.lines.map((line) => line.relationId),
+      lines.map((line) => line.relationId),
+    ),
+  );
   // Settling an archived document changes it: refused (an allocation it had stays).
-  await assertNoneArchived('ACCOUNTING_DOCUMENT', added(entry.allocations.map((allocation) => allocation.documentId), allocations.map((allocation) => allocation.documentId)));
-  await assertNoneArchived('IMPORTED_DOCUMENT', added(entry.allocations.map((allocation) => allocation.importedDocumentId), allocations.map((allocation) => allocation.importedDocumentId)));
+  await assertNoneArchived(
+    'ACCOUNTING_DOCUMENT',
+    added(
+      entry.allocations.map((allocation) => allocation.documentId),
+      allocations.map((allocation) => allocation.documentId),
+    ),
+  );
+  await assertNoneArchived(
+    'IMPORTED_DOCUMENT',
+    added(
+      entry.allocations.map((allocation) => allocation.importedDocumentId),
+      allocations.map((allocation) => allocation.importedDocumentId),
+    ),
+  );
 }
 
 /** What `assertNoNewArchived` reads of a stored entry. */
@@ -399,45 +435,48 @@ export async function deleteEntry(id: string): Promise<void> {
  * @returns {Promise<TreasuryEntry>} Actual entry.
  */
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
-  const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } } });
+  const forecast = await prisma.treasuryEntry.findUnique({
+    where: { id },
+    include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } },
+  });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
   await assertNotArchived('TREASURY_ENTRY', id);
   const rule = storedRecurrence(forecast.recurrence);
   const entry = await parseEntry(
     {
-    accountId: forecast.accountId,
-    status: 'ACTUAL',
-    date: actual.date,
-    valueDate: null,
-    label: forecast.label,
-    amount: actual.amount,
-    categoryId: forecast.categoryId,
-    methodId: forecast.methodId,
-    clientId: forecast.clientId,
-    counterpartyId: forecast.counterpartyId,
-    projectId: forecast.projectId,
-    note: forecast.note,
-    url: forecast.url,
-    recurrence: null,
-    allocations: [],
-    linkedEntryIds: [],
-    libraryDocumentIds: [],
-    projectResourceIds: [],
-    // The split follows (percentages apply to the actual amount), with the projects and documents of its lines.
-    lines: forecast.lines.map((line) => ({
-      label: line.label,
-      mode: line.mode,
-      value: fromDecimal(line.value),
-      memberId: line.memberId,
-      categoryId: line.categoryId,
-      contextId: line.contextId,
-      relationId: line.relationId,
-      loan: line.loan,
-      projectId: line.projectId,
-      libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
-      projectResourceIds: line.projectResources.map((document) => document.id),
-      // The links of the forecast stay with it.
-    })),
+      accountId: forecast.accountId,
+      status: 'ACTUAL',
+      date: actual.date,
+      valueDate: null,
+      label: forecast.label,
+      amount: actual.amount,
+      categoryId: forecast.categoryId,
+      methodId: forecast.methodId,
+      clientId: forecast.clientId,
+      counterpartyId: forecast.counterpartyId,
+      projectId: forecast.projectId,
+      note: forecast.note,
+      url: forecast.url,
+      recurrence: null,
+      allocations: [],
+      linkedEntryIds: [],
+      libraryDocumentIds: [],
+      projectResourceIds: [],
+      // The split follows (percentages apply to the actual amount), with the projects and documents of its lines.
+      lines: forecast.lines.map((line) => ({
+        label: line.label,
+        mode: line.mode,
+        value: fromDecimal(line.value),
+        memberId: line.memberId,
+        categoryId: line.categoryId,
+        contextId: line.contextId,
+        relationId: line.relationId,
+        loan: line.loan,
+        projectId: line.projectId,
+        libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
+        projectResourceIds: line.projectResources.map((document) => document.id),
+        // The links of the forecast stay with it.
+      })),
     },
     null,
     // Its own items stay valid, archived or not.
@@ -573,7 +612,10 @@ export async function treasuryProjection(today: string, from: string, until: str
   }
 
   // Coming recurring invoices, paid after the same delay as their model.
-  const recurring = await prisma.recurringInvoice.findMany({ where: { active: true, archivedAt: null, nextDate: { not: null } }, include: { template: { include: { client: { select: { name: true } } } } } });
+  const recurring = await prisma.recurringInvoice.findMany({
+    where: { active: true, archivedAt: null, nextDate: { not: null } },
+    include: { template: { include: { client: { select: { name: true } } } } },
+  });
   for (const schedule of recurring) {
     const rule = storedRecurrence(schedule.recurrence);
     if (!rule || !schedule.nextDate) continue;

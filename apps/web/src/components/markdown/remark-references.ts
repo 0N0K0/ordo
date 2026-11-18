@@ -71,13 +71,7 @@ function splitText(text: string, targets: ReferenceTargets): MdNode[] {
     const [, before, reference, number, handle] = match;
     const start = match.index + before.length;
     const task = number && targets.projectId ? targets.taskByNumber.get(`${targets.projectId}:${number}`) : undefined;
-    const url = number
-      ? task
-        ? taskReferenceUrl(task.id)
-        : null
-      : targets.handles.has(handle.toLowerCase())
-        ? `/?assignee=${handle.toLowerCase()}`
-        : null;
+    const url = number ? (task ? taskReferenceUrl(task.id) : null) : targets.handles.has(handle.toLowerCase()) ? `/?assignee=${handle.toLowerCase()}` : null;
     if (!url) continue;
     if (start > last) nodes.push({ type: 'text', value: text.slice(last, start) });
     nodes.push({ type: 'link', url, children: [{ type: 'text', value: reference }] });

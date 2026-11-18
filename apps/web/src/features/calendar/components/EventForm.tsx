@@ -89,7 +89,14 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
         {!fields.allDay && <TimePicker label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
-      <FormActions onCancel={onCancel} submitLabel="Reporter" submitIcon={<ArrowArcRightIcon aria-hidden />} loading={loading} disabled={!valid} onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })} />
+      <FormActions
+        onCancel={onCancel}
+        submitLabel="Reporter"
+        submitIcon={<ArrowArcRightIcon aria-hidden />}
+        loading={loading}
+        disabled={!valid}
+        onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
+      />
     </Stack>
   );
 }
@@ -107,12 +114,7 @@ function PostponePanel({ fields, occurrence, onCancel, onDone }: { fields: Postp
       title={occurrence.title}
       loading={postpone.isPending}
       onCancel={onCancel}
-      onConfirm={(input) =>
-        postpone.mutate(
-          { id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input },
-          formCallbacks(null, 'Évènement reporté.', onDone),
-        )
-      }
+      onConfirm={(input) => postpone.mutate({ id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input }, formCallbacks(null, 'Évènement reporté.', onDone))}
     />
   );
 }
@@ -235,7 +237,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const recurring = occurrence?.occurrenceDate != null;
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
-  const archiveMenu = occurrence && <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.title }, setArchived, occurrence.eventId, onDone)]} />;
+  const archiveMenu = occurrence && (
+    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.title }, setArchived, occurrence.eventId, onDone)]} />
+  );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
 
@@ -263,11 +267,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
      * @param {CalendarEventScope} scope Scope.
      * @returns {void}
      */
-    const run = (scope: CalendarEventScope) =>
-      remove.mutate(
-        { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate },
-        formCallbacks(null, 'Évènement supprimé.', onDone),
-      );
+    const run = (scope: CalendarEventScope) => remove.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
     if (recurring) {
       const scope = await askScope({ action: 'delete' });
       if (scope) run(scope);
@@ -289,17 +289,21 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     if (!occurrence) return;
     const scope = await chooseScope(recurring, { action: calledOff ? 'cancel' : 'restore' });
     if (!scope) return;
-    setCalledOff.mutate(
-      { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff },
-      formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone),
-    );
+    setCalledOff.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff }, formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone));
   };
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {readOnly && (
-          <ArchivedNotice title={<Group gap="xs">{calendarArchived ? 'Calendrier archivé' : 'Évènement archivé'}<ArchivedBadge size="sm" /></Group>}>
+          <ArchivedNotice
+            title={
+              <Group gap="xs">
+                {calendarArchived ? 'Calendrier archivé' : 'Évènement archivé'}
+                <ArchivedBadge size="sm" />
+              </Group>
+            }
+          >
             {calendarArchived ? 'Restaurez son calendrier pour modifier l’évènement.' : 'Restaurez-le pour le modifier.'}
           </ArchivedNotice>
         )}
@@ -334,194 +338,215 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           </Text>
         )}
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
-        <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
-        <EventRepetition
-          ruleStart={ruleStart}
-          error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
-          value={{
-            allDay: values.allDay,
-            startDate: values.startDate,
-            startTime: values.startTime ?? null,
-            endDate: values.endDate,
-            endTime: values.endTime ?? null,
-            recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
-          }}
-          onChange={(timing) => form.setValues({ ...timing })}
-        />
-        {!values.allDay && (
-          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-            <TravelField way="before" description="Avant le début" {...form.getInputProps('travelBefore')} />
-            <TravelField way="after" description="Après la fin" {...form.getInputProps('travelAfter')} />
-            <div>
-              <TravelCalculator
-                eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
-                onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+          <Stack gap="md">
+            <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+            <EventRepetition
+              ruleStart={ruleStart}
+              error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
+              value={{
+                allDay: values.allDay,
+                startDate: values.startDate,
+                startTime: values.startTime ?? null,
+                endDate: values.endDate,
+                endTime: values.endTime ?? null,
+                recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
+              }}
+              onChange={(timing) => form.setValues({ ...timing })}
+            />
+            {!values.allDay && (
+              <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
+                <TravelField way="before" description="Avant le début" {...form.getInputProps('travelBefore')} />
+                <TravelField way="after" description="Après la fin" {...form.getInputProps('travelAfter')} />
+                <div>
+                  <TravelCalculator
+                    eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
+                    onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+                  />
+                </div>
+              </SimpleGrid>
+            )}
+            <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
+
+            <EventLocation
+              value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}
+              error={form.errors.location}
+              onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
+            />
+
+            <LabeledField label="Liens">
+              {values.links.map((_, index) => (
+                <Group key={index} gap="xs" wrap="nowrap" align="flex-start">
+                  <TextInput
+                    aria-label={`Adresse du lien ${index + 1}`}
+                    placeholder="https://…"
+                    leftSection={<LinkIcon aria-hidden />}
+                    style={{ flex: 2 }}
+                    {...form.getInputProps(`links.${index}.url`)}
+                  />
+                  <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
+                  <RemoveButton
+                    label="Retirer le lien"
+                    mt={4}
+                    aria-label={`Retirer le lien ${index + 1}`}
+                    onClick={() =>
+                      form.setFieldValue(
+                        'links',
+                        values.links.filter((__, position) => position !== index),
+                      )
+                    }
+                  />
+                </Group>
+              ))}
+              <AddItemButton onClick={() => form.setFieldValue('links', [...values.links, { url: '', label: '' }])}>Ajouter un lien</AddItemButton>
+            </LabeledField>
+
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <Select
+                label="Calendrier"
+                description={recurring ? 'Pour toute la série.' : undefined}
+                {...listSelectProps(calendars, undefined, values.calendarId ?? occurrence?.calendarId)}
+                // Without a choice, the event goes into the first calendar not archived.
+                value={values.calendarId ?? defaultCalendarId}
+                onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
+                allowDeselect={false}
+                leftSection={(() => {
+                  const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
+                  return current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined;
+                })()}
               />
-            </div>
-          </SimpleGrid>
-        )}
-        <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
-
-
-        <EventLocation
-          value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}
-          error={form.errors.location}
-          onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
-        />
-
-        <LabeledField label="Liens">
-          {values.links.map((_, index) => (
-            <Group key={index} gap="xs" wrap="nowrap" align="flex-start">
-              <TextInput
-                aria-label={`Adresse du lien ${index + 1}`}
-                placeholder="https://…"
-                leftSection={<LinkIcon aria-hidden />}
-                style={{ flex: 2 }}
-                {...form.getInputProps(`links.${index}.url`)}
+              <ProjectSelect
+                context={context}
+                label="Projet"
+                clearable
+                placeholder="Aucun"
+                {...form.getInputProps('projectId')}
+                onChange={(projectId) => {
+                  form.setFieldValue('projectId', projectId);
+                  // Contributors out of the new project are dropped.
+                  const allowed = new Set(context.assignableFor([projectId], initial.contributorIds ?? []).map((contributor) => contributor.id));
+                  form.setFieldValue(
+                    'contributorIds',
+                    values.contributorIds.filter((id) => allowed.has(id)),
+                  );
+                }}
               />
-              <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
-              <RemoveButton label="Retirer le lien" mt={4} aria-label={`Retirer le lien ${index + 1}`} onClick={() => form.setFieldValue('links', values.links.filter((__, position) => position !== index))} />
-            </Group>
-          ))}
-          <AddItemButton onClick={() => form.setFieldValue('links', [...values.links, { url: '', label: '' }])}>Ajouter un lien</AddItemButton>
-        </LabeledField>
-
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Calendrier"
-            description={recurring ? 'Pour toute la série.' : undefined}
-            {...listSelectProps(calendars, undefined, values.calendarId ?? occurrence?.calendarId)}
-            // Without a choice, the event goes into the first calendar not archived.
-            value={values.calendarId ?? defaultCalendarId}
-            onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
-            allowDeselect={false}
-            leftSection={(() => {
-              const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
-              return current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined;
-            })()}
-          />
-          <ProjectSelect
-            context={context}
-            label="Projet"
-            clearable
-            placeholder="Aucun"
-            {...form.getInputProps('projectId')}
-            onChange={(projectId) => {
-              form.setFieldValue('projectId', projectId);
-              // Contributors out of the new project are dropped.
-              const allowed = new Set(context.assignableFor([projectId], initial.contributorIds ?? []).map((contributor) => contributor.id));
-              form.setFieldValue('contributorIds', values.contributorIds.filter((id) => allowed.has(id)));
-            }}
-          />
-          <AssigneesSelect
-            label="Contributeurs"
-            description={values.projectId ? 'Contributeurs du projet.' : undefined}
-            contributors={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? [])}
-            value={values.contributorIds}
-            onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
-          />
-          <BeneficiariesSelect
-            description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
-            value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
-            onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
-          />
-          <BatchMultiSelect
-            label={relationNoun(perso, true)}
-            description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
-            placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
-            data={relationOptions}
-            searchable
-            clearable
-            nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
-            {...form.getInputProps('relationIds')}
-          />
-          <BatchMultiSelect
-            onCreate={itemCreator('Nouvelle catégorie d’agenda', categoryItems, { tree: unarchived(categories ?? []) })}
-            label="Catégories"
-            placeholder={values.categoryIds.length ? undefined : 'Aucune'}
-            // Archived categories are no longer offered, but those of the event stay.
-            {...treeSelectProps(categoryOptions(categories ?? [], undefined, unarchivedOffered(categories ?? [], values.categoryIds)))}
-            searchable
-            clearable
-            nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
-            {...form.getInputProps('categoryIds')}
-          />
-          <BatchMultiSelect
-            label="Tâches"
-            placeholder={values.taskIds?.length ? undefined : 'Aucune'}
-            description={
-              [values.projectId ? 'Tâches du projet et de ses sous-projets' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null].filter(Boolean).join(', ') || undefined
-            }
-            // Of the project, and with someone in common with the event (or nobody on either side); those chosen stay.
-            data={context.tasks
-              .filter(
-                (task) =>
-                  values.taskIds?.includes(task.id) ||
-                  (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId)) && sharePeople(task.assigneeIds, values.contributorIds)),
-              )
-              .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
-            searchable
-            clearable
-            limit={100}
-            nothingFoundMessage="Aucune tâche"
-            value={values.taskIds ?? []}
-            onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
-            error={form.errors.taskIds as string | undefined}
-          />
-          <BatchMultiSelect
-            label="Routines"
-            placeholder={(values.routineLinks ?? []).length ? undefined : 'Aucune'}
-            description="Routines de ces jours faites pendant l’évènement (ce jour-là seulement), avec un contributeur de l’évènement."
-            data={routineOptions}
-            searchable
-            clearable
-            nothingFoundMessage="Aucune routine ces jours-là"
-            value={(values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`)}
-            onChange={(keys) => form.setFieldValue('routineLinks', keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })))}
-            error={form.errors.routineLinks as string | undefined}
-          />
-          <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={EVENT_REMINDERS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
-        </SimpleGrid>
-        {recurring && (
-          <Text size="xs" c="dimmed">
-            Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série.
-          </Text>
-        )}
-        {occurrence && (
-          <Group gap="sm">
-            <Tooltip label={values.projectId ? 'Démarre un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
-              <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
-                Démarrer le chrono
-              </Button>
-            </Tooltip>
-            {occurrence.trackedSeconds > 0 && (
-              <Text size="sm" c="dimmed">
-                {formatDuration(occurrence.trackedSeconds)} chronométrées sur cet évènement.
+              <AssigneesSelect
+                label="Contributeurs"
+                description={values.projectId ? 'Contributeurs du projet.' : undefined}
+                contributors={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? [])}
+                value={values.contributorIds}
+                onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
+              />
+              <BeneficiariesSelect
+                description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
+                value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
+                onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+              />
+              <BatchMultiSelect
+                label={relationNoun(perso, true)}
+                description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
+                placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
+                data={relationOptions}
+                searchable
+                clearable
+                nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
+                {...form.getInputProps('relationIds')}
+              />
+              <BatchMultiSelect
+                onCreate={itemCreator('Nouvelle catégorie d’agenda', categoryItems, { tree: unarchived(categories ?? []) })}
+                label="Catégories"
+                placeholder={values.categoryIds.length ? undefined : 'Aucune'}
+                // Archived categories are no longer offered, but those of the event stay.
+                {...treeSelectProps(categoryOptions(categories ?? [], undefined, unarchivedOffered(categories ?? [], values.categoryIds)))}
+                searchable
+                clearable
+                nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
+                {...form.getInputProps('categoryIds')}
+              />
+              <BatchMultiSelect
+                label="Tâches"
+                placeholder={values.taskIds?.length ? undefined : 'Aucune'}
+                description={
+                  [values.projectId ? 'Tâches du projet et de ses sous-projets' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null]
+                    .filter(Boolean)
+                    .join(', ') || undefined
+                }
+                // Of the project, and with someone in common with the event (or nobody on either side); those chosen stay.
+                data={context.tasks
+                  .filter(
+                    (task) =>
+                      values.taskIds?.includes(task.id) ||
+                      (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId)) && sharePeople(task.assigneeIds, values.contributorIds)),
+                  )
+                  .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
+                searchable
+                clearable
+                limit={100}
+                nothingFoundMessage="Aucune tâche"
+                value={values.taskIds ?? []}
+                onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+                error={form.errors.taskIds as string | undefined}
+              />
+              <BatchMultiSelect
+                label="Routines"
+                placeholder={(values.routineLinks ?? []).length ? undefined : 'Aucune'}
+                description="Routines de ces jours faites pendant l’évènement (ce jour-là seulement), avec un contributeur de l’évènement."
+                data={routineOptions}
+                searchable
+                clearable
+                nothingFoundMessage="Aucune routine ces jours-là"
+                value={(values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`)}
+                onChange={(keys) =>
+                  form.setFieldValue(
+                    'routineLinks',
+                    keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })),
+                  )
+                }
+                error={form.errors.routineLinks as string | undefined}
+              />
+              <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={EVENT_REMINDERS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+            </SimpleGrid>
+            {recurring && (
+              <Text size="xs" c="dimmed">
+                Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série.
               </Text>
             )}
-          </Group>
-        )}
+            {occurrence && (
+              <Group gap="sm">
+                <Tooltip label={values.projectId ? 'Démarre un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
+                  <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
+                    Démarrer le chrono
+                  </Button>
+                </Tooltip>
+                {occurrence.trackedSeconds > 0 && (
+                  <Text size="sm" c="dimmed">
+                    {formatDuration(occurrence.trackedSeconds)} chronométrées sur cet évènement.
+                  </Text>
+                )}
+              </Group>
+            )}
 
-        <MarkdownEditor
-          label="Description"
-          value={values.description ?? ''}
-          onChange={(description) => form.setFieldValue('description', description)}
-          suggestions={context.suggestionsFor(values.projectId ?? null)}
-          minRows={3}
-        />
-        </Stack>
+            <MarkdownEditor
+              label="Description"
+              value={values.description ?? ''}
+              onChange={(description) => form.setFieldValue('description', description)}
+              suggestions={context.suggestionsFor(values.projectId ?? null)}
+              minRows={3}
+            />
+          </Stack>
         </Fieldset>
-        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
-        {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />}
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} name={values.title || 'l’évènement'} />}
+        {occurrence && (
+          <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />
+        )}
 
         {readOnly ? (
           <Group justify="space-between" gap="sm">
             {occurrence ? (
-                <Group gap={4}>
-                  <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
-                  {!calendarArchived && archiveMenu}
-                </Group>
+              <Group gap={4}>
+                <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
+                {!calendarArchived && archiveMenu}
+              </Group>
             ) : (
               <span />
             )}
@@ -537,37 +562,37 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             danger={
               occurrence && (
                 <>
-                <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
-                {onDuplicate && (
-                  <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
-                    <Button
-                      variant="subtle"
-                      color="gray"
-                      leftSection={<CopyIcon aria-hidden />}
-                      onClick={() =>
-                        // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                        onDuplicate({ ...values, title: copyName(values.title), recurrence: recurring ? null : (values.recurrence ?? null) })
-                      }
-                    >
-                      Dupliquer
+                  <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
+                  {onDuplicate && (
+                    <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
+                      <Button
+                        variant="subtle"
+                        color="gray"
+                        leftSection={<CopyIcon aria-hidden />}
+                        onClick={() =>
+                          // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                          onDuplicate({ ...values, title: copyName(values.title), recurrence: recurring ? null : (values.recurrence ?? null) })
+                        }
+                      >
+                        Dupliquer
+                      </Button>
+                    </Tooltip>
+                  )}
+                  {occurrence.calledOff ? (
+                    <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
+                      Rétablir
                     </Button>
-                  </Tooltip>
-                )}
-                {occurrence.calledOff ? (
-                  <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
-                    Rétablir
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
-                      Annuler l’évènement
-                    </Button>
-                    <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
-                      Reporter
-                    </Button>
-                  </>
-                )}
-                {archiveMenu}
+                  ) : (
+                    <>
+                      <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
+                        Annuler l’évènement
+                      </Button>
+                      <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
+                        Reporter
+                      </Button>
+                    </>
+                  )}
+                  {archiveMenu}
                 </>
               )
             }

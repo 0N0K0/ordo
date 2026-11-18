@@ -14,7 +14,5 @@ export function timeTasks(context: TaskContext, projectId: string | null, keep: 
   if (!projectId) return [];
   const subtree = descendantIds(context.projects, projectId);
   subtree.add(projectId);
-  return context.tasks
-    .filter((task) => keep.includes(task.id) || ((task.projectId === null || subtree.has(task.projectId)) && !task.archived))
-    .sort((a, b) => Number(a.closed) - Number(b.closed));
+  return context.tasks.filter((task) => keep.includes(task.id) || ((task.projectId === null || subtree.has(task.projectId)) && !task.archived)).sort((a, b) => Number(a.closed) - Number(b.closed));
 }

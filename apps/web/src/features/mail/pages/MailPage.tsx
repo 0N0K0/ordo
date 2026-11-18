@@ -1,4 +1,4 @@
-
+import { MailHeaderActions } from '../components/MailHeaderActions';
 import { PAGES } from '../../../app/pages';
 import { MailListControls } from '../components/MailListControls';
 import { MAIL_SORTS, type DoneFilter } from '../lib/mail-list';
@@ -6,17 +6,17 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { useSetParams } from '../../../lib/search-params';
 import { countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
-import { ActionButton } from '../../../components/actions/ActionButton';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { Badge, Box, Grid, NavLink, Paper, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Grid, NavLink, Paper, Stack, Text } from '@mantine/core';
 import { mapById } from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, ClockCountdownIcon, EnvelopeSimpleIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from '../api';
+import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from '../api';
 import { AccountFolders, type DraggedMails } from '../components/MailFolders';
 import { MailListItem } from '../components/MailListItem';
 import { MailListPane } from '../components/MailListPane';
@@ -36,8 +36,6 @@ import { SETTINGS_PARAM, useSettingsOpened } from '../../../app/layout/page-sett
 import { unarchived } from '../../../lib/archive';
 import { MailSearchBar } from '../components/MailSearchBar';
 import { selectionFlags, usePageSelection } from '../hooks/use-page-selection';
-
-
 
 /**
  * Mail client: accounts (managed in a dialog, or right in the page without any) and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
@@ -71,9 +69,7 @@ export function MailPage() {
   const [sortBy, sortDirection] = sortParam.split('-') as [string, string];
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
   const messages = useMailMessages(
-    accountId && !scheduledView && !searchId && !advanced
-      ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter, sort: sortBy, ascending: sortDirection === 'asc' }
-      : null,
+    accountId && !scheduledView && !searchId && !advanced ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter, sort: sortBy, ascending: sortDirection === 'asc' } : null,
   );
   const { data: folders } = useMailFolders(accountId);
   const { data: labels } = useMailLabels();
@@ -91,7 +87,6 @@ export function MailPage() {
   useEffect(() => {
     if (params.get('accounts') === '1') setParams({ accounts: null, [SETTINGS_PARAM]: '1' });
   }, [params, setParams]);
-  const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
 
   /**
@@ -105,7 +100,10 @@ export function MailPage() {
     return (
       <Stack gap="lg">
         <PageHeader title={PAGES.mail.title} />
-        <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'} />
+        <EmptyState
+          icon={<EnvelopeSimpleIcon aria-hidden />}
+          message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'}
+        />
         <MailAccountsManager />
       </Stack>
     );
@@ -134,11 +132,8 @@ export function MailPage() {
         title={PAGES.mail.title}
         actions={
           <>
-          <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-            <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>Relever</ActionButton>
-          </Tooltip>
-          <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>Nouveau mail</ActionButton>
-        </>
+            <MailHeaderActions onCompose={() => compose({ accountId })} />
+          </>
         }
       />
       <Grid gap="md" classNames={{ root: classes.grid, inner: classes.gridInner }}>
@@ -269,7 +264,15 @@ export function MailPage() {
                       <EmptyState
                         plain
                         icon={<EnvelopeSimpleIcon aria-hidden />}
-                        message={debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
+                        message={
+                          debouncedSearch
+                            ? 'Aucun mail ne correspond à la recherche.'
+                            : doneFilter === 'todo'
+                              ? 'Aucun mail à traiter.'
+                              : doneFilter === 'done'
+                                ? 'Aucun mail traité.'
+                                : 'Aucun mail dans ce dossier.'
+                        }
                       />
                     </Box>
                   ) : undefined

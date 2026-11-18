@@ -78,8 +78,7 @@ builder.mutationFields((t) => ({
   savePlace: t.id({
     args: { id: t.arg.id(), input: t.arg({ type: PlaceInput, required: true }) },
     resolve: async (_root, { id, input }) =>
-      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId || null }))
-        .id,
+      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId || null })).id,
   }),
   movePlace: t.boolean({
     description: 'Moves a place among the places, or a zone under another place or zone, at an index among its siblings.',

@@ -268,13 +268,7 @@ export async function createProject(
  * @param {number} index Target index among the active siblings.
  * @returns {Promise<void>}
  */
-async function placeProject(
-  tree: ProjectTree,
-  project: Project,
-  parentId: string | null,
-  clientId: string | null,
-  index: number,
-): Promise<void> {
+async function placeProject(tree: ProjectTree, project: Project, parentId: string | null, clientId: string | null, index: number): Promise<void> {
   const targetClientId = parentId ? assertParent(tree, parentId, project.id) : clientId;
   if (!parentId && targetClientId !== project.clientId) await assertAttachableClient(targetClientId);
 
@@ -294,10 +288,7 @@ async function placeProject(
     ...order.map((id, position) =>
       prisma.project.update({
         where: { id },
-        data:
-          id === project.id
-            ? { position, parentId, clientId: targetClientId, archivedByCascade: false }
-            : { position },
+        data: id === project.id ? { position, parentId, clientId: targetClientId, archivedByCascade: false } : { position },
       }),
     ),
     // Sub-projects follow the client of their root.
@@ -396,9 +387,7 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
     .ancestors(id)
     .filter((ancestor) => ancestor.archivedAt)
     .map((ancestor) => ancestor.id);
-  const client = project.clientId
-    ? await prisma.client.findUnique({ where: { id: project.clientId }, select: { archivedAt: true } })
-    : null;
+  const client = project.clientId ? await prisma.client.findUnique({ where: { id: project.clientId }, select: { archivedAt: true } }) : null;
   const clientArchived = Boolean(project.clientId && client?.archivedAt);
 
   const [, , , updated] = await prisma.$transaction([
@@ -448,10 +437,7 @@ export async function deleteProject(id: string): Promise<void> {
  * @param {number} target.index Target index among the active siblings.
  * @returns {Promise<void>}
  */
-export async function moveProject(
-  id: string,
-  { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number },
-): Promise<void> {
+export async function moveProject(id: string, { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number }): Promise<void> {
   const project = await findProject(id);
   await placeProject(await ProjectTree.load(), project, parentId, clientId, index);
 }

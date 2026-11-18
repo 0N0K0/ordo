@@ -235,10 +235,7 @@ export function CatalogPanel() {
       framed
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
-      selectionActions={(rows, clear) => [
-        archiveItemsAction(rows, setArchived, { noun: 'article', clear }),
-        deleteItems(rows, clear),
-      ]}
+      selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'article', clear }), deleteItems(rows, clear)]}
       bar={{
         searchLabel: 'Rechercher un article',
         actions: (
@@ -329,10 +326,7 @@ export function CatalogPanel() {
         <RowActions
           name={item.title}
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
-          items={[
-            archiveEntry({ archived: item.archived, type: 'Article', name: item.title }, setArchived, item.id),
-            rowMenuEntry(deleteItems([item])),
-          ]}
+          items={[archiveEntry({ archived: item.archived, type: 'Article', name: item.title }, setArchived, item.id), rowMenuEntry(deleteItems([item]))]}
         />
       )}
     />

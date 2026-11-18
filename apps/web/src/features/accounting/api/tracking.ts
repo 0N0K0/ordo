@@ -155,8 +155,7 @@ export function useDocumentStatusMutations(scope: DocumentStatusScope) {
         (await execute(CreateStatus, { scope, name: input.name, color: input.color, category: input.category ?? 'SENT' })).createDocumentStatus,
     ),
     update: useAccountingMutation(
-      async ({ id, input }: { id: string; input: { name?: string; color?: string; category?: DocumentStatusCategory } }) =>
-        (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
+      async ({ id, input }: { id: string; input: { name?: string; color?: string; category?: DocumentStatusCategory } }) => (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
     ),
     remove: useAccountingMutation(async ({ id }: { id: string }) => (await execute(DeleteStatus, { id })).deleteDocumentStatus),
   };
@@ -175,9 +174,7 @@ export function useTrackingMutations() {
     accept: useAccountingMutation(async (variables: { id: string; date: string; file: File | null }) => (await execute(AcceptQuote, variables)).acceptQuote),
     removeSigned: useAccountingMutation(async (id: string) => (await execute(RemoveSignedQuote, { id })).removeSignedQuote),
     addReminder: useAccountingMutation(async (variables: { id: string; note: string | null }) => (await execute(AddReminder, variables)).addDocumentReminder),
-    sendReminders: useAccountingMutation(
-      async (variables: { accountId: string; documentIds: string[] }) => (await execute(SendReminders, variables)).sendDocumentReminders,
-    ),
+    sendReminders: useAccountingMutation(async (variables: { accountId: string; documentIds: string[] }) => (await execute(SendReminders, variables)).sendDocumentReminders),
     deleteReminder: useAccountingMutation(async (id: string) => (await execute(DeleteReminder, { id })).deleteDocumentReminder),
     recordPayment: useAccountingMutation(
       async (variables: { id: string; input: DocumentPaymentInput }) =>

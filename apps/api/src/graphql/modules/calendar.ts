@@ -289,7 +289,6 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
   }),
 });
 
-
 const CalendarCategoryInput = builder.inputType('CalendarCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }), parentId: t.id() }),
 });
@@ -441,8 +440,7 @@ builder.mutationFields((t) => ({
       scope: t.arg({ type: EventScope, required: true }),
       occurrenceDate: t.arg({ type: 'Date' }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate }) =>
-      (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate)).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate)).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',

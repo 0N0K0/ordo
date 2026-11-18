@@ -43,9 +43,7 @@ export function ResetPasswordPage() {
           </Stack>
         </form>
       ) : (
-        <ErrorAlert title="Lien invalide">
-          Ce lien de réinitialisation est incomplet. Demandez-en un nouveau.
-        </ErrorAlert>
+        <ErrorAlert title="Lien invalide">Ce lien de réinitialisation est incomplet. Demandez-en un nouveau.</ErrorAlert>
       )}
       <Anchor component={Link} to="/forgot-password" size="sm">
         Demander un nouveau lien

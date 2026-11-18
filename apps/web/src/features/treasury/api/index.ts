@@ -518,13 +518,9 @@ export function useTreasuryMutations() {
     updateMethod: useTreasuryMutation(async (variables: { id: string; input: TreasuryPaymentMethodInput }) => (await execute(UpdateMethod, variables)).updateTreasuryPaymentMethod),
     deleteMethod: useTreasuryMutation(async (id: string) => (await execute(DeleteMethod, { id })).deleteTreasuryPaymentMethod),
     createCounterparty: useTreasuryMutation(async (input: TreasuryCounterpartyInput) => (await execute(CreateCounterparty, { input } as never)).createTreasuryCounterparty),
-    updateCounterparty: useTreasuryMutation(
-      async (variables: { id: string; input: TreasuryCounterpartyInput }) => (await execute(UpdateCounterparty, variables as never)).updateTreasuryCounterparty,
-    ),
+    updateCounterparty: useTreasuryMutation(async (variables: { id: string; input: TreasuryCounterpartyInput }) => (await execute(UpdateCounterparty, variables as never)).updateTreasuryCounterparty),
     deleteCounterparty: useTreasuryMutation(async (id: string) => (await execute(DeleteCounterparty, { id })).deleteTreasuryCounterparty),
-    realize: useTreasuryMutation(
-      async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast,
-    ),
+    realize: useTreasuryMutation(async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast),
   };
 }
 
@@ -598,7 +594,9 @@ export function useTreasuryTeamMutations() {
       mutationFn: async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember,
       onSettled: contributorsChanged,
     }),
-    saveRelation: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation),
+    saveRelation: useTreasuryMutation(
+      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
+    ),
     deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
     saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
     deleteContext: useTreasuryMutation(async (id: string) => (await execute(DeleteContext, { id })).deleteTreasuryContext),

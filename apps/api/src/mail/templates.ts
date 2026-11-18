@@ -49,10 +49,7 @@ export function emailChangedNoticeMail(to: string, newEmail: string): Mail {
   return {
     to,
     subject: 'Votre adresse email a été modifiée',
-    text:
-      `L'adresse email de votre compte Ordo est désormais ${newEmail}.\n\n` +
-      `Si vous n'êtes pas à l'origine de ce changement, réinitialisez votre mot de passe sans attendre.` +
-      SIGNATURE,
+    text: `L'adresse email de votre compte Ordo est désormais ${newEmail}.\n\n` + `Si vous n'êtes pas à l'origine de ce changement, réinitialisez votre mot de passe sans attendre.` + SIGNATURE,
   };
 }
 

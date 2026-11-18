@@ -34,7 +34,15 @@ export const calendarEventInputSchema = z
     timeZone: z.string().min(1).max(64),
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */
-    reminders: z.array(z.number().int().min(0).max(60 * 24 * 30)).max(10),
+    reminders: z
+      .array(
+        z
+          .number()
+          .int()
+          .min(0)
+          .max(60 * 24 * 30),
+      )
+      .max(10),
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,
     projectId: z.string().nullable(),
@@ -50,7 +58,10 @@ export const calendarEventInputSchema = z
     /** Tasks the event is about. */
     taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),
     /** Routines of a day of the event it is about (that day only, even for a repeated routine). */
-    routineLinks: z.array(z.object({ routineId: z.string(), date: daySchema() })).max(200).default([]),
+    routineLinks: z
+      .array(z.object({ routineId: z.string(), date: daySchema() }))
+      .max(200)
+      .default([]),
   })
   .superRefine((event, context) => {
     if (!event.allDay) {

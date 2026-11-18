@@ -45,13 +45,12 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
         value={file}
         onChange={setFile}
       />
-      <FormActions onCancel={onDone} loading={accept.isPending} disabled={!date} onSubmit={() =>
-            date &&
-            accept.mutate(
-              { id: document.id, date, file },
-              formCallbacks(null, 'Devis accepté.', onDone),
-            )
-          } />
+      <FormActions
+        onCancel={onDone}
+        loading={accept.isPending}
+        disabled={!date}
+        onSubmit={() => date && accept.mutate({ id: document.id, date, file }, formCallbacks(null, 'Devis accepté.', onDone))}
+      />
     </Stack>
   );
 }
@@ -67,12 +66,13 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   return (
     <Stack gap="sm">
       <TextInput label="Note" placeholder="Appel, courrier…" maxLength={500} value={note} onChange={(event) => setNote(event.currentTarget.value)} data-autofocus />
-      <FormActions onCancel={onDone} submitLabel="Noter" submitIcon={<NotePencilIcon aria-hidden />} loading={addReminder.isPending} onSubmit={() =>
-            addReminder.mutate(
-              { id: documentId, note: note.trim() || null },
-              formCallbacks(null, 'Relance notée.', onDone),
-            )
-          } />
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Noter"
+        submitIcon={<NotePencilIcon aria-hidden />}
+        loading={addReminder.isPending}
+        onSubmit={() => addReminder.mutate({ id: documentId, note: note.trim() || null }, formCallbacks(null, 'Relance notée.', onDone))}
+      />
     </Stack>
   );
 }
@@ -127,7 +127,11 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         value={document.trackingStatus?.id ?? null}
         allowDeselect={false}
         readOnly={locked}
-        leftSection={document.trackingStatus ? <ItemAvatar name={document.trackingStatus.name} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} /> : undefined}
+        leftSection={
+          document.trackingStatus ? (
+            <ItemAvatar name={document.trackingStatus.name} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} />
+          ) : undefined
+        }
         onChange={(statusId) => {
           if (!statusId) return;
           // A "sent" status asks when and how it was sent.
@@ -136,14 +140,10 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           } else mutations.setStatus.mutate({ id: document.id, statusId }, ON_ERROR);
         }}
       />
-      {document.overdue && (
-        <ErrorAlert p="xs">{isQuote ? 'Date de validité dépassée sans réponse.' : `Échéance dépassée : ${money(balance)} restent dus.`}</ErrorAlert>
-      )}
+      {document.overdue && <ErrorAlert p="xs">{isQuote ? 'Date de validité dépassée sans réponse.' : `Échéance dépassée : ${money(balance)} restent dus.`}</ErrorAlert>}
       <Group justify="space-between" wrap="nowrap">
         <Text size="sm" c="dimmed">
-          {document.sentAt
-            ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(document.sentAt)}`
-            : 'Pas encore envoyé.'}
+          {document.sentAt ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(document.sentAt)}` : 'Pas encore envoyé.'}
         </Text>
         {!locked && (
           <Button size="compact-xs" variant="subtle" leftSection={document.sentAt ? <PencilSimpleIcon aria-hidden /> : <PaperPlaneTiltIcon aria-hidden />} onClick={() => openDialog('sent')}>
@@ -251,7 +251,6 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           )}
         </SubSection>
       )}
-
     </SettingsSection>
   );
 }

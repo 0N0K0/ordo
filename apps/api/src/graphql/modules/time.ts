@@ -154,8 +154,7 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description:
-      'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
+    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
     args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
     resolve: async (query, _root, { projectId, routineId, since }) => {
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
@@ -180,7 +179,6 @@ builder.queryFields((t) => ({
     resolve: (query) => prisma.alarm.findMany({ ...query, orderBy: [{ startDate: 'asc' }, { time: 'asc' }, { createdAt: 'asc' }] }),
   }),
 }));
-
 
 builder.mutationFields((t) => ({
   startTimer: t.prismaField({
@@ -220,14 +218,12 @@ builder.mutationFields((t) => ({
   createAlarm: t.prismaField({
     type: 'Alarm',
     args: { input: t.arg({ type: AlarmInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      reloaded(prisma.alarm, query, alarms.createAlarm(alarmInput(input))),
+    resolve: async (query, _root, { input }) => reloaded(prisma.alarm, query, alarms.createAlarm(alarmInput(input))),
   }),
   updateAlarm: t.prismaField({
     type: 'Alarm',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: AlarmInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.alarm, query, alarms.updateAlarm(id, alarmInput(input))),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.alarm, query, alarms.updateAlarm(id, alarmInput(input))),
   }),
   markAlarmFired: t.boolean({
     description: 'Records that an alarm rang for the occurrence at `at`.',

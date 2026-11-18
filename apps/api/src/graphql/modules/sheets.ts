@@ -134,8 +134,6 @@ const SheetInputRef = builder.inputType('SheetInput', {
   fields: (t) => ({ name: t.string({ required: true }), note: t.string(), projectId: t.id(), categoryIds: t.idList({ required: true }) }),
 });
 
-
-
 /**
  * Sheet input as the service reads it.
  * @param {typeof SheetInputRef.$inferInput} input Input.

@@ -86,10 +86,7 @@ export function formatClock(seconds: number): string {
  * @param {number} [now] Current time in ms. Optional. Default = Date.now().
  * @returns {number} Seconds.
  */
-export function entrySeconds(
-  entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null },
-  now = Date.now(),
-): number {
+export function entrySeconds(entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null }, now = Date.now()): number {
   if (entry.duration !== null) return entry.duration;
   const end = entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now;
   return Math.max(0, Math.floor((end - Date.parse(entry.startedAt)) / 1000) - entry.pausedSeconds);
@@ -120,7 +117,12 @@ export const alarmInputSchema = z
     endDate: dateSchema,
     /** Repetition in the common form; none: the former fields above (ONCE: rings once). */
     recurrence: recurrenceSchema.nullable().optional(),
-    minutes: z.number().int().min(1, 'Au moins 1 minute.').max(24 * 60, '24 heures maximum.').nullable(),
+    minutes: z
+      .number()
+      .int()
+      .min(1, 'Au moins 1 minute.')
+      .max(24 * 60, '24 heures maximum.')
+      .nullable(),
     projectId: z.string().nullable(),
     taskId: z.string().nullable(),
     enabled: z.boolean(),
@@ -157,7 +159,13 @@ export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
   const stored = recurrenceSchema.safeParse(schedule.recurrence);
   if (stored.success) return stored.data;
   if (schedule.frequency === 'ONCE') return null;
-  return { ...DEFAULT_RECURRENCE, frequency: schedule.frequency, interval: Math.max(1, schedule.interval), weekdays: schedule.frequency === 'WEEKLY' ? schedule.weekdays : [], until: schedule.endDate };
+  return {
+    ...DEFAULT_RECURRENCE,
+    frequency: schedule.frequency,
+    interval: Math.max(1, schedule.interval),
+    weekdays: schedule.frequency === 'WEEKLY' ? schedule.weekdays : [],
+    until: schedule.endDate,
+  };
 }
 
 /**

@@ -124,11 +124,7 @@ export async function issueDueInvoices(today: string): Promise<number> {
       const template = await findDocument(recurring.templateId);
       const fields = await editableFields(template);
       const shift = daysBetween(fields.issueDate, next);
-      const invoice = await createDocument(
-        'INVOICE',
-        { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null },
-        { recurringId: recurring.id },
-      );
+      const invoice = await createDocument('INVOICE', { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null }, { recurringId: recurring.id });
       if (recurring.autoFinalize) await finalizeDocument(invoice.id).catch((error: unknown) => console.warn('Facture récurrente non validée.', error));
       issued += 1;
       next = nextIssueDate(rule, formatDay(recurring.startDate), addDays(next, 1));

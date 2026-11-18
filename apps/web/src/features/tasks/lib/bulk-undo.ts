@@ -77,8 +77,7 @@ export function useBulkUndo() {
      * @param {BulkChanges} changes Applied change.
      * @returns {() => void} Undo.
      */
-    changes: (tasks: Task[], changes: BulkChanges) => () =>
-      run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync({ ...step, restoring: true }))),
+    changes: (tasks: Task[], changes: BulkChanges) => () => run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync({ ...step, restoring: true }))),
 
     /**
      * Undo of a close / reopen: only the tasks whose state changed go back.
@@ -111,7 +110,11 @@ export function useBulkUndo() {
     transfer: (levels: Task[][]) => () =>
       run(
         levels.flatMap((level) =>
-          idsBy(level, (task) => task.projectId).map(([projectId, ids]) => () => transfer.mutateAsync({ ids, projectId })),
+          idsBy(level, (task) => task.projectId).map(
+            ([projectId, ids]) =>
+              () =>
+                transfer.mutateAsync({ ids, projectId }),
+          ),
         ),
       ),
   };

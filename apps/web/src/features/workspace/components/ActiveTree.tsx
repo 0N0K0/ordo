@@ -12,7 +12,6 @@ import classes from './Tree.module.css';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
 import { sortableStyle } from '../../../components/actions/sortable-style';
 
-
 type ItemKind = 'client' | 'none' | 'project';
 
 /** One visible row of the flattened tree. */
@@ -139,9 +138,7 @@ const collisionDetection: CollisionDetection = (args) => {
   const draggingClient = String(args.active.id).startsWith('client:');
   return closestCenter({
     ...args,
-    droppableContainers: draggingClient
-      ? args.droppableContainers.filter((container) => !String(container.id).startsWith('project:'))
-      : args.droppableContainers,
+    droppableContainers: draggingClient ? args.droppableContainers.filter((container) => !String(container.id).startsWith('project:')) : args.droppableContainers,
   });
 };
 
@@ -168,16 +165,7 @@ function SortableRow({ item, depth, client, project, dndEnabled, expanded, onTog
   const style = sortableStyle({ transform, transition, isDragging });
 
   if (item.kind === 'none') {
-    return (
-      <NoClientRow
-        ref={setNodeRef}
-        style={style}
-        expanded={expanded}
-        onToggle={onToggle}
-        hasChildren={item.hasChildren}
-        canAddProject
-      />
-    );
+    return <NoClientRow ref={setNodeRef} style={style} expanded={expanded} onToggle={onToggle} hasChildren={item.hasChildren} canAddProject />;
   }
 
   const entity = client ? ({ type: 'client', item: client } as const) : ({ type: 'project', item: project! } as const);
@@ -242,8 +230,7 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
     return all;
   }, [section, isExpanded, activeKind, activeId]);
 
-  const projection =
-    activeKind === 'project' && activeId && overId ? getProjection(items, activeId, overId, offsetX) : null;
+  const projection = activeKind === 'project' && activeId && overId ? getProjection(items, activeId, overId, offsetX) : null;
 
   /**
    * Clears the drag state.
@@ -284,12 +271,8 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
 
     if (!currentProjection) return;
     const original = items.find((item) => item.id === dragId)!;
-    const index = moved
-      .filter((item) => item.id === dragId || item.parentId === currentProjection.parentId)
-      .findIndex((item) => item.id === dragId);
-    const originalIndex = items
-      .filter((item) => item.parentId === original.parentId)
-      .findIndex((item) => item.id === dragId);
+    const index = moved.filter((item) => item.id === dragId || item.parentId === currentProjection.parentId).findIndex((item) => item.id === dragId);
+    const originalIndex = items.filter((item) => item.parentId === original.parentId).findIndex((item) => item.id === dragId);
     if (currentProjection.parentId === original.parentId && index === originalIndex) return;
 
     const [parentKind, parentEntityId] = parseId(currentProjection.parentId);

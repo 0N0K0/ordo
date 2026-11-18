@@ -1,7 +1,21 @@
 import { IconAction } from '../actions/IconAction';
 import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
 import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
-import { AtIcon, CheckSquareIcon, CodeIcon, HashIcon, LinkIcon, ListBulletsIcon, ListNumbersIcon, MarkdownLogoIcon, PaperclipIcon, QuotesIcon, TextBIcon, TextHIcon, TextItalicIcon } from '@phosphor-icons/react';
+import {
+  AtIcon,
+  CheckSquareIcon,
+  CodeIcon,
+  HashIcon,
+  LinkIcon,
+  ListBulletsIcon,
+  ListNumbersIcon,
+  MarkdownLogoIcon,
+  PaperclipIcon,
+  QuotesIcon,
+  TextBIcon,
+  TextHIcon,
+  TextItalicIcon,
+} from '@phosphor-icons/react';
 import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { attachmentMarkdown, uploadAttachment } from './attachments';
 import { notifyError } from '../../lib/notify';
@@ -86,18 +100,7 @@ const LIST_ITEM = /^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)\. |> )/;
  * @param {MarkdownEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function MarkdownEditor({
-  value,
-  onChange,
-  suggestions,
-  label,
-  placeholder = 'Écrivez en markdown…',
-  minRows = 6,
-  autoFocus,
-  error,
-  onSubmitShortcut,
-  onBlur,
-}: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, suggestions, label, placeholder = 'Écrivez en markdown…', minRows = 6, autoFocus, error, onSubmitShortcut, onBlur }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
   const [tab, setTab] = useState<string | null>('write');
@@ -362,15 +365,28 @@ export function MarkdownEditor({
                 {COMMANDS.map((command) => (
                   <Group key={command.label} gap={2} wrap="nowrap">
                     {command.divider && <span className={classes.divider} />}
-                    <IconAction label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label} size="sm" aria-label={command.label} onMouseDown={(event) => event.preventDefault()} onClick={() => run(command.edit)}>
-                        {command.icon}
-</IconAction>
+                    <IconAction
+                      label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label}
+                      size="sm"
+                      aria-label={command.label}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => run(command.edit)}
+                    >
+                      {command.icon}
+                    </IconAction>
                   </Group>
                 ))}
                 <span className={classes.divider} />
-                <IconAction label="Joindre des fichiers (images affichées, autres fichiers en lien)" size="sm" aria-label="Joindre des fichiers" loading={uploading > 0} onMouseDown={(event) => event.preventDefault()} onClick={() => fileInputRef.current?.click()}>
-                    <PaperclipIcon />
-</IconAction>
+                <IconAction
+                  label="Joindre des fichiers (images affichées, autres fichiers en lien)"
+                  size="sm"
+                  aria-label="Joindre des fichiers"
+                  loading={uploading > 0}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <PaperclipIcon />
+                </IconAction>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -454,9 +470,7 @@ export function MarkdownEditor({
         <Group gap={6} className={classes.footer} aria-live="polite">
           {uploading > 0 ? <Loader size={12} /> : <MarkdownLogoIcon aria-hidden />}
           <Text size="xs" c="dimmed">
-            {uploading > 0
-              ? `Envoi de ${countOf(uploading, 'fichier')}…`
-              : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
+            {uploading > 0 ? `Envoi de ${countOf(uploading, 'fichier')}…` : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
           </Text>
         </Group>
       </Paper>

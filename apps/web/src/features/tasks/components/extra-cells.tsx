@@ -122,9 +122,14 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         </Badge>
       )}
       {!task.archived && (
-        <IconAction label="Nouvelle alarme" size="sm" aria-label={`Nouvelle alarme pour ${task.title}`} onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}>
-            <PlusIcon aria-hidden />
-</IconAction>
+        <IconAction
+          label="Nouvelle alarme"
+          size="sm"
+          aria-label={`Nouvelle alarme pour ${task.title}`}
+          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
+        >
+          <PlusIcon aria-hidden />
+        </IconAction>
       )}
     </Group>
   );
@@ -151,27 +156,27 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
         ))}
       </StackedValues>
       {!task.archived && (
-      <ActionsMenu
-        name={task.title}
-        target={
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        }
-        items={[
-          { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
-          { section: 'Rattacher une liste' },
-          ...free.map((list) => ({
-            label: list.name,
-            icon: <BasketIcon aria-hidden />,
-            onClick: () =>
-              updateList.mutate(
-                { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
-                toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
-              ),
-          })),
-        ]}
-      />
+        <ActionsMenu
+          name={task.title}
+          target={
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
+              <PlusIcon aria-hidden />
+            </ActionIcon>
+          }
+          items={[
+            { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
+            { section: 'Rattacher une liste' },
+            ...free.map((list) => ({
+              label: list.name,
+              icon: <BasketIcon aria-hidden />,
+              onClick: () =>
+                updateList.mutate(
+                  { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
+                  toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
+                ),
+            })),
+          ]}
+        />
       )}
     </Group>
   );

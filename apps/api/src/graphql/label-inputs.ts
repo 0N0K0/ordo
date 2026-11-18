@@ -6,7 +6,6 @@ import { builder, type BuilderTypes } from './builder';
 import { done } from './errors';
 import { reloaded } from './reload';
 
-
 /** Name and color of an item of a simple list (a status, a category, a store…). */
 export const NameColorInput = builder.inputType('NameColorInput', {
   description: 'Name and color of an item of a simple list.',

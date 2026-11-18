@@ -22,6 +22,7 @@ type Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": typeof types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": typeof types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": typeof types.MoveTaskViewDocument,
+    "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": typeof types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": typeof types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": typeof types.CatalogItemsDocument,
@@ -70,7 +71,7 @@ type Documents = {
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": typeof types.ClientBillingDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": typeof types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": typeof types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
+    "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
     "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientDetailsDocument,
     "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientServiceDocument,
     "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientServiceDocument,
@@ -474,7 +475,6 @@ type Documents = {
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": typeof types.SetArchivedDocument,
-    "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
 };
 const documents: Documents = {
     "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
@@ -484,6 +484,7 @@ const documents: Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": types.MoveTaskViewDocument,
+    "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": types.CatalogItemsDocument,
@@ -532,7 +533,7 @@ const documents: Documents = {
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": types.ClientBillingDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
+    "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
     "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientDetailsDocument,
     "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientServiceDocument,
     "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientServiceDocument,
@@ -936,7 +937,6 @@ const documents: Documents = {
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": types.SetArchivedDocument,
-    "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
 };
 
 /**
@@ -967,6 +967,10 @@ export function graphql(source: "\n  mutation SetDefaultTaskView($id: ID!) {\n  
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n"): typeof import('./graphql').UploadAttachmentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1162,7 +1166,7 @@ export function graphql(source: "\n  mutation SetCompanyLogo($file: File) {\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
+export function graphql(source: "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2775,10 +2779,6 @@ export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n"): typeof import('./graphql').SetArchivedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n"): typeof import('./graphql').UploadAttachmentDocument;
 
 
 export function graphql(source: string) {

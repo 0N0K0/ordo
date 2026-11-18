@@ -97,9 +97,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
   return (
     <Paper ref={ref} withBorder radius="md" p="md" shadow={dragging ? 'md' : undefined} style={style}>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        {sortable && (
-          <DragHandle label={`Déplacer le jalon ${milestone.title}`} {...handle} />
-        )}
+        {sortable && <DragHandle label={`Déplacer le jalon ${milestone.title}`} {...handle} />}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
     </Paper>
@@ -160,7 +158,9 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
           <>
             <ShowArchivedSwitch {...archivedToggle} />
             <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
-            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
+              Nouveau jalon
+            </ActionButton>
           </>
         }
       />
@@ -169,32 +169,32 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
       ) : (
         // Manual order: the dropped milestone moves to its new place.
         <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, ON_ERROR)}>
-            {milestones.map((milestone) => {
-              const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
-              const done = tasks.filter((task) => context.isClosed(task)).length;
-              const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
-              return (
-                <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
-                  <PlanCard
-                    icon={<FlagIcon aria-hidden />}
-                    title={milestone.title}
-                    badges={milestone.archived && <ArchivedBadge size="sm" />}
-                    dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
-                    datesColor={late ? 'red' : undefined}
-                    actions={[
-                      // Archived (or of an archived project): read only.
-                      !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                      archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.title }, setArchived, milestone.id),
-                      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
-                    ]}
-                    progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
-                    description={milestone.description}
-                    targets={context.targetsFor(milestone.projectId)}
-                    onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, ON_ERROR)}
-                  />
-                </SortableMilestone>
-              );
-            })}
+          {milestones.map((milestone) => {
+            const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
+            const done = tasks.filter((task) => context.isClosed(task)).length;
+            const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
+            return (
+              <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
+                <PlanCard
+                  icon={<FlagIcon aria-hidden />}
+                  title={milestone.title}
+                  badges={milestone.archived && <ArchivedBadge size="sm" />}
+                  dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
+                  datesColor={late ? 'red' : undefined}
+                  actions={[
+                    // Archived (or of an archived project): read only.
+                    !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
+                    archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.title }, setArchived, milestone.id),
+                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
+                  ]}
+                  progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
+                  description={milestone.description}
+                  targets={context.targetsFor(milestone.projectId)}
+                  onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, ON_ERROR)}
+                />
+              </SortableMilestone>
+            );
+          })}
         </SortableArea>
       )}
     </Stack>

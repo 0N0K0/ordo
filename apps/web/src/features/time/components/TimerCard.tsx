@@ -103,17 +103,20 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    * @param {object} input Changes.
    * @returns {void}
    */
-  const save = (input: { projectId?: string; taskIds?: string[]; description?: string | null }) =>
-    update.mutate({ id: entry.id, input }, ON_ERROR);
+  const save = (input: { projectId?: string; taskIds?: string[]; description?: string | null }) => update.mutate({ id: entry.id, input }, ON_ERROR);
 
   /**
    * Asks for confirmation before discarding the running timer.
    * @returns {void}
    */
   const confirmDiscard = () => {
-    confirmDestructive({ title: 'Abandonner le chrono', risks: (
-<>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré.</>
-), confirmLabel: 'Abandonner', run: () => remove.mutateAsync(entry.id), done: 'Chrono abandonné.' });
+    confirmDestructive({
+      title: 'Abandonner le chrono',
+      risks: <>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré.</>,
+      confirmLabel: 'Abandonner',
+      run: () => remove.mutateAsync(entry.id),
+      done: 'Chrono abandonné.',
+    });
   };
 
   return (
@@ -124,8 +127,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
             {formatClock(entrySeconds(entry, now))}
           </Text>
           <Text size="xs" c="dimmed">
-            {paused ? 'Chrono en pause' : TIMER_RUNNING} — depuis{' '}
-            {fmt.time(entry.startedAt)} ·{' '}
+            {paused ? 'Chrono en pause' : TIMER_RUNNING} — depuis {fmt.time(entry.startedAt)} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={projectPath(entry.projectId, 'time')} size="xs">
                 {context.projectById.get(entry.projectId)?.title ?? 'Projet'}
@@ -143,14 +145,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
         </Group>
       </Group>
       <div className={classes.fields}>
-        <ProjectSelect
-          context={context}
-          label="Projet"
-          value={entry.projectId}
-          onChange={(projectId) => projectId && save({ projectId, taskIds: [] })}
-          allowDeselect={false}
-          {...extra}
-        />
+        <ProjectSelect context={context} label="Projet" value={entry.projectId} onChange={(projectId) => projectId && save({ projectId, taskIds: [] })} allowDeselect={false} {...extra} />
         <TimeTasksSelect context={context} projectId={entry.projectId} value={entry.taskIds} onChange={(taskIds) => save({ taskIds })} {...extra} />
       </div>
       <MarkdownEditor

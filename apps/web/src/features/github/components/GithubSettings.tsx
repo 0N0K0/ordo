@@ -30,10 +30,7 @@ function LoginField({ id, login }: { id: string; login: string | null }) {
       onBlur={() => {
         const next = value.trim().replace(/^@/, '') || null;
         if (next === login) return;
-        setLogin.mutate(
-          { id, login: next },
-          { onSuccess: () => setError(null), onError: (saveError) => setError(saveError.message) },
-        );
+        setLogin.mutate({ id, login: next }, { onSuccess: () => setError(null), onError: (saveError) => setError(saveError.message) });
       }}
     />
   );
@@ -56,7 +53,14 @@ export function GithubSettings() {
    * @returns {void}
    */
   const confirmRemove = () => {
-    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', confirmIcon: <PlugsIcon aria-hidden />, run: () => removeToken.mutateAsync(undefined), done: 'GitHub déconnecté.' });
+    confirmDestructive({
+      title: 'Déconnecter GitHub',
+      risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.',
+      confirmLabel: 'Déconnecter',
+      confirmIcon: <PlugsIcon aria-hidden />,
+      run: () => removeToken.mutateAsync(undefined),
+      done: 'GitHub déconnecté.',
+    });
   };
 
   if (isPending) return <FormSkeleton fields={3} />;

@@ -1,4 +1,22 @@
-import { addDays, type CalendarEventInput, calendarEventInputSchema, daysBetween, entrySeconds, type EventScope, formatDay, formatOptionalDay, maxSpanDays, occurrenceDates, occurrencesBefore, parseDay, type Recurrence, recurrenceSchema, sharePeople, spanEnd, zonedInstant } from '@ordo/shared';
+import {
+  addDays,
+  type CalendarEventInput,
+  calendarEventInputSchema,
+  daysBetween,
+  entrySeconds,
+  type EventScope,
+  formatDay,
+  formatOptionalDay,
+  maxSpanDays,
+  occurrenceDates,
+  occurrencesBefore,
+  parseDay,
+  type Recurrence,
+  recurrenceSchema,
+  sharePeople,
+  spanEnd,
+  zonedInstant,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -203,7 +221,13 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
-  const apart = tasks.filter((task) => !sharePeople(task.assignees.map((assignee) => assignee.id), event.contributorIds));
+  const apart = tasks.filter(
+    (task) =>
+      !sharePeople(
+        task.assignees.map((assignee) => assignee.id),
+        event.contributorIds,
+      ),
+  );
   // Routines of a day of the event (the one edited, for an occurrence).
   if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
@@ -212,7 +236,15 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
   const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { title: true, assignees: { select: { id: true } } } });
   if (routines.length !== routineIds.length) throw notFound('Routine');
-  apart.push(...routines.filter((routine) => !sharePeople(routine.assignees.map((assignee) => assignee.id), event.contributorIds)));
+  apart.push(
+    ...routines.filter(
+      (routine) =>
+        !sharePeople(
+          routine.assignees.map((assignee) => assignee.id),
+          event.contributorIds,
+        ),
+    ),
+  );
   if (apart.length) {
     const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.title} »`).join(', ')}.`;
     throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);
@@ -341,8 +373,7 @@ function occurrenceOf(event: CalendarEvent, occurrenceDate: string | null | unde
  */
 async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: string, tx: Prisma.TransactionClient): Promise<void> {
   const start = formatDay(event.startDate);
-  const ended: Recurrence =
-    rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
+  const ended: Recurrence = rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
   await tx.calendarEvent.update({ where: { id: event.id }, data: { recurrence: ended } });
   await tx.calendarEventException.deleteMany({ where: { eventId: event.id, date: { gte: parseDay(date) } } });
 }
@@ -372,12 +403,7 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
  * @param {string | null} [occurrenceDate] Occurrence edited. Optional.
  * @returns {Promise<CalendarEvent>} Event the occurrence belongs to.
  */
-async function updateEventFields(
-  id: string,
-  input: CalendarEventInput,
-  scope: EventScope,
-  occurrenceDate?: string | null,
-): Promise<CalendarEvent> {
+async function updateEventFields(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
   const event = await findEvent(id);
   await assertEventWritable(event);
   const fields = await parseEvent(input, ...(await eventKept(id)));
@@ -491,8 +517,8 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
   // Its length: that of the rule (weeks, months, up to a week or a month of the year), else that of the event.
   const duration = date ? storedRecurrence(event.recurrence)?.duration : null;
   const endDate = change?.endDate ? formatDay(change.endDate) : duration && duration.unit !== 'DAYS' ? spanEnd(duration, startDate) : addDays(startDate, span);
-  const startTime = allDay ? null : (change ? change.startTime : event.startTime);
-  const endTime = allDay ? null : (change ? change.endTime : event.endTime);
+  const startTime = allDay ? null : change ? change.startTime : event.startTime;
+  const endTime = allDay ? null : change ? change.endTime : event.endTime;
   const instant = (day: string, time: string | null) => (time ? zonedInstant(day, time, event.timeZone) : parseDay(day));
   return {
     key: date ? `${event.id}:${date}` : event.id,
@@ -524,9 +550,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     ...relationIdsOf(event),
     routineLinks: linksWithin(event.routineLinks, startDate, endDate),
     calledOff: event.calledOff || (change?.calledOff ?? false),
-    postponedFrom: event.postponedFromId
-      ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), title: event.postponedFrom?.title ?? '' }
-      : null,
+    postponedFrom: event.postponedFromId ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), title: event.postponedFrom?.title ?? '' } : null,
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, title: postponement.title, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
@@ -601,7 +625,6 @@ export async function subscribedOccurrences(from: string, to: string): Promise<E
   const lists = await Promise.all([...byWorkspace.values()].map(({ workspace, calendarIds }) => runInWorkspace(workspace, () => eventOccurrences(from, to, calendarIds, true))));
   return lists.flat().sort((a, b) => a.start.getTime() - b.start.getTime());
 }
-
 
 /**
  * Fields of a series (or one-off event) moved to start on a date, as an input of a change.

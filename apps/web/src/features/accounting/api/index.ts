@@ -16,13 +16,7 @@ export type CompanyProfile = CompanyProfileFieldsFragment;
 export type ClientBilling = NonNullable<ClientBillingQuery['client']>;
 export type ClientService = ClientBilling['services'][number];
 export type ClientContact = ClientBilling['contacts'][number];
-export type {
-  AccountingDocumentType,
-  ClientContactInput,
-  ClientDetailsInput,
-  ClientServiceInput,
-  CompanyProfileInput,
-};
+export type { AccountingDocumentType, ClientContactInput, ClientDetailsInput, ClientServiceInput, CompanyProfileInput };
 
 graphql(`
   fragment CompanyProfileFields on CompanyProfile {
@@ -128,11 +122,7 @@ const SetCompanyLogoDocument = graphql(`
 `);
 
 const SetDocumentSequenceDocument = graphql(`
-  mutation SetDocumentSequence(
-    $type: AccountingDocumentType!
-    $year: Int!
-    $nextNumber: Int!
-  ) {
+  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
     setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
   }
 `);
@@ -210,8 +200,7 @@ export function useCompanyProfile() {
 export function useDocumentSequences(year: number) {
   return useQuery({
     queryKey: [...accountingQueryKey, 'sequences', year],
-    queryFn: async () =>
-      (await execute(DocumentSequencesDocument, { year })).documentSequences,
+    queryFn: async () => (await execute(DocumentSequencesDocument, { year })).documentSequences,
   });
 }
 
@@ -232,9 +221,7 @@ export function useClientBilling(id: string) {
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
  * @returns {UseMutationResult} Mutation state.
  */
-function useAccountingMutation<TVariables, TResult>(
-  mutationFn: (variables: TVariables) => Promise<TResult>,
-) {
+function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
   return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
@@ -244,23 +231,10 @@ function useAccountingMutation<TVariables, TResult>(
  */
 export function useCompanyMutations() {
   return {
-    update: useAccountingMutation(
-      async (input: CompanyProfileInput) =>
-        (await execute(UpdateCompanyProfileDocument, { input }))
-          .updateCompanyProfile,
-    ),
-    setLogo: useAccountingMutation(
-      async (file: File | null) =>
-        (await execute(SetCompanyLogoDocument, { file })).setCompanyLogo,
-    ),
+    update: useAccountingMutation(async (input: CompanyProfileInput) => (await execute(UpdateCompanyProfileDocument, { input })).updateCompanyProfile),
+    setLogo: useAccountingMutation(async (file: File | null) => (await execute(SetCompanyLogoDocument, { file })).setCompanyLogo),
     setSequence: useAccountingMutation(
-      async (variables: {
-        type: AccountingDocumentType;
-        year: number;
-        nextNumber: number;
-      }) =>
-        (await execute(SetDocumentSequenceDocument, variables))
-          .setDocumentSequence,
+      async (variables: { type: AccountingDocumentType; year: number; nextNumber: number }) => (await execute(SetDocumentSequenceDocument, variables)).setDocumentSequence,
     ),
   };
 }
@@ -271,40 +245,12 @@ export function useCompanyMutations() {
  */
 export function useClientPartyMutations() {
   return {
-    updateDetails: useAccountingMutation(
-      async (variables: { id: string; input: ClientDetailsInput }) =>
-        (await execute(UpdateClientDetailsDocument, variables))
-          .updateClientDetails,
-    ),
-    createService: useAccountingMutation(
-      async (variables: { clientId: string; input: ClientServiceInput }) =>
-        (await execute(CreateClientServiceDocument, variables))
-          .createClientService,
-    ),
-    updateService: useAccountingMutation(
-      async (variables: { id: string; input: ClientServiceInput }) =>
-        (await execute(UpdateClientServiceDocument, variables))
-          .updateClientService,
-    ),
-    deleteService: useAccountingMutation(
-      async (id: string) =>
-        (await execute(DeleteClientServiceDocument, { id }))
-          .deleteClientService,
-    ),
-    createContact: useAccountingMutation(
-      async (variables: { clientId: string; input: ClientContactInput }) =>
-        (await execute(CreateClientContactDocument, variables))
-          .createClientContact,
-    ),
-    updateContact: useAccountingMutation(
-      async (variables: { id: string; input: ClientContactInput }) =>
-        (await execute(UpdateClientContactDocument, variables))
-          .updateClientContact,
-    ),
-    deleteContact: useAccountingMutation(
-      async (id: string) =>
-        (await execute(DeleteClientContactDocument, { id }))
-          .deleteClientContact,
-    ),
+    updateDetails: useAccountingMutation(async (variables: { id: string; input: ClientDetailsInput }) => (await execute(UpdateClientDetailsDocument, variables)).updateClientDetails),
+    createService: useAccountingMutation(async (variables: { clientId: string; input: ClientServiceInput }) => (await execute(CreateClientServiceDocument, variables)).createClientService),
+    updateService: useAccountingMutation(async (variables: { id: string; input: ClientServiceInput }) => (await execute(UpdateClientServiceDocument, variables)).updateClientService),
+    deleteService: useAccountingMutation(async (id: string) => (await execute(DeleteClientServiceDocument, { id })).deleteClientService),
+    createContact: useAccountingMutation(async (variables: { clientId: string; input: ClientContactInput }) => (await execute(CreateClientContactDocument, variables)).createClientContact),
+    updateContact: useAccountingMutation(async (variables: { id: string; input: ClientContactInput }) => (await execute(UpdateClientContactDocument, variables)).updateClientContact),
+    deleteContact: useAccountingMutation(async (id: string) => (await execute(DeleteClientContactDocument, { id })).deleteClientContact),
   };
 }

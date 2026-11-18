@@ -24,8 +24,7 @@ builder.prismaObject('LibraryDocument', {
     url: t.string({
       description: 'Link address, or URL of the file.',
       select: { attachment: { select: { id: true, name: true } } },
-      resolve: (document) =>
-        document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`,
+      resolve: (document) => (document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`),
     }),
     fileName: t.string({ nullable: true, select: { attachment: { select: { name: true } } }, resolve: (document) => document.attachment?.name ?? null }),
     mimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),

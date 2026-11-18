@@ -104,12 +104,8 @@ function useAlarmMutation<TVariables, TResult>(mutationFn: (variables: TVariable
 export function useAlarmMutations() {
   return {
     create: useAlarmMutation(async (input: AlarmInput) => (await execute(CreateAlarmDocument, { input })).createAlarm),
-    update: useAlarmMutation(
-      async (variables: { id: string; input: AlarmInput }) => (await execute(UpdateAlarmDocument, variables)).updateAlarm,
-    ),
+    update: useAlarmMutation(async (variables: { id: string; input: AlarmInput }) => (await execute(UpdateAlarmDocument, variables)).updateAlarm),
     remove: useAlarmMutation(async (id: string) => (await execute(DeleteAlarmDocument, { id })).deleteAlarm),
-    markFired: useAlarmMutation(
-      async (variables: { id: string; at: string }) => (await execute(MarkAlarmFiredDocument, variables)).markAlarmFired,
-    ),
+    markFired: useAlarmMutation(async (variables: { id: string; at: string }) => (await execute(MarkAlarmFiredDocument, variables)).markAlarmFired),
   };
 }

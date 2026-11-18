@@ -32,7 +32,7 @@ interface MailAccountFormProps {
  */
 export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
   const { test, create, update } = useMailAccountMutations();
-  const [sameLogin, setSameLogin] = useState(!account || (account.imapUser === account.smtpUser));
+  const [sameLogin, setSameLogin] = useState(!account || account.imapUser === account.smtpUser);
   const [tested, setTested] = useState(false);
   const form = useAppForm<MailAccountFormValues>({
     initialValues: {
@@ -66,8 +66,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
    * @param {MailAccountFormValues} values Form values.
    * @returns {MailAccountFormValues} Input.
    */
-  const toInput = (values: MailAccountFormValues): MailAccountFormValues =>
-    sameLogin ? { ...values, smtpUser: values.imapUser, smtpPassword: values.imapPassword } : values;
+  const toInput = (values: MailAccountFormValues): MailAccountFormValues => (sameLogin ? { ...values, smtpUser: values.imapUser, smtpPassword: values.imapPassword } : values);
 
   /**
    * Shows an API error; with "same login", errors of the hidden sending fields go to the receiving ones.
@@ -165,27 +164,13 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
               <TextInput label="Serveur" required placeholder="smtp.exemple.fr" {...form.getInputProps('smtpHost')} />
               <NumberInput label="Port" required min={1} max={65535} {...form.getInputProps('smtpPort')} />
-              <Switch
-                mt={{ sm: 32 }}
-                label="SSL/TLS"
-                description="Désactivé : STARTTLS (port 587)"
-                {...form.getInputProps('smtpSecure', { type: 'checkbox' })}
-              />
+              <Switch mt={{ sm: 32 }} label="SSL/TLS" description="Désactivé : STARTTLS (port 587)" {...form.getInputProps('smtpSecure', { type: 'checkbox' })} />
             </SimpleGrid>
-            <Checkbox
-              label="Mêmes identifiants que pour la réception"
-              checked={sameLogin}
-              onChange={(event) => setSameLogin(event.currentTarget.checked)}
-            />
+            <Checkbox label="Mêmes identifiants que pour la réception" checked={sameLogin} onChange={(event) => setSameLogin(event.currentTarget.checked)} />
             {!sameLogin && (
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                 <TextInput label="Identifiant" required {...form.getInputProps('smtpUser')} />
-                <PasswordInput
-                  label="Mot de passe"
-                  required={!account}
-                  placeholder={account ? 'Inchangé (à ressaisir si le serveur change)' : undefined}
-                  {...form.getInputProps('smtpPassword')}
-                />
+                <PasswordInput label="Mot de passe" required={!account} placeholder={account ? 'Inchangé (à ressaisir si le serveur change)' : undefined} {...form.getInputProps('smtpPassword')} />
               </SimpleGrid>
             )}
             <Switch
@@ -196,11 +181,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
           </Stack>
         </Fieldset>
 
-        {tested && (
-          <NoticeAlert kind="success">
-            Connexion réussie à la réception et à l’envoi.
-          </NoticeAlert>
-        )}
+        {tested && <NoticeAlert kind="success">Connexion réussie à la réception et à l’envoi.</NoticeAlert>}
         <Group justify="space-between" gap="sm">
           <Button
             variant="default"
@@ -209,10 +190,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
             onClick={() => {
               setTested(false);
               if (form.validate().hasErrors) return;
-              test.mutate(
-                { input: toInput(form.values), id: account?.id },
-                { onSuccess: () => setTested(true), onError: showError },
-              );
+              test.mutate({ input: toInput(form.values), id: account?.id }, { onSuccess: () => setTested(true), onError: showError });
             }}
           >
             Tester la connexion

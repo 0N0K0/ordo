@@ -19,7 +19,10 @@ const tablePdfSchema = reportHeadingSchema.extend({
     )
     .max(10_000),
   /** Alignment of each column (numbers to the right); left when omitted. */
-  align: z.array(z.enum(['left', 'right'])).max(30).default([]),
+  align: z
+    .array(z.enum(['left', 'right']))
+    .max(30)
+    .default([]),
 });
 type TablePdfInput = z.input<typeof tablePdfSchema>;
 
@@ -42,7 +45,11 @@ const MAX_NATURAL = { first: 340, other: 170 };
  * @returns {number[]} Widths.
  */
 function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth: number): number[] {
-  const measure = (text: string, bold: boolean) => doc.font(bold ? 'bold' : 'regular').fontSize(FONT_SIZE).widthOfString(text);
+  const measure = (text: string, bold: boolean) =>
+    doc
+      .font(bold ? 'bold' : 'regular')
+      .fontSize(FONT_SIZE)
+      .widthOfString(text);
   const columns = table.columns.map((label, index) => {
     const marked = table.rows.some((row) => row.kind === 'task' || row.kind === 'event');
     const extra = 2 * PAD + (index === 0 ? (marked ? MARKER : 0) + INDENT * Math.max(0, ...table.rows.map((row) => row.depth)) : 0);
@@ -129,13 +136,20 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     const markerX = MARGIN + PAD + row.depth * INDENT;
     const markerY = y + PAD + FONT_SIZE / 2;
     if (row.kind === 'event') doc.circle(markerX + 2.5, markerY, 2.5).fill(COLORS.event);
-    else if (!plain) doc.rect(markerX, markerY - 2.5, 5, 5).lineWidth(0.8).stroke(COLORS.task);
+    else if (!plain)
+      doc
+        .rect(markerX, markerY - 2.5, 5, 5)
+        .lineWidth(0.8)
+        .stroke(COLORS.task);
     doc.fillColor(COLORS.text);
-    table.columns.forEach((_, index) =>
-      doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }),
-    );
+    table.columns.forEach((_, index) => doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }));
     y += height;
-    doc.moveTo(MARGIN, y).lineTo(MARGIN + pageWidth, y).lineWidth(0.4).strokeColor(COLORS.border).stroke();
+    doc
+      .moveTo(MARGIN, y)
+      .lineTo(MARGIN + pageWidth, y)
+      .lineWidth(0.4)
+      .strokeColor(COLORS.border)
+      .stroke();
   }
 
   return finish();

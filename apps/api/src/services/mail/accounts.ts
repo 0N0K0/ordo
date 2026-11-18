@@ -25,10 +25,7 @@ export function rethrowSmtpError(error: unknown, what: string): never {
  * @param {string} password Plain password.
  * @returns {nodemailer.Transporter} Transport.
  */
-export function createSmtpTransport(
-  account: Pick<MailAccount, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'smtpUser'>,
-  password: string,
-) {
+export function createSmtpTransport(account: Pick<MailAccount, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'smtpUser'>, password: string) {
   return nodemailer.createTransport({
     host: account.smtpHost,
     port: account.smtpPort,
@@ -69,10 +66,8 @@ export async function findActiveAccount(id: string): Promise<MailAccount> {
 function assertPasswordsForServers(values: MailAccountFormValues, saved: MailAccount | null): void {
   if (!saved) return;
   const message = 'Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé.';
-  const imapChanged =
-    values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
-  const smtpChanged =
-    values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
+  const imapChanged = values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
+  const smtpChanged = values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
   if (imapChanged && !values.imapPassword) throw fieldError('imapPassword', message);
   if (smtpChanged && !values.smtpPassword) throw fieldError('smtpPassword', message);
 }

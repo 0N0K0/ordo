@@ -21,7 +21,6 @@ import { useCellEdit } from '../lib/cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
-
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { cellCombobox as sharedCombobox, cellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
@@ -32,7 +31,6 @@ import { dateRangeProps } from '../../../components/inputs/date-range';
 
 /** Select fields of the cells, a click kept from the row. */
 const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
-
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -305,7 +303,17 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
  */
 export function EffortCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'effort');
-  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} readOnly={task.archived} onSave={(effort) => apply({ effort }, { effort })} />;
+  return (
+    <EditableNumber
+      value={task.effort}
+      label={fieldLabel('Effort', task, count)}
+      min={0}
+      nullable
+      saveUnchanged={count > 1}
+      readOnly={task.archived}
+      onSave={(effort) => apply({ effort }, { effort })}
+    />
+  );
 }
 
 interface DateCellProps {
@@ -462,8 +470,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
         { ids: targets, projectId },
         toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
-    const linked = (item: Task) =>
-      item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
+    const linked = (item: Task) => item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
     if (!moved.some((item) => linked(item) && context.rootOf(projectId) !== context.rootOf(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
@@ -473,7 +480,5 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
       onConfirm: transfer,
     });
   };
-  return (
-    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />
-  );
+  return <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />;
 }

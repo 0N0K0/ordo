@@ -2,7 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
-import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarEventsQuery, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../../graphql/graphql';
+import type {
+  CalendarEventInput,
+  CalendarEventOccurrenceFieldsFragment,
+  CalendarEventScope,
+  CalendarEventsQuery,
+  CalendarsQuery,
+  SubscribableCalendarsQuery,
+  WorkSchedulesQuery,
+} from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { tasksQueryKey } from '../../tasks/api';
 
@@ -307,7 +315,6 @@ const UpdateCalendarDocument = graphql(`
   }
 `);
 
-
 const DeleteCalendarDocument = graphql(`
   mutation DeleteCalendar($id: ID!) {
     deleteCalendar(id: $id)
@@ -508,9 +515,7 @@ export function useCalendarCategoryMutations() {
   type Input = { name: string; color: string; parentId: string | null };
   return {
     create: useCalendarMutation(async (input: Input) => (await execute(CreateCalendarCategoryDocument, { input })).createCalendarCategory),
-    update: useCalendarMutation(
-      async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarCategoryDocument, variables)).updateCalendarCategory,
-    ),
+    update: useCalendarMutation(async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarCategoryDocument, variables)).updateCalendarCategory),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteCalendarCategoryDocument, { id })).deleteCalendarCategory),
     move: useCalendarMutation(async (variables: { id: string; index: number; parentId: string | null }) => (await execute(MoveCalendarCategoryDocument, variables)).moveCalendarCategory),
   };
@@ -528,16 +533,12 @@ export function useCalendarEventMutations() {
         (await execute(UpdateCalendarEventDocument, variables)).updateCalendarEvent,
     ),
     remove: useCalendarMutation(
-      async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null }) =>
-        (await execute(DeleteCalendarEventDocument, variables)).deleteCalendarEvent,
+      async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null }) => (await execute(DeleteCalendarEventDocument, variables)).deleteCalendarEvent,
     ),
     setCalledOff: useCalendarMutation(
-      async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) =>
-        (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
+      async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) => (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
     ),
-    postpone: useCalendarMutation(
-      async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
-    ),
+    postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent),
   };
 }
 
@@ -604,21 +605,18 @@ export function useWorkScheduleMutations() {
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
     createType: useCalendarMutation(async (input: { name: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
-    updateType: useCalendarMutation(async (variables: { id: string; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType),
-    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
-    subscribe: useCalendarMutation(
-      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,
+    updateType: useCalendarMutation(
+      async (variables: { id: string; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
     ),
+    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
+    subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
       async (input: { name: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
     ),
     setLook: useCalendarMutation(
-      async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) =>
-        (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
+      async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) => (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
     ),
-    unsubscribe: useCalendarMutation(
-      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind,
-    ),
+    unsubscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind),
   };
 }
 

@@ -33,16 +33,14 @@ builder.prismaObject('AccountingLine', {
   }),
 });
 
-const DocumentAttachment = builder
-  .objectRef<{ id: string; name: string; size: number }>('AccountingAttachment')
-  .implement({
-    fields: (t) => ({
-      id: t.exposeID('id'),
-      name: t.exposeString('name'),
-      size: t.exposeInt('size'),
-      url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
-    }),
-  });
+const DocumentAttachment = builder.objectRef<{ id: string; name: string; size: number }>('AccountingAttachment').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    size: t.exposeInt('size'),
+    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
+  }),
+});
 
 builder.prismaObject('AccountingDocument', {
   fields: (t) => ({
@@ -198,8 +196,7 @@ builder.prismaObject('ProjectResource', {
     note: t.exposeString('note', { nullable: true }),
     url: t.string({
       select: { attachment: { select: { id: true, name: true } } },
-      resolve: (resource) =>
-        resource.kind === 'LINK' ? (resource.url ?? '') : `/api/attachments/${resource.attachment?.id}/${encodeURIComponent(resource.attachment?.name ?? 'fichier')}`,
+      resolve: (resource) => (resource.kind === 'LINK' ? (resource.url ?? '') : `/api/attachments/${resource.attachment?.id}/${encodeURIComponent(resource.attachment?.name ?? 'fichier')}`),
     }),
     size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

@@ -132,8 +132,6 @@ const CategoryInput = builder.inputType('ShoppingCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id(), baseListIds: t.idList() }),
 });
 
-
-
 /**
  * Fields of a shopping product and of a shopping item.
  * @param {InputFields} t Field builder.
@@ -213,8 +211,7 @@ builder.queryFields((t) => ({
     type: ['ShoppingList'],
     description: 'Shopping lists, latest first: all, or those of a task.',
     args: { taskId: t.arg.id() },
-    resolve: (query, _root, { taskId }) =>
-      prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: taskId } } } : {}, orderBy: { createdAt: 'desc' } }),
+    resolve: (query, _root, { taskId }) => prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: taskId } } } : {}, orderBy: { createdAt: 'desc' } }),
   }),
 }));
 

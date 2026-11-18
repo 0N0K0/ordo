@@ -3,29 +3,21 @@ import { PAGES } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { countBy } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
-import { Stack } from "@mantine/core";
-import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
-import { Navigate } from "react-router";
-import { labelFormSchema } from "@ordo/shared";
-import { listMutations } from "../../../components/settings/settings-api";
-import { SettingsList } from "../../../components/settings/SettingsList";
-import { GithubSettings } from "../../github/components/GithubSettings";
-import { PlacesManager } from "../../geo/components/PlacesManager";
-import { useTasksData } from "../../tasks/api";
-import { ContributorsManager } from "../../tasks/components/ContributorsManager";
-import { TeamMembers, TeamRelations } from "../../treasury/components/TeamPanel";
-import { useActiveWorkspace } from "../../workspaces/api";
-import { WorkspacesManager } from "../../workspaces/components/WorkspacesManager";
-import {
-  useCreateProjectCategory,
-  useCreateProjectStatus,
-  useDeleteProjectCategory,
-  useDeleteProjectStatus,
-  useUpdateProjectCategory,
-  useUpdateProjectStatus,
-  useWorkspace,
-} from "../api";
-import { SettingsGrid } from "../../../components/settings/SettingsGrid";
+import { Stack } from '@mantine/core';
+import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from '@phosphor-icons/react';
+import { Navigate } from 'react-router';
+import { labelFormSchema } from '@ordo/shared';
+import { listMutations } from '../../../components/settings/settings-api';
+import { SettingsList } from '../../../components/settings/SettingsList';
+import { GithubSettings } from '../../github/components/GithubSettings';
+import { PlacesManager } from '../../geo/components/PlacesManager';
+import { useTasksData } from '../../tasks/api';
+import { ContributorsManager } from '../../tasks/components/ContributorsManager';
+import { TeamMembers, TeamRelations } from '../../treasury/components/TeamPanel';
+import { useActiveWorkspace } from '../../workspaces/api';
+import { WorkspacesManager } from '../../workspaces/components/WorkspacesManager';
+import { useCreateProjectCategory, useCreateProjectStatus, useDeleteProjectCategory, useDeleteProjectStatus, useUpdateProjectCategory, useUpdateProjectStatus, useWorkspace } from '../api';
+import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 
 /** Tabs of the settings page. */
@@ -58,31 +50,25 @@ export function SettingsPage() {
 
   // Settings moved to their views.
   const moved: Record<string, string> = {
-    tracking: perso ? "/" : settingsPath("/accounting"),
-    company: perso ? "/" : settingsPath("/accounting", "company"),
-    calendar: settingsPath("/calendar"),
-    mail: settingsPath("/mail"),
+    tracking: perso ? '/' : settingsPath('/accounting'),
+    company: perso ? '/' : settingsPath('/accounting', 'company'),
+    calendar: settingsPath('/calendar'),
+    mail: settingsPath('/mail'),
     // In every view of tasks.
-    tasks: settingsPath("/tasks"),
+    tasks: settingsPath('/tasks'),
   };
   if (asked && moved[asked]) return <Navigate to={moved[asked]} replace />;
 
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.settings.title} />
-      <PageTabs
-        value={tab}
-        onChange={(value) =>
-          setTab(value, {}, { only: true })
-        }
-        keepMounted={false}
-      >
+      <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
             Projets
           </PageTabs.Tab>
           <PageTabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
-            {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
+            {perso ? 'Foyer et contributeurs' : 'Équipe et contributeurs'}
           </PageTabs.Tab>
           <PageTabs.Tab value="places" leftSection={<MapPinIcon aria-hidden />}>
             Lieux
@@ -124,10 +110,7 @@ export function SettingsPage() {
           <SettingsGrid>
             <TeamMembers />
             <TeamRelations />
-            <ContributorsManager
-              contributors={taskData?.contributors ?? []}
-              usage={assigneeUsage}
-            />
+            <ContributorsManager contributors={taskData?.contributors ?? []} usage={assigneeUsage} />
           </SettingsGrid>
         </PageTabs.Panel>
         {/* Places of the events, the routines, the travel times… of the whole app. */}

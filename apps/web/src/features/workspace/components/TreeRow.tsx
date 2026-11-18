@@ -31,10 +31,7 @@ interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
  * @param {TreeRowProps} props Component props (extra props and ref go to the row, for drag and drop).
  * @returns {JSX.Element} Row.
  */
-export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow(
-  { entity, depth = 0, subtitle, muted, expansion, draggable, dragging, style, className, ...rest },
-  ref,
-) {
+export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow({ entity, depth = 0, subtitle, muted, expansion, draggable, dragging, style, className, ...rest }, ref) {
   const { item } = entity;
   const actions = useEntityActions();
   const { pathname } = useLocation();

@@ -32,7 +32,15 @@ const workOf = (entry: BillableTime) => [entry.tasks.join(', '), entry.descripti
 const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
   { id: 'day', label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
   { id: 'work', label: 'Temps', size: 320, locked: true, sortValue: workOf, text: workOf },
-  { id: 'duration', label: 'Durée', size: 100, numeric: true, sortValue: (entry) => entry.seconds, text: (entry) => formatDuration(entry.seconds), formatTotal: (seconds) => formatDuration(Math.round(seconds)) },
+  {
+    id: 'duration',
+    label: 'Durée',
+    size: 100,
+    numeric: true,
+    sortValue: (entry) => entry.seconds,
+    text: (entry) => formatDuration(entry.seconds),
+    formatTotal: (seconds) => formatDuration(Math.round(seconds)),
+  },
 ];
 
 interface TimeBillingFormProps {
@@ -132,14 +140,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
               />
             ),
             cell: (entry) => (
-              <Checkbox
-                size="xs"
-                aria-label={`Facturer le temps du ${entry.day}`}
-                checked={!unchecked.has(entry.id)}
-                onChange={() =>
-                  setUnchecked((current) => toggledIn(current, entry.id))
-                }
-              />
+              <Checkbox size="xs" aria-label={`Facturer le temps du ${entry.day}`} checked={!unchecked.has(entry.id)} onChange={() => setUnchecked((current) => toggledIn(current, entry.id))} />
             ),
           }}
           cells={(entry) => ({
@@ -208,14 +209,17 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         </LabeledField>
       </SimpleGrid>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-        <AmountInput
-          label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'}
-          min={0}
-          value={unitPrice}
-          onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)}
-        />
+        <AmountInput label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'} min={0} value={unitPrice} onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)} />
         {unit === 'DAY' ? (
-          <NumberInput label="Heures par jour" min={1} max={24} decimalScale={2} decimalSeparator="," value={hoursPerDay} onChange={(value) => setHoursPerDay(typeof value === 'number' && value > 0 ? value : 7)} />
+          <NumberInput
+            label="Heures par jour"
+            min={1}
+            max={24}
+            decimalScale={2}
+            decimalSeparator=","
+            value={hoursPerDay}
+            onChange={(value) => setHoursPerDay(typeof value === 'number' && value > 0 ? value : 7)}
+          />
         ) : (
           <Checkbox label="Arrondir au quart d’heure supérieur" mt={28} checked={roundQuarter} onChange={(event) => setRoundQuarter(event.currentTarget.checked)} />
         )}
@@ -234,7 +238,18 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         <Text size="sm" c="dimmed">
           {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
         </Text>
-        <FormActions onCancel={onCancel} submitLabel="Ajouter les lignes" disabled={lines.length === 0} onSubmit={() => onAdd(lines, selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })), { start: days[0], end: days[days.length - 1] })} />
+        <FormActions
+          onCancel={onCancel}
+          submitLabel="Ajouter les lignes"
+          disabled={lines.length === 0}
+          onSubmit={() =>
+            onAdd(
+              lines,
+              selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })),
+              { start: days[0], end: days[days.length - 1] },
+            )
+          }
+        />
       </Group>
     </Stack>
   );

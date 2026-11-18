@@ -28,10 +28,7 @@ export function ConfirmEmailPage() {
     <>
       <AuthHeader title="Confirmation de l’adresse email" />
       {!token || confirm.isError ? (
-        <ErrorAlert title="Lien invalide">
-          {confirm.error?.message ?? 'Ce lien de confirmation est incomplet.'} Relancez le changement d’adresse depuis
-          votre compte.
-        </ErrorAlert>
+        <ErrorAlert title="Lien invalide">{confirm.error?.message ?? 'Ce lien de confirmation est incomplet.'} Relancez le changement d’adresse depuis votre compte.</ErrorAlert>
       ) : confirm.isSuccess ? (
         <NoticeAlert kind="success" title="Adresse confirmée">
           Votre nouvelle adresse email est enregistrée.

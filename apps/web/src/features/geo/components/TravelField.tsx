@@ -7,7 +7,5 @@ import { CarIcon } from '@phosphor-icons/react';
  * @returns {JSX.Element} Field.
  */
 export function TravelField({ way, ...props }: NumberInputProps & { way: 'before' | 'after' }) {
-  return (
-    <NumberInput label={way === 'before' ? 'Trajet aller' : 'Trajet retour'} leftSection={<CarIcon aria-hidden />} suffix=" min" min={0} max={24 * 60} step={5} allowDecimal={false} {...props} />
-  );
+  return <NumberInput label={way === 'before' ? 'Trajet aller' : 'Trajet retour'} leftSection={<CarIcon aria-hidden />} suffix=" min" min={0} max={24 * 60} step={5} allowDecimal={false} {...props} />;
 }

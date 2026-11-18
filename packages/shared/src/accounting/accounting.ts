@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { optionalText, requiredText } from '../core/rules';
 
-
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
   /** Street lines: number and street, building, floor, PO box… */
@@ -29,12 +28,7 @@ export const EMPTY_ADDRESS: Address = {
  * @returns {boolean} True when something is filled in.
  */
 export function hasAddress(address: Address | null | undefined): boolean {
-  return Boolean(
-    address &&
-    (address.lines.some((line) => line.trim()) ||
-      address.city.trim() ||
-      address.postalCode.trim()),
-  );
+  return Boolean(address && (address.lines.some((line) => line.trim()) || address.city.trim() || address.postalCode.trim()));
 }
 
 /**
@@ -43,10 +37,7 @@ export function hasAddress(address: Address | null | undefined): boolean {
  * @param {(code: string) => string} countryName Country name of a code.
  * @returns {string[]} Lines.
  */
-export function addressLines(
-  address: Address,
-  countryName: (code: string) => string,
-): string[] {
+export function addressLines(address: Address, countryName: (code: string) => string): string[] {
   return [
     ...address.lines.filter((line) => line.trim()),
     [address.postalCode, address.city].filter(Boolean).join(' '),
@@ -57,11 +48,7 @@ export function addressLines(
 
 const phoneSchema = z.object({
   label: z.string().trim().max(40),
-  number: z
-    .string()
-    .trim()
-    .min(3, 'Numéro invalide.')
-    .max(30, 'Numéro invalide.'),
+  number: z.string().trim().min(3, 'Numéro invalide.').max(30, 'Numéro invalide.'),
 });
 const phonesSchema = z.array(phoneSchema).max(10);
 export type Phone = z.infer<typeof phoneSchema>;
@@ -71,10 +58,7 @@ const emailSchema = z
   .transform((value) => value || null)
   .nullable();
 const websiteSchema = z
-  .union([
-    z.url({ protocol: /^https?$/, error: 'Adresse invalide (http ou https).' }),
-    z.literal(''),
-  ])
+  .union([z.url({ protocol: /^https?$/, error: 'Adresse invalide (http ou https).' }), z.literal('')])
   .transform((value) => value || null)
   .nullable();
 
@@ -96,23 +80,14 @@ function luhn(digits: string): boolean {
 const sirenSchema = z
   .string()
   .transform((value) => value.replace(/\s/g, ''))
-  .refine(
-    (value) => value === '' || (/^\d{9}$/.test(value) && luhn(value)),
-    'SIREN invalide (9 chiffres).',
-  )
+  .refine((value) => value === '' || (/^\d{9}$/.test(value) && luhn(value)), 'SIREN invalide (9 chiffres).')
   .transform((value) => value || null)
   .nullable();
 const siretSchema = z
   .string()
   .transform((value) => value.replace(/\s/g, ''))
   // La Poste's establishments do not follow the Luhn key.
-  .refine(
-    (value) =>
-      value === '' ||
-      (/^\d{14}$/.test(value) &&
-        (luhn(value) || value.startsWith('356000000'))),
-    'SIRET invalide (14 chiffres).',
-  )
+  .refine((value) => value === '' || (/^\d{14}$/.test(value) && (luhn(value) || value.startsWith('356000000'))), 'SIRET invalide (14 chiffres).')
   .transform((value) => value || null)
   .nullable();
 
@@ -123,13 +98,9 @@ const siretSchema = z
  */
 function isValidIban(iban: string): boolean {
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban)) return false;
-  const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`.replace(
-    /[A-Z]/g,
-    (letter) => String(letter.charCodeAt(0) - 55),
-  );
+  const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`.replace(/[A-Z]/g, (letter) => String(letter.charCodeAt(0) - 55));
   let remainder = 0;
-  for (const digit of rearranged)
-    remainder = (remainder * 10 + Number(digit)) % 97;
+  for (const digit of rearranged) remainder = (remainder * 10 + Number(digit)) % 97;
   return remainder === 1;
 }
 
@@ -188,11 +159,7 @@ export const companyProfileSchema = z.object({
   activityCode: optionalText(20),
   vatNumber: optionalText(20),
   vatApplicable: z.boolean(),
-  vatExemptionText: z
-    .string()
-    .trim()
-    .min(1, 'La mention est requise.')
-    .max(300),
+  vatExemptionText: z.string().trim().min(1, 'La mention est requise.').max(300),
   address: addressSchema.nullable(),
   email: emailSchema,
   phone: optionalText(30),
@@ -208,11 +175,7 @@ export const companyProfileSchema = z.object({
   bic: z
     .string()
     .transform((value) => value.replace(/\s/g, '').toUpperCase())
-    .refine(
-      (value) =>
-        value === '' || /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(value),
-      'BIC invalide (8 ou 11 caractères).',
-    )
+    .refine((value) => value === '' || /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(value), 'BIC invalide (8 ou 11 caractères).')
     .transform((value) => value || null)
     .nullable(),
   paymentTerms: z.string().trim().max(1000),
@@ -221,20 +184,11 @@ export const companyProfileSchema = z.object({
   lateInterest: z.string().trim().max(1000),
   otherMentions: z.string().trim().max(2000),
   referenceLabel: z.string().trim().min(1, 'Le libellé est requis.').max(60),
-  quoteValidityDays: z
-    .number()
-    .int()
-    .min(1, 'Au moins 1 jour.')
-    .max(365, '365 maximum.'),
+  quoteValidityDays: z.number().int().min(1, 'Au moins 1 jour.').max(365, '365 maximum.'),
 });
 export type CompanyProfileInput = z.input<typeof companyProfileSchema>;
 
-export const ACCOUNTING_DOCUMENT_TYPES = [
-  'QUOTE',
-  'INVOICE',
-  'DEPOSIT_INVOICE',
-  'CREDIT_NOTE',
-] as const;
+export const ACCOUNTING_DOCUMENT_TYPES = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const;
 export type AccountingDocumentType = (typeof ACCOUNTING_DOCUMENT_TYPES)[number];
 
 /** Number prefix of each document type. */
@@ -252,10 +206,6 @@ export const DOCUMENT_PREFIXES: Record<AccountingDocumentType, string> = {
  * @param {number} counter Counter in the year.
  * @returns {string} Number.
  */
-export function documentNumber(
-  type: AccountingDocumentType,
-  year: number,
-  counter: number,
-): string {
+export function documentNumber(type: AccountingDocumentType, year: number, counter: number): string {
   return `${DOCUMENT_PREFIXES[type]}${String(year % 100).padStart(2, '0')}${String(counter).padStart(5, '0')}`;
 }

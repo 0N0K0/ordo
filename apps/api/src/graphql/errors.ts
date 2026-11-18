@@ -2,15 +2,7 @@ import { GraphQLError } from 'graphql';
 import type { z } from 'zod';
 import { Prisma } from '../generated/prisma/client';
 
-type ErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'BAD_USER_INPUT'
-  | 'INVALID_CREDENTIALS'
-  | 'INVALID_TOKEN'
-  | 'CONFLICT'
-  | 'NOT_FOUND'
-  | 'TOO_MANY_REQUESTS'
-  | 'SERVICE_UNAVAILABLE';
+type ErrorCode = 'UNAUTHENTICATED' | 'BAD_USER_INPUT' | 'INVALID_CREDENTIALS' | 'INVALID_TOKEN' | 'CONFLICT' | 'NOT_FOUND' | 'TOO_MANY_REQUESTS' | 'SERVICE_UNAVAILABLE';
 
 /**
  * Error thrown when a requested record does not exist.

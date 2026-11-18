@@ -1286,6 +1286,13 @@ export type MoveTaskViewMutationVariables = Exact<{
 
 export type MoveTaskViewMutation = { moveTaskView: boolean };
 
+export type UploadAttachmentMutationVariables = Exact<{
+  file: File;
+}>;
+
+
+export type UploadAttachmentMutation = { uploadAttachment: { id: string, name: string, url: string, isImage: boolean } };
+
 export type SetSettingsItemLookMutationVariables = Exact<{
   kind: SettingsListKind;
   id: string | number;
@@ -4577,13 +4584,6 @@ export type SetArchivedMutationVariables = Exact<{
 
 export type SetArchivedMutation = { setArchived: boolean };
 
-export type UploadAttachmentMutationVariables = Exact<{
-  file: File;
-}>;
-
-
-export type UploadAttachmentMutation = { uploadAttachment: { id: string, name: string, url: string, isImage: boolean } };
-
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -5331,6 +5331,16 @@ export const MoveTaskViewDocument = new TypedDocumentString(`
   moveTaskView(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
+export const UploadAttachmentDocument = new TypedDocumentString(`
+    mutation UploadAttachment($file: File!) {
+  uploadAttachment(file: $file) {
+    id
+    name
+    url
+    isImage
+  }
+}
+    `) as unknown as TypedDocumentString<UploadAttachmentMutation, UploadAttachmentMutationVariables>;
 export const SetSettingsItemLookDocument = new TypedDocumentString(`
     mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {
   setSettingsItemLook(kind: $kind, id: $id, input: $input)
@@ -9929,13 +9939,3 @@ export const SetArchivedDocument = new TypedDocumentString(`
   setArchived(kind: $kind, ids: $ids, archived: $archived)
 }
     `) as unknown as TypedDocumentString<SetArchivedMutation, SetArchivedMutationVariables>;
-export const UploadAttachmentDocument = new TypedDocumentString(`
-    mutation UploadAttachment($file: File!) {
-  uploadAttachment(file: $file) {
-    id
-    name
-    url
-    isImage
-  }
-}
-    `) as unknown as TypedDocumentString<UploadAttachmentMutation, UploadAttachmentMutationVariables>;

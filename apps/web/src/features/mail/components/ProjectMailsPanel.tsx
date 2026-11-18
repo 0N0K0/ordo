@@ -1,18 +1,18 @@
+import { MailHeaderActions } from './MailHeaderActions';
 import { settingsPath } from '../../../app/layout/page-settings';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { MailListControls } from './MailListControls';
 import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
-import { ActionButton } from '../../../components/actions/ActionButton';
-import { Box, Grid, Paper, Stack, Text, Tooltip } from '@mantine/core';
+
+import { Box, Grid, Paper, Stack, Text } from '@mantine/core';
 
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
-import { ArrowsClockwiseIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { notifySuccess } from '../../../lib/notify';
 import { useFillHeight } from '../../../lib/fill-height';
 import { AdvancedSearchHeader, AdvancedSearchPanel } from './AdvancedSearchPanel';
-import { useMailAccounts, useMailRefresh } from '../api';
+import { useMailAccounts } from '../api';
 import classes from '../pages/MailPage.module.css';
 import { MailReader } from './MailReader';
 import { MailSearchList } from './MailSearchFolders';
@@ -171,21 +171,13 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
 export function ProjectMailsPanel({ projectId }: { projectId: string }) {
   const { data: accounts } = useMailAccounts();
   const compose = useMailComposer();
-  const { refresh, fetching } = useMailRefresh();
   return (
     <Stack gap="md">
       <SectionHeader
         description="Mails rattachés au projet depuis la page Mails, envoyés depuis ce projet, ou faisant suite à une conversation rattachée."
         actions={
           <>
-            <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-              <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
-                Relever
-              </ActionButton>
-            </Tooltip>
-            <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!unarchived(accounts ?? []).length} onClick={() => compose({ projectId })}>
-              Nouveau mail
-            </ActionButton>
+            <MailHeaderActions composeDisabled={!unarchived(accounts ?? []).length} onCompose={() => compose({ projectId })} />
           </>
         }
       />

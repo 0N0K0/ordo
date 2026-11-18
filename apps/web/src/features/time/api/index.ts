@@ -203,20 +203,15 @@ export function useTimeMutations() {
   const queryClient = useQueryClient();
   const slotRules = useSlotRules();
   return {
-    start: useTimeMutation(
-      async (input: TimerStartValues) => {
-        const started = (await execute(StartTimerDocument, { input })).startTimer;
-        warnOutOfSlots(queryClient, slotRules, input);
-        return started;
-      },
-    ),
+    start: useTimeMutation(async (input: TimerStartValues) => {
+      const started = (await execute(StartTimerDocument, { input })).startTimer;
+      warnOutOfSlots(queryClient, slotRules, input);
+      return started;
+    }),
     setPaused: useTimeMutation(async (paused: boolean) => (await execute(SetTimerPausedDocument, { paused })).setTimerPaused),
     stop: useTimeMutation(async () => (await execute(StopTimerDocument)).stopTimer),
     create: useTimeMutation(async (input: TimeEntryValues) => (await execute(CreateTimeEntryDocument, { input })).createTimeEntry),
-    update: useTimeMutation(
-      async (variables: { id: string; input: Partial<TimeEntryValues> }) =>
-        (await execute(UpdateTimeEntryDocument, variables)).updateTimeEntry,
-    ),
+    update: useTimeMutation(async (variables: { id: string; input: Partial<TimeEntryValues> }) => (await execute(UpdateTimeEntryDocument, variables)).updateTimeEntry),
     remove: useTimeMutation(async (id: string) => (await execute(DeleteTimeEntryDocument, { id })).deleteTimeEntry),
   };
 }

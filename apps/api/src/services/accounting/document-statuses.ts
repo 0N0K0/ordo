@@ -137,10 +137,7 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
  * @param {DocumentStatusCategory | null} [input.category] Category.
  * @returns {Promise<DocumentStatus>} Status.
  */
-export async function updateDocumentStatus(
-  id: string,
-  input: { name?: string | null; color?: string | null; category?: DocumentStatusCategory | null },
-): Promise<DocumentStatus> {
+export async function updateDocumentStatus(id: string, input: { name?: string | null; color?: string | null; category?: DocumentStatusCategory | null }): Promise<DocumentStatus> {
   const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
   await assertNotArchived('DOCUMENT_STATUS', id);
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
@@ -176,4 +173,3 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
     await tx.documentStatus.delete({ where: { id } });
   });
 }
-

@@ -1,15 +1,7 @@
 import { keepPreviousData, useIsFetching, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
-import type {
-  LinkedMailFieldsFragment,
-  MailDraftQuery,
-  SaveMailDraftInput,
-  MailAccountFieldsFragment,
-  MailAccountInput,
-  MailViewFieldsFragment,
-  SendMailInput,
-} from '../../../graphql/graphql';
+import type { LinkedMailFieldsFragment, MailDraftQuery, SaveMailDraftInput, MailAccountFieldsFragment, MailAccountInput, MailViewFieldsFragment, SendMailInput } from '../../../graphql/graphql';
 import type { MailSearchCriteria, MailSearchInput } from '@ordo/shared';
 import { execute } from '../../../lib/graphql-client';
 import { MAIL_CHECK_MS, requestMailCheck } from '../lib/mail-check';
@@ -571,9 +563,7 @@ export function useMailSearches() {
  * @param {object | null} params Search (or criteria, and order) and page; null when none is open.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailSearchResults(
-  params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean } | null,
-) {
+export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean } | null) {
   return useQuery({
     queryKey: [...mailQueryKey, 'search-results', params],
     queryFn: async () =>
@@ -646,9 +636,7 @@ export function useMailFolders(accountId: string | null) {
  * @param {object | null} params Account, folder, page and search; null when nothing is selected.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailMessages(
-  params: { accountId: string; folder: string; page: number; search: string; state?: 'all' | 'todo' | 'done'; sort?: string; ascending?: boolean } | null,
-) {
+export function useMailMessages(params: { accountId: string; folder: string; page: number; search: string; state?: 'all' | 'todo' | 'done'; sort?: string; ascending?: boolean } | null) {
   return useQuery({
     queryKey: [...mailQueryKey, 'messages', params],
     queryFn: async () => (await execute(MailMessagesDocument, params!)).mailMessages,
@@ -675,9 +663,7 @@ export function useUnreadMails(accountIds: string[]) {
     combine: (results) => ({
       // An unreachable account leaves out its mails, not the others.
       data: results.every((result) => result.data || result.error)
-        ? results
-            .flatMap((result, index) => (result.data?.messages ?? []).map((message) => ({ accountId: accountIds[index], message })))
-            .sort((a, b) => b.message.date.localeCompare(a.message.date))
+        ? results.flatMap((result, index) => (result.data?.messages ?? []).map((message) => ({ accountId: accountIds[index], message }))).sort((a, b) => b.message.date.localeCompare(a.message.date))
         : undefined,
       isPending: results.some((result) => result.isPending),
       error: results.find((result) => result.error)?.error ?? null,
@@ -763,12 +749,8 @@ export function useMailAccountMutations() {
       mutationFn: async (variables: { input: MailAccountInput; id?: string }) => (await execute(TestMailAccountDocument, variables)).testMailAccount,
     }),
     create: useMailMutation(async (input: MailAccountInput) => (await execute(CreateMailAccountDocument, { input })).createMailAccount),
-    update: useMailMutation(
-      async (variables: { id: string; input: MailAccountInput }) => (await execute(UpdateMailAccountDocument, variables)).updateMailAccount,
-    ),
-    setSignature: useMailMutation(
-      async (variables: { id: string; signature: string }) => (await execute(SetMailSignatureDocument, variables)).setMailSignature,
-    ),
+    update: useMailMutation(async (variables: { id: string; input: MailAccountInput }) => (await execute(UpdateMailAccountDocument, variables)).updateMailAccount),
+    setSignature: useMailMutation(async (variables: { id: string; signature: string }) => (await execute(SetMailSignatureDocument, variables)).setMailSignature),
     remove: useMailMutation(async (id: string) => (await execute(DeleteMailAccountDocument, { id })).deleteMailAccount),
     move: useMailMutation(async (variables: { id: string; index: number }) => (await execute(MoveMailAccountDocument, variables)).moveMailAccount),
   };
@@ -780,34 +762,18 @@ export function useMailAccountMutations() {
  */
 export function useMailActions() {
   return {
-    setSeen: useMailMutation(
-      async (variables: { accountId: string; folder: string; uids: number[]; seen: boolean }) =>
-        (await execute(SetMailSeenDocument, variables)).setMailSeen,
-    ),
-    remove: useMailMutation(
-      async (variables: { accountId: string; folder: string; uids: number[] }) => (await execute(DeleteMailsDocument, variables)).deleteMails,
-    ),
-    link: useMailMutation(
-      async (variables: { accountId: string; folder: string; uid: number; projectId: string }) =>
-        (await execute(LinkMailDocument, variables)).linkMail,
-    ),
+    setSeen: useMailMutation(async (variables: { accountId: string; folder: string; uids: number[]; seen: boolean }) => (await execute(SetMailSeenDocument, variables)).setMailSeen),
+    remove: useMailMutation(async (variables: { accountId: string; folder: string; uids: number[] }) => (await execute(DeleteMailsDocument, variables)).deleteMails),
+    link: useMailMutation(async (variables: { accountId: string; folder: string; uid: number; projectId: string }) => (await execute(LinkMailDocument, variables)).linkMail),
     unlink: useMailMutation(async (id: string) => (await execute(UnlinkMailDocument, { id })).unlinkMail),
     send: useMailMutation(async (input: SendMailInput) => (await execute(SendMailDocument, { input })).sendMail),
     saveDraft: useMailMutation(async (input: SaveMailDraftInput) => (await execute(SaveMailDraftDocument, { input })).saveMailDraft),
-    deleteDraft: useMailMutation(
-      async (location: { accountId: string; folder: string; uid: number }) =>
-        (await execute(DeleteMailDraftDocument, { location })).deleteMailDraft,
-    ),
+    deleteDraft: useMailMutation(async (location: { accountId: string; folder: string; uid: number }) => (await execute(DeleteMailDraftDocument, { location })).deleteMailDraft),
     mark: useMailMutation(
-      async (variables: { accountId: string; folder: string; uids: number[]; labelId?: string; on?: boolean; done?: boolean }) =>
-        (await execute(MarkMailsDocument, variables)).markMails,
+      async (variables: { accountId: string; folder: string; uids: number[]; labelId?: string; on?: boolean; done?: boolean }) => (await execute(MarkMailsDocument, variables)).markMails,
     ),
-    spam: useMailMutation(
-      async (variables: { accountId: string; folder: string; uids: number[]; spam: boolean }) => (await execute(ReportMailSpamDocument, variables)).reportMailSpam,
-    ),
-    move: useMailMutation(
-      async (variables: { accountId: string; folder: string; uids: number[]; target: string }) => (await execute(MoveMailsDocument, variables)).moveMails,
-    ),
+    spam: useMailMutation(async (variables: { accountId: string; folder: string; uids: number[]; spam: boolean }) => (await execute(ReportMailSpamDocument, variables)).reportMailSpam),
+    move: useMailMutation(async (variables: { accountId: string; folder: string; uids: number[]; target: string }) => (await execute(MoveMailsDocument, variables)).moveMails),
     schedule: useMailMutation(async (variables: { input: SendMailInput; sendAt: string }) => (await execute(ScheduleMailDocument, variables)).scheduleMail),
     sendScheduled: useMailMutation(async (id: string) => (await execute(SendScheduledMailDocument, { id })).sendScheduledMail),
     cancelScheduled: useMailMutation(async (id: string) => (await execute(CancelScheduledMailDocument, { id })).cancelScheduledMail),
@@ -820,16 +786,10 @@ export function useMailActions() {
  */
 export function useMailFolderMutations() {
   return {
-    create: useMailMutation(
-      async (variables: { accountId: string; parent: string | null; name: string }) => (await execute(CreateMailFolderDocument, variables)).createMailFolder,
-    ),
-    rename: useMailMutation(
-      async (variables: { accountId: string; path: string; name: string }) => (await execute(RenameMailFolderDocument, variables)).renameMailFolder,
-    ),
+    create: useMailMutation(async (variables: { accountId: string; parent: string | null; name: string }) => (await execute(CreateMailFolderDocument, variables)).createMailFolder),
+    rename: useMailMutation(async (variables: { accountId: string; path: string; name: string }) => (await execute(RenameMailFolderDocument, variables)).renameMailFolder),
     remove: useMailMutation(async (variables: { accountId: string; path: string }) => (await execute(DeleteMailFolderDocument, variables)).deleteMailFolder),
-    move: useMailMutation(
-      async (variables: { accountId: string; path: string; parent: string | null }) => (await execute(MoveMailFolderDocument, variables)).moveMailFolder,
-    ),
+    move: useMailMutation(async (variables: { accountId: string; path: string; parent: string | null }) => (await execute(MoveMailFolderDocument, variables)).moveMailFolder),
   };
 }
 

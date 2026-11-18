@@ -94,23 +94,19 @@ export interface BuiltMessage {
  * @param {Date} [options.date] Date of the mail (scheduled sending); now when omitted. Optional.
  * @returns {Promise<BuiltMessage>} Message.
  */
-export async function buildMessage(
-  account: MailAccount,
-  input: MailFields,
-  options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {},
-): Promise<BuiltMessage> {
+export async function buildMessage(account: MailAccount, input: MailFields, options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {}): Promise<BuiltMessage> {
   const recipients = options.draft ? z.array(z.string().max(320)).max(100) : recipientsSchema;
-  const fields = parseInput(
-    z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(998, 'Objet trop long.') }),
-    { to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [], subject: input.subject },
-  );
+  const fields = parseInput(z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(998, 'Objet trop long.') }), {
+    to: input.to,
+    cc: input.cc ?? [],
+    bcc: input.bcc ?? [],
+    subject: input.subject,
+  });
   if (!options.draft && fields.to.length + fields.cc.length + fields.bcc.length === 0) {
     throw fieldError('to', 'Ajoutez au moins un destinataire.');
   }
 
-  const files: { filename: string; content: Buffer }[] = await Promise.all(
-    (input.attachments ?? []).map(async (file) => ({ filename: file.name, content: Buffer.from(await file.arrayBuffer()) })),
-  );
+  const files: { filename: string; content: Buffer }[] = await Promise.all((input.attachments ?? []).map(async (file) => ({ filename: file.name, content: Buffer.from(await file.arrayBuffer()) })));
   if (input.attachmentsFrom) {
     const { accountId, folder, uid, indexes } = input.attachmentsFrom;
     const original = await fetchParsed(accountId, folder, uid);

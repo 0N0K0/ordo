@@ -17,7 +17,17 @@ import { FormActions } from '../../../components/dialogs/FormActions';
  * @param {{ type: AccountingDocumentType, clientId?: string | null, projectId?: string | null, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function NewDocumentForm({ type, clientId: initialClient = null, projectId: initialProject = null, onDone }: { type: AccountingDocumentType; clientId?: string | null; projectId?: string | null; onDone: () => void }) {
+export function NewDocumentForm({
+  type,
+  clientId: initialClient = null,
+  projectId: initialProject = null,
+  onDone,
+}: {
+  type: AccountingDocumentType;
+  clientId?: string | null;
+  projectId?: string | null;
+  onDone: () => void;
+}) {
   const { data: workspace } = useWorkspace();
   const { create } = useDocumentMutations();
   const navigate = useNavigate();

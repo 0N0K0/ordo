@@ -1,4 +1,23 @@
-import { addDays, capitalize, countOf, daySchema, endAfter, fileName, formatDay, formatMoney, longDayText, mapById, monthOfDay, monthText, offsetLinkedMovements, parseDay, pathOf, plural, printedDay, splitAmounts } from '@ordo/shared';
+import {
+  addDays,
+  capitalize,
+  countOf,
+  daySchema,
+  endAfter,
+  fileName,
+  formatDay,
+  formatMoney,
+  longDayText,
+  mapById,
+  monthOfDay,
+  monthText,
+  offsetLinkedMovements,
+  parseDay,
+  pathOf,
+  plural,
+  printedDay,
+  splitAmounts,
+} from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -143,11 +162,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Title and summary.
   const scope = several ? 'Tous les comptes' : accounts[0].name;
   y =
-    writeHeading(
-      doc,
-      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') },
-      { x: MARGIN, y, width: pageWidth },
-    ) + 8;
+    writeHeading(doc, { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') }, { x: MARGIN, y, width: pageWidth }) +
+    8;
   const figures = [
     { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },

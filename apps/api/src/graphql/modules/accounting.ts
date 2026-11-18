@@ -8,10 +8,7 @@ import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
 import { reloaded } from '../reload';
 
-export const AccountingDocumentTypeEnum = builder.enumType(
-  'AccountingDocumentType',
-  { values: ACCOUNTING_DOCUMENT_TYPES },
-);
+export const AccountingDocumentTypeEnum = builder.enumType('AccountingDocumentType', { values: ACCOUNTING_DOCUMENT_TYPES });
 
 const ClientKindEnum = builder.enumType('ClientKind', {
   values: ['COMPANY', 'INDIVIDUAL'] as const,
@@ -98,8 +95,7 @@ builder.prismaObject('CompanyProfile', {
     logoUrl: t.string({
       nullable: true,
       select: { logoId: true },
-      resolve: (profile) =>
-        profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null,
+      resolve: (profile) => (profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null),
     }),
     bankName: t.exposeString('bankName', { nullable: true }),
     accountHolder: t.exposeString('accountHolder', { nullable: true }),
@@ -115,21 +111,19 @@ builder.prismaObject('CompanyProfile', {
   }),
 });
 
-const DocumentSequence = builder
-  .objectRef<company.SequenceInfo>('DocumentSequence')
-  .implement({
-    fields: (t) => ({
-      type: t.field({
-        type: AccountingDocumentTypeEnum,
-        resolve: (sequence) => sequence.type,
-      }),
-      year: t.exposeInt('year'),
-      nextNumber: t.exposeInt('nextNumber'),
-      minimum: t.exposeInt('minimum', {
-        description: 'Lowest allowed next number.',
-      }),
+const DocumentSequence = builder.objectRef<company.SequenceInfo>('DocumentSequence').implement({
+  fields: (t) => ({
+    type: t.field({
+      type: AccountingDocumentTypeEnum,
+      resolve: (sequence) => sequence.type,
     }),
-  });
+    year: t.exposeInt('year'),
+    nextNumber: t.exposeInt('nextNumber'),
+    minimum: t.exposeInt('minimum', {
+      description: 'Lowest allowed next number.',
+    }),
+  }),
+});
 
 const ClientDetailsInput = builder.inputType('ClientDetailsInput', {
   fields: (t) => ({
@@ -203,8 +197,7 @@ builder.queryFields((t) => ({
     type: 'Client',
     nullable: true,
     args: { id: t.arg.id({ required: true }) },
-    resolve: (query, _root, { id }) =>
-      prisma.client.findUnique({ ...query, where: { id } }),
+    resolve: (query, _root, { id }) => prisma.client.findUnique({ ...query, where: { id } }),
   }),
   companyProfile: t.prismaField({
     type: 'CompanyProfile',
@@ -252,8 +245,7 @@ builder.mutationFields((t) => ({
     },
   }),
   setDocumentSequence: t.boolean({
-    description:
-      'Sets the number the next final document of a type gets in a year.',
+    description: 'Sets the number the next final document of a type gets in a year.',
     args: {
       type: t.arg({ type: AccountingDocumentTypeEnum, required: true }),
       year: t.arg.int({ required: true }),

@@ -124,8 +124,7 @@ const labelKeys = (names: string[]) => [...new Set(names.map((name) => name.trim
  * @param {LinkedTask[]} tasks Tasks.
  * @returns {string[]} Issue node ids, sorted.
  */
-const issuesOf = (tasks: LinkedTask[]) =>
-  [...new Set(tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId).map((task) => task.githubContentId!))].sort();
+const issuesOf = (tasks: LinkedTask[]) => [...new Set(tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId).map((task) => task.githubContentId!))].sort();
 
 /**
  * Tasks related to a task (relations are stored once per pair).
@@ -139,8 +138,7 @@ const relatedOf = (task: SyncedTask) => [...task.relationsA.map((relation) => re
  * @param {SyncedTask} task Task.
  * @returns {number} Hours.
  */
-const trackedHours = (task: SyncedTask) =>
-  round2(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600);
+const trackedHours = (task: SyncedTask) => round2(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600);
 
 /**
  * Whether the type is synchronized for an item: in a field of the board, or as issue type (issues only).
@@ -188,8 +186,7 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     // otherwise the latest sprint of the task.
     const current = currentIteration ? maps.iterationSprint.get(currentIteration) : undefined;
     const latest = [...task.sprints].sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
-    fields.iteration =
-      current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
+    fields.iteration = current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
   if (usable(link.startFieldId, maps, type)) fields.start = formatOptionalDay(task.startDate);
   if (usable(link.endFieldId, maps, type)) fields.end = formatOptionalDay(task.endDate);
@@ -244,7 +241,7 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
  */
 async function subtree(taskId: string): Promise<Set<string>> {
   const ids = new Set([taskId]);
-  for (let frontier = [taskId]; frontier.length; ) {
+  for (let frontier = [taskId]; frontier.length;) {
     const children = await prisma.task.findMany({ where: { parentId: { in: frontier } }, select: { id: true } });
     frontier = children.map((child) => child.id).filter((id) => !ids.has(id));
     for (const id of frontier) ids.add(id);
@@ -270,7 +267,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
   if ('deadline' in values) data.deadline = day(values.deadline);
-  if ('milestone' in values) data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone)) /* synced tasks are in a linked project */ } } : { disconnect: true };
+  if ('milestone' in values)
+    data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone)) /* synced tasks are in a linked project */ } } : { disconnect: true };
   if ('blockedBy' in values) {
     const wanted = new Set((values.blockedBy as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
     const current = task.blockedBy.map((block) => block.blocker).filter((blocker) => blocker.githubContentType === 'ISSUE' && blocker.githubContentId);
@@ -727,11 +725,23 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const linked = await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, include });
     const maps: Maps = {
       statusOption,
-      optionStatus: new Map(Object.entries(statusOption).reverse().map(([status, option]) => [option, status])),
+      optionStatus: new Map(
+        Object.entries(statusOption)
+          .reverse()
+          .map(([status, option]) => [option, status]),
+      ),
       priorityOption,
-      optionPriority: new Map(Object.entries(priorityOption).reverse().map(([priority, option]) => [option, priority])),
+      optionPriority: new Map(
+        Object.entries(priorityOption)
+          .reverse()
+          .map(([priority, option]) => [option, priority]),
+      ),
       typeOption,
-      optionType: new Map(Object.entries(typeOption).reverse().map(([type, option]) => [option, type])),
+      optionType: new Map(
+        Object.entries(typeOption)
+          .reverse()
+          .map(([type, option]) => [option, type]),
+      ),
       sprintIteration: new Map(sprints.map((sprint) => [sprint.id, sprint.githubIterationId!])),
       iterationSprint: new Map(sprints.map((sprint) => [sprint.githubIterationId!, sprint.id])),
       contributorByLogin: new Map(contributors.map((contributor) => [contributor.githubLogin!, contributor.id])),
@@ -856,9 +866,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     });
     return summary;
   } catch (error) {
-    await prisma.githubProjectLink
-      .update({ where: { id: link.id }, data: { lastSyncAt: new Date(), lastSyncError: errorMessage(error) } })
-      .catch(() => undefined);
+    await prisma.githubProjectLink.update({ where: { id: link.id }, data: { lastSyncAt: new Date(), lastSyncError: errorMessage(error) } }).catch(() => undefined);
     throw error;
   } finally {
     running.delete(link.id);

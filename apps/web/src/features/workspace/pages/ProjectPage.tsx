@@ -14,7 +14,24 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
-import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
+import {
+  ArrowsClockwiseIcon,
+  BasketIcon,
+  CheckSquareOffsetIcon,
+  ClipboardTextIcon,
+  GithubLogoIcon,
+  ClockIcon,
+  EnvelopeSimpleIcon,
+  FlagIcon,
+  FolderPlusIcon,
+  InfoIcon,
+  PaperclipIcon,
+  PencilSimpleIcon,
+  ReceiptIcon,
+  TimerIcon,
+  UsersIcon,
+  ListChecksIcon,
+} from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
@@ -172,10 +189,9 @@ export function ProjectPage() {
         }
         extraActions={
           canAddSubProject && (
-            <ActionButton
-              icon={<FolderPlusIcon aria-hidden />}
-              onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}
-            >Nouveau sous-projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}>
+              Nouveau sous-projet
+            </ActionButton>
           )
         }
       />
@@ -222,45 +238,45 @@ export function ProjectPage() {
         </PageTabs.List>
         <PageTabs.Panel value="overview">
           <Stack gap="xl">
-              <Paper withBorder p="lg" radius="md">
-                <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
-                  <SubSection title="Statut">
-                    <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
-                  </SubSection>
-                  <SubSection title="Catégories">
-                    {project.categories.length > 0 ? (
-                      <Group gap={4}>
-                        {project.categories.map((category) => (
-                          <ItemBadge key={category.id} item={category} />
-                        ))}
-                      </Group>
-                    ) : (
-                      <Text size="sm">—</Text>
-                    )}
-                  </SubSection>
-                  <SubSection title="Début">
-                    <Text size="sm">{formatDate(project.startDate)}</Text>
-                  </SubSection>
-                  <SubSection title="Fin">
-                    <Text size="sm">{formatDate(project.endDate)}</Text>
-                  </SubSection>
-                </SimpleGrid>
-              </Paper>
+            <Paper withBorder p="lg" radius="md">
+              <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
+                <SubSection title="Statut">
+                  <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
+                </SubSection>
+                <SubSection title="Catégories">
+                  {project.categories.length > 0 ? (
+                    <Group gap={4}>
+                      {project.categories.map((category) => (
+                        <ItemBadge key={category.id} item={category} />
+                      ))}
+                    </Group>
+                  ) : (
+                    <Text size="sm">—</Text>
+                  )}
+                </SubSection>
+                <SubSection title="Début">
+                  <Text size="sm">{formatDate(project.startDate)}</Text>
+                </SubSection>
+                <SubSection title="Fin">
+                  <Text size="sm">{formatDate(project.endDate)}</Text>
+                </SubSection>
+              </SimpleGrid>
+            </Paper>
 
-              {subProjects.length > 0 && (
-                <Stack gap="sm">
-                  <SectionHeader title="Sous-projets" />
-                  <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
-                </Stack>
-              )}
+            {subProjects.length > 0 && (
+              <Stack gap="sm">
+                <SectionHeader title="Sous-projets" />
+                <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
+              </Stack>
+            )}
 
-              <SubSection title="Description" gap="xs">
-                <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
-                  {project.description}
-                </MarkdownView>
-              </SubSection>
+            <SubSection title="Description" gap="xs">
+              <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
+                {project.description}
+              </MarkdownView>
+            </SubSection>
 
-              <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
+            <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
           </Stack>
         </PageTabs.Panel>
         <PageTabs.Panel value="tasks">
@@ -297,11 +313,7 @@ export function ProjectPage() {
       </PageTabs>
       {/* Milestones, sprints, contributors, GitHub and the project itself: in the settings sidebar. */}
       <PageSettings title="Paramètres du projet">
-        <ProjectSettings
-          project={project}
-          section={section}
-          onSection={setSection}
-        />
+        <ProjectSettings project={project} section={section} onSection={setSection} />
       </PageSettings>
     </Stack>
   );

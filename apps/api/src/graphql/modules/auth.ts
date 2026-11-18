@@ -10,8 +10,7 @@ builder.queryField('me', (t) =>
     type: 'User',
     nullable: true,
     skipTypeScopes: true,
-    resolve: (query, _root, _args, ctx) =>
-      ctx.session ? prisma.user.findUnique({ ...query, where: { id: ctx.session.userId } }) : null,
+    resolve: (query, _root, _args, ctx) => (ctx.session ? prisma.user.findUnique({ ...query, where: { id: ctx.session.userId } }) : null),
   }),
 );
 

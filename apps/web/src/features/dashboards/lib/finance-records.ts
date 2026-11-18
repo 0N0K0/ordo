@@ -1,10 +1,32 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, EVERYDAY_CONTEXT, mapById, offsetLinkedMovements, plannedContext, round2, splitAmounts } from '@ordo/shared';
+import {
+  addDays,
+  type ChartConfig,
+  type ChartDimension,
+  type ChartGroupDimension,
+  type ChartMeasure,
+  EVERYDAY_CONTEXT,
+  mapById,
+  offsetLinkedMovements,
+  plannedContext,
+  round2,
+  splitAmounts,
+} from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../../treasury/api';
+import type {
+  ProjectionItem,
+  TreasuryAccount,
+  TreasuryCategory,
+  TreasuryContext,
+  TreasuryContextPeriod,
+  TreasuryEntry,
+  TreasuryMember,
+  TreasuryProjection,
+  TreasuryRelation,
+} from '../../treasury/api';
 import { categoryLineage, categoryPathLineage } from '../../treasury/lib/categories';
 import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, type ChartData, type ChartRecord, type Key } from './aggregate';
 
@@ -378,7 +400,16 @@ export function treasuryChartData({
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,
       // A line of its own day (deferred debit card) counts that day.
-      movement: { ...base, ...(line.date ? { date: line.date } : {}), ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
+      movement: {
+        ...base,
+        ...(line.date ? { date: line.date } : {}),
+        ...category(line.categoryId ?? null),
+        amount: amounts[index] / 100,
+        projectId: line.projectId ?? null,
+        memberId: line.memberId ?? null,
+        relationId: line.relationId ?? null,
+        contextId: line.contextId ?? null,
+      },
       linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
     }));
     if (remainder !== 0 || !entry.lines.length) {
@@ -388,7 +419,10 @@ export function treasuryChartData({
         linkedIds: [...entry.linkedEntries.map((linked) => `entry:${linked.id}`), ...entry.linkedByLines.map((linked) => `line:${linked.id}`)],
       });
     }
-    partIds.set(entry.id, own.map((part) => part.id));
+    partIds.set(
+      entry.id,
+      own.map((part) => part.id),
+    );
     parts.push(...own);
   }
   /**

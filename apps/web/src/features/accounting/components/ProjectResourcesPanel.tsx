@@ -82,11 +82,12 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (resource: ProjectResource) => {
-    confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
-<>
-            {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`}
-          </>
-), run: () => remove.mutateAsync(resource.id), done: 'Ressource supprimée.' });
+    confirmDestructive({
+      title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien',
+      risks: <>{resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`}</>,
+      run: () => remove.mutateAsync(resource.id),
+      done: 'Ressource supprimée.',
+    });
   };
 
   return (
@@ -95,17 +96,16 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
         description="Documents et liens utiles au projet : cahier des charges, maquettes, dépôt de code…"
         actions={
           <>
-          <FileButton
-            multiple
-            onChange={(files) =>
-              files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))
-            }
-          >
-            {(props) => (
-              <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>Ajouter des fichiers</ActionButton>
-            )}
-          </FileButton>
-          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>Ajouter un lien</ActionButton>
+            <FileButton multiple onChange={(files) => files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))}>
+              {(props) => (
+                <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>
+                  Ajouter des fichiers
+                </ActionButton>
+              )}
+            </FileButton>
+            <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>
+              Ajouter un lien
+            </ActionButton>
           </>
         }
       />

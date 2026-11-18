@@ -6,10 +6,7 @@ export type PeriodPreset = Extract<DatePeriod, 'thisMonth' | 'lastMonth' | 'this
 
 const PRESET_PERIODS = ['thisMonth', 'lastMonth', 'thisQuarter', 'lastQuarter', 'thisYear', 'lastYear'] as const satisfies readonly PeriodPreset[];
 
-export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
-  ...PRESET_PERIODS.map((value) => ({ value, label: DATE_PERIOD_LABELS[value] })),
-  { value: 'custom', label: 'Dates choisies' },
-];
+export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [...PRESET_PERIODS.map((value) => ({ value, label: DATE_PERIOD_LABELS[value] })), { value: 'custom', label: 'Dates choisies' }];
 
 /**
  * First and last days of a preset period: the period of the filters (`filterPeriod`, whose end is the day after the

@@ -33,9 +33,12 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
   const [localError, setLocalError] = useState<string | null>(null);
   const previewUrl = useMemo(() => (value.file ? URL.createObjectURL(value.file) : null), [value.file]);
 
-  useEffect(() => () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
 
   const shownUrl = previewUrl ?? (value.remove ? null : currentUrl);
 
@@ -72,13 +75,7 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
               )}
             </FileButton>
             {shownUrl && (
-              <Button
-                variant="subtle"
-                color="red"
-                size="xs"
-                leftSection={<TrashIcon aria-hidden />}
-                onClick={() => onChange({ file: null, remove: true })}
-              >
+              <Button variant="subtle" color="red" size="xs" leftSection={<TrashIcon aria-hidden />} onClick={() => onChange({ file: null, remove: true })}>
                 Retirer
               </Button>
             )}

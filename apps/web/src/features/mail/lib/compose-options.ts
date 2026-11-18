@@ -142,7 +142,7 @@ export function replyOptions(mail: SourceMail, all: boolean, ownAddresses: strin
  */
 export function forwardOptions(mail: SourceMail, files: SourceFiles['files'], projectId?: string | null): ComposeOptions {
   const header = [
-    `De : ${escapeHtml(mail.from.map((item) => item.name ? `${item.name} <${item.address}>` : item.address).join(', '))}`,
+    `De : ${escapeHtml(mail.from.map((item) => (item.name ? `${item.name} <${item.address}>` : item.address)).join(', '))}`,
     `Date : ${escapeHtml(fmt.dateTime(mail.date))}`,
     `Objet : ${escapeHtml(mail.subject)}`,
     `À : ${escapeHtml(emails(mail.to).join(', '))}`,

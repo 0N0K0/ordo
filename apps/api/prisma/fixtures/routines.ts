@@ -5,7 +5,16 @@ import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/core/geo';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
-import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, bulkSetRoutinesArchived, slotsOf } from '../../src/services/routines/routines';
+import {
+  changeRoutineOccurrence,
+  createCategory,
+  createRoutine,
+  deleteRoutineOccurrence,
+  moveRoutineOccurrence,
+  occurrencesBetween,
+  bulkSetRoutinesArchived,
+  slotsOf,
+} from '../../src/services/routines/routines';
 
 /**
  * Rule from the default one.

@@ -18,12 +18,7 @@ import { connectIds } from '../core/relations';
  * @param {string[] | null} [input.projectIds] Projects the contributor is attached to. Optional.
  * @returns {Promise<Contributor>} Created contributor.
  */
-export async function createContributor(input: {
-  name: string;
-  handle: string;
-  avatar?: File | null;
-  projectIds?: string[] | null;
-}): Promise<Contributor> {
+export async function createContributor(input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null }): Promise<Contributor> {
   const data = parseInput(z.object({ name: contributorNameSchema, handle: handleSchema }), input);
   if (input.projectIds?.length) await assertProjects(input.projectIds);
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
@@ -137,7 +132,11 @@ export async function setProjectContributors(projectId: string, contributorIds: 
   await assertNotArchived('project', projectId);
   await assertAllExist(prisma.contributor, contributorIds, 'Contributeur');
   const current = await prisma.contributor.findMany({ where: { projects: { some: { id: projectId } } }, select: { id: true } });
-  await assertActiveContributors(contributorIds, current.map((contributor) => contributor.id), 'contributorIds');
+  await assertActiveContributors(
+    contributorIds,
+    current.map((contributor) => contributor.id),
+    'contributorIds',
+  );
   await prisma.project.update({
     where: { id: projectId },
     data: { contributors: { set: connectIds(contributorIds) } },

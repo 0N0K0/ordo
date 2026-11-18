@@ -11,7 +11,7 @@ import classes from './MailBody.module.css';
  * @returns {string} Document.
  */
 function frameDocument(html: string, remoteImages: boolean): string {
-  const images = remoteImages ? "img-src * data:" : "img-src 'self' data:";
+  const images = remoteImages ? 'img-src * data:' : "img-src 'self' data:";
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src * data:; ${images}">
 <base target="_blank">

@@ -43,12 +43,7 @@ const fieldsSchema = z.object({
  * @param {string | null} [input.dueDate] Due date, YYYY-MM-DD. Optional.
  * @returns {Promise<Milestone>} Created milestone.
  */
-export async function createMilestone(input: {
-  projectId: string;
-  title: string;
-  description?: string | null;
-  dueDate?: string | null;
-}): Promise<Milestone> {
+export async function createMilestone(input: { projectId: string; title: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
   const project = await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { archivedAt: true } }), 'Projet');
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
   const fields = parseInput(fieldsSchema.required({ title: true }), {
@@ -77,10 +72,7 @@ export async function createMilestone(input: {
  * @param {string | null} [input.dueDate] New due date. Optional.
  * @returns {Promise<Milestone>} Updated milestone.
  */
-export async function updateMilestone(
-  id: string,
-  input: { title?: string | null; description?: string | null; dueDate?: string | null },
-): Promise<Milestone> {
+export async function updateMilestone(id: string, input: { title?: string | null; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
   await findEditableMilestone(id);
   const fields = parseInput(fieldsSchema, {
     title: input.title ?? undefined,

@@ -136,9 +136,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
     subject,
     html: mailHtml(body, signature, options.quote),
     attachments: files,
-    attachmentsFrom: sourceFiles?.files.length
-      ? { ...sourceFiles.from, indexes: sourceFiles.files.map((file) => file.index) }
-      : null,
+    attachmentsFrom: sourceFiles?.files.length ? { ...sourceFiles.from, indexes: sourceFiles.files.map((file) => file.index) } : null,
     inReplyTo: options.inReplyTo ?? null,
     references: options.references ?? [],
     projectId: options.projectId ?? null,
@@ -255,57 +253,54 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
     openModal(
       'Fermer le mail',
       (close) => (
-    <Stack gap="md">
-      <Text size="sm">
-        Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il
-        sera alors perdu définitivement.
-      </Text>
-      <Group justify="flex-end" gap="sm">
-        <DestructiveButton
-          leftSection={<TrashIcon aria-hidden />}
-          onClick={() => {
-            close();
-            void discard()
-              .then(() => {
-                notifySuccess('Brouillon supprimé.');
-                onDone();
-              })
-              .catch(onMutationError)
-              .finally(() => {
-                closing.current = false;
-              });
-          }}
-        >
-          Supprimer le brouillon
-        </DestructiveButton>
-        <Button
-          leftSection={<FloppyDiskIcon aria-hidden />}
-          onClick={() => {
-            close();
-            void save()
-              .then(() => {
-                notifySuccess('Brouillon enregistré.');
-                onDone();
-              })
-              .catch(onMutationError)
-              .finally(() => {
-                closing.current = false;
-              });
-          }}
-        >
-          Enregistrer le brouillon
-        </Button>
-        <Button
-          variant="default"
-          leftSection={<PencilSimpleLineIcon aria-hidden />}
-          onClick={() => {
-            close();
-          }}
-        >
-          Continuer la rédaction
-        </Button>
-      </Group>
-    </Stack>
+        <Stack gap="md">
+          <Text size="sm">Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il sera alors perdu définitivement.</Text>
+          <Group justify="flex-end" gap="sm">
+            <DestructiveButton
+              leftSection={<TrashIcon aria-hidden />}
+              onClick={() => {
+                close();
+                void discard()
+                  .then(() => {
+                    notifySuccess('Brouillon supprimé.');
+                    onDone();
+                  })
+                  .catch(onMutationError)
+                  .finally(() => {
+                    closing.current = false;
+                  });
+              }}
+            >
+              Supprimer le brouillon
+            </DestructiveButton>
+            <Button
+              leftSection={<FloppyDiskIcon aria-hidden />}
+              onClick={() => {
+                close();
+                void save()
+                  .then(() => {
+                    notifySuccess('Brouillon enregistré.');
+                    onDone();
+                  })
+                  .catch(onMutationError)
+                  .finally(() => {
+                    closing.current = false;
+                  });
+              }}
+            >
+              Enregistrer le brouillon
+            </Button>
+            <Button
+              variant="default"
+              leftSection={<PencilSimpleLineIcon aria-hidden />}
+              onClick={() => {
+                close();
+              }}
+            >
+              Continuer la rédaction
+            </Button>
+          </Group>
+        </Stack>
       ),
       // Closed without an answer: writing goes on.
       { onClose: () => (closing.current = false) },
@@ -348,8 +343,8 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           {saveState.status === 'error' && 'Brouillon non enregistré : nouvel essai à la prochaine modification.'}
         </Text>
         <IconAction label="Fermer" aria-label="Fermer le mail" onClick={requestClose}>
-            <XIcon aria-hidden />
-</IconAction>
+          <XIcon aria-hidden />
+        </IconAction>
       </Group>
       <Select
         label="De"
@@ -401,7 +396,12 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       {(files.length > 0 || (sourceFiles?.files.length ?? 0) > 0) && (
         <Group gap="xs">
           {sourceFiles?.files.map((file) => (
-            <FileBadge key={`source-${file.index}`} name={file.filename} size={file.size} onRemove={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })} />
+            <FileBadge
+              key={`source-${file.index}`}
+              name={file.filename}
+              size={file.size}
+              onRemove={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })}
+            />
           ))}
           {files.map((file, index) => (
             <FileBadge key={`${file.name}-${index}`} name={file.name} size={file.size} onRemove={() => setFiles(files.filter((_, item) => item !== index))} />
@@ -438,30 +438,29 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   Envoyer plus tard
                 </Text>
                 {schedulePresets().map((preset) => (
-                  <Button key={preset.label} size="xs" variant="default" justify="space-between" onClick={() => void scheduleAt(preset.at)} rightSection={<Text size="xs" c="dimmed">{fmt.dateTimeShort(preset.at)}</Text>}>
+                  <Button
+                    key={preset.label}
+                    size="xs"
+                    variant="default"
+                    justify="space-between"
+                    onClick={() => void scheduleAt(preset.at)}
+                    rightSection={
+                      <Text size="xs" c="dimmed">
+                        {fmt.dateTimeShort(preset.at)}
+                      </Text>
+                    }
+                  >
                     {preset.label}
                   </Button>
                 ))}
-                <DateTimePicker
-                  label="Date et heure"
-                  placeholder="Choisir…"
-                  minDate={new Date()}
-                  value={sendAt}
-                  onChange={setSendAt}
-                  popoverProps={{ withinPortal: false }}
-                />
+                <DateTimePicker label="Date et heure" placeholder="Choisir…" minDate={new Date()} value={sendAt} onChange={setSendAt} popoverProps={{ withinPortal: false }} />
                 <Button size="xs" leftSection={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
                   Programmer l’envoi
                 </Button>
               </Stack>
             </Popover.Dropdown>
           </Popover>
-          <Button
-            leftSection={<PaperPlaneTiltIcon aria-hidden />}
-            loading={send.isPending}
-            disabled={!account || recipients.length === 0 || invalid}
-            onClick={() => void submit()}
-          >
+          <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} loading={send.isPending} disabled={!account || recipients.length === 0 || invalid} onClick={() => void submit()}>
             Envoyer
           </Button>
         </Group>

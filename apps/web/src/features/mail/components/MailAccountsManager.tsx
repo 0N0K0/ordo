@@ -44,12 +44,18 @@ export function MailAccountsManager() {
    * @returns {void}
    */
   const confirmDelete = (account: MailAccount) => {
-    confirmDestructive({ title: 'Retirer la boîte mail', risks: (
-<>
-            {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés.
-            Les mails restent sur le serveur, et ceux rattachés à des projets restent dans Ordo.
-          </>
-), confirmLabel: 'Retirer', run: () => remove.mutateAsync(account.id), done: 'Boîte mail retirée.' });
+    confirmDestructive({
+      title: 'Retirer la boîte mail',
+      risks: (
+        <>
+          {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés. Les mails restent sur le serveur, et ceux rattachés à des projets restent
+          dans Ordo.
+        </>
+      ),
+      confirmLabel: 'Retirer',
+      run: () => remove.mutateAsync(account.id),
+      done: 'Boîte mail retirée.',
+    });
   };
 
   return (
@@ -92,13 +98,21 @@ export function MailAccountsManager() {
                 name={account.name}
                 items={[
                   // Archived: read only.
-                  !account.archived && { label: 'Signature', icon: <SignatureIcon aria-hidden />, onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />) },
-                  !account.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />) },
+                  !account.archived && {
+                    label: 'Signature',
+                    icon: <SignatureIcon aria-hidden />,
+                    onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />),
+                  },
+                  !account.archived && {
+                    label: 'Modifier',
+                    icon: <PencilSimpleIcon aria-hidden />,
+                    onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />),
+                  },
                   archiveEntry({ archived: account.archived, type: 'Boîte', name: account.name, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />
-              </Group>
+            </Group>
           ))}
         </Stack>
       )}

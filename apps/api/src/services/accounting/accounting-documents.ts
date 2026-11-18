@@ -1,4 +1,24 @@
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, formatOptionalDay, formatPercent, fromCents, parseDay, parseOptionalDay, percentOf, printedDay, toCents } from '@ordo/shared';
+import {
+  type AccountingDocumentInput,
+  accountingDocumentInputSchema,
+  type AccountingDocumentType,
+  type AccountingLineInput,
+  addDays,
+  byPosition,
+  computeTotals,
+  documentNumber,
+  dueDateForTerms,
+  formatDay,
+  formatMoney,
+  formatOptionalDay,
+  formatPercent,
+  fromCents,
+  parseDay,
+  parseOptionalDay,
+  percentOf,
+  printedDay,
+  toCents,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
@@ -228,11 +248,7 @@ export async function defaultFields(type: AccountingDocumentType, clientId: stri
     contactId: null,
     projectId: null,
     issueDate,
-    dueDate: isCreditNote
-      ? null
-      : isQuote
-        ? addDays(issueDate, company.quoteValidityDays)
-        : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
+    dueDate: isCreditNote ? null : isQuote ? addDays(issueDate, company.quoteValidityDays) : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
     serviceStart: null,
     serviceEnd: null,
     title: null,
@@ -465,18 +481,12 @@ export async function invoicedAmount(quoteId: string): Promise<number> {
  * @param {string} [options.issueDate] Date of the new document. Optional.
  * @returns {Promise<AccountingDocument>} Draft.
  */
-export async function createFromDocument(
-  sourceId: string,
-  type: AccountingDocumentType,
-  options: { depositPercent?: number | null; issueDate: string },
-): Promise<AccountingDocument> {
+export async function createFromDocument(sourceId: string, type: AccountingDocumentType, options: { depositPercent?: number | null; issueDate: string }): Promise<AccountingDocument> {
   requirePro('facturation');
   const source = await findDocument(sourceId);
   if (source.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Validez d’abord le document d’origine.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', sourceId);
-  const allowed =
-    (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) ||
-    ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
+  const allowed = (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) || ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
   if (!allowed) throw clientError('BAD_USER_INPUT', 'Ce document ne peut pas être créé à partir de celui-ci.');
   if (type === 'DEPOSIT_INVOICE') return createDepositInvoice({ quoteId: source.id, percent: options.depositPercent ?? 30, issueDate: options.issueDate });
 

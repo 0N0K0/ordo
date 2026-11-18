@@ -10,20 +10,9 @@ import type { TaskContext } from '../hooks/use-task-context';
  * @param {(candidate: Task) => boolean} [extra] Additional filter. Optional.
  * @returns {Task[]} Candidates.
  */
-export function linkableTasks(
-  context: TaskContext,
-  projectId: string | null,
-  taskId: string | null,
-  extra?: (candidate: Task) => boolean,
-): Task[] {
+export function linkableTasks(context: TaskContext, projectId: string | null, taskId: string | null, extra?: (candidate: Task) => boolean): Task[] {
   const root = context.rootOf(projectId);
-  return context.tasks.filter(
-    (candidate) =>
-      candidate.id !== taskId &&
-      !candidate.archived &&
-      context.rootOf(candidate.projectId) === root &&
-      (!extra || extra(candidate)),
-  );
+  return context.tasks.filter((candidate) => candidate.id !== taskId && !candidate.archived && context.rootOf(candidate.projectId) === root && (!extra || extra(candidate)));
 }
 
 /**

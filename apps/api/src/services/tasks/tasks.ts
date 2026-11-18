@@ -1,4 +1,17 @@
-import { ancestorsOf, dateSchema, effortSchema, groupBy, lineageOf, mapById, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, type TaskInput as SharedTaskInput, taskTitleSchema } from '@ordo/shared';
+import {
+  ancestorsOf,
+  dateSchema,
+  effortSchema,
+  groupBy,
+  lineageOf,
+  mapById,
+  markdownSchema,
+  parseOptionalDay,
+  reaches,
+  slotRuleSchema,
+  type TaskInput as SharedTaskInput,
+  taskTitleSchema,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
@@ -301,9 +314,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
-  const previous = input.assigneeIds
-    ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
-    : [];
+  const previous = input.assigneeIds ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id) : [];
   if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
 
   const updated = await prisma.task.update({
@@ -350,7 +361,7 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<Ta
   }
 
   const ancestorIds: string[] = [];
-  for (let parentId = task.parentId; parentId; ) {
+  for (let parentId = task.parentId; parentId;) {
     const parent = await prisma.task.findUnique({ where: { id: parentId }, select: { id: true, parentId: true, archivedAt: true } });
     if (!parent) break;
     if (parent.archivedAt) ancestorIds.push(parent.id);
@@ -420,9 +431,7 @@ export async function transferTask(id: string, projectId: string | null): Promis
     where: { id: { in: moved }, milestoneId: { not: null } },
     select: { id: true, milestone: { select: { projectId: true } } },
   });
-  const losingMilestone = movedTasks
-    .filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot)
-    .map((item) => item.id);
+  const losingMilestone = movedTasks.filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot).map((item) => item.id);
   // Same for sprints: each task leaves those of another tree.
   const sprintTasks = await prisma.task.findMany({
     where: { id: { in: moved }, sprints: { some: {} } },
@@ -464,6 +473,15 @@ export async function transferTask(id: string, projectId: string | null): Promis
   return { task: results[3], removedLinks };
 }
 
+/** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
+const CLONED_LINKS = {
+  assignees: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
+  tags: { select: { id: true } },
+  sprints: { select: { id: true } },
+} as const;
+
 /**
  * Clones a task (every field, assignees and links, but not comments), optionally with its sub-tasks.
  * @param {string} id Task id.
@@ -471,7 +489,13 @@ export async function transferTask(id: string, projectId: string | null): Promis
  * @returns {Promise<Task>} Clone of the task.
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
-  const include = { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
+  const include = {
+    ...CLONED_LINKS,
+    blocking: true,
+    blockedBy: true,
+    relationsA: true,
+    relationsB: true,
+  };
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
 
   return prisma.$transaction(async (tx) => {
@@ -484,7 +508,15 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
-      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; beneficiaries: { select: { id: true } }; beneficiaryRelations: { select: { id: true } }; tags: { select: { id: true } }; sprints: { select: { id: true } } } }>,
+      task: Prisma.TaskGetPayload<{
+        include: {
+          assignees: { select: { id: true } };
+          beneficiaries: { select: { id: true } };
+          beneficiaryRelations: { select: { id: true } };
+          tags: { select: { id: true } };
+          sprints: { select: { id: true } };
+        };
+      }>,
       parentId: string | null,
     ) =>
       tx.task.create({
@@ -513,15 +545,9 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
 
     const clone = await copy(source, source.parentId);
     await tx.taskBlock.createMany({
-      data: [
-        ...source.blocking.map((link) => ({ blockerId: clone.id, blockedId: link.blockedId })),
-        ...source.blockedBy.map((link) => ({ blockerId: link.blockerId, blockedId: clone.id })),
-      ],
+      data: [...source.blocking.map((link) => ({ blockerId: clone.id, blockedId: link.blockedId })), ...source.blockedBy.map((link) => ({ blockerId: link.blockerId, blockedId: clone.id }))],
     });
-    const related = [
-      ...source.relationsA.map((link) => link.taskBId),
-      ...source.relationsB.map((link) => link.taskAId),
-    ];
+    const related = [...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
     await tx.taskRelation.createMany({
       data: related.map((other) => (clone.id < other ? { taskAId: clone.id, taskBId: other } : { taskAId: other, taskBId: clone.id })),
     });
@@ -533,7 +559,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
           orderBy: { position: 'asc' },
-          include: { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } } },
+          include: CLONED_LINKS,
         });
         for (const child of children) {
           const childClone = await copy(child, cloneId);
@@ -790,7 +816,15 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   // Archived values are not given anew (those of one of the tasks stay valid: the same change on the others).
   const all = (pick: (task: (typeof tasks)[number]) => (string | null)[]): string[] => tasks.flatMap(pick).filter((id): id is string => id !== null);
   await assertActiveRefs(
-    { statusId: changes.statusId, priorityId: changes.priorityId, typeId: changes.typeId, milestoneId: changes.milestoneId, sprintIds: changes.addSprintIds, assigneeIds: changes.addAssigneeIds, tagIds: changes.addTagIds },
+    {
+      statusId: changes.statusId,
+      priorityId: changes.priorityId,
+      typeId: changes.typeId,
+      milestoneId: changes.milestoneId,
+      sprintIds: changes.addSprintIds,
+      assigneeIds: changes.addAssigneeIds,
+      tagIds: changes.addTagIds,
+    },
     {
       statusId: all((task) => [task.statusId]),
       priorityId: all((task) => [task.priorityId]),
@@ -804,7 +838,14 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   );
   for (const task of tasks) {
     // Of a project: its contributors only (those already assigned stay).
-    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds', restoring);
+    if (changes.addAssigneeIds?.length)
+      await assertProjectContributors(
+        task.projectId,
+        changes.addAssigneeIds,
+        task.assignees.map((assignee) => assignee.id),
+        'assigneeIds',
+        restoring,
+      );
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.

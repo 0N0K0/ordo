@@ -97,7 +97,8 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       remove={(id) => deleteCounterparty.mutateAsync(id)}
       deleteMessage={(counterparty) => (
         <>
-          « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}
+          « {counterparty.name} » sera supprimé définitivement.
+          {counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}
         </>
       )}
     />
@@ -119,8 +120,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
    * @param {Partial<typeof current>} changes Category changed.
    * @returns {void}
    */
-  const save = (changes: Partial<typeof current>) =>
-    setInvoiceCategories.mutate({ ...current, ...changes }, toastCallbacks('Catégorie enregistrée.'));
+  const save = (changes: Partial<typeof current>) => setInvoiceCategories.mutate({ ...current, ...changes }, toastCallbacks('Catégorie enregistrée.'));
   return (
     <SettingsSection title="Factures et avoirs" description="Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.">
       {/* Side by side when the sidebar is wide enough (its width, not the window's). */}

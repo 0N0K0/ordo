@@ -27,10 +27,7 @@ interface NoClientRowProps {
  * @param {NoClientRowProps} props Component props; the ref goes to the row, for drag and drop.
  * @returns {JSX.Element} Row.
  */
-export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function NoClientRow(
-  { expanded, onToggle, hasChildren, canAddProject = false, style },
-  ref,
-) {
+export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function NoClientRow({ expanded, onToggle, hasChildren, canAddProject = false, style }, ref) {
   const actions = useEntityActions();
   // Without clients (personal workspace), the group holds every project.
   const { perso } = useActiveWorkspace();
@@ -56,11 +53,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       }}
     >
       <UnstyledButton className={classes.groupToggle} onClick={onToggle} disabled={!hasChildren}>
-        <span className={rowClasses.spacer}>
-          {hasChildren && (
-            <FoldChevron expanded={expanded} />
-          )}
-        </span>
+        <span className={rowClasses.spacer}>{hasChildren && <FoldChevron expanded={expanded} />}</span>
         <Caption>{perso ? 'Tous les projets' : 'Sans client'}</Caption>
       </UnstyledButton>
 

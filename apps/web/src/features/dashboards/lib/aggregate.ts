@@ -1,4 +1,22 @@
-import { addDays, CALENDAR_PERIOD, calendarRange, type CalendarScale, calendarStart, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, filterPeriod, isTimeDimension, round2, shiftCalendar, weekStartOf, yearOfDay } from '@ordo/shared';
+import {
+  addDays,
+  CALENDAR_PERIOD,
+  calendarRange,
+  type CalendarScale,
+  calendarStart,
+  type ChartBucket,
+  type ChartConfig,
+  type ChartDimension,
+  type ChartGroupDimension,
+  type ChartMeasure,
+  type ChartSource,
+  filterPeriod,
+  isTimeDimension,
+  round2,
+  shiftCalendar,
+  weekStartOf,
+  yearOfDay,
+} from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
 import { currentWeek } from '../../../lib/week';
@@ -149,7 +167,6 @@ const NONE_ORDER = '￿';
  * @returns {Key[]} Value.
  */
 export const none = (label: string): Key[] => [{ key: 'none', label, order: NONE_ORDER, color: 'gray.5' }];
-
 
 /**
  * Bucket of a day: the day, the Monday of its week, the first of its month, quarter or year.

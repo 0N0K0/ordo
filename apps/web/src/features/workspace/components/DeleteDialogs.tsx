@@ -37,12 +37,9 @@ export function DeleteClientDialog({ client, projectCount, onDone }: DeleteClien
   return (
     <Stack gap="md">
       <DestructiveRisks>
-        Le client <strong>{client.name}</strong> sera supprimé définitivement. Pour le
-        retirer de la liste sans perdre ses données, archivez-le plutôt.
+        Le client <strong>{client.name}</strong> sera supprimé définitivement. Pour le retirer de la liste sans perdre ses données, archivez-le plutôt.
       </DestructiveRisks>
-      {projectCount > 0 && (
-        <CascadeChoice label={`Que faire de ses ${countOf(projectCount, 'projet')} ?`} keepLabel="Les conserver, sans client" value={mode} onChange={setMode} />
-      )}
+      {projectCount > 0 && <CascadeChoice label={`Que faire de ses ${countOf(projectCount, 'projet')} ?`} keepLabel="Les conserver, sans client" value={mode} onChange={setMode} />}
       <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={deleteClient.isPending} />
     </Stack>
   );
@@ -81,10 +78,8 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
     <Stack gap="md">
       <DestructiveRisks>
         Le projet <strong>{project.title}</strong>
-        {subProjectCount > 0 &&
-          ` et ses ${countOf(subProjectCount, 'sous-projet')}`}{' '}
-        {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement.
-        Pour {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
+        {subProjectCount > 0 && ` et ses ${countOf(subProjectCount, 'sous-projet')}`} {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement. Pour{' '}
+        {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
       </DestructiveRisks>
       <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={deleteProject.isPending} />
     </Stack>

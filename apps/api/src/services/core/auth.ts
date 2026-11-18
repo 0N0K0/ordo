@@ -3,32 +3,15 @@ import { strongPasswordSchema } from '@ordo/shared/password-strength';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { hashPassword, generateToken, hashToken, verifyPassword } from '../../auth/crypto';
-import {
-  consume,
-  loginLimiter,
-  passwordCheckLimiter,
-  reset,
-  resetRequestLimiter,
-} from '../../auth/rate-limit';
-import {
-  createSession,
-  destroySession,
-  destroyUserSessions,
-  purgeExpiredSessions,
-  type SessionInfo,
-} from '../../auth/session';
+import { consume, loginLimiter, passwordCheckLimiter, reset, resetRequestLimiter } from '../../auth/rate-limit';
+import { createSession, destroySession, destroyUserSessions, purgeExpiredSessions, type SessionInfo } from '../../auth/session';
 import { prisma } from '../../db';
 import { env } from '../../env';
 import { type Prisma, type User } from '../../generated/prisma/client';
 import { clientError, fieldError, isUniqueConflict, parseInput } from '../../graphql/errors';
 import type { Mail } from '../../mail/mailer';
 import { sendMail } from '../../mail/mailer';
-import {
-  emailChangedNoticeMail,
-  emailChangeMail,
-  passwordChangedNoticeMail,
-  passwordResetMail,
-} from '../../mail/templates';
+import { emailChangedNoticeMail, emailChangeMail, passwordChangedNoticeMail, passwordResetMail } from '../../mail/templates';
 
 const RESET_TTL_MINUTES = 30;
 const EMAIL_CHANGE_TTL_HOURS = 24;
@@ -87,15 +70,8 @@ async function findValidToken(token: string, type: 'PASSWORD_RESET' | 'EMAIL_CHA
  * @param {string} input.password Password.
  * @returns {Promise<User>} Logged-in user.
  */
-export async function login(
-  req: Request,
-  res: Response,
-  input: { identifier: string; password: string },
-): Promise<User> {
-  const { identifier, password } = parseInput(
-    z.object({ identifier: identifierSchema, password: z.string().min(1) }),
-    input,
-  );
+export async function login(req: Request, res: Response, input: { identifier: string; password: string }): Promise<User> {
+  const { identifier, password } = parseInput(z.object({ identifier: identifierSchema, password: z.string().min(1) }), input);
   const ip = req.ip ?? 'unknown';
   await consume(loginLimiter, `ip:${ip}`, `id:${identifier}`);
 

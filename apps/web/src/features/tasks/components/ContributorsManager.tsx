@@ -17,7 +17,6 @@ import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { relationNoun } from '../../../components/people/people-options';
 
-
 import { countOf } from '../../../lib/text';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
@@ -51,9 +50,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
    * @returns {string} Label.
    */
   const projectsLabel = (contributor: Contributor) => {
-    const titles = contributor.projectIds
-      .map((id) => workspace?.projects.find((project) => project.id === id)?.title)
-      .filter((title): title is string => Boolean(title));
+    const titles = contributor.projectIds.map((id) => workspace?.projects.find((project) => project.id === id)?.title).filter((title): title is string => Boolean(title));
     return titles.length ? `Projets : ${titles.join(', ')}` : 'Aucun projet';
   };
 
@@ -97,55 +94,45 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
           {shown.map((contributor) => (
             <Group key={contributor.id} gap="sm" wrap="nowrap">
               <PersonRow
-
                 name={contributor.name}
 
                 avatarUrl={contributor.avatarUrl}
 
                 badges={
-
                   <>
-
                     {contributor.isMe && (
-                    <Badge size="xs" variant="light">
-                      Moi
-                    </Badge>
-                  )}
-                  {/* A member of the team or household, or a relation: never both. */}
-                  {!contributor.isMe && memberIds.has(contributor.id) && (
-                    <Badge size="xs" variant="light" color="blue">
-                      Membre
-                    </Badge>
-                  )}
-                  {relationOf.has(contributor.id) && (
-                    <Tooltip label={`${relationNoun(perso)} « ${relationOf.get(contributor.id)} »`}>
-                      <Badge size="xs" variant="light" color="grape">
-                        {relationNoun(perso)}
+                      <Badge size="xs" variant="light">
+                        Moi
                       </Badge>
-                    </Tooltip>
-                  )}
-                  {contributor.archived && <ArchivedBadge size="xs" />}
-
+                    )}
+                    {/* A member of the team or household, or a relation: never both. */}
+                    {!contributor.isMe && memberIds.has(contributor.id) && (
+                      <Badge size="xs" variant="light" color="blue">
+                        Membre
+                      </Badge>
+                    )}
+                    {relationOf.has(contributor.id) && (
+                      <Tooltip label={`${relationNoun(perso)} « ${relationOf.get(contributor.id)} »`}>
+                        <Badge size="xs" variant="light" color="grape">
+                          {relationNoun(perso)}
+                        </Badge>
+                      </Tooltip>
+                    )}
+                    {contributor.archived && <ArchivedBadge size="xs" />}
                   </>
-
                 }
 
                 details={
-
                   <>
-
                     <Text size="xs" c="dimmed">
-                  @{contributor.handle}
-                  {(usage.get(contributor.id) ?? 0) > 0 && ` · ${countOf(usage.get(contributor.id) ?? 0, 'tâche')}`}
-                </Text>
-                <Text size="xs" c="dimmed" truncate>
-                  {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
-                </Text>
-
+                      @{contributor.handle}
+                      {(usage.get(contributor.id) ?? 0) > 0 && ` · ${countOf(usage.get(contributor.id) ?? 0, 'tâche')}`}
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate>
+                      {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
+                    </Text>
                   </>
-
                 }
-
               />
               <InlineActions
                 name={contributor.name}

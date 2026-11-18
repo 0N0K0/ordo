@@ -11,13 +11,64 @@ import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import {
+  Anchor,
+  Autocomplete,
+  Badge,
+  Button,
+  Divider,
+  FileButton,
+  Grid,
+  Group,
+  Paper,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Stack,
+  Switch,
+  Table,
+  Text,
+  Textarea,
+  TextInput,
+  Tooltip,
+} from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
-import { contactName, type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
+import {
+  contactName,
+  type AccountingDocumentInput,
+  accountingDocumentInputSchema,
+  type AccountingLineInput,
+  BILLING_SCHEDULE_PRESETS,
+  computeTotals,
+  depositAmount,
+  dueDateForTerms,
+  formatDuration,
+  LATE_INTEREST_PRESETS,
+  PAYMENT_METHOD_PRESETS,
+  PAYMENT_TERMS_PRESETS,
+  toCents,
+} from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, FloppyDiskIcon, HandCoinsIcon, LinkBreakIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, ReceiptXIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import {
+  ArrowsClockwiseIcon,
+  ClockIcon,
+  CopyIcon,
+  DownloadSimpleIcon,
+  EyeIcon,
+  FileArrowDownIcon,
+  FloppyDiskIcon,
+  HandCoinsIcon,
+  LinkBreakIcon,
+  PaperPlaneTiltIcon,
+  PaperclipIcon,
+  ReceiptIcon,
+  ReceiptXIcon,
+  SealCheckIcon,
+  TrashIcon,
+  UploadSimpleIcon,
+} from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -178,28 +229,28 @@ function Editor({ document }: { document: AccountingDocument }) {
    */
   const confirmFinalize = () => {
     openModal(`Valider ${isQuote ? 'le devis' : document.type === 'CREDIT_NOTE' ? 'l’avoir' : 'la facture'}`, (close) => (
-        <Stack gap="md">
-          <Text size="sm">
-            Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un
-            avoir. Vérifiez la date ({fmt.day(values.issueDate)}) : les numéros se
-            suivent dans l’ordre de validation.
-          </Text>
-          <FormActions
-            onCancel={close}
-            submitLabel="Valider"
-            submitIcon={<SealCheckIcon aria-hidden />}
-            onSubmit={() => {
-              close();
-              save(() =>
+      <Stack gap="md">
+        <Text size="sm">
+          Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un avoir. Vérifiez la date ({fmt.day(values.issueDate)}) : les numéros se
+          suivent dans l’ordre de validation.
+        </Text>
+        <FormActions
+          onCancel={close}
+          submitLabel="Valider"
+          submitIcon={<SealCheckIcon aria-hidden />}
+          onSubmit={() => {
+            close();
+            save(
+              () =>
                 void mutations.finalize
                   .mutateAsync(document.id)
                   .then((number) => notifySuccess(`Document validé : ${number}.`))
                   .catch(onMutationError),
-              );
-            }}
-          />
-        </Stack>
-      ));
+            );
+          }}
+        />
+      </Stack>
+    ));
   };
 
   /**
@@ -207,7 +258,16 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes.', onConfirm: () => { mutations.remove.mutate(document.id, formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting'))); } });
+    confirmDestructive({
+      title: 'Supprimer le brouillon',
+      risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes.',
+      onConfirm: () => {
+        mutations.remove.mutate(
+          document.id,
+          formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting')),
+        );
+      },
+    });
   };
 
   /**
@@ -244,10 +304,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       companyName: company?.name ?? '',
       recipient: { email: contact?.email || service?.email || client?.email || null, firstName: contact?.firstName ?? null },
       reminder: reminder ? { balance: toCents(document.balance ?? 0) } : null,
-      onSent: () =>
-        reminder
-          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, ON_ERROR)
-          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, ON_ERROR),
+      onSent: () => (reminder ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, ON_ERROR) : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, ON_ERROR)),
     })
       .then(openComposer)
       .catch(onMutationError)
@@ -261,10 +318,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const createFrom = (type: 'INVOICE' | 'CREDIT_NOTE') =>
-    mutations.createFrom.mutate(
-      { sourceId: document.id, type, issueDate: localToday() },
-      { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
-    );
+    mutations.createFrom.mutate({ sourceId: document.id, type, issueDate: localToday() }, { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError });
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT' && !archived;
   const billedIds = values.timeEntryIds ?? [];
@@ -274,7 +328,9 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const openTimeBilling = () => {
-    openFormPanel('Facturer le temps passé', (close) => (
+    openFormPanel(
+      'Facturer le temps passé',
+      (close) => (
         <TimeBillingForm
           projectId={values.projectId}
           projects={clientProjectOptions(workspace, values.clientId, { archived: true, keepId: values.projectId })}
@@ -295,7 +351,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             notifySuccess(`${countOf(lines.length, 'ligne')} ${plural(lines.length, 'ajoutée')} : enregistrez le brouillon.`);
           }}
         />
-      ), { size: 'lg', panelId: `time-billing-${document.id}` });
+      ),
+      { size: 'lg', panelId: `time-billing-${document.id}` },
+    );
   };
 
   const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
@@ -333,77 +391,98 @@ function Editor({ document }: { document: AccountingDocument }) {
           </>
         }
         // The model of a recurring invoice is archived with it, from the list of the recurring invoices.
-        menu={isTemplate ? undefined : { name: documentName, items: [archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) }, setArchived, document.id)] }}
+        menu={
+          isTemplate
+            ? undefined
+            : {
+                name: documentName,
+                items: [
+                  archiveEntry(
+                    { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+                    setArchived,
+                    document.id,
+                  ),
+                ],
+              }
+        }
         actions={
           <>
-          {/* A final document shows its PDF in the page. */}
-          {!readOnly && (
-            <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
-              Aperçu
-            </Button>
-          )}
-          <IconAction label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'} component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
+            {/* A final document shows its PDF in the page. */}
+            {!readOnly && (
+              <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
+                Aperçu
+              </Button>
+            )}
+            <IconAction
+              label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}
+              component="a"
+              href={pdfUrl(document.id, true)}
+              download
+              variant="default"
+              size="lg"
+              aria-label="Télécharger le PDF"
+            >
               <DownloadSimpleIcon aria-hidden />
-</IconAction>
-          {receiptable && (
-            <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
-              <Button component="a" href={pdfUrl(document.id, true, true)} download variant="default" leftSection={<ReceiptIcon aria-hidden />}>
-                Facture acquittée
-              </Button>
-            </Tooltip>
-          )}
-          {readOnly && !archived && (
-            <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
-              Envoyer
-            </Button>
-          )}
-          {!locked && (
-            <Button variant="default" leftSection={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
-              Enregistrer
-            </Button>
-          )}
-          {document.status === 'DRAFT' && (
-            <>
-              {!archived && (
-                <Button leftSection={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
-                  Valider
+            </IconAction>
+            {receiptable && (
+              <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
+                <Button component="a" href={pdfUrl(document.id, true, true)} download variant="default" leftSection={<ReceiptIcon aria-hidden />}>
+                  Facture acquittée
                 </Button>
-              )}
-              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
-                Supprimer le brouillon
-              </DestructiveButton>
-            </>
-          )}
-          {readOnly && !archived && isQuote && (
-            <>
-              <Button variant="default" leftSection={<HandCoinsIcon aria-hidden />} onClick={() => openDepositForm({ quoteId: document.id })}>
-                Facture d’acompte
+              </Tooltip>
+            )}
+            {readOnly && !archived && (
+              <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
+                Envoyer
               </Button>
-              <Button variant="default" leftSection={<ReceiptIcon aria-hidden />} onClick={() => createFrom('INVOICE')}>
-                Facturer
+            )}
+            {!locked && (
+              <Button variant="default" leftSection={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
+                Enregistrer
               </Button>
-            </>
-          )}
-          {readOnly && !archived && isInvoice && (
-            <Button variant="default" color="orange" leftSection={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
-              Créer un avoir
-            </Button>
-          )}
-          {document.type === 'INVOICE' && !isTemplate && !archived && (
-            <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
-              Rendre récurrente
-            </Button>
-          )}
-          {!isTemplate && !archived && (
-            <IconAction label="Dupliquer en brouillon" size="lg" aria-label="Dupliquer" onClick={() =>
-                  mutations.duplicate.mutate(
-                    { id: document.id, issueDate: localToday() },
-                    { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
-                  )
-                }>
+            )}
+            {document.status === 'DRAFT' && (
+              <>
+                {!archived && (
+                  <Button leftSection={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
+                    Valider
+                  </Button>
+                )}
+                <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
+                  Supprimer le brouillon
+                </DestructiveButton>
+              </>
+            )}
+            {readOnly && !archived && isQuote && (
+              <>
+                <Button variant="default" leftSection={<HandCoinsIcon aria-hidden />} onClick={() => openDepositForm({ quoteId: document.id })}>
+                  Facture d’acompte
+                </Button>
+                <Button variant="default" leftSection={<ReceiptIcon aria-hidden />} onClick={() => createFrom('INVOICE')}>
+                  Facturer
+                </Button>
+              </>
+            )}
+            {readOnly && !archived && isInvoice && (
+              <Button variant="default" color="orange" leftSection={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
+                Créer un avoir
+              </Button>
+            )}
+            {document.type === 'INVOICE' && !isTemplate && !archived && (
+              <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
+                Rendre récurrente
+              </Button>
+            )}
+            {!isTemplate && !archived && (
+              <IconAction
+                label="Dupliquer en brouillon"
+                size="lg"
+                aria-label="Dupliquer"
+                onClick={() => mutations.duplicate.mutate({ id: document.id, issueDate: localToday() }, { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError })}
+              >
                 <CopyIcon aria-hidden />
-</IconAction>
-          )}
+              </IconAction>
+            )}
           </>
         }
       />
@@ -415,11 +494,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             : `Document archivé : masqué des listes et en lecture seule.${readOnly ? ' Il reste valable (numéro et PDF conservés).' : ''} Restaurez-le pour le modifier.`}
         </ArchivedNotice>
       ) : (
-        readOnly && (
-          <NoticeAlert kind="success">
-            Document définitif : il ne peut plus être modifié. Ses pièces jointes restent modifiables.
-          </NoticeAlert>
-        )
+        readOnly && <NoticeAlert kind="success">Document définitif : il ne peut plus être modifié. Ses pièces jointes restent modifiables.</NoticeAlert>
       )}
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
         <Text size="sm">
@@ -447,179 +522,169 @@ function Editor({ document }: { document: AccountingDocument }) {
               <FilePreview url={pdfUrl(document.id)} name={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
             </Paper>
           ) : (
-          <Stack gap="md">
-            <SettingsSection title="Client et dates">
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                <ClientSelect
-                  required
-                  readOnly={locked}
-                  {...form.getInputProps('clientId')}
-                  onChange={(clientId) => clientId && form.setValues({ clientId, serviceId: null, contactId: null, projectId: null })}
-                />
-                <Select
-                  label="Projet"
-                  clearable
-                  searchable
-                  readOnly={locked}
-                  placeholder="Aucun"
-                  {...treeSelectProps(clientProjectOptions(workspace, values.clientId, { keepId: values.projectId }))}
-                  {...form.getInputProps('projectId')}
-                />
-                <Select
-                  label="Service"
-                  clearable
-                  readOnly={locked}
-                  placeholder="Aucun"
-                  data={(client?.services ?? []).map((service) => ({ value: service.id, label: service.name }))}
-                  {...form.getInputProps('serviceId')}
-                />
-                <Select
-                  label="Contact"
-                  clearable
-                  readOnly={locked}
-                  placeholder="Aucun"
-                  data={(client?.contacts ?? [])
-                    .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
-                    .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
-                  {...form.getInputProps('contactId')}
-                />
-                <DatePickerInput
-                  label="Date du document"
-                  required
-                  readOnly={locked}
-                  // Not before the latest document of its type (models of recurring invoices are dated later).
-                  minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
-                  description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${fmt.day(latestDate)}, date du dernier document de ce type.` : undefined}
-                  {...form.getInputProps('issueDate')}
-                />
-                <DatePickerInput
-                  label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
-                  clearable
-                  readOnly={locked}
-                  {...form.getInputProps('dueDate')}
-                />
-                <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...service.start} />
-                <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...service.end} />
-              </SimpleGrid>
-            </SettingsSection>
+            <Stack gap="md">
+              <SettingsSection title="Client et dates">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <ClientSelect
+                    required
+                    readOnly={locked}
+                    {...form.getInputProps('clientId')}
+                    onChange={(clientId) => clientId && form.setValues({ clientId, serviceId: null, contactId: null, projectId: null })}
+                  />
+                  <Select
+                    label="Projet"
+                    clearable
+                    searchable
+                    readOnly={locked}
+                    placeholder="Aucun"
+                    {...treeSelectProps(clientProjectOptions(workspace, values.clientId, { keepId: values.projectId }))}
+                    {...form.getInputProps('projectId')}
+                  />
+                  <Select
+                    label="Service"
+                    clearable
+                    readOnly={locked}
+                    placeholder="Aucun"
+                    data={(client?.services ?? []).map((service) => ({ value: service.id, label: service.name }))}
+                    {...form.getInputProps('serviceId')}
+                  />
+                  <Select
+                    label="Contact"
+                    clearable
+                    readOnly={locked}
+                    placeholder="Aucun"
+                    data={(client?.contacts ?? [])
+                      .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
+                      .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
+                    {...form.getInputProps('contactId')}
+                  />
+                  <DatePickerInput
+                    label="Date du document"
+                    required
+                    readOnly={locked}
+                    // Not before the latest document of its type (models of recurring invoices are dated later).
+                    minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
+                    description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${fmt.day(latestDate)}, date du dernier document de ce type.` : undefined}
+                    {...form.getInputProps('issueDate')}
+                  />
+                  <DatePickerInput label={isQuote ? 'Valable jusqu’au' : 'Échéance'} clearable readOnly={locked} {...form.getInputProps('dueDate')} />
+                  <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...service.start} />
+                  <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...service.end} />
+                </SimpleGrid>
+              </SettingsSection>
 
-            <SettingsSection title="Contenu">
-              <TextInput label="Objet" readOnly={locked} {...form.getInputProps('title')} />
-              <Group gap="sm" align="flex-end" grow>
-                <TextInput label="Libellé de la référence" readOnly={locked} {...form.getInputProps('referenceLabel')} />
-                <TextInput label="Référence du client" readOnly={locked} {...form.getInputProps('referenceValue')} />
-              </Group>
-              <Textarea label="Introduction" autosize minRows={2} readOnly={locked} {...form.getInputProps('introduction')} />
-              <Divider label="Lignes" labelPosition="left" />
-              <LinesEditor
-                lines={values.lines}
-                totals={totals.lines}
-                onChange={(lines) => form.setFieldValue('lines', lines)}
-                readOnly={locked}
-                vatApplicable={values.vatApplicable}
-                currency={currency}
-                errors={form.errors}
-                extraActions={
-                  <>
+              <SettingsSection title="Contenu">
+                <TextInput label="Objet" readOnly={locked} {...form.getInputProps('title')} />
+                <Group gap="sm" align="flex-end" grow>
+                  <TextInput label="Libellé de la référence" readOnly={locked} {...form.getInputProps('referenceLabel')} />
+                  <TextInput label="Référence du client" readOnly={locked} {...form.getInputProps('referenceValue')} />
+                </Group>
+                <Textarea label="Introduction" autosize minRows={2} readOnly={locked} {...form.getInputProps('introduction')} />
+                <Divider label="Lignes" labelPosition="left" />
+                <LinesEditor
+                  lines={values.lines}
+                  totals={totals.lines}
+                  onChange={(lines) => form.setFieldValue('lines', lines)}
+                  readOnly={locked}
+                  vatApplicable={values.vatApplicable}
+                  currency={currency}
+                  errors={form.errors}
+                  extraActions={
+                    <>
+                      {canBillTime && (
+                        <Button size="xs" variant="default" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                          Temps passé
+                        </Button>
+                      )}
+                      {document.type === 'INVOICE' && (
+                        <DeductDepositMenu
+                          clientId={values.clientId || null}
+                          documentId={document.id}
+                          lines={values.lines}
+                          currency={currency}
+                          vatApplicable={values.vatApplicable}
+                          onAdd={(added) => form.setFieldValue('lines', [...values.lines, ...added])}
+                        />
+                      )}
+                    </>
+                  }
+                />
+                {billedIds.length > 0 && (
+                  <Group gap="xs" justify="space-between">
+                    <Text size="xs" c="dimmed">
+                      <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}) :
+                      ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
+                    </Text>
                     {canBillTime && (
-                      <Button size="xs" variant="default" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
-                        Temps passé
+                      <Button size="compact-xs" variant="subtle" color="gray" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
+                        Détacher le temps
                       </Button>
                     )}
-                    {document.type === 'INVOICE' && (
-                      <DeductDepositMenu
-                        clientId={values.clientId || null}
-                        documentId={document.id}
-                        lines={values.lines}
-                        currency={currency}
-                        vatApplicable={values.vatApplicable}
-                        onAdd={(added) => form.setFieldValue('lines', [...values.lines, ...added])}
-                      />
-                    )}
-                  </>
-                }
-              />
-              {billedIds.length > 0 && (
-                <Group gap="xs" justify="space-between">
-                  <Text size="xs" c="dimmed">
-                    <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}
-                    ) : ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
-                  </Text>
-                  {canBillTime && (
-                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
-                      Détacher le temps
-                    </Button>
-                  )}
-                </Group>
-              )}
-              <Textarea label="Conclusion" autosize minRows={2} readOnly={locked} {...form.getInputProps('conclusion')} />
-            </SettingsSection>
+                  </Group>
+                )}
+                <Textarea label="Conclusion" autosize minRows={2} readOnly={locked} {...form.getInputProps('conclusion')} />
+              </SettingsSection>
 
-            <SettingsSection title="Conditions et mentions">
-              {isQuote && (
-                <Autocomplete
-                  label="Mode de facturation"
-                  placeholder="Au mois, tous les 5 du mois…"
-                  description="Choisissez ou complétez."
-                  readOnly={locked}
-                  data={BILLING_SCHEDULE_PRESETS}
-                  {...form.getInputProps('billingSchedule')}
-                />
-              )}
-              {document.type !== 'CREDIT_NOTE' && (
-                <Autocomplete
-                  label="Conditions de règlement"
-                  placeholder="À réception"
-                  readOnly={locked}
-                  data={PAYMENT_TERMS_PRESETS}
-                  {...form.getInputProps('paymentTerms')}
-                  onChange={(paymentTerms) => {
-                    // The terms give the due date of an invoice.
-                    const dueDate = isQuote ? null : dueDateForTerms(paymentTerms, values.issueDate);
-                    form.setValues({ paymentTerms, ...(dueDate && { dueDate }) });
-                  }}
-                />
-              )}
-              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={locked} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
-              {isQuote && (
-                <DiscountInput
-                  label="Acompte à la commande"
-                  placeholder="Aucun"
-                  readOnly={locked}
-                  style={{ flex: 1 }}
-                  error={form.errors.depositValue}
-                  description={
-                    values.depositType && values.depositValue
-                      ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
-                      : undefined
-                  }
-                  value={values.depositValue ?? null}
-                  type={values.depositType ?? null}
-                  currency={currency}
-                  typeLabel="Type d’acompte"
-                  onChange={({ value, type }) => form.setValues({ depositValue: value, depositType: type })}
-                />
-              )}
-              {document.type !== 'CREDIT_NOTE' && (
-                <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={locked} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
-              )}
-              {document.type !== 'CREDIT_NOTE' && client?.kind === 'COMPANY' && (
-                <Text size="xs" c="dimmed">
-                  Client professionnel : l’indemnité forfaitaire de 40 € pour frais de recouvrement est ajoutée au document.
-                </Text>
-              )}
-              <Textarea label="Autres mentions" autosize minRows={2} readOnly={locked} {...form.getInputProps('otherMentions')} />
-              <Group gap="lg">
-                <Switch label="Afficher le RIB" disabled={locked} {...form.getInputProps('showBankDetails', { type: 'checkbox' })} />
-                <Switch
-                  label="TVA non applicable"
-                  disabled={locked}
-                  checked={!values.vatApplicable}
-                  onChange={(event) => form.setFieldValue('vatApplicable', !event.currentTarget.checked)}
-                />
-              </Group>
-            </SettingsSection>
-          </Stack>
+              <SettingsSection title="Conditions et mentions">
+                {isQuote && (
+                  <Autocomplete
+                    label="Mode de facturation"
+                    placeholder="Au mois, tous les 5 du mois…"
+                    description="Choisissez ou complétez."
+                    readOnly={locked}
+                    data={BILLING_SCHEDULE_PRESETS}
+                    {...form.getInputProps('billingSchedule')}
+                  />
+                )}
+                {document.type !== 'CREDIT_NOTE' && (
+                  <Autocomplete
+                    label="Conditions de règlement"
+                    placeholder="À réception"
+                    readOnly={locked}
+                    data={PAYMENT_TERMS_PRESETS}
+                    {...form.getInputProps('paymentTerms')}
+                    onChange={(paymentTerms) => {
+                      // The terms give the due date of an invoice.
+                      const dueDate = isQuote ? null : dueDateForTerms(paymentTerms, values.issueDate);
+                      form.setValues({ paymentTerms, ...(dueDate && { dueDate }) });
+                    }}
+                  />
+                )}
+                <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={locked} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
+                {isQuote && (
+                  <DiscountInput
+                    label="Acompte à la commande"
+                    placeholder="Aucun"
+                    readOnly={locked}
+                    style={{ flex: 1 }}
+                    error={form.errors.depositValue}
+                    description={
+                      values.depositType && values.depositValue
+                        ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
+                        : undefined
+                    }
+                    value={values.depositValue ?? null}
+                    type={values.depositType ?? null}
+                    currency={currency}
+                    typeLabel="Type d’acompte"
+                    onChange={({ value, type }) => form.setValues({ depositValue: value, depositType: type })}
+                  />
+                )}
+                {document.type !== 'CREDIT_NOTE' && (
+                  <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={locked} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
+                )}
+                {document.type !== 'CREDIT_NOTE' && client?.kind === 'COMPANY' && (
+                  <Text size="xs" c="dimmed">
+                    Client professionnel : l’indemnité forfaitaire de 40 € pour frais de recouvrement est ajoutée au document.
+                  </Text>
+                )}
+                <Textarea label="Autres mentions" autosize minRows={2} readOnly={locked} {...form.getInputProps('otherMentions')} />
+                <Group gap="lg">
+                  <Switch label="Afficher le RIB" disabled={locked} {...form.getInputProps('showBankDetails', { type: 'checkbox' })} />
+                  <Switch label="TVA non applicable" disabled={locked} checked={!values.vatApplicable} onChange={(event) => form.setFieldValue('vatApplicable', !event.currentTarget.checked)} />
+                </Group>
+              </SettingsSection>
+            </Stack>
           )}
         </Grid.Col>
 
@@ -646,9 +711,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   {totals.deductions > 0 && <TotalRow label="Déjà facturé" value={-totals.deductions} currency={currency} />}
                   <TotalRow label="Total HT" value={totals.totalNet} currency={currency} strong />
                   {values.vatApplicable ? (
-                    totals.vat.map((item) => (
-                      <TotalRow key={item.rate} label={`TVA ${fmt.percent(item.rate)} sur ${fmt.moneyCents(item.base, currency)}`} value={item.vat} currency={currency} />
-                    ))
+                    totals.vat.map((item) => <TotalRow key={item.rate} label={`TVA ${fmt.percent(item.rate)} sur ${fmt.moneyCents(item.base, currency)}`} value={item.vat} currency={currency} />)
                   ) : (
                     <Table.Tr>
                       <Table.Td colSpan={2}>
@@ -720,19 +783,13 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
       title="Pièces jointes"
       actions={
         !readOnly && (
-        <FileButton
-          multiple
-          onChange={(files) =>
-            files.length &&
-            addAttachments.mutate({ id: document.id, files }, toastCallbacks('Fichiers joints.'))
-          }
-        >
-          {(props) => (
-            <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
-              Joindre
-            </Button>
-          )}
-        </FileButton>
+          <FileButton multiple onChange={(files) => files.length && addAttachments.mutate({ id: document.id, files }, toastCallbacks('Fichiers joints.'))}>
+            {(props) => (
+              <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
+                Joindre
+              </Button>
+            )}
+          </FileButton>
         )
       }
     >
@@ -747,7 +804,12 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               </Group>
             </FileLink>
             {!readOnly && (
-              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))} />
+              <RemoveButton
+                variant="field"
+                label="Retirer"
+                aria-label={`Retirer ${attachment.name}`}
+                onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))}
+              />
             )}
           </Group>
         ))

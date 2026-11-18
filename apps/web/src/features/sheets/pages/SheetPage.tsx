@@ -218,8 +218,7 @@ export function SheetPage() {
   );
 
   if (isPending) return <DetailSkeleton />;
-  if (!sheet)
-    return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
+  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
 
   const locked = sheet.archived;
   const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate('/sheets'))));
@@ -418,7 +417,11 @@ export function SheetPage() {
         actions={(item) => (
           <RowActions
             name={item.label}
-            primary={{ label: 'Commentaires', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} readOnly={sheet.archived} />) }}
+            primary={{
+              label: 'Commentaires',
+              icon: <PlusIcon aria-hidden />,
+              onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} readOnly={sheet.archived} />),
+            }}
             items={[
               !locked && {
                 label: 'Retirer',

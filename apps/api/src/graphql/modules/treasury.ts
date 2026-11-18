@@ -397,10 +397,7 @@ builder.prismaObject('TreasuryEntry', {
     linkedEntries: t.field({
       type: [LinkedEntryRef],
       select: { links: linkedSelect, linkedBy: linkedSelect },
-      resolve: (entry) =>
-        [...entry.links, ...entry.linkedBy]
-          .map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) }))
-          .sort((a, b) => a.date.getTime() - b.date.getTime()),
+      resolve: (entry) => [...entry.links, ...entry.linkedBy].map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) })).sort((a, b) => a.date.getTime() - b.date.getTime()),
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
@@ -623,7 +620,6 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
     linkedEntryIds: t.idList({ description: 'Other entries, without lines.' }),
   }),
 });
-
 
 const ContextPeriodInput = builder.inputType('TreasuryContextPeriodInput', {
   fields: (t) => ({
@@ -918,7 +914,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { name: input.name, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
   }),
   deleteTreasuryRelation: t.boolean({
-    description: 'Deletes a relation: its budgets go with it, its lines become the app user\'s.',
+    description: "Deletes a relation: its budgets go with it, its lines become the app user's.",
     args: { id: t.arg.id({ required: true }) },
     resolve: (_root, { id }) => done(team.deleteRelation(id)),
   }),
@@ -953,7 +949,12 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(team.deleteContextPeriod(id)),
   }),
   createDocumentStatus: t.id({
-    args: { scope: t.arg({ type: ScopeEnum, required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }), category: t.arg({ type: CategoryEnum, required: true }) },
+    args: {
+      scope: t.arg({ type: ScopeEnum, required: true }),
+      name: t.arg.string({ required: true }),
+      color: t.arg.string({ required: true }),
+      category: t.arg({ type: CategoryEnum, required: true }),
+    },
     resolve: async (_root, args) => (await statuses.createDocumentStatus(args)).id,
   }),
   updateDocumentStatus: t.boolean({
@@ -1014,7 +1015,8 @@ builder.mutationFields((t) => ({
   setInvoiceTreasuryCategories: t.boolean({
     description: 'Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.',
     args: { invoiceCategoryId: t.arg.id(), creditNoteCategoryId: t.arg.id() },
-    resolve: (_root, { invoiceCategoryId, creditNoteCategoryId }) => done(settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null })),
+    resolve: (_root, { invoiceCategoryId, creditNoteCategoryId }) =>
+      done(settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null })),
   }),
   createTreasuryCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },

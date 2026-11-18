@@ -52,10 +52,9 @@ export function ClientPage() {
         }
         extraActions={
           !client.archived && (
-            <ActionButton
-              icon={<FolderPlusIcon aria-hidden />}
-              onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}
-            >Nouveau projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}>
+              Nouveau projet
+            </ActionButton>
           )
         }
       />

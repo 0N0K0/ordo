@@ -124,8 +124,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @param {() => void} [onSuccess] Called once saved. Optional.
    * @returns {void}
    */
-  const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) =>
-    updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
+  const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) => updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined;
   const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }), errors: [undefined, overdue] });
@@ -162,16 +161,19 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     const transfer = () =>
       transferTask.mutate(
         { ids: [task.id], projectId },
-        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
+        toastCallbacks(
+          ({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`,
+        ),
       );
-    const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
+    const linked =
+      task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
     if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: (
         <>
-          La tâche{subtasks.length ? ' et ses sous-tâches' : ''} {projectId ? `passent dans « ${context.projectLabel(projectId)} »` : 'sortent de tout projet'}, une autre arborescence : la
-          tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, le jalon et les sprints seront retirés.
+          La tâche{subtasks.length ? ' et ses sous-tâches' : ''} {projectId ? `passent dans « ${context.projectLabel(projectId)} »` : 'sortent de tout projet'}, une autre arborescence : la tâche
+          parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, le jalon et les sprints seront retirés.
           {projectId ? ' Elle prend le numéro suivant du projet.' : ' Elle perd son numéro et son lien GitHub.'}
         </>
       ),
@@ -269,10 +271,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               title="Description"
               gap="xs"
               action={
-                description === null && !locked && (
+                description === null &&
+                !locked && (
                   <IconAction label="Modifier la description" size="sm" onClick={() => setDescription(task.description ?? '')}>
-                      <PencilSimpleIcon aria-hidden />
-</IconAction>
+                    <PencilSimpleIcon aria-hidden />
+                  </IconAction>
                 )
               }
             >
@@ -289,12 +292,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                     autoFocus
                     onSubmitShortcut={() => save({ description: description || null }, () => setDescription(null))}
                   />
-                  <FormActions
-                    size="xs"
-                    onCancel={() => setDescription(null)}
-                    onSubmit={() => save({ description: description || null }, () => setDescription(null))}
-                    loading={updateTask.isPending}
-                  />
+                  <FormActions size="xs" onCancel={() => setDescription(null)} onSubmit={() => save({ description: description || null }, () => setDescription(null))} loading={updateTask.isPending} />
                 </Stack>
               )}
             </SubSection>
@@ -311,11 +309,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 </>
               }
               gap="xs"
-              action={
-                !task.archived && (
-                  <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>
-                )
-              }
+              action={!task.archived && <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>}
             >
               {subtasks.length > 0 ? (
                 <>
@@ -339,117 +333,93 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         <Grid.Col span={{ base: 12, md: 4 }}>
           {/* An archived task: every field and action of the side disabled. */}
           <Fieldset variant="unstyled" disabled={locked}>
-          <Stack gap="md">
-            <ProjectSelect
-              context={context}
-              label="Projet"
-              placeholder="Sans projet"
-              clearable
-              value={task.projectId}
-              onChange={changeProject}
-              disabled={transferTask.isPending}
-            />
-            <LabelSelect
-              kind="status"
-              label="Statut"
-              labels={context.statuses}
-              value={task.statusId}
-              onChange={(statusId) => save({ statusId })}
-            />
-            <LabelSelect
-              kind="priority"
-              label="Priorité"
-              labels={context.priorities}
-              value={task.priorityId}
-              onChange={(priorityId) => save({ priorityId })}
-            />
-            <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
-            <AssigneesSelect
-              contributors={context.assignableFor([task.projectId], task.assigneeIds)}
-              value={task.assigneeIds}
-              onChange={(assigneeIds) => save({ assigneeIds })}
-            />
-            <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
-            <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
-            <EffortInput
-              key={`effort-${task.effort}`}
-              defaultValue={task.effort ?? ''}
-              onBlur={(event) => {
-                const raw = event.currentTarget.value.replace(',', '.').trim();
-                const effort = raw === '' ? null : Number(raw);
-                if (effort !== task.effort && (effort === null || Number.isFinite(effort))) save({ effort });
-              }}
-            />
-            <TaskTime task={task} />
-            <TaskRecurrence task={task} context={context} />
-            <Group grow gap="xs">
-              <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
-              <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
-            </Group>
-            <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
-            <DatePickerInput label="Date max" description="Au-delà, la tâche ouverte est en retard." clearable placeholder="—" {...doable.end} />
-            <TaskSelect
-              context={context}
-              labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
-              label="Tâche parente"
-              placeholder="Aucune"
-              tasks={candidates.filter((candidate) => !excluded.has(candidate.id) || candidate.id === parent?.id)}
-              value={task.parentId}
-              onChange={(parentId) => save({ parentId })}
-            />
-            <Select
-              label="Jalon"
-              placeholder="Aucun"
-              data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
-              value={task.milestoneId}
-              onChange={(milestoneId) => save({ milestoneId })}
-              clearable
-              searchable
-              nothingFoundMessage="Aucun jalon dans ce projet"
-            />
-            <BatchMultiSelect
-              label="Sprints"
-              placeholder={task.sprintIds.length ? undefined : 'Aucun'}
-              data={context.sprintsFor(task.projectId, task.sprintIds).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
-              value={task.sprintIds}
-              onChange={(sprintIds) => save({ sprintIds })}
-              clearable
-              searchable
-              nothingFoundMessage="Aucun sprint dans ce projet"
-            />
-            <SlotRuleInput value={readSlotRule(task.slotRule)} onChange={(slotRule) => save({ slotRule })} />
-            <Divider />
-            <LinkList
-              label="Bloque"
-              tasks={resolve(task.blockingIds)}
-              candidates={candidates}
-              context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR)}
-            />
-            <LinkList
-              label="Dépend de"
-              tasks={resolve(task.blockedByIds)}
-              candidates={candidates}
-              context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR)}
-            />
-            <LinkList
-              label="Relative à"
-              tasks={resolve(task.relatedIds)}
-              candidates={candidates}
-              context={context}
-              onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR)}
-              onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR)}
-            />
-            <Divider />
-            <TaskAlarms task={task} context={context} />
-            <Divider />
-            <TaskShopping task={task} />
-            <Divider />
-            <SheetsSection owner={{ taskId: task.id }} name={task.title} />
-          </Stack>
+            <Stack gap="md">
+              <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
+              <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
+              <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
+              <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
+              <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
+              <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
+              <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
+              <EffortInput
+                key={`effort-${task.effort}`}
+                defaultValue={task.effort ?? ''}
+                onBlur={(event) => {
+                  const raw = event.currentTarget.value.replace(',', '.').trim();
+                  const effort = raw === '' ? null : Number(raw);
+                  if (effort !== task.effort && (effort === null || Number.isFinite(effort))) save({ effort });
+                }}
+              />
+              <TaskTime task={task} />
+              <TaskRecurrence task={task} context={context} />
+              <Group grow gap="xs">
+                <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
+                <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
+              </Group>
+              <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
+              <DatePickerInput label="Date max" description="Au-delà, la tâche ouverte est en retard." clearable placeholder="—" {...doable.end} />
+              <TaskSelect
+                context={context}
+                labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
+                label="Tâche parente"
+                placeholder="Aucune"
+                tasks={candidates.filter((candidate) => !excluded.has(candidate.id) || candidate.id === parent?.id)}
+                value={task.parentId}
+                onChange={(parentId) => save({ parentId })}
+              />
+              <Select
+                label="Jalon"
+                placeholder="Aucun"
+                data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
+                value={task.milestoneId}
+                onChange={(milestoneId) => save({ milestoneId })}
+                clearable
+                searchable
+                nothingFoundMessage="Aucun jalon dans ce projet"
+              />
+              <BatchMultiSelect
+                label="Sprints"
+                placeholder={task.sprintIds.length ? undefined : 'Aucun'}
+                data={context.sprintsFor(task.projectId, task.sprintIds).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
+                value={task.sprintIds}
+                onChange={(sprintIds) => save({ sprintIds })}
+                clearable
+                searchable
+                nothingFoundMessage="Aucun sprint dans ce projet"
+              />
+              <SlotRuleInput value={readSlotRule(task.slotRule)} onChange={(slotRule) => save({ slotRule })} />
+              <Divider />
+              <LinkList
+                label="Bloque"
+                tasks={resolve(task.blockingIds)}
+                candidates={candidates}
+                context={context}
+                onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR)}
+                onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR)}
+              />
+              <LinkList
+                label="Dépend de"
+                tasks={resolve(task.blockedByIds)}
+                candidates={candidates}
+                context={context}
+                onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR)}
+                onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR)}
+              />
+              <LinkList
+                label="Relative à"
+                tasks={resolve(task.relatedIds)}
+                candidates={candidates}
+                context={context}
+                onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR)}
+                onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR)}
+              />
+              <Divider />
+              <TaskAlarms task={task} context={context} />
+              <Divider />
+              <TaskShopping task={task} />
+              <Divider />
+              <SheetsSection owner={{ taskId: task.id }} name={task.title} />
+            </Stack>
           </Fieldset>
         </Grid.Col>
       </Grid>
@@ -471,13 +441,7 @@ export function TaskPanel() {
 
   return (
     <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche ${taskName(task)}` : 'Tâche'}>
-      {isPending ? (
-        <DetailSkeleton fields={5} />
-      ) : task && context ? (
-        <TaskDetail key={task.id} task={task} context={context} />
-      ) : (
-        <DetailNotFound what="Cette tâche" feminine />
-      )}
+      {isPending ? <DetailSkeleton fields={5} /> : task && context ? <TaskDetail key={task.id} task={task} context={context} /> : <DetailNotFound what="Cette tâche" feminine />}
     </SidePanel>
   );
 }

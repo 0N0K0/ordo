@@ -39,13 +39,7 @@ interface FormValues extends Record<string, unknown> {
  * @param {{ document?: ImportedDocument, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function ImportedDocumentForm({
-  document,
-  onDone,
-}: {
-  document?: ImportedDocument;
-  onDone: () => void;
-}) {
+export function ImportedDocumentForm({ document, onDone }: { document?: ImportedDocument; onDone: () => void }) {
   const { data: workspace } = useWorkspace();
   const { create, update } = useImportedDocumentMutations();
   const [file, setFile] = useState<File | null>(null);
@@ -77,8 +71,7 @@ export function ImportedDocumentForm({
       ...input,
       clientName: input.clientId ? null : input.clientName,
     };
-    if (document)
-      update.mutate({ id: document.id, input: payload, file }, callbacks);
+    if (document) update.mutate({ id: document.id, input: payload, file }, callbacks);
     else create.mutate({ input: payload, file }, callbacks);
   });
 
@@ -86,8 +79,7 @@ export function ImportedDocumentForm({
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Pour garder la trace d’un devis ou d’une facture émis ailleurs : ses
-          informations principales et son PDF, sans ses lignes.
+          Pour garder la trace d’un devis ou d’une facture émis ailleurs : ses informations principales et son PDF, sans ses lignes.
         </Text>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <Select
@@ -99,29 +91,11 @@ export function ImportedDocumentForm({
             allowDeselect={false}
             {...form.getInputProps('type')}
           />
-          <TextInput
-            label="Numéro"
-            required
-            data-autofocus
-            {...form.getInputProps('number')}
-          />
+          <TextInput label="Numéro" required data-autofocus {...form.getInputProps('number')} />
           <TextInput label="Objet" {...form.getInputProps('title')} />
-          <DatePickerInput
-            label="Date"
-            required
-            {...form.getInputProps('issueDate')}
-          />
-          <DatePickerInput
-            label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'}
-            clearable
-            {...form.getInputProps('dueDate')}
-          />
-          <Select
-            label="Devise"
-            data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']}
-            allowDeselect={false}
-            {...form.getInputProps('currency')}
-          />
+          <DatePickerInput label="Date" required {...form.getInputProps('issueDate')} />
+          <DatePickerInput label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'} clearable {...form.getInputProps('dueDate')} />
+          <Select label="Devise" data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']} allowDeselect={false} {...form.getInputProps('currency')} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <Select
@@ -134,9 +108,7 @@ export function ImportedDocumentForm({
               label: client.name,
             }))}
             {...form.getInputProps('clientId')}
-            onChange={(clientId) =>
-              form.setValues({ clientId, projectId: null })
-            }
+            onChange={(clientId) => form.setValues({ clientId, projectId: null })}
           />
           {values.clientId ? (
             <Select
@@ -148,11 +120,7 @@ export function ImportedDocumentForm({
               {...form.getInputProps('projectId')}
             />
           ) : (
-            <TextInput
-              label="Ou nom du client"
-              placeholder="S’il n’est pas dans Ordo"
-              {...form.getInputProps('clientName')}
-            />
+            <TextInput label="Ou nom du client" placeholder="S’il n’est pas dans Ordo" {...form.getInputProps('clientName')} />
           )}
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
@@ -164,8 +132,7 @@ export function ImportedDocumentForm({
               const totalNet = typeof value === 'number' ? value : 0;
               form.setValues({
                 totalNet,
-                totalGross:
-                  round2(totalNet + values.totalVat),
+                totalGross: round2(totalNet + values.totalVat),
               });
             }}
           />
@@ -177,26 +144,16 @@ export function ImportedDocumentForm({
               const totalVat = typeof value === 'number' ? value : 0;
               form.setValues({
                 totalVat,
-                totalGross:
-                  round2(values.totalNet + totalVat),
+                totalGross: round2(values.totalNet + totalVat),
               });
             }}
           />
-          <AmountInput
-            label="Total TTC"
-            currency={values.currency}
-            description="Débours compris"
-            {...form.getInputProps('totalGross')}
-          />
+          <AmountInput label="Total TTC" currency={values.currency} description="Débours compris" {...form.getInputProps('totalGross')} />
         </SimpleGrid>
         <FileInput
           label="Document"
           placeholder={document?.fileName ?? 'PDF du devis ou de la facture'}
-          description={
-            document?.fileName
-              ? 'Choisir un fichier remplace le document actuel.'
-              : undefined
-          }
+          description={document?.fileName ? 'Choisir un fichier remplace le document actuel.' : undefined}
           leftSection={<FilePdfIcon aria-hidden />}
           accept="application/pdf,image/*"
           clearable
@@ -211,7 +168,12 @@ export function ImportedDocumentForm({
             {...form.getInputProps('settled', { type: 'checkbox' })}
           />
         )}
-        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} submitIcon={document ? undefined : <FileArrowUpIcon aria-hidden />} loading={create.isPending || update.isPending} />
+        <FormActions
+          onCancel={onDone}
+          submitLabel={document ? 'Enregistrer' : 'Importer'}
+          submitIcon={document ? undefined : <FileArrowUpIcon aria-hidden />}
+          loading={create.isPending || update.isPending}
+        />
       </Stack>
     </form>
   );

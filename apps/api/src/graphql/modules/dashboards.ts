@@ -39,8 +39,7 @@ builder.queryFields((t) => ({
     type: ['Dashboard'],
     description: 'Dashboards of a project, or the global ones.',
     args: { projectId: t.arg.id() },
-    resolve: (query, _root, { projectId }) =>
-      prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: BY_POSITION }),
+    resolve: (query, _root, { projectId }) => prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: BY_POSITION }),
   }),
 }));
 

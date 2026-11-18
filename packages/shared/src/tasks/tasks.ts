@@ -17,11 +17,7 @@ export const markdownSchema = z
   .transform((value) => (value.trim() ? value : null))
   .nullable();
 
-export const effortSchema = z
-  .number({ error: 'Nombre attendu.' })
-  .min(0, 'L’effort ne peut pas être négatif.')
-  .max(1_000_000, 'Valeur trop grande.')
-  .nullable();
+export const effortSchema = z.number({ error: 'Nombre attendu.' }).min(0, 'L’effort ne peut pas être négatif.').max(1_000_000, 'Valeur trop grande.').nullable();
 
 export const commentBodySchema = z
   .string()
@@ -68,7 +64,10 @@ export const taskFormSchema = z
     typeId: z.string().nullable(),
     assigneeIds: z.array(z.string()),
     tagIds: z.array(z.string()),
-    effort: z.union([z.number(), z.literal('')]).transform((value) => (value === '' ? null : value)).pipe(effortSchema),
+    effort: z
+      .union([z.number(), z.literal('')])
+      .transform((value) => (value === '' ? null : value))
+      .pipe(effortSchema),
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,
@@ -107,9 +106,7 @@ export const sprintNameSchema = requiredText(120);
  * @returns {z.ZodObject} Schema.
  */
 export function sprintSchema<G extends z.ZodType>(goal: G) {
-  return z
-    .object({ name: sprintNameSchema, startDate: startDaySchema, endDate: endDaySchema, goal })
-    .refine(...endAfter('startDate', 'endDate'));
+  return z.object({ name: sprintNameSchema, startDate: startDaySchema, endDate: endDaySchema, goal }).refine(...endAfter('startDate', 'endDate'));
 }
 
 export const sprintFormSchema = sprintSchema(z.string());

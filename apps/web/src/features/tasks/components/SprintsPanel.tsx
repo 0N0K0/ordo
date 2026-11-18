@@ -137,7 +137,9 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         actions={
           <>
             <ShowArchivedSwitch {...archivedToggle} />
-            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
+              Nouveau sprint
+            </ActionButton>
           </>
         }
       />
@@ -190,7 +192,11 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 }
                 description={sprint.goal}
                 targets={context.targetsFor(sprint.projectId)}
-                onDescription={sprint.archived || project?.archived ? undefined : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal } }, ON_ERROR)}
+                onDescription={
+                  sprint.archived || project?.archived
+                    ? undefined
+                    : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal } }, ON_ERROR)
+                }
               />
             </Paper>
           );

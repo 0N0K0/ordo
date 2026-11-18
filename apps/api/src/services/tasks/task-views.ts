@@ -93,9 +93,7 @@ export async function updateView(id: string, input: { name?: string | null; conf
 export async function duplicateView(id: string, name: string): Promise<TaskView> {
   const source = await findView(id);
   const copy = await createView({ name, config: source.config, projectId: source.projectId, kind: source.kind, tableKey: source.tableKey });
-  const ids = (
-    await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })
-  ).map((v) => v.id);
+  const ids = (await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })).map((v) => v.id);
   await moveView(copy.id, ids.indexOf(source.id) + 1);
   return copy;
 }

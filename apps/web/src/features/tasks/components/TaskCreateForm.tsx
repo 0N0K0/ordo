@@ -157,9 +157,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <LabelSelect kind="type" labels={context.types} label="Type" {...form.getInputProps('typeId')} />
         </SimpleGrid>
         <AssigneesSelect
-          contributors={
-            context.assignableFor([form.values.projectId || null], form.values.assigneeIds)
-          }
+          contributors={context.assignableFor([form.values.projectId || null], form.values.assigneeIds)}
           value={form.values.assigneeIds}
           onChange={(assigneeIds) => form.setFieldValue('assigneeIds', assigneeIds)}
           error={form.errors.assigneeIds as string | undefined}
@@ -176,7 +174,11 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
           <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
-        <SlotRuleInput value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
+        <SlotRuleInput
+          value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null}
+          onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)}
+          error={form.errors['slotRule.outside'] as string | undefined}
+        />
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>
     </form>

@@ -36,7 +36,6 @@ interface RecurrenceEditorProps {
   exceptions?: ReactNode;
 }
 
-
 /**
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
  * (chosen, prefilled from the first date), end (date or number), paused periods, deleted dates and the exceptions of
@@ -217,28 +216,11 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
               value={end}
               allowDeselect={false}
               comboboxProps={comboboxProps}
-              onChange={(next) =>
-                update(next === 'UNTIL' ? { until: start, count: null } : next === 'COUNT' ? { until: null, count: 10 } : { until: null, count: null })
-              }
+              onChange={(next) => update(next === 'UNTIL' ? { until: start, count: null } : next === 'COUNT' ? { until: null, count: 10 } : { until: null, count: null })}
             />
-            {end === 'UNTIL' && (
-              <DatePickerInput
-                label="Jusqu’au"
-                minDate={start}
-                value={rule.until}
-                onChange={(until) => until && update({ until })}
-                popoverProps={comboboxProps}
-              />
-            )}
+            {end === 'UNTIL' && <DatePickerInput label="Jusqu’au" minDate={start} value={rule.until} onChange={(until) => until && update({ until })} popoverProps={comboboxProps} />}
             {end === 'COUNT' && (
-              <NumberInput
-                label="Nombre de fois"
-                min={1}
-                max={9999}
-                w={140}
-                value={rule.count ?? 1}
-                onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })}
-              />
+              <NumberInput label="Nombre de fois" min={1} max={9999} w={140} value={rule.count ?? 1} onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })} />
             )}
           </Group>
 
@@ -251,10 +233,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   aria-label={`Pause ${index + 1}`}
                   allowSingleDateInRange
                   value={[pause.from, pause.to]}
-                  onChange={([from, to]) =>
-                    from &&
-                    update({ pauses: rule.pauses.map((item, position) => (position === index ? { from, to: to ?? from } : item)) })
-                  }
+                  onChange={([from, to]) => from && update({ pauses: rule.pauses.map((item, position) => (position === index ? { from, to: to ?? from } : item)) })}
                   popoverProps={comboboxProps}
                   style={{ flex: 1 }}
                 />

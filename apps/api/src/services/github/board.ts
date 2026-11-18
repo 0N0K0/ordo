@@ -68,7 +68,8 @@ export interface RemoteItem {
   fields: Record<string, FieldValue>;
 }
 
-const ISSUE_FIELD_SELECTION = 'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
+const ISSUE_FIELD_SELECTION =
+  'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
 
 const FIELD_SELECTION = `
   fields(first: 50) {
@@ -147,7 +148,8 @@ export async function viewerLogin(token: string): Promise<string> {
  */
 export async function resolveBoard(token: string, url: string): Promise<Board> {
   const match = /github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/.exec(url.trim());
-  if (!match) throw fieldError('url', 'Adresse attendue : https://github.com/users/<compte>/projects/<n> ou https://github.com/orgs/<organisation>/projects/<n>.', 'Adresse de tableau GitHub invalide.');
+  if (!match)
+    throw fieldError('url', 'Adresse attendue : https://github.com/users/<compte>/projects/<n> ou https://github.com/orgs/<organisation>/projects/<n>.', 'Adresse de tableau GitHub invalide.');
   const owner = match[1] === 'orgs' ? 'organization' : 'user';
   const data = await githubRequest<Record<string, { projectV2: RawBoard | null } | null>>(
     token,
@@ -367,13 +369,7 @@ export async function setItemField(token: string, target: { projectId: string; i
     );
     return;
   }
-  const input = value.optionId
-    ? { singleSelectOptionId: value.optionId }
-    : value.iterationId
-      ? { iterationId: value.iterationId }
-      : value.date
-        ? { date: value.date }
-        : { number: value.number };
+  const input = value.optionId ? { singleSelectOptionId: value.optionId } : value.iterationId ? { iterationId: value.iterationId } : value.date ? { date: value.date } : { number: value.number };
   await githubRequest(
     token,
     'mutation OrdoSetField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { clientMutationId } }',
@@ -440,18 +436,16 @@ export async function updateContent(
     );
   }
   if (changes.assignees?.add.length) {
-    await githubRequest(
-      token,
-      'mutation OrdoAddAssignees($id: ID!, $ids: [ID!]!) { addAssigneesToAssignable(input: { assignableId: $id, assigneeIds: $ids }) { clientMutationId } }',
-      { id: contentId, ids: await userNodeIds(token, changes.assignees.add) },
-    );
+    await githubRequest(token, 'mutation OrdoAddAssignees($id: ID!, $ids: [ID!]!) { addAssigneesToAssignable(input: { assignableId: $id, assigneeIds: $ids }) { clientMutationId } }', {
+      id: contentId,
+      ids: await userNodeIds(token, changes.assignees.add),
+    });
   }
   if (changes.assignees?.remove.length) {
-    await githubRequest(
-      token,
-      'mutation OrdoRemoveAssignees($id: ID!, $ids: [ID!]!) { removeAssigneesFromAssignable(input: { assignableId: $id, assigneeIds: $ids }) { clientMutationId } }',
-      { id: contentId, ids: await userNodeIds(token, changes.assignees.remove) },
-    );
+    await githubRequest(token, 'mutation OrdoRemoveAssignees($id: ID!, $ids: [ID!]!) { removeAssigneesFromAssignable(input: { assignableId: $id, assigneeIds: $ids }) { clientMutationId } }', {
+      id: contentId,
+      ids: await userNodeIds(token, changes.assignees.remove),
+    });
   }
 }
 
@@ -505,11 +499,10 @@ export async function createItem(
  * @returns {Promise<void>}
  */
 export async function deleteItem(token: string, projectId: string, itemId: string): Promise<void> {
-  await githubRequest(
-    token,
-    'mutation OrdoDeleteItem($projectId: ID!, $itemId: ID!) { deleteProjectV2Item(input: { projectId: $projectId, itemId: $itemId }) { deletedItemId } }',
-    { projectId, itemId },
-  );
+  await githubRequest(token, 'mutation OrdoDeleteItem($projectId: ID!, $itemId: ID!) { deleteProjectV2Item(input: { projectId: $projectId, itemId: $itemId }) { deletedItemId } }', {
+    projectId,
+    itemId,
+  });
 }
 
 /**
@@ -558,11 +551,10 @@ export async function setIssueLabels(token: string, issueId: string, add: string
     await githubRequest(token, 'mutation OrdoAddLabels($id: ID!, $ids: [ID!]!) { addLabelsToLabelable(input: { labelableId: $id, labelIds: $ids }) { clientMutationId } }', { id: issueId, ids: add });
   }
   if (remove.length) {
-    await githubRequest(
-      token,
-      'mutation OrdoRemoveLabels($id: ID!, $ids: [ID!]!) { removeLabelsFromLabelable(input: { labelableId: $id, labelIds: $ids }) { clientMutationId } }',
-      { id: issueId, ids: remove },
-    );
+    await githubRequest(token, 'mutation OrdoRemoveLabels($id: ID!, $ids: [ID!]!) { removeLabelsFromLabelable(input: { labelableId: $id, labelIds: $ids }) { clientMutationId } }', {
+      id: issueId,
+      ids: remove,
+    });
   }
 }
 
@@ -582,11 +574,10 @@ export async function setIssueParent(token: string, issueId: string, parentId: s
       { parentId, issueId },
     );
   } else if (previousId) {
-    await githubRequest(
-      token,
-      'mutation OrdoRemoveSubIssue($parentId: ID!, $issueId: ID!) { removeSubIssue(input: { issueId: $parentId, subIssueId: $issueId }) { clientMutationId } }',
-      { parentId: previousId, issueId },
-    );
+    await githubRequest(token, 'mutation OrdoRemoveSubIssue($parentId: ID!, $issueId: ID!) { removeSubIssue(input: { issueId: $parentId, subIssueId: $issueId }) { clientMutationId } }', {
+      parentId: previousId,
+      issueId,
+    });
   }
 }
 
@@ -636,11 +627,10 @@ export async function deleteIssueComment(token: string, id: string): Promise<voi
  * @returns {Promise<void>}
  */
 export async function setIssueType(token: string, issueId: string, issueTypeId: string | null): Promise<void> {
-  await githubRequest(
-    token,
-    'mutation OrdoSetIssueType($issueId: ID!, $issueTypeId: ID) { updateIssueIssueType(input: { issueId: $issueId, issueTypeId: $issueTypeId }) { clientMutationId } }',
-    { issueId, issueTypeId },
-  );
+  await githubRequest(token, 'mutation OrdoSetIssueType($issueId: ID!, $issueTypeId: ID) { updateIssueIssueType(input: { issueId: $issueId, issueTypeId: $issueTypeId }) { clientMutationId } }', {
+    issueId,
+    issueTypeId,
+  });
 }
 
 /**

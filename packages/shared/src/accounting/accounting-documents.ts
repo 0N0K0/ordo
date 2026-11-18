@@ -283,15 +283,7 @@ export const PAYMENT_METHOD_PRESETS = ['Virement bancaire', 'Chèque', 'Carte ba
 /** Usual late payment interests. */
 export const LATE_INTEREST_PRESETS = ['Taux d’intérêt légal en vigueur', 'Trois fois le taux d’intérêt légal', 'Taux de la BCE majoré de 10 points'];
 /** Usual billing schedules of a quote. */
-export const BILLING_SCHEDULE_PRESETS = [
-  'En une fois, à la livraison',
-  'À la commande',
-  'Au mois, en fin de mois',
-  'Tous les 1er du mois',
-  'Tous les 15 du mois',
-  'À l’avancement',
-  'Par jalon',
-];
+export const BILLING_SCHEDULE_PRESETS = ['En une fois, à la livraison', 'À la commande', 'Au mois, en fin de mois', 'Tous les 1er du mois', 'Tous les 15 du mois', 'À l’avancement', 'Par jalon'];
 
 /**
  * Whether payment terms ask to pay on receipt ("À réception", "Comptant"): the due date is then the issue date,

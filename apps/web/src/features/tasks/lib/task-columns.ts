@@ -2,7 +2,19 @@ import { commentTotal } from '../../comments/lib/comment-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { personKey } from '../../../components/people/people-keys';
-import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, TASK_STATUS_CATEGORY_LABELS, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
+import {
+  DEFAULT_HIDDEN_COLUMNS,
+  formatDuration,
+  ME,
+  readSlotRule,
+  TASK_COLUMNS,
+  TASK_STATUS_CATEGORIES,
+  TASK_STATUS_CATEGORY_LABELS,
+  type TaskColumn,
+  type FilterGroupOf,
+  type TaskStatusCategory,
+  lineageOf,
+} from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import type { EventOccurrence } from '../../calendar/api';
@@ -212,7 +224,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'number', value: (row) => (row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : null) };
       case 'startDate':
       case 'endDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : (id === 'startDate' ? row.event.startDate : row.event.endDate)) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
       case 'minDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? row.task[id] : null) };

@@ -30,7 +30,21 @@ import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTaskSelectionActions } from './BulkBar';
 import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './extra-cells';
-import { AssigneesCell, BlockedByCell, DateCell, EffortCell, LabelCell, MilestoneCell, ParentCell, SprintCell, TagsCell, TaskBeneficiariesCell, TaskLinksCell, TaskProjectCell, TitleCell } from './inline-cells';
+import {
+  AssigneesCell,
+  BlockedByCell,
+  DateCell,
+  EffortCell,
+  LabelCell,
+  MilestoneCell,
+  ParentCell,
+  SprintCell,
+  TagsCell,
+  TaskBeneficiariesCell,
+  TaskLinksCell,
+  TaskProjectCell,
+  TitleCell,
+} from './inline-cells';
 import { groupDefaults } from '../lib/new-task-defaults';
 import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
@@ -348,7 +362,10 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                 // An archived task is read only: no sub-task added under it.
                 ...(row.task.archived
                   ? []
-                  : [{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) }, 'divider' as const]),
+                  : [
+                      { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
+                      'divider' as const,
+                    ]),
                 ...taskActions.menu(row.task),
               ]}
             />

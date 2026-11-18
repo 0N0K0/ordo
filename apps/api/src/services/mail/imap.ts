@@ -22,10 +22,7 @@ const pool = new Map<string, PooledClient>();
  * @param {string} password Plain password.
  * @returns {ImapFlow} Client.
  */
-export function createImapClient(
-  account: Pick<MailAccount, 'imapHost' | 'imapPort' | 'imapSecure' | 'imapUser'>,
-  password: string,
-): ImapFlow {
+export function createImapClient(account: Pick<MailAccount, 'imapHost' | 'imapPort' | 'imapSecure' | 'imapUser'>, password: string): ImapFlow {
   return new ImapFlow({
     host: account.imapHost,
     port: account.imapPort,
@@ -47,10 +44,7 @@ export function rethrowImapError(error: unknown): never {
   if (error && typeof error === 'object' && 'extensions' in error) throw error;
   const detail = errorMessage(error);
   const auth = error && typeof error === 'object' && 'authenticationFailed' in error && error.authenticationFailed;
-  throw clientError(
-    'BAD_USER_INPUT',
-    auth ? 'Connexion IMAP refusée : identifiant ou mot de passe incorrect.' : `Serveur IMAP injoignable ou en erreur (${detail}).`,
-  );
+  throw clientError('BAD_USER_INPUT', auth ? 'Connexion IMAP refusée : identifiant ou mot de passe incorrect.' : `Serveur IMAP injoignable ou en erreur (${detail}).`);
 }
 
 /**
@@ -81,7 +75,13 @@ export async function withImap<T>(accountId: string, operation: (client: ImapFlo
     const client = createImapClient(account, decryptSecret(account.imapPassword));
     client.on('error', () => closeImap(accountId));
     client.on('close', () => pool.get(accountId)?.client === client && pool.delete(accountId));
-    pooled = { client, queue: client.connect().catch((error: unknown) => { closeImap(accountId); rethrowImapError(error); }) };
+    pooled = {
+      client,
+      queue: client.connect().catch((error: unknown) => {
+        closeImap(accountId);
+        rethrowImapError(error);
+      }),
+    };
     pool.set(accountId, pooled);
   }
   const current = pooled;

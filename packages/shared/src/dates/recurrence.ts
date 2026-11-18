@@ -143,9 +143,7 @@ export const recurrenceSchema = z
     /** How long each occurrence lasts from its first day (none: a day, or the length of the event). */
     duration: occurrenceDurationSchema.nullish(),
     /** Paused periods, dates included. */
-    pauses: z
-      .array(z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to')))
-      .max(100),
+    pauses: z.array(z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to'))).max(100),
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
 export type Recurrence = z.infer<typeof recurrenceSchema>;

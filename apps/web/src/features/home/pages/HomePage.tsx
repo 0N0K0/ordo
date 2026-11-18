@@ -78,9 +78,13 @@ export function HomePage() {
         actions={
           <>
             {!perso && (
-              <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>Nouveau client</ActionButton>
+              <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+                Nouveau client
+              </ActionButton>
             )}
-            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>Nouveau projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+              Nouveau projet
+            </ActionButton>
           </>
         }
       />

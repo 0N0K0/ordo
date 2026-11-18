@@ -363,9 +363,7 @@ export function WorkSchedulesManager() {
                 ),
                 start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
                 end: <Text size="sm">{schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'}</Text>,
-                hours: (
-                  <ScheduleHours schedule={schedule} />
-                ),
+                hours: <ScheduleHours schedule={schedule} />,
                 state: (
                   <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
                     {STATE_LABELS[rowState]}
@@ -389,7 +387,9 @@ export function WorkSchedulesManager() {
                   value={schedule.startDate}
                   label={`Début de ${schedule.name}`}
                   // A start set after the end moves the end to it (decision Q).
-                  onSave={(startDate) => startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))}
+                  onSave={(startDate) =>
+                    startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))
+                  }
                 />
               ),
               end: (
@@ -398,7 +398,9 @@ export function WorkSchedulesManager() {
                   label={`Fin de ${schedule.name}`}
                   nullable
                   minDate={schedule.startDate}
-                  onSave={(endDate) => bulk('end')(row, (target) => ({ startDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'end', endDate)[0] ?? target.schedule.startDate, endDate }))}
+                  onSave={(endDate) =>
+                    bulk('end')(row, (target) => ({ startDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'end', endDate)[0] ?? target.schedule.startDate, endDate }))
+                  }
                 />
               ),
               hours: (
@@ -436,15 +438,15 @@ export function WorkSchedulesManager() {
           actions={(row) => {
             const { schedule } = row;
             return (
-            <RowActions
-              name={schedule.name}
-              primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
-              items={[
-                !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.name, feminine: true }, setArchived, schedule.id),
-                rowMenuEntry(deleteSchedules([row])),
-              ]}
-            />
+              <RowActions
+                name={schedule.name}
+                primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
+                items={[
+                  !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
+                  archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.name, feminine: true }, setArchived, schedule.id),
+                  rowMenuEntry(deleteSchedules([row])),
+                ]}
+              />
             );
           }}
         />

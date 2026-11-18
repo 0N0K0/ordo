@@ -6,7 +6,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import type { ArchiveMutation } from '../../../lib/archive';
-import { descendantIds, useSetClientArchived, useSetClientFavorite, useSetProjectArchived, useSetProjectFavorite, useUpdateClient, useUpdateProject, workspaceQueryKey, type Client, type Project, type Workspace } from '../api';
+import {
+  descendantIds,
+  useSetClientArchived,
+  useSetClientFavorite,
+  useSetProjectArchived,
+  useSetProjectFavorite,
+  useUpdateClient,
+  useUpdateProject,
+  workspaceQueryKey,
+  type Client,
+  type Project,
+  type Workspace,
+} from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
 import { ProjectForm } from '../components/ProjectForm';
@@ -99,10 +111,7 @@ export function useEntityActions() {
      * @param {Client} [client] Client to edit. Optional.
      * @returns {void}
      */
-    openClientForm: (client?: Client) =>
-      openFormPanel(client ? 'Modifier le client' : 'Nouveau client', (close) => (
-        <ClientForm client={client} onDone={close} />
-      )),
+    openClientForm: (client?: Client) => openFormPanel(client ? 'Modifier le client' : 'Nouveau client', (close) => <ClientForm client={client} onDone={close} />),
 
     /**
      * Opens the project form (creation when no project is given).

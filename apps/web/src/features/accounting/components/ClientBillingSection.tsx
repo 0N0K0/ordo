@@ -13,7 +13,6 @@ import { countryName } from '../lib/countries';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
-
 /**
  * Address, email and phones, as text lines.
  * @param {{ address: unknown, email?: string | null, phones: unknown, website?: string | null }} props Contact information.
@@ -24,7 +23,12 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
   const numbers = (phones as Phone[]) ?? [];
   return (
     <Stack gap={2}>
-      {hasAddress(postal) && addressLines(postal!, countryName).map((line) => <Text key={line} size="sm">{line}</Text>)}
+      {hasAddress(postal) &&
+        addressLines(postal!, countryName).map((line) => (
+          <Text key={line} size="sm">
+            {line}
+          </Text>
+        ))}
       {email && (
         <Anchor href={`mailto:${email}`} size="sm">
           {email}
@@ -74,10 +78,18 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
       <InlineActions
         name={name}
         items={[
-          { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />) },
-          { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
-              confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement.`, run: () => deleteContact.mutateAsync(contact.id), done: 'Contact supprimé.' })
-             },
+          {
+            label: 'Modifier',
+            icon: <PencilSimpleIcon aria-hidden />,
+            onClick: () => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />),
+          },
+          {
+            label: 'Supprimer',
+            icon: <TrashIcon aria-hidden />,
+            danger: true,
+            onClick: () =>
+              confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement.`, run: () => deleteContact.mutateAsync(contact.id), done: 'Contact supprimé.' }),
+          },
         ]}
       />
     </Group>
@@ -96,16 +108,33 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
     <SettingsSection
       title={service.name}
       actions={
-          <InlineActions
-            name={service.name}
-            items={[
-              { label: 'Ajouter un contact', icon: <UserPlusIcon aria-hidden />, onClick: () => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />) },
-              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />) },
-              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
-                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client.`, run: () => deleteService.mutateAsync(service.id), done: 'Service supprimé.' })
-                 },
-            ]}
-          />
+        <InlineActions
+          name={service.name}
+          items={[
+            {
+              label: 'Ajouter un contact',
+              icon: <UserPlusIcon aria-hidden />,
+              onClick: () => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />),
+            },
+            {
+              label: 'Modifier',
+              icon: <PencilSimpleIcon aria-hidden />,
+              onClick: () => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />),
+            },
+            {
+              label: 'Supprimer',
+              icon: <TrashIcon aria-hidden />,
+              danger: true,
+              onClick: () =>
+                confirmDestructive({
+                  title: 'Supprimer le service',
+                  risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client.`,
+                  run: () => deleteService.mutateAsync(service.id),
+                  done: 'Service supprimé.',
+                }),
+            },
+          ]}
+        />
       }
     >
       <ContactInfo address={service.address} email={service.email} phones={service.phones} />
@@ -141,9 +170,30 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
         title="Facturation"
         actions={
           <>
-          <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>Coordonnées</ActionButton>
-          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>Nouveau service</ActionButton>
-          <ActionButton priority="secondary" size="xs" icon={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>Nouveau contact</ActionButton>
+            <ActionButton
+              priority="secondary"
+              size="xs"
+              icon={<PencilSimpleIcon aria-hidden />}
+              onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}
+            >
+              Coordonnées
+            </ActionButton>
+            <ActionButton
+              priority="secondary"
+              size="xs"
+              icon={<PlusIcon aria-hidden />}
+              onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}
+            >
+              Nouveau service
+            </ActionButton>
+            <ActionButton
+              priority="secondary"
+              size="xs"
+              icon={<UserPlusIcon aria-hidden />}
+              onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}
+            >
+              Nouveau contact
+            </ActionButton>
           </>
         }
       />
@@ -159,17 +209,17 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
             </Group>
           }
         >
-            <ContactInfo address={client.address} email={client.email} phones={client.phones} website={company ? client.website : null} />
-            {identifiers.length > 0 && (
-              <Text size="xs" c="dimmed">
-                {identifiers.join(' · ')}
-              </Text>
-            )}
-            {!hasAddress(client.address as Address | null) && (
-              <Text size="xs" c="dimmed">
-                Adresse de facturation à renseigner avant d’éditer des factures.
-              </Text>
-            )}
+          <ContactInfo address={client.address} email={client.email} phones={client.phones} website={company ? client.website : null} />
+          {identifiers.length > 0 && (
+            <Text size="xs" c="dimmed">
+              {identifiers.join(' · ')}
+            </Text>
+          )}
+          {!hasAddress(client.address as Address | null) && (
+            <Text size="xs" c="dimmed">
+              Adresse de facturation à renseigner avant d’éditer des factures.
+            </Text>
+          )}
         </SettingsSection>
         {looseContacts.length > 0 && (
           <SettingsSection title="Contacts">

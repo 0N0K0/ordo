@@ -45,23 +45,13 @@ export function AddressFields({ legend, value, onChange, errors = {} }: AddressF
             )}
           </Group>
         ))}
-        {address.lines.length < 4 && (
-          <AddItemButton onClick={() => update({ lines: [...address.lines, ''] })}>Ajouter une ligne</AddItemButton>
-        )}
+        {address.lines.length < 4 && <AddItemButton onClick={() => update({ lines: [...address.lines, ''] })}>Ajouter une ligne</AddItemButton>}
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
           <TextInput label="Code postal" value={address.postalCode} onChange={(event) => update({ postalCode: event.currentTarget.value })} error={errors.postalCode} />
           <TextInput label="Ville" value={address.city} onChange={(event) => update({ city: event.currentTarget.value })} error={errors.city} />
           <TextInput label="Région / État" description="Si le pays l’utilise" value={address.region} onChange={(event) => update({ region: event.currentTarget.value })} />
         </SimpleGrid>
-        <Select
-          label="Pays"
-          data={COUNTRY_OPTIONS}
-          searchable
-          allowDeselect={false}
-          value={address.country}
-          onChange={(country) => country && update({ country })}
-          error={errors.country}
-        />
+        <Select label="Pays" data={COUNTRY_OPTIONS} searchable allowDeselect={false} value={address.country} onChange={(country) => country && update({ country })} error={errors.country} />
       </Stack>
     </Fieldset>
   );

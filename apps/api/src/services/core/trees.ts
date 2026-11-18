@@ -27,7 +27,12 @@ const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, T
  * @param {{ missing: string, loop: string, field?: string }} messages Name of the missing parent (« Catégorie parente »), message of a loop, field of the error (default « parentId »).
  * @returns {Promise<void>}
  */
-export async function assertTreeParent(model: OrderedModel, parentId: string | null | undefined, id: string | null | undefined, messages: { missing: string; loop: string; field?: string }): Promise<void> {
+export async function assertTreeParent(
+  model: OrderedModel,
+  parentId: string | null | undefined,
+  id: string | null | undefined,
+  messages: { missing: string; loop: string; field?: string },
+): Promise<void> {
   if (!parentId) return;
   const parentOf = new Map((await delegate(model).findMany({ select: { id: true, parentId: true } })).map((item) => [item.id, item.parentId]));
   if (!parentOf.has(parentId)) throw notFound(messages.missing);

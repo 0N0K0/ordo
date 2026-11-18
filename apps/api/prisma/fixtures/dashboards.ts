@@ -30,7 +30,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
   let running: string | null = null;
   for (const root of roots) {
     const tree = new Set([root.id]);
-    for (let added = true; added; ) {
+    for (let added = true; added;) {
       added = false;
       for (const project of projects) {
         if (project.parentId && tree.has(project.parentId) && !tree.has(project.id)) {
@@ -77,12 +77,24 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     {
       title: 'Vélocité par sprint (effort)',
       wide: true,
-      config: chart({ type: 'stackedBar', dimension: 'sprint', measure: 'effort', series: 'state', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
+      config: chart({
+        type: 'stackedBar',
+        dimension: 'sprint',
+        measure: 'effort',
+        series: 'state',
+        filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] },
+      }),
     },
     {
       title: 'Charge ouverte par assigné',
       wide: false,
-      config: chart({ type: 'bar', dimension: 'assignees', measure: 'effort', series: 'priority', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } }),
+      config: chart({
+        type: 'bar',
+        dimension: 'assignees',
+        measure: 'effort',
+        series: 'priority',
+        filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] },
+      }),
     },
     { title: 'Répartition par statut', wide: false, config: chart({ type: 'donut', dimension: 'status' }) },
     { title: 'Tâches créées (cumul mensuel)', wide: true, config: chart({ type: 'area', dimension: 'createdAt', bucket: 'month', period: 'past:365', cumulative: true, series: 'type' }) },
@@ -94,7 +106,15 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     {
       title: 'Chiffre d’affaires HT par mois',
       wide: true,
-      config: chart({ source: 'documents', type: 'bar', dimension: 'issueDate', bucket: 'month', period: 'past:365', measure: 'totalNet', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] } }),
+      config: chart({
+        source: 'documents',
+        type: 'bar',
+        dimension: 'issueDate',
+        bucket: 'month',
+        period: 'past:365',
+        measure: 'totalNet',
+        documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
+      }),
     },
     {
       title: 'Reste à encaisser par client',
@@ -103,8 +123,16 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     },
     { title: 'Devis par statut de suivi', wide: false, config: chart({ source: 'documents', type: 'donut', dimension: 'trackingStatus', measure: 'count', documents: { types: ['QUOTE'] } }) },
     { title: 'Solde de trésorerie', wide: true, config: chart({ source: 'treasury', type: 'line', dimension: 'date', bucket: 'week', period: 'past:182', measure: 'balance' }) },
-    { title: 'Entrées et sorties par mois', wide: false, config: chart({ source: 'treasury', type: 'bar', dimension: 'date', bucket: 'month', period: 'past:182', measure: 'amount', series: 'direction' }) },
-    { title: 'Dépenses par catégorie', wide: false, config: chart({ source: 'treasury', type: 'donut', dimension: 'category', period: 'past:365', measure: 'expense', treasury: { direction: 'out' } }) },
+    {
+      title: 'Entrées et sorties par mois',
+      wide: false,
+      config: chart({ source: 'treasury', type: 'bar', dimension: 'date', bucket: 'month', period: 'past:182', measure: 'amount', series: 'direction' }),
+    },
+    {
+      title: 'Dépenses par catégorie',
+      wide: false,
+      config: chart({ source: 'treasury', type: 'donut', dimension: 'category', period: 'past:365', measure: 'expense', treasury: { direction: 'out' } }),
+    },
   ];
   await prisma.dashboardChart.createMany({ data: financeCharts.map((item, position) => ({ ...item, dashboardId: finances.id, position })) });
 
@@ -130,7 +158,15 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     {
       title: 'CA par client et paiement',
       wide: false,
-      config: chart({ source: 'documents', type: 'stackedBar', dimension: 'client', period: 'past:365', measure: 'totalNet', series: 'payment', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] } }),
+      config: chart({
+        source: 'documents',
+        type: 'stackedBar',
+        dimension: 'client',
+        period: 'past:365',
+        measure: 'totalNet',
+        series: 'payment',
+        documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
+      }),
     },
     {
       title: 'Reste à encaisser par échéance',
@@ -143,7 +179,11 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
       wide: false,
       config: chart({ source: 'documents', type: 'stackedBar', dimension: 'sentAt', bucket: 'month', period: 'past:365', measure: 'count', series: 'trackingStatus', documents: { types: ['QUOTE'] } }),
     },
-    { title: 'Devis acceptés (montant HT)', wide: false, config: chart({ source: 'documents', type: 'line', dimension: 'acceptedAt', bucket: 'month', period: 'past:365', measure: 'totalNet', documents: { types: ['QUOTE'] } }) },
+    {
+      title: 'Devis acceptés (montant HT)',
+      wide: false,
+      config: chart({ source: 'documents', type: 'line', dimension: 'acceptedAt', bucket: 'month', period: 'past:365', measure: 'totalNet', documents: { types: ['QUOTE'] } }),
+    },
     {
       title: 'Devis en attente de réponse par client',
       wide: false,
@@ -186,15 +226,32 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     const sprintBoard = await prisma.dashboard.create({ data: { name: 'Sprint', projectId: roots[0].id, position: 0 } });
     await prisma.dashboardChart.createMany({
       data: [
-        { dashboardId: sprintBoard.id, position: 0, wide: true, title: 'Burndown du sprint en cours', config: chart({ type: 'burndown', dimension: 'createdAt', sprintId: running, measure: 'count' }) },
+        {
+          dashboardId: sprintBoard.id,
+          position: 0,
+          wide: true,
+          title: 'Burndown du sprint en cours',
+          config: chart({ type: 'burndown', dimension: 'createdAt', sprintId: running, measure: 'count' }),
+        },
         {
           dashboardId: sprintBoard.id,
           position: 1,
           wide: false,
           title: 'Tâches par sprint et statut',
-          config: chart({ type: 'stackedBar', dimension: 'sprint', series: 'status', filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] } }),
+          config: chart({
+            type: 'stackedBar',
+            dimension: 'sprint',
+            series: 'status',
+            filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'planned', field: 'sprint', operator: 'isNotEmpty', value: null }] },
+          }),
         },
-        { dashboardId: sprintBoard.id, position: 2, wide: false, title: 'Effort livré (cumul)', config: chart({ type: 'line', dimension: 'closedAt', bucket: 'week', period: 'past:91', measure: 'effort', cumulative: true }) },
+        {
+          dashboardId: sprintBoard.id,
+          position: 2,
+          wide: false,
+          title: 'Effort livré (cumul)',
+          config: chart({ type: 'line', dimension: 'closedAt', bucket: 'week', period: 'past:91', measure: 'effort', cumulative: true }),
+        },
       ],
     });
   }
@@ -209,10 +266,31 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
           position: 0,
           wide: true,
           title: 'Facturé par mois',
-          config: chart({ source: 'documents', type: 'bar', dimension: 'issueDate', bucket: 'month', period: 'past:365', measure: 'totalNet', series: 'documentType', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] } }),
+          config: chart({
+            source: 'documents',
+            type: 'bar',
+            dimension: 'issueDate',
+            bucket: 'month',
+            period: 'past:365',
+            measure: 'totalNet',
+            series: 'documentType',
+            documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
+          }),
         },
-        { dashboardId: projectFinances.id, position: 1, wide: false, title: 'Paiement des factures', config: chart({ source: 'documents', type: 'donut', dimension: 'payment', period: 'all', measure: 'totalGross', documents: invoices }) },
-        { dashboardId: projectFinances.id, position: 2, wide: false, title: 'Devis par statut', config: chart({ source: 'documents', type: 'donut', dimension: 'trackingStatus', period: 'all', measure: 'totalNet', documents: { types: ['QUOTE'] } }) },
+        {
+          dashboardId: projectFinances.id,
+          position: 1,
+          wide: false,
+          title: 'Paiement des factures',
+          config: chart({ source: 'documents', type: 'donut', dimension: 'payment', period: 'all', measure: 'totalGross', documents: invoices }),
+        },
+        {
+          dashboardId: projectFinances.id,
+          position: 2,
+          wide: false,
+          title: 'Devis par statut',
+          config: chart({ source: 'documents', type: 'donut', dimension: 'trackingStatus', period: 'all', measure: 'totalNet', documents: { types: ['QUOTE'] } }),
+        },
         {
           dashboardId: projectFinances.id,
           position: 3,

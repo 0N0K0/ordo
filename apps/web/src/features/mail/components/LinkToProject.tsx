@@ -27,16 +27,7 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
       </Popover.Target>
       <Popover.Dropdown>
         <Stack gap="sm">
-          {context && (
-            <ProjectSelect
-              context={context}
-              label="Projet"
-              value={projectId}
-              onChange={setProjectId}
-              comboboxProps={{ withinPortal: false }}
-              data-autofocus
-            />
-          )}
+          {context && <ProjectSelect context={context} label="Projet" value={projectId} onChange={setProjectId} comboboxProps={{ withinPortal: false }} data-autofocus />}
           <Button
             leftSection={<FolderSimplePlusIcon aria-hidden />}
             disabled={!projectId || linkedProjectIds.includes(projectId)}

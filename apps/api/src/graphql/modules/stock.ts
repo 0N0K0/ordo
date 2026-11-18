@@ -281,13 +281,13 @@ builder.mutationFields((t) => ({
     description: 'Adds an item bought on a shopping list to the stock.',
     args: { input: t.arg({ type: PurchaseInput, required: true }) },
     resolve: (_root, { input }) =>
-      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: input.expiresAt ?? null }),
-      ),
+      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: input.expiresAt ?? null })),
   }),
   setShoppingOrder: t.boolean({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: OrderInput, required: true }) },
     resolve: (_root, { listId, input }) =>
-      done(stock.setShoppingOrder(listId, {
+      done(
+        stock.setShoppingOrder(listId, {
           remote: input.remote,
           deliveryAddress: input.deliveryAddress ?? null,
           deliveryLat: input.deliveryLat ?? null,

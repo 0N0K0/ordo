@@ -28,16 +28,7 @@ export function pdfUrl(id: string, download = false, paid = false): string {
  * @returns {void}
  */
 export function openPdfPreview(id: string, title: string): void {
-  openModal(title, () => (
-      <Box
-        component="iframe"
-        src={`${pdfUrl(id)}#view=FitH&t=${Date.now()}`}
-        title={title}
-        w="100%"
-        h="80vh"
-        style={{ border: 0, display: 'block' }}
-      />
-    ), { size: '64rem' });
+  openModal(title, () => <Box component="iframe" src={`${pdfUrl(id)}#view=FitH&t=${Date.now()}`} title={title} w="100%" h="80vh" style={{ border: 0, display: 'block' }} />, { size: '64rem' });
 }
 
 /**
@@ -127,9 +118,7 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
     body: [
       `<p>Bonjour${document.recipient.firstName ? ` ${escapeHtml(document.recipient.firstName)}` : ''},</p>`,
       `<p>Veuillez trouver ci-joint ${phrase.article} n° ${escapeHtml(document.number)} ${escapeHtml(detail)}.</p>`,
-      document.type === 'QUOTE'
-        ? '<p>Pour l’accepter, il vous suffit de nous le retourner signé avec la mention « Bon pour accord ».</p>'
-        : '',
+      document.type === 'QUOTE' ? '<p>Pour l’accepter, il vous suffit de nous le retourner signé avec la mention « Bon pour accord ».</p>' : '',
       '<p>Cordialement,</p>',
     ].join(''),
     files,

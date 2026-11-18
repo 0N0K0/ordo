@@ -6,20 +6,7 @@ import { resolveCalendarId } from '../../src/services/calendar/calendars';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
-export const COLORS = [
-  '#228be6',
-  '#15aabf',
-  '#12b886',
-  '#40c057',
-  '#82c91e',
-  '#fab005',
-  '#fd7e14',
-  '#fa5252',
-  '#e64980',
-  '#be4bdb',
-  '#7950f2',
-  '#4c6ef5',
-];
+export const COLORS = ['#228be6', '#15aabf', '#12b886', '#40c057', '#82c91e', '#fab005', '#fd7e14', '#fa5252', '#e64980', '#be4bdb', '#7950f2', '#4c6ef5'];
 
 const PROJECT_KINDS = ['Site vitrine', 'Boutique en ligne', 'Application mobile', 'Intranet', 'Refonte', 'Audit SEO', 'Identité visuelle', 'Plateforme de réservation'];
 /** Titles of sub-projects (phases of their parent). */
@@ -73,11 +60,7 @@ export function maybe<T>(probability: number, value: () => T): T | null {
 function markdown(): string {
   const parts = [faker.lorem.paragraph()];
   if (faker.datatype.boolean(0.4)) {
-    parts.push(
-      faker.helpers
-        .multiple(() => `- [${faker.datatype.boolean() ? 'x' : ' '}] ${faker.lorem.sentence({ min: 3, max: 7 })}`, { count: { min: 2, max: 4 } })
-        .join('\n'),
-    );
+    parts.push(faker.helpers.multiple(() => `- [${faker.datatype.boolean() ? 'x' : ' '}] ${faker.lorem.sentence({ min: 3, max: 7 })}`, { count: { min: 2, max: 4 } }).join('\n'));
   }
   if (faker.datatype.boolean(0.3)) parts.push(faker.lorem.paragraph());
   return parts.join('\n\n');
@@ -107,31 +90,27 @@ export const projectFactory = Factory.define<Prisma.ProjectUncheckedCreateInput,
   };
 });
 
-export const contributorFactory = Factory.define<Prisma.ContributorUncheckedCreateInput, object, Contributor>(
-  ({ sequence, onCreate }) => {
-    onCreate((data) => prisma.contributor.create({ data }));
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
-    return {
-      name: `${firstName} ${lastName}`,
-      // Sequence suffix: handles are unique.
-      handle: `${faker.helpers.slugify(firstName).toLowerCase()}-${sequence}`,
-    };
-  },
-);
+export const contributorFactory = Factory.define<Prisma.ContributorUncheckedCreateInput, object, Contributor>(({ sequence, onCreate }) => {
+  onCreate((data) => prisma.contributor.create({ data }));
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  return {
+    name: `${firstName} ${lastName}`,
+    // Sequence suffix: handles are unique.
+    handle: `${faker.helpers.slugify(firstName).toLowerCase()}-${sequence}`,
+  };
+});
 
-export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateInput, object, Milestone>(
-  ({ sequence, onCreate }) => {
-    onCreate((data) => prisma.milestone.create({ data }));
-    return {
-      projectId: '',
-      title: faker.helpers.arrayElement(MILESTONES),
-      description: maybe(0.5, () => faker.lorem.sentence()),
-      dueDate: maybe(0.8, () => day(faker.date.soon({ days: 90 }))),
-      position: sequence,
-    };
-  },
-);
+export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateInput, object, Milestone>(({ sequence, onCreate }) => {
+  onCreate((data) => prisma.milestone.create({ data }));
+  return {
+    projectId: '',
+    title: faker.helpers.arrayElement(MILESTONES),
+    description: maybe(0.5, () => faker.lorem.sentence()),
+    dueDate: maybe(0.8, () => day(faker.date.soon({ days: 90 }))),
+    position: sequence,
+  };
+});
 
 export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, object, Task>(({ sequence, onCreate }) => {
   onCreate((data) => prisma.task.create({ data }));
@@ -145,9 +124,7 @@ export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, objec
     startDate: start && day(start),
     endDate,
     // "Date max": the end date or a few days of margin after it, sometimes a deadline without end date.
-    deadline: endDate
-      ? maybe(0.8, () => day(faker.date.soon({ days: 5, refDate: endDate })))
-      : maybe(0.15, () => day(faker.date.soon({ days: 45 }))),
+    deadline: endDate ? maybe(0.8, () => day(faker.date.soon({ days: 5, refDate: endDate }))) : maybe(0.15, () => day(faker.date.soon({ days: 45 }))),
     position: sequence,
   };
 });
@@ -262,4 +239,3 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     calendarId: '',
   };
 });
-

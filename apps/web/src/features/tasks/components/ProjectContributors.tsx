@@ -33,15 +33,11 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   subtree.add(projectId);
 
   const ancestors: Project[] = ancestorsOf(context.projectById, project?.id);
-  const direct = context.contributors.filter((contributor) =>
-    contributor.projectIds.includes(projectId),
-  );
+  const direct = context.contributors.filter((contributor) => contributor.projectIds.includes(projectId));
   const directIds = direct.map((contributor) => contributor.id);
   // The archived ones attached stay listed (with their badge), but are not offered to be added.
   const members = context.assignableFor([projectId], [], true);
-  const others = context.contributors.filter(
-    (contributor) => !contributor.archived && !members.includes(contributor),
-  );
+  const others = context.contributors.filter((contributor) => !contributor.archived && !members.includes(contributor));
 
   /**
    * Number of tasks of the project and its sub-projects assigned to a contributor.
@@ -49,13 +45,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
    * @returns {number} Count.
    */
   const taskCount = (contributor: Contributor) =>
-    context.tasks.filter(
-      (task) =>
-        !task.archived &&
-        task.projectId !== null &&
-        subtree.has(task.projectId) &&
-        task.assigneeIds.includes(contributor.id),
-    ).length;
+    context.tasks.filter((task) => !task.archived && task.projectId !== null && subtree.has(task.projectId) && task.assigneeIds.includes(contributor.id)).length;
 
   /**
    * Saves the contributors directly attached to the project.
@@ -63,11 +53,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
    * @param {string} message Success message.
    * @returns {void}
    */
-  const save = (contributorIds: string[], message: string) =>
-    setProjectContributors.mutate(
-      { projectId, contributorIds },
-      toastCallbacks(message),
-    );
+  const save = (contributorIds: string[], message: string) => setProjectContributors.mutate({ projectId, contributorIds }, toastCallbacks(message));
 
   return (
     <Stack gap="md">
@@ -83,11 +69,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
             value={null}
             onChange={(id) => {
               const contributor = context.contributorById.get(id ?? '');
-              if (contributor)
-                save(
-                  [...directIds, contributor.id],
-                  `${contributor.name} ajouté au projet.`,
-                );
+              if (contributor) save([...directIds, contributor.id], `${contributor.name} ajouté au projet.`);
             }}
             searchable
             nothingFoundMessage="Aucun autre contributeur"
@@ -105,61 +87,43 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">
             {members.map((contributor) => {
-              const inheritedFrom = directIds.includes(contributor.id)
-                ? undefined
-                : ancestors.find((ancestor) =>
-                    contributor.projectIds.includes(ancestor.id),
-                  );
+              const inheritedFrom = directIds.includes(contributor.id) ? undefined : ancestors.find((ancestor) => contributor.projectIds.includes(ancestor.id));
               const count = taskCount(contributor);
               return (
                 <Group key={contributor.id} gap="sm" wrap="nowrap">
                   <PersonRow
-
-                    name={contributor.name} label={context.contributorName(contributor)}
+                    name={contributor.name}
+                    label={context.contributorName(contributor)}
 
                     avatarUrl={contributor.avatarUrl}
 
                     badges={
-
                       <>
-
                         {contributor.isMe && (
-                        <Badge size="xs" variant="light">
-                          Tous les projets
-                        </Badge>
-                      )}
-                      {contributor.archived && <ArchivedBadge size="xs" />}
-                      {inheritedFrom && (
-                        <Badge size="xs" variant="light" color="gray">
-                          Via{' '}
-                          <Anchor
-                            component={Link}
-                            to={settingsPath(projectPath(inheritedFrom.id), 'contributors')}
-                            size="xs"
-                            inherit
-                          >
-                            {inheritedFrom.title}
-                          </Anchor>
-                        </Badge>
-                      )}
-
+                          <Badge size="xs" variant="light">
+                            Tous les projets
+                          </Badge>
+                        )}
+                        {contributor.archived && <ArchivedBadge size="xs" />}
+                        {inheritedFrom && (
+                          <Badge size="xs" variant="light" color="gray">
+                            Via{' '}
+                            <Anchor component={Link} to={settingsPath(projectPath(inheritedFrom.id), 'contributors')} size="xs" inherit>
+                              {inheritedFrom.title}
+                            </Anchor>
+                          </Badge>
+                        )}
                       </>
-
                     }
 
                     details={
-
                       <>
-
                         <Text size="xs" c="dimmed">
-                      @{contributor.handle}
-                      {count > 0 && ` · ${countOf(count, 'tâche')}`}
-                    </Text>
-
+                          @{contributor.handle}
+                          {count > 0 && ` · ${countOf(count, 'tâche')}`}
+                        </Text>
                       </>
-
                     }
-
                   />
                   {/* Inherited contributors are detached from their own project; tasks keep their assignees. */}
                   {directIds.includes(contributor.id) && (
@@ -167,7 +131,12 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                       label="Retirer du projet (ses tâches restent assignées)"
                       aria-label={`Retirer ${contributor.name} du projet`}
                       disabled={project?.archived}
-                      onClick={() => save(directIds.filter((id) => id !== contributor.id), `${contributor.name} retiré du projet.`)}
+                      onClick={() =>
+                        save(
+                          directIds.filter((id) => id !== contributor.id),
+                          `${contributor.name} retiré du projet.`,
+                        )
+                      }
                     />
                   )}
                 </Group>

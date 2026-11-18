@@ -33,10 +33,7 @@ async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ 
  * @param {string | null | undefined} routineId Routine given.
  * @returns {Promise<{ projectId: string | null, routineId: string | null }>} Both.
  */
-async function placeOf(
-  projectId: string | null | undefined,
-  routineId: string | null | undefined,
-): Promise<{ projectId: string | null; routineId: string | null }> {
+async function placeOf(projectId: string | null | undefined, routineId: string | null | undefined): Promise<{ projectId: string | null; routineId: string | null }> {
   if (!routineId) {
     if (!projectId) throw fieldError('projectId', 'Le projet est requis.');
     return { projectId, routineId: null };
@@ -124,13 +121,7 @@ export async function stopTimer(): Promise<TimeEntry | null> {
  * @param {string | null} [input.description] What is being done. Optional.
  * @returns {Promise<TimeEntry>} Running entry.
  */
-export async function startTimer(input: {
-  projectId?: string | null;
-  routineId?: string | null;
-  taskIds: string[];
-  description?: string | null;
-  event?: TimeEventLink | null;
-}): Promise<TimeEntry> {
+export async function startTimer(input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: TimeEventLink | null }): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
   const place = await placeOf(input.projectId, input.routineId);
   await assertProjectAndTasks(place.projectId, input.taskIds, true);
@@ -214,18 +205,15 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   const entry = await findEntry(id);
   assertNotInvoiced(entry);
   const running = entry.endedAt === null;
-  const { description, duration } = parseInput(
-    z.object({ description: timeDescriptionSchema.optional(), duration: durationSchema.optional() }),
-    { description: input.description === undefined ? undefined : input.description, duration: input.duration ?? undefined },
-  );
+  const { description, duration } = parseInput(z.object({ description: timeDescriptionSchema.optional(), duration: durationSchema.optional() }), {
+    description: input.description === undefined ? undefined : input.description,
+    duration: input.duration ?? undefined,
+  });
   if (running && duration !== undefined) throw fieldError('duration', 'La durée d’un chrono en cours ne se modifie pas.');
   if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
   }
-  const place = await placeOf(
-    input.projectId === undefined ? entry.projectId : input.projectId,
-    input.routineId === undefined ? entry.routineId : input.routineId,
-  );
+  const place = await placeOf(input.projectId === undefined ? entry.projectId : input.projectId, input.routineId === undefined ? entry.routineId : input.routineId);
   const taskIds = input.taskIds ?? entry.tasks.map((task) => task.id);
   await assertProjectAndTasks(place.projectId, taskIds, false);
 

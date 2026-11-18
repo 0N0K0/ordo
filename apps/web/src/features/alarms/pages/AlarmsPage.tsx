@@ -21,35 +21,26 @@ import classes from './AlarmsPage.module.css';
 export function AlarmsPage() {
   const { data: alarms, isPending } = useAlarms();
   const { context } = useTaskContext();
-  const [permission, setPermission] = useState(() =>
-    'Notification' in window ? Notification.permission : 'denied',
-  );
+  const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'denied'));
 
   const openForm = useAlarmForm(context);
 
   return (
     <Stack gap="lg" className={classes.root}>
-      <PageHeader title={PAGES.alarms.title} actions={<ActionButton
-          icon={<PlusIcon aria-hidden />}
-          onClick={() => openForm()}
-          disabled={!context}
-        >Nouvelle alarme</ActionButton>} />
+      <PageHeader
+        title={PAGES.alarms.title}
+        actions={
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
+            Nouvelle alarme
+          </ActionButton>
+        }
+      />
 
       {permission === 'default' && (
         <NoticeAlert kind="info" title="Notifications du navigateur">
           <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo
-              n’est pas au premier plan.
-            </Text>
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={<BellIcon aria-hidden />}
-              onClick={() =>
-                void Notification.requestPermission().then(setPermission)
-              }
-            >
+            <Text size="sm">Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo n’est pas au premier plan.</Text>
+            <Button size="xs" variant="default" leftSection={<BellIcon aria-hidden />} onClick={() => void Notification.requestPermission().then(setPermission)}>
               Autoriser les notifications
             </Button>
           </Stack>

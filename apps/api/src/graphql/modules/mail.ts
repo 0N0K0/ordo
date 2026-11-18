@@ -134,27 +134,20 @@ const MailView = builder.objectRef<reader.MailView>('MailView').implement({
     done: t.exposeBoolean('done'),
     linkedProjectIds: t.idList({
       description: 'Projects this message is linked to.',
-      resolve: async (mail) =>
-        mail.messageId
-          ? (await prisma.mailMessage.findMany({ where: { messageId: mail.messageId }, select: { projectId: true } })).map(
-              (item) => item.projectId,
-            )
-          : [],
+      resolve: async (mail) => (mail.messageId ? (await prisma.mailMessage.findMany({ where: { messageId: mail.messageId }, select: { projectId: true } })).map((item) => item.projectId) : []),
     }),
   }),
 });
 
-const LinkedMailAttachment = builder
-  .objectRef<{ id: string; name: string; size: number; contentId: string | null }>('LinkedMailAttachment')
-  .implement({
-    fields: (t) => ({
-      id: t.exposeID('id'),
-      name: t.exposeString('name'),
-      size: t.exposeInt('size'),
-      inline: t.boolean({ resolve: (attachment) => attachment.contentId !== null }),
-      url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
-    }),
-  });
+const LinkedMailAttachment = builder.objectRef<{ id: string; name: string; size: number; contentId: string | null }>('LinkedMailAttachment').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    size: t.exposeInt('size'),
+    inline: t.boolean({ resolve: (attachment) => attachment.contentId !== null }),
+    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
+  }),
+});
 
 /**
  * Addresses stored as JSON.
@@ -425,142 +418,140 @@ builder.mutationFields((t) => {
    */
   const mailsArgs = () => ({ accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }) });
   return {
-  testMailAccount: t.boolean({
-    description: 'Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.',
-    args: { input: t.arg({ type: MailAccountInput, required: true }), id: t.arg.id() },
-    resolve: (_root, { input, id }) => done(accounts.testMailAccount({ ...input, id: id ?? undefined })),
-  }),
-  createMailAccount: t.prismaField({
-    type: 'MailAccount',
-    args: { input: t.arg({ type: MailAccountInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      reloaded(prisma.mailAccount, query, accounts.createMailAccount(input)),
-  }),
-  updateMailAccount: t.prismaField({
-    type: 'MailAccount',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailAccountInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.mailAccount, query, accounts.updateMailAccount(id, input)),
-  }),
-  setMailSignature: t.prismaField({
-    type: 'MailAccount',
-    args: { id: t.arg.id({ required: true }), signature: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, signature }) =>
-      reloaded(prisma.mailAccount, query, accounts.setMailSignature(id, signature)),
-  }),
-  deleteMailAccount: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(accounts.deleteMailAccount(id)),
-  }),
-  moveMailAccount: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: (_root, { id, index }) => done(accounts.moveMailAccount(id, index)),
-  }),
-  setMailSeen: t.boolean({
-    args: { ...mailsArgs(), seen: t.arg.boolean({ required: true }) },
-    resolve: (_root, { accountId, folder, uids, seen }) => done(reader.setSeen(accountId, folder, uids, seen)),
-  }),
-  markMails: t.boolean({
-    description: 'Adds or removes a flag (labelId and on), or sets the done state (done), on mails.',
-    args: { ...mailsArgs(), labelId: t.arg.id(), on: t.arg.boolean(), done: t.arg.boolean() },
-    resolve: (_root, { accountId, folder, uids, labelId, on, done: isDone }) => done(organize.markMails(accountId, folder, uids, labelId ? { labelId: labelId, on: on ?? true } : { done: isDone ?? true })),
-  }),
-  reportMailSpam: t.string({
-    description: 'Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.',
-    args: { ...mailsArgs(), spam: t.arg.boolean({ required: true }) },
-    resolve: (_root, { accountId, folder, uids, spam }) => organize.reportSpam(accountId, folder, uids, spam),
-  }),
-  moveMails: t.boolean({
-    args: { ...mailsArgs(), target: t.arg.string({ required: true }) },
-    resolve: (_root, { accountId, folder, uids, target }) => done(organize.moveMails(accountId, folder, uids, target)),
-  }),
-  createMailFolder: t.string({
-    description: 'Creates a folder (under another one, or at the top); returns its path.',
-    args: { accountId: t.arg.id({ required: true }), parent: t.arg.string(), name: t.arg.string({ required: true }) },
-    resolve: (_root, { accountId, parent, name }) => organize.createFolder(accountId, parent ?? null, name),
-  }),
-  renameMailFolder: t.string({
-    description: 'Renames a folder; returns its new path.',
-    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: (_root, { accountId, path, name }) => organize.renameFolder(accountId, path, name),
-  }),
-  moveMailFolder: t.string({
-    description: 'Moves a folder (and its sub-folders) under another one, or to the top; returns its new path.',
-    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), parent: t.arg.string() },
-    resolve: (_root, { accountId, path, parent }) => organize.moveFolder(accountId, path, parent ?? null),
-  }),
-  deleteMailFolder: t.boolean({
-    description: 'Deletes a folder and its mails.',
-    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }) },
-    resolve: (_root, { accountId, path }) => done(organize.deleteFolder(accountId, path)),
-  }),
-  createMailSearch: t.id({
-    args: { input: t.arg({ type: MailSearchInput, required: true }) },
-    resolve: async (_root, { input }) => (await searches.createSearch(input as never)).id,
-  }),
-  updateMailSearch: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailSearchInput, required: true }) },
-    resolve: (_root, { id, input }) => done(searches.updateSearch(id, input as never)),
-  }),
-  deleteMailSearch: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(searches.deleteSearch(id)),
-  }),
-  scheduleMail: t.id({
-    description: 'Schedules a mail (built now, sent at its time); its draft is removed.',
-    args: { input: t.arg({ type: SendMailInput, required: true }), sendAt: t.arg({ type: 'DateTime', required: true }) },
-    resolve: async (_root, { input, sendAt }) => (await scheduled.scheduleMail(input, sendAt)).id,
-  }),
-  sendScheduledMail: t.boolean({
-    description: 'Sends a scheduled (or failed) mail now.',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(scheduled.sendScheduled(id)),
-  }),
-  cancelScheduledMail: t.boolean({
-    description: 'Cancels a scheduled mail: it goes back to the drafts.',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(scheduled.cancelScheduled(id)),
-  }),
-  deleteMails: t.boolean({
-    description: 'Moves mails to the trash (deletes them for good from the trash).',
-    args: mailsArgs(),
-    resolve: (_root, { accountId, folder, uids }) => done(reader.deleteMessages(accountId, folder, uids)),
-  }),
-  linkMail: t.prismaField({
-    type: 'MailMessage',
-    description: 'Links a mail to a project (a copy is kept in Ordo).',
-    args: {
-      accountId: t.arg.id({ required: true }),
-      folder: t.arg.string({ required: true }),
-      uid: t.arg.int({ required: true }),
-      projectId: t.arg.id({ required: true }),
-    },
-    resolve: async (query, _root, { accountId, folder, uid, projectId }) =>
-      prisma.mailMessage.findUniqueOrThrow({
-        ...query,
-        where: { id: (await linked.linkMessage(accountId, folder, uid, projectId)).id },
-      }),
-  }),
-  unlinkMail: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(linked.unlinkMail(id)),
-  }),
-  saveMailDraft: t.field({
-    type: SavedDraft,
-    description: 'Saves a draft in the drafts folder of its account, replacing its previous version.',
-    args: { input: t.arg({ type: SaveDraftInput, required: true }) },
-    resolve: (_root, { input }) => drafts.saveDraft(input),
-  }),
-  deleteMailDraft: t.boolean({
-    description: 'Deletes a draft for good.',
-    args: { location: t.arg({ type: MailLocationInput, required: true }) },
-    resolve: (_root, { location }) => done(drafts.deleteDraft(location.accountId, location.folder, location.uid)),
-  }),
-  sendMail: t.idList({
-    description: 'Sends a mail; returns the projects it was linked to.',
-    args: { input: t.arg({ type: SendMailInput, required: true }) },
-    resolve: async (_root, { input }) => (await sendMail(input)).projectIds,
-  }),
+    testMailAccount: t.boolean({
+      description: 'Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.',
+      args: { input: t.arg({ type: MailAccountInput, required: true }), id: t.arg.id() },
+      resolve: (_root, { input, id }) => done(accounts.testMailAccount({ ...input, id: id ?? undefined })),
+    }),
+    createMailAccount: t.prismaField({
+      type: 'MailAccount',
+      args: { input: t.arg({ type: MailAccountInput, required: true }) },
+      resolve: async (query, _root, { input }) => reloaded(prisma.mailAccount, query, accounts.createMailAccount(input)),
+    }),
+    updateMailAccount: t.prismaField({
+      type: 'MailAccount',
+      args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailAccountInput, required: true }) },
+      resolve: async (query, _root, { id, input }) => reloaded(prisma.mailAccount, query, accounts.updateMailAccount(id, input)),
+    }),
+    setMailSignature: t.prismaField({
+      type: 'MailAccount',
+      args: { id: t.arg.id({ required: true }), signature: t.arg.string({ required: true }) },
+      resolve: async (query, _root, { id, signature }) => reloaded(prisma.mailAccount, query, accounts.setMailSignature(id, signature)),
+    }),
+    deleteMailAccount: t.boolean({
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, { id }) => done(accounts.deleteMailAccount(id)),
+    }),
+    moveMailAccount: t.boolean({
+      args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+      resolve: (_root, { id, index }) => done(accounts.moveMailAccount(id, index)),
+    }),
+    setMailSeen: t.boolean({
+      args: { ...mailsArgs(), seen: t.arg.boolean({ required: true }) },
+      resolve: (_root, { accountId, folder, uids, seen }) => done(reader.setSeen(accountId, folder, uids, seen)),
+    }),
+    markMails: t.boolean({
+      description: 'Adds or removes a flag (labelId and on), or sets the done state (done), on mails.',
+      args: { ...mailsArgs(), labelId: t.arg.id(), on: t.arg.boolean(), done: t.arg.boolean() },
+      resolve: (_root, { accountId, folder, uids, labelId, on, done: isDone }) =>
+        done(organize.markMails(accountId, folder, uids, labelId ? { labelId: labelId, on: on ?? true } : { done: isDone ?? true })),
+    }),
+    reportMailSpam: t.string({
+      description: 'Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.',
+      args: { ...mailsArgs(), spam: t.arg.boolean({ required: true }) },
+      resolve: (_root, { accountId, folder, uids, spam }) => organize.reportSpam(accountId, folder, uids, spam),
+    }),
+    moveMails: t.boolean({
+      args: { ...mailsArgs(), target: t.arg.string({ required: true }) },
+      resolve: (_root, { accountId, folder, uids, target }) => done(organize.moveMails(accountId, folder, uids, target)),
+    }),
+    createMailFolder: t.string({
+      description: 'Creates a folder (under another one, or at the top); returns its path.',
+      args: { accountId: t.arg.id({ required: true }), parent: t.arg.string(), name: t.arg.string({ required: true }) },
+      resolve: (_root, { accountId, parent, name }) => organize.createFolder(accountId, parent ?? null, name),
+    }),
+    renameMailFolder: t.string({
+      description: 'Renames a folder; returns its new path.',
+      args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), name: t.arg.string({ required: true }) },
+      resolve: (_root, { accountId, path, name }) => organize.renameFolder(accountId, path, name),
+    }),
+    moveMailFolder: t.string({
+      description: 'Moves a folder (and its sub-folders) under another one, or to the top; returns its new path.',
+      args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), parent: t.arg.string() },
+      resolve: (_root, { accountId, path, parent }) => organize.moveFolder(accountId, path, parent ?? null),
+    }),
+    deleteMailFolder: t.boolean({
+      description: 'Deletes a folder and its mails.',
+      args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }) },
+      resolve: (_root, { accountId, path }) => done(organize.deleteFolder(accountId, path)),
+    }),
+    createMailSearch: t.id({
+      args: { input: t.arg({ type: MailSearchInput, required: true }) },
+      resolve: async (_root, { input }) => (await searches.createSearch(input as never)).id,
+    }),
+    updateMailSearch: t.boolean({
+      args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailSearchInput, required: true }) },
+      resolve: (_root, { id, input }) => done(searches.updateSearch(id, input as never)),
+    }),
+    deleteMailSearch: t.boolean({
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, { id }) => done(searches.deleteSearch(id)),
+    }),
+    scheduleMail: t.id({
+      description: 'Schedules a mail (built now, sent at its time); its draft is removed.',
+      args: { input: t.arg({ type: SendMailInput, required: true }), sendAt: t.arg({ type: 'DateTime', required: true }) },
+      resolve: async (_root, { input, sendAt }) => (await scheduled.scheduleMail(input, sendAt)).id,
+    }),
+    sendScheduledMail: t.boolean({
+      description: 'Sends a scheduled (or failed) mail now.',
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, { id }) => done(scheduled.sendScheduled(id)),
+    }),
+    cancelScheduledMail: t.boolean({
+      description: 'Cancels a scheduled mail: it goes back to the drafts.',
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, { id }) => done(scheduled.cancelScheduled(id)),
+    }),
+    deleteMails: t.boolean({
+      description: 'Moves mails to the trash (deletes them for good from the trash).',
+      args: mailsArgs(),
+      resolve: (_root, { accountId, folder, uids }) => done(reader.deleteMessages(accountId, folder, uids)),
+    }),
+    linkMail: t.prismaField({
+      type: 'MailMessage',
+      description: 'Links a mail to a project (a copy is kept in Ordo).',
+      args: {
+        accountId: t.arg.id({ required: true }),
+        folder: t.arg.string({ required: true }),
+        uid: t.arg.int({ required: true }),
+        projectId: t.arg.id({ required: true }),
+      },
+      resolve: async (query, _root, { accountId, folder, uid, projectId }) =>
+        prisma.mailMessage.findUniqueOrThrow({
+          ...query,
+          where: { id: (await linked.linkMessage(accountId, folder, uid, projectId)).id },
+        }),
+    }),
+    unlinkMail: t.boolean({
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, { id }) => done(linked.unlinkMail(id)),
+    }),
+    saveMailDraft: t.field({
+      type: SavedDraft,
+      description: 'Saves a draft in the drafts folder of its account, replacing its previous version.',
+      args: { input: t.arg({ type: SaveDraftInput, required: true }) },
+      resolve: (_root, { input }) => drafts.saveDraft(input),
+    }),
+    deleteMailDraft: t.boolean({
+      description: 'Deletes a draft for good.',
+      args: { location: t.arg({ type: MailLocationInput, required: true }) },
+      resolve: (_root, { location }) => done(drafts.deleteDraft(location.accountId, location.folder, location.uid)),
+    }),
+    sendMail: t.idList({
+      description: 'Sends a mail; returns the projects it was linked to.',
+      args: { input: t.arg({ type: SendMailInput, required: true }) },
+      resolve: async (_root, { input }) => (await sendMail(input)).projectIds,
+    }),
   };
 });
 

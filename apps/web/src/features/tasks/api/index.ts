@@ -17,7 +17,6 @@ import type {
 } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 
-
 export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
 export type Contributor = ContributorFieldsFragment;
@@ -221,9 +220,7 @@ const SetTaskRecurrenceDocument = graphql(`
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetTaskRecurrence() {
-  return useTasksMutation(
-    async (variables: { id: string; recurrence: unknown }) => (await execute(SetTaskRecurrenceDocument, variables)).setTaskRecurrence,
-  );
+  return useTasksMutation(async (variables: { id: string; recurrence: unknown }) => (await execute(SetTaskRecurrenceDocument, variables)).setTaskRecurrence);
 }
 
 const MoveTaskDocument = graphql(`
@@ -479,10 +476,7 @@ export type TaskInputValues = TaskInput;
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateTask() {
-  return useTasksMutation(
-    async (input: TaskInputValues & { title: string }) =>
-      (await execute(CreateTaskDocument, { input })).createTask,
-  );
+  return useTasksMutation(async (input: TaskInputValues & { title: string }) => (await execute(CreateTaskDocument, { input })).createTask);
 }
 
 /**
@@ -490,10 +484,7 @@ export function useCreateTask() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateTask() {
-  return useTasksMutation(
-    async ({ id, input }: { id: string; input: Omit<TaskInputValues, 'projectId'> }) =>
-      (await execute(UpdateTaskDocument, { id, input })).updateTask,
-  );
+  return useTasksMutation(async ({ id, input }: { id: string; input: Omit<TaskInputValues, 'projectId'> }) => (await execute(UpdateTaskDocument, { id, input })).updateTask);
 }
 
 const SetTasksClosedDocument = graphql(`
@@ -519,9 +510,7 @@ export function useSetTasksClosed() {
  * @returns {UseMutationResult} Mutation state, with the clone number.
  */
 export function useCloneTask() {
-  return useTasksMutation(
-    async (variables: { id: string; includeSubtasks: boolean }) => (await execute(CloneTaskDocument, variables)).cloneTask,
-  );
+  return useTasksMutation(async (variables: { id: string; includeSubtasks: boolean }) => (await execute(CloneTaskDocument, variables)).cloneTask);
 }
 
 /**
@@ -552,9 +541,7 @@ export function useMoveTask() {
  */
 export function useTaskBlock() {
   return useTasksMutation(async ({ add, ...variables }: { add: boolean; blockerId: string; blockedId: string }) =>
-    add
-      ? (await execute(AddTaskBlockDocument, variables)).addTaskBlock
-      : (await execute(RemoveTaskBlockDocument, variables)).removeTaskBlock,
+    add ? (await execute(AddTaskBlockDocument, variables)).addTaskBlock : (await execute(RemoveTaskBlockDocument, variables)).removeTaskBlock,
   );
 }
 
@@ -564,9 +551,7 @@ export function useTaskBlock() {
  */
 export function useTaskRelation() {
   return useTasksMutation(async ({ add, ...variables }: { add: boolean; taskId: string; otherId: string }) =>
-    add
-      ? (await execute(AddTaskRelationDocument, variables)).addTaskRelation
-      : (await execute(RemoveTaskRelationDocument, variables)).removeTaskRelation,
+    add ? (await execute(AddTaskRelationDocument, variables)).addTaskRelation : (await execute(RemoveTaskRelationDocument, variables)).removeTaskRelation,
   );
 }
 
@@ -576,15 +561,9 @@ export function useTaskRelation() {
  */
 export function useTaskCommentMutations() {
   return {
-    add: useTasksMutation(
-      async (variables: { taskId: string; body: string }) => (await execute(AddTaskCommentDocument, variables)).addTaskComment,
-    ),
-    update: useTasksMutation(
-      async (variables: { id: string; body: string }) => (await execute(UpdateTaskCommentDocument, variables)).updateTaskComment,
-    ),
-    remove: useTasksMutation(
-      async (variables: { id: string }) => (await execute(DeleteTaskCommentDocument, variables)).deleteTaskComment,
-    ),
+    add: useTasksMutation(async (variables: { taskId: string; body: string }) => (await execute(AddTaskCommentDocument, variables)).addTaskComment),
+    update: useTasksMutation(async (variables: { id: string; body: string }) => (await execute(UpdateTaskCommentDocument, variables)).updateTaskComment),
+    remove: useTasksMutation(async (variables: { id: string }) => (await execute(DeleteTaskCommentDocument, variables)).deleteTaskComment),
   };
 }
 
@@ -594,24 +573,16 @@ export function useTaskCommentMutations() {
  */
 export function useContributorMutations() {
   return {
-    create: useTasksMutation(
-      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] }) =>
-        (await execute(CreateContributorDocument, { input })).createContributor,
-    ),
+    create: useTasksMutation(async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] }) => (await execute(CreateContributorDocument, { input })).createContributor),
     update: useTasksMutation(
-      async (variables: {
-        id: string;
-        input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] };
-      }) => (await execute(UpdateContributorDocument, variables)).updateContributor,
+      async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] } }) =>
+        (await execute(UpdateContributorDocument, variables)).updateContributor,
     ),
     // Members and relations (treasury) follow: a relation loses its contributor.
     remove: useInvalidatingMutation(async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor, {
       invalidate: [tasksQueryKey, accountingQueryKey],
     }),
-    setProjectContributors: useTasksMutation(
-      async (variables: { projectId: string; contributorIds: string[] }) =>
-        (await execute(SetProjectContributorsDocument, variables)).setProjectContributors,
-    ),
+    setProjectContributors: useTasksMutation(async (variables: { projectId: string; contributorIds: string[] }) => (await execute(SetProjectContributorsDocument, variables)).setProjectContributors),
   };
 }
 
@@ -638,9 +609,7 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
   };
   return {
     create: useTasksMutation(async (input: LabelInput) => execute(documents.create, { input })),
-    update: useTasksMutation(async (variables: { id: string; input: Partial<LabelInput> }) =>
-      execute(documents.update, variables),
-    ),
+    update: useTasksMutation(async (variables: { id: string; input: Partial<LabelInput> }) => execute(documents.update, variables)),
     remove: useTasksMutation(async (variables: { id: string }) => execute(documents.remove, variables)),
   };
 }
@@ -719,21 +688,11 @@ export function useBulkTaskMutations() {
   return {
     update: useTasksMutation(
       // `restoring`: an undo, the archived values given back accepted.
-      async (variables: { ids: string[]; changes: BulkChanges; restoring?: boolean }) =>
-        (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
+      async (variables: { ids: string[]; changes: BulkChanges; restoring?: boolean }) => (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
     ),
-    transfer: useTasksMutation(
-      async (variables: { ids: string[]; projectId: string | null }) =>
-        (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks,
-    ),
-    archive: useTasksMutation(
-      async (variables: { ids: string[]; archived: boolean }) =>
-        (await execute(BulkSetTasksArchivedDocument, variables)).bulkSetTasksArchived,
-    ),
-    remove: useTasksMutation(
-      async (variables: { ids: string[]; deleteSubtasks: boolean }) =>
-        (await execute(BulkDeleteTasksDocument, variables)).bulkDeleteTasks,
-    ),
+    transfer: useTasksMutation(async (variables: { ids: string[]; projectId: string | null }) => (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks),
+    archive: useTasksMutation(async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetTasksArchivedDocument, variables)).bulkSetTasksArchived),
+    remove: useTasksMutation(async (variables: { ids: string[]; deleteSubtasks: boolean }) => (await execute(BulkDeleteTasksDocument, variables)).bulkDeleteTasks),
   };
 }
 
@@ -777,14 +736,8 @@ interface MilestoneInputValues {
  */
 export function useMilestoneMutations() {
   return {
-    create: useTasksMutation(
-      async (input: MilestoneInputValues & { projectId: string }) =>
-        (await execute(CreateMilestoneDocument, { input })).createMilestone,
-    ),
-    update: useTasksMutation(
-      async (variables: { id: string; input: Partial<MilestoneInputValues> }) =>
-        (await execute(UpdateMilestoneDocument, variables)).updateMilestone,
-    ),
+    create: useTasksMutation(async (input: MilestoneInputValues & { projectId: string }) => (await execute(CreateMilestoneDocument, { input })).createMilestone),
+    update: useTasksMutation(async (variables: { id: string; input: Partial<MilestoneInputValues> }) => (await execute(UpdateMilestoneDocument, variables)).updateMilestone),
     remove: useTasksMutation(async (variables: { id: string }) => (await execute(DeleteMilestoneDocument, variables)).deleteMilestone),
     move: useMoveMilestone(),
   };
@@ -839,9 +792,7 @@ interface SprintInputValues {
  */
 export function useSprintMutations() {
   return {
-    create: useTasksMutation(
-      async (variables: { projectId: string; input: SprintInputValues }) => (await execute(CreateSprintDocument, variables)).createSprint,
-    ),
+    create: useTasksMutation(async (variables: { projectId: string; input: SprintInputValues }) => (await execute(CreateSprintDocument, variables)).createSprint),
     update: useTasksMutation(async (variables: { id: string; input: SprintInputValues }) => (await execute(UpdateSprintDocument, variables)).updateSprint),
     remove: useTasksMutation(async (variables: { id: string }) => (await execute(DeleteSprintDocument, variables)).deleteSprint),
   };

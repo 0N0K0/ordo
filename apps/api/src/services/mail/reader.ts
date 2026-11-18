@@ -119,7 +119,10 @@ function envelopeAddresses(list: MessageAddressObject[] | undefined): MailAddres
 export function parsedAddresses(value: AddressObject | AddressObject[] | undefined): MailAddress[] {
   const groups = value ? (Array.isArray(value) ? value : [value]) : [];
   return groups.flatMap((group) =>
-    group.value.flatMap((item) => (item.group ?? [item])).filter((item) => item.address).map((item) => ({ name: item.name || null, address: item.address! })),
+    group.value
+      .flatMap((item) => item.group ?? [item])
+      .filter((item) => item.address)
+      .map((item) => ({ name: item.name || null, address: item.address! })),
   );
 }
 
@@ -337,11 +340,7 @@ export async function listMessages(
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
       const messages: MailSummary[] = [];
-      const fetched: AsyncGenerator<FetchMessageObject, false | void> = client.fetch(
-        pageUids,
-        SUMMARY_FETCH,
-        { uid: true },
-      );
+      const fetched: AsyncGenerator<FetchMessageObject, false | void> = client.fetch(pageUids, SUMMARY_FETCH, { uid: true });
       for await (const message of fetched) messages.push(toSummary(message, keywords, marks));
       // In the order of the page.
       const rank = new Map(pageUids.map((uid, index) => [uid, index]));
@@ -418,9 +417,7 @@ export async function readMessage(accountId: string, folder: string, uid: number
     uid,
     messageId: bareMessageId(parsed.messageId),
     inReplyTo: bareMessageId(parsed.inReplyTo),
-    references: (Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : [])
-      .map(bareMessageId)
-      .filter((id): id is string => id !== null),
+    references: (Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : []).map(bareMessageId).filter((id): id is string => id !== null),
     subject: parsed.subject || NO_SUBJECT,
     from: parsedAddresses(parsed.from),
     to: parsedAddresses(parsed.to),

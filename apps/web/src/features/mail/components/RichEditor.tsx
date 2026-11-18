@@ -51,7 +51,10 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
     extensions: [
       StarterKit.configure({ link: false }),
       Link.configure({ openOnClick: false }),
-      UploadImage.configure({ inline: true, resize: { enabled: true, directions: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'], minWidth: 24, minHeight: 24, alwaysPreserveAspectRatio: true } }),
+      UploadImage.configure({
+        inline: true,
+        resize: { enabled: true, directions: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'], minWidth: 24, minHeight: 24, alwaysPreserveAspectRatio: true },
+      }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: value,
@@ -66,44 +69,40 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
   }, [editor, value]);
 
   const field = (
-      <RichTextEditor
-        editor={editor}
-        onImageUpload={uploadImage}
-        onImageUploadError={imageUploadError}
-      >
-        <RichTextEditor.Toolbar sticky stickyOffset={0}>
-          <RichTextEditor.ControlsGroup>
-            <RichTextEditor.Bold />
-            <RichTextEditor.Italic />
-            <RichTextEditor.Underline />
-            <RichTextEditor.Strikethrough />
-            <RichTextEditor.ClearFormatting />
-          </RichTextEditor.ControlsGroup>
-          <RichTextEditor.ControlsGroup>
-            <RichTextEditor.H2 />
-            <RichTextEditor.H3 />
-            <RichTextEditor.Blockquote />
-            <RichTextEditor.BulletList />
-            <RichTextEditor.OrderedList />
-          </RichTextEditor.ControlsGroup>
-          <RichTextEditor.ControlsGroup>
-            <RichTextEditor.Link />
-            <RichTextEditor.Unlink />
-            <RichTextEditor.ImageUpload />
-          </RichTextEditor.ControlsGroup>
-          <RichTextEditor.ControlsGroup>
-            <RichTextEditor.AlignLeft />
-            <RichTextEditor.AlignCenter />
-            <RichTextEditor.AlignRight />
-          </RichTextEditor.ControlsGroup>
-          <RichTextEditor.ControlsGroup>
-            <RichTextEditor.Undo />
-            <RichTextEditor.Redo />
-            {sourceCode && <RichTextEditor.SourceCode />}
-          </RichTextEditor.ControlsGroup>
-        </RichTextEditor.Toolbar>
-        <RichTextEditor.Content style={{ minHeight }} />
-      </RichTextEditor>
+    <RichTextEditor editor={editor} onImageUpload={uploadImage} onImageUploadError={imageUploadError}>
+      <RichTextEditor.Toolbar sticky stickyOffset={0}>
+        <RichTextEditor.ControlsGroup>
+          <RichTextEditor.Bold />
+          <RichTextEditor.Italic />
+          <RichTextEditor.Underline />
+          <RichTextEditor.Strikethrough />
+          <RichTextEditor.ClearFormatting />
+        </RichTextEditor.ControlsGroup>
+        <RichTextEditor.ControlsGroup>
+          <RichTextEditor.H2 />
+          <RichTextEditor.H3 />
+          <RichTextEditor.Blockquote />
+          <RichTextEditor.BulletList />
+          <RichTextEditor.OrderedList />
+        </RichTextEditor.ControlsGroup>
+        <RichTextEditor.ControlsGroup>
+          <RichTextEditor.Link />
+          <RichTextEditor.Unlink />
+          <RichTextEditor.ImageUpload />
+        </RichTextEditor.ControlsGroup>
+        <RichTextEditor.ControlsGroup>
+          <RichTextEditor.AlignLeft />
+          <RichTextEditor.AlignCenter />
+          <RichTextEditor.AlignRight />
+        </RichTextEditor.ControlsGroup>
+        <RichTextEditor.ControlsGroup>
+          <RichTextEditor.Undo />
+          <RichTextEditor.Redo />
+          {sourceCode && <RichTextEditor.SourceCode />}
+        </RichTextEditor.ControlsGroup>
+      </RichTextEditor.Toolbar>
+      <RichTextEditor.Content style={{ minHeight }} />
+    </RichTextEditor>
   );
   return label ? <LabeledField label={label}>{field}</LabeledField> : field;
 }
