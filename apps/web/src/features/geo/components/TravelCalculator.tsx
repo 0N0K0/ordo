@@ -39,8 +39,9 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
 
-  // Places with an address (their zones share their point).
-  const placeOptions = (places ?? []).filter((place) => !place.parentId).map((place) => ({ value: place.id, label: place.name }));
+  // Places with an address (their zones share their point), the archived ones left out.
+  const addressed = (places ?? []).filter((place) => !place.parentId && !place.archived);
+  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.name }));
   /**
    * Point of a choice.
    * @param {string | null} choice Place id, OTHER or SAME.
@@ -52,7 +53,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
     const place = places?.find((item) => item.id === choice);
     return place ? { lat: place.lat, lon: place.lon } : null;
   };
-  const fromChoice = from ?? places?.[0]?.id ?? OTHER;
+  const fromChoice = from ?? addressed[0]?.id ?? OTHER;
   const start = pointOf(fromChoice, fromOther);
   // Back to the start: the start of the way there (asked for even when it is not computed).
   const end = to === SAME ? start : pointOf(to, toOther);

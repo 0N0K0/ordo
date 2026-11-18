@@ -5,6 +5,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useDashboardMutations, useDashboards, type DashboardChart } from '../api';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 const GENERAL = 'general';
 
@@ -18,7 +19,7 @@ interface TransferChartFormProps {
 
 /**
  * Moves a chart to another dashboard: the general dashboards or those of a project (a project without one gets
- * a new dashboard). The chart leaves its dashboard and is then computed on the scope of the new one.
+ * a new dashboard; the archived ones are not offered). The chart leaves its dashboard and is then computed on the scope of the new one.
  * @param {TransferChartFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -26,7 +27,8 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
   const [destination, setDestination] = useState<string>(projectId ?? GENERAL);
   const targetProject = destination === GENERAL ? null : destination;
   const { data: dashboards } = useDashboards(targetProject);
-  const choices = (dashboards ?? []).filter((dashboard) => !dashboard.charts.some((item) => item.id === chart.id));
+  // An archived dashboard takes no chart.
+  const choices = unarchived(dashboards ?? []).filter((dashboard) => !dashboard.charts.some((item) => item.id === chart.id));
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const { transferChart } = useDashboardMutations();
   const chosen = choices.find((dashboard) => dashboard.id === dashboardId)?.id ?? choices[0]?.id ?? null;

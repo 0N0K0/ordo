@@ -2,6 +2,7 @@ import { colorSchema, requiredText } from '@ordo/shared';
 import type { ImapFlow } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import { assertNotArchived } from '../core/archive';
 import { nextPositionIn } from '../core/ordering';
 import type { MailLabel } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -26,7 +27,10 @@ type MarkChange = { labelId: string; on: boolean } | { done: boolean };
  * @returns {Promise<void>}
  */
 export async function markMails(accountId: string, folder: string, uids: number[], change: MarkChange): Promise<void> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   if ('labelId' in change) await assertExists(prisma.mailLabel, change.labelId, 'Drapeau');
+  // An archived label is not put on mails anymore (it can still be taken off).
+  if ('labelId' in change && change.on) await assertNotArchived('MAIL_LABEL', change.labelId);
   const fallback = await withImap(accountId, async (client) => {
     return withMailbox(client, folder, async () => {
       if (!takesKeywords(client)) return messageIdsOf(client, uids);
@@ -98,6 +102,7 @@ export async function specialFolder(client: ImapFlow, specialUse: SpecialUse, cr
  * @returns {Promise<string>} Folder the mails are now in.
  */
 export async function reportSpam(accountId: string, folder: string, uids: number[], spam: boolean): Promise<string> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   return withImap(accountId, async (client) => {
     const target = spam ? await specialFolder(client, '\\Junk', 'Junk') : 'INBOX';
     return withMailbox(client, folder, async () => {
@@ -120,6 +125,7 @@ export async function reportSpam(accountId: string, folder: string, uids: number
  */
 export async function moveMails(accountId: string, folder: string, uids: number[], target: string): Promise<void> {
   if (target === folder || !uids.length) return;
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
     if (!(await client.list()).some((item) => item.path === target)) throw notFound('Dossier');
     await withMailbox(client, folder, async () => {
@@ -143,6 +149,7 @@ const folderNameSchema = z
  * @returns {Promise<string>} Path of the new folder.
  */
 export async function createFolder(accountId: string, parent: string | null, name: string): Promise<string> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   const clean = parseInput(folderNameSchema, name);
   return withImap(accountId, async (client) => {
     if (!parent) return (await client.mailboxCreate([clean])).path;
@@ -161,6 +168,7 @@ export async function createFolder(accountId: string, parent: string | null, nam
  * @returns {Promise<string>} New path.
  */
 export async function renameFolder(accountId: string, path: string, name: string): Promise<string> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   const clean = parseInput(folderNameSchema, name);
   return withImap(accountId, async (client) => {
     const folder = (await client.list()).find((item) => item.path === path);
@@ -182,6 +190,7 @@ export async function renameFolder(accountId: string, path: string, name: string
  * @returns {Promise<string>} New path.
  */
 export async function moveFolder(accountId: string, path: string, parent: string | null): Promise<string> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   return withImap(accountId, async (client) => {
     const folders = await client.list();
     const folder = folders.find((item) => item.path === path);
@@ -207,6 +216,7 @@ export async function moveFolder(accountId: string, path: string, parent: string
  * @returns {Promise<void>}
  */
 export async function deleteFolder(accountId: string, path: string): Promise<void> {
+  await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
     const folder = (await client.list()).find((item) => item.path === path);
     if (!folder) throw notFound('Dossier');
@@ -243,6 +253,7 @@ export async function createLabel(input: { name: string; color: string }): Promi
 export async function updateLabel(id: string, input: { name: string; color: string }): Promise<MailLabel> {
   const data = parseInput(labelSchema, input);
   await orNotFound(prisma.mailLabel.findUnique({ where: { id }, select: { id: true } }), 'Drapeau');
+  await assertNotArchived('MAIL_LABEL', id);
   return prisma.mailLabel.update({ where: { id }, data });
 }
 

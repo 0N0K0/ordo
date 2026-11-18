@@ -140,8 +140,8 @@ export interface FilterFields<F extends string> {
   groups: { group: string; fields: F[] }[];
   /** Field of a new condition. */
   first: F;
-  /** Select props of the values of a field of kind reference, multiReference, sprint or category. */
-  options: (field: F) => Pick<ComponentProps<typeof BatchMultiSelect>, 'data' | 'renderOption' | 'filter'>;
+  /** Select props of the values of a field of kind reference, multiReference, sprint or category, given its current values (offered even when archived). */
+  options: (field: F, values: readonly string[]) => Pick<ComponentProps<typeof BatchMultiSelect>, 'data' | 'renderOption' | 'filter'>;
   /** Whether a condition is complete (valid), so it applies. */
   isComplete: (condition: FilterConditionOf<F>) => boolean;
   /** Label of an operator of a field, instead of the one of its kind. Optional. */
@@ -203,7 +203,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
           size="xs"
           aria-label="Valeurs"
           placeholder="Choisir…"
-          {...fields.options(condition.field)}
+          {...fields.options(condition.field, Array.isArray(condition.value) ? condition.value : [])}
           value={Array.isArray(condition.value) ? condition.value : []}
           onChange={set}
           searchable

@@ -15,7 +15,7 @@ import {
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../settings/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
-import type { ColumnFilter, DataColumn } from './data-table';
+import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
@@ -61,6 +61,26 @@ function filterable<R>(columns: readonly DataColumn<R>[]) {
 }
 
 /**
+ * Choices a column filter offers: the archived ones left out, except those in the filter (a saved filter keeps its
+ * label); in a tree, an archived parent of choices offered stays, greyed out.
+ * @param {readonly ColumnChoice[]} options Choices of the column.
+ * @param {readonly string[]} values Values in the filter.
+ * @returns {ColumnChoice[]} Choices offered.
+ */
+function offeredChoices(options: readonly ColumnChoice[], values: readonly string[]): ColumnChoice[] {
+  if (!options.some((option) => option.archived)) return [...options];
+  const kept = new Set(values);
+  const offered = new Set(options.filter((option) => !option.archived || kept.has(option.value)).map((option) => option.value));
+  // Parents of the choices offered, to keep their tree.
+  const byValue = new Map(options.map((option) => [option.value, option]));
+  const parents = new Set<string>();
+  for (const value of offered) {
+    for (let parent = byValue.get(value)?.parent; parent && !parents.has(parent); parent = byValue.get(parent)?.parent) parents.add(parent);
+  }
+  return options.flatMap((option) => (offered.has(option.value) ? [option] : parents.has(option.value) ? [{ ...option, disabled: true }] : []));
+}
+
+/**
  * Fields of the filter builder of a table: its filterable columns.
  * @param {readonly DataColumn<R>[]} columns Columns.
  * @returns {FilterFields<string>} Fields.
@@ -75,9 +95,9 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
     labels: Object.fromEntries(fields.map(({ column }) => [column.id, column.label])),
     groups: [{ group: 'Colonnes', fields: fields.map(({ column }) => column.id) }],
     first: fields[0]?.column.id ?? '',
-    options: (field) => {
+    options: (field, values) => {
       const filter = fields.find(({ column }) => column.id === field)?.filter;
-      const options = filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [];
+      const options = offeredChoices(filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [], values);
       // Choices of a tree (categories, projects, tasks…) offered as their tree.
       return options.some((option) => option.depth !== undefined)
         ? treeSelectProps(options.map((option) => ({ ...option, name: option.name ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))

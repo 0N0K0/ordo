@@ -102,9 +102,10 @@ export function RoutinesCard({ today }: { today: string }) {
 export function ShoppingCard() {
   const { data } = useShoppingData();
   const { data: lists } = useShoppingLists();
-  const missing = (data?.shoppingProducts ?? []).filter((product) => product.missing).length;
+  // The archived products and lists apart.
+  const missing = (data?.shoppingProducts ?? []).filter((product) => product.missing && !product.archived).length;
   const open = (lists ?? [])
-    .filter((list) => !list.closed)
+    .filter((list) => !list.closed && !list.archived)
     .map((list) => ({ list, left: leftToBuy(list.items).length }))
     .sort((a, b) => b.list.createdAt.localeCompare(a.list.createdAt));
 

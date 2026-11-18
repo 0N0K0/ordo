@@ -13,6 +13,7 @@ const DocumentStatusesDocument = graphql(`
   query DocumentStatuses {
     documentStatuses {
       id
+      archived
       scope
       name
       color
@@ -28,6 +29,7 @@ const OverdueInvoicesDocument = graphql(`
   query OverdueInvoices($today: Date!) {
     overdueInvoices(today: $today) {
       id
+      archived
       type
       number
       clientId
@@ -119,12 +121,16 @@ export function useDocumentStatuses() {
 }
 
 /**
- * Final invoices still due after their due date, with their reminders.
+ * Final invoices still due after their due date, with their reminders (archived ones left out).
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {UseQueryResult} Query state.
  */
 export function useOverdueInvoices(today: string) {
-  return useQuery({ queryKey: [...accountingQueryKey, 'overdue', today], queryFn: async () => (await execute(OverdueInvoicesDocument, { today })).overdueInvoices });
+  // An archived invoice is not reminded (hidden from the day-to-day views).
+  return useQuery({
+    queryKey: [...accountingQueryKey, 'overdue', today],
+    queryFn: async () => (await execute(OverdueInvoicesDocument, { today })).overdueInvoices.filter((invoice) => !invoice.archived),
+  });
 }
 
 /**

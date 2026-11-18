@@ -8,7 +8,8 @@ import { execute } from '../../../lib/graphql-client';
 export type Dashboard = DashboardsQuery['dashboards'][number];
 export type DashboardChart = Dashboard['charts'][number];
 
-const dashboardsKey = ['dashboards'] as const;
+/** Root key of the dashboards queries. */
+export const dashboardsKey = ['dashboards'] as const;
 
 export type SprintTaskStatus = SprintTaskStatusesQuery['sprintTaskStatuses'][number];
 
@@ -42,6 +43,7 @@ const DashboardsDocument = graphql(`
     dashboards(projectId: $projectId) {
       id
       projectId
+      archived
       name
       position
       charts {

@@ -12,6 +12,7 @@ import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTaskContext } from '../hooks/use-task-context';
 import { countOf } from '../../../lib/text';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 
 /**
  * Contributors of a project: those attached to it, those inherited from a parent project, and "Moi".
@@ -33,9 +34,10 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
     contributor.projectIds.includes(projectId),
   );
   const directIds = direct.map((contributor) => contributor.id);
-  const members = context.assignableFor([projectId]);
+  // The archived ones attached stay listed (with their badge), but are not offered to be added.
+  const members = context.assignableFor([projectId], [], true);
   const others = context.contributors.filter(
-    (contributor) => !members.includes(contributor),
+    (contributor) => !contributor.archived && !members.includes(contributor),
   );
 
   /**
@@ -126,6 +128,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                           Tous les projets
                         </Badge>
                       )}
+                      {contributor.archived && <ArchivedBadge size="xs" />}
                       {inheritedFrom && (
                         <Badge size="xs" variant="light" color="gray">
                           Via{' '}

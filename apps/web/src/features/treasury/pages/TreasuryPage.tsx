@@ -14,7 +14,9 @@ import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleG
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -24,7 +26,17 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryAccount, type TreasuryEntry } from '../api';
+import {
+  treasuryKey,
+  useForecastEntries,
+  useTreasuryAccounts,
+  useTreasuryMutations,
+  useTreasuryProjection,
+  type ForecastEntry,
+  type ProjectionItem,
+  type TreasuryAccount,
+  type TreasuryEntry,
+} from '../api';
 import { CHART_SCALES } from '../lib/chart-period';
 import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
@@ -44,7 +56,7 @@ import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -213,6 +225,7 @@ export function TreasuryPage() {
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
   const { deleteEntry } = useTreasuryMutations();
+  const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
 
   const env = useEntryEnv(accounts ?? NO_ACCOUNTS);
@@ -227,12 +240,16 @@ export function TreasuryPage() {
       if (!next.delete(key)) next.add(key);
       return next;
     });
+  const columns = forecastColumns(forecastOf, env);
+  // Archived forecasts and documents are hidden unless the view includes them (they still count in the balances and the
+  // curve: real money).
   const forecastView = useDataView({
     tableKey: 'treasury-forecast',
     getKey: forecastKey,
-    columns: forecastColumns(forecastOf, env),
+    columns,
     rows: (projection?.items ?? []).map((item, index) => ({ item, index })),
     title: 'Prévisionnel',
+    archived: (row) => row.item.archived || (forecastOf(row)?.archived ?? false),
   });
   /**
    * Saves the forecast entries of rows, each once (a repeating one shows on several rows); rows without entry (an
@@ -245,7 +262,8 @@ export function TreasuryPage() {
     const seen = new Set<string>();
     for (const row of rows) {
       const entry = forecastOf(row);
-      if (!entry || seen.has(entry.id)) continue;
+      // An archived one is read only.
+      if (!entry || entry.archived || seen.has(entry.id)) continue;
       seen.add(entry.id);
       const change = changeFor(row);
       if (Object.keys(change).length) saveEntry(entry, change);
@@ -462,6 +480,17 @@ export function TreasuryPage() {
               ];
               return [
                 {
+                  ...archiveRowsAction({
+                    archived: entries.every((entry) => entry.archived),
+                    apply: (archived) => setArchived.mutateAsync({ ids: entries.map((entry) => entry.id), archived }),
+                    label: countOf(entries.length, 'prévision'),
+                    count: entries.length,
+                    feminine: true,
+                    clear,
+                  }),
+                  disabled: entries.length === 0,
+                },
+                {
                   ...deleteRowsAction(entries, {
                     title: 'Supprimer les prévisions',
                     risks: `${countOf(entries.length, 'prévision')} et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
@@ -483,14 +512,29 @@ export function TreasuryPage() {
             verticalSpacing="xs"
             highlightOnHover
             getKey={forecastKey}
+            isArchived={(row) => row.item.archived || (forecastOf(row)?.archived ?? false)}
             details={(row) => {
               const entry = forecastOf(row);
-              return entry && entry.lines.length > 0 && unfolded.has(forecastKey(row)) ? <EntryLinesTable entry={entry} env={env} save={saveEntry} /> : null;
+              return entry && !entry.archived && entry.lines.length > 0 && unfolded.has(forecastKey(row)) ? <EntryLinesTable entry={entry} env={env} save={saveEntry} /> : null;
             }}
             cells={(row) => {
               const { item } = row;
               const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
               const entry = forecastOf(row);
+              if (entry?.archived) {
+                // Read only: the texts of the columns.
+                return {
+                  ...Object.fromEntries(columns.map((column) => [column.id, column.text?.(row)])),
+                  label: (
+                    <Group gap={4} wrap="nowrap">
+                      <Text size="sm" truncate>
+                        {item.label}
+                      </Text>
+                      <ArchivedBadge size="xs" feminine={entry.status === 'FORECAST'} />
+                    </Group>
+                  ),
+                };
+              }
               return {
                 ...(entry ? entryFieldCells(entry, env, forecastSave(row)) : {}),
                 date: (
@@ -515,9 +559,12 @@ export function TreasuryPage() {
                 label: (
                   <>
                     {item.documentId ? (
-                      <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
-                        {item.label}
-                      </Anchor>
+                      <Group gap={4} wrap="nowrap">
+                        <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
+                          {item.label}
+                        </Anchor>
+                        {item.archived && <ArchivedBadge size="xs" />}
+                      </Group>
                     ) : (
                       <Group gap={4} wrap="nowrap">
                         {entry ? (
@@ -525,6 +572,7 @@ export function TreasuryPage() {
                         ) : (
                           <Text size="sm">{item.label}</Text>
                         )}
+                        {!entry && item.archived && <ArchivedBadge size="xs" />}
                         <EntryUrl url={entry?.url} label={item.label} />
                         {entry && entry.lines.length > 0 && (
                           <DetailsToggle opened={unfolded.has(forecastKey(row))} count={entry.lines.length} label={item.label} onToggle={() => unfold(forecastKey(row))} />
@@ -568,17 +616,29 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
+              const archiveItem = {
+                label: entry.archived ? 'Restaurer' : 'Archiver',
+                icon: entry.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                onClick: () => void archiveWithUndo(setArchived, { ids: [entry.id], archived: !entry.archived, label: `« ${entry.label} »`, feminine: forecast }),
+              };
               return (
                 <RowActions
                   name={item.label}
                   primary={
-                    forecast
-                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
-                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
+                    entry.archived
+                      ? archiveItem
+                      : forecast
+                        ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
+                        : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
                   }
                   items={[
-                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) },
-                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry, copy: true }) },
+                    forecast && !entry.archived && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) },
+                    !entry.archived && {
+                      label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement',
+                      icon: <CopyIcon aria-hidden />,
+                      onClick: () => openDialog({ kind: 'entry', entry, copy: true }),
+                    },
+                    !entry.archived && archiveItem,
                     {
                       label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
                       icon: <TrashIcon aria-hidden />,

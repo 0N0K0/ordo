@@ -19,6 +19,7 @@ import {
   type WorkScheduleRule,
 } from "@ordo/shared";
 import { nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from "../../db";
 import {
   Prisma,
@@ -56,11 +57,13 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
 }
 
 /**
- * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it).
+ * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
+ * is refused unless it is the current one.
  * @param {WorkScheduleInput} input Schedule.
+ * @param {string | null} [currentTypeId] Kind of the schedule changed. Optional.
  * @returns {Promise<object>} Data.
  */
-async function scheduleData(input: WorkScheduleInput) {
+async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
   if (
     schedule.typeId &&
@@ -70,6 +73,7 @@ async function scheduleData(input: WorkScheduleInput) {
     }))
   )
     throw notFound("Type de plage");
+  if (schedule.typeId !== currentTypeId) await assertNotArchived('scheduleType', schedule.typeId);
   return {
     typeId: schedule.typeId ?? null,
     name: schedule.name,
@@ -106,14 +110,13 @@ export async function updateWorkSchedule(
   id: string,
   input: WorkScheduleInput,
 ): Promise<WorkSchedule> {
-  const data = await scheduleData(input);
-  if (
-    !(await prisma.workSchedule.findUnique({
-      where: { id },
-      select: { id: true },
-    }))
-  )
-    throw notFound("Plage de travail");
+  const current = await prisma.workSchedule.findUnique({
+    where: { id },
+    select: { id: true, typeId: true },
+  });
+  if (!current) throw notFound("Plage de travail");
+  await assertNotArchived('workSchedule', id);
+  const data = await scheduleData(input, current.typeId);
   return prisma.workSchedule.update({ where: { id }, data });
 }
 
@@ -146,6 +149,7 @@ export async function saveScheduleType(
     }))
   )
     throw notFound("Type de plage");
+  await assertNotArchived('scheduleType', id);
   try {
     if (id) return await prisma.scheduleType.update({ where: { id }, data });
     return await prisma.scheduleType.create({

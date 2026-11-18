@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import type { CalendarCategory } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Loads a category or throws NOT_FOUND.
@@ -42,6 +43,7 @@ async function nextPosition(parentId: string | null): Promise<number> {
 export async function createCalendarCategory(input: CalendarCategoryFormValues): Promise<CalendarCategory> {
   const data = parseInput(calendarCategoryFormSchema, input);
   await assertParent(data.parentId, null);
+  await assertNotArchived('calendarCategory', data.parentId);
   return prisma.calendarCategory.create({ data: { ...data, position: await nextPosition(data.parentId) } });
 }
 
@@ -53,9 +55,12 @@ export async function createCalendarCategory(input: CalendarCategoryFormValues):
  */
 export async function updateCalendarCategory(id: string, input: CalendarCategoryFormValues): Promise<CalendarCategory> {
   const category = await findCategory(id);
+  await assertNotArchived('calendarCategory', id);
   const data = parseInput(calendarCategoryFormSchema, input);
   await assertParent(data.parentId, id);
   const moved = data.parentId !== category.parentId;
+  // An archived category takes no new sub-category.
+  if (moved) await assertNotArchived('calendarCategory', data.parentId);
   return prisma.calendarCategory.update({
     where: { id },
     data: { ...data, ...(moved && { position: await nextPosition(data.parentId) }) },
@@ -81,6 +86,7 @@ export async function deleteCalendarCategory(id: string): Promise<void> {
  */
 export async function moveCalendarCategory(id: string, index: number, parentId?: string | null): Promise<void> {
   let category = await findCategory(id);
+  await assertNotArchived('calendarCategory', id);
   if (parentId !== undefined && parentId !== category.parentId) category = await updateCalendarCategory(id, { name: category.name, color: category.color, parentId });
   await moveInList('calendarCategory', id, index, { parentId: category.parentId });
 }

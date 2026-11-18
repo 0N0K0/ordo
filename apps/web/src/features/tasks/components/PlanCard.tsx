@@ -20,7 +20,8 @@ interface PlanCardProps {
   /** Description (or goal), its boxes ticked in place. Optional. */
   description?: string | null;
   targets: ReferenceTargets;
-  onDescription: (description: string) => void;
+  /** Saves its description with a box ticked; none: read only (archived). Optional. */
+  onDescription?: (description: string) => void;
 }
 
 /**

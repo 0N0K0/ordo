@@ -25,6 +25,7 @@ const ShoppingDataDocument = graphql(`
   query ShoppingData {
     shoppingCategories {
       id
+      archived
       name
       color
       iconUrl
@@ -34,6 +35,7 @@ const ShoppingDataDocument = graphql(`
     }
     shoppingStorages {
       id
+      archived
       name
       color
       iconUrl
@@ -41,6 +43,7 @@ const ShoppingDataDocument = graphql(`
     }
     shoppingUnits {
       id
+      archived
       name
       color
       iconUrl
@@ -48,6 +51,7 @@ const ShoppingDataDocument = graphql(`
     }
     shoppingStores {
       id
+      archived
       name
       color
       iconUrl
@@ -55,6 +59,7 @@ const ShoppingDataDocument = graphql(`
     }
     shoppingBaseLists {
       id
+      archived
       name
       color
       iconUrl
@@ -62,6 +67,7 @@ const ShoppingDataDocument = graphql(`
     }
     shoppingProducts {
       id
+      archived
       baseListId
       name
       categoryId
@@ -91,6 +97,7 @@ const ShoppingListsDocument = graphql(`
   query ShoppingLists($taskId: ID) {
     shoppingLists(taskId: $taskId) {
       id
+      archived
       name
       taskIds
       entryId

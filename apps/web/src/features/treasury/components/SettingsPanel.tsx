@@ -107,7 +107,7 @@ export function CategoryForm({ category, direction = 'OUT', parentId = null, cat
           clearable
           searchable
           placeholder="Aucune (catégorie principale)"
-          {...treeSelectProps(categoryOptions(categories, form.values.direction, category?.id))}
+          {...treeSelectProps(categoryOptions(categories, form.values.direction, category?.id, category?.parentId))}
           {...form.getInputProps('parentId')}
         />
         <FormActions loading={createCategory.isPending || updateCategory.isPending} onCancel={() => onDone()} />
@@ -358,13 +358,6 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       create={async (values) => createdId(await createCounterparty.mutateAsync(input(values)))}
       update={(id, values) => updateCounterparty.mutateAsync({ id, input: input(values) })}
       remove={(id) => deleteCounterparty.mutateAsync(id)}
-      renderBadges={(counterparty) =>
-        counterparty.archived && (
-          <Badge size="xs" color="gray">
-            Archivé
-          </Badge>
-        )
-      }
       deleteMessage={(counterparty) => (
         <>
           « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''} Cette
@@ -401,7 +394,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          {...treeSelectProps(categoryOptions(categories, 'IN'))}
+          {...treeSelectProps(categoryOptions(categories, 'IN', undefined, current.invoiceCategoryId))}
           value={current.invoiceCategoryId}
           onChange={(value) => save({ invoiceCategoryId: value })}
         />
@@ -410,7 +403,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          {...treeSelectProps(categoryOptions(categories, 'OUT'))}
+          {...treeSelectProps(categoryOptions(categories, 'OUT', undefined, current.creditNoteCategoryId))}
           value={current.creditNoteCategoryId}
           onChange={(value) => save({ creditNoteCategoryId: value })}
         />

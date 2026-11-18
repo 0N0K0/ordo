@@ -5,8 +5,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Group, Stack, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
-import { useMemo } from 'react';
+import { ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, CheckCircleIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { onMutationError } from '../../../lib/notify';
@@ -14,10 +14,10 @@ import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use
 import { EditableText } from '../../../components/data-table/cells/EditableCells';
 import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
+import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
 import { BaseLists } from '../components/BaseLists';
 import { ShoppingSettings } from '../components/ShoppingSettings';
 import { shoppingTotal } from '../lib/export';
@@ -28,14 +28,18 @@ import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGroup
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
-import { deleteRowsAction, duplicateRowsAction, forEachRow } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction, duplicateRowsAction, forEachRow } from '../../../components/data-table/selection/selection-actions';
+import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { localDay } from '../../../lib/dates';
+import { useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 
-/** Views made the first time: the lists in progress, the archived ones. */
+/** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
   { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
-  { name: 'Archivées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
+  { name: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
 ];
 
 /** What the columns of the lists need: the tasks, the categories and the stores. */
@@ -101,13 +105,13 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       size: 110,
       hiddenByDefault: true,
       sortValue: (list) => (stateOf(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (stateOf(list) === 'CLOSED' ? 'Archivée' : 'En cours'),
+      text: (list) => (stateOf(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
       filter: {
         kind: 'choice',
         value: stateOf,
         options: [
           { value: 'OPEN', label: 'En cours' },
-          { value: 'CLOSED', label: 'Archivée' },
+          { value: 'CLOSED', label: 'Clôturée' },
         ],
       },
     },
@@ -149,7 +153,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     },
     {
       id: 'closedAt',
-      label: 'Archivée le',
+      label: 'Clôturée le',
       size: 110,
       hiddenByDefault: true,
       sortValue: (list) => (list.closedAt ? String(list.closedAt) : null),
@@ -174,7 +178,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
-        options: categoryOptions(env.categories),
+        options: withArchived(categoryOptions(env.categories), env.categories),
       },
     },
     {
@@ -186,7 +190,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
-        options: env.stores.map((store) => ({ value: store.id, label: store.name })),
+        options: env.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })),
       },
     },
     {
@@ -201,9 +205,10 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
 }
 
 /**
- * Shopping lists, the data table of every table: tabs of views (« En cours » and « Archivées » made at first), each with
+ * Shopping lists, the data table of every table: tabs of views (« En cours » and « Clôturées » made at first), each with
  * its search, filters, sorts and groups; the name and the tasks of an open list changed in place (or of the lists
- * checked), the actions of each one in its menu (as on its page). On a project page, only the lists of its tasks, with
+ * checked), the actions of each one in its menu (as on its page). The archived lists are hidden until « Afficher les
+ * archivées », read only. On a project page, only the lists of its tasks, with
  * the views of the project.
  * @param {{ projectId?: string, projectIds?: ReadonlySet<string> }} props Component props.
  * @param {string} [props.projectId] Project of the page (its views). Optional.
@@ -219,28 +224,32 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
   const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
+  const setArchived = useSetArchived('SHOPPING_LIST', [shoppingKey]);
+  const [showArchived, setShowArchived] = useState(false);
   const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
   const closedOf = (list: ShoppingList) => listClosed(list, context);
+  // Archived or closed: read only.
+  const lockedOf = (list: ShoppingList) => list.archived || closedOf(list);
   const columns = useMemo(
     () => [...listColumns({ context, categories: shopping?.shoppingCategories ?? [], stores: shopping?.shoppingStores ?? [] }), commentColumn<ShoppingList>(listComments, (list) => list.id)],
     [context, shopping, listComments],
   );
   // Without sort, the latest first.
   const rows = useMemo(
-    () => [...(projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []))].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
-    [lists, context, projectIds],
+    () => [...visibleItems(projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []), showArchived)].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+    [lists, context, projectIds, showArchived],
   );
   const view = useDataView({ tableKey: 'shopping-lists', projectId: projectId ?? null, columns, rows, title: 'Listes d’achats', first: LIST_VIEWS, getKey: (list) => list.id });
 
   /**
-   * Saves lists, the closed ones left as they are.
+   * Saves lists, the closed and archived ones left as they are.
    * @param {ShoppingList[]} targets Lists.
    * @param {(list: ShoppingList) => { name?: string, taskIds?: string[] }} changeFor Change of each.
    * @returns {void}
    */
   const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { name?: string; taskIds?: string[] }) => {
     for (const list of targets) {
-      if (closedOf(list)) continue;
+      if (lockedOf(list)) continue;
       const change = changeFor(list);
       updateList.mutate({ id: list.id, name: change.name ?? list.name, taskIds: change.taskIds ?? list.taskIds }, { onError: onMutationError });
     }
@@ -258,9 +267,12 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         searchLabel: 'Rechercher (liste, produit)',
         manualText: 'Sans tri : les listes les plus récentes d’abord.',
         actions: (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ projectIds })}>
-            Nouvelle liste
-          </ActionButton>
+          <Group gap="md">
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(lists ?? []).filter((list) => list.archived).length} label="Afficher les archivées" />
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ projectIds })}>
+              Nouvelle liste
+            </ActionButton>
+          </Group>
         ),
       }}
       empty={<EmptyState icon={<ListChecksIcon aria-hidden />} message={projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.'} />}
@@ -271,12 +283,13 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
           name: (
             <Group gap="xs" wrap="nowrap">
-              <EditableText value={list.name} label={`Nom de la liste ${list.name}`} strong readOnly={closedOf(list)} onSave={(name) => name && bulk('name')(list, { name })} />
+              <EditableText value={list.name} label={`Nom de la liste ${list.name}`} strong readOnly={lockedOf(list)} onSave={(name) => name && bulk('name')(list, { name })} />
               <Tooltip label="Ouvrir la liste">
                 <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
                   <ArrowSquareInIcon aria-hidden />
                 </ActionIcon>
               </Tooltip>
+              {list.archived && <ArchivedBadge feminine size="sm" />}
               {list.entryId && (
                 <Badge size="xs" variant="light" tt="none">
                   Payée
@@ -287,7 +300,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           tasks: (
             <TasksCell
               label={`Tâches de la liste ${list.name}`}
-              readOnly={closedOf(list) || !context}
+              readOnly={lockedOf(list) || !context}
               items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.title}` }))}
               options={taskOptions(context, list.taskIds)}
               value={list.taskIds}
@@ -306,26 +319,42 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           <ListActionsMenu list={list} grouping={grouping} />
         </Group>
       )}
-      isArchived={closedOf}
+      isArchived={lockedOf}
       selectionLabel={(count) => selectedLabel(count, ['liste', 'listes'])}
       selectionActions={(checked, clear) => {
         const allClosed = checked.every((list) => list.closedAt);
+        const allArchived = checked.every((list) => list.archived);
+        // An archived list is read only: no copy, no close.
+        const changes: SelectionAction[] = checked.some((list) => list.archived)
+          ? []
+          : [
+              duplicateRowsAction(checked, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'dupliquée')}.` }),
+              allClosed
+                ? {
+                    label: 'Rouvrir',
+                    icon: <ArrowCounterClockwiseIcon aria-hidden />,
+                    onClick: () =>
+                      void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: false }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'rouverte')}.`),
+                  }
+                : {
+                    label: 'Clôturer',
+                    icon: <CheckCircleIcon aria-hidden />,
+                    onClick: () =>
+                      void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: true }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'clôturée')}.`).then(
+                        (all) => all && clear(),
+                      ),
+                  },
+            ];
         return [
-          duplicateRowsAction(checked, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'dupliquée')}.` }),
-          allClosed
-            ? {
-                label: 'Rouvrir',
-                icon: <ArrowCounterClockwiseIcon aria-hidden />,
-                onClick: () => void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: false }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'rouverte')}.`),
-              }
-            : {
-                label: 'Archiver',
-                icon: <ArchiveIcon aria-hidden />,
-                onClick: () =>
-                  void forEachRow(checked, (list) => setClosed.mutateAsync({ id: list.id, closed: true }), `${countOf(checked.length, 'liste')} ${plural(checked.length, 'archivée')}.`).then(
-                    (all) => all && clear(),
-                  ),
-              },
+          ...changes,
+          archiveRowsAction({
+            archived: allArchived,
+            apply: (archived) => setArchived.mutateAsync({ ids: checked.map((list) => list.id), archived }),
+            label: countOf(checked.length, 'liste'),
+            count: checked.length,
+            feminine: true,
+            clear,
+          }),
           deleteRowsAction(checked, {
             title: 'Supprimer les listes',
             risks: `${countOf(checked.length, 'liste')} et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,

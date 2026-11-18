@@ -22,5 +22,6 @@ import './modules/stock';
 import './modules/shopping';
 import './modules/routines';
 import './modules/settings-lists';
+import './modules/archive';
 
 export const schema = builder.toSchema();

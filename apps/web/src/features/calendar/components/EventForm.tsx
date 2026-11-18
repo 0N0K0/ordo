@@ -6,10 +6,10 @@ import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
 
 import { TimeField } from '../../../components/inputs/TimeField';
-import { ActionIcon, Alert, Anchor, Button, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -19,7 +19,10 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
-import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from '../api';
+import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from '../api';
+import { archivedCalendarIds } from '../lib/calendar-events';
+import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { useTimeMutations } from '../../time/api';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
@@ -127,7 +130,8 @@ interface EventFormProps {
  * project, contributors, categories, tasks, reminders, description; a timer can be started on it. An event can be cancelled (kept struck through)
  * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
  * when it falls outside the working hours. For an occurrence of a recurring event, saving, deleting,
- * cancelling and restoring ask which occurrences are concerned.
+ * cancelling and restoring ask which occurrences are concerned. An archived event (or one of an archived calendar)
+ * opens read only: it can be restored or deleted.
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -168,6 +172,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { data: treasury } = useTreasurySettings();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
+  const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
+  // Archived (its series), or in an archived calendar (its container): read only.
+  const calendarArchived = occurrence ? archivedCalendarIds(calendars).has(occurrence.calendarId) : false;
+  const readOnly = Boolean(occurrence?.archived) || calendarArchived;
+  // Without a choice, the event goes into the first calendar not archived.
+  const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
   const today = localToday();
   const initial: CalendarEventInput = occurrence
@@ -223,6 +233,16 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     return [{ value: key, label: multiDay ? `${routine.title} (${fmt.weekday(link.date)})` : routine.title }];
   });
   const recurring = occurrence?.occurrenceDate != null;
+
+  /**
+   * Archives the event (its whole series) or restores it, with an undo, then closes the form.
+   * @returns {Promise<void>}
+   */
+  const handleArchive = async () => {
+    if (!occurrence) return;
+    await archiveWithUndo(setArchived, { ids: [occurrence.eventId], archived: !occurrence.archived, label: `« ${occurrence.title} »` });
+    onDone();
+  };
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
 
@@ -320,6 +340,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
+        {readOnly && (
+          <Alert color="gray" icon={<ArchiveIcon aria-hidden />} title={<Group gap="xs">{calendarArchived ? 'Calendrier archivé' : 'Évènement archivé'}<ArchivedBadge size="sm" /></Group>}>
+            {calendarArchived ? 'Restaurez son calendrier pour modifier l’évènement.' : 'Restaurez-le pour le modifier.'}
+          </Alert>
+        )}
         {occurrence?.calledOff && (
           <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">
             Il reste dans l’agenda, barré.{' '}
@@ -350,6 +375,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             .
           </Text>
         )}
+        <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="md">
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
         <EventRepetition
           ruleStart={ruleStart}
@@ -428,13 +455,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <Select
             label="Calendrier"
             description={recurring ? 'Pour toute la série.' : undefined}
-            {...listSelectProps(calendars)}
-            // Without a choice, the event goes into the first calendar.
-            value={values.calendarId ?? calendars[0]?.id ?? null}
+            {...listSelectProps(calendars, undefined, values.calendarId ?? occurrence?.calendarId)}
+            // Without a choice, the event goes into the first calendar not archived.
+            value={values.calendarId ?? defaultCalendarId}
             onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
             allowDeselect={false}
             leftSection={(() => {
-              const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? calendars[0]?.id));
+              const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
               return current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined;
             })()}
           />
@@ -477,7 +504,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             onCreate={async (name) => (await createCategory.mutateAsync({ name, color, parentId: null })).id}
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
-            {...treeSelectProps(categoryOptions(categories ?? []))}
+            // Archived categories are no longer offered, but those of the event stay.
+            {...treeSelectProps(categoryOptions(categories ?? [], undefined, unarchivedOffered(categories ?? [], values.categoryIds)))}
             searchable
             clearable
             nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
@@ -546,11 +574,24 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           suggestions={context.suggestionsFor(values.projectId ?? null)}
           minRows={3}
         />
-        {occurrence && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={String(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
+        </Stack>
+        </Fieldset>
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={String(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
         {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
 
         <Group justify="space-between" gap="sm">
-          {occurrence ? (
+          {occurrence && readOnly ? (
+            <Group gap={4}>
+              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
+                Supprimer
+              </DestructiveButton>
+              {!calendarArchived && (
+                <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
+                  Restaurer
+                </Button>
+              )}
+            </Group>
+          ) : occurrence ? (
             <Group gap={4}>
               <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
                 Supprimer
@@ -584,11 +625,20 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                   </Button>
                 </>
               )}
+              <Button variant="subtle" color="gray" leftSection={<ArchiveIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
+                Archiver
+              </Button>
             </Group>
           ) : (
             <span />
           )}
-          <FormActions onCancel={onDone} submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'} loading={create.isPending || update.isPending} />
+          {readOnly ? (
+            <Button variant="default" onClick={onDone}>
+              Fermer
+            </Button>
+          ) : (
+            <FormActions onCancel={onDone} submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'} loading={create.isPending || update.isPending} />
+          )}
         </Group>
       </Stack>
     </form>

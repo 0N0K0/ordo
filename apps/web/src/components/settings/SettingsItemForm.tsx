@@ -11,7 +11,7 @@ import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
 import { FormActions } from '../dialogs/FormActions';
 
-/** Item of a settings list: a name, a color, an image and, in a tree, a parent. */
+/** Item of a settings list: a name, a color, an image, whether it is archived and, in a tree, a parent. */
 export interface SettingsItem {
   id: string;
   name: string;
@@ -19,6 +19,8 @@ export interface SettingsItem {
   iconUrl?: string | null;
   parentId?: string | null;
   position?: number;
+  /** Archived: hidden behind « Afficher les archivés », read only (restored, or deleted). */
+  archived: boolean;
 }
 
 /** Values of the form of an item: its name, color and parent, and those of its list (`E`). */

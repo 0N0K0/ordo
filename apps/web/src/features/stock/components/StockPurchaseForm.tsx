@@ -9,11 +9,14 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { useShoppingData, type ShoppingItem } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchivedOffered } from '../../../lib/archive';
 
-type Line = { item: ShoppingItem; quantity: number; locationId: string | null; expiresAt: string | null };
+/** Item bought; its place is undefined until chosen (its default then). */
+type Line = { item: ShoppingItem; quantity: number; locationId?: string | null; expiresAt: string | null };
 
 /**
- * Items bought added to the stock: for each, how much, where (the place of its reference by default), until when.
+ * Items bought added to the stock: for each, how much, where (the place of its reference by default; archived, the
+ * first place not archived), until when.
  * @param {{ items: ShoppingItem[], onDone: () => void }} props Items bought, and what follows.
  * @returns {JSX.Element} Form.
  */
@@ -26,16 +29,26 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
     items.map((item) => ({
       item,
       quantity: item.quantity ?? 1,
-      locationId: (item.productId ? products.get(item.productId)?.stockLocationId : null) ?? null,
       expiresAt: item.expiresAt ? String(item.expiresAt).slice(0, 10) : null,
     })),
   );
+  /**
+   * Place of a line: the one chosen, else the place of its reference, or the first place not archived when that one is.
+   * @param {Line} line Line.
+   * @returns {string | null} Place id, or none.
+   */
+  const locationOf = (line: Line): string | null => {
+    if (line.locationId !== undefined) return line.locationId;
+    const preferred = (line.item.productId ? products.get(line.item.productId)?.stockLocationId : null) ?? null;
+    const location = preferred ? locations?.find((item) => item.id === preferred) : undefined;
+    return location?.archived ? (locations?.find((item) => !item.archived)?.id ?? null) : preferred;
+  };
   const { run: add, loading } = useAsyncAction(
     () =>
       Promise.all(
         lines
           .filter((line) => line.quantity > 0)
-          .map((line) => addPurchase.mutateAsync({ shoppingItemId: line.item.id, quantity: line.quantity, locationId: line.locationId, expiresAt: line.expiresAt })),
+          .map((line) => addPurchase.mutateAsync({ shoppingItemId: line.item.id, quantity: line.quantity, locationId: locationOf(line), expiresAt: line.expiresAt })),
       ),
     { success: 'Ajouté au stock.', onDone },
   );
@@ -59,8 +72,8 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
                 placeholder="Aucun"
                 clearable
                 searchable
-                {...treeSelectProps(categoryOptions(locations ?? []))}
-                value={line.locationId}
+                {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], locationOf(line))))}
+                value={locationOf(line)}
                 onChange={(locationId) => change(index, { locationId })}
               />
               <DatePickerInput size="xs" label="Péremption" placeholder="Aucune" clearable value={line.expiresAt} onChange={(value) => change(index, { expiresAt: value ? String(value) : null })} />

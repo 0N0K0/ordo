@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
-import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../../graphql/graphql';
+import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarEventsQuery, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { tasksQueryKey } from '../../tasks/api';
 
@@ -39,6 +39,7 @@ graphql(`
     travelAfter
     projectId
     calendarId
+    archived
     contributorIds
     relationIds
     beneficiaryIds
@@ -69,6 +70,7 @@ const WorkSchedulesDocument = graphql(`
   query WorkSchedules {
     workSchedules {
       id
+      archived
       name
       startDate
       endDate
@@ -78,6 +80,7 @@ const WorkSchedulesDocument = graphql(`
     }
     scheduleTypes {
       id
+      archived
       name
       color
       iconUrl
@@ -208,6 +211,7 @@ const CalendarCategoriesDocument = graphql(`
   query CalendarCategories {
     calendarCategories {
       id
+      archived
       name
       color
       iconUrl
@@ -222,6 +226,10 @@ const CalendarEventsDocument = graphql(`
     calendarEvents(from: $from, to: $to) {
       ...CalendarEventOccurrenceFields
     }
+    calendars {
+      id
+      archived
+    }
   }
 `);
 
@@ -229,6 +237,7 @@ const CalendarsDocument = graphql(`
   query Calendars {
     calendars {
       id
+      archived
       name
       color
       iconUrl
@@ -359,7 +368,8 @@ const MaterializeTaskOccurrencesDocument = graphql(`
   }
 `);
 
-const calendarQueryKey = ['calendar'] as const;
+/** Root key of the calendar queries (events, calendars, categories, schedules). */
+export const calendarQueryKey = ['calendar'] as const;
 
 export type CalendarCategory = Awaited<ReturnType<typeof fetchCategories>>[number];
 
@@ -380,27 +390,41 @@ export function useCalendarCategories() {
 }
 
 /**
- * Event occurrences of a period.
+ * Occurrences of a period, those archived (their event, or their calendar: the container) left out unless asked.
+ * @param {CalendarEventsQuery} data Occurrences and calendars.
+ * @param {boolean} [includeArchived] Archived ones kept. Optional. Default = left out.
+ * @returns {EventOccurrence[]} Occurrences.
+ */
+function occurrencesOf(data: CalendarEventsQuery, includeArchived = false): EventOccurrence[] {
+  if (includeArchived) return data.calendarEvents;
+  const archived = new Set(data.calendars.filter((calendar) => calendar.archived).map((calendar) => calendar.id));
+  return data.calendarEvents.filter((occurrence) => !occurrence.archived && !archived.has(occurrence.calendarId));
+}
+
+/**
+ * Event occurrences of a period: the archived ones (and those of archived calendars) left out unless asked.
  * @param {{ from: string, to: string } | null} range Dates, included.
+ * @param {boolean} [includeArchived] Archived ones too (the agenda, on demand). Optional. Default = left out.
  * @returns {UseQueryResult} Query state.
  */
-export function useCalendarEvents(range: { from: string; to: string } | null) {
+export function useCalendarEvents(range: { from: string; to: string } | null, includeArchived = false) {
   return useQuery({
-    queryKey: [...calendarQueryKey, 'events', range],
-    queryFn: async () => (await execute(CalendarEventsDocument, range!)).calendarEvents,
+    queryKey: [...calendarQueryKey, 'events', range, includeArchived],
+    queryFn: async () => occurrencesOf(await execute(CalendarEventsDocument, range!), includeArchived),
     enabled: range !== null,
     placeholderData: (previous) => previous,
   });
 }
 
 /**
- * Event occurrences of a period (reminders included), of the workspace of this tab or of another one.
+ * Event occurrences of a period (reminders included), of the workspace of this tab or of another one; the archived
+ * ones (and those of archived calendars) left out.
  * @param {{ from: string, to: string }} range First and last days.
  * @param {string} [workspace] Another workspace (its notifications). Optional.
  * @returns {Promise<EventOccurrence[]>} Occurrences.
  */
 export async function fetchCalendarEvents(range: { from: string; to: string }, workspace?: string): Promise<EventOccurrence[]> {
-  return (await (workspace ? executeIn(workspace, CalendarEventsDocument, range) : execute(CalendarEventsDocument, range))).calendarEvents;
+  return occurrencesOf(await (workspace ? executeIn(workspace, CalendarEventsDocument, range) : execute(CalendarEventsDocument, range)));
 }
 
 export type Calendar = CalendarsQuery['calendars'][number];

@@ -12,6 +12,7 @@ import { useStockItems, useStockLocations, useStockMutations, type StockItem } f
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchivedOffered } from '../../../lib/archive';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -34,7 +35,8 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
    * @returns {boolean} Kept.
    */
   const within = (id: string | null | undefined) => !locationId || (!!id && isUnderOrSelf(parentOf, id, locationId));
-  const rows = (items ?? []).filter((item) => within(item.locationId));
+  // The archived items are not counted.
+  const rows = (items ?? []).filter((item) => !item.archived && within(item.locationId));
   const columns: DataColumn<StockItem>[] = [
     { id: 'label', label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
     { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
@@ -52,7 +54,15 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
   return (
     <Stack gap="md">
-      <Select label="Emplacement" placeholder="Tout le stock" clearable searchable {...treeSelectProps(categoryOptions(locations ?? []))} value={locationId} onChange={setLocationId} />
+      <Select
+        label="Emplacement"
+        placeholder="Tout le stock"
+        clearable
+        searchable
+        {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], locationId)))}
+        value={locationId}
+        onChange={setLocationId}
+      />
       <Text size="xs" c="dimmed">
         Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l’écart avec l’attendu est noté dans l’historique.
       </Text>

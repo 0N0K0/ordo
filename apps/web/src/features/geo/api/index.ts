@@ -15,6 +15,7 @@ const PlacesDocument = graphql(`
   query Places {
     places {
       id
+      archived
       name
       address
       parentId

@@ -32,6 +32,7 @@ type TasksData = TasksDataQuery;
 graphql(`
   fragment ContributorFields on Contributor {
     id
+    archived
     name
     handle
     avatarUrl
@@ -43,6 +44,7 @@ graphql(`
 graphql(`
   fragment SprintFields on Sprint {
     id
+    archived
     projectId
     name
     goal
@@ -54,6 +56,7 @@ graphql(`
 graphql(`
   fragment MilestoneFields on Milestone {
     id
+    archived
     projectId
     title
     description
@@ -65,6 +68,7 @@ graphql(`
 graphql(`
   fragment TaskLabelFields on TaskStatus {
     id
+    archived
     name
     color
     iconUrl
@@ -138,6 +142,7 @@ const TasksDataDocument = graphql(`
     }
     taskPriorities {
       id
+      archived
       name
       color
       iconUrl
@@ -145,6 +150,7 @@ const TasksDataDocument = graphql(`
     }
     taskTypes {
       id
+      archived
       name
       color
       iconUrl
@@ -152,6 +158,7 @@ const TasksDataDocument = graphql(`
     }
     taskTags {
       id
+      archived
       name
       color
       iconUrl

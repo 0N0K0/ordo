@@ -1,7 +1,8 @@
 import { plural, countOf } from '../../../lib/text';
-import { Anchor, Text } from '@mantine/core';
-import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
-import { ClipboardTextIcon, CopyIcon, CookingPotIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { Anchor, Group, Text } from '@mantine/core';
+import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -19,11 +20,14 @@ import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
-import { useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
+import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
 import { sheetInput } from '../lib/sheet-format';
-import { deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 
 /**
  * Columns of the sheets.
@@ -53,7 +57,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       filter: {
         kind: 'choices',
         value: (sheet) => sheet.categoryIds,
-        options: itemOptions(categories),
+        options: itemChoices(categories),
       },
       groupable: true,
     },
@@ -97,7 +101,8 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
 
 /**
  * Sheets (of the workspace, or of a project) in a table like every other: each opens its page (its items there);
- * categories and project changed in place (and in bulk); used (taken from the stock), copied, deleted.
+ * categories and project changed in place (and in bulk); used (taken from the stock), copied, archived (hidden until
+ * « Afficher les archivées », read only), deleted.
  * @param {{ projectId?: string | null }} props Project of the tab (none: every sheet). Optional.
  * @returns {JSX.Element} Table.
  */
@@ -107,16 +112,22 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
   const { data: categories } = useSheetCategories();
   const { context } = useTaskContext();
   const { create, update, duplicate, remove } = useSheetMutations();
+  const setArchived = useSetArchived('SHEET', [sheetsKey]);
+  const [showArchived, setShowArchived] = useState(false);
   const view = useDataView({
     tableKey: 'sheets',
     projectId,
     getKey: (sheet) => sheet.id,
     columns: sheetColumns(context, categories ?? [], projectId !== null),
-    rows: sheets ?? [],
+    rows: [...visibleItems(sheets ?? [], showArchived)],
     title: 'Fiches',
   });
   const onError = { onError: onMutationError };
-  const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(view, (sheet, change) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError));
+  // The archived sheets are left as they are.
+  const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(
+    view,
+    (sheet, change) => !sheet.archived && update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError),
+  );
 
   /**
    * Creates a sheet and opens its page.
@@ -129,8 +140,21 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       framed
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['fiche', 'fiches'])}
+      isArchived={(sheet) => sheet.archived}
+      readOnly={(sheet) => sheet.archived}
       selectionActions={(rows, clear) => [
-        duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` }),
+        // An archived sheet is not copied.
+        ...(rows.some((sheet) => sheet.archived)
+          ? []
+          : [duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` })]),
+        archiveRowsAction({
+          archived: rows.every((sheet) => sheet.archived),
+          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((sheet) => sheet.id), archived }),
+          label: countOf(rows.length, 'fiche'),
+          count: rows.length,
+          feminine: true,
+          clear,
+        }),
         deleteRowsAction(rows, {
           title: 'Supprimer les fiches',
           risks: `${countOf(rows.length, 'fiche')} et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
@@ -144,9 +168,12 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       bar={{
         searchLabel: 'Rechercher (nom, élément)',
         actions: (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={createSheet} loading={create.isPending}>
-            Nouvelle fiche
-          </ActionButton>
+          <Group gap="md">
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(sheets ?? []).filter((sheet) => sheet.archived).length} label="Afficher les archivées" />
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={createSheet} loading={create.isPending}>
+              Nouvelle fiche
+            </ActionButton>
+          </Group>
         ),
       }}
       empty={
@@ -159,16 +186,20 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/sheets/${sheet.id}`) })}
       cells={(sheet) => ({
         name: (
-          <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
-            {sheet.name}
-          </Anchor>
+          <Group gap="xs" wrap="nowrap">
+            <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+              {sheet.name}
+            </Anchor>
+            {sheet.archived && <ArchivedBadge feminine size="xs" />}
+          </Group>
         ),
         categories: (
           <div onClick={(event) => event.stopPropagation()}>
             <EditableMultiSelect
               value={sheet.categoryIds}
               label={`Catégories de ${sheet.name}`}
-              {...listSelectProps(categories ?? [])}
+              readOnly={sheet.archived}
+              {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
               onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
             />
           </div>
@@ -179,6 +210,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
               value={sheet.projectId ?? null}
               label={`Projet de ${sheet.name}`}
               nullable
+              readOnly={sheet.archived}
               {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === sheet.projectId)))}
               onSave={(next) => bulk('project')(sheet, { projectId: next })}
             />
@@ -204,14 +236,24 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         <div onClick={(event) => event.stopPropagation()}>
           <RowActions
             name={sheet.name}
-            primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }}
+            primary={
+              sheet.archived
+                ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
+                : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
+            }
             items={[
-              {
+              // Archived: read only, not used anymore.
+              !sheet.archived && {
                 label: 'Utiliser cette fiche…',
                 icon: <CookingPotIcon aria-hidden />,
                 onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
               },
-              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche dupliquée.'), ...onError }) },
+              !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche dupliquée.'), ...onError }) },
+              {
+                label: sheet.archived ? 'Restaurer' : 'Archiver',
+                icon: sheet.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                onClick: () => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: !sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }),
+              },
               {
                 label: 'Supprimer',
                 icon: <TrashIcon aria-hidden />,

@@ -1,7 +1,9 @@
+import { unarchived } from '../../../lib/archive';
 import { useCalendars, useScheduleTypes, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
 
 /**
- * Options of the layers: the schedules (of this workspace, and of others subscribed to) and the calendars.
+ * Options of the layers: the schedules (of this workspace, and of others subscribed to) and the calendars, the archived
+ * ones left out.
  * @returns {{ schedules: { value: string, label: string }[], calendars: { value: string, label: string }[] }} Options.
  */
 export function useAgendaLayerOptions() {
@@ -12,11 +14,14 @@ export function useAgendaLayerOptions() {
   const typeName = new Map((types ?? []).map((type) => [type.id, type.name]));
   return {
     schedules: [
-      ...(schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.typeId && typeName.get(schedule.typeId) ? `${schedule.name} (${typeName.get(schedule.typeId)})` : schedule.name })),
+      ...unarchived(schedules ?? []).map((schedule) => ({
+        value: schedule.id,
+        label: schedule.typeId && typeName.get(schedule.typeId) ? `${schedule.name} (${typeName.get(schedule.typeId)})` : schedule.name,
+      })),
       ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}` })),
     ],
     calendars: [
-      ...(calendars?.calendars ?? []).map((calendar) => ({ value: calendar.id, label: calendar.name, color: calendar.color ?? 'gray', iconUrl: calendar.iconUrl })),
+      ...unarchived(calendars?.calendars ?? []).map((calendar) => ({ value: calendar.id, label: calendar.name, color: calendar.color ?? 'gray', iconUrl: calendar.iconUrl })),
       ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.name} · ${subscription.workspace.name}` })),
     ],
   };

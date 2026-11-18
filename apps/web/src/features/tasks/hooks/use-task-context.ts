@@ -6,6 +6,7 @@ import { useWorkspace, type Project } from '../../workspace/api';
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
 import { projectFullPath, projectNodes, projectOptions } from '../../workspace/lib/tree';
 import { useMe } from '../../auth/api';
+import { unarchived } from '../../../lib/archive';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from '../api';
 
@@ -56,16 +57,23 @@ export interface TaskContext {
   rootOf: (projectId: string | null) => string | null;
   /** Sub-tasks of a task, in manual order. */
   childrenOf: (taskId: string) => Task[];
-  /** Milestones usable by the tasks of a project: those of its whole project tree (none without project). */
-  milestonesFor: (projectId: string | null) => Milestone[];
-  /** Sprints usable by the tasks of a project: those of its whole project tree (none without project). */
-  sprintsFor: (projectId: string | null) => Sprint[];
+  /**
+   * Milestones usable by the tasks of a project: those of its whole project tree (none without project), the archived
+   * ones left out except the `keep` one(s) (current value).
+   */
+  milestonesFor: (projectId: string | null, keep?: string | readonly (string | null)[] | null) => Milestone[];
+  /**
+   * Sprints usable by the tasks of a project: those of its whole project tree (none without project), the archived
+   * ones left out except the `keep` ones (current values).
+   */
+  sprintsFor: (projectId: string | null, keep?: readonly string[]) => Sprint[];
   /**
    * Contributors that can be assigned to items of all these projects at once: "Moi" and those attached to each
    * project or to one of its parents, plus the `keep` ones (current assignees, attached or not). An item without
-   * project allows everyone (none given, or all null: every contributor).
+   * project allows everyone (none given, or all null: every contributor). Archived contributors are left out, except
+   * the `keep` ones (or all of them with `withArchived`: those shown attached to a project).
    */
-  assignableFor: (projectIds: (string | null)[], keep?: string[]) => Contributor[];
+  assignableFor: (projectIds: (string | null)[], keep?: string[], withArchived?: boolean) => Contributor[];
   /** Display name of a contributor ("Moi" for the logged-in user). */
   contributorName: (contributor: Contributor) => string;
   /** Whether an open task is blocked by at least one open, non-archived task. */
@@ -159,7 +167,8 @@ export function useTaskContext() {
     const referenceById = mapById(referenceTasks);
     // "#12" only names a task of a project.
     const referenceByNumber = new Map(referenceTasks.filter((task) => task.number !== null).map((task) => [`${task.projectId}:${task.number}`, task]));
-    const contributors = data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
+    // Archived contributors are not offered by « @ » (their mentions still link: `handles`).
+    const contributors = unarchived(data.contributors).map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
     const handles = new Set(data.contributors.map((contributor) => contributor.handle));
     return {
       tasks,
@@ -175,12 +184,13 @@ export function useTaskContext() {
       sprints: data.sprints,
       sprintById: mapById(data.sprints),
       meId,
-      milestonesFor: (projectId) => (projectId ? milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)) : []),
-      sprintsFor: (projectId) => (projectId ? data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)) : []),
-      assignableFor: (projectIds, keep = []) => {
+      milestonesFor: (projectId, keep) => (projectId ? unarchived(milestones, keep).filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)) : []),
+      sprintsFor: (projectId, keep) => (projectId ? unarchived(data.sprints, keep).filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)) : []),
+      assignableFor: (projectIds, keep = [], withArchived = false) => {
+        const offered = withArchived ? data.contributors : unarchived(data.contributors, keep);
         const scopes = [...new Set(projectIds.filter((id): id is string => id !== null))].map((projectId) => new Set(lineageOf(projectById, projectId).map((project) => project.id)));
-        if (scopes.length === 0) return data.contributors;
-        return data.contributors.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || scopes.every((scope) => contributor.projectIds.some((id) => scope.has(id))));
+        if (scopes.length === 0) return offered;
+        return offered.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || scopes.every((scope) => contributor.projectIds.some((id) => scope.has(id))));
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: mapById(tasks),

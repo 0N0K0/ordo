@@ -90,7 +90,7 @@ type Dialog = 'payment' | 'accept' | 'reminder' | 'sent';
 
 /**
  * Tracking of a final document: configurable status, sending, acceptance with the signed quote (quotes),
- * payments and reminders (invoices), refunds (credit notes).
+ * payments and reminders (invoices), refunds (credit notes). Archived: shown only (no change).
  * @param {{ document: AccountingDocument, onRemind: () => void, remindPending: boolean }} props Component props.
  * @returns {JSX.Element} Section.
  */
@@ -103,6 +103,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
   const money = (amount: number) => fmt.money(amount, document.currency);
   const balance = document.balance ?? 0;
   const onError = onMutationError;
+  const locked = document.archived;
 
   /**
    * Opens a form of the follow-up: payment (or refund), acceptance of the quote, reminder, sending.
@@ -132,9 +133,10 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
     <Section title="Suivi">
       <Select
         label="Statut"
-        {...listSelectProps(scoped)}
+        {...listSelectProps(scoped, undefined, document.trackingStatus?.id)}
         value={document.trackingStatus?.id ?? null}
         allowDeselect={false}
+        readOnly={locked}
         leftSection={document.trackingStatus ? <ItemAvatar name={document.trackingStatus.name} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} /> : undefined}
         onChange={(statusId) => {
           if (!statusId) return;
@@ -155,9 +157,11 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(new Date(document.sentAt))}`
             : 'Pas encore envoyé.'}
         </Text>
-        <Button size="compact-xs" variant="subtle" onClick={() => openDialog('sent')}>
-          {document.sentAt ? 'Modifier' : 'Marquer envoyé'}
-        </Button>
+        {!locked && (
+          <Button size="compact-xs" variant="subtle" onClick={() => openDialog('sent')}>
+            {document.sentAt ? 'Modifier' : 'Marquer envoyé'}
+          </Button>
+        )}
       </Group>
 
       {isQuote && (
@@ -170,12 +174,14 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   <PaperclipIcon aria-hidden /> {document.signedFileName}
                 </Group>
               </FileLink>
-              <RemoveButton label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })} />
+              {!locked && <RemoveButton label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })} />}
             </Group>
           )}
-          <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
-            {document.acceptedAt ? (document.signedFileUrl ? 'Remplacer le devis signé' : 'Joindre le devis signé') : 'Enregistrer l’acceptation'}
-          </Button>
+          {!locked && (
+            <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
+              {document.acceptedAt ? (document.signedFileUrl ? 'Remplacer le devis signé' : 'Joindre le devis signé') : 'Enregistrer l’acceptation'}
+            </Button>
+          )}
         </Stack>
       )}
 
@@ -216,7 +222,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
               </Text>
             </Group>
           ))}
-          {balance > 0 && (
+          {balance > 0 && !locked && (
             <Button variant="default" leftSection={<CoinsIcon aria-hidden />} onClick={() => openDialog('payment')}>
               {isCredit ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
             </Button>
@@ -230,7 +236,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             <Text size="sm" fw={600}>
               Relances
             </Text>
-            {balance > 0 && (
+            {balance > 0 && !locked && (
               <Group gap={4}>
                 <Button size="compact-xs" variant="default" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
@@ -250,7 +256,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   {fmt.day(new Date(reminder.date))}
                   {reminder.note ? ` · ${reminder.note}` : ''}
                 </Text>
-                <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, { onError })} />
+                {!locked && <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, { onError })} />}
               </Group>
             ))
           )}

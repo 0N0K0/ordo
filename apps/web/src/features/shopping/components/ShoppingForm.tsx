@@ -20,6 +20,7 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchived, unarchivedOffered } from '../../../lib/archive';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -110,7 +111,15 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               .
             </Text>
           )}
-          {target.kind === 'product' && <Select label="Référence" required allowDeselect={false} {...listSelectProps(data?.shoppingBaseLists ?? [])} {...form.getInputProps('baseListId')} />}
+          {target.kind === 'product' && (
+            <Select
+              label="Référence"
+              required
+              allowDeselect={false}
+              {...listSelectProps(data?.shoppingBaseLists ?? [], undefined, target.kind === 'product' ? target.product?.baseListId : null)}
+              {...form.getInputProps('baseListId')}
+            />
+          )}
           <SimpleGrid cols={{ base: 1, xs: 2 }}>
             <CreatableSelect
               label="Catégorie"
@@ -119,7 +128,12 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               searchable
               onCreate={(name) => mutations.createCategory.mutateAsync({ name, color, parentId: null })}
               {...treeSelectProps(
-                categoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
+                categoryOptions(
+                  target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? []),
+                  undefined,
+                  // The archived ones are not offered, but the current one.
+                  unarchivedOffered(data?.shoppingCategories ?? [], current?.categoryId),
+                ),
               )}
               {...form.getInputProps('categoryId')}
             />
@@ -129,7 +143,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               clearable
               searchable
               onCreate={(name) => mutations.createStore.mutateAsync({ name, color })}
-              {...listSelectProps(data?.shoppingStores ?? [])}
+              {...listSelectProps(data?.shoppingStores ?? [], undefined, current?.storeId)}
               {...form.getInputProps('storeId')}
             />
           </SimpleGrid>
@@ -150,7 +164,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 await mutations.createUnit.mutateAsync({ name, color });
                 return name;
               }}
-              data={unitOptions(data?.shoppingUnits ?? [], current?.unit)}
+              data={unitOptions(unarchived(data?.shoppingUnits ?? []), current?.unit)}
               searchable
               clearable
               {...form.getInputProps('unit')}
@@ -173,7 +187,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 clearable
                 searchable
                 onCreate={(name) => mutations.createStorage.mutateAsync({ name, color })}
-                {...listSelectProps(data?.shoppingStorages ?? [])}
+                {...listSelectProps(data?.shoppingStorages ?? [], undefined, current?.storageId)}
                 {...form.getInputProps('storageId')}
               />
               <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />

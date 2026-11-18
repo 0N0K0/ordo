@@ -138,7 +138,8 @@ builder.queryFields((t) => ({
     type: [builder.objectRef<{ id: string; name: string; githubLogin: string | null }>('GithubContributor').implement({
       fields: (f) => ({ id: f.exposeID('id'), name: f.exposeString('name'), githubLogin: f.exposeString('githubLogin', { nullable: true }) }),
     })],
-    resolve: () => prisma.contributor.findMany({ select: { id: true, name: true, githubLogin: true }, orderBy: { name: 'asc' } }),
+    // Archived contributors are read only: not offered to be paired.
+    resolve: () => prisma.contributor.findMany({ where: { archivedAt: null }, select: { id: true, name: true, githubLogin: true }, orderBy: { name: 'asc' } }),
   }),
 }));
 

@@ -9,6 +9,7 @@ import { assertProjectContributors, attachAssignees } from '../workspace/contrib
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
 import { assertAllExist, assertExists } from '../core/lookup';
+import { ARCHIVED_MESSAGE, assertNoneArchived, type ArchivableModel } from '../core/archive';
 
 /**
  * Root project of each project: tasks can only be linked inside the same tree.
@@ -149,6 +150,50 @@ async function assertReferences(refs: {
   await assertAllExist(prisma.taskTag, refs.tagIds, 'Étiquette');
 }
 
+/** Values of a task that can be archived (an archived one stays on the tasks having it, but is not given anew). */
+interface ActiveRefs {
+  statusId?: string | null;
+  priorityId?: string | null;
+  typeId?: string | null;
+  milestoneId?: string | null;
+  sprintIds?: readonly string[] | null;
+  assigneeIds?: readonly string[] | null;
+  beneficiaryIds?: readonly string[] | null;
+  tagIds?: readonly string[] | null;
+}
+
+/** Values that tasks already have (of several tasks: all of theirs). */
+type CurrentRefs = { [K in keyof ActiveRefs]?: string | readonly string[] | null };
+
+/** Model and field of the error of each value of `ActiveRefs`. */
+const ACTIVE_REFS: { [K in keyof ActiveRefs]-?: [ArchivableModel, string] } = {
+  statusId: ['taskStatus', 'statusId'],
+  priorityId: ['taskPriority', 'priorityId'],
+  typeId: ['taskType', 'typeId'],
+  milestoneId: ['milestone', 'milestoneId'],
+  sprintIds: ['sprint', 'sprintIds'],
+  assigneeIds: ['contributor', 'assigneeIds'],
+  beneficiaryIds: ['contributor', 'beneficiaryIds'],
+  tagIds: ['taskTag', 'tagIds'],
+};
+
+/**
+ * Refuses archived values newly given to tasks (field error « Élément archivé… »); those they already have stay
+ * valid.
+ * @param {ActiveRefs} refs Values given.
+ * @param {CurrentRefs} [current] Values the tasks already have (several tasks: all of theirs). Optional. Default = none (a new task).
+ * @returns {Promise<void>}
+ */
+async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}): Promise<void> {
+  const ids = (value: string | readonly string[] | null | undefined): string[] => (typeof value === 'string' ? [value] : [...(value ?? [])]);
+  for (const key of Object.keys(ACTIVE_REFS) as (keyof ActiveRefs)[]) {
+    const kept = new Set(ids(current[key]));
+    const added = ids(refs[key]).filter((id) => !kept.has(id));
+    const [model, field] = ACTIVE_REFS[key];
+    if (added.length) await assertNoneArchived(model, added).catch(() => Promise.reject(fieldError(field, ARCHIVED_MESSAGE)));
+  }
+}
+
 export interface TaskInput {
   title?: string | null;
   description?: string | null;
@@ -238,6 +283,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
   const projectId = input.projectId ?? null;
   if (projectId) await assertProject(projectId);
   await assertReferences(input);
+  await assertActiveRefs(input);
   if (input.parentId) await assertParent(input.parentId, projectId, null);
   if (input.milestoneId) await assertMilestone(input.milestoneId, projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, projectId);
@@ -274,6 +320,18 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const task = await findTask(id);
   const details = parseDetails(input, task);
   await assertReferences(input);
+  const links = await prisma.task.findUnique({
+    where: { id },
+    select: { sprints: { select: { id: true } }, assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, tags: { select: { id: true } } },
+  });
+  const idsOf = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
+  await assertActiveRefs(input, {
+    ...task,
+    sprintIds: idsOf(links?.sprints),
+    assigneeIds: idsOf(links?.assignees),
+    beneficiaryIds: idsOf(links?.beneficiaries),
+    tagIds: idsOf(links?.tags),
+  });
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
@@ -729,8 +787,34 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
 
   const tasks = await prisma.task.findMany({
     where: { id: { in: ids } },
-    select: { id: true, projectId: true, startDate: true, endDate: true, assignees: { select: { id: true } } },
+    select: {
+      id: true,
+      projectId: true,
+      startDate: true,
+      endDate: true,
+      statusId: true,
+      priorityId: true,
+      typeId: true,
+      milestoneId: true,
+      assignees: { select: { id: true } },
+      tags: { select: { id: true } },
+      sprints: { select: { id: true } },
+    },
   });
+  // Archived values are not given anew (those of one of the tasks stay valid: the same change on the others).
+  const all = (pick: (task: (typeof tasks)[number]) => (string | null)[]): string[] => tasks.flatMap(pick).filter((id): id is string => id !== null);
+  await assertActiveRefs(
+    { statusId: changes.statusId, priorityId: changes.priorityId, typeId: changes.typeId, milestoneId: changes.milestoneId, sprintIds: changes.addSprintIds, assigneeIds: changes.addAssigneeIds, tagIds: changes.addTagIds },
+    {
+      statusId: all((task) => [task.statusId]),
+      priorityId: all((task) => [task.priorityId]),
+      typeId: all((task) => [task.typeId]),
+      milestoneId: all((task) => [task.milestoneId]),
+      sprintIds: all((task) => task.sprints.map((sprint) => sprint.id)),
+      assigneeIds: all((task) => task.assignees.map((assignee) => assignee.id)),
+      tagIds: all((task) => task.tags.map((tag) => tag.id)),
+    },
+  );
   for (const task of tasks) {
     // Of a project: its contributors only (those already assigned stay).
     if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds');

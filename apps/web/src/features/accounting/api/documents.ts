@@ -23,6 +23,7 @@ export type ProjectResource = ProjectResourcesQuery['projectResources'][number];
 graphql(`
   fragment AccountingDocumentListFields on AccountingDocument {
     id
+    archived
     type
     status
     number
@@ -40,6 +41,7 @@ graphql(`
     recurringId
     trackingStatus {
       id
+      archived
       name
       color
       category
@@ -176,6 +178,7 @@ const RecurringInvoicesDocument = graphql(`
   query RecurringInvoices {
     recurringInvoices {
       id
+      archived
       name
       templateId
       recurrence
@@ -494,6 +497,7 @@ export function useProjectResourceMutations() {
 graphql(`
   fragment ImportedDocumentFields on ImportedDocument {
     id
+    archived
     type
     number
     issueDate
@@ -514,6 +518,7 @@ graphql(`
     balance
     trackingStatus {
       id
+      archived
       name
       color
       category

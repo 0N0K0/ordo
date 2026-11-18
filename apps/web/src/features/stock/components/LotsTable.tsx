@@ -10,10 +10,10 @@ import { useStockMutations, type StockItem, type StockLot } from '../api';
 /**
  * Lots of an item of the stock, unfolded under it, in a table like every other: their quantity corrected and their
  * date changed in place, one or several at once (bulk selection).
- * @param {{ item: StockItem }} props Item.
+ * @param {{ item: StockItem, readOnly?: boolean }} props Item, and whether nothing can be changed (an archived item).
  * @returns {JSX.Element} Table.
  */
-export function LotsTable({ item }: { item: StockItem }) {
+export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnly?: boolean }) {
   const { move, setLotExpiry } = useStockMutations();
   const columns: DataColumn<StockLot>[] = [
     {
@@ -65,11 +65,18 @@ export function LotsTable({ item }: { item: StockItem }) {
             value={lot.quantity}
             label={`Quantité du lot du ${lot.expiresAt ? fmt.day(String(lot.expiresAt)) : fmt.day(new Date(lot.createdAt))}`}
             decimals={3}
+            readOnly={readOnly}
             onSave={(quantity) => quantity !== null && bulk('quantity')(lot, { quantity })}
           />
         ),
         expiresAt: (
-          <EditableDate value={lot.expiresAt ? String(lot.expiresAt).slice(0, 10) : null} label="Date de péremption du lot" nullable onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })} />
+          <EditableDate
+            value={lot.expiresAt ? String(lot.expiresAt).slice(0, 10) : null}
+            label="Date de péremption du lot"
+            nullable
+            readOnly={readOnly}
+            onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })}
+          />
         ),
       })}
     />

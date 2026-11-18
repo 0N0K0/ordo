@@ -5,7 +5,7 @@ import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } fro
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -24,6 +24,7 @@ import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetPicker } from './SheetPicker';
+import { unarchivedOffered } from '../../../lib/archive';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -70,7 +71,14 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       bulk: true,
       sortValue: (item) => categoryName(item) || null,
       text: categoryName,
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: [...paths].map(([value, name]) => ({ value, label: name })) },
+      filter: {
+        kind: 'choice',
+        value: (item) => item.categoryId ?? null,
+        options: withArchived(
+          [...paths].map(([value, name]) => ({ value, label: name })),
+          categories,
+        ),
+      },
       groupable: true,
     },
     {
@@ -207,7 +215,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
               value={item.categoryId ?? null}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(categoryOptions(categories))}
+              {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, item.categoryId)))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),

@@ -1,5 +1,6 @@
 import { labelNameSchema, colorSchema } from '@ordo/shared';
 import { nextPosition } from '../core/settings-lists';
+import { assertNotArchived } from '../core/archive';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type ProjectCategory } from '../../generated/prisma/client';
@@ -22,7 +23,7 @@ export async function createProjectCategory(input: { name: string; color: string
 }
 
 /**
- * Updates a project category.
+ * Updates a project category (refused when it is archived).
  * @param {string} id Category id.
  * @param {object} input Changes; omitted fields are left unchanged.
  * @param {string | null} [input.name] New name. Optional.
@@ -34,6 +35,7 @@ export async function updateProjectCategory(
   input: { name?: string | null; color?: string | null },
 ): Promise<ProjectCategory> {
   await orNotFound(prisma.projectCategory.findUnique({ where: { id } }), 'Catégorie');
+  await assertNotArchived('projectCategory', id);
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,

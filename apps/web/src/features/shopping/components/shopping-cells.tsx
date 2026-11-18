@@ -13,6 +13,7 @@ import { EditableSelect } from '../../../components/data-table/cells/EditableCel
 import { rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { cellCombobox, cellField, cellMulti } from '../../../components/data-table/cells/cell-field';
+import { unarchived, unarchivedOffered } from '../../../lib/archive';
 
 interface UnitCellProps {
   value: string | null;
@@ -22,13 +23,22 @@ interface UnitCellProps {
 }
 
 /**
- * Unit cell: one of the units of the shopping settings (the current one stays offered).
+ * Unit cell: one of the units of the shopping settings, archived ones apart (the current one stays offered).
  * @param {UnitCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function UnitCell({ value, label, readOnly = false, onSave }: UnitCellProps) {
   const { data } = useShoppingData();
-  return <EditableSelect label={label} value={value} nullable readOnly={readOnly} data={unitOptions(data?.shoppingUnits ?? [], value).map((unit) => ({ value: unit, label: unit }))} onSave={onSave} />;
+  return (
+    <EditableSelect
+      label={label}
+      value={value}
+      nullable
+      readOnly={readOnly}
+      data={unitOptions(unarchived(data?.shoppingUnits ?? []), value).map((unit) => ({ value: unit, label: unit }))}
+      onSave={onSave}
+    />
+  );
 }
 
 interface StoreCellProps {
@@ -54,7 +64,7 @@ export function StoreCell({ value, stores, label, readOnly = false, onSave }: St
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      {...listSelectProps(stores)}
+      {...listSelectProps(stores, undefined, value)}
       leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       nothingFoundMessage="Aucun magasin (ajoutez-en dans les paramètres)"
       value={value}
@@ -113,14 +123,18 @@ interface ConservationCellProps {
 export function ConservationCell({ perishable, storageId, storages, label, readOnly = false, onSave }: ConservationCellProps) {
   const value = !perishable ? LASTING : (storageId ?? PERISHABLE);
   const current = perishable ? storages.find((storage) => storage.id === storageId) : undefined;
-  const storageLook = listSelectProps(storages);
+  const storageLook = listSelectProps(storages, undefined, storageId);
   return (
     <Select
       {...cellCombobox}
       aria-label={label}
       readOnly={readOnly}
       allowDeselect={false}
-      data={[{ value: LASTING, label: 'Non périssable' }, { value: PERISHABLE, label: 'Périssable' }, ...(storages.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : [])]}
+      data={[
+        { value: LASTING, label: 'Non périssable' },
+        { value: PERISHABLE, label: 'Périssable' },
+        ...(storageLook.data.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : []),
+      ]}
       renderOption={storageLook.renderOption}
       leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
@@ -191,7 +205,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      {...treeSelectProps(categoryOptions(categories))}
+      {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, value)))}
       leftSection={placed ? <ItemAvatar name={placed.category.name} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}

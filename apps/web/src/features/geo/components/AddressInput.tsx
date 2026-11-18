@@ -43,20 +43,24 @@ interface AddressInputProps extends Omit<InputBaseProps, 'value' | 'onChange'> {
 export function AddressInput({ value, onChange, placeholder, withPlaces = true, withinPortal = true, ...props }: AddressInputProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const { data: places } = usePlaces();
-  const near = withPlaces && places?.length ? { lat: places[0].lat, lon: places[0].lon } : null;
+  const first = (places ?? []).find((place) => !place.archived);
+  const near = withPlaces && first ? { lat: first.lat, lon: first.lon } : null;
   const search = useAddressSearch(value.point ? '' : value.text, near);
   const needle = normalize(value.text.trim());
   // Typed text filters the places; a chosen address shows them all, to change it.
   // As their tree: each place followed by its zones (a room of the house…).
   const tree = placesInTree(places ?? []);
-  const placeOptions = withPlaces ? tree.filter((place) => value.point || !needle || normalize(`${place.path} ${place.address}`).includes(needle)) : [];
   const suggestions = value.point ? [] : (search.data ?? []);
   // Zones of a place the location is on (several can be ticked).
   const chosen = value.point && places ? zonesOfText(value.text, places) : null;
   // Place chosen (or the place of the zones chosen), its zones ticked under the field.
   const chosenPlace = chosen?.root ?? (value.point ? (places ?? []).find((place) => !place.parentId && value.text === placeText(place)) : undefined);
   const byId = mapById(places ?? []);
-  const placeZones = chosenPlace ? tree.filter((place) => place.parentId && rootPlace(place, byId).id === chosenPlace.id) : [];
+  // Archived places (and the zones of an archived place) are no longer offered, but those chosen stay.
+  const kept = new Set([chosenPlace?.id, ...(chosen?.zoneIds ?? [])]);
+  const usable = (place: (typeof tree)[number]) => kept.has(place.id) || (!place.archived && !rootPlace(place, byId).archived);
+  const placeOptions = withPlaces ? tree.filter((place) => usable(place) && (value.point || !needle || normalize(`${place.path} ${place.address}`).includes(needle))) : [];
+  const placeZones = chosenPlace ? tree.filter((place) => place.parentId && rootPlace(place, byId).id === chosenPlace.id && usable(place)) : [];
 
   /**
    * Ticks the zones of the place chosen: their text, with the point of the place (none: the place itself).

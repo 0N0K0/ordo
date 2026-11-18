@@ -2,7 +2,10 @@ import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Anchor, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { accountingQueryKey } from '../api';
 import { Link, useParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
 import { FilePreview } from '../../files/components/FilePreview';
@@ -20,13 +23,15 @@ import { Comments } from '../../comments/components/Comments';
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
- * Ordo), its information, its tracking status and settlement; edited in the import form.
+ * Ordo), its information, its tracking status and settlement; edited in the import form, archived (then read only) or
+ * restored.
  * @returns {JSX.Element} Page.
  */
 export function ImportedDocumentPage() {
   const { id = '' } = useParams();
   const { data: document, isLoading } = useImportedDocument(id);
   const { setStatus, markSent } = useImportedDocumentMutations();
+  const setArchived = useSetArchived('IMPORTED_DOCUMENT', [accountingQueryKey]);
 
   if (isLoading) {
     return <DetailSkeleton fields={6} />;
@@ -60,6 +65,7 @@ export function ImportedDocumentPage() {
             <Badge variant="light" color="cyan">
               Importé
             </Badge>
+            {document.archived && <ArchivedBadge />}
           </Group>
           {document.title && <Text c="dimmed">{document.title}</Text>}
         </Stack>
@@ -71,8 +77,18 @@ export function ImportedDocumentPage() {
               </ActionIcon>
             </Tooltip>
           )}
-          <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
-            Modifier
+          {!document.archived && (
+            <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
+              Modifier
+            </Button>
+          )}
+          <Button
+            variant="default"
+            leftSection={document.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
+            loading={setArchived.isPending}
+            onClick={() => void archiveWithUndo(setArchived, { ids: [document.id], archived: !document.archived, label: `« ${document.number} »` })}
+          >
+            {document.archived ? 'Restaurer' : 'Archiver'}
           </Button>
         </Group>
       </Group>
@@ -94,9 +110,11 @@ export function ImportedDocumentPage() {
                         Télécharger {document.fileName}
                       </Button>
                     ) : (
-                      <Button variant="default" onClick={() => openImportForm(document)}>
-                        Joindre le fichier
-                      </Button>
+                      !document.archived && (
+                        <Button variant="default" onClick={() => openImportForm(document)}>
+                          Joindre le fichier
+                        </Button>
+                      )
                     )
                   }
                 />
@@ -112,6 +130,7 @@ export function ImportedDocumentPage() {
                   type={document.type}
                   current={document.trackingStatus}
                   pending={setStatus.isPending}
+                  readOnly={document.archived}
                   onSelect={(status) =>
                     // A "sent" status asks when and how it was sent.
                     status.category === 'SENT'

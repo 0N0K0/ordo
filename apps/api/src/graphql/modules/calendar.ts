@@ -83,6 +83,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     eventId: t.exposeID('eventId'),
     occurrenceDate: t.exposeString('occurrenceDate', { nullable: true }),
     modified: t.exposeBoolean('modified'),
+    archived: t.exposeBoolean('archived', { description: 'The event (its series) is archived: hidden by default, read only.' }),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
     location: t.exposeString('location', { nullable: true }),

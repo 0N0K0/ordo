@@ -15,7 +15,11 @@ import { sortableStyle } from '../../../components/actions/sortable-style';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -118,19 +122,23 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
 
 /**
  * Milestones of a project, in the order chosen by the user (due date, title or manual): due date, progress of their
- * tasks, description; create, edit, reorder by drag and drop (manual order), delete.
+ * tasks, description; create, edit, reorder by drag and drop (manual order), archive (hidden until « Afficher les
+ * archivés », read only), delete.
  * @param {{ projectId: string }} props Component props.
  * @returns {JSX.Element} Panel.
  */
 export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move, update } = useMilestoneMutations();
+  const setArchived = useSetArchived('MILESTONE');
+  const [showArchived, setShowArchived] = useState(false);
   const [order, setOrder] = useMilestoneOrder();
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
   // Already in the chosen order.
-  const milestones = context.milestones.filter((milestone) => milestone.projectId === projectId);
+  const all = context.milestones.filter((milestone) => milestone.projectId === projectId);
+  const milestones = visibleItems(all, showArchived);
   const sortable = order === 'manual' && !project?.archived;
 
   /**
@@ -165,6 +173,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         description="Les jalons sont utilisables par les tâches du projet et de ses sous-projets."
         actions={
           <>
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((milestone) => milestone.archived).length} />
             <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
           </>
@@ -180,20 +189,27 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
               const done = tasks.filter((task) => context.isClosed(task)).length;
               const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
               return (
-                <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable}>
+                <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
                   <PlanCard
                     icon={<FlagIcon aria-hidden />}
                     title={milestone.title}
+                    badges={milestone.archived && <ArchivedBadge size="sm" />}
                     dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
                     datesColor={late ? 'red' : undefined}
                     actions={[
-                      { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
+                      // Archived (or of an archived project): read only.
+                      !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
+                      {
+                        label: milestone.archived ? 'Restaurer' : 'Archiver',
+                        icon: milestone.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                        onClick: () => void archiveWithUndo(setArchived, { ids: [milestone.id], archived: !milestone.archived, label: `Jalon « ${milestone.title} »` }),
+                      },
                       { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
                     ]}
                     progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
                     description={milestone.description}
                     targets={context.targetsFor(milestone.projectId)}
-                    onDescription={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}
+                    onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}
                   />
                 </SortableMilestone>
               );

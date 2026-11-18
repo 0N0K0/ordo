@@ -1,6 +1,6 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DragHandle } from '../../../components/actions/DragHandle';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -9,11 +9,13 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
+  ArchiveIcon,
   ArrowBendUpRightIcon,
+  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
@@ -37,7 +39,10 @@ import { createPortal } from 'react-dom';
 
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
-import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
+import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
+import { ARCHIVED_MESSAGE, archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, type ExportScheme } from '../lib/chart-image';
 import { download, fileName } from '../../../lib/download';
@@ -110,16 +115,18 @@ interface ChartCardProps {
   dashboardName: string;
   captures: Captures;
   onEdit: () => void;
+  /** Its dashboard is archived: only its exports. Optional. Default = false. */
+  readOnly?: boolean;
 }
 
 /**
  * Chart of a dashboard, moved by its handle (drag and drop, or keyboard), with its actions: edit, duplicate,
  * width, order, move to another dashboard (general or
- * of a project), image and PDF exports, its data as CSV or PDF table, delete.
+ * of a project), image and PDF exports, its data as CSV or PDF table, delete. On an archived dashboard: its exports only.
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
-function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit }: ChartCardProps) {
+function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit, readOnly = false }: ChartCardProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: chart.id });
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
@@ -226,7 +233,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <DragHandle label={`Déplacer ${chart.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
+          {!readOnly && <DragHandle label={`Déplacer ${chart.title}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />}
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}
@@ -240,24 +247,29 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             name={chart.title}
             loading={exporting}
             items={[
-              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
-              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, { onError: onMutationError }) },
-              {
-                label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
-                icon: <ArrowsHorizontalIcon aria-hidden />,
-                onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
-              },
-              { label: 'Avancer', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => moveChart.mutate({ id: chart.id, index: index - 1 }) },
-              { label: 'Reculer', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => moveChart.mutate({ id: chart.id, index: index + 1 }) },
-              {
-                label: 'Déplacer vers…',
-                icon: <ArrowBendUpRightIcon aria-hidden />,
-                onClick: () =>
-                  openFormPanel(`Déplacer « ${chart.title} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
-                    panelId: `transfer-chart-${chart.id}`,
-                  }),
-              },
-              'divider',
+              // An archived dashboard: its charts are read only.
+              ...(readOnly
+                ? []
+                : ([
+                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, { onError: onMutationError }) },
+                    {
+                      label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
+                      icon: <ArrowsHorizontalIcon aria-hidden />,
+                      onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
+                    },
+                    { label: 'Avancer', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => moveChart.mutate({ id: chart.id, index: index - 1 }) },
+                    { label: 'Reculer', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => moveChart.mutate({ id: chart.id, index: index + 1 }) },
+                    {
+                      label: 'Déplacer vers…',
+                      icon: <ArrowBendUpRightIcon aria-hidden />,
+                      onClick: () =>
+                        openFormPanel(`Déplacer « ${chart.title} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
+                          panelId: `transfer-chart-${chart.id}`,
+                        }),
+                    },
+                    'divider',
+                  ] satisfies RowMenuEntry[])),
               { label: 'Exporter en image…', icon: <FileImageIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('png') },
               { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, disabled: !data || data.empty, onClick: () => exportChart('pdf') },
               {
@@ -278,7 +290,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                     .finally(() => setExporting(false));
                 },
               },
-              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: confirmDelete },
+              ...(readOnly ? [] : [{ label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: confirmDelete }]),
             ]}
           />
         </Group>
@@ -304,8 +316,9 @@ interface DashboardBoardProps {
 }
 
 /**
- * Dashboards of a scope: tabs (created, renamed, reordered by drag and drop or from their menu, deleted), grid of charts on the tasks, chart editor,
- * exports of one chart (PNG, PDF) or of a whole dashboard (PDF).
+ * Dashboards of a scope: tabs (created, renamed, reordered by drag and drop or from their menu, archived, restored,
+ * deleted), grid of charts on the tasks, chart editor, exports of one chart (PNG, PDF) or of a whole dashboard (PDF).
+ * Archived dashboards are hidden until « Afficher les archivés », read only with their charts.
  * @param {DashboardBoardProps} props Component props.
  * @returns {JSX.Element} Board.
  */
@@ -316,7 +329,36 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const mutations = useDashboardMutations();
   const captures: Captures = useRef(new Map());
   const [exporting, setExporting] = useState(false);
-  const [current, select] = useTabParam('dashboard', dashboards);
+  const setArchived = useSetArchived('DASHBOARD', [dashboardsKey]);
+  // Archived dashboards: hidden until asked, read only (their charts with them).
+  const [showArchived, setShowArchived] = useState(false);
+  const all = dashboards ?? [];
+  const tabs = [...visibleItems(all, showArchived)];
+  const archivedCount = all.filter((dashboard) => dashboard.archived).length;
+  const [current, select] = useTabParam('dashboard', tabs);
+
+  /**
+   * Moves a dashboard among the others (an archived one stays in place).
+   * @param {string} id Dashboard id.
+   * @param {number} target Target index among the tabs shown.
+   * @returns {void}
+   */
+  const moveTab = (id: string, target: number) => {
+    if (all.find((dashboard) => dashboard.id === id)?.archived) {
+      notifyError(ARCHIVED_MESSAGE);
+      return;
+    }
+    // The index among every dashboard of the scope, the archived ones hidden included.
+    const index = all.findIndex((dashboard) => dashboard.id === tabs[target]?.id);
+    if (index >= 0) mutations.move.mutate({ id, index }, { onError: onMutationError });
+  };
+
+  /**
+   * Archives a dashboard or restores it, with an undo.
+   * @param {Dashboard} dashboard Dashboard.
+   * @returns {void}
+   */
+  const toggleArchived = (dashboard: Dashboard) => void archiveWithUndo(setArchived, { ids: [dashboard.id], archived: !dashboard.archived, label: `« ${dashboard.name} »` });
 
   /**
    * Asks for a dashboard name, then creates or renames it.
@@ -452,10 +494,11 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   }
   if (isPending || contextPending || !context) return <BlockSkeleton height={14} />;
 
-  if (!dashboards?.length || !current) {
+  if (!tabs.length || !current) {
     return (
       <Stack gap="md">
         <ActionsRow>
+          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askName()}>
             Nouveau tableau de bord
           </ActionButton>
@@ -472,23 +515,38 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     <Stack gap="md">
       <Group justify="space-between" wrap="wrap" gap="sm">
         <SortableTabs
-          items={dashboards}
+          items={tabs}
           value={current.id}
           onChange={select}
-          onMove={(id, index) => mutations.move.mutate({ id, index }, { onError: onMutationError })}
+          onMove={moveTab}
           name={(dashboard) => dashboard.name}
-          label={(dashboard) => dashboard.name}
-          actions={(dashboard) => [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]}
+          label={(dashboard) => (
+            <Group gap={6} wrap="nowrap">
+              {dashboard.name}
+              {dashboard.archived && <ArchivedBadge size="xs" />}
+            </Group>
+          )}
+          actions={(dashboard) => [
+            // Archived: read only.
+            ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]),
+            {
+              label: dashboard.archived ? 'Restaurer' : 'Archiver',
+              icon: dashboard.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+              onClick: () => toggleArchived(dashboard),
+            },
+          ]}
           onDelete={confirmDelete}
           add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}
         />
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
+          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
           <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
             Exporter en PDF
           </ActionButton>
           <ActionButton
             icon={<PlusIcon aria-hidden />}
+            disabled={current.archived}
             menu={[
               { label: 'Tâches', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => openEditor(undefined, 'tasks') },
               { label: 'Facturation (devis, factures…)', icon: <ReceiptIcon aria-hidden />, onClick: () => openEditor(undefined, 'documents') },
@@ -500,11 +558,20 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         </Group>
       </Group>
 
+      {current.archived && (
+        <Alert color="gray" icon={<ArchiveIcon aria-hidden />}>
+          Tableau de bord archivé : restaurez-le pour le modifier.
+        </Alert>
+      )}
       {current.charts.length === 0 ? (
         <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (
         // The dropped chart moves to its new place.
-        <SortableArea ids={current.charts.map((chart) => chart.id)} layout="grid" onMove={(id, _, index) => mutations.moveChart.mutate({ id, index }, { onError: onMutationError })}>
+        <SortableArea
+          ids={current.charts.map((chart) => chart.id)}
+          layout="grid"
+          onMove={(id, _, index) => !current.archived && mutations.moveChart.mutate({ id, index }, { onError: onMutationError })}
+        >
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
             {current.charts.map((chart, chartIndex) => (
               <ChartCard
@@ -517,6 +584,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                 dashboardName={`${title} — ${current.name}`}
                 captures={captures}
                 onEdit={() => openEditor(chart)}
+                readOnly={current.archived}
               />
             ))}
           </SimpleGrid>

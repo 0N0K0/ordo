@@ -21,7 +21,7 @@ export interface RoutineRowsActions {
 /**
  * Actions on routines, the same on the routines checked (bar of the table) and on one routine (its menu): ticked or
  * unticked, postponed to the next day, duplicated with their sub-routines, archived or restored (undone from the toast),
- * deleted.
+ * deleted. Archived routines are read only: left out of all but archive/restore and delete.
  * @returns {(routines: Routine[], onClear?: () => void) => RoutineRowsActions} Actions of routines, given how to clear the selection.
  */
 export function useRoutineRowsActions() {
@@ -32,20 +32,26 @@ export function useRoutineRowsActions() {
     const ids = routines.map((routine) => routine.id);
     const label = routinesLabel(ids.length);
     const allArchived = routines.every((routine) => routine.archived);
-    const allDone = routines.every((routine) => routine.currentDate === null || isDone(routine));
-    const movable = routines.filter((routine) => !routine.archived && movableOccurrence(routine));
+    const active = routines.filter((routine) => !routine.archived);
+    const activeIds = active.map((routine) => routine.id);
+    const activeLabel = routinesLabel(activeIds.length);
+    const allDone = active.every((routine) => routine.currentDate === null || isDone(routine));
+    const movable = active.filter((routine) => movableOccurrence(routine));
     const byId = mapById(data?.routines ?? []);
 
     const single = routines.length === 1 ? routines[0] : null;
     return {
-      done: switchRowsAction({
-        on: allDone,
-        labels: ['Cocher', 'Décocher'],
-        icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
-        loading: bulkDone.isPending,
-        apply: (done) => bulkDone.mutateAsync({ ids, done }),
-        done: (done) => `${label} ${plural(ids.length, done ? 'cochée' : 'décochée')}.`,
-      }),
+      done: {
+        ...switchRowsAction({
+          on: allDone,
+          labels: ['Cocher', 'Décocher'],
+          icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
+          loading: bulkDone.isPending,
+          apply: (done) => bulkDone.mutateAsync({ ids: activeIds, done }),
+          done: (done) => `${activeLabel} ${plural(activeIds.length, done ? 'cochée' : 'décochée')}.`,
+        }),
+        disabled: activeIds.length === 0,
+      },
       postpone: {
         label: 'Reporter au lendemain',
         icon: <ArrowBendUpRightIcon aria-hidden />,
@@ -55,21 +61,24 @@ export function useRoutineRowsActions() {
         },
       },
       // Each with its sub-routines (one under another checked routine comes with it).
-      duplicate: duplicateRowsAction(
-        outermost(
-          routines,
-          (routine) => routine.id,
-          (id) => byId.get(id)?.parentId,
-        ),
-        {
-          duplicate: async (routine) => {
-            const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
-            if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
+      duplicate: {
+        ...duplicateRowsAction(
+          outermost(
+            active,
+            (routine) => routine.id,
+            (id) => byId.get(id)?.parentId,
+          ),
+          {
+            duplicate: async (routine) => {
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
+              if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
+            },
+            done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,
+            loading: create.isPending || copySubRoutines.isPending,
           },
-          done: `${label} ${plural(ids.length, 'dupliquée')}.`,
-          loading: create.isPending || copySubRoutines.isPending,
-        },
-      ),
+        ),
+        disabled: activeIds.length === 0,
+      },
       archive: archiveRowsAction({
         archived: allArchived,
         loading: bulkArchive.isPending,

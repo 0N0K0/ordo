@@ -12,12 +12,13 @@ export type StockLot = StockItem['lots'][number];
 export type StockMovement = StockMovementsQuery['stockMovements'][number];
 export type StockCount = StockCountsQuery['stockCounts'][number];
 
-const stockKey = ['stock'] as const;
+export const stockKey = ['stock'] as const;
 
 const StockLocationsDocument = graphql(`
   query StockLocations {
     stockLocations {
       id
+      archived
       name
       color
       iconUrl
@@ -31,6 +32,7 @@ const StockItemsDocument = graphql(`
   query StockItems {
     stockItems {
       id
+      archived
       productId
       label
       categoryId
