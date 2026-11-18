@@ -1,10 +1,9 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { plural } from '../../../lib/text';
 import { collator, daysBetween, mapById } from '@ordo/shared';
-import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+
 import { useRoutinesData } from '../../routines/api';
 import { RoutineDoneToggles } from '../../routines/components/DoneToggle';
 import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../../routines/lib/routine-format';
@@ -12,9 +11,8 @@ import { usePostponeRoutine } from '../../routines/hooks/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard } from './HomeCard';
+import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
-
-const MAX_ROWS = 7;
 
 /**
  * Routines left to do today (late ones first), ticked from the card.
@@ -42,8 +40,9 @@ export function RoutinesCard({ today }: { today: string }) {
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
       {todo.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Toutes les routines du jour sont faites." />}
       {todo.length > 0 && (
-        <Stack gap={0}>
-          {todo.slice(0, MAX_ROWS).map((routine) => {
+        <HomeList
+          items={todo}
+          render={(routine) => {
             const waiting = waitingFor(routine, byId);
             const late = routine.currentDate !== null && routine.currentDate < today;
             return (
@@ -83,13 +82,8 @@ export function RoutinesCard({ today }: { today: string }) {
                 </Group>
               </Group>
             );
-          })}
-          {todo.length > MAX_ROWS && (
-            <Text size="xs" c="dimmed" pt={4}>
-              + {todo.length - MAX_ROWS} {plural(todo.length - MAX_ROWS, 'autre')}
-            </Text>
-          )}
-        </Stack>
+          }}
+        />
       )}
     </HomeCard>
   );
@@ -118,20 +112,21 @@ export function ShoppingCard() {
       {open.length === 0 ? (
         <EmptyState compact icon={<BasketIcon aria-hidden />} message="Aucune liste en cours." />
       ) : (
-        <Stack gap={0}>
-          {open.slice(0, MAX_ROWS).map(({ list, left }) => (
-            <Link key={list.id} to={`/shopping/${list.id}`} className={classes.row}>
-              <Group justify="space-between" wrap="nowrap" gap="xs">
-                <Text size="sm" truncate>
-                  {list.name}
-                </Text>
-                <Badge variant="light" color={left ? undefined : 'green'} style={{ flexShrink: 0 }}>
+        <HomeList
+          items={open}
+          render={({ list, left }) => (
+            <HomeRow
+              key={list.id}
+              to={`/shopping/${list.id}`}
+              title={list.name}
+              value={
+                <Badge variant="light" color={left ? undefined : 'green'}>
                   {left ? `${left} à acheter` : 'Tout acheté'}
                 </Badge>
-              </Group>
-            </Link>
-          ))}
-        </Stack>
+              }
+            />
+          )}
+        />
       )}
     </HomeCard>
   );

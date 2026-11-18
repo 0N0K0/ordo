@@ -1,8 +1,9 @@
-import { ActionIcon, Badge, Select, Tooltip, type BadgeProps, type SelectProps } from '@mantine/core';
-import { LinkIcon, XIcon } from '@phosphor-icons/react';
+import { Badge, Select, Tooltip, type BadgeProps, type SelectProps } from '@mantine/core';
+import { LinkIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useLinkCandidates } from '../hooks/use-link-candidates';
 import { describeLink, linkKey, type LineLink, type LinkCandidate } from '../lib/lines';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 interface EntryLinkSelectProps extends Omit<SelectProps, 'data' | 'value' | 'onChange' | 'searchValue' | 'onSearchChange'> {
   /** Entry edited (its own lines are left out). */
@@ -74,13 +75,7 @@ export function LinkBadge({ link, onUnlink, variant = 'light', size, children, w
       variant={variant}
       color={link.amount < 0 ? 'red' : 'green'}
       leftSection={<LinkIcon aria-hidden />}
-      rightSection={
-        onUnlink && (
-          <ActionIcon size="xs" variant="transparent" color="gray" aria-label={`Délier ${describeLink(link)}`} onClick={onUnlink}>
-            <XIcon aria-hidden />
-          </ActionIcon>
-        )
-      }
+      rightSection={onUnlink && <RemoveButton variant="field" size="xs" label="Délier" aria-label={`Délier ${describeLink(link)}`} onClick={onUnlink} />}
       tt="none"
     >
       {children ?? describeLink(link)}

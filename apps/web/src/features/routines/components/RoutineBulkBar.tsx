@@ -7,7 +7,7 @@ import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } fr
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
-import { plural } from '../../../lib/text';
+import { plural, copyName } from '../../../lib/text';
 
 /** Actions on routines that their columns cannot do. */
 export interface RoutineRowsActions {
@@ -70,7 +70,7 @@ export function useRoutineRowsActions() {
           ),
           {
             duplicate: async (routine) => {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: copyName(routine.title) });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
             },
             done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,

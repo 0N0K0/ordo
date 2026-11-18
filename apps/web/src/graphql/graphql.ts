@@ -2849,6 +2849,7 @@ export type CreateRoutineMutation = { createRoutine: string };
 export type UpdateRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutineInput;
+  restoring?: boolean | null | undefined;
 }>;
 
 
@@ -3914,6 +3915,7 @@ export type MoveTaskViewMutation = { moveTaskView: boolean };
 export type BulkUpdateTasksMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   changes: BulkTaskInput;
+  restoring?: boolean | null | undefined;
 }>;
 
 
@@ -7483,8 +7485,8 @@ export const CreateRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateRoutineMutation, CreateRoutineMutationVariables>;
 export const UpdateRoutineDocument = new TypedDocumentString(`
-    mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {
-  updateRoutine(id: $id, input: $input)
+    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
+  updateRoutine(id: $id, input: $input, restoring: $restoring)
 }
     `) as unknown as TypedDocumentString<UpdateRoutineMutation, UpdateRoutineMutationVariables>;
 export const PatchRoutineDocument = new TypedDocumentString(`
@@ -8770,8 +8772,8 @@ export const MoveTaskViewDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
 export const BulkUpdateTasksDocument = new TypedDocumentString(`
-    mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {
-  bulkUpdateTasks(ids: $ids, changes: $changes)
+    mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {
+  bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)
 }
     `) as unknown as TypedDocumentString<BulkUpdateTasksMutation, BulkUpdateTasksMutationVariables>;
 export const BulkTransferTasksDocument = new TypedDocumentString(`

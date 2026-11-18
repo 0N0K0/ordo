@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Menu, Tooltip, type ActionIconProps } from '@mantine/core';
+import { ActionIcon, Group, Menu, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
 import { DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -21,8 +21,23 @@ interface RowAction {
   danger?: boolean;
 }
 
-/** Entry of the menu: an action, a separator, or nothing (not offered). */
-export type RowMenuEntry = RowAction | 'divider' | null | false | undefined | '';
+/** Title of a section of a menu (its actions follow). */
+interface MenuSection {
+  section: string;
+}
+
+/** Entry of the menu: an action, a separator, a section title, or nothing (not offered). */
+export type RowMenuEntry = RowAction | MenuSection | 'divider' | null | false | undefined | '';
+
+/** Entry shown in a menu. */
+type ShownEntry = RowAction | MenuSection | 'divider';
+
+/**
+ * Whether an entry is an action (not a separator nor a section title).
+ * @param {RowMenuEntry} item Entry.
+ * @returns {boolean} An action.
+ */
+const isAction = (item: RowMenuEntry): item is RowAction => Boolean(item) && item !== 'divider' && !('section' in (item as object));
 
 /** Width of the actions cell of a row: its main action and its menu. */
 export const ROW_ACTIONS_WIDTH = 72;
@@ -40,15 +55,16 @@ function linkProps(action: RowAction): object {
 
 /**
  * Entries of a menu as shown: the destructive actions gathered at the end after a separator, no separator at an end
- * nor two in a row.
+ * nor two in a row, no section title without an action under it.
  * @param {readonly RowMenuEntry[]} items Entries.
- * @returns {(RowAction | 'divider')[]} Entries shown.
+ * @returns {ShownEntry[]} Entries shown.
  */
-function menuEntries(items: readonly RowMenuEntry[]): (RowAction | 'divider')[] {
-  const entries = items.filter((item): item is RowAction | 'divider' => Boolean(item));
-  const safe = entries.filter((item) => item === 'divider' || !item.danger);
-  const danger = entries.filter((item): item is RowAction => item !== 'divider' && Boolean(item.danger));
-  return [...safe, ...(danger.length ? ['divider' as const, ...danger] : [])].filter((item, index, all) => item !== 'divider' || (index > 0 && index < all.length - 1 && all[index - 1] !== 'divider'));
+function menuEntries(items: readonly RowMenuEntry[]): ShownEntry[] {
+  const entries = items.filter((item): item is ShownEntry => Boolean(item));
+  const safe = entries.filter((item) => !isAction(item) || !item.danger);
+  const danger = entries.filter((item): item is RowAction => isAction(item) && Boolean(item.danger));
+  const titled = [...safe, ...(danger.length ? ['divider' as const, ...danger] : [])].filter((item, index, all) => isAction(item) || item === 'divider' || isAction(all[index + 1]));
+  return titled.filter((item, index, all) => item !== 'divider' || (index > 0 && index < all.length - 1 && all[index - 1] !== 'divider'));
 }
 
 interface ActionsMenuProps {
@@ -63,19 +79,25 @@ interface ActionsMenuProps {
   size?: ActionIconProps['size'];
   /** Something runs (an export): the default button spins. Optional. */
   loading?: boolean;
+  /** Where the menu opens. Optional. Default = « bottom-end ». */
+  position?: MenuProps['position'];
+  /** Open state, controlled (with onChange). Optional. */
+  opened?: boolean;
+  /** Opening or closing asked. Optional. */
+  onChange?: (opened: boolean) => void;
 }
 
 /**
- * Menu of the actions of something (a row, or a page header), the same everywhere: the destructive actions last, in
- * red, after a separator.
+ * Menu of the actions of something (a row, or a page header), the same everywhere: sections under their titles, the
+ * destructive actions last, in red, after a separator.
  * @param {ActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu, nothing without action.
  */
-export function ActionsMenu({ name, items, target, inRow = false, size, loading }: ActionsMenuProps) {
+export function ActionsMenu({ name, items, target, inRow = false, size, loading, position = 'bottom-end', opened, onChange }: ActionsMenuProps) {
   const menu = menuEntries(items);
   if (menu.length === 0) return null;
   return (
-    <Menu position="bottom-end" shadow="md" withinPortal>
+    <Menu position={position} shadow="md" withinPortal opened={opened} onChange={onChange}>
       <Menu.Target>
         {target ?? (
           <ActionIcon variant="subtle" color="gray" size={size} loading={loading} aria-label={`Actions de ${name}`} onClick={inRow ? (event) => event.stopPropagation() : undefined}>
@@ -87,8 +109,10 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading 
         {menu.map((item, index) =>
           item === 'divider' ? (
             <Menu.Divider key={`divider-${index}`} />
+          ) : !isAction(item) ? (
+            <Menu.Label key={`section-${index}`}>{item.section}</Menu.Label>
           ) : (
-            <Fragment key={item.label}>
+            <Fragment key={`${index}-${item.label}`}>
               <Menu.Item leftSection={item.icon} color={item.danger ? 'red' : undefined} disabled={item.disabled} title={item.hint} onClick={item.onClick} {...linkProps(item)}>
                 {item.label}
               </Menu.Item>
@@ -133,7 +157,7 @@ export function RowActions({ name, primary, items }: RowActionsProps) {
 interface InlineActionsProps {
   /** What the actions are about (« Modifier … »). */
   name: string;
-  /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators are left out. */
+  /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators and section titles are left out. */
   items: readonly RowMenuEntry[];
 }
 
@@ -144,7 +168,7 @@ interface InlineActionsProps {
  * @returns {JSX.Element} Actions.
  */
 export function InlineActions({ name, items }: InlineActionsProps) {
-  const actions = items.filter((item): item is RowAction => Boolean(item) && item !== 'divider');
+  const actions = items.filter(isAction);
   return (
     <Group gap={2} wrap="nowrap">
       {actions.map((action) => (

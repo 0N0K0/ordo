@@ -1,4 +1,5 @@
 import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { SignInIcon } from '@phosphor-icons/react';
 import { loginFormSchema, type LoginFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -41,7 +42,7 @@ export function LoginPage() {
           <Anchor component={Link} to="/forgot-password" size="sm">
             Mot de passe oublié ?
           </Anchor>
-          <Button type="submit" loading={login.isPending} fullWidth>
+          <Button type="submit" leftSection={<SignInIcon aria-hidden />} loading={login.isPending} fullWidth>
             Se connecter
           </Button>
         </Stack>

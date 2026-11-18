@@ -1,3 +1,4 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { plural } from '../../../lib/text';
 import { normalize } from '@ordo/shared';
@@ -5,11 +6,12 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
+import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
 import * as fmt from '../../../lib/format';
@@ -264,13 +266,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       <FormActions onCancel={onDone} loading={saveLink.isPending} onSubmit={() =>
             saveLink.mutate(
               { projectId, input: values },
-              {
-                onSuccess: () => {
-                  notifySuccess('Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.');
-                  onDone();
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone),
             )
           } />
     </Stack>
@@ -336,13 +332,13 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   if (loginPending || isPending || !context) return <FormSkeleton fields={3} />;
   if (!login) {
     return (
-      <Alert color="yellow" icon={<WarningIcon aria-hidden />}>
+      <NoticeAlert kind="info">
         GitHub n’est pas connecté : ajoutez un jeton dans{' '}
         <Anchor component={Link} to="/settings?tab=github" size="sm">
           Paramètres › GitHub
         </Anchor>
         .
-      </Alert>
+      </NoticeAlert>
     );
   }
 
@@ -351,7 +347,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
   };
 
   if (!link) {
@@ -380,7 +376,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 style={{ flex: 1 }}
                 error={board.error?.message}
               />
-              <Button type="submit" loading={board.isFetching} disabled={!url.trim()}>
+              <Button type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />} loading={board.isFetching} disabled={!url.trim()}>
                 Charger
               </Button>
             </Group>
@@ -416,7 +412,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <Text size="sm" c="dimmed">
                 {link.linkedTaskCount} {plural(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
-                {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(new Date(link.lastSyncAt))}`}
+                {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(link.lastSyncAt)}`}
               </Text>
             </Stack>
             <Group gap="xs">

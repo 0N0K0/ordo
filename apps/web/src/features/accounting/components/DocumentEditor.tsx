@@ -1,3 +1,5 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { BackLink } from '../../../components/page/BackLink';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ClientSelect } from '../../workspace/components/ClientSelect';
@@ -6,11 +8,12 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
+import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
 import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
 
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, FloppyDiskIcon, HandCoinsIcon, LinkBreakIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, ReceiptXIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -22,7 +25,7 @@ import { useWorkspace } from '../../workspace/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { Section } from './EditorSection';
@@ -42,6 +45,7 @@ import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { countOf, plural } from '../../../lib/text';
 import { DiscountInput } from './DiscountInput';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -56,10 +60,10 @@ function toValues(document: AccountingDocument): FormValues {
     serviceId: document.serviceId ?? null,
     contactId: document.contactId ?? null,
     projectId: document.projectId ?? null,
-    issueDate: String(document.issueDate),
-    dueDate: document.dueDate ? String(document.dueDate) : null,
-    serviceStart: document.serviceStart ? String(document.serviceStart) : null,
-    serviceEnd: document.serviceEnd ? String(document.serviceEnd) : null,
+    issueDate: document.issueDate,
+    dueDate: document.dueDate ? document.dueDate : null,
+    serviceStart: document.serviceStart ? document.serviceStart : null,
+    serviceEnd: document.serviceEnd ? document.serviceEnd : null,
     title: document.title ?? '',
     introduction: document.introduction ?? '',
     referenceLabel: document.referenceLabel ?? '',
@@ -169,28 +173,23 @@ function Editor({ document }: { document: AccountingDocument }) {
         <Stack gap="md">
           <Text size="sm">
             Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un
-            avoir. Vérifiez la date ({fmt.day(String(values.issueDate))}) : les numéros se
+            avoir. Vérifiez la date ({fmt.day(values.issueDate)}) : les numéros se
             suivent dans l’ordre de validation.
           </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button
-              leftSection={<SealCheckIcon aria-hidden />}
-              onClick={() => {
-                close();
-                save(() =>
-                  void mutations.finalize
-                    .mutateAsync(document.id)
-                    .then((number) => notifySuccess(`Document validé : ${number}.`))
-                    .catch(onMutationError),
-                );
-              }}
-            >
-              Valider
-            </Button>
-            <Button variant="default" onClick={close}>
-              Annuler
-            </Button>
-          </Group>
+          <FormActions
+            onCancel={close}
+            submitLabel="Valider"
+            submitIcon={<SealCheckIcon aria-hidden />}
+            onSubmit={() => {
+              close();
+              save(() =>
+                void mutations.finalize
+                  .mutateAsync(document.id)
+                  .then((number) => notifySuccess(`Document validé : ${number}.`))
+                  .catch(onMutationError),
+              );
+            }}
+          />
         </Stack>
       ));
   };
@@ -303,9 +302,7 @@ function Editor({ document }: { document: AccountingDocument }) {
     <Stack gap="md">
       <Group justify="space-between" align="flex-start" wrap="wrap">
         <Stack gap={2}>
-          <Anchor component={Link} to="/accounting" size="sm">
-            ← Facturation
-          </Anchor>
+          <BackLink to="/accounting">Facturation</BackLink>
           <Group gap="sm">
             <Title order={1} size="h2">
               {isTemplate ? `Modèle de facture récurrente` : `${typeLabel} ${document.number ?? ''}`}
@@ -354,7 +351,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             </Button>
           )}
           {!locked && (
-            <Button variant="default" onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
+            <Button variant="default" leftSection={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
               Enregistrer
             </Button>
           )}
@@ -374,16 +371,16 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && !archived && isQuote && (
             <>
-              <Button variant="default" onClick={() => openDepositForm({ quoteId: document.id })}>
+              <Button variant="default" leftSection={<HandCoinsIcon aria-hidden />} onClick={() => openDepositForm({ quoteId: document.id })}>
                 Facture d’acompte
               </Button>
-              <Button variant="default" onClick={() => createFrom('INVOICE')}>
+              <Button variant="default" leftSection={<ReceiptIcon aria-hidden />} onClick={() => createFrom('INVOICE')}>
                 Facturer
               </Button>
             </>
           )}
           {readOnly && !archived && isInvoice && (
-            <Button variant="default" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
+            <Button variant="default" color="orange" leftSection={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
               Créer un avoir
             </Button>
           )}
@@ -436,9 +433,9 @@ function Editor({ document }: { document: AccountingDocument }) {
         </Alert>
       ) : (
         readOnly && (
-          <Alert color="green" icon={<CheckCircleIcon aria-hidden />}>
+          <NoticeAlert kind="success">
             Document définitif : il ne peut plus être modifié. Ses pièces jointes restent modifiables.
-          </Alert>
+          </NoticeAlert>
         )
       )}
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
@@ -566,7 +563,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                     ) : ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
                   </Text>
                   {canBillTime && (
-                    <Button size="compact-xs" variant="subtle" color="gray" onClick={() => form.setFieldValue('timeEntryIds', [])}>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
                       Détacher le temps
                     </Button>
                   )}
@@ -767,16 +764,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               </Group>
             </FileLink>
             {!readOnly && (
-              <Tooltip label="Retirer">
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`Retirer ${attachment.name}`}
-                  onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })}
-                >
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })} />
             )}
           </Group>
         ))

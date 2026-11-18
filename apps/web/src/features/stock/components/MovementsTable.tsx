@@ -1,4 +1,4 @@
-import { Anchor, Badge, Text } from '@mantine/core';
+import { Anchor, Badge } from '@mantine/core';
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind } from '@ordo/shared';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -7,6 +7,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import * as fmt from '../../../lib/format';
 import { useStockMovements, type StockMovement } from '../api';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
 
@@ -22,17 +23,17 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
       id: 'date',
       label: 'Date',
       size: 150,
-      sortValue: (movement) => String(movement.date),
-      text: (movement) => fmt.dateTime(new Date(movement.date)),
-      filter: { kind: 'date', value: (movement) => String(movement.date).slice(0, 10) },
+      sortValue: (movement) => movement.date,
+      text: (movement) => fmt.dateTime(movement.date),
+      filter: { kind: 'date', value: (movement) => movement.date.slice(0, 10) },
     },
     {
       id: 'month',
       label: 'Mois',
       size: 130,
       hiddenByDefault: true,
-      sortValue: (movement) => String(movement.date).slice(0, 7),
-      text: (movement) => fmt.capitalize(fmt.month(String(movement.date).slice(0, 7))),
+      sortValue: (movement) => movement.date.slice(0, 7),
+      text: (movement) => fmt.capitalize(fmt.month(movement.date.slice(0, 7))),
       filter: false,
       groupable: true,
     },
@@ -72,12 +73,7 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
             {STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind]}
           </Badge>
         ),
-        quantity: (
-          <Text span size="sm" ff="monospace" c={movement.quantity < 0 ? 'red' : 'green'}>
-            {movement.quantity > 0 ? '+' : ''}
-            {fmt.number(movement.quantity, 3)}
-          </Text>
-        ),
+        quantity: <SignedAmount value={movement.quantity} format={(quantity) => fmt.number(quantity, 3)} />,
         source:
           movement.shoppingListId || movement.sheetId ? (
             <Anchor component={Link} to={movement.shoppingListId ? `/shopping/${movement.shoppingListId}` : `/sheets/${movement.sheetId}`} size="sm">

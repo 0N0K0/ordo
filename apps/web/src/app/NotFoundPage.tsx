@@ -1,6 +1,6 @@
-import { Button, Center, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Center } from '@mantine/core';
 import { CompassIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { PageMessage } from '../components/feedback/PageMessage';
 
 /**
  * 404 page with a way back home.
@@ -9,23 +9,7 @@ import { Link } from 'react-router';
 export function NotFoundPage() {
   return (
     <Center h="100dvh" p="md">
-      <Stack align="center" gap="md">
-        <ThemeIcon size={72} radius="xl" variant="light" color="gray">
-          <CompassIcon size="60%" weight="duotone" aria-hidden />
-        </ThemeIcon>
-        <Text fw={700} size="xl" c="dimmed">
-          404
-        </Text>
-        <Title order={1} size="h3">
-          Page introuvable
-        </Title>
-        <Text c="dimmed" ta="center">
-          L’adresse demandée n’existe pas ou a été déplacée.
-        </Text>
-        <Button component={Link} to="/">
-          Retour à l’accueil
-        </Button>
-      </Stack>
+      <PageMessage code="404" icon={<CompassIcon size="60%" weight="duotone" aria-hidden />} title="Page introuvable" message="L’adresse demandée n’existe pas ou a été déplacée." />
     </Center>
   );
 }

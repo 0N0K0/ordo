@@ -9,7 +9,7 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, BasketIcon
 import { useState } from 'react';
 import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { openMoveProducts } from '../lib/open-move-products';
 import { withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
@@ -127,7 +127,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   );
   const columns = itemColumns<ShoppingProduct>(
     grouping,
-    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations, archivedPeople: people.archived },
     [
       commentColumn<ShoppingProduct>(
         productComments,
@@ -139,7 +139,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         label: 'Dernier achat',
         size: 120,
         sortValue: (product) => product.lastPurchasedAt ?? null,
-        text: (product) => (product.lastPurchasedAt ? `${fmt.day(new Date(product.lastPurchasedAt))}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
+        text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
         filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
       },
       {
@@ -350,7 +350,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             render: (product: ShoppingProduct) =>
               product.lastPurchasedAt && (
                 <Text size="xs" c="dimmed" title={product.lastPrice !== null ? `${fmt.money(product.lastPrice)} l’unité` : undefined}>
-                  {fmt.day(new Date(product.lastPurchasedAt))}
+                  {fmt.day(product.lastPurchasedAt)}
                   {product.lastPrice !== null && ` · ${fmt.money(product.lastPrice)}`}
                 </Text>
               ),

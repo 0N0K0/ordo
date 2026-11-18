@@ -17,7 +17,7 @@
   /* On all the width of the page, beyond its margins (the sidebar and the window edge close it on its sides). */
   .list {
     /* Position: at the top of the window while the page scrolls, with a loose density (md in width and in height). */
-    @media (min-width: 45em) and (min-height: 67.5em) {
+    @media (min-width: $tablet-breakpoint) and (min-height: 67.5em) {
       position: sticky;
       top: var(--app-shell-header-offset, 0rem);
       z-index: 3;

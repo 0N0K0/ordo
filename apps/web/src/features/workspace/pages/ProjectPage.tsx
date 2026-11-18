@@ -1,14 +1,14 @@
 import { SubSection } from '../../../components/page/SubSection';
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { useSetParams } from '../../../lib/search-params';
 import { ancestorsOf, mapById } from '@ordo/shared';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
+import { ItemBadge } from '../../../components/items/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text } from '@mantine/core';
+import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -35,6 +35,7 @@ import { EntityHeader } from '../components/EntityHeader';
 import { EntityNotFound, EntitySkeleton } from '../components/EntityState';
 import { ProjectList } from '../components/ProjectList';
 import { PageSettings } from '../../../app/layout/PageSettings';
+import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 
@@ -61,47 +62,39 @@ type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 function ProjectSettings({ project, section, onSection }: { project: Project; section: SettingsSection; onSection: (section: SettingsSection) => void }) {
   const projectId = project.id;
   return (
-    <Tabs variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
-      <Tabs.List mb="md">
-        <Tabs.Tab value="taskSettings" leftSection={<ListChecksIcon aria-hidden />}>
-          Tâches
-        </Tabs.Tab>
-        <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
-          Jalons
-        </Tabs.Tab>
-        <Tabs.Tab value="sprints" leftSection={<TimerIcon aria-hidden />}>
-          Sprints
-        </Tabs.Tab>
-        <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
-          Contributeurs
-        </Tabs.Tab>
-        <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
-          GitHub
-        </Tabs.Tab>
-        <Tabs.Tab value="project" leftSection={<PencilSimpleIcon aria-hidden />}>
-          Projet
-        </Tabs.Tab>
-      </Tabs.List>
+    <SettingsTabs
+      value={section}
+      onChange={onSection}
+      keepMounted={false}
+      tabs={[
+        { value: 'taskSettings', label: 'Tâches', icon: <ListChecksIcon aria-hidden /> },
+        { value: 'milestones', label: 'Jalons', icon: <FlagIcon aria-hidden /> },
+        { value: 'sprints', label: 'Sprints', icon: <TimerIcon aria-hidden /> },
+        { value: 'contributors', label: 'Contributeurs', icon: <UsersIcon aria-hidden /> },
+        { value: 'github', label: 'GitHub', icon: <GithubLogoIcon aria-hidden /> },
+        { value: 'project', label: 'Projet', icon: <PencilSimpleIcon aria-hidden /> },
+      ]}
+    >
       {/* The task settings of the workspace, in every view of tasks. */}
-      <Tabs.Panel value="taskSettings" style={{ minWidth: 0 }}>
+      <SettingsTabPanel value="taskSettings">
         <TaskSettings />
-      </Tabs.Panel>
-      <Tabs.Panel value="milestones" style={{ minWidth: 0 }}>
+      </SettingsTabPanel>
+      <SettingsTabPanel value="milestones">
         <MilestonesPanel projectId={projectId} />
-      </Tabs.Panel>
-      <Tabs.Panel value="sprints" style={{ minWidth: 0 }}>
+      </SettingsTabPanel>
+      <SettingsTabPanel value="sprints">
         <SprintsPanel projectId={projectId} />
-      </Tabs.Panel>
-      <Tabs.Panel value="contributors" style={{ minWidth: 0 }}>
+      </SettingsTabPanel>
+      <SettingsTabPanel value="contributors">
         <ProjectContributors projectId={projectId} />
-      </Tabs.Panel>
-      <Tabs.Panel value="project" style={{ minWidth: 0 }}>
+      </SettingsTabPanel>
+      <SettingsTabPanel value="project">
         <ProjectForm key={project.id} project={project} />
-      </Tabs.Panel>
-      <Tabs.Panel value="github" style={{ minWidth: 0 }}>
+      </SettingsTabPanel>
+      <SettingsTabPanel value="github">
         <ProjectGithubPanel projectId={projectId} />
-      </Tabs.Panel>
-    </Tabs>
+      </SettingsTabPanel>
+    </SettingsTabs>
   );
 }
 

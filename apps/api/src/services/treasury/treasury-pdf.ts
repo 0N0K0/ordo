@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, splitAmounts, toCents } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, toCents, daySchema } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -12,8 +12,8 @@ type Doc = InstanceType<typeof PDFDocument>;
 /** Period (and account) of a statement. */
 const statementSchema = z
   .object({
-    from: z.iso.date({ error: 'Date de début invalide.' }),
-    to: z.iso.date({ error: 'Date de fin invalide.' }),
+    from: daySchema('Date de début invalide.'),
+    to: daySchema('Date de fin invalide.'),
     /** One account, or all of them. */
     accountId: z.string().nullable(),
   })
@@ -26,16 +26,8 @@ const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 7.5;
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 const longDate = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
 const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-
-/**
- * Printed day.
- * @param {string} day YYYY-MM-DD.
- * @returns {string} DD/MM/YYYY.
- */
-const printed = (day: string) => dateFormat.format(parseDay(day));
 
 /**
  * Printed amount.
@@ -128,7 +120,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   );
   const offset = entries.reduce((sum, entry, index) => sum + (amounts[index] > 0 ? amounts[index] - Math.round(remaining.get(entry.id) ?? amounts[index]) : 0), 0);
 
-  const { doc, top, finish } = await startReport({ title: `Relevé du ${printed(from)} au ${printed(to)}` });
+  const { doc, top, finish } = await startReport({ title: `Relevé du ${printedDay(from)} au ${printedDay(to)}` });
 
   const pageWidth = doc.page.width - 2 * MARGIN;
   const several = accounts.length > 1;
@@ -161,10 +153,10 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     .text([owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · '), MARGIN, y, { width: pageWidth });
   y = doc.y + 8;
   const figures = [
-    { label: `Solde au ${printed(addDays(from, -1))}`, value: opening, color: COLORS.text },
+    { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },
     { label: 'Sorties', value: outgoing, color: COLORS.out },
-    { label: `Solde au ${printed(to)}`, value: closing, color: COLORS.text },
+    { label: `Solde au ${printedDay(to)}`, value: closing, color: COLORS.text },
   ];
   const boxWidth = (pageWidth - 3 * 8) / 4;
   figures.forEach((figure, index) => {
@@ -256,7 +248,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     // Accounts opened by then.
     for (const account of pendingOpenings.filter((item) => item.day <= day)) {
       running += account.amount;
-      band(`${printed(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+      band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
     }
     pendingOpenings = pendingOpenings.filter((item) => item.day > day);
     if (counted(entry)) running += amounts[index];
@@ -273,8 +265,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       .filter(Boolean)
       .join(' · ');
     const cells = [
-      printed(day),
-      printed(formatDay(entry.valueDate)),
+      printedDay(day),
+      printedDay(entry.valueDate),
       entry.label,
       entry.client?.name ?? entry.counterparty?.name ?? '',
       categoryPath(entry.category?.id ?? null),
@@ -331,7 +323,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
               line.context?.name ?? '',
               line.project ? `projet ${line.project.title}` : '',
               line.loan ? 'prêt' : '',
-              line.date ? `le ${printed(formatDay(line.date))}` : '',
+              line.date ? `le ${printedDay(line.date)}` : '',
             ]
               .filter(Boolean)
               .join(' · ') || 'Ligne',
@@ -375,11 +367,11 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened after the last entry.
   for (const account of pendingOpenings) {
     running += account.amount;
-    band(`${printed(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+    band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
   }
   y += 4;
-  band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printed(to)} : ${money(closing)}`, COLORS.month);
+  band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printedDay(to)} : ${money(closing)}`, COLORS.month);
 
   const content = await finish();
-  return { name: `Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), content };
+  return { name: safeFilename(`Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`), content };
 }

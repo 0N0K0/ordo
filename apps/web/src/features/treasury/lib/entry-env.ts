@@ -10,6 +10,7 @@ import { useTreasuryDocumentOptions, useTreasurySettings, type ForecastEntry, ty
 import { categoryPaths } from './categories';
 import type { EntryValues } from './entry-values';
 import type { LineLink } from './lines';
+import { personName } from '../../../components/people/people-options';
 
 /** Entry of a treasury table: actual or forecast. */
 export type AnyEntry = TreasuryEntry | ForecastEntry;
@@ -80,7 +81,7 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.title])),
       documents: [...groups].map(([group, items]) => ({ group, items })),
       names: new Map([
-        ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), member.isMe ? `${member.name} (moi)` : member.name] as const),
+        ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), personName(member)] as const),
         ...(settings?.treasuryRelations ?? []).map((relation) => [personKey('relation', relation.id), relation.name] as const),
         ...(settings?.treasuryContexts ?? []).map((context) => [`context:${context.id}`, context.name] as const),
       ]),
@@ -109,7 +110,7 @@ export const payerKey = (entry: { clientId?: string | null; counterpartyId?: str
  * @returns {LineLink[]} Links.
  */
 export const entryLinks = (entry: AnyEntry): LineLink[] =>
-  entry.linkedEntries.map((linked) => ({ kind: 'entry', id: linked.id, entryLabel: linked.label, date: String(linked.date), label: null, amount: linked.amount }));
+  entry.linkedEntries.map((linked) => ({ kind: 'entry', id: linked.id, entryLabel: linked.label, date: linked.date, label: null, amount: linked.amount }));
 
 /**
  * Rule of a repeating forecast, told in words.
@@ -119,5 +120,5 @@ export const entryLinks = (entry: AnyEntry): LineLink[] =>
 export function recurrenceText(entry: AnyEntry): string {
   if (entry.recurrence == null) return '';
   const rule = recurrenceSchema.safeParse(entry.recurrence);
-  return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
+  return rule.success ? describeRecurrence(rule.data, entry.date) : '';
 }

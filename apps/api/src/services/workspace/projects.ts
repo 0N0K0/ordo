@@ -6,6 +6,8 @@ import { fieldError, notFound, orNotFound, parseInput } from '../../graphql/erro
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { assertAllExist, assertExists } from '../core/lookup';
+import { assertDateRange } from '../core/date-range';
+import { connectIds } from '../core/relations';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -202,12 +204,7 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
     color: input.color,
   });
 
-  const startDate = details.startDate === undefined ? current?.startDate : parseOptionalDay(details.startDate);
-  const endDate = details.endDate === undefined ? current?.endDate : parseOptionalDay(details.endDate);
-  if (startDate && endDate && endDate < startDate) {
-    const message = 'La date de fin doit suivre la date de début.';
-    throw fieldError('endDate', message);
-  }
+  assertDateRange(details, current);
 
   await assertExists(prisma.projectStatus, input.statusId, 'Statut');
 
@@ -256,7 +253,7 @@ export async function createProject(
       parentId,
       iconId,
       position: await nextPosition(parentId, clientId),
-      categories: { connect: categoryIds.map((id) => ({ id })) },
+      categories: { connect: connectIds(categoryIds) },
     },
   });
 }
@@ -349,7 +346,7 @@ export async function updateProject(
       ...details,
       title,
       iconId,
-      ...(input.categoryIds && { categories: { set: input.categoryIds.map((categoryId) => ({ id: categoryId })) } }),
+      ...(input.categoryIds && { categories: { set: connectIds(input.categoryIds) } }),
     },
   });
   if (iconId !== undefined) await deleteOrphanIcons([project.iconId]);

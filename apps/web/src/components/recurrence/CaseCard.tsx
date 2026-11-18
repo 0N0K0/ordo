@@ -1,9 +1,10 @@
 import { DragHandle } from '../actions/DragHandle';
 import { useSortable } from '@dnd-kit/sortable';
 import { sortableStyle } from '../actions/sortable-style';
-import { ActionIcon, Collapse, Group, Paper, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CaretRightIcon, TrashIcon } from '@phosphor-icons/react';
+import { Collapse, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
+import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { RemoveButton } from '../actions/RemoveButton';
 
 interface CaseCardProps {
   /** Number of the case, from 1. */
@@ -52,13 +53,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
           ) : (
             heading
           )}
-          {onRemove && (
-            <Tooltip label="Retirer le cas">
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove}>
-                <TrashIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
+          {onRemove && <RemoveButton label="Retirer le cas" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
         </Group>
         <Collapse expanded={shown}>
           <Stack gap="xs">{children}</Stack>

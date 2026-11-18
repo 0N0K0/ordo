@@ -1,46 +1,15 @@
-import { ActionIcon, Avatar, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
 import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
-import {
-  AtIcon,
-  CheckSquareIcon,
-  CodeIcon,
-  HashIcon,
-  LinkIcon,
-  ListBulletsIcon,
-  ListNumbersIcon,
-  MarkdownLogoIcon,
-  PaperclipIcon,
-  QuotesIcon,
-  TextBIcon,
-  TextHIcon,
-  TextItalicIcon,
-} from '@phosphor-icons/react';
-import {
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ClipboardEvent,
-  type DragEvent,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { AtIcon, CheckSquareIcon, CodeIcon, HashIcon, LinkIcon, ListBulletsIcon, ListNumbersIcon, MarkdownLogoIcon, PaperclipIcon, QuotesIcon, TextBIcon, TextHIcon, TextItalicIcon } from '@phosphor-icons/react';
+import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { attachmentMarkdown, uploadAttachment } from '../../lib/attachments';
 import { notifyError } from '../../lib/notify';
-import {
-  completeReference,
-  insertLink,
-  isUrl,
-  prefixLines,
-  referenceAt,
-  wrapSelection,
-  type EditResult,
-  type ReferenceToken,
-} from './markdown-commands';
+import { completeReference, insertLink, isUrl, prefixLines, referenceAt, wrapSelection, type EditResult, type ReferenceToken } from './markdown-commands';
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
 import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
 import { countOf, normalize } from '../../lib/text';
+import { PersonOption } from '../people/PersonOption';
 
 export interface MarkdownSuggestions {
   /** Project of the text: its tasks come first and show without their project. */
@@ -178,17 +147,7 @@ export function MarkdownEditor({
       .map((contributor) => ({
         key: `c${contributor.handle}`,
         reference: `@${contributor.handle}`,
-        label: (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={20} />
-            <Text span size="sm" fw={600}>
-              {contributor.handle}
-            </Text>
-            <Text span size="sm" c="dimmed">
-              {contributor.name}
-            </Text>
-          </Group>
-        ),
+        label: <PersonOption name={contributor.name} label={contributor.handle} avatarUrl={contributor.avatarUrl} hint={contributor.name} />,
       }));
   }, [token, suggestions]);
 

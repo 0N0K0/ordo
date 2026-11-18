@@ -119,8 +119,8 @@ const CreateRoutineDocument = graphql(`
 `);
 
 const UpdateRoutineDocument = graphql(`
-  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {
-    updateRoutine(id: $id, input: $input)
+  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
+    updateRoutine(id: $id, input: $input, restoring: $restoring)
   }
 `);
 
@@ -582,9 +582,9 @@ export function useRoutineMutations() {
       }),
     ),
     bulkRemove: useRoutineMutation(async (ids: string[]) => (await execute(BulkDeleteRoutinesDocument, { ids })).bulkDeleteRoutines),
-    /** Puts routines back as they were (undo of a bulk change). */
+    /** Puts routines back as they were (undo of a bulk change: the archived values given back accepted). */
     restore: useRoutineMutation(async (routines: Routine[]) => {
-      for (const routine of routines) await execute(UpdateRoutineDocument, { id: routine.id, input: routineInputOf(routine) });
+      for (const routine of routines) await execute(UpdateRoutineDocument, { id: routine.id, input: routineInputOf(routine), restoring: true });
       return routines.length;
     }),
   };

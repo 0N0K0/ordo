@@ -3,10 +3,10 @@ import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
-import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
 
 /** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
@@ -39,7 +39,7 @@ export interface BudgetReportRow extends Key {
  */
 async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget | null) {
   const budget = parseInput(treasuryBudgetSchema, input);
-  await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }), 'Catégorie');
+  await assertExists(prisma.treasuryCategory, budget.categoryId, 'Catégorie');
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
   await assertExists(prisma.treasuryRelation, budget.relationId, 'Relation');
   await assertExists(prisma.treasuryContext, budget.contextId, 'Contexte');
@@ -77,8 +77,7 @@ export async function saveBudget(id: string | null, input: TreasuryBudgetInput):
  * @returns {Promise<void>}
  */
 export async function deleteBudget(id: string): Promise<void> {
-  const { count } = await prisma.treasuryBudget.deleteMany({ where: { id } });
-  if (!count) throw notFound('Budget');
+  await deleteOrNotFound(prisma.treasuryBudget, id, 'Budget');
 }
 
 /**

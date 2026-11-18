@@ -1,3 +1,4 @@
+import { copyName } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
@@ -5,8 +6,8 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+import { onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
@@ -78,7 +79,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
     initialValues: {
-      title: routine ? (copy ? `${routine.title} (copie)` : routine.title) : '',
+      title: routine ? (copy ? copyName(routine.title) : routine.title) : '',
       description: routine?.description ?? '',
       categoryIds: routine ? routine.categoryIds : (parent?.categoryIds ?? (categoryId ? [categoryId] : [])),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
@@ -118,17 +119,13 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
     const opensOn = values.opensOn && !values.cases.length && opensFits(values.opensOn, values.recurrence.frequency) ? values.opensOn : null;
     const input = { ...values, description: values.description || null, opensOn };
-    const callbacks = {
-      onSuccess: (created: unknown) => {
-        // A copy takes the sub-routines of the routine with it, under itself.
-        if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
-          copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: onMutationError });
-        }
-        notifySuccess(copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.', (created: unknown) => {
+      // A copy takes the sub-routines of the routine with it, under itself.
+      if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
+        copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: onMutationError });
+      }
+      onDone();
+    });
     if (routine && !copy) update.mutate({ id: routine.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
@@ -151,7 +148,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
-              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? String(routine.currentDate) : null} name={routine.title} />}
+              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? routine.currentDate : null} name={routine.title} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
             </Stack>
           </Grid.Col>

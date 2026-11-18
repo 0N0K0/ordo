@@ -95,7 +95,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
         if (!bySprintParts[index] || !context || !sprintStatuses.data) return undefined;
         const statuses = sprintStatuses.data;
         const matches = new Map<string, Set<string>>();
-        for (const sprint of context.sprints.filter((item) => String(item.endDate).slice(0, 10) < today)) {
+        for (const sprint of context.sprints.filter((item) => item.endDate < today)) {
           // Its tasks, each with the status it had at the end of the sprint.
           const tasks = scoped
             .filter((task) => task.sprintIds.includes(sprint.id))

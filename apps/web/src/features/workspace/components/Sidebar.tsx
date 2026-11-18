@@ -2,9 +2,9 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, CloseButton, Box, Group, Menu, NavLink, ScrollArea, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, CloseButton, Box, Group, Menu, NavLink, ScrollArea, Stack, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import { AlarmIcon, ArrowsClockwiseIcon, BasketIcon, ClipboardTextIcon, PackageIcon, ArchiveIcon, BankIcon, CalendarBlankIcon, ChartBarIcon, CheckIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FolderOpenIcon, FolderPlusIcon, GearSixIcon, HouseIcon, MagnifyingGlassIcon, PlusIcon, ReceiptIcon, SortAscendingIcon, SquaresFourIcon, TimerIcon, UserPlusIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
+import { PackageIcon, ArchiveIcon, CheckIcon, FolderOpenIcon, FolderPlusIcon, MagnifyingGlassIcon, PlusIcon, SortAscendingIcon, SquaresFourIcon, UserPlusIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -16,40 +16,14 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { ActiveTree } from './ActiveTree';
 import { AgendaNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
 import { SidebarSection } from './SidebarSection';
+import { PAGES, type PageKey } from '../../../app/pages';
+import { newEntityEntries } from '../lib/fold-entries';
 import { StaticTree } from './StaticTrees';
 import { TreeExpansionContext, type TreeExpansion } from '../lib/tree-expansion';
+import { PHONE_QUERY } from '../../../lib/use-is-phone';
+import { EmptyState } from '../../../components/feedback/EmptyState';
 
 type SectionKey = 'favorites' | 'active' | 'archives';
-
-/**
- * Small empty state inside a section.
- * @param {object} props Component props.
- * @param {ReactNode} props.icon Icon.
- * @param {string} props.message Message.
- * @param {ReactNode} [props.action] Optional call to action.
- * @returns {JSX.Element} Empty state.
- */
-function SectionEmpty({
-  icon,
-  message,
-  action,
-}: {
-  icon: ReactNode;
-  message: string;
-  action?: ReactNode;
-}) {
-  return (
-    <Stack align="center" gap="xs" py="md" px="sm">
-      <ThemeIcon variant="light" color="gray" radius="xl" size="lg">
-        {icon}
-      </ThemeIcon>
-      <Text size="xs" c="dimmed" ta="center">
-        {message}
-      </Text>
-      {action}
-    </Stack>
-  );
-}
 
 /**
  * Skeleton rows shown while the workspace loads.
@@ -76,48 +50,59 @@ interface MenuGroup {
   links: MenuLink[];
 }
 
+/**
+ * Link of the menu to a page of the app (its address, name and icon from the registry).
+ * @param {PageKey} key Page.
+ * @param {ReactNode} [badge] Count after its name. Optional.
+ * @returns {MenuLink} Link.
+ */
+function pageLink(key: PageKey, badge?: ReactNode): MenuLink {
+  const { path, title, icon: PageIcon } = PAGES[key];
+  return { to: path, label: title, icon: <PageIcon aria-hidden />, badge };
+}
+
 /** Menu below « Accueil »: groups folding and unfolding their pages. */
 const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Activités',
     icon: <SquaresFourIcon aria-hidden />,
     links: [
-      { to: '/tasks', label: 'Tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge /> },
-      { to: '/routines', label: 'Routines', icon: <ArrowsClockwiseIcon aria-hidden /> },
-      { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
-      { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
-      { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
+      pageLink('tasks', <TasksNavBadge />),
+      pageLink('routines'),
+      pageLink('calendar', <AgendaNavBadge />),
+      pageLink('time', <TimeNavBadge />),
+      pageLink('alarms'),
     ],
   },
   {
     label: 'Économat',
     icon: <PackageIcon aria-hidden />,
     links: [
-      { to: '/shopping', label: 'Achats', icon: <BasketIcon aria-hidden /> },
-      { to: '/sheets', label: 'Fiches', icon: <ClipboardTextIcon aria-hidden /> },
-      { to: '/stock', label: 'Inventaire', icon: <ArchiveIcon aria-hidden /> },
+      pageLink('shopping'),
+      pageLink('sheets'),
+      pageLink('stock'),
     ],
   },
   {
     label: 'Finances',
     icon: <WalletIcon aria-hidden />,
     links: [
-      { to: '/accounting', label: 'Facturation', icon: <ReceiptIcon aria-hidden /> },
-      { to: '/treasury', label: 'Trésorerie', icon: <BankIcon aria-hidden />, badge: <TreasuryNavBadge /> },
+      pageLink('accounting'),
+      pageLink('treasury', <TreasuryNavBadge />),
     ],
   },
   {
     label: 'Ressources',
     icon: <ArchiveIcon aria-hidden />,
     links: [
-      { to: '/mail', label: 'Mails', icon: <EnvelopeSimpleIcon aria-hidden />, badge: <MailNavBadge /> },
-      { to: '/documents', label: 'Documents', icon: <FolderOpenIcon aria-hidden /> },
-      { to: '/dashboards', label: 'Tableaux de bord', icon: <ChartBarIcon aria-hidden /> },
+      pageLink('mail', <MailNavBadge />),
+      pageLink('documents'),
+      pageLink('dashboards'),
     ],
   },
 ];
 /** Pages a personal workspace does not have. */
-const PRO_ONLY = new Set(['/accounting']);
+const PRO_ONLY = new Set([PAGES.accounting.path]);
 
 /**
  * Whether a menu link is the page open (or one of its sub-pages).
@@ -189,7 +174,7 @@ export function Sidebar() {
   const groups = MENU_GROUPS.map((group) => ({ ...group, links: perso ? group.links.filter((item) => !PRO_ONLY.has(item.to)) : group.links })).filter((group) => group.links.length > 0);
   const actions = useEntityActions();
   const { pathname } = useLocation();
-  const touch = useMediaQuery('(hover: none), (max-width: 48em)');
+  const touch = useMediaQuery(`(hover: none), ${PHONE_QUERY}`);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useLocalStorage<SortMode>({
     key: 'ordo.sidebar.sort',
@@ -295,9 +280,9 @@ export function Sidebar() {
     <Stack h="100%" gap={0}>
       <NavLink
         component={Link}
-        to="/"
-        label="Accueil"
-        leftSection={<HouseIcon aria-hidden />}
+        to={PAGES.home.path}
+        label={PAGES.home.title}
+        leftSection={<PAGES.home.icon aria-hidden />}
         active={pathname === '/'}
       />
       <Box pb="xs" style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}>
@@ -426,24 +411,7 @@ export function Sidebar() {
               opened={sections.active}
               onToggle={() => toggleSection('active')}
               onSetAllExpanded={allExpandedHandler(active, '')}
-              actions={
-                <>
-                  {!perso && (
-                    <Menu.Item
-                      leftSection={<UserPlusIcon aria-hidden />}
-                      onClick={() => actions.openClientForm()}
-                    >
-                      Nouveau client
-                    </Menu.Item>
-                  )}
-                  <Menu.Item
-                    leftSection={<FolderPlusIcon aria-hidden />}
-                    onClick={() => actions.openProjectForm()}
-                  >
-                    Nouveau projet
-                  </Menu.Item>
-                </>
-              }
+              actions={newEntityEntries(actions, perso)}
             >
               {activeCount > 0 ? (
                 <TreeExpansionContext.Provider value={expansionFor(active, '')}>
@@ -455,28 +423,25 @@ export function Sidebar() {
                   />
                 </TreeExpansionContext.Provider>
               ) : (
-                <SectionEmpty
-                  icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />}
-                  message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
-                  action={
+                <Stack gap="xs" px="sm" py="xs">
+                  <EmptyState compact icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />} message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')} />
+                  {
                     !searching && (
                       <ActionsRow>
-                        {!perso && (
-                          <ActionButton priority="secondary"
-                            size="xs"
-                            icon={<UserPlusIcon aria-hidden />}
-                            onClick={() => actions.openClientForm()}
-                          >Nouveau client</ActionButton>
+                        {newEntityEntries(actions, perso).map(
+                          (entry) =>
+                            entry &&
+                            entry !== 'divider' &&
+                            'label' in entry && (
+                              <ActionButton key={entry.label} priority="secondary" size="xs" icon={entry.icon} onClick={entry.onClick}>
+                                {entry.label}
+                              </ActionButton>
+                            ),
                         )}
-                        <ActionButton priority="secondary"
-                          size="xs"
-                          icon={<FolderPlusIcon aria-hidden />}
-                          onClick={() => actions.openProjectForm()}
-                        >Nouveau projet</ActionButton>
                       </ActionsRow>
                     )
                   }
-                />
+                </Stack>
               )}
             </SidebarSection>
 
@@ -507,10 +472,10 @@ export function Sidebar() {
 
       <NavLink
         component={Link}
-        to="/settings"
-        label="Paramètres"
-        leftSection={<GearSixIcon aria-hidden />}
-        active={pathname === '/settings'}
+        to={PAGES.settings.path}
+        label={PAGES.settings.title}
+        leftSection={<PAGES.settings.icon aria-hidden />}
+        active={pathname === PAGES.settings.path}
         style={{ borderTop: '1px solid var(--app-shell-border-color)' }}
       />
     </Stack>

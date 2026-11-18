@@ -1,4 +1,4 @@
-import { DAY_PATTERN, parseDay, type AccountingDocumentType } from '@ordo/shared';
+import { DAY_PATTERN, parseDay, safeFilename, type AccountingDocumentType } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -18,7 +18,7 @@ const TYPES = Object.keys(FOLDERS) as AccountingDocumentType[];
  * @param {string} name Name.
  * @returns {string} Name.
  */
-const safe = (name: string) => name.replace(/[\\/:*?"<>|\0]/g, '-').trim() || 'sans-nom';
+const safe = (name: string) => safeFilename(name).trim() || 'sans-nom';
 
 /**
  * ZIP of the documents issued over a period, one folder per type: the final documents of Ordo as printed

@@ -4,8 +4,7 @@ import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
 import { IconField, type IconValue } from '../../features/workspace/components/IconField';
 import { useColorSwatches } from '../../lib/use-color-swatches';
-import { showFormError, useAppForm } from '../../lib/form';
-import { notifySuccess } from '../../lib/notify';
+import { useAppForm, formCallbacks } from '../../lib/form';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
 import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
@@ -30,12 +29,33 @@ export type SettingsItemValues<E extends object = Record<string, never>> = { nam
 export interface SettingsItemExtra<C extends SettingsItem, E extends object> {
   /** Their starting values: those of the item edited, or of a new one. */
   initial: (item?: C) => E;
-  /** Their fields. */
-  render: (form: UseFormReturnType<SettingsItemValues<E>>) => ReactNode;
+  /** Their fields, given the item edited (none: a new one). */
+  render: (form: UseFormReturnType<SettingsItemValues<E>>, item?: C) => ReactNode;
 }
 
-interface SettingsItemFormProps<C extends SettingsItem, E extends object> {
+/**
+ * What a settings list and the form of its items share (a quick creation elsewhere included): the list, the look of
+ * its items, the rule and fields of the form and its saves.
+ */
+export interface SettingsItemKind<C extends SettingsItem, E extends object = Record<string, never>> {
   kind: SettingsListKind;
+  /** Items have a color (none: their image or initials alone). Optional. Default = true. */
+  withColor?: boolean;
+  /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
+  colorRequired?: boolean;
+  /** Placeholder of the name (« Virement, carte, chèque… »). Optional. */
+  namePlaceholder?: string;
+  /** Rule of the values (zod, `@ordo/shared`). */
+  schema: Parameters<typeof useAppForm>[0]['schema'];
+  /** Fields of the list of its own, in the form. Optional. */
+  extra?: SettingsItemExtra<C, E>;
+  /** Saves a new item, gives its id. */
+  create: (values: SettingsItemValues<E>) => Promise<string>;
+  /** Saves an item edited. */
+  update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
+}
+
+interface SettingsItemFormProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {
   /** Item edited; none: a new one. */
   item?: C;
   /** Parent of a new item (in a tree). Optional. */
@@ -46,18 +66,8 @@ interface SettingsItemFormProps<C extends SettingsItem, E extends object> {
   withParent?: boolean;
   /** Starting values of a new item (an address picked on a map…). Optional. */
   initial?: Partial<SettingsItemValues<E>>;
-  /** Items have a color (none: their image or initials alone). Optional. Default = true. */
-  withColor?: boolean;
-  /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
-  colorRequired?: boolean;
-  /** Rule of the values (zod, `@ordo/shared`). */
-  schema: Parameters<typeof useAppForm>[0]['schema'];
-  extra?: SettingsItemExtra<C, E>;
-  /** Saves a new item, gives its id. */
-  create: (values: SettingsItemValues<E>) => Promise<string>;
-  /** Saves the item edited. */
-  update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
-  onDone: () => void;
+  /** Closes the form; given the id of the item created (none: edited, or cancelled). */
+  onDone: (createdId?: string) => void;
 }
 
 /**
@@ -75,6 +85,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   initial,
   withColor = true,
   colorRequired = !tree,
+  namePlaceholder,
   schema,
   extra,
   create,
@@ -97,6 +108,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
     schema,
   });
 
+  const callbacks = formCallbacks(form, item ? 'Modifications enregistrées.' : 'Ajout enregistré.', (id: string) => onDone(item ? undefined : id));
   const handleSubmit = form.onSubmit(async (values) => {
     setPending(true);
     try {
@@ -105,10 +117,9 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
       if (icon.file || icon.remove || withColor) {
         await look.mutateAsync({ kind, id, input: { ...(withColor && { color: values.color || null }), ...(icon.file ? { icon: icon.file } : icon.remove ? { removeIcon: true } : {}) } });
       }
-      notifySuccess(item ? 'Modifications enregistrées.' : 'Ajout enregistré.');
-      onDone();
+      callbacks.onSuccess(id);
     } catch (error) {
-      showFormError(form, error);
+      callbacks.onError(error as Error);
     } finally {
       setPending(false);
     }
@@ -118,14 +129,14 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Nom" required placeholder={namePlaceholder} data-autofocus {...form.getInputProps('name')} />
         {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
         <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.name} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (
           <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
         )}
-        {extra?.render(form)}
-        <FormActions onCancel={onDone} submitLabel={item ? 'Enregistrer' : 'Créer'} loading={pending} />
+        {extra?.render(form, item)}
+        <FormActions onCancel={() => onDone()} submitLabel={item ? 'Enregistrer' : 'Créer'} loading={pending} />
       </Stack>
     </form>
   );

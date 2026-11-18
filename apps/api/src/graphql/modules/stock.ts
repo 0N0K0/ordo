@@ -4,8 +4,7 @@ import { prisma } from '../../db';
 import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
-
-const float = (value: { toNumber(): number } | null) => (value === null ? 0 : value.toNumber());
+import { fromDecimal } from '../../services/core/decimal';
 
 const StockMovementKindEnum = builder.enumType('StockMovementKind', { values: STOCK_MOVEMENT_KINDS, description: 'Why a quantity of the stock changed.' });
 
@@ -25,7 +24,7 @@ builder.prismaObject('StockLot', {
   fields: (t) => ({
     id: t.exposeID('id'),
     itemId: t.exposeID('itemId'),
-    quantity: t.float({ resolve: (lot) => float(lot.quantity) }),
+    quantity: t.float({ resolve: (lot) => fromDecimal(lot.quantity) }),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
   }),
@@ -49,7 +48,7 @@ builder.prismaObject('StockItem', {
     quantity: t.float({
       description: 'Quantity of its lots.',
       select: { lots: { select: { quantity: true } } },
-      resolve: (item) => Math.round(item.lots.reduce((sum, lot) => sum + float(lot.quantity), 0) * 1000) / 1000,
+      resolve: (item) => stock.lotsQuantity(item.lots),
     }),
     memberIds: t.idList(relationIds('members')),
     relationIds: t.idList(relationIds('relations')),
@@ -69,7 +68,7 @@ builder.prismaObject('StockMovement', {
     itemLabel: t.string({ select: { item: { select: { label: true } } }, resolve: (movement) => movement.item.label }),
     lotId: t.exposeID('lotId', { nullable: true }),
     kind: t.expose('kind', { type: StockMovementKindEnum }),
-    quantity: t.float({ resolve: (movement) => float(movement.quantity) }),
+    quantity: t.float({ resolve: (movement) => fromDecimal(movement.quantity) }),
     date: t.expose('date', { type: 'DateTime' }),
     note: t.exposeString('note', { nullable: true }),
     source: t.string({

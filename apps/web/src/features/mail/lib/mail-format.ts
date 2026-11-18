@@ -55,7 +55,7 @@ export function listDate(iso: string): string {
  * @returns {string} Label.
  */
 export function fullDate(iso: string): string {
-  return fmt.dateTime(new Date(iso));
+  return fmt.dateTime(iso);
 }
 
 /**

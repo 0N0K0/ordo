@@ -1,4 +1,4 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
 import { DragHandle } from '../../../components/actions/DragHandle';
 
@@ -19,12 +19,12 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, FlagIcon, PencilSimpleIcon, Plu
 import { useState } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+import { onMutationError } from '../../../lib/notify';
 import { useMilestoneMutations, type Milestone } from '../api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
@@ -57,13 +57,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
 
   const handleSubmit = form.onSubmit((values) => {
     const input = { title: values.title, dueDate: values.dueDate, description: values.description || null };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(milestone ? 'Jalon modifié.' : 'Jalon créé.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, milestone ? 'Jalon modifié.' : 'Jalon créé.', onDone);
     if (milestone) update.mutate({ id: milestone.id, input }, callbacks);
     else create.mutate({ ...input, projectId }, callbacks);
   });

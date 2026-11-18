@@ -1,12 +1,13 @@
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
+import { BackLink } from '../../../components/page/BackLink';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Anchor, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
 import { FilePreview } from '../../files/components/FilePreview';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
@@ -42,8 +43,8 @@ export function ImportedDocumentPage() {
   const money = (amount: number) => fmt.money(amount, document.currency);
   const facts: [string, string | null][] = [
     ['Client', document.clientName || null],
-    ['Date', fmt.day(String(document.issueDate))],
-    [document.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance', document.dueDate ? fmt.day(String(document.dueDate)) : null],
+    ['Date', fmt.day(document.issueDate)],
+    [document.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance', document.dueDate ? fmt.day(document.dueDate) : null],
     ['Total HT', money(document.totalNet)],
     ['TVA', money(document.totalVat)],
     ['Total TTC', money(document.totalGross)],
@@ -53,11 +54,7 @@ export function ImportedDocumentPage() {
     <Stack gap="md">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <Stack gap={4}>
-          <Anchor component={Link} to="/accounting" size="sm">
-            <Group gap={4} wrap="nowrap">
-              <ArrowLeftIcon aria-hidden /> Facturation
-            </Group>
-          </Anchor>
+          <BackLink to="/accounting">Facturation</BackLink>
           <Group gap="xs">
             <Title order={1} size="h3">
               {DOCUMENT_TYPE_LABELS[document.type]} {document.number}
@@ -111,7 +108,7 @@ export function ImportedDocumentPage() {
                       </Button>
                     ) : (
                       !document.archived && (
-                        <Button variant="default" onClick={() => openImportForm(document)}>
+                        <Button variant="default" leftSection={<PaperclipIcon aria-hidden />} onClick={() => openImportForm(document)}>
                           Joindre le fichier
                         </Button>
                       )

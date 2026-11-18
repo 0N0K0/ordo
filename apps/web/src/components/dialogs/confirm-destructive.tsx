@@ -12,6 +12,8 @@ interface ConfirmDestructiveOptions {
   risks: ReactNode;
   /** Label of the confirmation. Optional. Default = « Supprimer ». */
   confirmLabel?: string;
+  /** Icon of the confirmation. Optional. Default = a trash. */
+  confirmIcon?: ReactNode;
   /** The action, once confirmed. */
   onConfirm: () => void;
 }
@@ -22,7 +24,7 @@ interface ConfirmDestructiveOptions {
  * @param {ConfirmDestructiveOptions} options Dialog.
  * @returns {void}
  */
-export function confirmDestructive({ title, risks, confirmLabel, onConfirm }: ConfirmDestructiveOptions): void {
+export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm }: ConfirmDestructiveOptions): void {
   const modalId = `confirm-destructive-${++count}`;
   modals.open({
     modalId,
@@ -34,6 +36,7 @@ export function confirmDestructive({ title, risks, confirmLabel, onConfirm }: Co
         </Text>
         <DestructiveActions
           confirmLabel={confirmLabel}
+          confirmIcon={confirmIcon}
           onCancel={() => modals.close(modalId)}
           onConfirm={() => {
             modals.close(modalId);

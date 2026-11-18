@@ -84,10 +84,10 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
     type: document.type,
     draft: document.status === 'DRAFT',
     imported: false,
-    issueDate: String(document.issueDate),
-    dueDate: document.dueDate ? String(document.dueDate) : null,
-    sentAt: document.sentAt ? localDay(String(document.sentAt)) : null,
-    acceptedAt: document.acceptedAt ? String(document.acceptedAt) : null,
+    issueDate: document.issueDate,
+    dueDate: document.dueDate ? document.dueDate : null,
+    sentAt: document.sentAt ? localDay(document.sentAt) : null,
+    acceptedAt: document.acceptedAt ? document.acceptedAt : null,
     clientId: document.clientId,
     clientName: document.clientName,
     projectId: document.projectId ?? null,
@@ -104,8 +104,8 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         type: document.type,
         draft: false,
         imported: true,
-        issueDate: String(document.issueDate),
-        dueDate: document.dueDate ? String(document.dueDate) : null,
+        issueDate: document.issueDate,
+        dueDate: document.dueDate ? document.dueDate : null,
         sentAt: null,
         acceptedAt: null,
         clientId: document.clientId ?? null,
@@ -116,7 +116,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         totalGross: document.totalGross,
         paid: document.paid ?? 0,
         balance: document.balance ?? 0,
-        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && String(document.dueDate) < localToday()),
+        overdue: Boolean(document.dueDate && (document.balance ?? 0) > 0 && document.dueDate < localToday()),
       }))
     : [];
   return [...own, ...before].filter(
@@ -336,7 +336,7 @@ export function treasuryChartData({
 }): ChartData {
   if (config.measure === 'balance') return balanceChartData(projection, config, today);
   const filter = config.treasury;
-  const plannedDays = periods.map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
+  const plannedDays = periods.map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
   const expected: ChartMovement[] =
     filter.includeForecast && projection
       ? projection.items
@@ -366,7 +366,7 @@ export function treasuryChartData({
   const partIds = new Map<string, string[]>();
   const parts: Part[] = [];
   for (const entry of actual) {
-    const date = String(entry.date);
+    const date = entry.date;
     const base = { date, accountId: entry.accountId, forecast: false };
     // By its full path (two sub-categories of the same name stay apart); the filters match a path of it or, saved before
     // the paths, a name of it.
@@ -378,7 +378,7 @@ export function treasuryChartData({
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,
       // A line of its own day (deferred debit card) counts that day.
-      movement: { ...base, ...(line.date ? { date: String(line.date) } : {}), ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
+      movement: { ...base, ...(line.date ? { date: line.date } : {}), ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
       linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
     }));
     if (remainder !== 0 || !entry.lines.length) {
@@ -496,16 +496,16 @@ function balanceChartData(projection: TreasuryProjection | null, config: ChartCo
     empty: true,
   };
   if (!projection || projection.series.length === 0) return empty;
-  const points = [...projection.series].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const points = [...projection.series].sort((a, b) => a.date.localeCompare(b.date));
   const [from, to] = periodRange(config.period, today);
-  const first = from ?? String(points[0].date);
-  const end = to ?? addDays(String(points[points.length - 1].date), 1);
+  const first = from ?? points[0].date;
+  const end = to ?? addDays(points[points.length - 1].date, 1);
   const rows: Record<string, string | number | null>[] = [];
   let index = 0;
   let last: number | null = null;
   for (let start = bucketOf(first, config.bucket); start < end; start = nextBucket(start, config.bucket)) {
     const limit = nextBucket(start, config.bucket);
-    while (index < points.length && String(points[index].date) < limit) last = points[index++].balance;
+    while (index < points.length && points[index].date < limit) last = points[index++].balance;
     const forecast = start > today;
     rows.push({
       x: bucketLabel(start, config.bucket),

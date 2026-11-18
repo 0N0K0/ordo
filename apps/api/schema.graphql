@@ -1570,7 +1570,15 @@ type Mutation {
   Applies the same changes to several routines; returns how many changed.
   """
   bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): Int!
-  bulkUpdateTasks(changes: BulkTaskInput!, ids: [ID!]!): Boolean!
+  bulkUpdateTasks(
+    changes: BulkTaskInput!
+    ids: [ID!]!
+
+    """
+    Undo: archived values given back are accepted (only that check is skipped).
+    """
+    restoring: Boolean
+  ): Boolean!
   cancelEmailChange: User!
 
   """Cancels a scheduled mail: it goes back to the drafts."""
@@ -2185,7 +2193,15 @@ type Mutation {
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: NameColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
-  updateRoutine(id: ID!, input: RoutineInput!): Boolean!
+  updateRoutine(
+    id: ID!
+    input: RoutineInput!
+
+    """
+    Undo: archived values given back are accepted (only that check is skipped).
+    """
+    restoring: Boolean
+  ): Boolean!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
   updateSheetCategory(id: ID!, input: NameColorPatch!): Boolean!

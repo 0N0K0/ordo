@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../lib/archive';
@@ -10,13 +10,13 @@ import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';
 import { ShowArchivedSwitch } from '../filters/ShowArchivedSwitch';
 import { openFormPanel } from '../panels/panels';
-import { ArchivedBadge } from './ItemBadge';
-import { useReorderSettingsItems, type SettingsListKind } from './settings-api';
-import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type SettingsItemValues } from './SettingsItemForm';
+import { ArchivedBadge } from '../items/ItemBadge';
+import { useReorderSettingsItems } from './settings-api';
+import { SettingsItemForm, type SettingsItem, type SettingsItemKind, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';
+import { ActionButton } from '../actions/ActionButton';
 
-interface SettingsListProps<C extends SettingsItem, E extends object> {
-  kind: SettingsListKind;
+interface SettingsListProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {
   title: string;
   description: ReactNode;
   /** « le statut », « la catégorie »: in the messages (a noun after « la » agrees in the feminine: « archivée »). */
@@ -24,22 +24,10 @@ interface SettingsListProps<C extends SettingsItem, E extends object> {
   items: readonly C[];
   /** A tree: items under others, moved under another by drag and drop. Optional. Default = false. */
   nested?: boolean;
-  /** Items have a color (none: their image or initials alone). Optional. Default = true. */
-  withColor?: boolean;
-  /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
-  colorRequired?: boolean;
   /** Number of rows of each item. Optional. */
   usage?: ReadonlyMap<string, number>;
   /** What the rows are, in the deletion message (« tâches »). Optional. */
   usageNoun?: string;
-  /** Rule of the form values (zod, `@ordo/shared`). */
-  schema: Parameters<typeof SettingsItemForm>[0]['schema'];
-  /** Fields of the list of its own, in the form. Optional. */
-  extra?: SettingsItemExtra<C, E>;
-  /** Saves a new item, gives its id. */
-  create: (values: SettingsItemValues<E>) => Promise<string>;
-  /** Saves an item edited. */
-  update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
   /** Deletes an item. */
   remove: (id: string) => Promise<unknown>;
   /** Puts an item under a parent (null: top level) at an index among its siblings; none: the order of the list is saved as is. Optional. */
@@ -84,6 +72,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   nested = false,
   withColor = true,
   colorRequired,
+  namePlaceholder,
   usage,
   usageNoun,
   schema,
@@ -126,6 +115,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         initial={initial}
         withColor={withColor}
         colorRequired={colorRequired}
+        namePlaceholder={namePlaceholder}
         schema={schema}
         extra={extra}
         create={create}
@@ -216,9 +206,9 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
           <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
             {headerActions}
-            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
               Ajouter
-            </Button>
+            </ActionButton>
           </Group>
         </>
       }

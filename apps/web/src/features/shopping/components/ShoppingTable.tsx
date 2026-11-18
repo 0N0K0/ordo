@@ -4,12 +4,11 @@ import { useMemo, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from '../api';
 import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, ToggleCell, UnitCell } from './shopping-cells';
-import * as fmt from '../../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { DataTable, type GroupTree, type RowMove } from '../../../components/data-table/table/DataTable';
-import { groupsOfRow, inputOf, moveToGroup, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, type ShoppingFields, type ShoppingGrouping } from '../lib/shopping-format';
+import { groupsOfRow, inputOf, moveToGroup, NO_GROUP_NAME, placeInGroup, sheetSourceText, shoppingRows, usePeople, type ShoppingFields, type ShoppingGrouping } from '../lib/shopping-format';
 import classes from './Shopping.module.css';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import type { DataView } from '../../../components/data-table/views/use-data-view';
@@ -184,7 +183,6 @@ export function ShoppingTable<T extends ShoppingFields>({
       unitPrice: (
         <EditableNumber
           amount
-          suffix="€"
           value={item.unitPrice ?? null}
           label={`Prix unitaire estimé de ${name}`}
           min={0}
@@ -241,13 +239,7 @@ export function ShoppingTable<T extends ShoppingFields>({
         <StackedValues>
           {(item.sheetSources as { sheetId: string; name: string; quantity: number | null }[]).map((source) => (
             <Text key={source.sheetId} size="sm" truncate>
-              {source.name}
-              {source.quantity !== null && (
-                <Text span size="sm" c="dimmed">
-                  {' '}
-                  · {fmt.number(source.quantity, 3)}
-                </Text>
-              )}
+              {sheetSourceText(source)}
             </Text>
           ))}
         </StackedValues>

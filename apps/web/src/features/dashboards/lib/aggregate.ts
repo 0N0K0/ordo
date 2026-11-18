@@ -183,11 +183,10 @@ export function nextBucket(start: string, bucket: ChartBucket): string {
  * @returns {string} "3 nov.", "sem. 3 nov.", "nov. 2026", "T4 2026", "2026".
  */
 export function bucketLabel(start: string, bucket: ChartBucket): string {
-  const date = new Date(`${start}T00:00:00Z`);
   if (bucket === 'year') return start.slice(0, 4);
   if (bucket === 'quarter') return quarterName(start);
-  if (bucket === 'month') return fmt.monthShort(date);
-  return bucket === 'week' ? `sem. ${fmt.dayShort(date)}` : fmt.dayShort(date);
+  if (bucket === 'month') return fmt.monthShort(start);
+  return bucket === 'week' ? `sem. ${fmt.dayShort(start)}` : fmt.dayShort(start);
 }
 
 /**

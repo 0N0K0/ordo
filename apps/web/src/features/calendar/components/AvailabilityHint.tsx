@@ -1,6 +1,7 @@
-import { Alert } from '@mantine/core';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+
 import { plannedPauses, plannedSlots, withinSlots } from '@ordo/shared';
-import { WarningIcon } from '@phosphor-icons/react';
+
 import { scheduleRules, useWorkSchedules } from '../api';
 import { useActiveWorkspace } from '../../workspaces/api';
 
@@ -36,8 +37,8 @@ export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTim
       ? `En dehors de vos horaires de travail ce jour-là (${slots.map((slot) => `${slot.start}–${slot.end}`).join(', ')}).`
       : 'Pas de plage de travail prévue ce jour-là.';
   return (
-    <Alert color="yellow" variant="light" icon={<WarningIcon aria-hidden />} py="xs">
+    <NoticeAlert kind="warning" py="xs">
       {message}
-    </Alert>
+    </NoticeAlert>
   );
 }

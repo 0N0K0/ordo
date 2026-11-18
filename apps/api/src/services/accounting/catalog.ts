@@ -4,6 +4,7 @@ import { Prisma, type CatalogItem } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 import { requirePro } from '../workspace/workspaces';
 import { assertNotArchived } from '../core/archive';
+import { assertExists } from '../core/lookup';
 
 /**
  * Prisma data of a validated catalogue item.
@@ -49,6 +50,6 @@ export async function updateCatalogItem(id: string, input: CatalogItemInput): Pr
  * @returns {Promise<void>}
  */
 export async function deleteCatalogItem(id: string): Promise<void> {
-  await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { id: true } }), 'Article');
+  await assertExists(prisma.catalogItem, id, 'Article');
   await prisma.catalogItem.delete({ where: { id } });
 }

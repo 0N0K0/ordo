@@ -1,6 +1,7 @@
+import { PAGES } from '../../../app/pages';
 import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Group, Stack, Tooltip } from '@mantine/core';
@@ -34,7 +35,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { localDay } from '../../../lib/dates';
 import { useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
@@ -147,18 +148,18 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       id: 'createdAt',
       label: 'Créée le',
       size: 110,
-      sortValue: (list) => String(list.createdAt),
-      text: (list) => fmt.day(new Date(list.createdAt)),
-      filter: { kind: 'date', value: (list) => localDay(String(list.createdAt)) },
+      sortValue: (list) => list.createdAt,
+      text: (list) => fmt.day(list.createdAt),
+      filter: { kind: 'date', value: (list) => localDay(list.createdAt) },
     },
     {
       id: 'closedAt',
       label: 'Clôturée le',
       size: 110,
       hiddenByDefault: true,
-      sortValue: (list) => (list.closedAt ? String(list.closedAt) : null),
-      text: (list) => (list.closedAt ? fmt.day(new Date(list.closedAt)) : ''),
-      filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(String(list.closedAt)) : null) },
+      sortValue: (list) => (list.closedAt ? list.closedAt : null),
+      text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
+      filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
     },
     {
       id: 'paid',
@@ -236,7 +237,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   );
   // Without sort, the latest first.
   const rows = useMemo(
-    () => [...visibleItems(projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []), showArchived)].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+    () => [...visibleItems(projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []), showArchived)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [lists, context, projectIds, showArchived],
   );
   const view = useDataView({ tableKey: 'shopping-lists', projectId: projectId ?? null, columns, rows, title: 'Listes d’achats', first: LIST_VIEWS, getKey: (list) => list.id });
@@ -380,7 +381,7 @@ export function ShoppingPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Achats" />
+      <PageHeader title={PAGES.shopping.title} />
       <ShoppingSettings />
       <PageTabs value={tab} onChange={(value) => setParams({ tab: value === 'lists' ? 'lists' : null })} keepMounted={false}>
         <PageTabs.List>

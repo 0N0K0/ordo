@@ -305,11 +305,11 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
 });
 
 /**
- * Optional id as a string or null.
- * @param {string | number | null | undefined} id GraphQL id.
+ * Optional id or null.
+ * @param {string | null | undefined} id GraphQL id.
  * @returns {string | null} Id.
  */
-const idOrNull = (id: string | number | null | undefined) => (id === null || id === undefined ? null : String(id));
+const idOrNull = (id: string | null | undefined) => id ?? null;
 
 /**
  * Routine input with omitted optional fields as null.
@@ -475,8 +475,8 @@ builder.mutationFields((t) => ({
     resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
   updateRoutine: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: (_root, { id, input }) => done(routines.updateRoutine(id, routineInput(input))),
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    resolve: (_root, { id, input, restoring }) => done(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
   }),
   patchRoutine: t.boolean({
     description: 'Changes some fields of a routine (inline edits).',
@@ -528,7 +528,7 @@ builder.mutationFields((t) => ({
     description: 'Applies the same changes to several routines; returns how many changed.',
     args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
     resolve: (_root, { ids, changes }) => {
-      const list = (value: (string | number)[] | null | undefined) => (value ? value.map(String) : undefined);
+      const list = (value: string[] | null | undefined) => value ?? undefined;
       return routines.bulkUpdateRoutines(ids, {
         addCategoryIds: list(changes.addCategoryIds),
         removeCategoryIds: list(changes.removeCategoryIds),

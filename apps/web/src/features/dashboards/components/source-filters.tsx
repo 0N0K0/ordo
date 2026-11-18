@@ -1,4 +1,5 @@
-import { SegmentedControl, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { SegmentedControl, Stack, Switch, TextInput } from '@mantine/core';
 import type { ChartConfig } from '@ordo/shared';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import { useDocumentStatuses } from '../../accounting/api/tracking';
@@ -106,10 +107,7 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         onChange={(accountIds) => set({ accountIds })}
       />
       <BatchMultiSelect label="Catégories" placeholder="Toutes" searchable {...treeSelectProps(categories)} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Mouvements
-        </Text>
+      <LabeledField label="Mouvements">
         <SegmentedControl
           data={[
             { value: 'all', label: 'Tous' },
@@ -123,7 +121,7 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
             })
           }
         />
-      </Stack>
+      </LabeledField>
       <Switch
         label="Inclure le prévisionnel (prévisions, factures à encaisser, factures récurrentes à venir)"
         checked={filter.includeForecast}

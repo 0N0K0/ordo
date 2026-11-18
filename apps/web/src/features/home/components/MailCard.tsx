@@ -1,16 +1,13 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
-import { Group, Stack, Text } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { CheckCircleIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+
 import { useMailAccounts, useUnreadMails } from '../../mail/api';
-import classes from './Home.module.css';
 import { HomeCard } from './HomeCard';
+import { HomeList, HomeRow } from './HomeList';
 import { dayLabel } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-
-const MAX_ROWS = 6;
 
 /**
  * Unread mails of the inboxes of every account, latest first.
@@ -31,40 +28,37 @@ export function MailCard({ today }: { today: string }) {
       {!loading && unread.error && unread.data?.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Boîte mail injoignable." />}
       {!loading && accountIds.length > 0 && !unread.error && unread.data?.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun mail non lu." />}
       {!loading && unread.data && unread.data.length > 0 && (
-        <Stack gap={0}>
-          {unread.data.slice(0, MAX_ROWS).map(({ accountId, message }) => {
+        <HomeList
+          items={unread.data}
+          render={({ accountId, message }) => {
             const day = message.date ? localDay(message.date) : null;
             const account = several ? accounts.data?.find((item) => item.id === accountId) : undefined;
             return (
-              <Link key={`${accountId}-${message.uid}`} to={`/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`} className={classes.row}>
-                <Group justify="space-between" wrap="nowrap" gap="xs">
-                  <Stack gap={0} miw={0}>
-                    <Text size="sm" fw={600} truncate>
-                      {message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
-                    </Text>
-                    <Text size="xs" truncate>
-                      {message.subject || '(sans objet)'}
-                      {account && (
-                        <Text span size="xs" c="dimmed">
-                          {' '}
-                          · {account.name}
-                        </Text>
-                      )}
-                    </Text>
-                  </Stack>
-                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                    {day === today && message.date ? fmt.time(new Date(message.date)) : day ? dayLabel(day, today) : ''}
+              <HomeRow
+                key={`${accountId}-${message.uid}`}
+                to={`/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`}
+                emphasis
+                title={message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
+                subtitle={
+                  <>
+                    {message.subject || '(sans objet)'}
+                    {account && (
+                      <Text span size="xs" c="dimmed">
+                        {' '}
+                        · {account.name}
+                      </Text>
+                    )}
+                  </>
+                }
+                value={
+                  <Text size="xs" c="dimmed">
+                    {day === today && message.date ? fmt.time(message.date) : day ? dayLabel(day, today) : ''}
                   </Text>
-                </Group>
-              </Link>
+                }
+              />
             );
-          })}
-          {unread.data.length > MAX_ROWS && (
-            <Text size="xs" c="dimmed" pt={4}>
-              + {unread.data.length - MAX_ROWS} {plural(unread.data.length - MAX_ROWS, 'autre')}
-            </Text>
-          )}
-        </Stack>
+          }}
+        />
       )}
     </HomeCard>
   );

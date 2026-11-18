@@ -1,5 +1,5 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { Button, Group, SimpleGrid, Stack } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';

@@ -234,7 +234,7 @@ type Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
     "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": typeof types.BulkUpdateRoutinesDocument,
@@ -378,7 +378,7 @@ type Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": typeof types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": typeof types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": typeof types.MoveTaskViewDocument,
-    "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {\n    bulkUpdateTasks(ids: $ids, changes: $changes)\n  }\n": typeof types.BulkUpdateTasksDocument,
+    "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": typeof types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.BulkDeleteTasksDocument,
@@ -695,7 +695,7 @@ const documents: Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": types.UpdateRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
     "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": types.BulkUpdateRoutinesDocument,
@@ -839,7 +839,7 @@ const documents: Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": types.MoveTaskViewDocument,
-    "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {\n    bulkUpdateTasks(ids: $ids, changes: $changes)\n  }\n": types.BulkUpdateTasksDocument,
+    "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": types.BulkDeleteTasksDocument,
@@ -1816,7 +1816,7 @@ export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
+export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2392,7 +2392,7 @@ export function graphql(source: "\n  mutation MoveTaskView($id: ID!, $index: Int
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {\n    bulkUpdateTasks(ids: $ids, changes: $changes)\n  }\n"): typeof import('./graphql').BulkUpdateTasksDocument;
+export function graphql(source: "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n"): typeof import('./graphql').BulkUpdateTasksDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

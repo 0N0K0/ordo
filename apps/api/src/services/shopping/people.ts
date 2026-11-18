@@ -1,5 +1,6 @@
 import { prisma } from '../../db';
 import { assertAllExist } from '../core/lookup';
+import { connectIds } from '../core/relations';
 
 /** Include of the people (members, relations) of a product, an item or a sheet item. */
 export const withPeople = { members: { select: { id: true } }, relations: { select: { id: true } } } as const;
@@ -14,8 +15,8 @@ export type WithPeople = { members: { id: string }[]; relations: { id: string }[
  * @returns {object} Relation data.
  */
 export const peopleData = (input: { memberIds?: readonly string[] | null; relationIds?: readonly string[] | null }, mode: 'connect' | 'set') => ({
-  members: { [mode]: [...new Set(input.memberIds ?? [])].map((id) => ({ id })) },
-  relations: { [mode]: [...new Set(input.relationIds ?? [])].map((id) => ({ id })) },
+  members: { [mode]: connectIds(input.memberIds ?? []) },
+  relations: { [mode]: connectIds(input.relationIds ?? []) },
 });
 
 /**

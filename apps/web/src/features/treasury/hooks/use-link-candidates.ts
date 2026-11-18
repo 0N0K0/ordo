@@ -18,7 +18,7 @@ export function useLinkCandidates(search: string, { entryId, links, lines = true
   return (found ?? [])
     .filter((item) => item.id !== entryId)
     .flatMap((item): LinkCandidate[] => {
-      const base = { entryLabel: item.label, date: String(item.date), accountName: item.accountName };
+      const base = { entryLabel: item.label, date: item.date, accountName: item.accountName };
       if (!item.lines.length) return [{ ...base, kind: 'entry', id: item.id, label: null, amount: item.amount }];
       return lines ? item.lines.map((other) => ({ ...base, kind: 'line', id: other.id, label: other.label ?? null, amount: fromCents(lineCents(item.amount, other)) })) : [];
     })

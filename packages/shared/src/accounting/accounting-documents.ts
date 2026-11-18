@@ -2,6 +2,7 @@ import { lastDayOfMonth } from '@ordo/shared';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
 import { addDays } from '../dates/recurrence';
+import { daySchema } from '../dates/times';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
@@ -41,7 +42,7 @@ export const accountingDocumentInputSchema = z
     serviceId: z.string().nullable(),
     contactId: z.string().nullable(),
     projectId: z.string().nullable(),
-    issueDate: z.iso.date({ error: 'La date est requise.' }),
+    issueDate: daySchema('La date est requise.'),
     dueDate: z.iso.date().nullable(),
     serviceStart: z.iso.date().nullable(),
     serviceEnd: z.iso.date().nullable(),
@@ -237,14 +238,32 @@ export function computeTotals(document: {
   };
 }
 
+/** Formats of the amounts made so far, by currency (making one is slow). */
+const moneyFormats = new Map<string, Intl.NumberFormat>();
+
+/**
+ * Format of the amounts of a currency, made once: "1 234,50 €".
+ * @param {string} currency ISO currency.
+ * @returns {Intl.NumberFormat} Format.
+ */
+function moneyFormat(currency: string): Intl.NumberFormat {
+  let format = moneyFormats.get(currency);
+  if (!format) {
+    format = new Intl.NumberFormat('fr-FR', { style: 'currency', currency });
+    moneyFormats.set(currency, format);
+  }
+  return format;
+}
+
 /**
  * Formats cents as an amount: "1 234,50 €".
  * @param {number} cents Cents.
  * @param {string} [currency] ISO currency. Optional. Default = EUR.
+ * @param {Intl.NumberFormat} [format] Format to use instead of the currency's (a cached one of the caller). Optional. Default = the currency's, cached.
  * @returns {string} Amount.
  */
-export function formatMoney(cents: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(fromCents(cents));
+export function formatMoney(cents: number, currency = 'EUR', format: Intl.NumberFormat = moneyFormat(currency)): string {
+  return format.format(fromCents(cents));
 }
 
 export const UNIT_LABELS: Record<AccountingUnit, { label: string; short: string }> = {
@@ -317,7 +336,7 @@ export const importedDocumentSchema = z
   .object({
     type: z.enum(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE']),
     number: requiredText(60, 'Le numéro est requis.'),
-    issueDate: z.iso.date({ error: 'La date est requise.' }),
+    issueDate: daySchema('La date est requise.'),
     dueDate: z.iso.date().nullable(),
     clientId: z.string().nullable(),
     clientName: z

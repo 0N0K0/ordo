@@ -43,7 +43,7 @@ export async function createAlarm(input: AlarmInput): Promise<Alarm> {
  * @returns {Promise<Alarm>} Updated alarm.
  */
 export async function updateAlarm(id: string, input: AlarmInput): Promise<Alarm> {
-  await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
+  await assertExists(prisma.alarm, id, 'Alarme');
   return prisma.alarm.update({ where: { id }, data: { ...(await parseAlarm(input)), lastFiredAt: new Date() } });
 }
 
@@ -66,6 +66,6 @@ export async function markAlarmFired(id: string, at: Date): Promise<Alarm> {
  * @returns {Promise<void>}
  */
 export async function deleteAlarm(id: string): Promise<void> {
-  await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
+  await assertExists(prisma.alarm, id, 'Alarme');
   await prisma.alarm.delete({ where: { id } });
 }

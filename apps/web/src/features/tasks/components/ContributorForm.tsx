@@ -1,8 +1,8 @@
 import { Stack, TextInput } from '@mantine/core';
 import { contributorFormSchema, suggestHandle, type ContributorFormValues } from '@ordo/shared';
 import { useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useWorkspace } from '../../workspace/api';
 import { IconField, type IconValue } from '../../workspace/components/IconField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -39,13 +39,7 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(contributor ? 'Contributeur modifié.' : 'Contributeur ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, contributor ? 'Contributeur modifié.' : 'Contributeur ajouté.', onDone);
     if (contributor) {
       update.mutate({ id: contributor.id, input: { ...values, avatar: avatar.file, removeAvatar: avatar.remove, projectIds } }, callbacks);
     } else {

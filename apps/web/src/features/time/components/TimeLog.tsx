@@ -77,7 +77,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       size: 200,
       locked: true,
       sortValue: (entry) => entry.startedAt,
-      text: (entry) => fmt.capitalize(fmt.dayLong(new Date(entry.startedAt))),
+      text: (entry) => fmt.capitalize(fmt.dayLong(entry.startedAt)),
       filter: { kind: 'date', value: (entry) => localDay(entry.startedAt) },
       groupable: true,
     },
@@ -87,17 +87,17 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       size: 140,
       hiddenByDefault: true,
       sortValue: (entry) => localDay(entry.startedAt).slice(0, 7),
-      text: (entry) => fmt.capitalize(fmt.month(new Date(entry.startedAt))),
+      text: (entry) => fmt.capitalize(fmt.month(entry.startedAt)),
       filter: false,
       groupable: true,
     },
-    { id: 'start', bulk: true, label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(new Date(entry.startedAt)), text: (entry) => fmt.time(new Date(entry.startedAt)), filter: false },
+    { id: 'start', bulk: true, label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(entry.startedAt), text: (entry) => fmt.time(entry.startedAt), filter: false },
     {
       id: 'end',
       label: 'Heure de fin',
       size: 110,
-      sortValue: (entry) => (entry.endedAt ? fmt.time(new Date(entry.endedAt)) : null),
-      text: (entry) => (entry.endedAt ? fmt.time(new Date(entry.endedAt)) : ''),
+      sortValue: (entry) => (entry.endedAt ? fmt.time(entry.endedAt) : null),
+      text: (entry) => (entry.endedAt ? fmt.time(entry.endedAt) : ''),
       filter: false,
     },
     {
@@ -281,11 +281,11 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
         const tasks = context ? entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined) : [];
         return {
           day: <TimeDayCell entry={entry} readOnly={!editable(entry)} save={bulk('day')} />,
-          month: fmt.capitalize(fmt.month(new Date(entry.startedAt))),
+          month: fmt.capitalize(fmt.month(entry.startedAt)),
           start: <TimeStartCell entry={entry} readOnly={!editable(entry)} save={bulk('start')} />,
           end: entry.endedAt ? (
             <Text span size="sm" c="dimmed">
-              {fmt.time(new Date(entry.endedAt))}
+              {fmt.time(entry.endedAt)}
             </Text>
           ) : null,
           duration: entry.endedAt ? (

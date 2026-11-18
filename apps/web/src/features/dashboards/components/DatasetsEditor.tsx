@@ -1,6 +1,7 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
-import { Accordion, ActionIcon, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Accordion, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import {
   CHART_COMPARISON_KINDS,
   defaultChartConfig,
@@ -14,12 +15,13 @@ import {
   type ChartDataset,
   type ChartSource,
 } from '@ordo/shared';
-import { CopyIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CopyIcon, PlusIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from '../lib/aggregate';
 import { SOURCE_LABELS } from '../lib/chart-data';
 import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 const COMPARISON_LABELS: Record<ChartComparison['kind'], string> = { ratio: 'Pourcentage (A / B)', difference: 'Différence (A − B)' };
 
@@ -149,11 +151,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                       {dataset.series ? ` · séries : ${DIMENSION_LABELS[dataset.series].toLowerCase()}` : ''}
                     </Text>
                   </Accordion.Control>
-                  <Tooltip label="Retirer le jeu de données">
-                    <ActionIcon variant="subtle" color="red" aria-label={`Retirer ${dataset.name}`} onClick={() => removeDataset(dataset)}>
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
+                  <RemoveButton label="Retirer le jeu de données" aria-label={`Retirer ${dataset.name}`} onClick={() => removeDataset(dataset)} />
                 </Group>
                 <Accordion.Panel>
                   <Stack gap="sm">
@@ -199,10 +197,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                         />
                       )}
                     </SimpleGrid>
-                    <Stack gap={4}>
-                      <Text size="sm" fw={500}>
-                        Type de diagramme
-                      </Text>
+                    <LabeledField label="Type de diagramme">
                       <SegmentedControl
                         size="xs"
                         data={[
@@ -214,7 +209,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                         value={dataset.type ?? 'chart'}
                         onChange={(type) => setDataset(index, { type: type === 'chart' ? null : (type as ChartDataset['type']) })}
                       />
-                    </Stack>
+                    </LabeledField>
                     <Select
                       label="Séries"
                       placeholder="Aucune (une seule série)"
@@ -249,17 +244,12 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
             <Stack gap="xs">
               <Group gap="xs" wrap="nowrap" align="flex-end">
                 <TextInput label="Comparaison" style={{ flex: 1 }} value={comparison.name} onChange={(event) => setComparison(index, { name: event.currentTarget.value })} />
-                <Tooltip label="Retirer la comparaison">
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="lg"
-                    aria-label={`Retirer ${comparison.name}`}
-                    onClick={() => change({ comparisons: config.comparisons.filter((other) => other.id !== comparison.id) })}
-                  >
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <RemoveButton
+                  label="Retirer la comparaison"
+                  size="lg"
+                  aria-label={`Retirer ${comparison.name}`}
+                  onClick={() => change({ comparisons: config.comparisons.filter((other) => other.id !== comparison.id) })}
+                />
               </Group>
               <SegmentedControl
                 size="xs"

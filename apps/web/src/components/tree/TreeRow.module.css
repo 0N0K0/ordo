@@ -1,0 +1,41 @@
+@layer app {
+  /* Row of a tree sorted by drag and drop (categories, projects): shows where the dragged item would go. */
+  .row {
+    /* Animation */
+    transition:
+      background-color 150ms ease,
+      box-shadow 150ms ease;
+
+    &:hover {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-drop='INSIDE'] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-drop='BEFORE'] {
+      /* Effets */
+      box-shadow: inset 0 2px 0 var(--mantine-primary-color-filled);
+    }
+
+    &[data-drop='AFTER'] {
+      /* Effets */
+      box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
+    }
+
+    &[data-dragging] {
+      /* Effets */
+      opacity: 0.4;
+    }
+  }
+
+  /* Room of the fold button, on rows without children. */
+  .caretSpace {
+    /* Dimensions */
+    width: var(--ai-size-xs, 18px);
+    flex-shrink: 0;
+  }
+}

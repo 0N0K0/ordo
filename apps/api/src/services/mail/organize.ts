@@ -1,14 +1,14 @@
 import { colorSchema, requiredText } from '@ordo/shared';
-import type { ImapFlow } from 'imapflow';
+import type { ImapFlow, ListResponse } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertNotArchived } from '../core/archive';
-import { nextPositionIn } from '../core/ordering';
 import type { MailLabel } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { assertExists } from '../core/lookup';
+import { createLabelService } from '../core/labels';
 
 /** Keywords of the spam state, as most clients and servers read them. */
 const JUNK = '$Junk';
@@ -134,6 +134,20 @@ export async function moveMails(accountId: string, folder: string, uids: number[
   });
 }
 
+/**
+ * Folder of the user (not the inbox nor a special folder) among the folders of an account.
+ * @param {ListResponse[]} folders Folders of the account.
+ * @param {string} path Folder path.
+ * @param {string} refused Message when it is the inbox or a special folder (« Les dossiers spéciaux ne se renomment pas. »).
+ * @returns {ListResponse} Folder.
+ */
+function userFolder(folders: ListResponse[], path: string, refused: string): ListResponse {
+  const folder = folders.find((item) => item.path === path);
+  if (!folder) throw notFound('Dossier');
+  if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', refused);
+  return folder;
+}
+
 const folderNameSchema = z
   .string()
   .trim()
@@ -171,9 +185,7 @@ export async function renameFolder(accountId: string, path: string, name: string
   await assertNotArchived('MAIL_ACCOUNT', accountId);
   const clean = parseInput(folderNameSchema, name);
   return withImap(accountId, async (client) => {
-    const folder = (await client.list()).find((item) => item.path === path);
-    if (!folder) throw notFound('Dossier');
-    if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', 'Les dossiers spéciaux ne se renomment pas.');
+    const folder = userFolder(await client.list(), path, 'Les dossiers spéciaux ne se renomment pas.');
     if (clean.includes(folder.delimiter)) throw clientError('BAD_USER_INPUT', `Le nom ne peut pas contenir « ${folder.delimiter} ».`);
     const parentPath = folder.parentPath;
     const target = parentPath ? `${parentPath}${folder.delimiter}${clean}` : (client.namespace?.prefix ?? '') + clean;
@@ -193,9 +205,7 @@ export async function moveFolder(accountId: string, path: string, parent: string
   await assertNotArchived('MAIL_ACCOUNT', accountId);
   return withImap(accountId, async (client) => {
     const folders = await client.list();
-    const folder = folders.find((item) => item.path === path);
-    if (!folder) throw notFound('Dossier');
-    if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', 'Les dossiers spéciaux ne se déplacent pas.');
+    const folder = userFolder(folders, path, 'Les dossiers spéciaux ne se déplacent pas.');
     if ((folder.parentPath || null) === parent) return path;
     let target: string;
     if (parent) {
@@ -218,9 +228,7 @@ export async function moveFolder(accountId: string, path: string, parent: string
 export async function deleteFolder(accountId: string, path: string): Promise<void> {
   await assertNotArchived('MAIL_ACCOUNT', accountId);
   await withImap(accountId, async (client) => {
-    const folder = (await client.list()).find((item) => item.path === path);
-    if (!folder) throw notFound('Dossier');
-    if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', 'Les dossiers spéciaux ne se suppriment pas.');
+    const folder = userFolder(await client.list(), path, 'Les dossiers spéciaux ne se suppriment pas.');
     // Its sub-folders first, the deepest first (servers refuse or keep them otherwise).
     const descendants = (await client.list()).filter((item) => item.path.startsWith(`${path}${folder.delimiter}`)).sort((a, b) => b.path.length - a.path.length);
     for (const descendant of descendants) await client.mailboxDelete(descendant.path);
@@ -233,29 +241,8 @@ const labelSchema = z.object({
   color: colorSchema,
 });
 
-/**
- * Creates a flag at the end of the list.
- * @param {{ name: string, color: string }} input Flag.
- * @returns {Promise<MailLabel>} Flag.
- */
-export async function createLabel(input: { name: string; color: string }): Promise<MailLabel> {
-  const data = parseInput(labelSchema, input);
-  const position = await nextPositionIn('mailLabel');
-  return prisma.mailLabel.create({ data: { ...data, position } });
-}
-
-/**
- * Updates a flag.
- * @param {string} id Flag id.
- * @param {{ name: string, color: string }} input Flag.
- * @returns {Promise<MailLabel>} Flag.
- */
-export async function updateLabel(id: string, input: { name: string; color: string }): Promise<MailLabel> {
-  const data = parseInput(labelSchema, input);
-  await orNotFound(prisma.mailLabel.findUnique({ where: { id }, select: { id: true } }), 'Drapeau');
-  await assertNotArchived('MAIL_LABEL', id);
-  return prisma.mailLabel.update({ where: { id }, data });
-}
+/** Flags of the mails (no two with the same name is not enforced by the database). */
+export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce nom.' }, { schema: labelSchema });
 
 /**
  * Deletes a flag (its keyword stays on the mails, unused; the marks kept in Ordo lose it).
@@ -263,8 +250,7 @@ export async function updateLabel(id: string, input: { name: string; color: stri
  * @returns {Promise<void>}
  */
 export async function deleteLabel(id: string): Promise<void> {
-  const { count } = await prisma.mailLabel.deleteMany({ where: { id } });
-  if (!count) throw notFound('Drapeau');
+  await mailLabels.remove(id);
   const marks = await prisma.mailMark.findMany({ where: { labelIds: { has: id } } });
   for (const mark of marks) {
     await prisma.mailMark.update({

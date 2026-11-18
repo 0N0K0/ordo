@@ -3,18 +3,19 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Button, Group, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Group, Stack, Text, ThemeIcon } from '@mantine/core';
 
 import { ArchiveIcon, ArrowCounterClockwiseIcon, EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Settings of the mail accounts: add, edit, signature, archive (not read nor synchronised anymore, hidden until
@@ -64,9 +65,9 @@ export function MailAccountsManager() {
       actions={
         <>
           <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(accounts ?? []).filter((account) => account.archived).length} label="Afficher les archivées" />
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => open('Nouvelle boîte mail', (close) => <MailAccountForm onDone={close} />)}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => open('Nouvelle boîte mail', (close) => <MailAccountForm onDone={close} />)}>
             Ajouter
-          </Button>
+          </ActionButton>
         </>
       }
     >

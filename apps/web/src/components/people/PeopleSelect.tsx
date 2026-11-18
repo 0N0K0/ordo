@@ -1,8 +1,6 @@
 import type { ComboboxItem, ComboboxLikeRenderOptionInput } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
-import { EditableMultiSelect } from '../data-table/cells/EditableCells';
-import type { StackedItem } from '../data-table/cells/StackedMultiCell';
 
 /** Options of people, grouped by kind or not. */
 type PeopleOptions = (ComboboxItem | { group: string; items: ComboboxItem[] })[];
@@ -45,24 +43,4 @@ export function PeopleSelect({ label, description, placeholder = 'Personne', dat
       nothingFoundMessage={nothingFoundMessage}
     />
   );
-}
-
-interface PeopleCellProps {
-  label: string;
-  data: PeopleOptions;
-  value: string[];
-  /** People shown (with their avatar…); default: the labels of the options. Optional. */
-  items?: StackedItem[];
-  renderOption?: (item: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode;
-  readOnly?: boolean;
-  onSave: (value: string[]) => void;
-}
-
-/**
- * Cell of a table choosing people: one under the other, chosen in place, saved once the list closes.
- * @param {PeopleCellProps} props Component props.
- * @returns {JSX.Element} Cell.
- */
-export function PeopleCell({ label, data, value, items, renderOption, readOnly = false, onSave }: PeopleCellProps) {
-  return <EditableMultiSelect label={label} value={value} data={data} items={items} renderOption={renderOption} readOnly={readOnly} onSave={onSave} />;
 }

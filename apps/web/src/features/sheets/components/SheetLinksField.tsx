@@ -1,5 +1,7 @@
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
-import { PlusIcon } from '@phosphor-icons/react';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { Group, Select, Text } from '@mantine/core';
+
 import { onMutationError } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
 import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
@@ -26,10 +28,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const archivedIds = new Set((sheets ?? []).filter((sheet) => sheet.archived).map((sheet) => sheet.id));
   const free = options.filter((option) => !archivedIds.has(option.value) && !current.some((link) => link.sheetId === option.value));
   return (
-    <Stack gap={6}>
-      <Text size="sm" fw={500}>
-        Fiches
-      </Text>
+    <LabeledField label="Fiches">
       <Text size="xs" c="dimmed">
         Chaque occurrence a sa liste à cocher, faite de ces fiches à son ouverture (modifiable ensuite).
       </Text>
@@ -57,11 +56,9 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
           <RemoveButton label="Retirer la fiche" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
         </Group>
       ))}
-      <div>
-        <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={free.length === 0} onClick={() => save([...current, { sheetId: free[0].value, multiplier: 1 }])}>
-          Ajouter une fiche
-        </Button>
-      </div>
-    </Stack>
+      <AddItemButton disabled={free.length === 0} onClick={() => save([...current, { sheetId: free[0].value, multiplier: 1 }])}>
+        Ajouter une fiche
+      </AddItemButton>
+    </LabeledField>
   );
 }

@@ -1,12 +1,14 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
-import { ItemAvatar } from '../settings/ItemAvatar';
+import { ItemAvatar } from '../items/ItemAvatar';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
 import classes from './CategoryTree.module.css';
 import { pointerPlace, treeCollision, useFolded } from './tree-dnd';
 import { useDragSensors } from '../../lib/drag';
+import treeRow from './TreeRow.module.css';
+import { DragHandle } from '../actions/DragHandle';
 
 interface CategoryRowProps<C extends TreeCategory> {
   placed: PlacedCategory<C>;
@@ -39,16 +41,12 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
         setDragRef(node);
         setDropRef(node);
       }}
-      className={classes.row}
+      className={treeRow.row}
       data-drop={drop ?? undefined}
       data-dragging={isDragging || undefined}
     >
       <Table.Td w={32} px={4}>
-        {!locked && (
-          <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${path}`} className={classes.handle} {...attributes} {...listeners}>
-            <DotsSixVerticalIcon weight="bold" aria-hidden />
-          </ActionIcon>
-        )}
+        {!locked && <DragHandle label={`Déplacer ${path}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />}
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
@@ -57,7 +55,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
               {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
             </ActionIcon>
           ) : (
-            <span className={classes.caretSpace} />
+            <span className={treeRow.caretSpace} />
           )}
           <ItemAvatar name={category.name} iconUrl={category.iconUrl} color={color} size={22} />
           <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>

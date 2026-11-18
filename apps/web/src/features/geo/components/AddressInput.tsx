@@ -1,6 +1,6 @@
 import { mapById, normalize } from '@ordo/shared';
 import { ActionIcon, Checkbox, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Stack, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { GeoPoint } from '@ordo/shared';
 import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';

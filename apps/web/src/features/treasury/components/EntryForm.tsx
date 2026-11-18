@@ -1,22 +1,22 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { ActionIcon, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useWorkspace } from '../../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
+import { DIRECTION_OPTIONS } from '../lib/direction';
 import { LinesEditor } from './LinesEditor';
 import type { LineLink } from '../lib/lines';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
-import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
+import { CategoryItemForm, CounterpartyItemForm, MethodItemForm } from './TreasuryItemForms';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { projectOptions } from '../../workspace/lib/tree';
@@ -87,7 +87,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   // Line a context or a relation is created for.
   const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: documentOptions } = useTreasuryDocumentOptions();
-  const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: String(item.date) })));
+  const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: item.date })));
   const { data: workspace } = useWorkspace();
   // No invoicing in a personal workspace: no documents to settle.
   const { perso } = useActiveWorkspace();
@@ -168,13 +168,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
   const handleSubmit = form.onSubmit((input) => {
     const payload = entryPayload(input);
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.', onDone);
     if (entry && !copy) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
     else createEntry.mutate(payload, callbacks);
   });
@@ -213,10 +207,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <Group gap="sm" align="flex-end" wrap="nowrap">
             <SegmentedControl
               aria-label="Sens"
-              data={[
-                { value: 'IN', label: 'Entrée' },
-                { value: 'OUT', label: 'Sortie' },
-              ]}
+              data={DIRECTION_OPTIONS}
               value={values.direction}
               // Changing the direction changes which documents can be settled, and the categories and methods.
               onChange={(direction) => {
@@ -230,7 +221,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                 });
               }}
             />
-            <AmountInput label="Montant" required min={0} suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
+            <AmountInput label="Montant" required min={0} style={{ flex: 1 }} {...form.getInputProps('amount')} />
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             {!split && (
@@ -381,11 +372,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               {(entry?.linkedByLines ?? []).length > 0 && (
                 <Group gap={6}>
                   {(entry?.linkedByLines ?? []).map((line) => (
-                    <LinkBadge
-                      key={line.id}
-                      variant="outline"
-                      link={{ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount }}
-                    />
+                    <LinkBadge key={line.id} variant="outline" link={{ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: line.date, label: line.label ?? null, amount: line.amount }} />
                   ))}
                 </Group>
               )}
@@ -427,7 +414,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     aria-label={`Montant réglé ${index + 1}`}
                     w={130}
                     min={0}
-                    suffix=" €"
                     value={allocation.amount}
                     onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
                   />
@@ -478,7 +464,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
           <div onSubmit={(event) => event.stopPropagation()}>
             {creating === 'category' && (
-              <CategoryForm
+              <CategoryItemForm
                 direction={values.direction}
                 categories={categories}
                 onDone={(id) => {
@@ -509,7 +495,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               />
             )}
             {creating === 'method' && (
-              <MethodForm
+              <MethodItemForm
                 direction={values.direction}
                 onDone={(id) => {
                   if (id) form.setFieldValue('methodId', id);
@@ -518,7 +504,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               />
             )}
             {creating === 'counterparty' && (
-              <CounterpartyForm
+              <CounterpartyItemForm
                 onDone={(id) => {
                   if (id) form.setValues({ clientId: null, counterpartyId: id });
                   setCreating(null);

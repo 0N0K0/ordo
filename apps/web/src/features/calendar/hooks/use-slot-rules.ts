@@ -18,7 +18,7 @@ import {
 } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
-import { scheduleRules, useCalendarEvents, useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useSubscribedSchedules, useWorkSchedules } from '../api';
+import { scheduleRules, useCalendarEvents, useForeignScheduleKinds, useScheduleSources } from '../api';
 import { localDay } from '../../../lib/dates';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -113,11 +113,8 @@ export interface SlotRules {
  */
 export function useSlotRules(): SlotRules {
   const { perso } = useActiveWorkspace();
-  const { data: own } = useWorkSchedules();
-  const { data: types } = useScheduleTypes();
-  const { data: defaultKind } = useDefaultScheduleKind();
+  const { schedules: own, foreign, types, defaultKind } = useScheduleSources();
   const { data: foreignKinds } = useForeignScheduleKinds();
-  const { data: foreign } = useSubscribedSchedules();
   const minute = useNow(true, 60_000);
   const today = localDay(new Date(minute));
   // Events of the coming days keep their contributors (none: « Moi ») busy.

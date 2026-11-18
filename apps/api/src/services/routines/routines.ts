@@ -43,11 +43,12 @@ import {
   windowsAllowed,
   withMove,
   withMovedTimes,
+  daySchema,
 } from '@ordo/shared';
 import { z } from 'zod';
-import { assertTreeParent, deleteTreeNode } from '../core/trees';
+import { deleteTreeNode, treeListService } from '../core/trees';
 import { prisma } from '../../db';
-import { BY_POSITION, moveInList, nextPositionIn, saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
@@ -56,6 +57,7 @@ import { assertActiveContributors, assertActiveRelations, assertProjectContribut
 import { parisToday } from '../../today';
 import { assertAllExist, assertExists } from '../core/lookup';
 import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived } from '../core/archive';
+import { connectIds } from '../core/relations';
 
 /**
  * Error attached to a form field.
@@ -434,45 +436,33 @@ function slotsOn(routine: RoutineTiming, occurrence: string, schedules: Schedule
 
 // Categories ------------------------------------------------------------------------------------------------------
 
-/**
- * Validates a category: it is not archived, its parent exists, is not the category or one of its sub-categories, and
- * is not archived when new.
- * @param {RoutineCategoryInput} input Category.
- * @param {string} [id] Category edited. Optional.
- * @returns {Promise<ReturnType<typeof routineCategorySchema.parse>>} Category.
- */
-async function parseCategory(input: RoutineCategoryInput, id?: string) {
-  const data = parseInput(routineCategorySchema, input);
-  await assertNotArchived('routineCategory', id);
-  await assertTreeParent('routineCategory', data.parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' });
-  const previousParentId = id ? (await prisma.routineCategory.findUnique({ where: { id }, select: { parentId: true } }))?.parentId : undefined;
-  if ((data.parentId ?? null) !== previousParentId) await assertNotArchived('routineCategory', data.parentId);
-  return data;
-}
+/** Categories of the routines, in a tree; a deleted one's sub-categories go one level up, its routines lose it. */
+const categories = treeListService<RoutineCategory, RoutineCategoryInput>(
+  'routineCategory',
+  { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
+  {
+    parse: (input) => parseInput(routineCategorySchema, input),
+    moveInput: (category, parentId) => ({ name: category.name, color: category.color, parentId }),
+  },
+);
 
 /**
- * Creates a category.
+ * Creates a category, last among its siblings.
  * @param {RoutineCategoryInput} input Category.
  * @returns {Promise<RoutineCategory>} Category.
  */
-export async function createCategory(input: RoutineCategoryInput): Promise<RoutineCategory> {
-  const data = await parseCategory(input);
-  return prisma.routineCategory.create({ data: { ...data, position: await nextCategoryPosition(data.parentId) } });
+export function createCategory(input: RoutineCategoryInput): Promise<RoutineCategory> {
+  return categories.create(input);
 }
 
 /**
- * Updates a category.
+ * Updates a category (under another parent, it goes last).
  * @param {string} id Category id.
  * @param {RoutineCategoryInput} input Category.
  * @returns {Promise<RoutineCategory>} Category.
  */
-export async function updateCategory(id: string, input: RoutineCategoryInput): Promise<RoutineCategory> {
-  await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
-  const previous = await orNotFound(prisma.routineCategory.findUnique({ where: { id }, select: { parentId: true } }), 'Catégorie');
-  const data = await parseCategory(input, id);
-  // Under another parent, it goes last.
-  const moved = (data.parentId ?? null) !== previous.parentId;
-  return prisma.routineCategory.update({ where: { id }, data: { ...data, ...(moved && { position: await nextCategoryPosition(data.parentId) }) } });
+export function updateCategory(id: string, input: RoutineCategoryInput): Promise<RoutineCategory> {
+  return categories.update(id, input);
 }
 
 /**
@@ -482,21 +472,8 @@ export async function updateCategory(id: string, input: RoutineCategoryInput): P
  * @param {number | null} [index] Index among its new siblings; last when omitted. Optional.
  * @returns {Promise<void>}
  */
-export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  const category = await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
-  await assertNotArchived('routineCategory', id);
-  if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, parentId });
-  if (index === null || index === undefined) return;
-  await moveInList('routineCategory', id, index, { parentId });
-}
-
-/**
- * Next position among the sub-categories of a parent.
- * @param {string | null | undefined} parentId Parent, null for the top level.
- * @returns {Promise<number>} Position.
- */
-async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
-  return nextPositionIn('routineCategory', { parentId: parentId ?? null });
+export function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
+  return categories.move(id, parentId, index);
 }
 
 /**
@@ -504,9 +481,8 @@ async function nextCategoryPosition(parentId: string | null | undefined): Promis
  * @param {string} id Category id.
  * @returns {Promise<void>}
  */
-export async function deleteCategory(id: string): Promise<void> {
-  const category = await orNotFound(prisma.routineCategory.findUnique({ where: { id } }), 'Catégorie');
-  await deleteTreeNode('routineCategory', category);
+export function deleteCategory(id: string): Promise<void> {
+  return categories.remove(id);
 }
 
 // Routines --------------------------------------------------------------------------------------------------------
@@ -516,9 +492,10 @@ export async function deleteCategory(id: string): Promise<void> {
  * assignees and required routines (no cycle).
  * @param {RoutineInput} input Routine.
  * @param {string} [id] Routine edited. Optional.
+ * @param {boolean} [restoring] Undo giving back former values: archived ones accepted (only that check is skipped). Optional. Default = false.
  * @returns {Promise<ReturnType<typeof routineSchema.parse>>} Routine.
  */
-async function parseRoutine(input: RoutineInput, id?: string) {
+async function parseRoutine(input: RoutineInput, id?: string, restoring = false) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
   data.beneficiaryIds = [...new Set(data.beneficiaryIds)];
@@ -548,12 +525,17 @@ async function parseRoutine(input: RoutineInput, id?: string) {
         },
       })
     : null;
-  const keptCategoryIds = current?.categories.map((category) => category.id) ?? [];
+  // Undo: everything counts as kept.
+  const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived(
     'routineCategory',
     data.categoryIds.filter((categoryId) => !keptCategoryIds.includes(categoryId)),
   );
-  const keptScheduleIds = current ? [...conditionScheduleIds(storedCondition(current)), ...storedCases(current.cases).flatMap((item) => conditionScheduleIds(item.condition))] : [];
+  const keptScheduleIds = restoring
+    ? scheduleIds
+    : current
+      ? [...conditionScheduleIds(storedCondition(current)), ...storedCases(current.cases).flatMap((item) => conditionScheduleIds(item.condition))]
+      : [];
   await assertNoneArchived(
     'workSchedule',
     scheduleIds.filter((scheduleId) => !keptScheduleIds.includes(scheduleId)),
@@ -576,17 +558,17 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   await assertAllExist(prisma.contributor, data.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, data.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   // Archived beneficiaries, parent and required routines: no longer chosen, those already there stay.
-  await assertActiveContributors(data.beneficiaryIds, current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], 'beneficiaryIds');
-  await assertActiveRelations(data.beneficiaryRelationIds, current?.beneficiaryRelations.map((relation) => relation.id) ?? [], 'beneficiaryIds');
-  if ((data.parentId ?? null) !== (current?.parentId ?? null)) await assertNotArchived('routine', data.parentId).catch(() => Promise.reject(fieldError('parentId', ARCHIVED_MESSAGE)));
-  const keptRequiredIds = current?.requires.map((dependency) => dependency.requiredId) ?? [];
+  if (!restoring) await assertActiveContributors(data.beneficiaryIds, current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], 'beneficiaryIds');
+  if (!restoring) await assertActiveRelations(data.beneficiaryRelationIds, current?.beneficiaryRelations.map((relation) => relation.id) ?? [], 'beneficiaryIds');
+  if (!restoring && (data.parentId ?? null) !== (current?.parentId ?? null)) await assertNotArchived('routine', data.parentId).catch(() => Promise.reject(fieldError('parentId', ARCHIVED_MESSAGE)));
+  const keptRequiredIds = restoring ? data.requiredIds : (current?.requires.map((dependency) => dependency.requiredId) ?? []);
   await assertNoneArchived(
     'routine',
     data.requiredIds.filter((requiredId) => !keptRequiredIds.includes(requiredId)),
   ).catch(() => Promise.reject(fieldError('requiredIds', ARCHIVED_MESSAGE)));
   // Of a project: its contributors only (those already assigned stay).
   const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
-  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds');
+  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds', restoring);
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
@@ -651,10 +633,10 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
       data: {
         ...scalars(data),
         position,
-        assignees: { connect: data.assigneeIds.map((id) => ({ id })) },
-        beneficiaries: { connect: data.beneficiaryIds.map((id) => ({ id })) },
-        beneficiaryRelations: { connect: data.beneficiaryRelationIds.map((id) => ({ id })) },
-        categories: { connect: data.categoryIds.map((id) => ({ id })) },
+        assignees: { connect: connectIds(data.assigneeIds) },
+        beneficiaries: { connect: connectIds(data.beneficiaryIds) },
+        beneficiaryRelations: { connect: connectIds(data.beneficiaryRelationIds) },
+        categories: { connect: connectIds(data.categoryIds) },
       },
     });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
@@ -706,12 +688,13 @@ async function findRoutine(id: string): Promise<Routine> {
  * Updates a routine (its ticked occurrences stay).
  * @param {string} id Routine id.
  * @param {RoutineInput} input Routine.
+ * @param {boolean} [restoring] Undo putting it back as it was: archived values given back are accepted. Optional. Default = false.
  * @returns {Promise<Routine>} Routine.
  */
-export async function updateRoutine(id: string, input: RoutineInput): Promise<Routine> {
+export async function updateRoutine(id: string, input: RoutineInput, restoring = false): Promise<Routine> {
   await findRoutine(id);
   await assertNotArchived('routine', id);
-  const data = await parseRoutine(input, id);
+  const data = await parseRoutine(input, id, restoring);
   return prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
@@ -719,10 +702,10 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
       where: { id },
       data: {
         ...scalars(data),
-        assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) },
-        beneficiaries: { set: data.beneficiaryIds.map((beneficiaryId) => ({ id: beneficiaryId })) },
-        beneficiaryRelations: { set: data.beneficiaryRelationIds.map((relationId) => ({ id: relationId })) },
-        categories: { set: data.categoryIds.map((categoryId) => ({ id: categoryId })) },
+        assignees: { set: connectIds(data.assigneeIds) },
+        beneficiaries: { set: connectIds(data.beneficiaryIds) },
+        beneficiaryRelations: { set: connectIds(data.beneficiaryRelationIds) },
+        categories: { set: connectIds(data.categoryIds) },
       },
     });
   });
@@ -1121,7 +1104,7 @@ async function changeableOccurrence(id: string, date: string) {
 export async function changeRoutineOccurrence(id: string, date: string, scope: RoutineScope, to: string, slot: number, times: { fromTime: string | null; dueTime: string | null }): Promise<void> {
   const routine = await changeableOccurrence(id, date);
   const start = formatDay(routine.startDate);
-  const parsedTo = parseInput(z.iso.date({ error: 'Date invalide.' }), to);
+  const parsedTo = parseInput(daySchema(), to);
   const window = parseInput(routineSlotSchema, { ...times, optional: false });
   if (parsedTo < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
   const moves = storedMoves(routine.moves);

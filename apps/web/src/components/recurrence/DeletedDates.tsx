@@ -1,4 +1,5 @@
-import { Chip, Group, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../inputs/LabeledField';
+import { Chip, Group } from '@mantine/core';
 import { formatLongDate } from './describe-recurrence';
 
 /**
@@ -9,10 +10,7 @@ import { formatLongDate } from './describe-recurrence';
 export function DeletedDates({ dates, onChange }: { dates: readonly string[]; onChange: (dates: string[]) => void }) {
   if (!dates.length) return null;
   return (
-    <Stack gap={4}>
-      <Text size="sm" fw={500}>
-        Dates supprimées
-      </Text>
+    <LabeledField label="Dates supprimées">
       <Group gap={6}>
         {dates.map((date) => (
           <Chip key={date} size="xs" checked={false} title="Rétablir cette date" onClick={() => onChange(dates.filter((item) => item !== date))}>
@@ -20,6 +18,6 @@ export function DeletedDates({ dates, onChange }: { dates: readonly string[]; on
           </Chip>
         ))}
       </Group>
-    </Stack>
+    </LabeledField>
   );
 }

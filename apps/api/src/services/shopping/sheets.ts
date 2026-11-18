@@ -4,7 +4,7 @@ import {
   mapById,
   parseDay,
   readSheetSources,
-  type SheetCategoryInput,
+  roundQuantity,
   sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
@@ -20,14 +20,17 @@ import {
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
-import { clientError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, isUniqueConflict, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
 import { copyOf, findOpenList, nextPosition } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
-import { assertAllExist, assertExists } from '../core/lookup';
+import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
+import { createLabelService } from '../core/labels';
+import { connectIds } from '../core/relations';
+import { fromDecimal, toDecimal } from '../core/decimal';
 
 /** What a checklist belongs to: a routine or an event (one occurrence), or a task. */
 export type SheetOwner = { routineId: string; occurrenceDate: string } | { eventId: string; occurrenceDate: string } | { taskId: string };
@@ -52,13 +55,6 @@ interface SheetPart {
   memberIds: string[];
   relationIds: string[];
 }
-
-/**
- * Number of a decimal column.
- * @param {Prisma.Decimal | null} value Value.
- * @returns {number | null} Number.
- */
-const num = (value: Prisma.Decimal | null) => (value === null ? null : value.toNumber());
 
 /**
  * Checks the products and categories items refer to, and refuses the archived ones (and archived store, storage mode,
@@ -113,7 +109,7 @@ const itemFields = (item: SheetItemInput) => ({
   productId: item.productId,
   label: item.label,
   categoryId: item.categoryId,
-  quantity: item.quantity === null ? null : new Prisma.Decimal(item.quantity),
+  quantity: toDecimal(item.quantity),
   unit: item.unit || null,
   note: item.note?.trim() || null,
   consumable: item.consumable,
@@ -164,7 +160,7 @@ export async function createSheet(input: SheetInput): Promise<Sheet> {
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
-    data: { name: data.name, note: data.note || null, projectId: data.projectId, position, categories: { connect: categories.map((id) => ({ id })) } },
+    data: { name: data.name, note: data.note || null, projectId: data.projectId, position, categories: { connect: connectIds(categories) } },
   });
 }
 
@@ -184,7 +180,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
     data.categoryIds,
     sheet.categories.map((category) => category.id),
   );
-  return prisma.sheet.update({ where: { id }, data: { name: data.name, note: data.note || null, projectId: data.projectId, categories: { set: categories.map((category) => ({ id: category })) } } });
+  return prisma.sheet.update({ where: { id }, data: { name: data.name, note: data.note || null, projectId: data.projectId, categories: { set: connectIds(categories) } } });
 }
 
 /**
@@ -229,8 +225,7 @@ export async function duplicateSheet(id: string): Promise<Sheet> {
  * @returns {Promise<void>}
  */
 export async function deleteSheet(id: string): Promise<void> {
-  const { count } = await prisma.sheet.deleteMany({ where: { id } });
-  if (!count) throw notFound('Fiche');
+  await deleteOrNotFound(prisma.sheet, id, 'Fiche');
 }
 
 /**
@@ -312,47 +307,8 @@ export async function deleteSheetItems(ids: string[]): Promise<void> {
   await prisma.sheetItem.deleteMany({ where: { id: { in: ids } } });
 }
 
-/**
- * Creates a category of the sheets, last.
- * @param {SheetCategoryInput} input Category.
- * @returns {Promise<SheetCategory>} Category.
- */
-export async function createSheetCategory(input: SheetCategoryInput): Promise<SheetCategory> {
-  const data = parseInput(sheetCategorySchema, input);
-  const position = await nextPositionIn('sheetCategory');
-  try {
-    return await prisma.sheetCategory.create({ data: { ...data, position } });
-  } catch (error) {
-    rethrowUnique(error, 'Cette catégorie existe déjà.');
-  }
-}
-
-/**
- * Renames a category of the sheets or changes its color.
- * @param {string} id Category.
- * @param {Partial<SheetCategoryInput>} input Changes.
- * @returns {Promise<void>}
- */
-export async function updateSheetCategory(id: string, input: Partial<SheetCategoryInput>): Promise<void> {
-  const category = await orNotFound(prisma.sheetCategory.findUnique({ where: { id } }), 'Catégorie');
-  await assertNotArchived('SHEET_CATEGORY', id);
-  const data = parseInput(sheetCategorySchema, { name: category.name, color: category.color, ...input });
-  try {
-    await prisma.sheetCategory.update({ where: { id }, data });
-  } catch (error) {
-    rethrowUnique(error, 'Cette catégorie existe déjà.');
-  }
-}
-
-/**
- * Deletes a category of the sheets (its sheets stay, without it).
- * @param {string} id Category.
- * @returns {Promise<void>}
- */
-export async function deleteSheetCategory(id: string): Promise<void> {
-  const { count } = await prisma.sheetCategory.deleteMany({ where: { id } });
-  if (!count) throw notFound('Catégorie');
-}
+/** Categories of the sheets; the sheets of a deleted one stay, without it. */
+export const sheetCategories = createLabelService<SheetCategory>('sheetCategory', { notFound: 'Catégorie', conflict: 'Cette catégorie existe déjà.' }, { schema: sheetCategorySchema });
 
 /**
  * Items of sheets times their multipliers, as they are summed into a list (in the order of the sheets).
@@ -371,7 +327,7 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
       productId: item.productId,
       label: item.label,
       categoryId: item.categoryId,
-      quantity: timesSheet(num(item.quantity), link.multiplier),
+      quantity: timesSheet(fromDecimal(item.quantity), link.multiplier),
       unit: item.unit,
       note: item.note,
       consumable: item.consumable,
@@ -427,7 +383,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
         const updated = await tx.shoppingItem.update({
           where: { id: item.id },
           data: {
-            quantity: toDecimal(addQuantities(num(item.quantity), part.quantity)),
+            quantity: toDecimal(addQuantities(fromDecimal(item.quantity), part.quantity)),
             sheetSources: withSource(readSheetSources(item.sheetSources), part) as unknown as Prisma.InputJsonValue,
             // Optional only while every sheet it comes from says so.
             optional: item.optional && part.optional,
@@ -453,9 +409,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
               perishable: part.perishable || product.perishable,
               storageId: part.storageId ?? product.storageId,
               optional: part.optional,
-              ...(part.memberIds.length || part.relationIds.length
-                ? { members: { connect: part.memberIds.map((memberId) => ({ id: memberId })) }, relations: { connect: part.relationIds.map((relationId) => ({ id: relationId })) } }
-                : {}),
+              ...(part.memberIds.length || part.relationIds.length ? { members: { connect: connectIds(part.memberIds) }, relations: { connect: connectIds(part.relationIds) } } : {}),
               sheetSources: sources,
             },
           })
@@ -472,8 +426,8 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
               perishable: part.perishable,
               storageId: part.storageId,
               optional: part.optional,
-              members: { connect: part.memberIds.map((memberId) => ({ id: memberId })) },
-              relations: { connect: part.relationIds.map((relationId) => ({ id: relationId })) },
+              members: { connect: connectIds(part.memberIds) },
+              relations: { connect: connectIds(part.relationIds) },
               position,
               sheetSources: sources,
             },
@@ -501,20 +455,13 @@ export async function removeSheetFromShoppingList(listId: string, sheetId: strin
       const own = sources.find((source) => source.sheetId === sheetId);
       if (!own) continue;
       const rest = sources.filter((source) => source !== own);
-      const quantity = num(item.quantity);
-      const left = quantity === null || own.quantity === null ? quantity : Math.round((quantity - own.quantity) * 1000) / 1000;
+      const quantity = fromDecimal(item.quantity);
+      const left = quantity === null || own.quantity === null ? quantity : roundQuantity(quantity - own.quantity);
       if (!rest.length && !item.purchasedAt && (left === null || left <= 0)) await tx.shoppingItem.delete({ where: { id: item.id } });
       else await tx.shoppingItem.update({ where: { id: item.id }, data: { quantity: toDecimal(left !== null && left < 0 ? 0 : left), sheetSources: rest as unknown as Prisma.InputJsonValue } });
     }
   });
 }
-
-/**
- * Decimal of a quantity.
- * @param {number | null} value Quantity.
- * @returns {Prisma.Decimal | null} Decimal.
- */
-const toDecimal = (value: number | null) => (value === null ? null : new Prisma.Decimal(value));
 
 // Sheets of routines, events and tasks ---------------------------------------------------------------------------------
 
@@ -560,7 +507,7 @@ export async function setSheetLinks(owner: { routineId?: string | null; eventId?
   await assertSheetsUsable(ids.filter((id) => !linked.some((link) => link.sheetId === id)));
   await prisma.$transaction([
     prisma.sheetLink.deleteMany({ where }),
-    prisma.sheetLink.createMany({ data: data.map((link, position) => ({ ...where, sheetId: link.sheetId, multiplier: new Prisma.Decimal(link.multiplier), position })) }),
+    prisma.sheetLink.createMany({ data: data.map((link, position) => ({ ...where, sheetId: link.sheetId, multiplier: toDecimal(link.multiplier), position })) }),
   ]);
 }
 
@@ -665,7 +612,7 @@ export async function resetChecklist(id: string): Promise<Checklist> {
  * @returns {Promise<void>}
  */
 export async function addSheetToChecklist(id: string, sheetId: string, multiplier: number): Promise<void> {
-  await orNotFound(prisma.checklist.findUnique({ where: { id }, select: { id: true } }), 'Liste');
+  await assertExists(prisma.checklist, id, 'Liste');
   await assertSheetsUsable([sheetId]);
   const parts = await partsOf([{ sheetId, multiplier: parseInput(sheetMultiplierSchema, multiplier) }]);
   await prisma.$transaction(async (tx) => {
@@ -680,7 +627,7 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
           key,
           await tx.checklistItem.update({
             where: { id: item.id },
-            data: { quantity: toDecimal(addQuantities(num(item.quantity), part.quantity)), sources: withSource(readSheetSources(item.sources), part) as unknown as Prisma.InputJsonValue },
+            data: { quantity: toDecimal(addQuantities(fromDecimal(item.quantity), part.quantity)), sources: withSource(readSheetSources(item.sources), part) as unknown as Prisma.InputJsonValue },
           }),
         );
       } else {
@@ -724,7 +671,7 @@ async function findListItem(id: string): Promise<ChecklistItem> {
  * @returns {Promise<ChecklistItem>} Item.
  */
 export async function addChecklistItem(listId: string, input: SheetItemInput): Promise<ChecklistItem> {
-  await orNotFound(prisma.checklist.findUnique({ where: { id: listId }, select: { id: true } }), 'Liste');
+  await assertExists(prisma.checklist, listId, 'Liste');
   const data = parseInput(checklistItemSchema, input);
   await assertProducts([data]);
   const position = await nextPositionIn('checklistItem', { listId });

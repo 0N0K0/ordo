@@ -1,6 +1,6 @@
 import { plural, countOf } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
+import { listSelectProps, itemChoices } from '../../../components/items/item-look';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -27,7 +27,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { SheetUseForm } from './SheetUseForm';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 
 /**
  * Columns of the sheets.
@@ -92,8 +92,8 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       label: 'Modifiée le',
       size: 130,
       hiddenByDefault: true,
-      sortValue: (sheet) => String(sheet.updatedAt),
-      text: (sheet) => fmt.day(new Date(sheet.updatedAt)),
+      sortValue: (sheet) => sheet.updatedAt,
+      text: (sheet) => fmt.day(sheet.updatedAt),
       filter: { kind: 'date', value: (sheet) => localDay(new Date(sheet.updatedAt)) },
     },
   ];

@@ -1,8 +1,9 @@
+import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -13,7 +14,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
@@ -22,7 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
-import { notifyError, notifySuccess, notifyFailure } from '../../../lib/notify';
+import { notifyError, onMutationError } from '../../../lib/notify';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { useUpdateTask } from '../../tasks/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -39,10 +40,7 @@ import {
   useCalendars,
   useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
-  useScheduleTypes,
-  useDefaultScheduleKind,
-  useSubscribedSchedules,
-  useWorkSchedules,
+  useScheduleSources,
   type EventOccurrence,
 } from '../api';
 import { askScope } from '../lib/ask-scope';
@@ -63,7 +61,9 @@ import { ScheduleSettings } from '../components/ScheduleSettings';
 import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
+import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -153,10 +153,7 @@ export function CalendarPage() {
   const openEvent = useEventForm(context);
   const navigate = useNavigate();
   const taskLink = useTaskLink();
-  const { data: schedules } = useWorkSchedules();
-  const { data: scheduleTypes } = useScheduleTypes();
-  const { data: defaultKind } = useDefaultScheduleKind();
-  const { data: foreignSchedules } = useSubscribedSchedules();
+  const { schedules, types: scheduleTypes, defaultKind, foreign: foreignSchedules } = useScheduleSources();
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
@@ -228,8 +225,8 @@ export function CalendarPage() {
       });
       // Travel to the event and back, in the week and the day: hatched blocks in its color, against it, opening it.
       if (!occurrence.allDay && view !== 'dayGridMonth') {
-        const start = new Date(String(occurrence.start)).getTime();
-        const end = new Date(String(occurrence.end)).getTime();
+        const start = new Date(occurrence.start).getTime();
+        const end = new Date(occurrence.end).getTime();
         const legs = [
           {
             key: 'before',
@@ -521,7 +518,7 @@ export function CalendarPage() {
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
         const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
         // Shown on its due day once past, today while it runs, its first day before.
-        const day = String(occurrence.shownDate);
+        const day = occurrence.shownDate;
         for (const slot of slots) {
           // Its first window (free time cut by slots: the first part).
           const windows = Array.isArray(slot.windows) ? (slot.windows as { fromTime: string | null; dueTime: string | null }[]) : [];
@@ -563,7 +560,7 @@ export function CalendarPage() {
               extendedProps: {
                 kind: 'routine',
                 occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
-                movedFrom: occurrence.movedFrom ? String(occurrence.movedFrom) : null,
+                movedFrom: occurrence.movedFrom ? occurrence.movedFrom : null,
               },
             },
           });
@@ -694,7 +691,7 @@ export function CalendarPage() {
             : task.startDate
               ? { startDate: startParts.date, endDate: endParts.date }
               : { endDate: endParts.date };
-      updateTask.mutate({ id: task.id, input }, { onError: (error) => (notifyError(error.message), revert()) });
+      updateTask.mutate({ id: task.id, input }, { onError: (error) => (onMutationError(error), revert()) });
       return;
     }
 
@@ -719,7 +716,7 @@ export function CalendarPage() {
           endTime: allDay ? null : endParts.time,
         },
       },
-      { onError: (error) => (notifyError(error.message), revert()) },
+      { onError: (error) => (onMutationError(error), revert()) },
     );
   };
 
@@ -752,16 +749,10 @@ export function CalendarPage() {
     ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: `${schedule.name} · ${schedule.workspaceName}`, color: schedule.color ?? 'green' })),
   ];
   const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
-  const [exporting, setExporting] = useState(false);
-
-  /**
-   * Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
-   * @returns {Promise<void>}
-   */
-  const exportPdf = async () => {
-    if (!range) return;
-    setExporting(true);
-    try {
+  // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
+  const { run: exportPdf, loading: exporting } = useAsyncAction(
+    async () => {
+      if (!range) return;
       await downloadCalendarPdf({
         title,
         subtitle: 'Agenda',
@@ -771,19 +762,15 @@ export function CalendarPage() {
         today: localToday(),
         items: pdfItems(items, classes.closed),
       });
-      notifySuccess('Agenda exporté.');
-    } catch (error) {
-      notifyFailure(error, 'Export PDF impossible.');
-    } finally {
-      setExporting(false);
-    }
-  };
+    },
+    { success: 'Agenda exporté.', fallback: 'Export PDF impossible.' },
+  );
 
   // The week and the day fill the window (scrolling in place); the month grows with its days.
   const fill = view !== 'dayGridMonth';
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
-      <PageHeader title="Agenda" />
+      <PageHeader title={PAGES.calendar.title} />
       {/* The view and the period on the left, the slots and a new event on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
@@ -820,12 +807,15 @@ export function CalendarPage() {
        * the calendars, subscriptions, categories, kinds of slots and places.
        */}
       <PageSettings title="Paramètres de l’agenda">
-        <Tabs value={settingsTab} onChange={(value) => value && setSettingsTab(value as SettingsTab)}>
-          <Tabs.List mb="md">
-            <Tabs.Tab value="display">Affichage et export</Tabs.Tab>
-            <Tabs.Tab value="settings">Paramètres</Tabs.Tab>
-          </Tabs.List>
-          <Tabs.Panel value="display">
+        <SettingsTabs
+          value={settingsTab}
+          onChange={setSettingsTab}
+          tabs={[
+            { value: 'display', label: 'Affichage et export' },
+            { value: 'settings', label: 'Paramètres' },
+          ]}
+        >
+          <SettingsTabPanel value="display">
             <Stack gap="md">
               <SettingsSection title="Affichage">
                 <Stack gap="xs">
@@ -953,15 +943,15 @@ export function CalendarPage() {
                 </Group>
               </SettingsSection>
             </Stack>
-          </Tabs.Panel>
-          <Tabs.Panel value="settings">
+          </SettingsTabPanel>
+          <SettingsTabPanel value="settings">
             <Stack gap="md">
               <CalendarsManager />
               <CalendarCategoriesManager />
               <ScheduleSettings />
             </Stack>
-          </Tabs.Panel>
-        </Tabs>
+          </SettingsTabPanel>
+        </SettingsTabs>
       </PageSettings>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar

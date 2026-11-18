@@ -1,13 +1,15 @@
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { PAGES } from '../../../app/pages';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { BackLink } from '../../../components/page/BackLink';
 import { unarchived } from '../../../lib/archive';
 import { plural, countOf } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
@@ -113,7 +115,14 @@ export function ShoppingListPage() {
   );
   const columns = itemColumns<ShoppingItem>(
     grouping,
-    { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    {
+      categories: data?.shoppingCategories ?? [],
+      stores: data?.shoppingStores ?? [],
+      storages: data?.shoppingStorages ?? [],
+      members: people.members,
+      relations: people.relations,
+      archivedPeople: people.archived,
+    },
     [
       optionalColumn<ShoppingItem>(),
       {
@@ -225,13 +234,9 @@ export function ShoppingListPage() {
     <Stack gap="lg">
       <ShoppingSettings />
       <Group gap="sm" align="flex-start" wrap="nowrap">
-        <Tooltip label="Retour aux listes">
-          <ActionIcon component={Link} to="/shopping?tab=lists" variant="subtle" color="gray" aria-label="Retour aux listes" mt={4}>
-            <ArrowLeftIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <PageHeader title="Achats" />
+          <BackLink to="/shopping?tab=lists">Listes d’achats</BackLink>
+          <PageHeader title={PAGES.shopping.title} />
           <Group gap="xs">
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}

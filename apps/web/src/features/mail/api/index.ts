@@ -673,7 +673,7 @@ export function useUnreadMails(accountIds: string[]) {
       data: results.every((result) => result.data || result.error)
         ? results
             .flatMap((result, index) => (result.data?.messages ?? []).map((message) => ({ accountId: accountIds[index], message })))
-            .sort((a, b) => String(b.message.date).localeCompare(String(a.message.date)))
+            .sort((a, b) => b.message.date.localeCompare(a.message.date))
         : undefined,
       isPending: results.some((result) => result.isPending),
       error: results.find((result) => result.error)?.error ?? null,

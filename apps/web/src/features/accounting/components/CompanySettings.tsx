@@ -1,10 +1,11 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
+import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
-import { InfoIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
@@ -69,10 +70,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
   const handleSubmit = form.onSubmit((values) =>
     update.mutate(
       { ...values, address: values.address } as CompanyProfileInput as never,
-      {
-        onSuccess: () => notifySuccess('Profil de la société enregistré.'),
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, 'Profil de la société enregistré.'),
     ),
   );
 
@@ -120,6 +118,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                       size="xs"
                       variant="subtle"
                       color="red"
+                      leftSection={<TrashIcon aria-hidden />}
                       onClick={() =>
                         setLogo.mutate(null, {
                           onError: onMutationError,
@@ -369,6 +368,7 @@ function NumberingSettings() {
                       size="xs"
                       variant="default"
                       disabled={value === sequence.nextNumber}
+                      leftSection={<FloppyDiskIcon aria-hidden />}
                       onClick={() =>
                         setSequence.mutate(
                           { type: sequence.type, year, nextNumber: value },
@@ -402,10 +402,10 @@ export function CompanySettings() {
     <Stack gap="lg">
       <SettingsSection title="Ma société" description="Imprimée sur les devis, factures et avoirs.">
           {!isPending && profile && !profile.name && (
-            <Alert color="blue" icon={<InfoIcon aria-hidden />}>
+            <NoticeAlert kind="info">
               Renseignez au moins le nom de la société avant d’éditer des
               documents.
-            </Alert>
+            </NoticeAlert>
           )}
           {isPending || !profile ? (
             <FormSkeleton fields={8} />

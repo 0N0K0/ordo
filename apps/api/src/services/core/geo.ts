@@ -5,7 +5,7 @@ import { prisma } from '../../db';
 import { moveInOrder, nextPositionIn } from './ordering';
 import { type Place } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
-import { assertExists } from './lookup';
+import { assertExists, deleteOrNotFound } from './lookup';
 import { assertNotArchived } from './archive';
 
 /** Address found by a search: its label and point. */
@@ -224,8 +224,7 @@ export async function savePlace(id: string | null, input: PlaceInput): Promise<P
  * @returns {Promise<void>}
  */
 export async function deletePlace(id: string): Promise<void> {
-  const { count } = await prisma.place.deleteMany({ where: { id } });
-  if (!count) throw notFound('Lieu');
+  await deleteOrNotFound(prisma.place, id, 'Lieu');
 }
 
 /**

@@ -1,16 +1,17 @@
+import { PAGES } from '../../../app/pages';
 import { MailListControls } from '../components/MailListControls';
 import { MAIL_SORTS, type DoneFilter } from '../lib/mail-list';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { useSetParams } from '../../../lib/search-params';
 import { countOf } from '../../../lib/text';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { mapById, mailSearchCriteriaSchema } from '@ordo/shared';
-import { useDebouncedValue } from '@mantine/hooks';
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { mapById } from '@ordo/shared';
+
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -24,6 +25,7 @@ import { MailReader } from '../components/MailReader';
 import { AdvancedSearchPanel } from '../components/AdvancedSearchPanel';
 import { MailSearchFolders, MailSearchList } from '../components/MailSearchFolders';
 import { openSearchForm } from '../lib/open-search-form';
+import { useMailSearch } from '../hooks/use-mail-search';
 import { ScheduledMailsList } from '../components/ScheduledMailsList';
 import { MailAccountsManager } from '../components/MailAccountsManager';
 import { useMailComposer } from '../hooks/use-mail-composer';
@@ -46,8 +48,9 @@ export function MailPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
   const compose = useMailComposer();
-  const [search, setSearch] = useState(params.get('q') ?? '');
-  const [debouncedSearch] = useDebouncedValue(search, 400);
+  // Text and advanced search, in the URL.
+  const mailSearch = useMailSearch();
+  const { text: search, debouncedText: debouncedSearch, advanced, advancedOpen } = mailSearch;
 
   // The archived accounts are left out of the page (restored from its settings).
   const active = useMemo(() => unarchived(accounts ?? []), [accounts]);
@@ -60,16 +63,6 @@ export function MailPage() {
   const scheduledView = params.get('view') === 'scheduled';
   // Search folder shown (its mails open in their account and folder).
   const searchId = params.get('search');
-  // Advanced search applied (criteria in the URL).
-  const advanced = useMemo(() => {
-    try {
-      const parsed = mailSearchCriteriaSchema.safeParse(JSON.parse(params.get('adv') ?? 'null'));
-      return parsed.success ? parsed.data : null;
-    } catch {
-      return null;
-    }
-  }, [params]);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const sortParam = MAIL_SORTS.find((item) => item.value === params.get('sort'))?.value ?? 'date-desc';
   const [sortBy, sortDirection] = sortParam.split('-') as [string, string];
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
@@ -110,7 +103,7 @@ export function MailPage() {
   if (!isPending && active.length === 0) {
     return (
       <Stack gap="lg">
-        <PageHeader title="Mails" />
+        <PageHeader title={PAGES.mail.title} />
         <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'} />
         <MailAccountsManager />
       </Stack>
@@ -128,7 +121,7 @@ export function MailPage() {
         <MailLabelsManager />
       </PageSettings>
       <PageHeader
-        title="Mails"
+        title={PAGES.mail.title}
         actions={
           <>
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
@@ -188,10 +181,10 @@ export function MailPage() {
                     Recherche avancée
                   </Text>
                   <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" onClick={() => setAdvancedOpen((open) => !open)}>
+                    <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
                       {advancedOpen ? 'Masquer les critères' : 'Modifier'}
                     </Button>
-                    <Button size="compact-xs" variant="subtle" color="gray" onClick={() => update({ adv: null, page: null, uid: null })}>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<XIcon aria-hidden />} onClick={() => mailSearch.setAdvanced(null, { page: null, uid: null })}>
                       Quitter
                     </Button>
                   </Group>
@@ -203,10 +196,7 @@ export function MailPage() {
                       folder={folder}
                       value={advanced}
                       onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
-                      onClear={() => {
-                        setAdvancedOpen(false);
-                        update({ adv: null, page: null, uid: null });
-                      }}
+                      onClear={() => mailSearch.setAdvanced(null, { page: null, uid: null })}
                       onSave={(criteria) => openSearchForm(undefined, (id) => update({ adv: null, search: id, page: null, uid: null }), criteria)}
                     />
                   </Box>
@@ -243,12 +233,11 @@ export function MailPage() {
                   leftSection={<MagnifyingGlassIcon aria-hidden />}
                   value={search}
                   onChange={(event) => {
-                    setSearch(event.currentTarget.value);
-                    update({ page: null, q: event.currentTarget.value || null });
+                    mailSearch.setText(event.currentTarget.value, { page: null });
                   }}
                 />
                 <Tooltip label="Recherche avancée">
-                  <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>
+                  <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
                     <SlidersHorizontalIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
@@ -259,7 +248,7 @@ export function MailPage() {
                   folder={folder}
                   value={null}
                   onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
-                  onClear={() => setAdvancedOpen(false)}
+                  onClear={() => mailSearch.setAdvancedOpen(false)}
                   onSave={(criteria) => openSearchForm(undefined, (id) => update({ search: id, page: null, uid: null }), criteria)}
                 />
               )}
@@ -360,7 +349,7 @@ export function MailPage() {
                               ))}
                               {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}
                               <Text size="xs" c="dimmed">
-                                {listDate(String(message.date))}
+                                {listDate(message.date)}
                               </Text>
                             </Group>
                           </Group>

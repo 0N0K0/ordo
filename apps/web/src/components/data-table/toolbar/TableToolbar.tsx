@@ -1,7 +1,9 @@
-import { Badge, Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
+import { CountBadge } from '../../feedback/CountBadge';
+import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../../../lib/published-height';
+import { SubSection } from '../../page/SubSection';
 
 /** Quick search of a toolbar. */
 interface ToolbarSearch {
@@ -71,18 +73,7 @@ export function ToolbarFilter({ count, opened, onOpenedChange, children }: Toolb
   return (
     <Popover opened={isOpened} onChange={setOpened} position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
       <Popover.Target>
-        <Button
-          onClick={() => setOpened(!isOpened)}
-          variant={count ? 'light' : 'default'}
-          leftSection={<FunnelIcon aria-hidden />}
-          rightSection={
-            count ? (
-              <Badge size="xs" circle>
-                {count}
-              </Badge>
-            ) : undefined
-          }
-        >
+        <Button onClick={() => setOpened(!isOpened)} variant={count ? 'light' : 'default'} leftSection={<FunnelIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
           Filtrer
         </Button>
       </Popover.Target>
@@ -101,35 +92,12 @@ export function ToolbarSort({ count, children }: { count: number; children: Reac
   return (
     <Popover position="bottom-start" shadow="md" withinPortal>
       <Popover.Target>
-        <Button
-          variant={count ? 'light' : 'default'}
-          leftSection={<SortAscendingIcon aria-hidden />}
-          rightSection={
-            count ? (
-              <Badge size="xs" circle>
-                {count}
-              </Badge>
-            ) : undefined
-          }
-        >
+        <Button variant={count ? 'light' : 'default'} leftSection={<SortAscendingIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
           Trier
         </Button>
       </Popover.Target>
       <Popover.Dropdown>{children}</Popover.Dropdown>
     </Popover>
-  );
-}
-
-/**
- * Title of a section of the options.
- * @param {{ children: ReactNode }} props Component props.
- * @returns {JSX.Element} Title.
- */
-function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-      {children}
-    </Text>
   );
 }
 
@@ -161,8 +129,7 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
   const [columnsOpened, setColumnsOpened] = useState(!display);
   const sections = [
     (display || footer) && (
-      <Stack key="display" gap="sm">
-        <SectionTitle>Affichage</SectionTitle>
+      <SubSection key="display" title="Affichage" gap="sm">
         {display}
         {footer && (
           <Switch
@@ -172,7 +139,7 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
             onChange={(event) => footer.onChange(event.currentTarget.checked)}
           />
         )}
-      </Stack>
+      </SubSection>
     ),
     columns && (
       <Stack key="columns" gap="sm">
@@ -192,10 +159,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
       </Stack>
     ),
     exports && (
-      <Stack key="exports" gap="sm">
-        <SectionTitle>Exporter</SectionTitle>
+      <SubSection key="exports" title="Exporter" gap="sm">
         {exports}
-      </Stack>
+      </SubSection>
     ),
   ].filter(Boolean);
   return (

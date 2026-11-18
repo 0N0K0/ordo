@@ -1,4 +1,4 @@
-import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport } from './pdf-report';
+import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
@@ -6,9 +6,7 @@ import { parseInput } from '../../graphql/errors';
 type Doc = InstanceType<typeof PDFDocument>;
 
 /** Table printed as a PDF: the rows and columns the user sees, already formatted. */
-const tablePdfSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  subtitle: z.string().max(500).default(''),
+const tablePdfSchema = reportHeadingSchema.extend({
   columns: z.array(z.string().max(80)).min(1).max(30),
   rows: z
     .array(
@@ -80,13 +78,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 
-  doc.font('bold').fontSize(14).fillColor(COLORS.text).text(table.title, MARGIN, y, { width: pageWidth });
-  y = doc.y + 2;
-  if (table.subtitle) {
-    doc.font('regular').fontSize(8.5).fillColor(COLORS.muted).text(table.subtitle, MARGIN, y, { width: pageWidth });
-    y = doc.y;
-  }
-  y += 8;
+  y = writeHeading(doc, table, { x: MARGIN, y, width: pageWidth }) + 8;
 
   /**
    * Header row (column labels).

@@ -64,7 +64,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'deadline':
       return printedDay(task.deadline);
     case 'minDate':
-      return task.minDate ? fmt.exportDay(String(task.minDate)) : '';
+      return task.minDate ? fmt.exportDay(task.minDate) : '';
     case 'slots':
       return '';
     case 'timer':
@@ -109,9 +109,9 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       return count ? String(count) : '';
     }
     case 'createdAt':
-      return fmt.exportDay(new Date(task.createdAt));
+      return fmt.exportDay(task.createdAt);
     case 'updatedAt':
-      return fmt.exportDay(new Date(task.updatedAt));
+      return fmt.exportDay(task.updatedAt);
   }
 }
 

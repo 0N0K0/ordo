@@ -5,6 +5,7 @@ import { syncGithubProject } from '../../services/github/sync';
 import * as admin from '../../services/github/links-admin';
 import type { Board, BoardField } from '../../services/github/board';
 import { builder } from '../builder';
+import { subtreeIds } from '../../services/core/trees';
 
 const BoardOptionRef = builder.objectRef<{ id: string; name: string }>('GithubBoardOption').implement({
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
@@ -61,9 +62,7 @@ builder.prismaObject('GithubProjectLink', {
     lastSyncSummary: t.field({ type: 'JSON', nullable: true, resolve: (link) => link.lastSyncSummary }),
     linkedTaskCount: t.int({
       resolve: async (link) => {
-        const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-        const tree = [link.projectId];
-        for (let index = 0; index < tree.length; index += 1) tree.push(...projects.filter((project) => project.parentId === tree[index]).map((project) => project.id));
+        const tree = await subtreeIds('project', link.projectId);
         return prisma.task.count({ where: { projectId: { in: tree }, githubItemId: { not: null } } });
       },
     }),

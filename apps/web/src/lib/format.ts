@@ -9,6 +9,8 @@
 /** A calendar day (YYYY-MM-DD) or an instant. */
 type DateValue = string | number | Date;
 
+import { formatMoney } from '@ordo/shared';
+
 const LOCALE = 'fr-FR';
 const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
 
@@ -94,12 +96,19 @@ function currencyFormat(cache: Map<string, Intl.NumberFormat>, currency: string,
 export const money = (amount: number, currency = 'EUR') => currencyFormat(moneyFormats, currency, {}).format(amount);
 
 /**
- * « 1 234,50 € »: an amount in cents of its currency (accounting documents).
+ * « 1 234,50 € »: an amount in cents of its currency (accounting documents), as the API and the PDF write it.
  * @param {number} cents Amount in cents.
  * @param {string} [currency='EUR'] ISO code. Optional. Default = EUR.
  * @returns {string} Text.
  */
-export const moneyCents = (cents: number, currency = 'EUR') => money(cents / 100, currency);
+export const moneyCents = (cents: number, currency = 'EUR') => formatMoney(cents, currency);
+
+/**
+ * « € »: the symbol of a currency after an amount typed (its ISO code for the others).
+ * @param {string} [currency='EUR'] ISO code. Optional. Default = EUR.
+ * @returns {string} Symbol.
+ */
+export const currencySymbol = (currency = 'EUR') => (currency === 'EUR' ? '€' : currency);
 
 /**
  * « 1,2 k€ »: an amount where room is short (badge, chart axis).

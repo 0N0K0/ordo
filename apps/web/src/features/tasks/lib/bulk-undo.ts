@@ -78,7 +78,7 @@ export function useBulkUndo() {
      * @returns {() => void} Undo.
      */
     changes: (tasks: Task[], changes: BulkChanges) => () =>
-      run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync(step))),
+      run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync({ ...step, restoring: true }))),
 
     /**
      * Undo of a close / reopen: only the tasks whose state changed go back.

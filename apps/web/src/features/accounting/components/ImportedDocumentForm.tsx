@@ -2,11 +2,11 @@ import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Checkbox, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
-import { FilePdfIcon } from '@phosphor-icons/react';
+import { FilePdfIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { useWorkspace } from '../../workspace/api';
 import { useImportedDocumentMutations, type ImportedDocument } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
@@ -53,8 +53,8 @@ export function ImportedDocumentForm({
     initialValues: {
       type: document?.type ?? 'INVOICE',
       number: document?.number ?? '',
-      issueDate: document ? String(document.issueDate) : localToday(),
-      dueDate: document?.dueDate ? String(document.dueDate) : null,
+      issueDate: document ? document.issueDate : localToday(),
+      dueDate: document?.dueDate ? document.dueDate : null,
       clientId: document?.clientId ?? null,
       clientName: document && !document.clientId ? document.clientName : '',
       projectId: document?.projectId ?? null,
@@ -72,15 +72,7 @@ export function ImportedDocumentForm({
   const values = form.values;
 
   const handleSubmit = form.onSubmit((input) => {
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(
-          document ? 'Document importé modifié.' : 'Document importé.',
-        );
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, document ? 'Document importé modifié.' : 'Document importé.', onDone);
     const payload = {
       ...input,
       clientName: input.clientId ? null : input.clientName,
@@ -166,6 +158,7 @@ export function ImportedDocumentForm({
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <AmountInput
             label="Total HT"
+            currency={values.currency}
             {...form.getInputProps('totalNet')}
             onChange={(value) => {
               const totalNet = typeof value === 'number' ? value : 0;
@@ -178,6 +171,7 @@ export function ImportedDocumentForm({
           />
           <AmountInput
             label="TVA"
+            currency={values.currency}
             {...form.getInputProps('totalVat')}
             onChange={(value) => {
               const totalVat = typeof value === 'number' ? value : 0;
@@ -190,6 +184,7 @@ export function ImportedDocumentForm({
           />
           <AmountInput
             label="Total TTC"
+            currency={values.currency}
             description="Débours compris"
             {...form.getInputProps('totalGross')}
           />
@@ -216,7 +211,7 @@ export function ImportedDocumentForm({
             {...form.getInputProps('settled', { type: 'checkbox' })}
           />
         )}
-        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} loading={create.isPending || update.isPending} />
+        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} submitIcon={document ? undefined : <FileArrowUpIcon aria-hidden />} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

@@ -193,7 +193,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
  * @returns {JSX.Element} Cell.
  */
 export function RecurrenceCell({ entry, save }: { entry: AnyEntry; save: EntrySave }) {
-  return <RuleField label="" weekly={false} value={(entry.recurrence as Recurrence | null) ?? null} start={String(entry.date)} onChange={(recurrence) => save(entry, { recurrence })} />;
+  return <RuleField label="" weekly={false} value={(entry.recurrence as Recurrence | null) ?? null} start={entry.date} onChange={(recurrence) => save(entry, { recurrence })} />;
 }
 
 /**

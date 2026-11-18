@@ -1,4 +1,5 @@
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PAGES } from '../../../app/pages';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { Stack } from '@mantine/core';
 import { TaskBoard } from '../components/TaskBoard';
 import { TaskSettings } from '../components/TaskSettings';
@@ -11,7 +12,7 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 export function TasksPage() {
   return (
     <Stack gap="md">
-      <PageHeader title="Tâches" />
+      <PageHeader title={PAGES.tasks.title} />
       {/* Statuses, priorities, types, tags and columns of the tasks: in the settings sidebar, as on every page. */}
       <PageSettings title="Paramètres des tâches">
         <TaskSettings />

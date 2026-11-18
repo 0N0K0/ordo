@@ -3,11 +3,13 @@ import type { ParsedMail } from 'mailparser';
 import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
-import { orNotFound } from '../../graphql/errors';
+import { errorMessage } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { withImap, withMailbox } from './imap';
+import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
+import { assertExists } from '../core/lookup';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -83,7 +85,7 @@ export async function copyToProject(
  * @returns {Promise<MailMessage>} Copy.
  */
 export async function linkMessage(accountId: string, folder: string, uid: number, projectId: string): Promise<MailMessage> {
-  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   const parsed = await fetchParsed(accountId, folder, uid);
   return copyToProject(parsed, { projectId, accountId, sent: false });
 }
@@ -94,7 +96,7 @@ export async function linkMessage(accountId: string, folder: string, uid: number
  * @returns {Promise<void>}
  */
 export async function unlinkMail(id: string): Promise<void> {
-  await orNotFound(prisma.mailMessage.findUnique({ where: { id } }), 'Mail');
+  await assertExists(prisma.mailMessage, id, 'Mail');
   await prisma.mailMessage.delete({ where: { id } });
 }
 
@@ -150,7 +152,9 @@ async function followConversations(): Promise<void> {
       const found: { folder: string; uid: number; projects: Set<string> }[] = [];
       try {
         await withImap(account.id, async (client) => {
-          const folders = (await client.list()).filter((item) => item.path.toUpperCase() === 'INBOX' || item.specialUse === '\\Sent');
+          // The sent folder is found by its flag or else by its usual name.
+          const sent = await findSpecialFolder(client, '\\Sent');
+          const folders = (await client.list()).filter((item) => item.path.toUpperCase() === 'INBOX' || item.path === sent);
           for (const folder of folders) {
             await withMailbox(client, folder.path, async () => {
               const mailbox = client.mailbox;
@@ -202,7 +206,7 @@ async function followConversations(): Promise<void> {
         }
       } catch (error) {
         // An unreachable mailbox does not stop the others.
-        console.warn(`Suivi des conversations : boîte ${account.id} ignorée.`, error instanceof Error ? error.message : error);
+        console.warn(`Suivi des conversations : boîte ${account.id} ignorée.`, errorMessage(error));
       }
     }
   } finally {

@@ -16,8 +16,8 @@ import {
   createCategory as createShoppingCategory,
   createList,
   createProduct,
-  createStorage,
-  createStore,
+  shoppingStorages,
+  shoppingStores,
   setItemPurchased,
   setListClosed,
 } from '../../src/services/shopping/shopping';
@@ -392,11 +392,11 @@ export async function seedPersonal({
   await saveBudget(null, { month, memberId: null, contextId: null, repeatEvery: 1, repeatUntil: null, categoryId: categoryIds.get('IN:Salaires')!, amount: 2650 });
 
   // --- Shopping --------------------------------------------------------------------------------------------
-  const market = (await createStore({ name: 'Marché', color: '#40c057' })).id;
-  const supermarket = (await createStore({ name: 'Supermarché', color: '#228be6' })).id;
-  const pharmacy = (await createStore({ name: 'Pharmacie', color: '#fa5252' })).id;
-  const fridge = (await createStorage({ name: 'Réfrigérateur', color: '#15aabf' })).id;
-  const freezer = (await createStorage({ name: 'Congélateur', color: '#4c6ef5' })).id;
+  const market = (await shoppingStores.create({ name: 'Marché', color: '#40c057' })).id;
+  const supermarket = (await shoppingStores.create({ name: 'Supermarché', color: '#228be6' })).id;
+  const pharmacy = (await shoppingStores.create({ name: 'Pharmacie', color: '#fa5252' })).id;
+  const fridge = (await shoppingStorages.create({ name: 'Réfrigérateur', color: '#15aabf' })).id;
+  const freezer = (await shoppingStorages.create({ name: 'Congélateur', color: '#4c6ef5' })).id;
   const usual = await createBaseList('Courses habituelles');
   const medicine = await createBaseList('Pharmacie');
   const shopCategory = async (name: string, color: string, baseListIds: string[]) => (await createShoppingCategory({ name, color, parentId: null, baseListIds })).id;

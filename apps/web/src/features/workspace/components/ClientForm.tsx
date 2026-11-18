@@ -2,8 +2,7 @@ import { ColorField } from '../../../components/inputs/ColorField';
 import { Stack, TextInput } from '@mantine/core';
 import { clientFormSchema, type ClientFormValues } from '@ordo/shared';
 import { useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useCreateClient, useUpdateClient, type Client } from '../api';
 import { IconField, type IconValue } from './IconField';
 
@@ -35,13 +34,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
 
   const handleSubmit = form.onSubmit((values) => {
     const color = values.color || null;
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(client ? 'Client modifié.' : 'Client créé.');
-        onDone?.();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, client ? 'Client modifié.' : 'Client créé.', onDone && (() => onDone()));
 
     if (client) {
       updateClient.mutate(

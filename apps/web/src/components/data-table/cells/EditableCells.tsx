@@ -5,7 +5,9 @@ import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
 import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
-import { accepted, cellCombobox, cellField, cellKeys, cellMulti, checked, stopClick, type CellSchema } from './cell-field';
+import { currencySymbol } from '../../../lib/format';
+import { accepted, cellCombobox, cellField, cellKeys, checked, stopClick, type CellSchema } from './cell-field';
+import { TimeField } from '../../inputs/TimeField';
 
 interface EditableTextProps {
   value: string | null;
@@ -90,9 +92,9 @@ interface EditableNumberProps {
   label: string;
   /** Decimals (0: whole numbers). Optional. Default = 2. */
   decimals?: number;
-  /** An amount: typed with up to 4 decimals, shown rounded to 2 (AmountInput). Optional. Default = false. */
+  /** An amount: typed with up to 4 decimals, shown rounded to 2, followed by « € » (AmountInput). Optional. Default = false. */
   amount?: boolean;
-  /** After the number (« € », « % », « min »…). Optional. */
+  /** After the number (« % », « min »…; an amount: « € » by default). Optional. */
   suffix?: string;
   /** Negative numbers accepted. Optional. Default = false. */
   signed?: boolean;
@@ -153,6 +155,7 @@ export function EditableNumber({
   };
 
   const Field = amount ? AmountInput : NumberInput;
+  const unit = suffix ?? (amount ? currencySymbol() : undefined);
   return (
     <Field
       {...cellField}
@@ -163,7 +166,7 @@ export function EditableNumber({
       allowDecimal={decimals > 0}
       decimalSeparator=","
       thousandSeparator=" "
-      suffix={suffix ? ` ${suffix}` : undefined}
+      suffix={unit ? ` ${unit}` : undefined}
       allowNegative={signed}
       min={min}
       max={max}
@@ -176,6 +179,25 @@ export function EditableNumber({
       styles={{ input: { textAlign: 'right' } }}
     />
   );
+}
+
+interface EditableTimeProps {
+  /** HH:MM; empty: none. */
+  value: string;
+  label: string;
+  /** May be cleared (saved as « »). Optional. Default = false. */
+  clearable?: boolean;
+  readOnly?: boolean;
+  onSave: (value: string) => void;
+}
+
+/**
+ * Time of day cell: picked in place (24-hour format), saved when changed.
+ * @param {EditableTimeProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function EditableTime({ value, label, clearable = false, readOnly = false, onSave }: EditableTimeProps) {
+  return <TimeField {...cellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} onClick={stopClick} />;
 }
 
 interface EditableDateProps {
@@ -286,7 +308,7 @@ export function EditableMultiSelect({ value, label, data, items, renderOption, f
       items={items ?? value.map((id) => ({ id, label: labels.get(id) ?? id }))}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellMulti}
+          {...cellCombobox}
           aria-label={label}
           placeholder={value.length ? undefined : '—'}
           searchable

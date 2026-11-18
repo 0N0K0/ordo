@@ -3,7 +3,7 @@ import { WEEKDAY_LABELS } from '@ordo/shared';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import { ClockCountdownIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from '../../../components/rich-text/RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -13,6 +13,8 @@ import { MailBody } from './MailBody';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -255,8 +257,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       </Text>
       <Group justify="flex-end" gap="sm">
         <DestructiveButton
-         
-         
+          leftSection={<TrashIcon aria-hidden />}
           onClick={() => {
             close();
             void discard()
@@ -273,6 +274,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           Supprimer le brouillon
         </DestructiveButton>
         <Button
+          leftSection={<FloppyDiskIcon aria-hidden />}
           onClick={() => {
             close();
             void save()
@@ -290,6 +292,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         </Button>
         <Button
           variant="default"
+          leftSection={<PencilSimpleLineIcon aria-hidden />}
           onClick={() => {
             close();
           }}
@@ -326,11 +329,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
     return (
       <Stack gap="md">
         <Text size="sm">Configurez d’abord une boîte mail dans les paramètres (onglet « Mails »).</Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Fermer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} cancelLabel="Fermer" submitLabel={null} />
       </Stack>
     );
   }
@@ -404,15 +403,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                 <Text size="xs">
                   {file.filename} · {fmt.fileSize(file.size)}
                 </Text>
-                <ActionIcon
-                  size="xs"
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`Retirer ${file.filename}`}
-                  onClick={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })}
-                >
-                  <XIcon aria-hidden />
-                </ActionIcon>
+                <RemoveButton variant="field" size="xs" label="Retirer" aria-label={`Retirer ${file.filename}`} onClick={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })} />
               </Group>
             </Paper>
           ))}
@@ -422,9 +413,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                 <Text size="xs">
                   {file.name} · {fmt.fileSize(file.size)}
                 </Text>
-                <ActionIcon size="xs" variant="subtle" color="gray" aria-label={`Retirer ${file.name}`} onClick={() => setFiles(files.filter((_, item) => item !== index))}>
-                  <XIcon aria-hidden />
-                </ActionIcon>
+                <RemoveButton variant="field" size="xs" label="Retirer" aria-label={`Retirer ${file.name}`} onClick={() => setFiles(files.filter((_, item) => item !== index))} />
               </Group>
             </Paper>
           ))}
@@ -439,7 +428,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           )}
         </FileButton>
         <Group gap="sm">
-          <Button variant="default" onClick={requestClose}>
+          <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={requestClose}>
             Fermer
           </Button>
           <Popover opened={scheduling} onChange={setScheduling} position="top-end" shadow="md" withinPortal={false} trapFocus>
@@ -472,7 +461,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   onChange={setSendAt}
                   popoverProps={{ withinPortal: false }}
                 />
-                <Button size="xs" disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
+                <Button size="xs" leftSection={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
                   Programmer l’envoi
                 </Button>
               </Stack>

@@ -12,9 +12,6 @@ export const cellField = {
 /** Select fields: dropdown as wide as its options. */
 export const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;
 
-/** Multi-select fields: their values one under the other, as everywhere (BatchMultiSelect). */
-export const cellMulti = cellCombobox;
-
 /**
  * Stops a click from reaching the row (which would open it).
  * @param {SyntheticEvent} event Event.

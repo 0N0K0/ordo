@@ -89,12 +89,19 @@ export function sheetItemKey(item: { productId?: string | null; label: string; u
 }
 
 /**
+ * Quantity rounded to the thousandth (the precision of the quantities stored).
+ * @param {number} value Quantity.
+ * @returns {number} Rounded quantity.
+ */
+export const roundQuantity = (value: number): number => Math.round(value * 1000) / 1000;
+
+/**
  * Sum of two quantities, one of them possibly missing.
  * @param {number | null} a Quantity.
  * @param {number | null} b Quantity.
  * @returns {number | null} Sum (none when both are missing).
  */
-export const addQuantities = (a: number | null, b: number | null): number | null => (a === null && b === null ? null : Math.round(((a ?? 0) + (b ?? 0)) * 1000) / 1000);
+export const addQuantities = (a: number | null, b: number | null): number | null => (a === null && b === null ? null : roundQuantity((a ?? 0) + (b ?? 0)));
 
 /**
  * Quantity of a sheet item times a multiplier.
@@ -102,4 +109,4 @@ export const addQuantities = (a: number | null, b: number | null): number | null
  * @param {number} multiplier Multiplier.
  * @returns {number | null} Quantity.
  */
-export const timesSheet = (value: number | null, multiplier: number): number | null => (value === null ? null : Math.round(value * multiplier * 1000) / 1000);
+export const timesSheet = (value: number | null, multiplier: number): number | null => (value === null ? null : roundQuantity(value * multiplier));

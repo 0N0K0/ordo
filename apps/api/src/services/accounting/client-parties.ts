@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type Client, type ClientContact, type ClientService } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { assertExists } from '../core/lookup';
 
 /**
  * Updates the billing details of a client (kind, address, identifiers, contact information).
@@ -11,7 +12,7 @@ import { clientError, orNotFound, parseInput } from '../../graphql/errors';
  * @returns {Promise<Client>} Client.
  */
 export async function updateClientDetails(id: string, input: ClientDetailsInput): Promise<Client> {
-  await orNotFound(prisma.client.findUnique({ where: { id } }), 'Client');
+  await assertExists(prisma.client, id, 'Client');
   const data = parseInput(clientDetailsSchema, input);
   const individual = data.kind === 'INDIVIDUAL';
   return prisma.client.update({
@@ -44,7 +45,7 @@ async function assertService(serviceId: string | null, clientId: string): Promis
  * @returns {Promise<ClientService>} Service.
  */
 export async function createClientService(clientId: string, input: ClientServiceInput): Promise<ClientService> {
-  await orNotFound(prisma.client.findUnique({ where: { id: clientId } }), 'Client');
+  await assertExists(prisma.client, clientId, 'Client');
   const data = parseInput(clientServiceSchema, input);
   const position = await nextPositionIn('clientService', { clientId });
   return prisma.clientService.create({
@@ -59,7 +60,7 @@ export async function createClientService(clientId: string, input: ClientService
  * @returns {Promise<ClientService>} Service.
  */
 export async function updateClientService(id: string, input: ClientServiceInput): Promise<ClientService> {
-  await orNotFound(prisma.clientService.findUnique({ where: { id } }), 'Service');
+  await assertExists(prisma.clientService, id, 'Service');
   const data = parseInput(clientServiceSchema, input);
   return prisma.clientService.update({ where: { id }, data: { ...data, address: data.address ?? Prisma.DbNull } });
 }
@@ -70,7 +71,7 @@ export async function updateClientService(id: string, input: ClientServiceInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientService(id: string): Promise<void> {
-  await orNotFound(prisma.clientService.findUnique({ where: { id } }), 'Service');
+  await assertExists(prisma.clientService, id, 'Service');
   await prisma.clientService.delete({ where: { id } });
 }
 
@@ -81,7 +82,7 @@ export async function deleteClientService(id: string): Promise<void> {
  * @returns {Promise<ClientContact>} Contact.
  */
 export async function createClientContact(clientId: string, input: ClientContactInput): Promise<ClientContact> {
-  await orNotFound(prisma.client.findUnique({ where: { id: clientId } }), 'Client');
+  await assertExists(prisma.client, clientId, 'Client');
   const data = parseInput(clientContactSchema, input);
   await assertService(data.serviceId, clientId);
   return prisma.clientContact.create({ data: { ...data, clientId } });
@@ -106,6 +107,6 @@ export async function updateClientContact(id: string, input: ClientContactInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientContact(id: string): Promise<void> {
-  await orNotFound(prisma.clientContact.findUnique({ where: { id } }), 'Contact');
+  await assertExists(prisma.clientContact, id, 'Contact');
   await prisma.clientContact.delete({ where: { id } });
 }

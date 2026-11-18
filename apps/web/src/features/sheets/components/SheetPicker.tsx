@@ -1,4 +1,5 @@
 import { Group, Select, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { useState } from 'react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -7,6 +8,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { unarchived } from '../../../lib/archive';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
@@ -30,7 +32,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
   const sheets = all && unarchived(all);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [multiplier, setMultiplier] = useState<number>(1);
-  const [pending, setPending] = useState(false);
+  const { run: add, loading: pending } = useAsyncAction(() => (sheetId ? onAdd(sheetId, multiplier) : Promise.resolve()), { success: 'Fiche ajoutée.', onDone });
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
@@ -50,10 +52,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
         <MultiplierInput label="Fois" w={100} step={1} value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} />
       </Group>
       {present.length > 0 && onRemove && (
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Fiches de la liste
-          </Text>
+        <LabeledField label="Fiches de la liste">
           {present.map((sheet) => (
             <Group key={sheet.sheetId} gap="xs" justify="space-between" wrap="nowrap">
               <Text size="sm">{sheet.name}</Text>
@@ -73,25 +72,9 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
               />
             </Group>
           ))}
-        </Stack>
+        </LabeledField>
       )}
-      <FormActions
-        onCancel={onDone}
-        submitLabel="Ajouter"
-        disabled={!sheetId}
-        loading={pending}
-        onSubmit={() => {
-          if (!sheetId) return;
-          setPending(true);
-          onAdd(sheetId, multiplier)
-            .then(() => {
-              notifySuccess('Fiche ajoutée.');
-              onDone();
-            })
-            .catch(onMutationError)
-            .finally(() => setPending(false));
-        }}
-      />
+      <FormActions onCancel={onDone} submitLabel="Ajouter" disabled={!sheetId} loading={pending} onSubmit={() => void add()} />
     </Stack>
   );
 }

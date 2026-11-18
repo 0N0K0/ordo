@@ -1,18 +1,20 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { ArchivedBadge, ItemBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge, ItemBadge } from '../../../components/items/ItemBadge';
 import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { TreePlace } from '../../../components/tree/category-tree';
 import { pointerPlace, treeCollision, useFolded } from '../../../components/tree/tree-dnd';
 import { onMutationError } from '../../../lib/notify';
 import { useMoveProject, type Project, type ProjectStatus } from '../api';
-import { EntityAvatar } from '../../../components/settings/EntityAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { projectDepth, projectHeight } from '../lib/tree';
 import classes from './ProjectList.module.css';
 import { useDragSensors } from '../../../lib/drag';
+import treeRow from '../../../components/tree/TreeRow.module.css';
+import { DragHandle } from '../../../components/actions/DragHandle';
 
 interface ProjectListProps {
   projects: Project[];
@@ -61,7 +63,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       gap={4}
       wrap="nowrap"
       px="xs"
-      className={classes.row}
+      className={`${treeRow.row} ${classes.row}`}
       data-first={first || undefined}
       data-drop={drop ?? undefined}
       data-dragging={isDragging || undefined}
@@ -70,20 +72,18 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       {project.archived ? (
         <span className={classes.space} />
       ) : (
-        <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${project.title}`} className={classes.handle} {...attributes} {...listeners}>
-          <DotsSixVerticalIcon weight="bold" aria-hidden />
-        </ActionIcon>
+        <DragHandle label={`Déplacer ${project.title}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       )}
       {folded !== undefined ? (
         <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.title}`} aria-expanded={!folded} onClick={onToggle}>
           {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
         </ActionIcon>
       ) : (
-        <span className={classes.caretSpace} />
+        <span className={treeRow.caretSpace} />
       )}
       <UnstyledButton component={Link} to={`/projects/${project.id}`} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="sm" wrap="nowrap">
-          <EntityAvatar name={project.title} iconUrl={project.iconUrl} color={project.color} size="sm" />
+          <ItemAvatar name={project.title} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />
           <Text size="sm" style={{ flex: 1 }} opacity={project.archived ? 0.6 : 1} truncate>
             {project.title}
           </Text>

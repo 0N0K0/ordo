@@ -27,7 +27,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const routines = [...byId.values()];
   // Archived values keep their labels, the filters offer them only while in them.
   const routineOptions = withArchived(routineTreeOptions(routines), routines);
-  const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
+  const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, context.contributorName(contributor)]));
   const categoryName = categoryPaths(categories);
   const categoryRank = new Map(categoryTree(categories).map((item, index) => [item.category.id, index]));
   const scheduleName = new Map((env.slotKinds ?? []).map((kind) => [kind.value, kind.label]));
@@ -48,9 +48,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Échéance',
       size: 200,
       bulk: true,
-      sortValue: (routine) => (routine.currentDate ? String(routine.currentDate) : null),
-      text: (routine) => dayText(routine.currentDate ? String(routine.currentDate) : null),
-      filter: { kind: 'date', value: (routine) => (routine.currentDate ? String(routine.currentDate) : null) },
+      sortValue: (routine) => (routine.currentDate ? routine.currentDate : null),
+      text: (routine) => dayText(routine.currentDate ? routine.currentDate : null),
+      filter: { kind: 'date', value: (routine) => (routine.currentDate ? routine.currentDate : null) },
     },
     {
       id: 'state',
@@ -65,27 +65,27 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'firstDate',
       label: 'Première échéance',
       size: 150,
-      sortValue: (routine) => (routine.firstDate ? String(routine.firstDate) : null),
-      text: (routine) => dayText(routine.firstDate ? String(routine.firstDate) : null),
-      filter: { kind: 'date', value: (routine) => (routine.firstDate ? String(routine.firstDate) : null) },
+      sortValue: (routine) => (routine.firstDate ? routine.firstDate : null),
+      text: (routine) => dayText(routine.firstDate ? routine.firstDate : null),
+      filter: { kind: 'date', value: (routine) => (routine.firstDate ? routine.firstDate : null) },
     },
     {
       id: 'nextDate',
       label: 'Échéance suivante',
       size: 150,
       hiddenByDefault: true,
-      sortValue: (routine) => (routine.nextDate ? String(routine.nextDate) : null),
-      text: (routine) => dayText(routine.nextDate ? String(routine.nextDate) : null),
-      filter: { kind: 'date', value: (routine) => (routine.nextDate ? String(routine.nextDate) : null) },
+      sortValue: (routine) => (routine.nextDate ? routine.nextDate : null),
+      text: (routine) => dayText(routine.nextDate ? routine.nextDate : null),
+      filter: { kind: 'date', value: (routine) => (routine.nextDate ? routine.nextDate : null) },
     },
     {
       id: 'startDate',
       label: 'Première fois',
       size: 130,
       hiddenByDefault: true,
-      sortValue: (routine) => String(routine.startDate),
-      text: (routine) => dayText(String(routine.startDate)),
-      filter: { kind: 'date', value: (routine) => String(routine.startDate) },
+      sortValue: (routine) => routine.startDate,
+      text: (routine) => dayText(routine.startDate),
+      filter: { kind: 'date', value: (routine) => routine.startDate },
     },
     {
       id: 'repetition',
@@ -170,9 +170,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Faite pour la dernière fois',
       size: 170,
       hiddenByDefault: true,
-      sortValue: (routine) => (routine.lastDoneAt ? String(routine.lastDoneAt) : null),
-      text: (routine) => (routine.lastDoneAt ? fmt.dateTime(new Date(String(routine.lastDoneAt))) : ''),
-      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? localDay(String(routine.lastDoneAt)) : null) },
+      sortValue: (routine) => (routine.lastDoneAt ? routine.lastDoneAt : null),
+      text: (routine) => (routine.lastDoneAt ? fmt.dateTime(routine.lastDoneAt) : ''),
+      filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? localDay(routine.lastDoneAt) : null) },
     },
     {
       id: 'assignees',

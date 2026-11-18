@@ -38,6 +38,7 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
             />
           )}
           <Button
+            leftSection={<FolderSimplePlusIcon aria-hidden />}
             disabled={!projectId || linkedProjectIds.includes(projectId)}
             loading={link.isPending}
             onClick={() =>

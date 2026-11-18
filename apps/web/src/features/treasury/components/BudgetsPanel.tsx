@@ -1,8 +1,9 @@
+import { useActiveWorkspace } from '../../workspaces/api';
 import { openFormPanel } from '../../../components/panels/panels';
 import { plural, countOf } from '../../../lib/text';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { itemChoices, listSelectProps } from '../../../components/settings/item-look';
+import { itemChoices, listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -11,7 +12,7 @@ import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, St
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -21,12 +22,13 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from '../api';
 import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
+import { DirectionBadge } from './DirectionBadge';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
@@ -36,6 +38,7 @@ import { archiveRowsAction, deleteRowsAction } from '../../../components/data-ta
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { personName } from '../../../components/people/people-options';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -76,7 +79,7 @@ function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value
       valueFormat="MMMM YYYY"
       popoverProps={{ withinPortal: true }}
       onChange={(next) => {
-        const month = next ? String(next).slice(0, 7) : null;
+        const month = next ? next.slice(0, 7) : null;
         if ((month || nullable) && month !== value) onSave(month);
       }}
       onClick={(event) => event.stopPropagation()}
@@ -106,20 +109,6 @@ interface BudgetValues extends Record<string, unknown> {
 }
 
 /**
- * Direction of a budget (that of its category): money out or in.
- * @param {{ direction: string | undefined }} props Direction.
- * @returns {JSX.Element | null} Badge.
- */
-function DirectionBadge({ direction }: { direction: string | undefined }) {
-  if (!direction) return null;
-  return (
-    <Badge size="xs" variant="light" color={direction === 'IN' ? 'green' : 'red'}>
-      {direction === 'IN' ? 'Entrée' : 'Sortie'}
-    </Badge>
-  );
-}
-
-/**
  * Budget form: money out or in, month, member (none: me), context (none: everyday), category of that direction,
  * amount, repetition.
  * @param {{ budget?: TreasuryBudget, defaults?: Partial<BudgetValues>, onDone: () => void }} props Component props.
@@ -130,6 +119,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const color = useDefaultColor();
   const { data: settings } = useTreasurySettings();
   const { save } = useTreasuryBudgetMutations();
+  const { perso } = useActiveWorkspace();
   const members = settings?.treasuryMembers ?? [];
   const categories = settings?.treasuryCategories ?? [];
   const form = useAppForm<BudgetValues>({
@@ -169,7 +159,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               id: budget?.id ?? null,
               input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
             },
-            { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
+            formCallbacks(form, budget ? 'Budget modifié.' : 'Budget créé.', onDone),
           ),
         )}
       >
@@ -179,17 +169,10 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               label={values.repeatEvery ? 'À partir de' : 'Mois'}
               required
               value={`${values.month}-01`}
-              onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
+              onChange={(value) => value && form.setFieldValue('month', value.slice(0, 7))}
               error={form.errors.month}
             />
-            <AmountInput
-              label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'}
-              required
-              min={0}
-              suffix=" €"
-              prefix={direction === 'OUT' ? '− ' : '+ '}
-              {...form.getInputProps('amount')}
-            />
+            <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
           </SimpleGrid>
           <SegmentedControl
             fullWidth
@@ -221,7 +204,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
               searchable
-              data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { withMe: false })}
+              data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { perso, withMe: false })}
               value={memberOrRelationKey(values)}
               onChange={(key) => form.setValues(memberOrRelation(key))}
               error={form.errors.memberId}
@@ -264,7 +247,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
                 clearable
                 minDate={`${values.month}-01`}
                 value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
-                onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
+                onChange={(value) => form.setFieldValue('repeatUntil', value ? value.slice(0, 7) : null)}
                 error={form.errors.repeatUntil}
               />
             )}
@@ -324,7 +307,7 @@ export function BudgetsPanel() {
   const categories = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(categories);
   const directionOf = new Map(categories.map((category) => [category.id, category.direction]));
-  const memberName = new Map((settings?.treasuryMembers ?? []).map((member) => [member.id, member.isMe ? `${member.name} (moi)` : member.name]));
+  const memberName = new Map((settings?.treasuryMembers ?? []).map((member) => [member.id, personName(member)]));
   const me = settings?.treasuryMembers.find((member) => member.isMe);
   const contextName = new Map((settings?.treasuryContexts ?? []).map((item) => [item.id, item.name]));
   const relationName = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
@@ -578,7 +561,7 @@ export function BudgetsPanel() {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(String(value).slice(0, 7))} w={200} />
+        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(value.slice(0, 7))} w={200} />
         <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openBudget({ defaults: { month } })} disabled={!categories.length}>
           Nouveau budget
         </ActionButton>
@@ -801,7 +784,6 @@ export function BudgetsPanel() {
                           amount
                           value={budget.amount}
                           label="Montant du budget"
-                          suffix="€"
                           validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
                           onSave={(amount) => amount !== null && bulk('amount')(budget, { amount })}
                         />

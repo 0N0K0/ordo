@@ -3,8 +3,8 @@ import { ancestorsOf } from '@ordo/shared';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Anchor, Badge, Group, Paper, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { PlusIcon, UsersIcon, XIcon } from '@phosphor-icons/react';
+import { Anchor, Badge, Group, Paper, Select, Stack, Text } from '@mantine/core';
+import { PlusIcon, UsersIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { descendantIds, type Project } from '../../workspace/api';
@@ -12,7 +12,8 @@ import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTaskContext } from '../hooks/use-task-context';
 import { countOf } from '../../../lib/text';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Contributors of a project: those attached to it, those inherited from a parent project, and "Moi".
@@ -163,22 +164,12 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                   />
                   {/* Inherited contributors are detached from their own project; tasks keep their assignees. */}
                   {directIds.includes(contributor.id) && (
-                    <Tooltip label="Retirer du projet (ses tâches restent assignées)">
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label={`Retirer ${contributor.name} du projet`}
-                        disabled={project?.archived}
-                        onClick={() =>
-                          save(
-                            directIds.filter((id) => id !== contributor.id),
-                            `${contributor.name} retiré du projet.`,
-                          )
-                        }
-                      >
-                        <XIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
+                    <RemoveButton
+                      label="Retirer du projet (ses tâches restent assignées)"
+                      aria-label={`Retirer ${contributor.name} du projet`}
+                      disabled={project?.archived}
+                      onClick={() => save(directIds.filter((id) => id !== contributor.id), `${contributor.name} retiré du projet.`)}
+                    />
                   )}
                 </Group>
               );
