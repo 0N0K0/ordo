@@ -1,7 +1,7 @@
 import { ColorField } from '../../../components/inputs/ColorField';
 import { ActionIcon, Button, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { listSelectProps } from '../../../components/items/item-look';
 import { byPosition, labelFormSchema, type LabelFormValues } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -60,7 +60,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
           <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
           <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
-            <Button size="xs" loading={mutation.isPending} onClick={() => handleSubmit()}>
+            <Button size="xs" leftSection={<PlusIcon aria-hidden />} loading={mutation.isPending} onClick={() => handleSubmit()}>
               Créer
             </Button>
           </Group>

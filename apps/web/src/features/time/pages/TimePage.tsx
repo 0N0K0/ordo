@@ -1,6 +1,7 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { PAGES } from '../../../app/pages';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useSetParams } from '../../../lib/search-params';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { Badge, CloseButton, Group, Stack } from '@mantine/core';
 import { useSearchParams } from 'react-router';
 import { taskRef, useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -31,7 +32,7 @@ export function TimePage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Chronos" />
+      <PageHeader title={PAGES.time.title} />
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
       <SectionHeader title="Temps passé" />

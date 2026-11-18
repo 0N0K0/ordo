@@ -1,7 +1,5 @@
-import { ActionIcon, Menu, Text, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Text, UnstyledButton } from '@mantine/core';
 import {
-  ArrowsInLineVerticalIcon,
-  ArrowsOutLineVerticalIcon,
   CaretRightIcon,
   DotsThreeIcon,
   FolderPlusIcon,
@@ -10,6 +8,8 @@ import { forwardRef, useState, type CSSProperties } from 'react';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
+import { foldEntries } from '../lib/fold-entries';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import rowClasses from './TreeRow.module.css';
 import classes from './Tree.module.css';
 
@@ -69,43 +69,22 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
 
       {hasMenu && (
         <span className={classes.groupActions}>
-          <Menu opened={menuOpened} onChange={setMenuOpened} position="bottom-start" withinPortal shadow="md" width={220}>
-            <Menu.Target>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                aria-label="Actions sur les projets sans client"
-                onPointerDown={(event) => event.stopPropagation()}
-              >
+          <ActionsMenu
+            name="les projets sans client"
+            opened={menuOpened}
+            onChange={setMenuOpened}
+            position="bottom-start"
+            target={
+              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions sur les projets sans client" onPointerDown={(event) => event.stopPropagation()}>
                 <DotsThreeIcon weight="bold" aria-hidden />
               </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              {canAddProject && (
-                <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
-                  Ajouter un projet
-                </Menu.Item>
-              )}
-              {canAddProject && foldable && <Menu.Divider />}
-              {foldable && (
-                <>
-                  <Menu.Item
-                    leftSection={<ArrowsOutLineVerticalIcon aria-hidden />}
-                    onClick={() => expansion!.setNoClientExpanded(true)}
-                  >
-                    Tout déplier
-                  </Menu.Item>
-                  <Menu.Item
-                    leftSection={<ArrowsInLineVerticalIcon aria-hidden />}
-                    onClick={() => expansion!.setNoClientExpanded(false)}
-                  >
-                    Tout replier
-                  </Menu.Item>
-                </>
-              )}
-            </Menu.Dropdown>
-          </Menu>
+            }
+            items={[
+              canAddProject && { label: 'Ajouter un projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm() },
+              'divider',
+              ...(foldable ? foldEntries((expanded) => expansion!.setNoClientExpanded(expanded)) : []),
+            ]}
+          />
         </span>
       )}
     </div>

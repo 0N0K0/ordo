@@ -96,7 +96,7 @@ export async function updateImportedDocument(id: string, input: ImportedDocument
  * @returns {Promise<ImportedDocument>} Document.
  */
 export async function setImportedProject(id: string, projectId: string | null): Promise<ImportedDocument> {
-  await orNotFound(prisma.importedDocument.findUnique({ where: { id }, select: { id: true } }), 'Document importé');
+  await assertExists(prisma.importedDocument, id, 'Document importé');
   await assertNotArchived('IMPORTED_DOCUMENT', id);
   await assertExists(prisma.project, projectId, 'Projet');
   return prisma.importedDocument.update({ where: { id }, data: { projectId } });

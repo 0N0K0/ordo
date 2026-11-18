@@ -12,3 +12,12 @@ export function normalize(text: string): string {
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
 }
+
+/**
+ * File name without the characters file systems refuse (each replaced by a dash).
+ * @param {string} name Name to clean.
+ * @returns {string} The cleaned name.
+ */
+export function safeFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|\0]/g, '-');
+}

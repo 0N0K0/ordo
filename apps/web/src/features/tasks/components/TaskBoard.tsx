@@ -161,7 +161,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     () =>
       (periodEvents.data ?? [])
         .filter((event) => !projectIds || (event.projectId && projectIds.has(event.projectId)))
-        .sort((a, b) => String(a.start).localeCompare(String(b.start)))
+        .sort((a, b) => a.start.localeCompare(b.start))
         .map((event): TaskTableRow => ({ kind: 'event', key: eventKey(event), event })),
     [periodEvents.data, projectIds],
   );

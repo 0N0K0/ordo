@@ -191,36 +191,31 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
 }
 
 /**
+ * Sum of a count over every account not archived, for the sidebar.
+ * @param {(accountId: string) => Promise<number>} count Count of an account.
+ * @returns {Promise<number>} Sum; accounts that cannot be reached are skipped.
+ */
+async function sumOverAccounts(count: (accountId: string) => Promise<number>): Promise<number> {
+  const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
+  const counts = await Promise.all(accounts.map((account) => count(account.id).catch(() => 0)));
+  return counts.reduce((sum, value) => sum + value, 0);
+}
+
+/**
  * Mails to do (not marked as done) of every account, for the sidebar: in every folder but the drafts, sent,
  * archive, junk and trash ones (the sum of the counts of the folders).
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
-export async function todoMails(): Promise<number> {
-  const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
-  const counts = await Promise.all(
-    accounts.map((account) =>
-      listFolders(account.id)
-        .then((folders) => folders.reduce((sum, folder) => sum + (folder.todo ?? 0), 0))
-        .catch(() => 0),
-    ),
-  );
-  return counts.reduce((sum, count) => sum + count, 0);
+export function todoMails(): Promise<number> {
+  return sumOverAccounts(async (accountId) => (await listFolders(accountId)).reduce((sum, folder) => sum + (folder.todo ?? 0), 0));
 }
 
 /**
  * Unread messages in the inbox of every account, for the sidebar.
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
-export async function unreadInboxes(): Promise<number> {
-  const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
-  const counts = await Promise.all(
-    accounts.map((account) =>
-      withImap(account.id, async (client) => (await client.status('INBOX', { unseen: true })) || null)
-        .then((status) => status?.unseen ?? 0)
-        .catch(() => 0),
-    ),
-  );
-  return counts.reduce((sum, count) => sum + count, 0);
+export function unreadInboxes(): Promise<number> {
+  return sumOverAccounts(async (accountId) => (await withImap(accountId, async (client) => (await client.status('INBOX', { unseen: true })) || null))?.unseen ?? 0);
 }
 
 /** Order of the mails of a folder. */

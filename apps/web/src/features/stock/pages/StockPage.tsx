@@ -1,10 +1,11 @@
+import { PAGES } from '../../../app/pages';
 import { categoryPaths } from '../../../components/tree/category-tree';
 import { countBy } from '@ordo/shared';
 import { useSetParams } from '../../../lib/search-params';
 import { Stack } from '@mantine/core';
 import { ArchiveIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -31,9 +32,9 @@ function CountsTable() {
       label: 'Date',
       size: 160,
       locked: true,
-      sortValue: (count) => String(count.date),
-      text: (count) => fmt.dateTime(new Date(count.date)),
-      filter: { kind: 'date', value: (count) => String(count.date).slice(0, 10) },
+      sortValue: (count) => count.date,
+      text: (count) => fmt.dateTime(count.date),
+      filter: { kind: 'date', value: (count) => count.date.slice(0, 10) },
     },
     {
       id: 'location',
@@ -94,7 +95,7 @@ export function StockPage() {
   const tab = params.get('tab') ?? 'stock';
   return (
     <Stack gap="lg">
-      <PageHeader title="Inventaire" />
+      <PageHeader title={PAGES.stock.title} />
       <PageTabs value={tab} onChange={(value) => setParams({ tab: value && value !== 'stock' ? value : null }, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="stock" leftSection={<ArchiveIcon aria-hidden />}>

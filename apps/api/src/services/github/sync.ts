@@ -1,4 +1,4 @@
-import { addDays, formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
+import { addDays, formatDay, mapById, normalize, parseDay, round2 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -30,6 +30,8 @@ import {
 import { currentGithubConnection, githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
 import { schedulePerWorkspace } from '../workspace/workspaces';
+import { subtreeIds } from '../core/trees';
+import { connectIds } from '../core/relations';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -294,7 +296,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     // Assignees without GitHub login stay.
     const kept = task.assignees.filter((assignee) => !assignee.githubLogin).map((assignee) => assignee.id);
     const synced = (values.assignees as string[]).map((login) => maps.contributorByLogin.get(login)).filter((id): id is string => Boolean(id));
-    data.assignees = { set: [...new Set([...kept, ...synced])].map((id) => ({ id })) };
+    data.assignees = { set: connectIds([...kept, ...synced]) };
   }
   if ('labels' in values) {
     const tags = await prisma.taskTag.findMany();
@@ -309,7 +311,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
       }
       ids.push(tag.id);
     }
-    data.tags = { set: ids.map((id) => ({ id })) };
+    data.tags = { set: connectIds(ids) };
   }
   if ('parent' in values) {
     const parentId = values.parent ? maps.taskByContent.get(String(values.parent)) : null;
@@ -557,9 +559,8 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
  * @param {string} projectId Project.
  * @returns {Promise<string[]>} Ids.
  */
-async function projectTree(projectId: string): Promise<string[]> {
-  const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  return [...subtreeOf(projects, projectId)];
+function projectTree(projectId: string): Promise<string[]> {
+  return subtreeIds('project', projectId);
 }
 
 /**

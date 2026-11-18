@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
+import { daySchema } from '../dates/times';
 
-const isoDate = z.iso.date({ error: 'Date invalide.' });
 const quantity = z.number().min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
@@ -27,7 +27,7 @@ export const stockItemSchema = z.object({
 export type StockItemInput = z.infer<typeof stockItemSchema>;
 
 /** New item of the stock with what it starts with (a first lot). */
-export const newStockItemSchema = stockItemSchema.extend({ quantity: quantity.nullable(), expiresAt: isoDate.nullable() });
+export const newStockItemSchema = stockItemSchema.extend({ quantity: quantity.nullable(), expiresAt: daySchema().nullable() });
 export type NewStockItemInput = z.infer<typeof newStockItemSchema>;
 
 export const STOCK_MOVEMENT_KINDS = ['PURCHASE', 'CONSUMPTION', 'COUNT', 'LOSS', 'CORRECTION'] as const;
@@ -59,7 +59,7 @@ export const stockMoveSchema = z
     /** Lot taken from (none: those that expire first) or added to (none: a new lot). */
     lotId: z.string().nullable(),
     /** Date of a new lot. */
-    expiresAt: isoDate.nullable(),
+    expiresAt: daySchema().nullable(),
     note: z.string().max(2000).nullable(),
   })
   .refine((move) => move.kind === 'CORRECTION' || move.quantity > 0, { path: ['quantity'], message: 'Quantité positive attendue.' });
@@ -90,7 +90,7 @@ export const stockPurchaseSchema = z.object({
   shoppingItemId: z.string().min(1),
   quantity: quantity.refine((value) => value > 0, 'Quantité positive attendue.'),
   locationId: z.string().nullable(),
-  expiresAt: isoDate.nullable(),
+  expiresAt: daySchema().nullable(),
 });
 export type StockPurchaseInput = z.infer<typeof stockPurchaseSchema>;
 
@@ -112,8 +112,8 @@ export const shoppingDeliverySchema = z
     trackingUrl: url,
     /** To pick up rather than delivered. */
     pickup: z.boolean(),
-    windowFrom: isoDate.nullable(),
-    windowTo: isoDate.nullable(),
+    windowFrom: daySchema().nullable(),
+    windowTo: daySchema().nullable(),
     /** Where, when other than the delivery place of the order. */
     address: z.string().trim().max(500).nullable(),
     lat: z.number().nullable(),

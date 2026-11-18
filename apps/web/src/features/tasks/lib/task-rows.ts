@@ -34,7 +34,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'beneficiaries':
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'minDate':
-      return task.minDate ? String(task.minDate) : null;
+      return task.minDate ? task.minDate : null;
     case 'subtasks':
       return context.childrenOf(task.id).length || null;
     case 'progress': {

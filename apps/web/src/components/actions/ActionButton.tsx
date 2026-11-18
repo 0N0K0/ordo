@@ -11,7 +11,8 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
   children: ReactNode;
   /** Main action (filled) or another one (outlined). Optional. Default = 'primary'. */
   priority?: ActionPriority;
-  icon?: ReactNode;
+  /** Icon before the label: every action button has one. */
+  icon: ReactNode;
   /** Page of the app it opens. Optional. */
   to?: string;
   /**

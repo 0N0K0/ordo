@@ -1,9 +1,8 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { SubSection } from '../../../components/page/SubSection';
-import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
+import { ItemBadge } from '../../../components/items/ItemBadge';
 import { addDays, daysBetween, formatDuration, groupBy, nextOccurrence } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -15,10 +14,9 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import classes from './Home.module.css';
 import { Figure, HomeCard } from './HomeCard';
+import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
 import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-
-const MAX_ROWS = 7;
 
 interface TasksCardProps {
   context: TaskContext | null;
@@ -38,39 +36,30 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
     <HomeCard title="Mes tâches du jour" icon={<CheckSquareOffsetIcon aria-hidden />} to="/tasks" loading={!tasks || !context}>
       {tasks && context && tasks.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Rien à faire aujourd’hui." />}
       {tasks && context && tasks.length > 0 && (
-        <Stack gap={0}>
-          {tasks.slice(0, MAX_ROWS).map((task) => {
+        <HomeList
+          items={tasks}
+          render={(task) => {
             const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
             const late = task.deadline !== null && task.deadline < today;
             return (
-              <Link key={task.id} to={link.to(task.id)} className={classes.row}>
-                <Group justify="space-between" wrap="nowrap" gap="xs">
-                  <Stack gap={0} miw={0}>
-                    <Text size="sm" truncate>
-                      {task.title}
-                    </Text>
-                    <Text size="xs" c="dimmed" truncate>
-                      {context.projectLabel(task.projectId)}
-                      {task.number === null ? '' : ` · #${task.number}`}
-                    </Text>
-                  </Stack>
-                  {late && task.deadline ? (
-                    <Badge color="red" variant="light" style={{ flexShrink: 0 }}>
+              <HomeRow
+                key={task.id}
+                to={link.to(task.id)}
+                title={task.title}
+                subtitle={`${context.projectLabel(task.projectId)}${task.number === null ? '' : ` · #${task.number}`}`}
+                value={
+                  late && task.deadline ? (
+                    <Badge color="red" variant="light">
                       {daysBetween(task.deadline, today)} j de retard
                     </Badge>
                   ) : (
-                    <ItemBadge item={status} style={{ flexShrink: 0 }} />
-                  )}
-                </Group>
-              </Link>
+                    <ItemBadge item={status} />
+                  )
+                }
+              />
             );
-          })}
-          {tasks.length > MAX_ROWS && (
-            <Text size="xs" c="dimmed" pt={4}>
-              + {tasks.length - MAX_ROWS} {plural(tasks.length - MAX_ROWS, 'autre')}
-            </Text>
-          )}
-        </Stack>
+          }}
+        />
       )}
     </HomeCard>
   );
@@ -99,8 +88,8 @@ export function AgendaCard({ today }: { today: string }) {
     const until = addDays(today, 7);
     const list: AgendaItem[] = [];
     for (const event of events.data) {
-      if (!event.allDay && event.end && Date.parse(String(event.end)) < now.getTime()) continue;
-      const start = event.allDay ? null : new Date(String(event.start));
+      if (!event.allDay && event.end && Date.parse(event.end) < now.getTime()) continue;
+      const start = event.allDay ? null : new Date(event.start);
       list.push({ key: event.key, day: start ? localDay(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
     }
     for (const alarm of alarms.data) {
@@ -114,7 +103,7 @@ export function AgendaCard({ today }: { today: string }) {
   }, [events.data, alarms.data, today]);
 
   const days = useMemo(() => {
-    return [...groupBy((items ?? []).slice(0, MAX_ROWS + 1), (item) => item.day)];
+    return [...groupBy((items ?? []).slice(0, HOME_ROWS), (item) => item.day)];
   }, [items]);
 
   return (

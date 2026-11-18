@@ -1,14 +1,15 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Stack, Tabs, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
 import { ClientBillingSection } from '../../accounting/components/ClientBillingSection';
 import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingPanel';
 import { PageSettings } from '../../../app/layout/PageSettings';
+import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
 import { ClientForm } from '../components/ClientForm';
 import { descendantIds, useWorkspace } from '../api';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -62,18 +63,21 @@ export function ClientPage() {
       />
 
       <PageSettings title="Paramètres du client">
-        <Tabs value={settingsTab} onChange={(value) => value && setSettingsTab(value as SettingsTab)}>
-          <Tabs.List mb="md">
-            <Tabs.Tab value="billing">Facturation</Tabs.Tab>
-            <Tabs.Tab value="client">Nom, couleur et icône</Tabs.Tab>
-          </Tabs.List>
-          <Tabs.Panel value="billing">
+        <SettingsTabs
+          value={settingsTab}
+          onChange={setSettingsTab}
+          tabs={[
+            { value: 'billing', label: 'Facturation' },
+            { value: 'client', label: 'Nom, couleur et icône' },
+          ]}
+        >
+          <SettingsTabPanel value="billing">
             <ClientBillingSection clientId={client.id} />
-          </Tabs.Panel>
-          <Tabs.Panel value="client">
+          </SettingsTabPanel>
+          <SettingsTabPanel value="client">
             <ClientForm key={client.id} client={client} />
-          </Tabs.Panel>
-        </Tabs>
+          </SettingsTabPanel>
+        </SettingsTabs>
       </PageSettings>
 
       <Stack gap="sm">

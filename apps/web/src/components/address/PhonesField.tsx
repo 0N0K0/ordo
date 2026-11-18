@@ -1,6 +1,9 @@
-import { ActionIcon, Anchor, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { LabeledField } from '../inputs/LabeledField';
+import { AddItemButton } from '../actions/AddItemButton';
+import { Group, TextInput } from '@mantine/core';
 import type { Phone } from '@ordo/shared';
-import { PhoneIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { PhoneIcon } from '@phosphor-icons/react';
+import { RemoveButton } from '../actions/RemoveButton';
 
 /**
  * Phone numbers with a label each ("Standard", "Mobile"…).
@@ -9,10 +12,7 @@ import { PhoneIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
  */
 export function PhonesField({ value, onChange }: { value: Phone[]; onChange: (value: Phone[]) => void }) {
   return (
-    <Stack gap={4}>
-      <Text size="sm" fw={500}>
-        Téléphones
-      </Text>
+    <LabeledField label="Téléphones">
       {value.map((phone, index) => (
         <Group key={index} gap="xs" wrap="nowrap">
           <TextInput
@@ -30,18 +30,10 @@ export function PhonesField({ value, onChange }: { value: Phone[]; onChange: (va
             value={phone.number}
             onChange={(event) => onChange(value.map((item, position) => (position === index ? { ...item, number: event.currentTarget.value } : item)))}
           />
-          <Tooltip label="Retirer le numéro">
-            <ActionIcon variant="subtle" color="gray" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))}>
-              <XIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <RemoveButton label="Retirer le numéro" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))} />
         </Group>
       ))}
-      <Anchor component="button" type="button" size="xs" onClick={() => onChange([...value, { label: '', number: '' }])}>
-        <Group gap={4}>
-          <PlusIcon aria-hidden /> Ajouter un numéro
-        </Group>
-      </Anchor>
-    </Stack>
+      <AddItemButton onClick={() => onChange([...value, { label: '', number: '' }])}>Ajouter un numéro</AddItemButton>
+    </LabeledField>
   );
 }

@@ -118,7 +118,7 @@ export function LoansPanel() {
           key: `${item.relationId}:${line.lineId}`,
           relationId: item.relationId,
           name,
-          date: String(line.date),
+          date: line.date,
           label: line.label,
           amount: line.amount,
         })),

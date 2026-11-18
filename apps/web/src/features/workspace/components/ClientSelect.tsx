@@ -1,6 +1,6 @@
 import { Select, type SelectProps } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { listSelectProps } from '../../../components/items/item-look';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { useWorkspace } from '../api';
 
 /**

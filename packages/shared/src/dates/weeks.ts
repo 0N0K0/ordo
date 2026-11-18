@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { addDays, parseDay } from './recurrence';
+import { weekdayOfDate } from './days';
+import { addDays } from './recurrence';
+
+export { weekdayOfDate };
 
 /** Day of the week, 1 (Monday) to 7 (Sunday). */
 const weekdaySchema = z.number().int().min(1).max(7);
@@ -25,13 +28,6 @@ export function weekLength(week: WeekSpan): number {
   const days = (week.end - week.start + 7) % 7;
   return days === 0 ? 8 : days + 1;
 }
-
-/**
- * Day of the week of a date, 1 (Monday) to 7 (Sunday).
- * @param {string} date YYYY-MM-DD.
- * @returns {number} Day.
- */
-export const weekdayOfDate = (date: string) => ((parseDay(date).getUTCDay() + 6) % 7) + 1;
 
 /**
  * First day of the week of a date: its latest start on or before it (with overlapping weeks, the day they share

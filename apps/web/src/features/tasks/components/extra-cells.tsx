@@ -1,9 +1,10 @@
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
+import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Anchor, Badge, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
-import { AlarmIcon, BasketIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
+import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useAlarmForm } from '../../alarms/hooks/use-alarm-form';
@@ -11,7 +12,8 @@ import { useShoppingMutations, type ShoppingList } from '../../shopping/api';
 import { openNewList } from '../../shopping/lib/open-new-list';
 import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
 import { useSlotRules } from '../../calendar/hooks/use-slot-rules';
-import { useRunningTimer, useTimeMutations } from '../../time/api';
+import { useRunningTimer } from '../../time/api';
+import { TimerToggle } from '../../time/components/TimerToggle';
 import type { Task } from '../api';
 import { TaskRef } from './task-ui';
 import { useCellEdit } from '../lib/cell-edit';
@@ -44,32 +46,14 @@ export function SlotsCell({ task }: { task: Task }) {
 }
 
 /**
- * « Lancer un chrono » cell: starts a timer on the task (of its project), or stops the one running on it.
+ * « Chrono » cell: starts a timer on the task (of its project), or stops the one running on it.
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function TimerCell({ task }: { task: Task }) {
   const running = useRunningTimer();
-  const { start, stop: stopTimer } = useTimeMutations();
-  const on = running.data?.taskIds.includes(task.id) ?? false;
-  const onError = { onError: onMutationError };
-  return (
-    <Tooltip label={on ? 'Arrêter le chrono' : 'Lancer un chrono'}>
-      <ActionIcon
-        variant="subtle"
-        color={on ? 'red' : 'gray'}
-        aria-label={on ? `Arrêter le chrono de ${task.title}` : `Lancer un chrono sur ${task.title}`}
-        loading={start.isPending || stopTimer.isPending}
-        onClick={(event) => {
-          stopClick(event);
-          if (on) stopTimer.mutate(undefined, onError);
-          else start.mutate({ projectId: task.projectId, taskIds: [task.id] }, { onSuccess: () => notifySuccess('Chrono lancé.'), ...onError });
-        }}
-      >
-        {on ? <StopIcon aria-hidden /> : <PlayIcon aria-hidden />}
-      </ActionIcon>
-    </Tooltip>
-  );
+  const mine = running.data?.taskIds.includes(task.id) ? running.data : null;
+  return <TimerToggle name={task.title} mine={mine} othersRunning={Boolean(running.data) && !mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
 }
 
 /**
@@ -176,36 +160,30 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
           </Anchor>
         ))}
       </StackedValues>
-      <Menu position="bottom-end" withinPortal>
-        <Menu.Target>
+      <ActionsMenu
+        name={task.title}
+        target={
           <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
             <PlusIcon aria-hidden />
           </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Item leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined })}>
-            Nouvelle liste
-          </Menu.Item>
-          {free.length > 0 && <Menu.Label>Rattacher une liste</Menu.Label>}
-          {free.map((list) => (
-            <Menu.Item
-              key={list.id}
-              leftSection={<BasketIcon aria-hidden />}
-              onClick={() =>
-                updateList.mutate(
-                  { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
-                  {
-                    onSuccess: () => notifySuccess(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
-                    onError: onMutationError,
-                  },
-                )
-              }
-            >
-              {list.name}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+        }
+        items={[
+          { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
+          { section: 'Rattacher une liste' },
+          ...free.map((list) => ({
+            label: list.name,
+            icon: <BasketIcon aria-hidden />,
+            onClick: () =>
+              updateList.mutate(
+                { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
+                {
+                  onSuccess: () => notifySuccess(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
+                  onError: onMutationError,
+                },
+              ),
+          })),
+        ]}
+      />
     </Group>
   );
 }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { connectIds } from '../core/relations';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
 export interface TimeEventLink {
@@ -141,7 +142,7 @@ export async function startTimer(input: {
       description,
       ...link,
       startedAt: new Date(),
-      tasks: { connect: input.taskIds.map((id) => ({ id })) },
+      tasks: { connect: connectIds(input.taskIds) },
     },
   });
 }
@@ -198,7 +199,7 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
       startedAt: input.startedAt,
       endedAt: new Date(input.startedAt.getTime() + duration * 1000),
       duration,
-      tasks: { connect: taskIds.map((id) => ({ id })) },
+      tasks: { connect: connectIds(taskIds) },
     },
   });
 }
@@ -239,7 +240,7 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
       ...link,
       startedAt,
       ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
-      tasks: { set: taskIds.map((taskId) => ({ id: taskId })) },
+      tasks: { set: connectIds(taskIds) },
     },
   });
 }

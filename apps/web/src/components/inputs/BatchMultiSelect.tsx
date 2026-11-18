@@ -1,8 +1,8 @@
 import { Anchor, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
 import type { MouseEvent } from 'react';
 import { MAX_STACKED, stackedCount } from '../data-table/cells/stacked';
-import { ItemAvatar } from '../settings/ItemAvatar';
-import { hasAvatar } from '../settings/item-look';
+import { ItemAvatar } from '../items/ItemAvatar';
+import { hasAvatar } from '../items/item-look';
 import { onMutationError } from '../../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';

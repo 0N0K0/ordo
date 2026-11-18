@@ -1,12 +1,15 @@
 import { mapById } from '@ordo/shared';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Button, Checkbox, Group, Stack, Text } from '@mantine/core';
+
+import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import type { ColumnLayout } from '@ordo/shared';
-import { DotsSixVerticalIcon } from '@phosphor-icons/react';
+
 import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } from '../table/data-table';
 import { useDragSensors } from '../../../lib/drag';
+import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { DragHandle } from '../../actions/DragHandle';
+import { sortableStyle } from '../../actions/sortable-style';
 
 /** Column of the panel. */
 interface ColumnsListItem {
@@ -23,12 +26,10 @@ interface ColumnsListItem {
  * @returns {JSX.Element} Item.
  */
 function ColumnItem({ item, onToggle }: { item: ColumnsListItem; onToggle: (visible: boolean) => void }) {
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: item.id });
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: item.id });
   return (
-    <Group ref={setNodeRef} gap="xs" wrap="nowrap" style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}>
-      <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${item.label}`} {...attributes} {...listeners} style={{ cursor: 'grab' }}>
-        <DotsSixVerticalIcon aria-hidden />
-      </ActionIcon>
+    <Group ref={setNodeRef} gap="xs" wrap="nowrap" style={{ ...sortableStyle({ transform, transition, isDragging }), opacity: isDragging ? 0.5 : 1 }}>
+      <DragHandle label={`Déplacer ${item.label}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       <Checkbox size="xs" label={item.label} checked={item.visible} disabled={item.locked} onChange={(event) => onToggle(event.currentTarget.checked)} />
     </Group>
   );
@@ -76,7 +77,7 @@ function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true }: C
         </SortableContext>
       </DndContext>
       {onReset && (
-        <Button size="compact-sm" variant="subtle" color="gray" onClick={onReset}>
+        <Button size="compact-sm" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onReset}>
           Colonnes par défaut
         </Button>
       )}

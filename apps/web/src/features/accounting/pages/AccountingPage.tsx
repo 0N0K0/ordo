@@ -1,26 +1,16 @@
+import { PAGES } from '../../../app/pages';
+import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Badge, Group, Stack, Tabs, Text } from '@mantine/core';
+import { Badge, Group, Stack, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { recurrenceSchema } from '@ordo/shared';
-import {
-  ArrowsClockwiseIcon,
-  BellRingingIcon,
-  BuildingsIcon,
-  FileArrowUpIcon,
-  FileTextIcon,
-  FileZipIcon,
-  PackageIcon,
-  PaperPlaneTiltIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -35,20 +25,20 @@ import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
 import { useOverdueInvoices } from '../api/tracking';
 import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice, type RecurringSettings } from '../api/documents';
-import { openImportForm } from '../lib/imported-form';
 import { DocumentsTable } from '../components/DocumentsTable';
-import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from '../lib/labels';
-import { openNewDocument } from '../lib/new-document';
+import { EMPTY_DOCUMENTS } from '../lib/labels';
+import { newDocumentMenu } from '../lib/new-document';
 import { DocumentsZipForm } from '../components/DocumentsZipForm';
 import { CompanySettings } from '../components/CompanySettings';
 import { openRecurringForm } from '../lib/recurring-form';
 import { DocumentStatusSettings } from '../components/DocumentStatusSettings';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
+import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { useSetArchived } from '../../../lib/archive';
 import { archiveEntry } from '../lib/archive-entry';
 import { accountingQueryKey } from '../api';
@@ -73,7 +63,7 @@ const TABS = [
  */
 function repetitionText(item: RecurringInvoice): string {
   const rule = recurrenceSchema.safeParse(item.recurrence);
-  return rule.success ? describeRecurrence(rule.data, String(item.startDate)) : '';
+  return rule.success ? describeRecurrence(rule.data, item.startDate) : '';
 }
 
 /** Columns of the recurring invoices. */
@@ -85,9 +75,9 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     id: 'next',
     label: 'Prochaine',
     size: 130,
-    sortValue: (item) => (item.nextDate ? String(item.nextDate) : null),
+    sortValue: (item) => (item.nextDate ? item.nextDate : null),
     text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
-    filter: { kind: 'date', value: (item) => (item.nextDate ? String(item.nextDate) : null) },
+    filter: { kind: 'date', value: (item) => (item.nextDate ? item.nextDate : null) },
   },
   {
     id: 'state',
@@ -135,7 +125,7 @@ function RecurringList() {
    */
   const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
     update.mutate(
-      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
+      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } },
       { onError: onMutationError },
     );
   const view = useDataView({
@@ -281,7 +271,7 @@ export function AccountingPage() {
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
   // Years of the documents, offered by the download of a period.
-  const yearOf = (date: unknown) => String(date).slice(0, 4);
+  const yearOf = (date: string) => date.slice(0, 4);
   const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
     .sort()
     .reverse();
@@ -300,16 +290,9 @@ export function AccountingPage() {
   return (
     <Stack gap="lg">
       <PageHeader
-        title="Facturation"
+        title={PAGES.accounting.title}
         actions={
-          <ActionButton
-            icon={<PlusIcon aria-hidden />}
-            menu={[
-              ...TABS.map((item) => ({ label: DOCUMENT_TYPE_LABELS[item.value], icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument(item.value) })),
-              'divider' as const,
-              { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
-            ]}
-          >
+          <ActionButton icon={<PlusIcon aria-hidden />} menu={newDocumentMenu()}>
             Nouveau document
           </ActionButton>
         }
@@ -321,30 +304,10 @@ export function AccountingPage() {
               {item.label}
             </PageTabs.Tab>
           ))}
-          <PageTabs.Tab
-            value="toSend"
-            leftSection={<PaperPlaneTiltIcon aria-hidden />}
-            rightSection={
-              toSendCount ? (
-                <Badge size="xs" circle color="blue">
-                  {toSendCount}
-                </Badge>
-              ) : undefined
-            }
-          >
+          <PageTabs.Tab value="toSend" leftSection={<PaperPlaneTiltIcon aria-hidden />} rightSection={toSendCount ? <CountBadge count={toSendCount} color="blue" /> : undefined}>
             À envoyer
           </PageTabs.Tab>
-          <PageTabs.Tab
-            value="overdue"
-            leftSection={<BellRingingIcon aria-hidden />}
-            rightSection={
-              overdue.data?.length ? (
-                <Badge size="xs" circle color="red">
-                  {overdue.data.length}
-                </Badge>
-              ) : undefined
-            }
-          >
+          <PageTabs.Tab value="overdue" leftSection={<BellRingingIcon aria-hidden />} rightSection={overdue.data?.length ? <CountBadge count={overdue.data.length} color="red" /> : undefined}>
             À relancer
           </PageTabs.Tab>
           <PageTabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
@@ -396,28 +359,27 @@ export function AccountingPage() {
       </PageTabs>
       {/* In the settings sidebar: the download of a period as a ZIP, the tracking statuses of the documents and the company. */}
       <PageSettings title="Paramètres de la facturation">
-        <Tabs value={settingsTab} onChange={(value) => value && setSettingsTab(value as SettingsTab)}>
-          <Tabs.List mb="md">
-            <Tabs.Tab value="zip" leftSection={<FileZipIcon aria-hidden />}>
-              Export ZIP
-            </Tabs.Tab>
-            <Tabs.Tab value="statuses">Suivi</Tabs.Tab>
-            <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
-              Ma société
-            </Tabs.Tab>
-          </Tabs.List>
-          <Tabs.Panel value="statuses">
+        <SettingsTabs
+          value={settingsTab}
+          onChange={setSettingsTab}
+          tabs={[
+            { value: 'zip', label: 'Export ZIP', icon: <FileZipIcon aria-hidden /> },
+            { value: 'statuses', label: 'Suivi' },
+            { value: 'company', label: 'Ma société', icon: <BuildingsIcon aria-hidden /> },
+          ]}
+        >
+          <SettingsTabPanel value="statuses">
             <DocumentStatusSettings />
-          </Tabs.Panel>
-          <Tabs.Panel value="company">
+          </SettingsTabPanel>
+          <SettingsTabPanel value="company">
             <CompanySettings />
-          </Tabs.Panel>
-          <Tabs.Panel value="zip">
+          </SettingsTabPanel>
+          <SettingsTabPanel value="zip">
             <SettingsSection title="Télécharger les documents d’une période">
               <DocumentsZipForm years={years} />
             </SettingsSection>
-          </Tabs.Panel>
-        </Tabs>
+          </SettingsTabPanel>
+        </SettingsTabs>
       </PageSettings>
     </Stack>
   );

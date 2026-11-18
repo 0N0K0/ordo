@@ -1,3 +1,4 @@
+import { DAY_PATTERN } from '@ordo/shared';
 import SchemaBuilder from '@pothos/core';
 import PrismaPlugin from '@pothos/plugin-prisma';
 import ScopeAuthPlugin from '@pothos/plugin-scope-auth';
@@ -49,7 +50,7 @@ builder.scalarType('Date', {
   description: 'Calendar date, YYYY-MM-DD.',
   serialize: (date) => date.toISOString().slice(0, 10),
   parseValue: (value) => {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new TypeError('Date must be YYYY-MM-DD.');
+    if (typeof value !== 'string' || !DAY_PATTERN.test(value)) throw new TypeError('Date must be YYYY-MM-DD.');
     return value;
   },
 });

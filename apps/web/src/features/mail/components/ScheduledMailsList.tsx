@@ -37,7 +37,7 @@ export function ScheduledMailsList() {
               </Text>
               <Group gap={6}>
                 <Badge size="sm" variant="light" color={mail.status === 'FAILED' ? 'red' : 'blue'} leftSection={<ClockCountdownIcon aria-hidden />}>
-                  {mail.status === 'FAILED' ? 'Échec' : mail.status === 'SENDING' ? 'Envoi en cours' : fmt.dateTimeShort(new Date(String(mail.sendAt)))}
+                  {mail.status === 'FAILED' ? 'Échec' : mail.status === 'SENDING' ? 'Envoi en cours' : fmt.dateTimeShort(mail.sendAt)}
                 </Badge>
                 {mail.error && (
                   <Text size="xs" c="red" lineClamp={2}>

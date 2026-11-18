@@ -9,14 +9,14 @@ import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { EditableDate, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useEntryCellSave, type EntryValues } from '../lib/entry-values';
 import { bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -31,6 +31,7 @@ import { StatementImport } from './StatementImport';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
+import { SignedAmountCell } from '../../../components/money/SignedAmount';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -66,7 +67,7 @@ const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
  * @param {TreasuryEntry} entry Entry.
  * @returns {string} Month.
  */
-const monthOf = (entry: TreasuryEntry) => String(entry.date).slice(0, 7);
+const monthOf = (entry: TreasuryEntry) => entry.date.slice(0, 7);
 
 /**
  * Columns of the entries: month (to group), execution date, label, amount, documents settled, then the columns every
@@ -91,9 +92,9 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
       bulk: true,
       label: 'Date d’exécution',
       size: 130,
-      sortValue: (entry) => String(entry.date),
-      text: (entry) => fmt.day(String(entry.date)),
-      filter: { kind: 'date', value: (entry) => String(entry.date).slice(0, 10) },
+      sortValue: (entry) => entry.date,
+      text: (entry) => fmt.day(entry.date),
+      filter: { kind: 'date', value: (entry) => entry.date },
     },
     { id: 'label', label: 'Libellé', size: 300, locked: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
     ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '' }),
@@ -256,7 +257,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
               }
             : {
                 ...entryFieldCells(entry, env, (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>)),
-                date: <EditableDate value={String(entry.date).slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
+                date: <EditableDate value={entry.date} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
                 label: (
                   <Group gap={4} wrap="nowrap">
                     <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && bulk('label')(entry, { label })} />
@@ -265,19 +266,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                   </Group>
                 ),
                 settled: <SettledCell entry={entry} />,
-                amount: (
-                  <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
-                    <EditableNumber
-                      amount
-                      value={entry.amount}
-                      label={`Montant de ${entry.label}`}
-                      suffix="€"
-                      signed
-                      validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
-                      onSave={(amount) => amount !== null && bulk('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
-                    />
-                  </Text>
-                ),
+                amount: <SignedAmountCell value={entry.amount} label={`Montant de ${entry.label}`} onSave={(change) => bulk('amount')(entry, change)} />,
                 comments: columns.find((column) => column.id === 'comments')?.text?.(entry),
               }
         }

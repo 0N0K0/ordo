@@ -1,8 +1,8 @@
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { EntityAvatar } from '../../../components/settings/EntityAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 
 /**
@@ -30,7 +30,7 @@ export function EntityHeader({
   return (
     <Group justify="space-between" align="flex-start" gap="md">
       <Group gap="md" wrap="nowrap" style={{ minWidth: 0 }}>
-        <EntityAvatar name={label} iconUrl={item.iconUrl} color={item.color} size="xl" radius="md" contain={entity.type === 'client'} />
+        <ItemAvatar name={label} iconUrl={item.iconUrl} color={item.color ?? 'initials'} size="xl" radius="md" contain={entity.type === 'client'} />
         <Stack gap={4} style={{ minWidth: 0 }}>
           <Group gap="xs">
             <Title order={1} size="h2">

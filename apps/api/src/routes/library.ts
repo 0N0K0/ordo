@@ -1,22 +1,20 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { libraryZip } from '../services/library/library';
-import { queryText, requireSession, sendDownload, sendServiceError } from './http';
+import { downloadRoute, queryText, requireSession, sendDownload } from './http';
 
 export const libraryRouter: Router = Router();
 
 // ZIP of a folder (?folderId=), of the whole library (no parameter), or of chosen documents (?ids=a,b).
-libraryRouter.get('/zip', async (req, res) => {
-  if (!(await requireSession(req, res))) return;
-  try {
+libraryRouter.get(
+  '/zip',
+  downloadRoute(async (req) => {
     const ids = typeof req.query.ids === 'string' ? req.query.ids.split(',').filter(Boolean) : undefined;
     const folderId = queryText(req.query.folderId) || null;
     const zip = await libraryZip(ids ? { ids } : { folderId });
-    sendDownload(res, zip.content, { type: 'application/zip', filename: zip.name });
-  } catch (error) {
-    sendServiceError(res, error, 'Archive impossible.');
-  }
-});
+    return { content: zip.content, type: 'application/zip', filename: zip.name };
+  }, 'Archive impossible.'),
+);
 
 // PDF of a document shown in place (preview); other files are downloaded through /api/attachments.
 libraryRouter.get('/:id/view', async (req, res) => {

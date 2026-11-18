@@ -52,3 +52,20 @@ export async function assertAllExist(model: CountByIdsDelegate, ids: readonly st
   const unique = [...new Set(ids)];
   if ((await model.count({ where: { id: { in: unique } } })) !== unique.length) throw missing(what, options);
 }
+
+/** Model delegate able to delete records by id (`prisma.project`, `tx.client`…). */
+interface DeleteByIdDelegate {
+  deleteMany(args: { where: { id: string } }): PromiseLike<{ count: number }>;
+}
+
+/**
+ * Deletes a record, NOT_FOUND when there was none.
+ * @param {DeleteByIdDelegate} model Model delegate (`prisma.project`…).
+ * @param {string} id Record id.
+ * @param {string} what Human-readable name of the record ("Client", "Projet"…).
+ * @returns {Promise<void>}
+ */
+export async function deleteOrNotFound(model: DeleteByIdDelegate, id: string, what: string): Promise<void> {
+  const { count } = await model.deleteMany({ where: { id } });
+  if (!count) throw notFound(what);
+}

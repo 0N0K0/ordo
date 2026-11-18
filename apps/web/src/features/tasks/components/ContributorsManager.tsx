@@ -8,7 +8,7 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, Tra
 import { useState } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';

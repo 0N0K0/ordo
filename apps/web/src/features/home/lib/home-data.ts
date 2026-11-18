@@ -80,7 +80,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
   for (const document of imported) {
     if (document.type === 'QUOTE' || document.archived) continue;
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
-    const date = String(document.issueDate);
+    const date = document.issueDate;
     if (date.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
     if (date.slice(0, 7) === today.slice(0, 7)) summary.monthNet += sign * document.totalNet;
   }

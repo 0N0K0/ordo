@@ -1,6 +1,5 @@
 import { closestCenter, DndContext, DragOverlay, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { onMutationError } from '../../../lib/notify';
@@ -10,6 +9,7 @@ import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
+import { sortableStyle } from '../../../components/actions/sortable-style';
 
 /** Horizontal offset of one tree level, in px (matches the row indentation). */
 const INDENT = 20;
@@ -195,7 +195,7 @@ function SortableRow({ item, depth, client, project, dndEnabled, expanded, onTog
     id: item.id,
     disabled: !dndEnabled || item.kind === 'none',
   });
-  const style = { transform: CSS.Translate.toString(transform), transition };
+  const style = sortableStyle({ transform, transition, isDragging });
 
   if (item.kind === 'none') {
     return (

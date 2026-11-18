@@ -1,4 +1,5 @@
 import { Stack, Text } from '@mantine/core';
+import { CookingPotIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyInfo, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useSheetMutations } from '../api';
@@ -24,6 +25,7 @@ export function SheetUseForm({ sheetId, name, onDone }: { sheetId: string; name:
       <FormActions
         onCancel={onDone}
         submitLabel="Utiliser"
+        submitIcon={<CookingPotIcon aria-hidden />}
         loading={use.isPending}
         onSubmit={() =>
           use.mutate(

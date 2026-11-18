@@ -2,10 +2,11 @@ import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSear
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
-import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /** Folders a search does not look into, with "every folder". */
 const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
@@ -68,7 +69,7 @@ export async function createSearch(input: MailSearchInput): Promise<MailSearch> 
  */
 export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
   const { name, criteria } = parseSearch(input);
-  await orNotFound(prisma.mailSearch.findUnique({ where: { id }, select: { id: true } }), 'Dossier de recherche');
+  await assertExists(prisma.mailSearch, id, 'Dossier de recherche');
   return prisma.mailSearch.update({ where: { id }, data: { name, criteria } });
 }
 
@@ -78,8 +79,7 @@ export async function updateSearch(id: string, input: MailSearchInput): Promise<
  * @returns {Promise<void>}
  */
 export async function deleteSearch(id: string): Promise<void> {
-  const { count } = await prisma.mailSearch.deleteMany({ where: { id } });
-  if (!count) throw notFound('Dossier de recherche');
+  await deleteOrNotFound(prisma.mailSearch, id, 'Dossier de recherche');
 }
 
 /**

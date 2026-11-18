@@ -1,10 +1,10 @@
 import { ActionIcon, AppShell, Group, ScrollArea, Title, Tooltip } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { XIcon } from '@phosphor-icons/react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ResizeHandle } from './ResizeHandle';
 import { usePageSettings, useSettingsOpened } from './page-settings';
 import classes from './SettingsAside.module.css';
+import { useIsPhone } from '../../lib/use-is-phone';
 
 interface SettingsAsideProps {
   onContainer: (element: HTMLDivElement | null) => void;
@@ -23,7 +23,7 @@ interface SettingsAsideProps {
 export function SettingsAside({ onContainer, resize }: SettingsAsideProps) {
   const { title } = usePageSettings();
   const { setOpened } = useSettingsOpened();
-  const mobile = useMediaQuery('(max-width: 48em)');
+  const mobile = useIsPhone();
   return (
     <AppShell.Aside aria-label={title ?? 'Paramètres'}>
       {/* Its left edge resizes it (not on a phone: it takes the whole width there). */}

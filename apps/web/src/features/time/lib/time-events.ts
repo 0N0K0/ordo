@@ -17,11 +17,11 @@ export const eventKey = (eventId: string, occurrenceDate?: string | null): strin
 
 /**
  * Key of the event a time was spent on, if any.
- * @param {{ calendarEventId: string | null, calendarOccurrenceDate: unknown }} entry Time.
+ * @param {{ calendarEventId: string | null, calendarOccurrenceDate: string | null }} entry Time.
  * @returns {string | null} Key.
  */
-export const entryEventKey = (entry: { calendarEventId?: string | null; calendarOccurrenceDate?: unknown }): string | null =>
-  entry.calendarEventId ? eventKey(entry.calendarEventId, entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : null) : null;
+export const entryEventKey = (entry: { calendarEventId?: string | null; calendarOccurrenceDate?: string | null }): string | null =>
+  entry.calendarEventId ? eventKey(entry.calendarEventId, entry.calendarOccurrenceDate || null) : null;
 
 /**
  * Event of a key (none without key).

@@ -1,5 +1,5 @@
 import { Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
+import { listSelectProps, itemChoices } from '../../../components/items/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -58,7 +58,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
   };
   const valueDate = (row: R) => {
     const entry = entryOf(row);
-    return entry ? String(entry.valueDate ?? entry.date).slice(0, 10) : null;
+    return entry ? (entry.valueDate ?? entry.date) : null;
   };
   const columns: DataColumn<R>[] = [
     {
@@ -228,7 +228,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
         Sur les lignes
       </Text>
     );
-  const valueDate = String(entry.valueDate ?? entry.date).slice(0, 10);
+  const valueDate = entry.valueDate ?? entry.date;
   const categories = env.settings?.treasuryCategories ?? [];
   const methods = env.settings?.treasuryPaymentMethods ?? [];
   const direction = (row: AnyEntry) => (row.amount < 0 ? 'OUT' : 'IN');

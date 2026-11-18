@@ -1,4 +1,5 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
+import { usePeopleOptions } from '../../../components/people/people-options';
 import { unarchived } from '../../../lib/archive';
 import { queryClient } from '../../../lib/query-client';
 import { treasurySettingsKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
@@ -46,22 +47,17 @@ function namesOf(value: Beneficiaries, contributorName: ReadonlyMap<string, stri
 export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], beneficiaryRelationIds: [] }) {
   const { context } = useTaskContext();
   const { data } = useTreasurySettings();
+  const buildOptions = usePeopleOptions();
   const contributors = context?.contributors ?? [];
   const relations = data?.treasuryRelations ?? [];
   const contributorName = new Map(contributors.map((contributor) => [contributor.id, context?.contributorName(contributor) ?? contributor.name]));
   const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
-  const options = [
-    {
-      group: 'Contributeurs',
-      items: unarchived(contributors, chosen.beneficiaryIds).map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)! })),
-    },
-    {
-      group: 'Proches',
-      items: unarchived(relations, chosen.beneficiaryRelationIds)
-        .filter((relation) => !relation.contributorId || chosen.beneficiaryRelationIds.includes(relation.id))
-        .map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
-    },
-  ].filter((group) => group.items.length > 0);
+  const options = buildOptions(
+    unarchived(contributors, chosen.beneficiaryIds).map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)! })),
+    unarchived(relations, chosen.beneficiaryRelationIds)
+      .filter((relation) => !relation.contributorId || chosen.beneficiaryRelationIds.includes(relation.id))
+      .map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
+  );
   /**
    * Names of beneficiaries, contributors first.
    * @param {Beneficiaries} value Beneficiaries.

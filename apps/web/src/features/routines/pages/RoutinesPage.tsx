@@ -1,7 +1,8 @@
+import { PAGES } from '../../../app/pages';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -221,7 +222,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ),
       lastDoneAt: routine.lastDoneAt ? (
         <Text size="sm" className={classes.nowrap}>
-          {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
+          {fmt.dateTime(routine.lastDoneAt)}
         </Text>
       ) : null,
     };
@@ -301,7 +302,7 @@ export function RoutinesPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Routines" />
+      <PageHeader title={PAGES.routines.title} />
       <RoutineSettings />
       <PageTabs value={tab} onChange={(value) => setParams({ routine: null, tab: value === 'history' ? 'history' : null })} keepMounted={false}>
         <PageTabs.List>

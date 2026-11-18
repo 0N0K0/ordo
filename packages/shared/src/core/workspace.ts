@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requiredText } from './rules';
+import { daySchema } from '../dates/times';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
 /** Maximum size of a file attached to a markdown text. */
@@ -33,7 +34,7 @@ export const descriptionSchema = z
   .nullable();
 
 /** Calendar date, YYYY-MM-DD. */
-export const dateSchema = z.iso.date({ error: 'Date invalide.' }).nullable();
+export const dateSchema = daySchema().nullable();
 
 export const clientFormSchema = z.object({
   name: entityNameSchema,

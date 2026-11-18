@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyError, notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
+import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { useWorkScheduleMutations } from '../api';
@@ -54,7 +54,7 @@ export function useCalendarEdits() {
       {
         onSuccess: () => notifySuccess(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
         onError: (error) => {
-          notifyError(error.message);
+          onMutationError(error);
           revert?.();
         },
       },
@@ -78,7 +78,7 @@ export function useCalendarEdits() {
       {
         onSuccess: () => notifySuccess(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
         onError: (error) => {
-          notifyError(error.message);
+          onMutationError(error);
           revert?.();
         },
       },

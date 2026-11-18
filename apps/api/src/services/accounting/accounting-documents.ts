@@ -1,4 +1,4 @@
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, percentOf, toCents } from '@ordo/shared';
+import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, percentOf, printedDay, toCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
@@ -78,7 +78,7 @@ function assertEditable(document: AccountingDocument): void {
  * @returns {Promise<void>}
  */
 async function assertParties({ clientId, serviceId, contactId, projectId }: { clientId: string; serviceId: string | null; contactId: string | null; projectId: string | null }) {
-  await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
+  await assertExists(prisma.client, clientId, 'Client');
   if (serviceId && (await prisma.clientService.findUnique({ where: { id: serviceId } }))?.clientId !== clientId) {
     throw fieldError('serviceId', 'Ce service n’appartient pas au client.');
   }
@@ -97,7 +97,6 @@ const TYPE_NAMES: Record<AccountingDocumentType, string> = {
   DEPOSIT_INVOICE: 'la dernière facture d’acompte',
   CREDIT_NOTE: 'le dernier avoir',
 };
-const printedDay = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
 
 /**
  * Date of the latest document of a type: final in Ordo (another one than a document), or imported.
@@ -127,7 +126,7 @@ export async function latestIssueDate(type: AccountingDocumentType, exceptId: st
 async function assertChronology(type: AccountingDocumentType, issueDate: string, id: string | null, client: Client = prisma): Promise<void> {
   const latest = await latestIssueDate(type, id, client);
   if (latest && issueDate < latest) {
-    const message = `La date ne peut pas précéder celle de ${TYPE_NAMES[type]} (${printedDay.format(parseDay(latest))}).`;
+    const message = `La date ne peut pas précéder celle de ${TYPE_NAMES[type]} (${printedDay(latest)}).`;
     throw fieldError('issueDate', message);
   }
 }
@@ -549,7 +548,7 @@ export async function createFromDocument(
  * @returns {AccountingLineInput} Line.
  */
 function depositLine(percent: number, quote: { number: string | null; totalNet: number; currency: string; issueDate: Date }, amount: number, vatRate: number): AccountingLineInput {
-  const day = formatDay(quote.issueDate).split('-').reverse().join('/');
+  const day = printedDay(quote.issueDate);
   return {
     kind: 'ITEM',
     title: `Acompte de ${percent.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,

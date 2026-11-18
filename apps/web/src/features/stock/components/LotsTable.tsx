@@ -32,17 +32,17 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
       label: 'Péremption',
       size: 150,
       bulk: true,
-      sortValue: (lot) => (lot.expiresAt ? String(lot.expiresAt) : null),
-      text: (lot) => (lot.expiresAt ? fmt.day(String(lot.expiresAt)) : ''),
-      filter: { kind: 'date', value: (lot) => (lot.expiresAt ? String(lot.expiresAt).slice(0, 10) : null) },
+      sortValue: (lot) => (lot.expiresAt ? lot.expiresAt : null),
+      text: (lot) => (lot.expiresAt ? fmt.day(lot.expiresAt) : ''),
+      filter: { kind: 'date', value: (lot) => (lot.expiresAt ? lot.expiresAt : null) },
     },
     {
       id: 'createdAt',
       label: 'Entré le',
       size: 130,
-      sortValue: (lot) => String(lot.createdAt),
-      text: (lot) => fmt.day(new Date(lot.createdAt)),
-      filter: { kind: 'date', value: (lot) => String(lot.createdAt).slice(0, 10) },
+      sortValue: (lot) => lot.createdAt,
+      text: (lot) => fmt.day(lot.createdAt),
+      filter: { kind: 'date', value: (lot) => lot.createdAt.slice(0, 10) },
     },
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });
@@ -63,20 +63,14 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
         quantity: (
           <EditableNumber
             value={lot.quantity}
-            label={`Quantité du lot du ${lot.expiresAt ? fmt.day(String(lot.expiresAt)) : fmt.day(new Date(lot.createdAt))}`}
+            label={`Quantité du lot du ${lot.expiresAt ? fmt.day(lot.expiresAt) : fmt.day(lot.createdAt)}`}
             decimals={3}
             readOnly={readOnly}
             onSave={(quantity) => quantity !== null && bulk('quantity')(lot, { quantity })}
           />
         ),
         expiresAt: (
-          <EditableDate
-            value={lot.expiresAt ? String(lot.expiresAt).slice(0, 10) : null}
-            label="Date de péremption du lot"
-            nullable
-            readOnly={readOnly}
-            onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })}
-          />
+          <EditableDate value={lot.expiresAt ? lot.expiresAt : null} label="Date de péremption du lot" nullable readOnly={readOnly} onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })} />
         ),
       })}
     />

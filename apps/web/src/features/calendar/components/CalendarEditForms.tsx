@@ -1,5 +1,6 @@
 import { PICKER_FORMATS } from '../../../lib/format';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { ArrowSquareOutIcon } from '@phosphor-icons/react';
+import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
@@ -41,7 +42,7 @@ export function SlotEditForm({
         <Text size="sm" c="dimmed">
           {name}
         </Text>
-        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: String(date) })} data-autofocus />
+        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: date })} data-autofocus />
         <Checkbox
           label="Toute la journée"
           checked={value.allDay}
@@ -59,10 +60,7 @@ export function SlotEditForm({
             />
           </Group>
         )}
-        <Group justify="space-between" gap="sm">
-          <DestructiveButton onClick={onDelete}>Supprimer…</DestructiveButton>
-          <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid} />
-        </Group>
+        <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid} danger={<DeleteButton onClick={onDelete} />} />
       </Stack>
     </form>
   );
@@ -99,34 +97,31 @@ export function RoutineOccurrenceForm({
       }}
     >
       <Stack gap="md">
-        <DatePickerInput
-          label="Jour"
-          required
-          valueFormat={PICKER_FORMATS.weekday}
-          minDate={String(occurrence.routine.startDate)}
-          value={date}
-          onChange={(value) => value && setDate(String(value))}
-          data-autofocus
-        />
+        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} minDate={occurrence.routine.startDate} value={date} onChange={(value) => value && setDate(value)} data-autofocus />
         <Group gap="sm" grow>
           <TimeField label="À partir de" value={fromTime ?? ''} onChange={(value) => setFromTime(value || null)} />
           <TimeField label="Avant" value={dueTime ?? ''} onChange={(value) => setDueTime(value || null)} error={invalid ? 'L’heure maximale doit suivre l’heure de début.' : undefined} />
         </Group>
-        <Group justify="space-between" gap="sm">
-          <Group gap="xs">
-            <DestructiveButton onClick={onDelete}>Supprimer…</DestructiveButton>
-            <Button
-              variant="subtle"
-              onClick={() => {
-                onClose();
-                openRoutineForm({ routine: occurrence.routine });
-              }}
-            >
-              Ouvrir la routine
-            </Button>
-          </Group>
-          <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid || unchanged} />
-        </Group>
+        <FormActions
+          onCancel={onClose}
+          submitLabel="Enregistrer…"
+          disabled={invalid || unchanged}
+          danger={
+            <>
+              <DeleteButton onClick={onDelete} />
+              <Button
+                variant="subtle"
+                leftSection={<ArrowSquareOutIcon aria-hidden />}
+                onClick={() => {
+                  onClose();
+                  openRoutineForm({ routine: occurrence.routine });
+                }}
+              >
+                Ouvrir la routine
+              </Button>
+            </>
+          }
+        />
       </Stack>
     </form>
   );

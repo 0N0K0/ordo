@@ -1,4 +1,5 @@
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import { FileZipIcon } from '@phosphor-icons/react';
 import { fetchDownload } from '../../../lib/download';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
@@ -66,7 +67,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
       <Text size="xs" c="dimmed">
         Documents validés dont la date d’émission tombe dans la période, rangés dans un dossier par type. Les brouillons ne sont pas inclus.
       </Text>
-      <FormActions onCancel={onDone} submitLabel="Télécharger le ZIP" onSubmit={() => void download()} disabled={!valid} loading={loading} />
+      <FormActions onCancel={onDone} submitLabel="Télécharger le ZIP" submitIcon={<FileZipIcon aria-hidden />} onSubmit={() => void download()} disabled={!valid} loading={loading} />
     </Stack>
   );
 }

@@ -1,7 +1,9 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, PlusIcon, UsersThreeIcon } from '@phosphor-icons/react';
@@ -50,6 +52,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   // Line whose attachments are edited.
   const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
+  const { perso } = useActiveWorkspace();
   const members = settings?.treasuryMembers ?? [];
   const contexts = settings?.treasuryContexts ?? [];
   const categories = settings?.treasuryCategories ?? [];
@@ -57,7 +60,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const archivedContexts = new Set(contexts.filter((context) => context.archived).map((context) => context.id));
   const periods = (settings?.treasuryContextPeriods ?? [])
     .filter((period) => !archivedContexts.has(period.contextId))
-    .map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
+    .map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
   const planned = plannedContext(periods, date);
   // Amounts relative to the entry (positive: its direction), in cents.
   const { amounts, remainder } = splitAmounts(amount, lines);
@@ -117,6 +120,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
       settings?.treasuryRelations ?? [],
       lines.map((line) => line.relationId),
     ),
+    { perso },
   );
 
   return (
@@ -241,7 +245,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       <AmountInput
                         size="xs"
                         aria-label={`Valeur de la ligne ${index + 1}`}
-                        suffix={line.mode === 'PERCENT' ? ' %' : ' €'}
+                        suffix={line.mode === 'PERCENT' ? ' %' : undefined}
                         value={line.value}
                         onChange={(value) => {
                           const next = typeof value === 'number' ? value : 0;
@@ -288,9 +292,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
         </ScrollArea>
       )}
       <Group gap="xs">
-        <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={add}>
-          Ajouter une ligne
-        </Button>
+        <AddItemButton onClick={add}>Ajouter une ligne</AddItemButton>
         {members.length > 1 && (
           <Button size="xs" variant="subtle" leftSection={<UsersThreeIcon aria-hidden />} onClick={splitEqually}>
             Parts égales entre les membres

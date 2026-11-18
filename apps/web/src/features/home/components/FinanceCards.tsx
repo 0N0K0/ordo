@@ -6,16 +6,14 @@ import { Sparkline } from '@mantine/charts';
 import { addDays, daysBetween } from '@ordo/shared';
 import { BankIcon, CheckCircleIcon, FileTextIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
-import { Link } from 'react-router';
+
 import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
-import classes from './Home.module.css';
 import { Figure, HomeCard } from './HomeCard';
+import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
 import { dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-import { countOf, plural } from '../../../lib/text';
-
-const MAX_ROWS = 5;
+import { countOf } from '../../../lib/text';
 
 /**
  * Revenue of the month and of the year, drafts to finish, and the overdue invoices to follow up.
@@ -37,24 +35,22 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
             <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucune facture en retard." />
           ) : (
             <SubSection title="En retard" gap={0}>
-              {overdue.data.slice(0, MAX_ROWS).map((invoice) => (
-                <Link key={invoice.id} to={`/accounting/${invoice.id}`} className={classes.row}>
-                  <Group justify="space-between" wrap="nowrap" gap="xs">
-                    <Stack gap={0} miw={0}>
-                      <Text size="sm" truncate>
-                        {invoice.clientName ?? 'Client inconnu'}
+              <HomeList
+                items={overdue.data}
+                render={(invoice) => (
+                  <HomeRow
+                    key={invoice.id}
+                    to={`/accounting/${invoice.id}`}
+                    title={invoice.clientName ?? 'Client inconnu'}
+                    subtitle={`${invoice.number} · ${daysBetween(invoice.dueDate ?? today, today)} j de retard${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
+                    value={
+                      <Text size="sm" fw={600} c="red">
+                        {fmt.money(invoice.balance ?? 0)}
                       </Text>
-                      <Text size="xs" c="dimmed" truncate>
-                        {invoice.number} · {daysBetween(invoice.dueDate ?? today, today)} j de retard
-                        {invoice.reminderCount > 0 && ` · ${countOf(invoice.reminderCount, 'relance')}`}
-                      </Text>
-                    </Stack>
-                    <Text size="sm" fw={600} c="red" style={{ flexShrink: 0 }}>
-                      {fmt.money(invoice.balance ?? 0)}
-                    </Text>
-                  </Group>
-                </Link>
-              ))}
+                    }
+                  />
+                )}
+              />
             </SubSection>
           )}
         </Stack>
@@ -73,34 +69,25 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
     <HomeCard title="Devis en attente" icon={<FileTextIcon aria-hidden />} to="/accounting" loading={!summary}>
       {summary && summary.pendingQuotes.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun devis en attente de réponse." />}
       {summary && summary.pendingQuotes.length > 0 && (
-        <Stack gap={0}>
-          {summary.pendingQuotes.slice(0, MAX_ROWS).map((quote) => {
+        <HomeList
+          items={summary.pendingQuotes}
+          render={(quote) => {
             const sent = quote.sentAt ? localDay(quote.sentAt) : quote.issueDate;
             return (
-              <Link key={quote.id} to={`/accounting/${quote.id}`} className={classes.row}>
-                <Group justify="space-between" wrap="nowrap" gap="xs">
-                  <Stack gap={0} miw={0}>
-                    <Text size="sm" truncate>
-                      {quote.clientName ?? 'Client inconnu'}
-                      {quote.title ? ` · ${quote.title}` : ''}
-                    </Text>
-                    <Text size="xs" c="dimmed" truncate>
-                      {quote.number} · envoyé il y a {daysBetween(sent, today)} j
-                    </Text>
-                  </Stack>
-                  <Text size="sm" fw={600} style={{ flexShrink: 0 }}>
+              <HomeRow
+                key={quote.id}
+                to={`/accounting/${quote.id}`}
+                title={`${quote.clientName ?? 'Client inconnu'}${quote.title ? ` · ${quote.title}` : ''}`}
+                subtitle={`${quote.number} · envoyé il y a ${daysBetween(sent, today)} j`}
+                value={
+                  <Text size="sm" fw={600}>
                     {fmt.money(quote.totalNet)}
                   </Text>
-                </Group>
-              </Link>
+                }
+              />
             );
-          })}
-          {summary.pendingQuotes.length > MAX_ROWS && (
-            <Text size="xs" c="dimmed" pt={4}>
-              + {summary.pendingQuotes.length - MAX_ROWS} {plural(summary.pendingQuotes.length - MAX_ROWS, 'autre')}
-            </Text>
-          )}
-        </Stack>
+          }}
+        />
       )}
     </HomeCard>
   );
@@ -122,7 +109,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
       // Archived ones still count in the balances, their rows are hidden.
       .filter((item) => item.kind !== 'ACTUAL' && !item.archived && item.date <= in30)
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, MAX_ROWS);
+      .slice(0, HOME_ROWS);
     return { forecast, at30, lowest, coming };
   }, [projection, today]);
 

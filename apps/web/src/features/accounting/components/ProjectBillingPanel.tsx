@@ -1,13 +1,11 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Stack, Text } from '@mantine/core';
-import { FileArrowUpIcon, PlusIcon, FileTextIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import { useAccountingDocuments, useImportedDocuments } from '../api/documents';
 import { DocumentsTable } from './DocumentsTable';
-import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { openNewDocument } from '../lib/new-document';
+import { newDocumentMenu } from '../lib/new-document';
 
 /**
  * Billing tab of a project or documents section of a client: its quotes, invoices, deposit invoices and
@@ -34,19 +32,7 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
       <SectionHeader
         title="Documents comptables"
         actions={
-          <ActionButton
-            icon={<PlusIcon aria-hidden />}
-            disabled={!clientId}
-            menu={[
-              ...(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => ({
-                label: DOCUMENT_TYPE_LABELS[type],
-                icon: <FileTextIcon aria-hidden />,
-                onClick: () => openNewDocument(type, { clientId, projectId }),
-              })),
-              'divider' as const,
-              { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
-            ]}
-          >
+          <ActionButton icon={<PlusIcon aria-hidden />} disabled={!clientId} menu={newDocumentMenu({ clientId, projectId })}>
             Nouveau document
           </ActionButton>
         }

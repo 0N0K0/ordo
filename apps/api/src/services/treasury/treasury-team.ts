@@ -7,13 +7,14 @@ import {
   type TreasuryContextPeriodInput,
   type TreasuryRelationInput,
   normalize,
+  requiredText,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
-import { clientError, fieldError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, isUniqueConflict, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { createContributor } from '../workspace/contributors';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
@@ -61,13 +62,13 @@ async function freeHandle(name: string): Promise<string> {
  */
 export async function addMember(input: { contributorId?: string | null; name?: string | null }): Promise<Contributor> {
   if (input.contributorId) {
-    await orNotFound(prisma.contributor.findUnique({ where: { id: input.contributorId }, select: { id: true } }), 'Contributeur');
+    await assertExists(prisma.contributor, input.contributorId, 'Contributeur');
     // A contributor is a member or a relation, not both.
     const relation = await prisma.treasuryRelation.findFirst({ where: { contributorId: input.contributorId }, select: { name: true } });
     if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
     return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
   }
-  const { name } = parseInput(z.object({ name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.') }), { name: input.name ?? '' });
+  const { name } = parseInput(z.object({ name: requiredText(100) }), { name: input.name ?? '' });
   const contributor = await createContributor({ name, handle: await freeHandle(name) });
   return prisma.contributor.update({ where: { id: contributor.id }, data: { teamMember: true } });
 }
@@ -110,8 +111,7 @@ export async function saveContext(id: string | null, input: TreasuryContextInput
  * @returns {Promise<void>}
  */
 export async function deleteContext(id: string): Promise<void> {
-  const { count } = await prisma.treasuryContext.deleteMany({ where: { id } });
-  if (!count) throw notFound('Contexte');
+  await deleteOrNotFound(prisma.treasuryContext, id, 'Contexte');
 }
 
 /**
@@ -122,7 +122,7 @@ export async function deleteContext(id: string): Promise<void> {
  */
 export async function saveContextPeriod(id: string | null, input: TreasuryContextPeriodInput): Promise<TreasuryContextPeriod> {
   const data = parseInput(treasuryContextPeriodSchema, input);
-  await orNotFound(prisma.treasuryContext.findUnique({ where: { id: data.contextId }, select: { id: true } }), 'Contexte');
+  await assertExists(prisma.treasuryContext, data.contextId, 'Contexte');
   // A period is part of its context: none added to, nor taken from, an archived one.
   await assertNotArchived('TREASURY_CONTEXT', data.contextId);
   const fields = { contextId: data.contextId, startDate: parseDay(data.startDate), endDate: parseDay(data.endDate), note: data.note };
@@ -139,8 +139,7 @@ export async function saveContextPeriod(id: string | null, input: TreasuryContex
  */
 export async function deleteContextPeriod(id: string): Promise<void> {
   await assertNotArchived('TREASURY_CONTEXT', (await prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { contextId: true } }))?.contextId);
-  const { count } = await prisma.treasuryContextPeriod.deleteMany({ where: { id } });
-  if (!count) throw notFound('Période');
+  await deleteOrNotFound(prisma.treasuryContextPeriod, id, 'Période');
 }
 
 /**
@@ -180,6 +179,5 @@ export async function saveRelation(id: string | null, input: TreasuryRelationInp
  * @returns {Promise<void>}
  */
 export async function deleteRelation(id: string): Promise<void> {
-  const { count } = await prisma.treasuryRelation.deleteMany({ where: { id } });
-  if (!count) throw notFound('Relation');
+  await deleteOrNotFound(prisma.treasuryRelation, id, 'Relation');
 }

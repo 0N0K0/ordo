@@ -9,14 +9,14 @@ type DefaultKind = ReturnType<typeof useDefaultScheduleKind>['data'];
 
 /**
  * Span of an occurrence of an event in FullCalendar: its days (the end excluded) all day, else its start and end.
- * @param {{ allDay: boolean, startDate: string, endDate: string, start: unknown, end: unknown }} occurrence Occurrence.
+ * @param {{ allDay: boolean, startDate: string, endDate: string, start: string, end: string }} occurrence Occurrence.
  * @returns {{ allDay: boolean, start: string, end: string }} Span.
  */
-export function occurrenceSpan(occurrence: { allDay: boolean; startDate: string; endDate: string; start: unknown; end: unknown }): { allDay: boolean; start: string; end: string } {
+export function occurrenceSpan(occurrence: { allDay: boolean; startDate: string; endDate: string; start: string; end: string }): { allDay: boolean; start: string; end: string } {
   return {
     allDay: occurrence.allDay,
-    start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
-    end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+    start: occurrence.allDay ? occurrence.startDate : occurrence.start,
+    end: occurrence.allDay ? addDays(occurrence.endDate, 1) : occurrence.end,
   };
 }
 

@@ -1,7 +1,8 @@
+import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
 import { Checkbox, Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
+import { listSelectProps, itemChoices } from '../../../components/items/item-look';
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -16,6 +17,7 @@ import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-
 import { entryValues } from '../lib/entry-values';
 import { categoryForDirection, valueInMode, type LineLink, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
+import { personName } from '../../../components/people/people-options';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -56,7 +58,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const categoryName = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
   const projectName = (row: LineRow) => (row.line.projectId ? (env.projectNames.get(row.line.projectId) ?? '') : '');
   const whomChoices = [
-    ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })),
+    ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: personName(member) })),
     ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
   ];
   return [
@@ -100,7 +102,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       groupable: true,
     },
     { id: 'mode', bulk: true, label: 'Unité', size: 80, sortValue: (row) => row.line.mode, text: (row) => (row.line.mode === 'PERCENT' ? '%' : '€'), filter: false },
-    { id: 'value', bulk: true, label: 'Valeur', size: 110, numeric: true, sortValue: (row) => row.line.value, text: (row) => String(row.line.value).replace('.', ','), filter: false },
+    { id: 'value', bulk: true, label: 'Valeur', size: 110, numeric: true, sortValue: (row) => row.line.value, text: (row) => fmt.number(row.line.value, 4), filter: false },
     {
       id: 'amount',
       label: 'Montant',
@@ -169,6 +171,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
   const values = entryValues(entry, { status: entry.status, copy: false, accountId: entry.accountId });
   const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
   const sign = entry.amount < 0 ? -1 : 1;
+  const { perso } = useActiveWorkspace();
   const rows: LineRow[] = values.lines.map((line, index) => ({ index, line, amount: amounts[index] / 100, documents: entry.lines[index]?.documents ?? [] }));
   const view = useDataView({ tableKey: 'treasury-entry-lines', getKey: lineKey, columns: lineColumns(env), rows, title: `Répartition de ${entry.label}` });
   const categories = env.settings?.treasuryCategories ?? [];
@@ -221,7 +224,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={whomKey(line) === ME ? null : whomKey(line)}
               label={`Bénéficiaire de ${name}`}
               nullable
-              data={memberRelationOptions(env.settings?.treasuryMembers ?? [], unarchived(env.settings?.treasuryRelations ?? [], line.relationId), { withMe: false })}
+              data={memberRelationOptions(env.settings?.treasuryMembers ?? [], unarchived(env.settings?.treasuryRelations ?? [], line.relationId), { perso, withMe: false })}
               // A loan is with a relation only.
               onSave={(key) =>
                 saveLine('whom', row, (target) => ({
@@ -274,7 +277,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               amount={line.mode === 'AMOUNT'}
               value={line.value}
               label={`Valeur de ${name}`}
-              suffix={line.mode === 'PERCENT' ? '%' : '€'}
+              suffix={line.mode === 'PERCENT' ? '%' : undefined}
               signed
               onSave={(value) => value !== null && saveLine('value', row, { value })}
             />

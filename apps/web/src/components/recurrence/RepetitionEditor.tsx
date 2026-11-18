@@ -1,7 +1,8 @@
-import { Button, Group, SegmentedControl, Stack, Text } from '@mantine/core';
+import { AddItemButton } from '../actions/AddItemButton';
+import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
-import { PlusIcon } from '@phosphor-icons/react';
+
 import type { ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
 import { describeCase } from './describe-recurrence';
@@ -93,7 +94,7 @@ function CaseFields<T>({
             maxDate={item.until ?? undefined}
             value={item.since}
             // Its rhythm counts from its first day.
-            onChange={(date) => onChange({ since: date ? String(date) : null, anchor: null })}
+            onChange={(date) => onChange({ since: date ? date : null, anchor: null })}
           />
           <DatePickerInput
             size="xs"
@@ -103,7 +104,7 @@ function CaseFields<T>({
             clearable
             minDate={item.since ?? undefined}
             value={item.until}
-            onChange={(date) => onChange({ until: date ? String(date) : null })}
+            onChange={(date) => onChange({ until: date ? date : null })}
           />
         </Group>
       )}
@@ -211,19 +212,14 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
           <Text size="xs" c="dimmed">
             Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner).
           </Text>
-          <div>
-            <Button
-              size="compact-xs"
-              variant="default"
-              leftSection={<PlusIcon aria-hidden />}
-              onClick={() => {
-                folds.open(cases.length);
-                onChange([...cases, newCase()]);
-              }}
-            >
-              Ajouter un cas
-            </Button>
-          </div>
+          <AddItemButton
+            onClick={() => {
+              folds.open(cases.length);
+              onChange([...cases, newCase()]);
+            }}
+          >
+            Ajouter un cas
+          </AddItemButton>
           {props.exceptions}
         </Stack>
       )}

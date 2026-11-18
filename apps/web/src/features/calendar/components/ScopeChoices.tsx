@@ -1,5 +1,6 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 import type { CalendarEventScope } from '../api';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 export interface ScopeQuestion {
   action: 'update' | 'delete' | 'cancel' | 'restore';
@@ -50,11 +51,7 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
           </Button>
         )}
       </Stack>
-      <Group justify="flex-end">
-        <Button variant="default" onClick={() => onAnswer(null)}>
-          Annuler
-        </Button>
-      </Group>
+      <FormActions onCancel={() => onAnswer(null)} submitLabel={null} />
     </Stack>
   );
 }

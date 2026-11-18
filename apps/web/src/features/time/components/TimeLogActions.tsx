@@ -16,7 +16,7 @@ interface TimeLogActionsProps {
 }
 
 /**
- * Actions of a list of times: « Nouveau temps » (time added by hand) and « Lancer un chrono » (one timer runs at a
+ * Actions of a list of times: « Nouveau temps » (time added by hand) and « Démarrer un chrono » (one timer runs at a
  * time: disabled while one runs, it shows in the top bar).
  * @param {TimeLogActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
@@ -31,7 +31,7 @@ export function TimeLogActions({ context, onNew, projectId, archived = false }: 
       {!archived && (
         <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
           <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
-            Lancer un chrono
+            Démarrer un chrono
           </ActionButton>
         </Tooltip>
       )}

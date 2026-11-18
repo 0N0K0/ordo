@@ -32,7 +32,7 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
   // Cancelled or postponed: struck through, like in the calendar.
   const postponed = event.postponedTo.length > 0;
   const struck = event.calledOff || postponed;
-  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => fmt.day(String(item.startDate))).join(', ')}` : 'Annulé';
+  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => fmt.day(item.startDate)).join(', ')}` : 'Annulé';
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
       <Tooltip label="Évènement" withArrow>
@@ -169,14 +169,14 @@ const fromWall = (ms: number) => {
  * @param {EventOccurrence} event Occurrence.
  * @returns {number} Ms.
  */
-const lengthOf = (event: EventOccurrence) => wall(String(event.endDate), event.endTime ?? null) - wall(String(event.startDate), event.startTime ?? null);
+const lengthOf = (event: EventOccurrence) => wall(event.endDate, event.endTime ?? null) - wall(event.startDate, event.startTime ?? null);
 
 /**
  * Days an all-day event spans after its first one.
  * @param {EventOccurrence} event Occurrence.
  * @returns {number} Days.
  */
-const spanOf = (event: EventOccurrence) => daysBetween(String(event.startDate), String(event.endDate));
+const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.endDate);
 
 /**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
@@ -187,8 +187,8 @@ const spanOf = (event: EventOccurrence) => daysBetween(String(event.startDate), 
 export function EventWhenCell({ event, side }: { event: EventOccurrence; side: 'start' | 'end' }) {
   const save = useEventSave(event, side === 'start' ? 'startDate' : 'endDate');
   const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.title}`;
-  const startDate = String(event.startDate);
-  const endDate = String(event.endDate);
+  const startDate = event.startDate;
+  const endDate = event.endDate;
 
   if (event.allDay) {
     return (
@@ -200,7 +200,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
         onChange={(date) => {
           if (!date) return;
           // Each event keeps its own length; an end never comes before its start.
-          if (side === 'end') void save((target) => (date >= String(target.startDate) ? { endDate: date } : {}));
+          if (side === 'end') void save((target) => (date >= target.startDate ? { endDate: date } : {}));
           else void save((target) => ({ startDate: date, endDate: addDays(date, spanOf(target)) }));
         }}
         popoverProps={{ withinPortal: true }}
@@ -227,7 +227,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
             return { startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time };
           });
         } else if (moved < start) notifyError('La fin ne peut pas être avant le début.');
-        else void save((target) => (moved >= wall(String(target.startDate), target.startTime ?? null) ? { endDate: date, endTime: clock.slice(0, 5) } : {}));
+        else void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? { endDate: date, endTime: clock.slice(0, 5) } : {}));
       }}
       popoverProps={{ withinPortal: true }}
     />

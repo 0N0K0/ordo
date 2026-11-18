@@ -1,6 +1,6 @@
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { WarningIcon } from '@phosphor-icons/react';
+import { WarningIcon, ArrowCounterClockwiseIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ErrorIcon, InfoFeedbackIcon, SuccessIcon } from '../components/feedback/feedback-icons';
 
@@ -15,6 +15,8 @@ const AUTO_CLOSE_READ_MS = 8000;
 /** Action of a toast: a button closing it then acting (open a page, tick a routine, reload…). */
 export interface NotifyAction {
   label: string;
+  /** Icon before the label. Optional. Default = an arrow (most of them open a page). */
+  icon?: ReactNode;
   onClick: () => void;
 }
 
@@ -40,6 +42,7 @@ function toastBody(id: string, lines: (string | null | undefined | false)[], act
               key={action.label}
               size="compact-sm"
               variant="subtle"
+              leftSection={action.icon ?? <ArrowRightIcon aria-hidden />}
               onClick={() => {
                 notifications.hide(id);
                 action.onClick();
@@ -140,5 +143,11 @@ export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERRO
  */
 export function notifyWithUndo(message: string, onUndo: () => void): void {
   const id = `ordo-undo-${(sequence += 1)}`;
-  notifications.show({ id, color: 'green', icon: <SuccessIcon />, autoClose: AUTO_CLOSE_READ_MS, message: toastBody(id, [message], [{ label: 'Annuler', onClick: onUndo }]) });
+  notifications.show({
+    id,
+    color: 'green',
+    icon: <SuccessIcon />,
+    autoClose: AUTO_CLOSE_READ_MS,
+    message: toastBody(id, [message], [{ label: 'Annuler', icon: <ArrowCounterClockwiseIcon aria-hidden />, onClick: onUndo }]),
+  });
 }

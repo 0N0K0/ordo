@@ -1,7 +1,9 @@
-import { Alert, Anchor, Button, Stack, TextInput } from '@mantine/core';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { PaperPlaneTiltIcon } from '@phosphor-icons/react';
+import { Anchor, Button, Stack, TextInput } from '@mantine/core';
 import { forgotPasswordFormSchema, type ForgotPasswordFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
-import { SuccessIcon } from '../../../components/feedback/feedback-icons';
+
 import { showFormError, useAppForm } from '../../../lib/form';
 import { useRequestPasswordReset } from '../api';
 import { AuthHeader } from './AuthLayout';
@@ -28,9 +30,9 @@ export function ForgotPasswordPage() {
         description="Saisissez votre identifiant ou votre adresse email : vous recevrez un lien pour choisir un nouveau mot de passe."
       />
       {requestReset.isSuccess ? (
-        <Alert color="green" title="Demande envoyée" icon={<SuccessIcon />}>
+        <NoticeAlert kind="success" title="Demande envoyée">
           Si un compte correspond, un email contenant un lien valable 30 minutes vient d’être envoyé.
-        </Alert>
+        </NoticeAlert>
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
@@ -41,7 +43,7 @@ export function ForgotPasswordPage() {
               required
               {...form.getInputProps('identifier')}
             />
-            <Button type="submit" loading={requestReset.isPending} fullWidth>
+            <Button type="submit" leftSection={<PaperPlaneTiltIcon aria-hidden />} loading={requestReset.isPending} fullWidth>
               Envoyer le lien
             </Button>
           </Stack>

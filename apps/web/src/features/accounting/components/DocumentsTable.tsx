@@ -30,7 +30,7 @@ import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
 import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { useSetArchived } from '../../../lib/archive';
 import { archiveEntry } from '../lib/archive-entry';
 import { accountingQueryKey } from '../api';

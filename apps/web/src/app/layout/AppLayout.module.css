@@ -2,12 +2,12 @@
   .shell {
     /*
      * Horizontal margins of the page content, by the breakpoints of the design system: 16px on a phone, 32px on a
-     * tablet (from md: 6 columns, 6 × 96 + 5 × 16 + 2 × 32 = 720px = 45em), 48px on a desktop (from lg: 9 columns,
+     * tablet (from the tablet breakpoint, 768px = 48em), 48px on a desktop (from lg: 9 columns,
      * 9 × 96 + 8 × 16 + 2 × 64 = 1120px = 70em). The vertical ones stay Mantine's (the calendar height counts on them).
      */
     --page-gutter: 16px;
 
-    @media (min-width: 45em) {
+    @media (min-width: $tablet-breakpoint) {
       --page-gutter: 32px;
     }
 
@@ -67,20 +67,20 @@
     }
   }
 
-  /* Only on a phone: below md (720px = 45em, by the breakpoints of the design system). */
+  /* Only on a phone: below the tablet breakpoint (768px = 48em). */
   .phoneOnly {
-    @media (min-width: 45em) {
+    @media (min-width: $tablet-breakpoint) {
       /* Agencement */
       display: none;
     }
   }
 
-  /* From the tablet on: md (720px = 45em) and wider. */
+  /* From the tablet on: 768px = 48em and wider. */
   .fromTablet {
     /* Agencement */
     display: none;
 
-    @media (min-width: 45em) {
+    @media (min-width: $tablet-breakpoint) {
       /* Agencement */
       display: contents;
     }

@@ -1,3 +1,5 @@
+import { peopleOptions, personName, type PeopleGroup } from './people-options';
+
 /** Kinds of people a field can hold: contributors, members of the team or household, relations (people out of it). */
 type PersonKind = 'contributor' | 'member' | 'relation';
 
@@ -59,22 +61,21 @@ export const memberOrRelationKey = ({ memberId, relationId }: { memberId?: strin
   relationId ? personKey('relation', relationId) : memberId ? personKey('member', memberId) : null;
 
 /**
- * Options of a select of members and relations, grouped (« Membres », « Relations »; an empty group left out).
+ * Options of a select of members and relations, grouped as every select of people (peopleOptions: « Contributeurs », then
+ * « Relations » or « Proches »).
  * @param {readonly { id: string, name: string, isMe: boolean }[]} members Members of the team or household.
  * @param {readonly { id: string, name: string }[]} relations Relations.
- * @param {{ withMe?: boolean }} [options] The user among the members (« … (moi) »). Optional. Default = true.
- * @returns {{ group: string, items: { value: string, label: string }[] }[]} Options.
+ * @param {{ perso: boolean, withMe?: boolean }} options A personal workspace; the user among the members (« Prénom (moi) »). Optional. Default = true.
+ * @returns {PeopleGroup[]} Options.
  */
 export function memberRelationOptions(
   members: readonly { id: string; name: string; isMe: boolean }[],
   relations: readonly { id: string; name: string }[],
-  { withMe = true }: { withMe?: boolean } = {},
-): { group: string; items: { value: string; label: string }[] }[] {
-  return [
-    {
-      group: 'Membres',
-      items: members.filter((member) => withMe || !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.isMe ? `${member.name} (moi)` : member.name })),
-    },
-    { group: 'Relations', items: relations.map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
-  ].filter((group) => group.items.length > 0);
+  { perso, withMe = true }: { perso: boolean; withMe?: boolean },
+): PeopleGroup[] {
+  return peopleOptions(
+    members.filter((member) => withMe || !member.isMe).map((member) => ({ value: personKey('member', member.id), label: personName(member) })),
+    relations.map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })),
+    perso,
+  );
 }

@@ -1,10 +1,10 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { FloppyDiskIcon } from '@phosphor-icons/react';
 import { Anchor, Button, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useResetPassword } from '../api';
 import { AuthHeader } from './AuthLayout';
 import { NewPasswordFields } from '../components/NewPasswordFields';
@@ -26,13 +26,7 @@ export function ResetPasswordPage() {
     if (!token) return;
     resetPassword.mutate(
       { token, password },
-      {
-        onSuccess: () => {
-          notifySuccess('Mot de passe modifié. Vous pouvez vous connecter.');
-          navigate('/login', { replace: true });
-        },
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, 'Mot de passe modifié. Vous pouvez vous connecter.', () => navigate('/login', { replace: true })),
     );
   });
 
@@ -43,7 +37,7 @@ export function ResetPasswordPage() {
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <NewPasswordFields form={form} autoFocus />
-            <Button type="submit" loading={resetPassword.isPending} fullWidth>
+            <Button type="submit" leftSection={<FloppyDiskIcon aria-hidden />} loading={resetPassword.isPending} fullWidth>
               Enregistrer
             </Button>
           </Stack>

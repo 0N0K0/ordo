@@ -4,8 +4,8 @@ import { DatePickerInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { localParts, localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useCalendarEvents } from '../../calendar/api';
@@ -73,13 +73,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       duration: parseDuration(values.duration)!,
       event: parseEventKey(eventKey),
     };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
     if (entry && !copy) update.mutate({ id: entry.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });

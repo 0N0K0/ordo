@@ -24,6 +24,7 @@ import { listSubscriptions, resolveCalendarId } from './calendars';
 import { assertActiveContributors, assertActiveRelations, assertProjectContributors } from '../workspace/contributors';
 import { assertAllExist, assertExists } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { connectIds } from '../core/relations';
 
 export interface CalendarLink {
   url: string;
@@ -297,12 +298,12 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
     data: {
       ...eventData(event),
       recurrence: event.recurrence ?? undefined,
-      contributors: { connect: event.contributorIds.map((id) => ({ id })) },
-      relations: { connect: [...new Set(event.relationIds)].map((id) => ({ id })) },
-      beneficiaries: { connect: [...new Set(event.beneficiaryIds)].map((id) => ({ id })) },
-      beneficiaryRelations: { connect: [...new Set(event.beneficiaryRelationIds)].map((id) => ({ id })) },
-      categories: { connect: event.categoryIds.map((id) => ({ id })) },
-      tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
+      contributors: { connect: connectIds(event.contributorIds) },
+      relations: { connect: connectIds(event.relationIds) },
+      beneficiaries: { connect: connectIds(event.beneficiaryIds) },
+      beneficiaryRelations: { connect: connectIds(event.beneficiaryRelationIds) },
+      categories: { connect: connectIds(event.categoryIds) },
+      tasks: { connect: connectIds(event.taskIds) },
     },
   });
   await saveRoutineLinks(null, created.id, event);
@@ -374,12 +375,12 @@ async function updateEventFields(
   const fields = await parseEvent(input, ...(await eventKept(id)));
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = {
-    contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
-    relations: { set: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
-    beneficiaries: { set: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
-    beneficiaryRelations: { set: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
-    categories: { set: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
-    tasks: { set: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
+    contributors: { set: connectIds(fields.contributorIds) },
+    relations: { set: connectIds(fields.relationIds) },
+    beneficiaries: { set: connectIds(fields.beneficiaryIds) },
+    beneficiaryRelations: { set: connectIds(fields.beneficiaryRelationIds) },
+    categories: { set: connectIds(fields.categoryIds) },
+    tasks: { set: connectIds(fields.taskIds) },
   };
 
   if (!occurrence) {
@@ -443,12 +444,12 @@ async function updateEventFields(
       data: {
         ...eventData(fields),
         recurrence: rule ?? undefined,
-        contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
-        relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
-        beneficiaries: { connect: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
-        beneficiaryRelations: { connect: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
-        categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
-        tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
+        contributors: { connect: connectIds(fields.contributorIds) },
+        relations: { connect: connectIds(fields.relationIds) },
+        beneficiaries: { connect: connectIds(fields.beneficiaryIds) },
+        beneficiaryRelations: { connect: connectIds(fields.beneficiaryRelationIds) },
+        categories: { connect: connectIds(fields.categoryIds) },
+        tasks: { connect: connectIds(fields.taskIds) },
       },
     });
   });
@@ -734,12 +735,12 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       recurrence: undefined,
       postponedFromId: id,
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
-      contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
-      relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
-      beneficiaries: { connect: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
-      beneficiaryRelations: { connect: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
-      categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
-      tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
+      contributors: { connect: connectIds(fields.contributorIds) },
+      relations: { connect: connectIds(fields.relationIds) },
+      beneficiaries: { connect: connectIds(fields.beneficiaryIds) },
+      beneficiaryRelations: { connect: connectIds(fields.beneficiaryRelationIds) },
+      categories: { connect: connectIds(fields.categoryIds) },
+      tasks: { connect: connectIds(fields.taskIds) },
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);

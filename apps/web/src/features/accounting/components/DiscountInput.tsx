@@ -1,6 +1,7 @@
 import { Group, SegmentedControl, type NumberInputProps } from '@mantine/core';
 import type { DiscountType } from '@ordo/shared';
 import { AmountInput } from '../../../components/inputs/AmountInput';
+import * as fmt from '../../../lib/format';
 
 /** Value and type of a discount (or a deposit): both null when there is none. */
 export interface Discount {
@@ -29,6 +30,7 @@ export function DiscountInput({ value, type, currency, typeLabel, onChange, size
     <Group gap={4} align="flex-end" wrap="nowrap">
       <AmountInput
         min={0}
+        currency={null}
         size={size}
         readOnly={readOnly}
         {...props}
@@ -41,7 +43,7 @@ export function DiscountInput({ value, type, currency, typeLabel, onChange, size
         readOnly={readOnly}
         data={[
           { value: 'PERCENT', label: '%' },
-          { value: 'AMOUNT', label: currency === 'EUR' ? '€' : currency },
+          { value: 'AMOUNT', label: fmt.currencySymbol(currency) },
         ]}
         value={type ?? 'PERCENT'}
         onChange={(next) => onChange({ value, type: next as DiscountType })}

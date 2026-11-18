@@ -13,7 +13,7 @@ import {
   type TableSort,
   weekdayOf,
 } from '@ordo/shared';
-import { hasAvatar, itemRenderOption } from '../../settings/item-look';
+import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
 import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';

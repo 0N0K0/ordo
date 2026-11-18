@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
 
@@ -21,15 +21,6 @@ export async function requireSession(req: Request, res: Response): Promise<boole
  */
 export function queryText(value: unknown): string {
   return typeof value === 'string' ? value : '';
-}
-
-/**
- * File name without the characters file systems refuse (each replaced by a dash).
- * @param {string} name Name to clean.
- * @returns {string} The cleaned name.
- */
-export function safeFilename(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, '-');
 }
 
 /** How a file is sent by `sendDownload`. */
@@ -96,4 +87,29 @@ export function sendServiceError(res: Response, error: unknown, context: string)
   }
   console.error(context, error);
   res.sendStatus(500);
+}
+
+/** File a download route produces: its content, with how it is sent. */
+type Download = DownloadOptions & {
+  /** Content of the file. */
+  content: Buffer | string;
+};
+
+/**
+ * Route sending a file to a signed-in user: 401 without a session, the file produced from the request, or the error of
+ * its service (see `sendServiceError`).
+ * @param {(req: Request) => Promise<Download>} produce Produces the file and how it is sent.
+ * @param {string} context What failed, for the log.
+ * @returns {RequestHandler} Route handler.
+ */
+export function downloadRoute(produce: (req: Request) => Promise<Download>, context: string): RequestHandler {
+  return async (req, res) => {
+    if (!(await requireSession(req, res))) return;
+    try {
+      const { content, ...options } = await produce(req);
+      sendDownload(res, content, options);
+    } catch (error) {
+      sendServiceError(res, error, context);
+    }
+  };
 }

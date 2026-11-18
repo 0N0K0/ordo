@@ -1,18 +1,16 @@
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { ActionIcon, Select, Tooltip } from '@mantine/core';
-import { PeopleCell as SharedPeopleCell } from '../../../components/people/PeopleSelect';
 import { localToday } from '../../../lib/dates';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { type ReactNode } from 'react';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
+
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from '../api';
-import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
+import { EditableMultiSelect, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { cellCombobox, cellField, cellMulti } from '../../../components/data-table/cells/cell-field';
+import { cellCombobox, cellField } from '../../../components/data-table/cells/cell-field';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 
 interface UnitCellProps {
@@ -90,7 +88,7 @@ export function PeopleCell({ memberIds, relationIds, label, readOnly = false, on
   const people = usePeople();
   const value = rowPeopleKeys({ memberIds, relationIds });
   return (
-    <SharedPeopleCell
+    <EditableMultiSelect
       label={label}
       readOnly={readOnly}
       value={value}
@@ -240,26 +238,7 @@ export function TasksCell({
   onSave: (taskIds: string[]) => void;
   readOnly?: boolean;
 }) {
-  return (
-    <StackedMultiCell
-      label={label}
-      readOnly={readOnly}
-      items={items}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={label}
-          data={options}
-          searchable
-          nothingFoundMessage="Aucune tâche"
-          value={value}
-          onChange={onSave}
-          onDropdownClose={onDropdownClose}
-          placeholder={value.length ? undefined : '—'}
-        />
-      )}
-    />
-  );
+  return <EditableMultiSelect label={label} readOnly={readOnly} items={items} data={options} nothingFoundMessage="Aucune tâche" value={value} onSave={onSave} />;
 }
 
 interface ToggleCellProps {

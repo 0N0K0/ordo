@@ -1,10 +1,11 @@
-import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { formCallbacks } from '../../../lib/form';
+import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { countOf, normalize, plural } from '../../../lib/text';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
-import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
+import { FileCsvIcon, ArrowLeftIcon, ArrowRightIcon, EyeIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import * as fmt from '../../../lib/format';
@@ -143,12 +144,12 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
       .filter((entry) => entry.status === 'FORECAST' && entry.accountId === accountId)
       .flatMap((entry) => {
         const rule = recurrenceSchema.safeParse(entry.recurrence);
-        const start = String(entry.date);
+        const start = entry.date;
         const dates = rule.success && range ? occurrenceDates(rule.data, start, addDays(range.from, -FORECAST_DAYS), addDays(range.to, FORECAST_DAYS)) : [start];
         return dates.map((occurrence) => ({ id: entry.id, occurrence, label: entry.label, amount: entry.amount }));
       });
     return rows.map((row, key) => {
-      const twin = actual.find((entry) => !used.has(entry.id) && Math.abs(entry.amount - row.amount) < 0.005 && Math.abs(daysBetween(String(entry.date), row.date)) <= DUPLICATE_DAYS);
+      const twin = actual.find((entry) => !used.has(entry.id) && Math.abs(entry.amount - row.amount) < 0.005 && Math.abs(daysBetween(entry.date, row.date)) <= DUPLICATE_DAYS);
       if (twin) used.add(twin.id);
       const planned = twin
         ? undefined
@@ -220,13 +221,12 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           occurrence: row.forecast && !notRealized.has(row.key) ? row.forecast.occurrence : null,
         })),
       },
-      {
-        onSuccess: ({ created, realized }) => {
-          notifySuccess(`${countOf(created, 'opération')} ${plural(created, 'importée')}${realized ? `, ${countOf(realized, 'prévision')} ${plural(realized, 'réalisée')}` : ''}.`);
-          onDone();
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(
+        null,
+        ({ created, realized }: { created: number; realized: number }) =>
+          `${countOf(created, 'opération')} ${plural(created, 'importée')}${realized ? `, ${countOf(realized, 'prévision')} ${plural(realized, 'réalisée')}` : ''}.`,
+        onDone,
+      ),
     );
   };
 
@@ -247,7 +247,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           Les colonnes sont devinées, ou reprises du dernier import de ce compte. Une carte à débit différé n’apparaît qu’en une ligne par mois : importez-la, puis répartissez-la en achats, chacun à
           sa date.
         </Text>
-        <FormActions onCancel={onDone} submitLabel="Suivant" disabled={!accountId || !file || !mapping} onSubmit={() => setStep('columns')} />
+        <FormActions onCancel={onDone} submitLabel="Suivant" submitIcon={<ArrowRightIcon aria-hidden />} disabled={!accountId || !file || !mapping} onSubmit={() => setStep('columns')} />
       </Stack>
     );
   }
@@ -348,14 +348,15 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         <Text size="sm" c={rows.length ? 'dimmed' : 'red'}>
           {rows.length ? `${countOf(rows.length, 'opération')} ${plural(rows.length, 'lue')}.` : 'Aucune opération lue : vérifiez les colonnes et le format de date.'}
         </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setStep('file')}>
-            Retour
-          </Button>
-          <Button disabled={!rows.length || !mapping.labelColumns.length} onClick={() => setStep('preview')}>
-            Aperçu
-          </Button>
-        </Group>
+        <FormActions
+          onCancel={() => setStep('file')}
+          cancelLabel="Retour"
+          cancelIcon={<ArrowLeftIcon aria-hidden />}
+          submitLabel="Aperçu"
+          submitIcon={<EyeIcon aria-hidden />}
+          disabled={!rows.length || !mapping.labelColumns.length}
+          onSubmit={() => setStep('preview')}
+        />
       </Stack>
     );
   }
@@ -364,10 +365,10 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
   return (
     <Stack gap="sm">
       {duplicates > 0 && (
-        <Alert color="yellow" icon={<InfoIcon />}>
+        <NoticeAlert kind="warning">
           {duplicates} {plural(duplicates, 'opération')} {plural(duplicates, 'semble', 'semblent')} déjà {plural(duplicates, 'saisie')} (même montant à {DUPLICATE_DAYS} jours près) : décochée
           {duplicates > 1 ? 's' : ''}.
-        </Alert>
+        </NoticeAlert>
       )}
       <DataTable
         view={previewView}
@@ -440,14 +441,16 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         actions={() => null}
         actionsWidth={8}
       />
-      <Group justify="flex-end">
-        <Button variant="default" onClick={() => setStep('columns')}>
-          Retour
-        </Button>
-        <Button loading={importStatement.isPending || existing.isFetching} disabled={!chosen.length} onClick={submit}>
-          Importer {chosen.length} {plural(chosen.length, 'opération')}
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={() => setStep('columns')}
+        cancelLabel="Retour"
+        cancelIcon={<ArrowLeftIcon aria-hidden />}
+        submitIcon={<FileArrowUpIcon aria-hidden />}
+        submitLabel={`Importer ${chosen.length} ${plural(chosen.length, 'opération')}`}
+        loading={importStatement.isPending || existing.isFetching}
+        disabled={!chosen.length}
+        onSubmit={submit}
+      />
     </Stack>
   );
 }

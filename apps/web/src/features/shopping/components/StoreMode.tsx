@@ -1,8 +1,9 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
-import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
-import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon, ShoppingCartIcon } from '@phosphor-icons/react';
+import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useStockMutations } from '../../stock/api';
@@ -166,11 +167,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
           </Stack>
           <CloseButton size="lg" aria-label="Quitter le mode collecte" onClick={onClose} />
         </Group>
-        {toBuy.length === 0 && (
-          <Alert color="green" icon={<ShoppingCartIcon aria-hidden />}>
-            Tout est acheté.
-          </Alert>
-        )}
+        {toBuy.length === 0 && <NoticeAlert kind="success">Tout est acheté.</NoticeAlert>}
         {deliverySections.map(({ delivery, items: deliveryItems }) => (
           <Stack key={`delivery:${delivery.id}`} gap="xs">
             <Heading

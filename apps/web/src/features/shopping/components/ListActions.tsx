@@ -2,7 +2,7 @@ import { countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -42,13 +42,7 @@ function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) 
       onSubmit={form.onSubmit((values) =>
         updateList.mutate(
           { id: list.id, name: values.name, taskIds: values.taskIds },
-          {
-            onSuccess: () => {
-              notifySuccess('Liste modifiée.');
-              onDone();
-            },
-            onError: (error) => showFormError(form, error),
-          },
+          formCallbacks(form, 'Liste modifiée.', onDone),
         ),
       )}
     >
@@ -121,11 +115,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
           </UnstyledButton>
         ))}
       </Stack>
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel={null} />
     </Stack>
   );
 }

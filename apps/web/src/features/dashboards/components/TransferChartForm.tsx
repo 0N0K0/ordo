@@ -1,6 +1,6 @@
 import { Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useDashboardMutations, useDashboards, type DashboardChart } from '../api';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -71,18 +71,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
         submitLabel="Déplacer"
         loading={transferChart.isPending}
         disabled={!dashboards}
-        onSubmit={() =>
-          transferChart.mutate(
-            { id: chart.id, dashboardId: chosen, projectId: targetProject },
-            {
-              onSuccess: () => {
-                notifySuccess('Diagramme déplacé.');
-                onDone();
-              },
-              onError: onMutationError,
-            },
-          )
-        }
+        onSubmit={() => transferChart.mutate({ id: chart.id, dashboardId: chosen, projectId: targetProject }, formCallbacks(null, 'Diagramme déplacé.', onDone))}
       />
     </Stack>
   );

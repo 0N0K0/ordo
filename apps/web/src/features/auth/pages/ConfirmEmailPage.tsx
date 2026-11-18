@@ -1,8 +1,9 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { Alert, Anchor, Center, Loader } from '@mantine/core';
+import { Anchor, Center, Loader } from '@mantine/core';
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { SuccessIcon } from '../../../components/feedback/feedback-icons';
+
 import { useConfirmEmailChange } from '../api';
 import { AuthHeader } from './AuthLayout';
 
@@ -32,9 +33,9 @@ export function ConfirmEmailPage() {
           votre compte.
         </ErrorAlert>
       ) : confirm.isSuccess ? (
-        <Alert color="green" title="Adresse confirmée" icon={<SuccessIcon />}>
+        <NoticeAlert kind="success" title="Adresse confirmée">
           Votre nouvelle adresse email est enregistrée.
-        </Alert>
+        </NoticeAlert>
       ) : (
         <Center>
           <Loader aria-label="Confirmation en cours" />

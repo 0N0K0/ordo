@@ -3,8 +3,8 @@ import { mapById } from '../core/collections';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
-import { parseDay, recurrenceSchema } from '../dates/recurrence';
-import { DAY_PATTERN } from '../dates/times';
+import { parseDay, printedDay, recurrenceSchema } from '../dates/recurrence';
+import { DAY_PATTERN, daySchema } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
 const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -28,12 +28,11 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
   ],
 };
 
-const isoDate = z.iso.date({ error: 'Date invalide.' });
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
 export const treasuryAccountSchema = z.object({
   name: requiredText(100),
   openingBalance: amount,
-  openingDate: isoDate,
+  openingDate: daySchema(),
 });
 export type TreasuryAccountInput = z.input<typeof treasuryAccountSchema>;
 
@@ -91,7 +90,7 @@ const treasuryEntryLineSchema = z
     /** Loan with the relation: money out lends (or repays), money in borrows (or is repaid). */
     loan: z.boolean().default(false),
     /** Own day of the line (a purchase paid by a deferred debit card); none: the day of the entry. */
-    date: isoDate.nullish(),
+    date: daySchema().nullish(),
     categoryId: z.string().nullable(),
     contextId: z.string().nullable(),
     projectId: z.string().nullish(),
@@ -154,8 +153,8 @@ export type TreasuryContextInput = z.input<typeof treasuryContextSchema>;
 export const treasuryContextPeriodSchema = z
   .object({
     contextId: z.string().min(1, 'Le contexte est requis.'),
-    startDate: isoDate,
-    endDate: isoDate,
+    startDate: daySchema(),
+    endDate: daySchema(),
     note: optionalText(200),
   })
   .refine((period) => period.endDate >= period.startDate, { path: ['endDate'], message: 'La fin précède le début.' });
@@ -219,8 +218,8 @@ export const treasuryEntrySchema = z
     accountId: z.string().min(1, 'Le compte est requis.'),
     status: z.enum(['ACTUAL', 'FORECAST']),
     /** Execution date. */
-    date: isoDate,
-    valueDate: isoDate.nullable(),
+    date: daySchema(),
+    valueDate: daySchema().nullable(),
     label: requiredText(300, 'Le libellé est requis.'),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
@@ -275,7 +274,7 @@ export type TreasuryEntryInput = z.input<typeof treasuryEntrySchema>;
 /** Payment (or refund) of one document, recorded from the document. */
 export const documentPaymentSchema = z.object({
   accountId: z.string().min(1, 'Le compte est requis.'),
-  date: isoDate,
+  date: daySchema(),
   amount: z.number({ error: 'Montant attendu.' }).positive('Montant positif attendu.').max(99_999_999, 'Montant trop grand.'),
   methodId: z.string().nullable(),
 });
@@ -313,7 +312,7 @@ interface ReminderMailInput {
 export function reminderMail(invoice: ReminderMailInput): { subject: string; html: string } {
   const label = invoice.deposit ? 'Facture d’acompte' : 'Facture';
   const money = (cents: number) => formatMoney(cents, invoice.currency);
-  const date = invoice.dueDate ? parseDay(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : null;
+  const date = invoice.dueDate ? printedDay(invoice.dueDate) : null;
   return {
     subject: `Relance — ${label} ${invoice.number}${invoice.companyName ? ` — ${invoice.companyName}` : ''}`,
     html: [
@@ -522,12 +521,12 @@ export const statementImportSchema = z.object({
   rows: z
     .array(
       z.object({
-        date: isoDate,
+        date: daySchema(),
         label: z.string().trim().min(1).max(300),
         amount: amount.refine((value) => value !== 0, 'Montant nul.'),
         /** Forecast it realizes (its occurrence of that date). */
         forecastId: z.string().nullish(),
-        occurrence: isoDate.nullish(),
+        occurrence: daySchema().nullish(),
       }),
     )
     .min(1, 'Aucune opération à importer.')

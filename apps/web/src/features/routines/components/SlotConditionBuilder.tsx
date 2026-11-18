@@ -1,5 +1,6 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
-import { Stack, Text } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { conditionScheduleIds, SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { useWorkSchedules } from '../../calendar/api';
 import { FieldsFilterBuilder, type FilterFields } from '../../../components/filters/FilterBuilder';
@@ -32,15 +33,12 @@ export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition
     emptyText: 'Aucune condition : à n’importe quelle heure.',
   };
   return (
-    <Stack gap={4}>
-      <Text size="sm" fw={500}>
-        Plages de l’agenda
-      </Text>
+    <LabeledField label="Plages de l’agenda">
       <Text size="xs" c="dimmed">
         Facultatif : sur ou hors de certaines plages, ou sur le temps libre (hors de toutes les plages, sauf certaines), combinées en groupes (ET, OU). Les moments ne sont gardés que sur les heures
         que la condition permet ; un jour sans aucune heure n’est pas une occurrence.
       </Text>
       <FieldsFilterBuilder filter={value ?? emptySlotCondition()} fields={fields} onChange={(next) => onChange(next.children.length ? next : null)} />
-    </Stack>
+    </LabeledField>
   );
 }

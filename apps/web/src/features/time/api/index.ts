@@ -159,6 +159,15 @@ export interface TimeEntryValues {
   event?: { eventId: string; occurrenceDate: string | null } | null;
 }
 
+/** Timer started: on a project (and some of its tasks), a routine, or an event occurrence. */
+export interface TimerStartValues {
+  projectId?: string | null;
+  routineId?: string | null;
+  taskIds: string[];
+  description?: string | null;
+  event?: { eventId: string; occurrenceDate: string | null } | null;
+}
+
 /**
  * Warns when a timer starts on a routine or tasks out of their slots (their slot rule, else the default of the
  * workspace), or while an event keeps their assignees busy (but the event the timer is on): the timer runs all the
@@ -195,7 +204,7 @@ export function useTimeMutations() {
   const slotRules = useSlotRules();
   return {
     start: useTimeMutation(
-      async (input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) => {
+      async (input: TimerStartValues) => {
         const started = (await execute(StartTimerDocument, { input })).startTimer;
         warnOutOfSlots(queryClient, slotRules, input);
         return started;

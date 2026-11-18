@@ -12,6 +12,8 @@ interface DragHandleProps {
   /** The item is being dragged. */
   dragging: boolean;
   size?: ActionIconProps['size'];
+  /** Class of its own (shown on hover of its row…). Optional. */
+  className?: string;
 }
 
 /**
@@ -19,13 +21,14 @@ interface DragHandleProps {
  * @param {DragHandleProps} props Component props.
  * @returns {JSX.Element} Handle.
  */
-export function DragHandle({ label, activator, attributes, listeners, dragging, size }: DragHandleProps) {
+export function DragHandle({ label, activator, attributes, listeners, dragging, size, className }: DragHandleProps) {
   return (
     <ActionIcon
       ref={activator}
       variant="subtle"
       color="gray"
       size={size}
+      className={className}
       aria-label={label}
       style={{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
       {...attributes}

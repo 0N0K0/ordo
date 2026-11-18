@@ -1,9 +1,10 @@
-import { SectionHeader } from '../../../components/actions/SectionHeader';
+import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
 
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
+import { leafEffort } from '../lib/task-effort';
 import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -15,12 +16,12 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, Tim
 import { useState } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
+import { onMutationError } from '../../../lib/notify';
 import { useSprintMutations, type Sprint } from '../api';
 import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
@@ -44,19 +45,13 @@ interface SprintFormProps {
 function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintFormProps) {
   const { create, update } = useSprintMutations();
   const form = useAppForm<SprintFormValues>({
-    initialValues: sprint ? { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal: sprint.goal ?? '' } : defaults,
+    initialValues: sprint ? { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal: sprint.goal ?? '' } : defaults,
     schema: sprintFormSchema,
   });
 
   const handleSubmit = form.onSubmit((values) => {
     const input = { name: values.name, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(sprint ? 'Sprint modifié.' : 'Sprint créé.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, sprint ? 'Sprint modifié.' : 'Sprint créé.', onDone);
     if (sprint) update.mutate({ id: sprint.id, input }, callbacks);
     else create.mutate({ projectId, input }, callbacks);
   });
@@ -110,8 +105,8 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (sprint?: Sprint) => {
     const last = sprints[sprints.length - 1];
-    const length = last ? daysBetween(String(last.startDate), String(last.endDate)) : 13;
-    const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
+    const length = last ? daysBetween(last.startDate, last.endDate) : 13;
+    const start = last && last.endDate >= today ? addDays(last.endDate, 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
   };
@@ -151,12 +146,11 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
           const done = tasks.filter((task) => context.isClosed(task));
           // Effort of the tasks without sub-tasks (a parent's effort is its sub-tasks').
-          const effortOf = (items: typeof tasks) =>
-            items.filter((task) => context.childrenOf(task.id).length === 0).reduce((sum, task) => sum + (task.effort ?? 0), 0);
+          const effortOf = (items: typeof tasks) => items.reduce((sum, task) => sum + leafEffort(task, context), 0);
           const effort = effortOf(tasks);
           const doneEffort = effortOf(done);
-          const start = String(sprint.startDate);
-          const end = String(sprint.endDate);
+          const start = sprint.startDate;
+          const end = sprint.endDate;
           const state = end < today ? { label: 'Terminé', color: 'gray' } : start > today ? { label: 'À venir', color: 'blue' } : { label: 'En cours', color: 'green' };
           const late = end < today && done.length < tasks.length;
           return (
@@ -198,7 +192,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 }
                 description={sprint.goal}
                 targets={context.targetsFor(sprint.projectId)}
-                onDescription={sprint.archived || project?.archived ? undefined : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } }, { onError: onMutationError })}
+                onDescription={sprint.archived || project?.archived ? undefined : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal } }, { onError: onMutationError })}
               />
             </Paper>
           );

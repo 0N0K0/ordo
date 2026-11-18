@@ -1,9 +1,10 @@
+import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
-import { PageHeader } from '../../../components/actions/PageHeader';
+import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
@@ -15,12 +16,12 @@ import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { EditableDate, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -49,7 +50,7 @@ import { EntryLinesTable } from '../components/EntryLinesTable';
 import { EntryUrl } from '../components/EntryUrl';
 import { EntryForm } from '../components/EntryForm';
 import { SettingsPanel } from '../components/SettingsPanel';
-import { openAccountForm } from '../lib/open-account-form';
+import { AccountItemForm } from '../components/TreasuryItemForms';
 import { BudgetsPanel } from '../components/BudgetsPanel';
 import { LoansPanel } from '../components/LoansPanel';
 import { PageTabs } from '../../../components/tabs/PageTabs';
@@ -60,6 +61,7 @@ import { archiveRowsAction, deleteRowsAction } from '../../../components/data-ta
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { SignedAmountCell } from '../../../components/money/SignedAmount';
 
 /**
  * Amount in euros, from currency units.
@@ -160,7 +162,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
       </Text>
       <SimpleGrid cols={2} spacing="sm">
         <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
-        <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} suffix=" €" value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
+        <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
       </SimpleGrid>
       <FormActions
         onCancel={onDone}
@@ -311,10 +313,10 @@ export function TreasuryPage() {
 
   const header = (
     <PageHeader
-      title="Trésorerie"
+      title={PAGES.treasury.title}
       actions={
         !accounts?.length ? (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openAccountForm()}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau compte', (close) => <AccountItemForm onDone={() => close()} />)}>
             Nouveau compte
           </ActionButton>
         ) : (
@@ -589,24 +591,12 @@ export function TreasuryPage() {
                     </Badge>
                   </>
                 ),
-                amount: (
+                amount: entry ? (
+                  <SignedAmountCell value={entry.amount} label={`Montant de ${item.label}`} onSave={(change) => forecastSave(row)('amount')(entry, change)} />
+                ) : (
                   <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
-                    {entry ? (
-                      <EditableNumber
-                        amount
-                        value={entry.amount}
-                        label={`Montant de ${item.label}`}
-                        suffix="€"
-                        signed
-                        validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
-                        onSave={(amount) => amount !== null && forecastSave(row)('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
-                      />
-                    ) : (
-                      <>
-                        {item.amount > 0 ? '+' : ''}
-                        {fmt.money(item.amount)}
-                      </>
-                    )}
+                    {item.amount > 0 ? '+' : ''}
+                    {fmt.money(item.amount)}
                   </Text>
                 ),
               };

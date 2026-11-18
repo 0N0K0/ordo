@@ -1,9 +1,12 @@
 import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { FileImageIcon } from '@phosphor-icons/react';
 import { useLocalStorage } from '@mantine/hooks';
-import { useState } from 'react';
+
 import type { ExportScheme } from '../lib/chart-image';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 /** Settings of an image export. */
 interface ImageExportSettings {
@@ -38,21 +41,18 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
     key: 'ordo.dashboards.imageExport',
     defaultValue: { scheme: 'light' as ImageExportSettings['scheme'], orientation: 'landscape', ratio: '16:9', size: '1920' },
   });
-  const [loading, setLoading] = useState(false);
   const ratio = RATIOS.find((item) => item.value === stored.ratio) ?? RATIOS[0];
   const long = (SIZES.find((item) => item.value === stored.size) ?? SIZES[1]).long;
   const short = Math.round(long / ratio.ratio);
   const portrait = stored.orientation === 'portrait' && ratio.ratio !== 1;
   const width = portrait ? short : long;
   const height = portrait ? long : short;
+  const { run: exportImage, loading } = useAsyncAction(() => onExport({ scheme: stored.scheme, width, height }), { onDone });
   const set = (changes: Partial<typeof stored>) => setStored({ ...stored, ...changes });
 
   return (
     <Stack gap="md">
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Thème
-        </Text>
+      <LabeledField label="Thème">
         <SegmentedControl
           data={[
             { value: 'light', label: 'Clair' },
@@ -61,11 +61,8 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
           value={stored.scheme}
           onChange={(scheme) => set({ scheme: scheme as ImageExportSettings['scheme'] })}
         />
-      </Stack>
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Orientation
-        </Text>
+      </LabeledField>
+      <LabeledField label="Orientation">
         <SegmentedControl
           data={[
             { value: 'landscape', label: 'Paysage' },
@@ -75,23 +72,13 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
           disabled={ratio.ratio === 1}
           onChange={(orientation) => set({ orientation })}
         />
-      </Stack>
+      </LabeledField>
       <Select label="Format" allowDeselect={false} data={RATIOS.map(({ value, label }) => ({ value, label }))} value={ratio.value} onChange={(value) => value && set({ ratio: value })} />
       <Select label="Taille (grand côté)" allowDeselect={false} data={SIZES.map(({ value, label }) => ({ value, label }))} value={String(long)} onChange={(value) => value && set({ size: value })} />
       <Text size="sm" c="dimmed">
         Image PNG de {fmt.number(width, 0)} × {fmt.number(height, 0)} px.
       </Text>
-      <FormActions
-        onCancel={onDone}
-        submitLabel="Exporter"
-        loading={loading}
-        onSubmit={() => {
-          setLoading(true);
-          onExport({ scheme: stored.scheme, width, height })
-            .then(onDone)
-            .finally(() => setLoading(false));
-        }}
-      />
+      <FormActions onCancel={onDone} submitLabel="Exporter" submitIcon={<FileImageIcon aria-hidden />} loading={loading} onSubmit={() => void exportImage()} />
     </Stack>
   );
 }

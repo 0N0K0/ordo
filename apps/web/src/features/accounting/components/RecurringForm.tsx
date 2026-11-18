@@ -3,7 +3,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, recurrenceSchema, type Recurrence } from '@ordo/shared';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { useRecurringMutations, type RecurringInvoice } from '../api/documents';
 import { RuleField } from '../../../components/recurrence/RuleField';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -25,7 +25,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
   const { create, update } = useRecurringMutations();
   const stored = recurring ? recurrenceSchema.safeParse(recurring.recurrence) : null;
   const [name, setName] = useState(recurring?.name ?? '');
-  const [startDate, setStartDate] = useState<string>(recurring ? String(recurring.startDate) : localToday());
+  const [startDate, setStartDate] = useState<string>(recurring ? recurring.startDate : localToday());
   const [rule, setRule] = useState<Recurrence | null>(stored?.success ? stored.data : { ...DEFAULT_RECURRENCE, frequency: 'MONTHLY' });
   const [autoFinalize, setAutoFinalize] = useState(recurring?.autoFinalize ?? false);
   const [active, setActive] = useState(recurring?.active ?? true);
@@ -37,13 +37,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
   const submit = () => {
     if (!rule || !name.trim()) return;
     const input = { name, startDate, recurrence: rule, autoFinalize, active };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(recurring ? 'Facture récurrente modifiée.' : 'Facture récurrente créée : la facture a été copiée comme modèle.');
-        onDone();
-      },
-      onError: onMutationError,
-    };
+    const callbacks = formCallbacks(null, recurring ? 'Facture récurrente modifiée.' : 'Facture récurrente créée : la facture a été copiée comme modèle.', onDone);
     if (recurring) update.mutate({ id: recurring.id, input }, callbacks);
     else if (documentId) create.mutate({ documentId, input }, callbacks);
   };

@@ -1,5 +1,5 @@
 import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
-import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
+import { CaretLeftIcon, CaretRightIcon, CalendarDotIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 
 interface PeriodNavProps {
@@ -26,7 +26,7 @@ interface PeriodNavProps {
 export function PeriodNav({ children, onPrevious, onNext, onToday, current = false, last = false, labels = { previous: 'Période précédente', next: 'Période suivante' } }: PeriodNavProps) {
   return (
     <Group gap="xs" wrap="nowrap">
-      <Button variant="default" disabled={current} onClick={onToday}>
+      <Button variant="default" leftSection={<CalendarDotIcon aria-hidden />} disabled={current} onClick={onToday}>
         Aujourd’hui
       </Button>
       <Group gap={2} wrap="nowrap">

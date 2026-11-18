@@ -1,13 +1,13 @@
 import { done } from '../errors';
 import { prisma } from '../../db';
-import * as categories from '../../services/workspace/project-categories';
+import { projectCategories } from '../../services/workspace/project-categories';
 import * as clients from '../../services/workspace/clients';
 import { iconUrl } from '../../services/core/icons';
 import * as projects from '../../services/workspace/projects';
-import * as statuses from '../../services/tasks/statuses';
+import { projectStatuses } from '../../services/tasks/statuses';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
+import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 
 builder.prismaObject('ProjectCategory', {
   fields: (t) => ({
@@ -221,44 +221,7 @@ builder.mutationFields((t) => ({
     },
     resolve: (_root, { id, parentId, clientId, index }) => done(projects.moveProject(id, { parentId: parentId ?? null, clientId: clientId ?? null, index })),
   }),
-
-  createProjectCategory: t.prismaField({
-    type: 'ProjectCategory',
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      prisma.projectCategory.findUniqueOrThrow({ ...query, where: { id: (await categories.createProjectCategory(input)).id } }),
-  }),
-  updateProjectCategory: t.prismaField({
-    type: 'ProjectCategory',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      prisma.projectCategory.findUniqueOrThrow({
-        ...query,
-        where: { id: (await categories.updateProjectCategory(id, input)).id },
-      }),
-  }),
-  deleteProjectCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(categories.deleteProjectCategory(id)),
-  }),
-
-  createProjectStatus: t.prismaField({
-    type: 'ProjectStatus',
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      prisma.projectStatus.findUniqueOrThrow({ ...query, where: { id: (await statuses.createStatus(input)).id } }),
-  }),
-  updateProjectStatus: t.prismaField({
-    type: 'ProjectStatus',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      prisma.projectStatus.findUniqueOrThrow({
-        ...query,
-        where: { id: (await statuses.updateStatus(id, input)).id },
-      }),
-  }),
-  deleteProjectStatus: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(statuses.deleteStatus(id)),
-  }),
 }));
+
+labelMutations('ProjectCategory', projectCategories, { create: NameColorInput, update: NameColorPatch });
+labelMutations('ProjectStatus', projectStatuses, { create: NameColorInput, update: NameColorPatch });

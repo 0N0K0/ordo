@@ -1,10 +1,11 @@
+import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { Alert, Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 
 import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel, toCents } from '@ordo/shared';
-import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -67,7 +68,7 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     label: 'Dernière relance',
     size: 200,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
-    text: (invoice) => (invoice.lastReminderAt ? fmt.day(new Date(invoice.lastReminderAt)) : 'Jamais'),
+    text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
     filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(new Date(invoice.lastReminderAt)) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
@@ -158,13 +159,13 @@ export function OverdueInvoicesPanel() {
   return (
     <Stack gap="sm">
       {accounts && accounts.length === 0 && (
-        <Alert color="yellow">
+        <NoticeAlert kind="info">
           Aucune boîte mail : ajoutez-en une dans{' '}
           <Anchor component={Link} to="/mail?settings=1" size="sm">
             les boîtes mail
           </Anchor>{' '}
           pour envoyer les relances.
-        </Alert>
+        </NoticeAlert>
       )}
       <DataTable
         framed
@@ -177,7 +178,7 @@ export function OverdueInvoicesPanel() {
                 {view.rows.length} {plural(view.rows.length, 'facture')} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
               </Text>
               <Group gap="sm" ml="auto" wrap="wrap">
-                <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
+                <Button variant="subtle" size="sm" leftSection={<ListChecksIcon aria-hidden />} disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
                   Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
                 </Button>
                 {accounts && accounts.length > 1 && (
@@ -267,7 +268,7 @@ export function OverdueInvoicesPanel() {
               <>
                 {invoice.lastReminderAt ? (
                   <>
-                    <Text size="sm">{fmt.day(new Date(invoice.lastReminderAt))}</Text>
+                    <Text size="sm">{fmt.day(invoice.lastReminderAt)}</Text>
                     <Text size="xs" c="dimmed">
                       {since === 0 ? 'aujourd’hui' : `il y a ${since} ${plural(since ?? 0, 'jour')}`} · {invoice.reminderCount} {plural(invoice.reminderCount, 'relance')}
                     </Text>

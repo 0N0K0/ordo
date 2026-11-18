@@ -5,6 +5,7 @@ import * as alarms from '../../services/tasks/alarms';
 import * as timeEntries from '../../services/tasks/time-entries';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
+import { subtreeIds } from '../../services/core/trees';
 
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
@@ -69,8 +70,8 @@ const TimeEventInput = builder.inputType('TimeEventInput', {
  * @param {{ eventId: string, occurrenceDate?: string | null } | null | undefined} event GraphQL input.
  * @returns {import('../../services/tasks/time-entries').TimeEventLink | null | undefined} Service input.
  */
-const eventLink = (event: { eventId: string | number; occurrenceDate?: string | null } | null | undefined) =>
-  event === undefined ? undefined : event === null ? null : { eventId: String(event.eventId), occurrenceDate: event.occurrenceDate ?? null };
+const eventLink = (event: { eventId: string; occurrenceDate?: string | null } | null | undefined) =>
+  event === undefined ? undefined : event === null ? null : { eventId: event.eventId, occurrenceDate: event.occurrenceDate ?? null };
 
 const TimerInput = builder.inputType('TimerInput', {
   description: 'A project, a routine (its project by default) or both.',
@@ -152,14 +153,7 @@ builder.queryFields((t) => ({
       'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
     args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
     resolve: async (query, _root, { projectId, routineId, since }) => {
-      let projectIds: string[] | undefined;
-      if (projectId) {
-        const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-        projectIds = [projectId];
-        for (let index = 0; index < projectIds.length; index += 1) {
-          projectIds.push(...projects.filter((project) => project.parentId === projectIds![index]).map((project) => project.id));
-        }
-      }
+      const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
       return prisma.timeEntry.findMany({
         ...query,
         where: {

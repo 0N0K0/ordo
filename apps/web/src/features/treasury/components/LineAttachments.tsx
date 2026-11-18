@@ -1,9 +1,11 @@
-import { Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import { Checkbox, Group, Select, Stack } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { DatePickerInput } from '@mantine/dates';
 import { linkKey, type LineLink, type LineValues } from '../lib/lines';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface LineAttachmentsProps {
   line: LineValues;
@@ -56,7 +58,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         placeholder="Celle du mouvement"
         clearable
         value={line.date}
-        onChange={(date) => onChange({ date: date ? String(date) : null })}
+        onChange={(date) => onChange({ date: date ? date : null })}
       />
       <Select label="Projet" clearable searchable {...treeSelectProps(projects)} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
       <BatchMultiSelect
@@ -75,13 +77,10 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
           })
         }
       />
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Liens
-        </Text>
-        <Text size="xs" c="dimmed">
-          Une ligne d’un autre mouvement, ou un mouvement entier s’il n’est pas décomposé. Liés sur une même période, une entrée et une sortie se compensent dans les graphiques.
-        </Text>
+      <LabeledField
+        label="Liens"
+        description="Une ligne d’un autre mouvement, ou un mouvement entier s’il n’est pas décomposé. Liés sur une même période, une entrée et une sortie se compensent dans les graphiques."
+      >
         {line.links.length > 0 && (
           <Group gap={6}>
             {line.links.map((link) => (
@@ -90,10 +89,8 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
           </Group>
         )}
         <EntryLinkSelect aria-label="Lier une ligne ou un mouvement" entryId={entryId} links={line.links} onLink={(link) => setLinks([...line.links, link])} />
-      </Stack>
-      <Group justify="flex-end">
-        <Button onClick={onClose}>Terminé</Button>
-      </Group>
+      </LabeledField>
+      <FormActions submitLabel="Terminé" onSubmit={onClose} />
     </Stack>
   );
 }

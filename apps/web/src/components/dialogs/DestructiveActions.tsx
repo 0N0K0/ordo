@@ -1,5 +1,6 @@
 import { Button, Group, type ButtonProps } from '@mantine/core';
-import type { ComponentPropsWithoutRef } from 'react';
+import { TrashIcon, XIcon } from '@phosphor-icons/react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 interface DestructiveActionsProps {
   onConfirm: () => void;
@@ -8,6 +9,8 @@ interface DestructiveActionsProps {
   loading?: boolean;
   /** Label of the confirmation (« Supprimer », « Retirer »…). Optional. Default = « Supprimer ». */
   confirmLabel?: string;
+  /** Icon before the confirmation label. Optional. Default = a trash. */
+  confirmIcon?: ReactNode;
 }
 
 /**
@@ -15,13 +18,13 @@ interface DestructiveActionsProps {
  * @param {DestructiveActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
-export function DestructiveActions({ onConfirm, onCancel, loading = false, confirmLabel = 'Supprimer' }: DestructiveActionsProps) {
+export function DestructiveActions({ onConfirm, onCancel, loading = false, confirmLabel = 'Supprimer', confirmIcon = <TrashIcon aria-hidden /> }: DestructiveActionsProps) {
   return (
     <Group justify="flex-end" gap="sm">
-      <Button color="red" onClick={onConfirm} loading={loading} data-autofocus>
+      <Button color="red" leftSection={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
         {confirmLabel}
       </Button>
-      <Button variant="default" onClick={onCancel}>
+      <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onCancel}>
         Annuler
       </Button>
     </Group>
@@ -36,4 +39,17 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
  */
 export function DestructiveButton(props: Omit<ButtonProps, 'variant' | 'color'> & Omit<ComponentPropsWithoutRef<'button'>, 'color'>) {
   return <Button {...props} variant="light" color="red" />;
+}
+
+/**
+ * « Supprimer » button of a form (its trash icon, in red); the deletion asks for a confirmation (confirmDestructive).
+ * @param {{ onClick: () => void, loading?: boolean, children?: ReactNode }} props Component props: the label defaults to « Supprimer ».
+ * @returns {JSX.Element} Button.
+ */
+export function DeleteButton({ onClick, loading = false, children = 'Supprimer' }: { onClick: () => void; loading?: boolean; children?: ReactNode }) {
+  return (
+    <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
+      {children}
+    </DestructiveButton>
+  );
 }

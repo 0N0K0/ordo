@@ -1,9 +1,12 @@
 import { Text, type TextProps } from '@mantine/core';
+import { EditableNumber } from '../data-table/cells/EditableCells';
 import * as fmt from '../../lib/format';
 
 interface SignedAmountProps extends TextProps {
-  /** Signed amount, in euros. */
+  /** Signed amount, in euros (or a signed quantity, with its `format`). */
   value: number;
+  /** Text of the value without its sign. Optional. Default = an amount in euros. */
+  format?: (value: number) => string;
 }
 
 /**
@@ -11,11 +14,39 @@ interface SignedAmountProps extends TextProps {
  * @param {SignedAmountProps} props Component props (and those of the text).
  * @returns {JSX.Element} Amount.
  */
-export function SignedAmount({ value, ...props }: SignedAmountProps) {
+export function SignedAmount({ value, format = fmt.money, ...props }: SignedAmountProps) {
   return (
     <Text span size="sm" ff="monospace" c={value < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }} {...props}>
       {value > 0 ? '+' : ''}
-      {fmt.money(value)}
+      {format(value)}
+    </Text>
+  );
+}
+
+interface SignedAmountCellProps {
+  /** Signed amount, in euros. */
+  value: number;
+  label: string;
+  /** Saves the amount typed (never 0): its direction and its absolute value. */
+  onSave: (change: { direction: 'IN' | 'OUT'; amount: number }) => void;
+}
+
+/**
+ * Signed amount of a movement typed in place (a « - » for money out), in green or red as its sign.
+ * @param {SignedAmountCellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function SignedAmountCell({ value, label, onSave }: SignedAmountCellProps) {
+  return (
+    <Text span inherit c={value < 0 ? 'red' : 'green'}>
+      <EditableNumber
+        amount
+        value={value}
+        label={label}
+        signed
+        validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
+        onSave={(amount) => amount !== null && onSave({ direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+      />
     </Text>
   );
 }

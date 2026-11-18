@@ -1,6 +1,6 @@
 import { Paper, Stack } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { SectionHeader } from '../actions/SectionHeader';
+import { SectionHeader } from '../page/SectionHeader';
 
 interface SettingsSectionProps {
   title: ReactNode;

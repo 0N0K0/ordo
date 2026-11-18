@@ -5,7 +5,7 @@ import { requiredText } from '../core/rules';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { weekdayOfDate } from '../dates/weeks';
-import { timeOfDaySchema } from '../dates/times';
+import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { slotConditionSchema } from './routine-times';
 import { optionalColorSchema } from '../core/workspace';
 
@@ -93,9 +93,9 @@ const OPENS_MISFIT = 'Ce « à partir du » ne vaut pas pour cette répétition 
 export const routineCaseSchema = z
   .object({
     /** First day its repetition counts from (none: the first date of the routine). */
-    from: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
+    from: daySchema().nullable().default(null),
     /** Last day it applies (none: no end). */
-    until: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
+    until: daySchema().nullable().default(null),
     /** On or out of calendar schedules, combined in groups (none: any time). */
     condition: slotConditionSchema.nullable().default(null),
     recurrence: recurrenceSchema,
@@ -120,7 +120,7 @@ export const routineSchema = z
     /** Categories it is shown in. */
     categoryIds: z.array(z.string()).max(100),
     parentId: z.string().nullable(),
-    startDate: z.iso.date({ error: 'La date de début est requise.' }),
+    startDate: startDaySchema,
     recurrence: recurrenceSchema,
     /** Minutes. */
     estimate: z
@@ -403,7 +403,7 @@ export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
  * times of the day changed, or deleted (no new day).
  */
 export const routineMoveSchema = z
-  .object({ from: z.iso.date({ error: 'Date invalide.' }), to: z.iso.date({ error: 'Date invalide.' }).nullable(), times: routineMoveTimesSchema })
+  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
   .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
 export type RoutineMove = z.infer<typeof routineMoveSchema>;
 

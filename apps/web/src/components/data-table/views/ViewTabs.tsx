@@ -1,3 +1,4 @@
+import { copyName } from '../../../lib/text';
 import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openFormPanel } from '../../panels/panels';
@@ -148,9 +149,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         menu: (
           <>
             <Menu.Item onClick={() => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false))}>Vue vierge</Menu.Item>
-            <Menu.Item onClick={() => promptName('Nouvelle vue', `${current?.name ?? 'Vue'} (copie)`.slice(0, 60), 'Créer', (name) => state.createView(name, true))}>
-              À partir de l’affichage actuel
-            </Menu.Item>
+            <Menu.Item onClick={() => promptName('Nouvelle vue', copyName(current?.name ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true))}>À partir de l’affichage actuel</Menu.Item>
           </>
         ),
       }}

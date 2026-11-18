@@ -1,6 +1,6 @@
 import { plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ItemAvatar } from '../../../components/settings/ItemAvatar';
+import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrashIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';

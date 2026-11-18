@@ -90,7 +90,7 @@ const PHRASES: Record<AccountingDocumentType, { label: string; article: string }
 export async function documentMailOptions(document: DocumentMail): Promise<ComposeOptions> {
   const phrase = PHRASES[document.type];
   const amount = fmt.moneyCents(document.totalGross, document.currency);
-  const date = document.dueDate ? fmt.exportDay(String(document.dueDate)) : null;
+  const date = document.dueDate ? fmt.exportDay(document.dueDate) : null;
   const detail =
     document.type === 'QUOTE'
       ? `d’un montant de ${amount}${date ? `, valable jusqu’au ${date}` : ''}`

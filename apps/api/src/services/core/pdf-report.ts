@@ -1,9 +1,78 @@
+import { createRequire } from 'node:module';
 import PDFDocument from 'pdfkit';
+import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
-import { FONTS } from '../accounting/accounting-pdf';
 
 type Doc = InstanceType<typeof PDFDocument>;
+
+const require = createRequire(import.meta.url);
+// Embedded fonts: PDF/A does not allow the standard (non-embedded) ones.
+export const FONTS = {
+  regular: require.resolve('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
+  bold: require.resolve('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
+};
+
+/** How a PDF is created: the pdfkit options, with its title and author for its properties. */
+type PdfOptions = Omit<PDFKit.PDFDocumentOptions, 'info'> & { title: string; author?: string };
+
+/**
+ * Creates a PDF in Inter (« regular » and « bold » fonts), in French, its pages buffered, showing its title.
+ * @param {PdfOptions} options Page size, margins… with the title (and author) of its properties.
+ * @returns {{ doc: Doc, end: () => Promise<Buffer> }} Document, and its ending returning the PDF.
+ */
+export function createPdf({ title, author, ...options }: PdfOptions): { doc: Doc; end: () => Promise<Buffer> } {
+  const doc: Doc = new PDFDocument({
+    bufferPages: true,
+    font: FONTS.regular,
+    lang: 'fr-FR',
+    displayTitle: true,
+    ...options,
+    info: { Title: title, ...(author === undefined ? {} : { Author: author }), Creator: 'Ordo', Producer: 'Ordo' },
+  });
+  doc.registerFont('regular', FONTS.regular);
+  doc.registerFont('bold', FONTS.bold);
+  const chunks: Buffer[] = [];
+  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+  const done = new Promise<void>((resolve, reject) => {
+    doc.on('end', resolve);
+    doc.on('error', reject);
+  });
+
+  /**
+   * Ends the document.
+   * @returns {Promise<Buffer>} PDF.
+   */
+  const end = async (): Promise<Buffer> => {
+    doc.end();
+    await done;
+    return Buffer.concat(chunks);
+  };
+  return { doc, end };
+}
+
+/** Title and subtitle of an export, as the app sends them. */
+export const reportHeadingSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  subtitle: z.string().max(500).default(''),
+});
+
+/**
+ * Writes the title of an export (16 pt) and its subtitle (10 pt, muted) at the top of its content.
+ * @param {Doc} doc Document.
+ * @param {{ title: string, subtitle?: string }} heading Title and subtitle (none: left out).
+ * @param {{ x: number, y: number, width: number }} box Left, top and width of the heading.
+ * @returns {number} Bottom of the heading.
+ */
+export function writeHeading(doc: Doc, heading: { title: string; subtitle?: string }, box: { x: number; y: number; width: number }): number {
+  doc.font('bold').fontSize(16).fillColor(PDF_TEXT.text).text(heading.title, box.x, box.y, { width: box.width });
+  let y = doc.y + 2;
+  if (heading.subtitle) {
+    doc.font('regular').fontSize(10).fillColor(PDF_TEXT.muted).text(heading.subtitle, box.x, y, { width: box.width });
+    y = doc.y;
+  }
+  return y;
+}
 
 /** Side margins of the reports. */
 export const REPORT_MARGIN = 36;
@@ -62,24 +131,13 @@ export async function startReport({ title, autoFirstPage = true }: { title: stri
   const exportedAt = exportFormat.format(new Date());
   const top = REPORT_MARGIN + HEADER_HEIGHT;
   const footer = REPORT_MARGIN + FOOTER_HEIGHT;
-  const doc: Doc = new PDFDocument({
+  const { doc, end } = createPdf({
     size: 'A4',
     layout: 'landscape',
     margins: { top, left: REPORT_MARGIN, right: REPORT_MARGIN, bottom: footer },
-    bufferPages: true,
     autoFirstPage,
-    font: FONTS.regular,
-    lang: 'fr-FR',
-    displayTitle: true,
-    info: { Title: title, Author: from.name, Creator: 'Ordo', Producer: 'Ordo' },
-  });
-  doc.registerFont('regular', FONTS.regular);
-  doc.registerFont('bold', FONTS.bold);
-  const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const done = new Promise<void>((resolve, reject) => {
-    doc.on('end', resolve);
-    doc.on('error', reject);
+    title,
+    author: from.name,
   });
 
   /**
@@ -135,9 +193,7 @@ export async function startReport({ title, autoFirstPage = true }: { title: stri
       doc.text(`${from.name} · Exporté le ${exportedAt}`, REPORT_MARGIN, footerTop, { width: width * 0.7, lineBreak: false, ellipsis: true });
       doc.text(`Page ${index + 1} / ${range.count}`, REPORT_MARGIN + width * 0.7, footerTop, { width: width * 0.3, align: 'right', lineBreak: false });
     }
-    doc.end();
-    await done;
-    return Buffer.concat(chunks);
+    return end();
   };
 
   return { doc, top, bottom: footer, finish };

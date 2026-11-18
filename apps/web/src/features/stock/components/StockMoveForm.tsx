@@ -29,7 +29,7 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const adding = kind === 'PURCHASE';
-  const lots = item.lots.map((lot) => ({ value: lot.id, label: `${fmt.quantity({ quantity: lot.quantity, unit: item.unit })}${lot.expiresAt ? ` · ${fmt.day(String(lot.expiresAt))}` : ''}` }));
+  const lots = item.lots.map((lot) => ({ value: lot.id, label: `${fmt.quantity({ quantity: lot.quantity, unit: item.unit })}${lot.expiresAt ? ` · ${fmt.day(lot.expiresAt)}` : ''}` }));
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
@@ -47,9 +47,7 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
           onChange={setLotId}
         />
       )}
-      {adding && item.perishable && !lotId && (
-        <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value ? String(value) : null)} />
-      )}
+      {adding && item.perishable && !lotId && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value || null)} />}
       <TextInput label="Note" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
       <FormActions
         onCancel={onDone}

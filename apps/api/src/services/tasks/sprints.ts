@@ -1,5 +1,4 @@
-import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
-import { z } from 'zod';
+import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
@@ -15,14 +14,7 @@ async function findSprint(id: string): Promise<Sprint> {
   return sprint;
 }
 
-const fieldsSchema = z
-  .object({
-    name: sprintNameSchema,
-    goal: markdownSchema,
-    startDate: z.iso.date({ error: 'La date de début est requise.' }),
-    endDate: z.iso.date({ error: 'La date de fin est requise.' }),
-  })
-  .refine((fields) => fields.endDate >= fields.startDate, { path: ['endDate'], error: 'La fin doit suivre le début.' });
+const fieldsSchema = sprintSchema(markdownSchema);
 
 export interface SprintInput {
   name: string;

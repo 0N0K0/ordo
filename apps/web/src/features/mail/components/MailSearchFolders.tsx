@@ -221,7 +221,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
                         ))}
                       {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}
                       <Text size="xs" c="dimmed">
-                        {listDate(String(message.date))}
+                        {listDate(message.date)}
                       </Text>
                     </Group>
                   </Group>

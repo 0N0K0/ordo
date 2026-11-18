@@ -5,6 +5,7 @@ import type { ProjectResource } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { moveInList, nextPositionIn } from '../core/ordering';
+import { assertExists } from '../core/lookup';
 
 const linkSchema = z.object({
   title: requiredText(200, 'Le titre est requis.'),
@@ -18,7 +19,7 @@ const linkSchema = z.object({
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(projectId: string): Promise<number> {
-  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   return nextPositionIn('projectResource', { projectId });
 }
 

@@ -1,8 +1,8 @@
 import { Button, Divider, Popover, SegmentedControl, Select, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { TRAVEL_MODE_LABELS, TRAVEL_MODES, formatDuration, travelMinutes, type GeoPoint, type TravelMode } from '@ordo/shared';
-import { NavigationArrowIcon } from '@phosphor-icons/react';
+import { CalculatorIcon, NavigationArrowIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyFailure } from '../../../lib/notify';
+import { useAsyncAction } from '../../../lib/use-async-action';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { travelTime, usePlaces } from '../api';
 import * as fmt from '../../../lib/format';
@@ -36,7 +36,6 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   const [toOther, setToOther] = useState<AddressValue>({ text: '', point: null });
   const [goingMode, setGoingMode] = useState<TravelMode>('CAR');
   const [backMode, setBackMode] = useState<TravelMode>('CAR');
-  const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
 
   // Places with an address (their zones share their point), the archived ones left out.
@@ -60,25 +59,22 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   const ready = (going || back) && (!going || start !== null) && (!back || end !== null);
   const modes = TRAVEL_MODES.map((value) => ({ value, label: TRAVEL_MODE_LABELS[value] }));
 
-  /**
-   * Computes the ways chosen and gives them to the event (the others are left as they are).
-   * @returns {Promise<void>}
-   */
-  const compute = async () => {
+  // Computes the ways chosen and gives them to the event (the others are left as they are).
+  const { run: compute, loading } = useAsyncAction(async () => {
     if (!eventPoint || !ready) return;
-    setLoading(true);
-    try {
-      const [there, home] = await Promise.all([going && start ? travelTime(start, eventPoint, goingMode) : null, back && end ? travelTime(eventPoint, end, backMode) : null]);
-      onResult({ ...(there && { before: travelMinutes(there.seconds) }), ...(home && { after: travelMinutes(home.seconds) }) });
-      const told = (label: string, mode: TravelMode, way: { seconds: number; meters: number }) =>
-        `${label} ${TRAVEL_MODE_LABELS[mode].toLowerCase()} ${formatDuration(way.seconds)} (${fmt.number(way.meters / 1000, 1)} km)`;
-      setSummary(`${[there && told('Aller', goingMode, there), home && told('retour', backMode, home)].filter(Boolean).join(', ')}. Arrondis aux 5 minutes.`);
-    } catch (error) {
-      notifyFailure(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const [there, home] = await Promise.all([going && start ? travelTime(start, eventPoint, goingMode) : null, back && end ? travelTime(eventPoint, end, backMode) : null]);
+    onResult({ ...(there && { before: travelMinutes(there.seconds) }), ...(home && { after: travelMinutes(home.seconds) }) });
+    /**
+     * Text of a way.
+     * @param {string} label Way.
+     * @param {TravelMode} mode Mode of transport.
+     * @param {{ seconds: number, meters: number }} way Time and distance.
+     * @returns {string} Text.
+     */
+    const told = (label: string, mode: TravelMode, way: { seconds: number; meters: number }) =>
+      `${label} ${TRAVEL_MODE_LABELS[mode].toLowerCase()} ${formatDuration(way.seconds)} (${fmt.number(way.meters / 1000, 1)} km)`;
+    setSummary(`${[there && told('Aller', goingMode, there), home && told('retour', backMode, home)].filter(Boolean).join(', ')}. Arrondis aux 5 minutes.`);
+  });
 
   const button = (
     <Button variant="default" size="xs" leftSection={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
@@ -127,7 +123,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
               </>
             )}
           </Stack>
-          <Button size="xs" onClick={() => void compute()} loading={loading} disabled={!ready}>
+          <Button size="xs" leftSection={<CalculatorIcon aria-hidden />} onClick={() => void compute()} loading={loading} disabled={!ready}>
             Calculer
           </Button>
           {summary && (

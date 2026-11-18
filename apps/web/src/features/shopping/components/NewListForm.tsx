@@ -3,8 +3,7 @@ import { shoppingListFormSchema } from '@ordo/shared';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useShoppingData, useShoppingMutations } from '../api';
@@ -58,14 +57,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   const handleSubmit = form.onSubmit((values) =>
     createList.mutate(
       { name: values.name, taskIds: values.taskIds, baseListIds: values.baseListIds.filter((id) => missingOf(id) > 0) },
-      {
-        onSuccess: (id) => {
-          notifySuccess('Liste créée.');
-          onDone();
-          navigate(`/shopping/${id}`);
-        },
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, 'Liste créée.', onDone, { then: (id: string) => navigate(`/shopping/${id}`) }),
     ),
   );
 

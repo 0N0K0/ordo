@@ -7,6 +7,7 @@ import { storeAttachment } from '../core/attachments';
 import { assertNotArchived } from '../core/archive';
 import { scopeOf, statusOf } from './document-statuses';
 import { parisToday } from '../../today';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /** Settlement of a final invoice, deposit invoice or credit note, in cents. */
 export interface DocumentBalance {
@@ -251,8 +252,7 @@ export async function addReminder(id: string, note: string | null): Promise<void
  */
 export async function deleteReminder(id: string): Promise<void> {
   await assertNotArchived('ACCOUNTING_DOCUMENT', (await prisma.documentReminder.findUnique({ where: { id }, select: { documentId: true } }))?.documentId);
-  const { count } = await prisma.documentReminder.deleteMany({ where: { id } });
-  if (!count) throw notFound('Relance');
+  await deleteOrNotFound(prisma.documentReminder, id, 'Relance');
 }
 
 /**
@@ -267,7 +267,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } });
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
-  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: payment.accountId }, select: { id: true } }), 'Compte');
+  await assertExists(prisma.treasuryAccount, payment.accountId, 'Compte');
   await assertNotArchived('TREASURY_ACCOUNT', payment.accountId);
   await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId);
   const refund = document.type === 'CREDIT_NOTE';
