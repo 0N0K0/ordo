@@ -1,7 +1,7 @@
 import { ImapFlow } from 'imapflow';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, orNotFound } from '../../graphql/errors';
+import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
 import { decryptSecret } from './secret';
 
 /** A pooled connection is closed after this idle time. */
@@ -45,7 +45,7 @@ export function createImapClient(
  */
 export function rethrowImapError(error: unknown): never {
   if (error && typeof error === 'object' && 'extensions' in error) throw error;
-  const detail = error instanceof Error ? error.message : String(error);
+  const detail = errorMessage(error);
   const auth = error && typeof error === 'object' && 'authenticationFailed' in error && error.authenticationFailed;
   throw clientError(
     'BAD_USER_INPUT',
@@ -94,5 +94,21 @@ export async function withImap<T>(accountId: string, operation: (client: ImapFlo
     return rethrowImapError(error);
   } finally {
     current.timer = setTimeout(() => closeImap(accountId), IDLE_MS);
+  }
+}
+
+/**
+ * Runs an operation with a folder of the connection selected and locked, released whatever happens.
+ * @param {ImapFlow} client Connected client.
+ * @param {string} folder Folder path.
+ * @param {() => Promise<T>} operation Operation.
+ * @returns {Promise<T>} Result.
+ */
+export async function withMailbox<T>(client: ImapFlow, folder: string, operation: () => Promise<T>): Promise<T> {
+  const lock = await client.getMailboxLock(folder);
+  try {
+    return await operation();
+  } finally {
+    lock.release();
   }
 }

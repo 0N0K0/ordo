@@ -1,7 +1,7 @@
 import { schemaResolver, useForm, type UseFormReturnType } from '@mantine/form';
 import { useEffect, useRef } from 'react';
 import { GraphQLRequestError } from './graphql-client';
-import { notifyError } from './notify';
+import { notifyFailure } from './notify';
 
 type Schema = Parameters<typeof schemaResolver>[0];
 
@@ -55,5 +55,5 @@ export function showFormError<Values>(form: UseFormReturnType<Values>, error: un
     return;
   }
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
-  notifyError(error instanceof Error ? error.message : 'Une erreur inattendue est survenue.');
+  notifyFailure(error);
 }

@@ -1,6 +1,6 @@
 import { env } from '../../env';
-import { clientError } from '../../graphql/errors';
-import { githubRequest } from './client';
+import { clientError, fieldError } from '../../graphql/errors';
+import { githubRequest, githubRestPost } from './client';
 
 export interface BoardField {
   id: string;
@@ -147,7 +147,7 @@ export async function viewerLogin(token: string): Promise<string> {
  */
 export async function resolveBoard(token: string, url: string): Promise<Board> {
   const match = /github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/.exec(url.trim());
-  if (!match) throw clientError('BAD_USER_INPUT', 'Adresse attendue : https://github.com/users/<compte>/projects/<n> ou https://github.com/orgs/<organisation>/projects/<n>.', { fields: { url: 'Adresse de tableau GitHub invalide.' } });
+  if (!match) throw fieldError('url', 'Adresse attendue : https://github.com/users/<compte>/projects/<n> ou https://github.com/orgs/<organisation>/projects/<n>.', 'Adresse de tableau GitHub invalide.');
   const owner = match[1] === 'orgs' ? 'organization' : 'user';
   const data = await githubRequest<Record<string, { projectV2: RawBoard | null } | null>>(
     token,
@@ -317,13 +317,13 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
  */
 export async function repositoryByName(token: string, nameWithOwner: string): Promise<{ id: string; nameWithOwner: string }> {
   const [owner, name] = nameWithOwner.trim().split('/');
-  if (!owner || !name) throw clientError('BAD_USER_INPUT', 'Dépôt attendu sous la forme compte/dépôt.', { fields: { repositoryName: 'Forme attendue : compte/dépôt.' } });
+  if (!owner || !name) throw fieldError('repositoryName', 'Dépôt attendu sous la forme compte/dépôt.', 'Forme attendue : compte/dépôt.');
   const data = await githubRequest<{ repository: { id: string; nameWithOwner: string } | null }>(
     token,
     'query OrdoRepository($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id nameWithOwner } }',
     { owner, name },
   );
-  if (!data.repository) throw clientError('BAD_USER_INPUT', 'Dépôt introuvable, ou le jeton n’y a pas accès.', { fields: { repositoryName: 'Dépôt introuvable.' } });
+  if (!data.repository) throw fieldError('repositoryName', 'Dépôt introuvable, ou le jeton n’y a pas accès.', 'Dépôt introuvable.');
   return data.repository;
 }
 
@@ -690,18 +690,7 @@ function restBase(): string {
  * @returns {Promise<{ id: string, title: string }>} Milestone (node id).
  */
 export async function createMilestone(token: string, nameWithOwner: string, title: string): Promise<{ id: string; title: string }> {
-  let response: Response;
-  try {
-    response = await fetch(`${restBase()}/repos/${nameWithOwner}/milestones`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'User-Agent': 'Ordo' },
-      body: JSON.stringify({ title }),
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch (error) {
-    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${error instanceof Error ? error.message : String(error)}).`);
-  }
-  const body = (await response.json().catch(() => ({}))) as { node_id?: string; title?: string; message?: string };
+  const { response, body } = await githubRestPost<{ node_id: string; title: string; message: string }>(token, `${restBase()}/repos/${nameWithOwner}/milestones`, { title });
   if (!response.ok || !body.node_id) throw clientError('BAD_USER_INPUT', `Jalon « ${title} » non créé sur GitHub : ${body.message ?? response.status}.`);
   return { id: body.node_id, title: body.title ?? title };
 }

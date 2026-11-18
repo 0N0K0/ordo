@@ -3,6 +3,8 @@ import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import type { CalendarSubscription, EventOccurrence } from '../api';
 import * as fmt from '../../../lib/format';
+import { MarkdownView } from '../../../components/markdown/MarkdownView';
+import { NO_TARGETS } from '../../../components/markdown/remark-references';
 
 /**
  * When an occurrence takes place, in words.
@@ -10,8 +12,7 @@ import * as fmt from '../../../lib/format';
  * @returns {string} Date(s) and times.
  */
 function when(occurrence: EventOccurrence): string {
-  const text = whenLower(occurrence);
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return fmt.capitalize(whenLower(occurrence));
 }
 
 /**
@@ -60,11 +61,8 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
       </Group>
       <Text size="sm">{when(occurrence)}</Text>
       {occurrence.location && <Text size="sm">{occurrence.location}</Text>}
-      {occurrence.description && (
-        <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-          {occurrence.description}
-        </Text>
-      )}
+      {/* Of another workspace: its references to tasks or projects are not followed. */}
+      {occurrence.description && <MarkdownView targets={NO_TARGETS}>{occurrence.description}</MarkdownView>}
       {occurrence.links.map((link) => (
         <Anchor key={link.url} href={link.url} target="_blank" rel="noreferrer" size="sm">
           {link.label || link.url}

@@ -1,5 +1,5 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { Anchor, Button, PasswordInput, Stack } from '@mantine/core';
+import { Anchor, Button, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
@@ -7,7 +7,7 @@ import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useResetPassword } from '../api';
 import { AuthHeader } from './AuthLayout';
-import { PasswordStrength } from '../components/PasswordStrength';
+import { NewPasswordFields } from '../components/NewPasswordFields';
 
 /**
  * Sets a new password from the link received by email.
@@ -42,22 +42,7 @@ export function ResetPasswordPage() {
       {token ? (
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
-            <Stack gap="xs">
-              <PasswordInput
-                label="Nouveau mot de passe"
-                autoComplete="new-password"
-                autoFocus
-                required
-                {...form.getInputProps('password')}
-              />
-              <PasswordStrength value={form.values.password} />
-            </Stack>
-            <PasswordInput
-              label="Confirmation"
-              autoComplete="new-password"
-              required
-              {...form.getInputProps('confirmation')}
-            />
+            <NewPasswordFields form={form} autoFocus />
             <Button type="submit" loading={resetPassword.isPending} fullWidth>
               Enregistrer
             </Button>

@@ -61,9 +61,9 @@ export interface TaskContext {
   /** Sprints usable by the tasks of a project: those of its whole project tree (none without project). */
   sprintsFor: (projectId: string | null) => Sprint[];
   /**
-   * Contributors that can be assigned to tasks of these projects: "Moi" and those attached to one of the
-   * projects or to a parent project, plus the `keep` ones (current assignees, attached or not). Without project
-   * (none given, or one of them null): every contributor.
+   * Contributors that can be assigned to items of all these projects at once: "Moi" and those attached to each
+   * project or to one of its parents, plus the `keep` ones (current assignees, attached or not). An item without
+   * project allows everyone (none given, or all null: every contributor).
    */
   assignableFor: (projectIds: (string | null)[], keep?: string[]) => Contributor[];
   /** Display name of a contributor ("Moi" for the logged-in user). */
@@ -127,14 +127,7 @@ export function useTaskContext() {
      * @param {string | null} projectId Project id; none: the tasks of no project.
      * @returns {string | null} Root project id; null without project.
      */
-    const rootOf = (projectId: string | null) => {
-      if (projectId === null) return null;
-      let current = projectId;
-      for (let parent = projectById.get(current)?.parentId; parent; parent = projectById.get(current)?.parentId) {
-        current = parent;
-      }
-      return current;
-    };
+    const rootOf = (projectId: string | null) => (projectId === null ? null : (lineageOf(projectById, projectId).at(-1)?.id ?? projectId));
 
     /**
      * Client and project path of a project.
@@ -185,14 +178,9 @@ export function useTaskContext() {
       milestonesFor: (projectId) => (projectId ? milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)) : []),
       sprintsFor: (projectId) => (projectId ? data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)) : []),
       assignableFor: (projectIds, keep = []) => {
-        if (projectIds.length === 0 || projectIds.includes(null)) return data.contributors;
-        const scope = new Set<string>();
-        for (const projectId of projectIds) {
-          for (let current: string | null | undefined = projectId; current; current = projectById.get(current)?.parentId) {
-            scope.add(current);
-          }
-        }
-        return data.contributors.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || contributor.projectIds.some((id) => scope.has(id)));
+        const scopes = [...new Set(projectIds.filter((id): id is string => id !== null))].map((projectId) => new Set(lineageOf(projectById, projectId).map((project) => project.id)));
+        if (scopes.length === 0) return data.contributors;
+        return data.contributors.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || scopes.every((scope) => contributor.projectIds.some((id) => scope.has(id))));
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: mapById(tasks),

@@ -5,6 +5,7 @@ import { ActionIcon, Group, Menu, Tabs, Tooltip, type TabsTabProps } from '@mant
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
+import { ActionsMenu, type RowMenuEntry } from '../data-table/cells/RowActions';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).
@@ -41,7 +42,7 @@ interface SortableTabsProps<T extends { id: string }> {
   /** Name of a tab for its menu button (« Actions sur … »). */
   name: (item: T) => string;
   /** First entries of the menu of the selected tab (edit, duplicate…), before the moves. */
-  actions: (item: T) => ReactNode;
+  actions: (item: T) => readonly RowMenuEntry[];
   /** Deletes a tab (last entry of its menu, after a divider). Optional. */
   onDelete?: (item: T) => void;
   /** The tab cannot be deleted (the last view…). Optional. */
@@ -90,30 +91,20 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
                   leftSection={leftSection?.(item)}
                   rightSection={
                     item.id === value ? (
-                      <Menu position="bottom-end" withinPortal shadow="md">
-                        <Menu.Target>
+                      <ActionsMenu
+                        name={name(item)}
+                        target={
                           <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions sur ${name(item)}`} onClick={(event) => event.stopPropagation()}>
                             <CaretDownIcon aria-hidden />
                           </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          {actions(item)}
-                          <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={index === 0} onClick={() => onMove(item.id, index - 1)}>
-                            Déplacer à gauche
-                          </Menu.Item>
-                          <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={index === items.length - 1} onClick={() => onMove(item.id, index + 1)}>
-                            Déplacer à droite
-                          </Menu.Item>
-                          {onDelete && (
-                            <>
-                              <Menu.Divider />
-                              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" disabled={deleteDisabled?.(item)} onClick={() => onDelete(item)}>
-                                Supprimer
-                              </Menu.Item>
-                            </>
-                          )}
-                        </Menu.Dropdown>
-                      </Menu>
+                        }
+                        items={[
+                          ...actions(item),
+                          { label: 'Déplacer à gauche', icon: <ArrowLeftIcon aria-hidden />, disabled: index === 0, onClick: () => onMove(item.id, index - 1) },
+                          { label: 'Déplacer à droite', icon: <ArrowRightIcon aria-hidden />, disabled: index === items.length - 1, onClick: () => onMove(item.id, index + 1) },
+                          onDelete && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: deleteDisabled?.(item), onClick: () => onDelete(item) },
+                        ]}
+                      />
                     ) : undefined
                   }
                 >

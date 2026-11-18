@@ -1,7 +1,7 @@
 import { shoppingCost } from '@ordo/shared';
 import { postTablePdf, type PdfTableRow } from '../../../lib/download';
 import type { ShoppingItem, ShoppingList } from '../api';
-import { quantityText, type ShoppingRow } from './shopping-format';
+import type { ShoppingRow } from './shopping-format';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -39,7 +39,7 @@ export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>
     }
     const { item } = row;
     const cost = shoppingCost(item);
-    const details = [quantityText(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? fmt.money(cost) : ''].filter(Boolean).join(' · ');
+    const details = [fmt.quantity(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? fmt.money(cost) : ''].filter(Boolean).join(' · ');
     lines.push(`${indent}${item.purchasedAt ? '☑' : '☐'} ${item.name}${details ? ` (${details})` : ''}`);
     if (item.note) lines.push(`${indent}    ${item.note}`);
     if (item.url) lines.push(`${indent}    ${item.url}`);
@@ -66,7 +66,7 @@ export async function downloadShoppingPdf(list: ShoppingList, tableRows: Shoppin
     return {
       kind: 'row',
       depth: row.depth,
-      cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
+      cells: [item.purchasedAt ? 'Oui' : '', item.name, fmt.quantity(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
     };
   });
   await postTablePdf({

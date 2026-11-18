@@ -16,7 +16,7 @@ export function suppressClickAfterDrop(): void {
 }
 
 /** Pixels the pointer moves before a drag starts: a click stays a click (on a tab, a handle…). */
-export const DRAG_DISTANCE = 5;
+const DRAG_DISTANCE = 5;
 
 /**
  * Sensors of a drag and drop, the same everywhere: the pointer, after a few pixels; and the keyboard when asked (moving

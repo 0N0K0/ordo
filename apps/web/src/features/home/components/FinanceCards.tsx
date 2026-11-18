@@ -1,4 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { SubSection } from '../../../components/page/SubSection';
 import { localDay } from '../../../lib/dates';
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Sparkline } from '@mantine/charts';
@@ -35,10 +36,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
           {overdue.data.length === 0 ? (
             <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucune facture en retard." />
           ) : (
-            <Stack gap={0}>
-              <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                En retard
-              </Text>
+            <SubSection title="En retard" gap={0}>
               {overdue.data.slice(0, MAX_ROWS).map((invoice) => (
                 <Link key={invoice.id} to={`/accounting/${invoice.id}`} className={classes.row}>
                   <Group justify="space-between" wrap="nowrap" gap="xs">
@@ -57,7 +55,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                   </Group>
                 </Link>
               ))}
-            </Stack>
+            </SubSection>
           )}
         </Stack>
       )}
@@ -149,10 +147,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
           {data.coming.length === 0 ? (
             <EmptyState compact icon={<BankIcon aria-hidden />} message="Aucun mouvement attendu dans les 30 jours." />
           ) : (
-            <Stack gap={2}>
-              <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                À venir
-              </Text>
+            <SubSection title="À venir" gap={2}>
               {data.coming.map((item, index) => (
                 <Group key={`${item.date}-${item.label}-${index}`} justify="space-between" wrap="nowrap" gap="xs">
                   <Group gap="xs" wrap="nowrap" miw={0}>
@@ -169,7 +164,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
                   </Text>
                 </Group>
               ))}
-            </Stack>
+            </SubSection>
           )}
         </Stack>
       )}

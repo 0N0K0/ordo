@@ -4,11 +4,11 @@ import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { notifyError } from '../../../lib/notify';
+import { useAsyncAction } from '../../../lib/use-async-action';
 import { useWorkspace } from '../../workspace/api';
 import { fetchNewDocumentDefaults, useDocumentMutations } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { projectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../workspace/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -23,27 +23,20 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
   const navigate = useNavigate();
   const [clientId, setClientId] = useState<string | null>(initialClient);
   const [projectId, setProjectId] = useState<string | null>(initialProject);
-  const [loading, setLoading] = useState(false);
-  const projects = (workspace?.projects ?? []).filter((project) => !project.archived && project.clientId === clientId);
-
-  /**
-   * Creates the draft and opens it.
-   * @returns {Promise<void>}
-   */
-  const submit = async () => {
-    if (!clientId) return;
-    setLoading(true);
-    try {
+  const { run: submit, loading } = useAsyncAction(
+    async () => {
+      if (!clientId) throw new Error('Choisissez un client.');
       const defaults = await fetchNewDocumentDefaults({ type, clientId, issueDate: localToday() });
-      const id = await create.mutateAsync({ type, input: { ...defaults, projectId } });
-      onDone();
-      void navigate(`/accounting/${id}`);
-    } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Création impossible.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return create.mutateAsync({ type, input: { ...defaults, projectId } });
+    },
+    {
+      fallback: 'Création impossible.',
+      onDone: (id) => {
+        onDone();
+        void navigate(`/accounting/${id}`);
+      },
+    },
+  );
 
   return (
     <Stack gap="md">
@@ -62,7 +55,7 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
         clearable
         placeholder={clientId ? 'Aucun' : 'Choisissez d’abord un client'}
         disabled={!clientId}
-        {...treeSelectProps(projectOptions(workspace, projects))}
+        {...treeSelectProps(clientProjectOptions(workspace, clientId))}
         searchable
         value={projectId}
         onChange={setProjectId}

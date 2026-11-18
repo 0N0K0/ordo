@@ -1,3 +1,4 @@
+import * as fmt from '../../../lib/format';
 import {
   addDays,
   allowedAt,
@@ -15,7 +16,8 @@ import {
   type BusyEvent,
   type SlotRule,
 } from '@ordo/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useNow } from '../../../lib/use-now';
 import { scheduleRules, useCalendarEvents, useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useSubscribedSchedules, useWorkSchedules } from '../api';
 import { localDay } from '../../../lib/dates';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -102,26 +104,6 @@ export interface SlotRules {
 }
 
 /**
- * Local time of a moment, HH:MM.
- * @param {Date} date Moment.
- * @returns {string} Time.
- */
-const localTime = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-
-/**
- * Current time, refreshed every minute.
- * @returns {number} Current time in ms.
- */
-function useMinute(): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  return now;
-}
-
-/**
  * Slot rules of the current workspace: the kinds of slots (its own and those shown from other workspaces), and
  * whether a task or a routine can be done now or at a moment (its slots, and the events keeping its assignees busy).
  * Refreshed every minute.
@@ -134,7 +116,7 @@ export function useSlotRules(): SlotRules {
   const { data: defaultKind } = useDefaultScheduleKind();
   const { data: foreignKinds } = useForeignScheduleKinds();
   const { data: foreign } = useSubscribedSchedules();
-  const minute = useMinute();
+  const minute = useNow(true, 60_000);
   const today = localDay(new Date(minute));
   // Events of the coming days keep their contributors (none: « Moi ») busy.
   const { data: events } = useCalendarEvents({ from: addDays(today, -1), to: addDays(today, LOOKAHEAD_DAYS) });
@@ -172,14 +154,14 @@ export function useSlotRules(): SlotRules {
       kinds,
       defaultRule,
       ruleOf,
-      allowed: (item, at = new Date(minute)) => allowedAt(ruleOf(item.slotRule), slots, localDay(at), localTime(at)) && !blockingAt(item, at),
+      allowed: (item, at = new Date(minute)) => allowedAt(ruleOf(item.slotRule), slots, localDay(at), fmt.time(at)) && !blockingAt(item, at),
       blocking: (item, at = new Date(minute)) => blockingAt(item, at),
-      inSlots: (value, at = new Date(minute)) => allowedAt(ruleOf(value), slots, localDay(at), localTime(at)),
+      inSlots: (value, at = new Date(minute)) => allowedAt(ruleOf(value), slots, localDay(at), fmt.time(at)),
       nextAllowedAt: (item, from) => {
         // The next moment its slots allow, past the events keeping it busy then (a few rounds at most).
         let at = from;
         for (let round = 0; round < 20; round++) {
-          const moment = nextAllowed(ruleOf(item.slotRule), slots, localDay(at), localTime(at));
+          const moment = nextAllowed(ruleOf(item.slotRule), slots, localDay(at), fmt.time(at));
           if (!moment) return null;
           const [hours, minutes] = moment.time.split(':').map(Number);
           const [year, month, day] = moment.date.split('-').map(Number);
@@ -193,7 +175,7 @@ export function useSlotRules(): SlotRules {
       describe: (rule) => {
         const names = (list: readonly string[]) => list.map((kind) => labelOf.get(kind) ?? 'Plages supprimées').join(', ');
         const parts = [rule.inside.length ? `pendant ${names(rule.inside)}` : null, rule.outside.length ? `hors de ${names(rule.outside)}` : null].filter(Boolean).join(' · ');
-        return parts ? parts.charAt(0).toUpperCase() + parts.slice(1) : null;
+        return parts ? fmt.capitalize(parts) : null;
       },
     };
   }, [own, types, defaultKind, foreignKinds, foreign, perso, minute, today, events, meId]);

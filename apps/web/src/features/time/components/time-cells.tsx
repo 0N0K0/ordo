@@ -12,6 +12,7 @@ import { taskRef, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from '../api';
 import { timeTasks } from '../lib/time-tasks';
+import { dayEventOptions, entryEventKey, parseEventKey } from '../lib/time-events';
 import { applyDiff, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { routineTreeOptions } from '../../routines/lib/routine-format';
@@ -133,11 +134,8 @@ export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; rea
   const [opened, setOpened] = useState(false);
   const day = localDay(new Date(entry.startedAt));
   const { data: events } = useCalendarEvents(opened ? { from: day, to: day } : null);
-  const current = entry.calendarEventId ? `${entry.calendarEventId}|${entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : ''}` : null;
-  const options = (events ?? []).map((occurrence) => ({
-    value: `${occurrence.eventId}|${occurrence.occurrenceDate ?? ''}`,
-    label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.title}`,
-  }));
+  const current = entryEventKey(entry);
+  const options = dayEventOptions(events ?? [], day);
   if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: entry.calendarEventTitle ?? 'Évènement' });
   if (readOnly) return <>{entry.calendarEventTitle}</>;
   return (
@@ -149,7 +147,7 @@ export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; rea
         data={options}
         value={current}
         onChange={(key) => {
-          save(entry, { event: key ? { eventId: key.split('|')[0], occurrenceDate: key.split('|')[1] || null } : null });
+          save(entry, { event: parseEventKey(key) });
           setOpened(false);
         }}
         comboboxProps={{ withinPortal: false }}

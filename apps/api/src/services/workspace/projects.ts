@@ -2,9 +2,10 @@ import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
+import { assertAllExist, assertExists } from '../core/lookup';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -109,15 +110,6 @@ async function findProject(id: string): Promise<Project> {
 }
 
 /**
- * Error attached to the parent field.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
-function invalidParent(message: string) {
-  return clientError('BAD_USER_INPUT', message, { fields: { parentId: message } });
-}
-
-/**
  * Checks that a project can be attached to the given client.
  * @param {string | null} clientId Target client, or null for "no client".
  * @returns {Promise<void>}
@@ -127,7 +119,7 @@ async function assertAttachableClient(clientId: string | null): Promise<void> {
   const client = await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { archivedAt: true } }), 'Client');
   if (client.archivedAt) {
     const message = 'Ce client est archivé.';
-    throw clientError('BAD_USER_INPUT', message, { fields: { clientId: message } });
+    throw fieldError('clientId', message);
   }
 }
 
@@ -141,13 +133,13 @@ async function assertAttachableClient(clientId: string | null): Promise<void> {
 function assertParent(tree: ProjectTree, parentId: string, movedId: string | null): string | null {
   const parent = tree.byId.get(parentId);
   if (!parent) throw notFound('Projet parent');
-  if (parent.archivedAt) throw invalidParent('Ce projet est archivé.');
+  if (parent.archivedAt) throw fieldError('parentId', 'Ce projet est archivé.');
   if (movedId && (parentId === movedId || tree.ancestors(parentId).some((ancestor) => ancestor.id === movedId))) {
-    throw invalidParent('Un projet ne peut pas être placé dans l’un de ses sous-projets.');
+    throw fieldError('parentId', 'Un projet ne peut pas être placé dans l’un de ses sous-projets.');
   }
   const height = movedId ? tree.height(movedId) : 1;
   if (tree.depth(parentId) + height > MAX_PROJECT_DEPTH) {
-    throw invalidParent(`Les projets sont limités à ${MAX_PROJECT_DEPTH} niveaux.`);
+    throw fieldError('parentId', `Les projets sont limités à ${MAX_PROJECT_DEPTH} niveaux.`);
   }
   return parent.clientId;
 }
@@ -158,8 +150,7 @@ function assertParent(tree: ProjectTree, parentId: string, movedId: string | nul
  * @returns {Promise<void>}
  */
 async function assertCategories(categoryIds: string[]): Promise<void> {
-  const count = await prisma.projectCategory.count({ where: { id: { in: categoryIds } } });
-  if (count !== new Set(categoryIds).size) throw notFound('Catégorie');
+  await assertAllExist(prisma.projectCategory, categoryIds, 'Catégorie');
 }
 
 /**
@@ -215,12 +206,10 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
   const endDate = details.endDate === undefined ? current?.endDate : parseOptionalDay(details.endDate);
   if (startDate && endDate && endDate < startDate) {
     const message = 'La date de fin doit suivre la date de début.';
-    throw clientError('BAD_USER_INPUT', message, { fields: { endDate: message } });
+    throw fieldError('endDate', message);
   }
 
-  if (input.statusId && !(await prisma.projectStatus.findUnique({ where: { id: input.statusId } }))) {
-    throw notFound('Statut');
-  }
+  await assertExists(prisma.projectStatus, input.statusId, 'Statut');
 
   return {
     description: details.description,

@@ -2,7 +2,7 @@ import { documentPaymentSchema, parseDay, SENDING_CHANNELS, toCents, type Docume
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocument } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storeAttachment } from '../core/attachments';
 import { scopeOf, statusOf } from './document-statuses';
 import { parisToday } from '../../today';
@@ -265,7 +265,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
     const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
     if (!(refund ? method.outgoing : method.incoming)) {
       const message = refund ? 'Ce moyen de paiement ne sert pas aux sorties.' : 'Ce moyen de paiement ne sert pas aux entrées.';
-      throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
+      throw fieldError('methodId', message);
     }
   }
   // The category set for the payments of invoices (refunds of credit notes), else the usual one when it exists.

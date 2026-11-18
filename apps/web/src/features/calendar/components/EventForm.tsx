@@ -38,16 +38,9 @@ import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
-
-/**
- * Printed day, with a time.
- * @param {string} date YYYY-MM-DD.
- * @param {string | null} [time] HH:MM. Optional.
- * @returns {string} "mardi 12 novembre 2026 à 10:00".
- */
-const printedDay = (date: string, time?: string | null) => `${fmt.dayLong(date)}${time ? ` à ${time}` : ''}`;
 
 interface PostponeFormProps {
   /** Fields of the event postponed (with the changes of the form). */
@@ -334,7 +327,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               <span key={target.eventId}>
                 Reporté au{' '}
                 <Anchor component={Link} to={`/calendar?date=${target.startDate}`} onClick={onDone}>
-                  {printedDay(target.startDate, target.startTime)}
+                  {fmt.dayLong(target.startDate)}
+                  {target.startTime && ` à ${target.startTime}`}
                 </Anchor>
                 .{' '}
               </span>
@@ -349,7 +343,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 {' '}
                 du{' '}
                 <Anchor component={Link} to={`/calendar?date=${occurrence.postponedFrom.date}`} onClick={onDone}>
-                  {printedDay(occurrence.postponedFrom.date)}
+                  {fmt.dayLong(occurrence.postponedFrom.date)}
                 </Anchor>
               </>
             )}
@@ -523,14 +517,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             onChange={(keys) => form.setFieldValue('routineLinks', keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })))}
             error={form.errors.routineLinks as string | undefined}
           />
-          <BatchMultiSelect
-            label="Rappels"
-            placeholder={values.reminders.length ? undefined : 'Aucun'}
-            data={REMINDER_PRESETS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
-            value={values.reminders.map(String)}
-            onChange={(reminders) => form.setFieldValue('reminders', reminders.map(Number).sort((a, b) => a - b))}
-            clearable
-          />
+          <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={REMINDER_PRESETS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
         </SimpleGrid>
         {recurring && (
           <Text size="xs" c="dimmed">

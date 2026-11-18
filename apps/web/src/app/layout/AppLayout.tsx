@@ -1,6 +1,6 @@
 import { SidePanelHost } from '../../components/panels/SidePanel';
 import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,9 +22,10 @@ import { PageSettingsContext, useSettingsOpened } from './page-settings';
 import { SettingsAside } from './SettingsAside';
 import { SettingsButton } from './SettingsButton';
 import { SettingsOverlay } from './SettingsOverlay';
-import { useResizableAside } from './use-resizable-aside';
 import { TimerWidget } from '../../features/time/components/TimerWidget';
-import { useResizableSidebar } from './use-resizable-sidebar';
+import { useResizablePanel } from './use-resizable-panel';
+import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
+import { ResizeHandle } from './ResizeHandle';
 
 /**
  * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
@@ -34,7 +35,9 @@ import { useResizableSidebar } from './use-resizable-sidebar';
 export function AppLayout() {
   const { data: user } = useMe();
   const logout = useLogout();
-  const sidebar = useResizableSidebar();
+  // Open state of the sidebar, kept (each window its own).
+  const [sidebarShown, setSidebarShown] = useLocalStorage({ key: 'ordo.sidebar.opened', sync: false, defaultValue: true });
+  const sidebar = useResizablePanel({ ...SIDEBAR_PANEL, opened: sidebarShown, setOpened: setSidebarShown });
   const mobile = useMediaQuery('(max-width: 48em)');
   const [mobileOpened, mobileSidebar] = useDisclosure(false);
   const { pathname } = useLocation();
@@ -52,12 +55,12 @@ export function AppLayout() {
     logout.mutate(undefined, { onError: onMutationError });
   };
 
-  const sidebarOpened = mobile ? mobileOpened : sidebar.opened;
+  const sidebarOpened = mobile ? mobileOpened : sidebarShown;
   // Settings of the page shown (drawn by the page in the sidebar on the right).
   const [settingsTitle, setSettingsTitle] = useState<string | null>(null);
   const [settingsContainer, setSettingsContainer] = useState<HTMLDivElement | null>(null);
   const { opened: settingsOpened, setOpened: setSettingsOpened } = useSettingsOpened();
-  const aside = useResizableAside(setSettingsOpened);
+  const aside = useResizablePanel({ ...SETTINGS_PANEL, opened: settingsOpened, setOpened: setSettingsOpened });
   const closeSettings = useCallback(() => setSettingsOpened(false), [setSettingsOpened]);
   const settingsShown = settingsOpened && settingsTitle !== null;
   const pageSettings = useMemo(() => ({ title: settingsTitle, setTitle: setSettingsTitle, container: settingsContainer }), [settingsTitle, settingsContainer]);
@@ -86,7 +89,7 @@ export function AppLayout() {
                 <Group gap="sm" wrap="nowrap">
                   <Burger
                     opened={sidebarOpened}
-                    onClick={mobile ? mobileSidebar.toggle : sidebar.toggle}
+                    onClick={mobile ? mobileSidebar.toggle : () => setSidebarShown((current) => !current)}
                     size="sm"
                     aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
                   />
@@ -140,19 +143,12 @@ export function AppLayout() {
             <AppShell.Navbar aria-label="Clients et projets">
               <Sidebar />
               {!mobile && (
-                <div
-                  className={classes.resizeHandle}
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label="Redimensionner la barre latérale"
-                  onPointerDown={sidebar.onResizeStart}
-                  onDoubleClick={sidebar.onResizeReset}
-                />
+                <ResizeHandle edge="right" label="Redimensionner la barre latérale" resizing={sidebar.resizing} onResizeStart={sidebar.onResizeStart} onResizeReset={sidebar.onResizeReset} />
               )}
             </AppShell.Navbar>
 
             <SettingsOverlay opened={settingsShown} onClose={closeSettings} />
-            <SettingsAside onContainer={setSettingsContainer} onResizeStart={aside.onResizeStart} onResizeReset={aside.onResizeReset} />
+            <SettingsAside onContainer={setSettingsContainer} resize={aside} />
 
             {/* Pages use the full available width. */}
             <AppShell.Main>

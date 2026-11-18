@@ -3,7 +3,8 @@ import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, 
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
 import { clientError, notFound } from '../../graphql/errors';
-import { withImap } from './imap';
+import { withImap, withMailbox } from './imap';
+import { findSpecialFolder } from './organize';
 import { DONE_KEYWORD, keywordLabel, messageIdsOf, takesKeywords } from './keywords';
 import { sanitizeMailHtml } from './sanitize';
 
@@ -86,14 +87,11 @@ export interface MailView {
  */
 async function messageMarks(accountId: string, folder: string, uid: number, messageId: string | null): Promise<{ labelIds: string[]; done: boolean }> {
   const flags = await withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    return withMailbox(client, folder, async () => {
       if (!takesKeywords(client)) return null;
       const message = await client.fetchOne(String(uid), { uid: true, flags: true }, { uid: true });
       return message ? [...(message.flags ?? [])] : [];
-    } finally {
-      lock.release();
-    }
+    });
   });
   if (flags) return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
   const mark = messageId ? await prisma.mailMark.findUnique({ where: { accountId_messageId: { accountId, messageId } } }) : null;
@@ -310,8 +308,7 @@ export async function listMessages(
   sort: MailSort = { by: 'date', ascending: false },
 ): Promise<{ messages: MailSummary[]; total: number }> {
   return withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    return withMailbox(client, folder, async () => {
       const keywords = takesKeywords(client);
       const query = search.trim();
       const criteria = {
@@ -348,9 +345,7 @@ export async function listMessages(
       const rank = new Map(pageUids.map((uid, index) => [uid, index]));
       messages.sort((a, b) => (rank.get(a.uid) ?? 0) - (rank.get(b.uid) ?? 0));
       return { messages, total: uids.length };
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 
@@ -363,13 +358,10 @@ export async function listMessages(
  */
 export async function fetchParsed(accountId: string, folder: string, uid: number): Promise<ParsedMail> {
   const source = await withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    return withMailbox(client, folder, async () => {
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
       return message ? message.source : undefined;
-    } finally {
-      lock.release();
-    }
+    });
   });
   if (!source) throw notFound('Mail');
   return simpleParser(source);
@@ -450,13 +442,10 @@ export async function readMessage(accountId: string, folder: string, uid: number
  */
 export async function setSeen(accountId: string, folder: string, uids: number[], seen: boolean): Promise<void> {
   await withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    await withMailbox(client, folder, async () => {
       if (seen) await client.messageFlagsAdd(uids, ['\\Seen'], { uid: true });
       else await client.messageFlagsRemove(uids, ['\\Seen'], { uid: true });
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 
@@ -469,14 +458,11 @@ export async function setSeen(accountId: string, folder: string, uids: number[],
  */
 export async function deleteMessages(accountId: string, folder: string, uids: number[]): Promise<void> {
   await withImap(accountId, async (client) => {
-    const trash = (await client.list()).find((item) => item.specialUse === '\\Trash');
-    const lock = await client.getMailboxLock(folder);
-    try {
-      if (trash && trash.path !== folder) await client.messageMove(uids, trash.path, { uid: true });
+    const trash = await findSpecialFolder(client, '\\Trash');
+    await withMailbox(client, folder, async () => {
+      if (trash && trash !== folder) await client.messageMove(uids, trash, { uid: true });
       else await client.messageDelete(uids, { uid: true });
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 

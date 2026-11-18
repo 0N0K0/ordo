@@ -1,4 +1,5 @@
 import { SubSection } from '../../../components/page/SubSection';
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -7,7 +8,7 @@ import { ancestorsOf, mapById } from '@ordo/shared';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text } from '@mantine/core';
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -248,21 +249,16 @@ export function ProjectPage() {
 
               {subProjects.length > 0 && (
                 <Stack gap="sm">
-                  <Title order={2} size="h4">
-                    Sous-projets
-                  </Title>
+                  <SectionHeader title="Sous-projets" />
                   <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
                 </Stack>
               )}
 
-              <Stack gap="xs">
-                <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                  Description
-                </Text>
+              <SubSection title="Description" gap="xs">
                 <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
                   {project.description}
                 </MarkdownView>
-              </Stack>
+              </SubSection>
 
               <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
           </Stack>

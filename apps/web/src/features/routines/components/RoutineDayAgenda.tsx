@@ -6,12 +6,13 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { addDays, mapById, plannedSlots, shiftTime } from '@ordo/shared';
+import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../../lib/dates';
 import { notifyWithUndo, onMutationError } from '../../../lib/notify';
-import { scheduleRules, useCalendarEvents, useCalendars, useDefaultScheduleKind, useScheduleTypes, useSubscribedCalendarEvents, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
-import { useNow } from '../../time/hooks/use-now';
+import { useCalendarEvents, useCalendars, useDefaultScheduleKind, useScheduleTypes, useSubscribedCalendarEvents, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
+import { useNow } from '../../../lib/use-now';
+import { occurrenceSpan, scheduleSources } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
@@ -53,20 +54,14 @@ const STATES: Record<ItemState, { color: string; text: string }> = {
 const stateOf = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
 
 /**
- * Local time of an instant (HH:MM).
- * @param {Date} date Instant.
- * @returns {string} Time.
- */
-const clock = (date: Date) => fmt.time(date);
-
-/**
  * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
  * time, else its start), else now today and noon another day.
  * @param {HistoryItem} item Time of the day.
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {string} HH:MM.
  */
-const proposedTime = (item: HistoryItem, today: string) => (item.check ? clock(new Date(item.check.doneAt)) : (item.dueTime ?? item.fromTime ?? (item.date === today ? clock(new Date()) : '12:00')));
+const proposedTime = (item: HistoryItem, today: string) =>
+  item.check ? fmt.time(new Date(item.check.doneAt)) : (item.dueTime ?? item.fromTime ?? (item.date === today ? fmt.time(new Date()) : '12:00'));
 
 interface TickFormProps {
   item: HistoryItem;
@@ -119,7 +114,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
         {fmt.dayLong(item.date)}
         {window ? ` · ${window}` : ''} ·{' '}
         <Text span c={`${STATES[state].color}.7`}>
-          {state === 'done' ? `faite à ${clock(new Date(item.check!.doneAt))}` : STATES[state].text}
+          {state === 'done' ? `faite à ${fmt.time(new Date(item.check!.doneAt))}` : STATES[state].text}
         </Text>
       </Text>
       <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(String(value))} />
@@ -181,16 +176,9 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const events: EventInput[] = [];
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
-  const typeOf = mapById(types ?? []);
-  const slotSources = [
-    ...(schedules ?? []).map((schedule) => {
-      const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? defaultKind;
-      return { schedule, color: kind?.color ?? null, name: kind?.name ?? schedule.name };
-    }),
-    ...(foreign ?? []).map((schedule) => ({ schedule, color: schedule.color ?? null, name: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}` })),
-  ].filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, color, name } of slotSources) {
-    const slots = plannedSlots(scheduleRules([schedule]), day, day);
+  const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind, { kindNames: true }).filter(({ schedule }) => shownSchedules.has(schedule.id));
+  for (const { schedule, rule, color, name } of slotSources) {
+    const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
       id: `slot-bar:${schedule.id}`,
@@ -223,9 +211,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     events.push({
       id: `event:${occurrence.key}`,
       title: occurrence.title,
-      allDay: occurrence.allDay,
-      start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
-      end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+      ...occurrenceSpan(occurrence),
       backgroundColor: color,
       borderColor: color,
       editable: false,
@@ -245,12 +231,12 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     let start = item.fromTime ?? (before && item.dueTime && before < item.dueTime ? before : null);
     let end = item.dueTime ?? (after && item.fromTime && after > item.fromTime ? after : null);
     if ((!start || !end) && doneAt && localDay(doneAt) === day) {
-      start = clock(doneAt);
+      start = fmt.time(doneAt);
       const stop = shiftTime(start, minutes);
       end = stop > start ? stop : '23:59';
     }
     const timed = start !== null && end !== null && start < end;
-    const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? clock(doneAt) : `${clock(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
+    const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: `routine:${item.key}`,
       title: `${routine?.title ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,

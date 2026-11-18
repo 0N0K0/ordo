@@ -1,3 +1,4 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { MailListControls } from './MailListControls';
 import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -194,21 +195,21 @@ export function ProjectMailsPanel({ projectId }: { projectId: string }) {
   const { refresh, fetching } = useMailRefresh();
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-end" gap="sm">
-        <Text size="sm" c="dimmed" maw={640}>
-          Mails rattachés au projet depuis la page Mails, envoyés depuis ce projet, ou faisant suite à une conversation rattachée.
-        </Text>
-        <Group gap="sm" ml="auto">
-          <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-            <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
-              Relever
+      <SectionHeader
+        description="Mails rattachés au projet depuis la page Mails, envoyés depuis ce projet, ou faisant suite à une conversation rattachée."
+        actions={
+          <>
+            <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
+              <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
+                Relever
+              </ActionButton>
+            </Tooltip>
+            <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!accounts?.length} onClick={() => compose({ projectId })}>
+              Nouveau mail
             </ActionButton>
-          </Tooltip>
-          <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!accounts?.length} onClick={() => compose({ projectId })}>
-            Nouveau mail
-          </ActionButton>
-        </Group>
-      </Group>
+          </>
+        }
+      />
       <ProjectLiveMails projectId={projectId} />
     </Stack>
   );

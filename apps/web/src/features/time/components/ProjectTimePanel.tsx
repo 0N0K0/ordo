@@ -1,9 +1,6 @@
-import { ActionButton } from '../../../components/actions/ActionButton';
-import { Group, Tooltip } from '@mantine/core';
-import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimer, useTimeEntries } from '../api';
-import { openTimerForm } from '../lib/open-timer-form';
+import { useTimeEntries } from '../api';
+import { TimeLogActions } from './TimeLogActions';
 import { TimeLog } from './TimeLog';
 import { useTimeEntryDialogs } from '../hooks/use-time-dialogs';
 
@@ -18,7 +15,6 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
   const entries = useTimeEntries(projectId);
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context, projectId);
   const archived = context?.projectById.get(projectId)?.archived;
-  const running = useRunningTimer();
 
   return (
     <TimeLog
@@ -29,21 +25,7 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
       onEdit={openForm}
       onDuplicate={duplicate}
       onDelete={confirmDelete}
-      actions={
-        // One timer runs at a time: the one running shows in the top bar.
-        <Group gap="sm" wrap="nowrap">
-          <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
-            Nouveau temps
-          </ActionButton>
-          {!archived && (
-            <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-              <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
-                Lancer un chrono
-              </ActionButton>
-            </Tooltip>
-          )}
-        </Group>
-      }
+      actions={<TimeLogActions context={context} onNew={() => openForm()} projectId={projectId} archived={archived} />}
     />
   );
 }

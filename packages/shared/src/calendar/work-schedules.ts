@@ -5,12 +5,13 @@ import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type 
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { weekdayOfDate } from '../dates/weeks';
+import { timeOfDaySchema } from '../dates/times';
+import { daysInMonth, monthFromIndex, monthIndex } from '../dates/months';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
-const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).');
 
 /** Hours of a day of a case, in local time. */
-const timeRangeSchema = z.object({ start: timeSchema, end: timeSchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
+const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
 type TimeRange = z.infer<typeof timeRangeSchema>;
 
 /** Which days a case is on: every day of its period, weekdays (every n weeks), every n days, a day of the month
@@ -385,7 +386,7 @@ export function readScheduleExceptions(value: unknown): ScheduleException[] {
 }
 
 /** Former format of a schedule (slots per weekday every n weeks, pauses), read to convert it. */
-const legacySlotSchema = z.object({ weekday: z.number().int().min(1).max(7), start: timeSchema, end: timeSchema, allDay: z.boolean().default(false) });
+const legacySlotSchema = z.object({ weekday: z.number().int().min(1).max(7), start: timeOfDaySchema, end: timeOfDaySchema, allDay: z.boolean().default(false) });
 const legacyPauseSchema = z.object({ from: isoDate, to: isoDate, label: z.string().default('') });
 
 /**
@@ -559,21 +560,13 @@ const daySlots = (schedule: WorkScheduleRule, date: string): ScheduleSlotTime[] 
 const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.allDay && (a.allDay || (a.start === b.start && a.end === b.end));
 
 /**
- * Month number of a date counted from year 0 (to shift monthly rhythms).
- * @param {string} date YYYY-MM-DD.
- * @returns {number} Months.
- */
-const monthIndex = (date: string) => Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
-
-/**
  * First day of a month shifted from the month of a date.
  * @param {string} date YYYY-MM-DD.
  * @param {number} months Months added.
  * @returns {string} YYYY-MM-01.
  */
 function shiftMonth(date: string, months: number): string {
-  const index = monthIndex(date) + months;
-  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}-01`;
+  return `${monthFromIndex(monthIndex(date) + months)}-01`;
 }
 
 /**
@@ -596,7 +589,7 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
   const day = Number(to.slice(8, 10));
-  const lastDay = new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)), 0)).getUTCDate();
+  const lastDay = daysInMonth(Number(to.slice(0, 4)), Number(to.slice(5, 7)));
   const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
   const values = { monthDay: day, weekday: weekdayOf(to), position, month: Number(to.slice(5, 7)), week: isoWeek(to) };
   if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };

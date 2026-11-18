@@ -3,42 +3,6 @@
   .table {
     /* Typographie */
     font-size: var(--mantine-font-size-sm);
-
-    /* Cells of the column selection (edited together). */
-    & td[data-cell-selected] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 1px solid var(--mantine-primary-color-filled);
-      outline-offset: -1px;
-    }
-  }
-
-  .scroller {
-    /* Dimension */
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
-  .groupRow {
-    /* Arrière-Plan */
-    background-color: var(--mantine-color-default-hover);
-
-    &[data-depth='0'] {
-      /* Arrière-Plan */
-      background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
-    }
-
-    &[data-over] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 2px solid var(--mantine-primary-color-filled);
-      outline-offset: -2px;
-    }
   }
 
   .row {
@@ -80,31 +44,6 @@
       opacity 150ms ease;
   }
 
-  .handle {
-    /* Interaction */
-    cursor: grab;
-    touch-action: none;
-  }
-
-  /* Row selection (bulk actions): shown on the hovered or focused row, and on every row once something is selected. */
-  .select {
-    /* Effets */
-    opacity: 0;
-
-    .row:hover &,
-    .row:focus-within &,
-    thead tr:hover &,
-    thead tr:focus-within &,
-    .table[data-selecting] &,
-    &:has(input:checked),
-    &:has(input:focus-visible) {
-      opacity: 1;
-    }
-
-    /* Animation */
-    transition: opacity 150ms ease;
-  }
-
   /* Done toggle of a routine: a circle, a filled green check once done. */
   .doneToggle {
     /* Dimension */
@@ -114,23 +53,8 @@
     font-size: var(--mantine-font-size-lg);
   }
 
-  .overlay {
-    /* Interaction */
-    cursor: grabbing;
-  }
-
   .nowrap {
     /* Typographie */
     white-space: nowrap;
-  }
-}
-
-/* Tick of the history: 36px high, a line between ticks. */
-.historyRow {
-  min-height: 36px;
-  padding-block: 4px;
-
-  & + & {
-    border-top: 1px solid var(--mantine-color-default-border);
   }
 }

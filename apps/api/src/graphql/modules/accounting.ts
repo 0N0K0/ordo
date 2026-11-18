@@ -3,6 +3,7 @@ import { ACCOUNTING_DOCUMENT_TYPES } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as parties from '../../services/accounting/client-parties';
 import * as company from '../../services/accounting/company';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
 
@@ -37,7 +38,7 @@ builder.prismaObjectFields('Client', (t) => ({
   siret: t.exposeString('siret', { nullable: true }),
   activityCode: t.exposeString('activityCode', { nullable: true }),
   services: t.relation('services', {
-    query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
+    query: { orderBy: BY_POSITION },
   }),
   contacts: t.relation('contacts', {
     query: { orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] },

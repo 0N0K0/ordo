@@ -250,7 +250,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => formatDay(other.date).slice(0, 7) === month);
       const monthIn = ofMonth.filter(({ amount }) => amount > 0).reduce((sum, { amount }) => sum + amount, 0);
       const monthOut = -ofMonth.filter(({ amount }) => amount < 0).reduce((sum, { amount }) => sum + amount, 0);
-      const title = monthFormat.format(new Date(`${month}-01T00:00:00Z`));
+      const title = monthFormat.format(parseDay(`${month}-01`));
       band(title.charAt(0).toUpperCase() + title.slice(1), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
     }
     // Accounts opened by then.

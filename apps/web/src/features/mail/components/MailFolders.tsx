@@ -2,7 +2,7 @@ import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Badge, Box, Button, Group, NavLink, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, NavLink, Stack, Text, TextInput } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
@@ -22,7 +22,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
-import { plural } from '../../../lib/text';
+import { MailCountBadges } from './MailCountBadges';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
@@ -318,20 +318,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             }
             rightSection={
               <Group gap={2} wrap="nowrap">
-                {(folder.todo ?? 0) > 0 && (
-                  <Tooltip label={`${folder.todo} à traiter`}>
-                    <Badge size="xs" variant="light" color="orange" circle={(folder.todo ?? 0) < 10} aria-label={`${folder.todo} à traiter`}>
-                      {folder.todo}
-                    </Badge>
-                  </Tooltip>
-                )}
-                {folder.unseen > 0 && (
-                  <Tooltip label={`${folder.unseen} non ${plural(folder.unseen, 'lu')}`}>
-                    <Badge size="xs" variant="filled" circle={folder.unseen < 10} aria-label={`${folder.unseen} non ${plural(folder.unseen, 'lu')}`}>
-                      {folder.unseen}
-                    </Badge>
-                  </Tooltip>
-                )}
+                <MailCountBadges todo={folder.todo ?? 0} unread={folder.unseen} compact />
                 <ActionsMenu
                   name={`le dossier ${folder.name}`}
                   size="xs"

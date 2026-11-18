@@ -11,6 +11,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { useTreasuryLoans, useTreasurySettings } from '../api';
 import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 /** Row of the loans: a relation (what it owes or is owed), or one of its loan lines under it. */
 type LoanRow =
@@ -173,12 +174,7 @@ export function LoansPanel() {
                   </Text>
                 ),
                 date: fmt.day(row.date),
-                amount: (
-                  <Text span size="sm" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                    {row.amount > 0 ? '+' : ''}
-                    {fmt.money(row.amount)}
-                  </Text>
-                ),
+                amount: <SignedAmount value={row.amount} />,
               }
         }
         actions={(row) =>

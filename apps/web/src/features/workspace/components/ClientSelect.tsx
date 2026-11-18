@@ -1,6 +1,6 @@
 import { Select, type SelectProps } from '@mantine/core';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { EntityAvatar } from './EntityAvatar';
+import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { useWorkspace } from '../api';
 
 /**
@@ -19,7 +19,7 @@ export function ClientSelect({ value, ...props }: Omit<SelectProps, 'data'>) {
       searchable
       nothingFoundMessage="Aucun client"
       {...listSelectProps(clients)}
-      leftSection={current ? <EntityAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} size={18} radius="sm" /> : undefined}
+      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       {...props}
     />

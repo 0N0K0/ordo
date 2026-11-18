@@ -1,10 +1,10 @@
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Anchor, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { ArrowRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { Anchor, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { ArrowRightIcon } from '@phosphor-icons/react';
+import { DragHandle } from '../../../components/actions/DragHandle';
 import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DragHandleContext } from '../lib/drag-handle';
-import classes from './Home.module.css';
 
 interface HomeCardProps {
   title: string;
@@ -30,13 +30,7 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
       <Stack gap="sm" h="100%">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            {handle && (
-              <Tooltip label="Déplacer">
-                <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Déplacer la carte ${title}`} className={classes.handle} {...handle.attributes} {...handle.listeners}>
-                  <DotsSixVerticalIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            )}
+            {handle && <DragHandle label={`Déplacer la carte ${title}`} size="sm" {...handle} />}
             <ThemeIcon variant="light" radius="md">
               {icon}
             </ThemeIcon>

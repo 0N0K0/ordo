@@ -1,5 +1,6 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Button, Group, SimpleGrid, Stack, Title } from '@mantine/core';
+import { PageHeader } from '../../../components/actions/PageHeader';
+import { Button, Group, SimpleGrid, Stack } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowCounterClockwiseIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
@@ -72,17 +73,17 @@ export function HomePage() {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-start" gap="sm">
-        <Title order={1} size="h2">
-          Bonjour {user?.username}
-        </Title>
-        <Group gap="sm">
-          {!perso && (
-            <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>Nouveau client</ActionButton>
-          )}
-          <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>Nouveau projet</ActionButton>
-        </Group>
-      </Group>
+      <PageHeader
+        title={`Bonjour ${user?.username ?? ''}`}
+        actions={
+          <>
+            {!perso && (
+              <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>Nouveau client</ActionButton>
+            )}
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>Nouveau projet</ActionButton>
+          </>
+        }
+      />
 
       <SimpleGrid cols={{ base: 2, sm: 3, xl: perso ? 4 : 6 }} spacing="md">
         <StatTile

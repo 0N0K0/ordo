@@ -1,0 +1,74 @@
+import { addDays, mapById, readScheduleDisplay, type ScheduleDisplay, type WorkScheduleRule } from '@ordo/shared';
+import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+
+/** Schedule of another workspace subscribed to. */
+type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['data']>[number];
+
+/** Default kind of slots of the workspace. */
+type DefaultKind = ReturnType<typeof useDefaultScheduleKind>['data'];
+
+/**
+ * Span of an occurrence of an event in FullCalendar: its days (the end excluded) all day, else its start and end.
+ * @param {{ allDay: boolean, startDate: string, endDate: string, start: unknown, end: unknown }} occurrence Occurrence.
+ * @returns {{ allDay: boolean, start: string, end: string }} Span.
+ */
+export function occurrenceSpan(occurrence: { allDay: boolean; startDate: string; endDate: string; start: unknown; end: unknown }): { allDay: boolean; start: string; end: string } {
+  return {
+    allDay: occurrence.allDay,
+    start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
+    end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+  };
+}
+
+/** Schedule shown as slots: its rule, the color of its kind, its name, whether of another workspace, and its display. */
+export interface ScheduleSource {
+  schedule: WorkSchedule | ForeignSchedule;
+  rule: WorkScheduleRule;
+  color: string | null;
+  name: string;
+  foreign: boolean;
+  display: ScheduleDisplay;
+}
+
+/**
+ * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
+ * those of other workspaces subscribed to (their name followed by their workspace).
+ * @param {readonly WorkSchedule[]} own Schedules of the workspace.
+ * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
+ * @param {readonly ScheduleType[]} types Kinds of slots.
+ * @param {DefaultKind} defaultKind Default kind of the workspace.
+ * @param {{ kindNames?: boolean }} [options] Named after their kind (« Travail », « Travail · Atelier ») rather than
+ *   their own name. Optional. Default = own name.
+ * @returns {ScheduleSource[]} Sources.
+ */
+export function scheduleSources(
+  own: readonly WorkSchedule[],
+  foreign: readonly ForeignSchedule[],
+  types: readonly ScheduleType[],
+  defaultKind: DefaultKind,
+  { kindNames = false }: { kindNames?: boolean } = {},
+): ScheduleSource[] {
+  const typeOf = mapById(types);
+  return [
+    ...own.map((schedule) => {
+      // Without kind: the default kind of the workspace.
+      const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? defaultKind;
+      return {
+        schedule,
+        rule: scheduleRules([schedule])[0],
+        color: kind?.color ?? null,
+        name: kindNames ? (kind?.name ?? schedule.name) : schedule.name,
+        foreign: false,
+        display: readScheduleDisplay(kind),
+      };
+    }),
+    ...foreign.map((schedule) => ({
+      schedule,
+      rule: scheduleRules([schedule])[0],
+      color: schedule.color ?? null,
+      name: `${kindNames ? (schedule.typeName ?? schedule.name) : schedule.name} · ${schedule.workspaceName}`,
+      foreign: true,
+      display: readScheduleDisplay(schedule),
+    })),
+  ];
+}

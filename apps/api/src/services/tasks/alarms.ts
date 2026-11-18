@@ -1,7 +1,8 @@
 import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { assertExists } from '../core/lookup';
 
 /**
  * Validates an alarm and the project or task it points to.
@@ -10,8 +11,8 @@ import { clientError, notFound, orNotFound, parseInput } from '../../graphql/err
  */
 async function parseAlarm(input: AlarmInput) {
   const alarm = parseInput(alarmInputSchema, input);
-  if (alarm.projectId && !(await prisma.project.findUnique({ where: { id: alarm.projectId } }))) throw notFound('Projet');
-  if (alarm.taskId && !(await prisma.task.findUnique({ where: { id: alarm.taskId } }))) throw notFound('Tâche');
+  await assertExists(prisma.project, alarm.projectId, 'Projet');
+  await assertExists(prisma.task, alarm.taskId, 'Tâche');
   const tracking = alarm.type === 'TRACKING_DURATION';
   return {
     ...alarm,

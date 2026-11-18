@@ -1,6 +1,6 @@
-import { Badge, Group, Tooltip } from '@mantine/core';
+import { Group } from '@mantine/core';
 import { useMailAccounts, useTodoMailCount, useUnreadMailCount } from '../api';
-import { plural } from '../../../lib/text';
+import { MailCountBadges } from './MailCountBadges';
 
 /**
  * Counts on the "Mails" entry of the sidebar: mails to do (every folder but drafts, sent, archive, junk and
@@ -15,20 +15,7 @@ export function MailNavBadge() {
   if (!unread && !todo) return null;
   return (
     <Group gap={4} wrap="nowrap">
-      {!!todo && (
-        <Tooltip label={`${todo} à traiter`}>
-          <Badge size="sm" variant="light" color="orange" aria-label={`${todo} à traiter`}>
-            {todo}
-          </Badge>
-        </Tooltip>
-      )}
-      {!!unread && (
-        <Tooltip label={`${unread} non ${plural(unread, 'lu')}`}>
-          <Badge size="sm" variant="filled" aria-label={`${unread} non lus`}>
-            {unread}
-          </Badge>
-        </Tooltip>
-      )}
+      <MailCountBadges todo={todo ?? 0} unread={unread ?? 0} />
     </Group>
   );
 }

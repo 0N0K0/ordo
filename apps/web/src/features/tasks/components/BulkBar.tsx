@@ -1,7 +1,7 @@
 import { plural } from '../../../lib/text';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { switchRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { useBulkTaskMutations, useSetTasksClosed, type Task } from '../api';
 import { CloneTasksDialog, DeleteTasksDialog, TransferTasksDialog } from './TaskDialogs';
 import { openTasksDialog } from '../lib/open-tasks-dialog';
@@ -52,13 +52,13 @@ export function useTaskRowsActions(context: TaskContext | null) {
       }),
       clone: { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => open(several ? 'Cloner les tâches' : 'Cloner la tâche', CloneTasksDialog) },
       transfer: { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => open(several ? 'Transférer les tâches' : 'Transférer la tâche', TransferTasksDialog, true) },
-      archive: switchRowsAction({
-        on: tasks.every((task) => task.archived),
-        labels: ['Archiver', 'Désarchiver'],
-        icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
+      archive: archiveRowsAction({
+        archived: tasks.every((task) => task.archived),
         loading: archive.isPending,
         apply: (archived) => archive.mutateAsync({ ids, archived }),
-        done: (archived) => `${label} ${plural(ids.length, archived ? 'archivée' : 'désarchivée')}.`,
+        label,
+        count: ids.length,
+        feminine: true,
         undo: (archived) => undo.archived(tasks, archived),
         clear: onClear,
       }),

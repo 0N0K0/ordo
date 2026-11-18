@@ -1,6 +1,7 @@
+import { ActionsMenu } from '../data-table/cells/RowActions';
 import { FormActions } from '../dialogs/FormActions';
-import { ActionIcon, Button, Group, Menu, Paper, Stack, Text, Tooltip } from '@mantine/core';
-import { DotsThreeIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { Button, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
+import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { ListSkeleton } from '../feedback/Skeletons';
@@ -92,31 +93,24 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
           </Tooltip>
         </Group>
         {draft === null && (
-          <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions sur le commentaire">
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setDraft(comment.body)}>
-                Modifier
-              </Menu.Item>
-              <Menu.Item
-                leftSection={<TrashIcon aria-hidden />}
-                color="red"
-                onClick={() =>
+          <ActionsMenu
+            name="ce commentaire"
+            size="sm"
+            items={[
+              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDraft(comment.body) },
+              {
+                label: 'Supprimer',
+                icon: <TrashIcon aria-hidden />,
+                danger: true,
+                onClick: () =>
                   confirmDestructive({
                     title: 'Supprimer le commentaire',
                     risks: 'Le commentaire sera supprimé définitivement. Cette action est irréversible.',
                     onConfirm: () => actions.remove(comment.id),
-                  })
-                }
-              >
-                Supprimer
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+                  }),
+              },
+            ]}
+          />
         )}
       </Group>
       <div style={{ padding: 'var(--mantine-spacing-sm)' }}>

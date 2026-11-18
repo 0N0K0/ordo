@@ -5,10 +5,9 @@ import * as clients from '../../services/workspace/clients';
 import { iconUrl } from '../../services/core/icons';
 import * as projects from '../../services/workspace/projects';
 import * as statuses from '../../services/tasks/statuses';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, NameColorPatch } from '../label-inputs';
-
-const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
+import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
 
 builder.prismaObject('ProjectCategory', {
   fields: (t) => ({
@@ -18,14 +17,7 @@ builder.prismaObject('ProjectCategory', {
   }),
 });
 
-builder.prismaObject('ProjectStatus', {
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('ProjectStatus');
 
 builder.prismaObject('Client', {
   fields: (t) => ({
@@ -114,12 +106,12 @@ builder.queryFields((t) => ({
   clients: t.prismaField({
     type: ['Client'],
     description: 'Every client, archived ones included, in manual order.',
-    resolve: (query) => prisma.client.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.client.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   projects: t.prismaField({
     type: ['Project'],
     description: 'Every project, archived ones included, in manual order.',
-    resolve: (query) => prisma.project.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.project.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   projectCategories: t.prismaField({
     type: ['ProjectCategory'],
@@ -127,7 +119,7 @@ builder.queryFields((t) => ({
   }),
   projectStatuses: t.prismaField({
     type: ['ProjectStatus'],
-    resolve: (query) => prisma.projectStatus.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.projectStatus.findMany({ ...query, orderBy: BY_POSITION }),
   }),
 }));
 

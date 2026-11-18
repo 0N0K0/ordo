@@ -1,7 +1,7 @@
 import { isUnderOrSelf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { fieldError, notFound } from '../../graphql/errors';
 import type { OrderedModel } from './ordering';
 
 /** What the models of a tree have in common (each delegate of Prisma has these). */
@@ -30,7 +30,7 @@ export async function assertTreeParent(model: OrderedModel, parentId: string | n
   if (!parentId) return;
   const parentOf = new Map((await delegate(model).findMany({ select: { id: true, parentId: true } })).map((item) => [item.id, item.parentId]));
   if (!parentOf.has(parentId)) throw notFound(messages.missing);
-  if (id && isUnderOrSelf(parentOf, parentId, id)) throw clientError('BAD_USER_INPUT', messages.loop, { fields: { [messages.field ?? 'parentId']: messages.loop } });
+  if (id && isUnderOrSelf(parentOf, parentId, id)) throw fieldError(messages.field ?? 'parentId', messages.loop);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { SubSection } from '../../../components/page/SubSection';
 import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
@@ -120,10 +121,7 @@ export function AgendaCard({ today }: { today: string }) {
     <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to="/calendar" linkLabel="Ouvrir l’agenda" loading={!items}>
       {items && items.length === 0 && <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Rien de prévu cette semaine." />}
       {days.map(([day, list]) => (
-        <Stack key={day} gap={2}>
-          <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-            {dayLabel(day, today)}
-          </Text>
+        <SubSection key={day} title={dayLabel(day, today)} gap={2}>
           {list.map((item) => (
             <Group key={item.key} gap="xs" wrap="nowrap">
               <Text size="sm" c="dimmed" w={48} style={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
@@ -135,7 +133,7 @@ export function AgendaCard({ today }: { today: string }) {
               </Text>
             </Group>
           ))}
-        </Stack>
+        </SubSection>
       ))}
     </HomeCard>
   );

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { scheduleRules, useWorkSchedules } from '../../calendar/api';
 import { useTimeEntriesSince } from '../api';
-import { useNow } from '../hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 

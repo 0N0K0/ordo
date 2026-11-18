@@ -1,7 +1,7 @@
 import { BlockSkeleton, TextSkeleton } from '../../../components/feedback/Skeletons';
-import { Button, Group, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Group, Skeleton, Stack } from '@mantine/core';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { PageMessage } from '../../../components/feedback/PageMessage';
 
 /**
  * Skeleton of a detail page while the workspace loads.
@@ -29,20 +29,5 @@ export function EntitySkeleton() {
  * @returns {JSX.Element} Not found state.
  */
 export function EntityNotFound({ what }: { what: string }) {
-  return (
-    <Stack align="center" gap="md" py="xl">
-      <ThemeIcon size={64} radius="xl" variant="light" color="gray">
-        <MagnifyingGlassIcon size="55%" aria-hidden />
-      </ThemeIcon>
-      <Title order={1} size="h3">
-        Introuvable
-      </Title>
-      <Text c="dimmed" ta="center">
-        {what} n’existe pas ou a été supprimé.
-      </Text>
-      <Button component={Link} to="/">
-        Retour à l’accueil
-      </Button>
-    </Stack>
-  );
+  return <PageMessage icon={<MagnifyingGlassIcon size="55%" aria-hidden />} title="Introuvable" message={`${what} n’existe pas ou a été supprimé.`} />;
 }

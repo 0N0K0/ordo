@@ -5,14 +5,14 @@ import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsItemForm } from '../../../components/settings/SettingsItemForm';
-import { EntityAvatar } from '../../workspace/components/EntityAvatar';
+import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { Badge, Group, Menu, Stack, Text } from '@mantine/core';
+import { Badge, Group, Stack, Text } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
 import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 
@@ -133,7 +133,7 @@ export function BaseLists() {
         onChange={select}
         onMove={move}
         name={(baseList) => `la référence ${baseList.name}`}
-        leftSection={(baseList) => <EntityAvatar name={baseList.name} iconUrl={baseList.iconUrl ?? null} color={baseList.color ?? 'gray'} size={18} radius="sm" />}
+        leftSection={(baseList) => <ItemAvatar name={baseList.name} iconUrl={baseList.iconUrl} color={baseList.color} />}
         label={(baseList) => {
           const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
           return (
@@ -147,11 +147,7 @@ export function BaseLists() {
             </Group>
           );
         }}
-        actions={(baseList) => (
-          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(baseList)}>
-            Modifier
-          </Menu.Item>
-        )}
+        actions={(baseList) => [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}
       />

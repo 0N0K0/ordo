@@ -18,10 +18,11 @@ import {
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
 import { assertProjectContributors } from '../workspace/contributors';
+import { assertAllExist, assertExists } from '../core/lookup';
 
 export interface CalendarLink {
   url: string;
@@ -170,21 +171,13 @@ async function eventContributorIds(id: string): Promise<string[]> {
  */
 async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   const event = parseInput(calendarEventInputSchema, input);
-  if (event.projectId && !(await prisma.project.findUnique({ where: { id: event.projectId }, select: { id: true } }))) {
-    throw notFound('Projet');
-  }
-  if ((await prisma.contributor.count({ where: { id: { in: event.contributorIds } } })) !== new Set(event.contributorIds).size) {
-    throw notFound('Contributeur');
-  }
+  await assertExists(prisma.project, event.projectId, 'Projet');
+  await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
   await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
-  if ((await prisma.contributor.count({ where: { id: { in: event.beneficiaryIds } } })) !== new Set(event.beneficiaryIds).size) throw notFound('Bénéficiaire');
-  if ((await prisma.treasuryRelation.count({ where: { id: { in: event.beneficiaryRelationIds } } })) !== new Set(event.beneficiaryRelationIds).size) throw notFound('Bénéficiaire');
-  if ((await prisma.treasuryRelation.count({ where: { id: { in: event.relationIds } } })) !== new Set(event.relationIds).size) {
-    throw notFound('Relation');
-  }
-  if ((await prisma.calendarCategory.count({ where: { id: { in: event.categoryIds } } })) !== new Set(event.categoryIds).size) {
-    throw notFound('Catégorie');
-  }
+  await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, event.relationIds, 'Relation');
+  await assertAllExist(prisma.calendarCategory, event.categoryIds, 'Catégorie');
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
@@ -192,7 +185,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   // Routines of a day of the event (the one edited, for an occurrence).
   if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
-    throw clientError('BAD_USER_INPUT', message, { fields: { routineLinks: message } });
+    throw fieldError('routineLinks', message);
   }
   const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
   const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { title: true, assignees: { select: { id: true } } } });
@@ -200,7 +193,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   apart.push(...routines.filter((routine) => !sharePeople(routine.assignees.map((assignee) => assignee.id), event.contributorIds)));
   if (apart.length) {
     const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.title} »`).join(', ')}.`;
-    throw clientError('BAD_USER_INPUT', message, { fields: { [routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds']: message } });
+    throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);
   }
   // A point goes with a location, both coordinates or none.
   if (!event.location || event.locationLat === null || event.locationLon === null) {

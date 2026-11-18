@@ -1,6 +1,7 @@
-import { CopyIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { plural } from '../../../lib/text';
+import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import type { RowMenuEntry } from '../cells/RowActions';
 import type { SelectionAction } from './SelectionBar';
@@ -19,7 +20,7 @@ export async function forEachRow<R>(rows: readonly R[], run: (row: R) => Promise
     notifySuccess(done);
     return true;
   } catch (error) {
-    notifyError((error as Error).message);
+    notifyFailure(error);
     return false;
   }
 }
@@ -123,6 +124,52 @@ export function switchRowsAction({
         clear?.();
       }, onError),
   };
+}
+
+/**
+ * « Archiver » / « Restaurer » of the rows checked: archives them unless all are, then restores them; the success told
+ * with its undo.
+ * @param {object} options Options.
+ * @param {boolean} options.archived Every row checked is archived already.
+ * @param {(archived: boolean) => Promise<unknown>} options.apply Archives or restores the rows.
+ * @param {string} options.label What is changed, for the message (« 3 tâches »).
+ * @param {number} options.count Number of rows, for the agreement of the message.
+ * @param {boolean} [options.feminine] Rows named in the feminine (« archivées »). Optional.
+ * @param {(archived: boolean) => () => void} [options.undo] Undo, putting each row back as it was. Optional. Default = the opposite switch.
+ * @param {() => void} [options.clear] Clears the selection once done. Optional.
+ * @param {boolean} [options.loading] Running. Optional.
+ * @returns {SelectionAction} Action.
+ */
+export function archiveRowsAction({
+  archived,
+  apply,
+  label,
+  count,
+  feminine = false,
+  undo,
+  clear,
+  loading,
+}: {
+  archived: boolean;
+  apply: (archived: boolean) => Promise<unknown>;
+  label: string;
+  count: number;
+  feminine?: boolean;
+  undo?: (archived: boolean) => () => void;
+  clear?: () => void;
+  loading?: boolean;
+}): SelectionAction {
+  const ending = feminine ? 'e' : '';
+  return switchRowsAction({
+    on: archived,
+    labels: ['Archiver', 'Restaurer'],
+    icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
+    loading,
+    apply,
+    done: (on) => `${label} ${plural(count, `${on ? 'archivé' : 'restauré'}${ending}`)}.`,
+    undo,
+    clear,
+  });
 }
 
 /**

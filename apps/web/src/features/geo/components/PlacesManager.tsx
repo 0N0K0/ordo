@@ -4,7 +4,7 @@ import { useRef, type CSSProperties } from 'react';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import type { SettingsItemValues } from '../../../components/settings/SettingsItemForm';
-import { notifyError } from '../../../lib/notify';
+import { notifyFailure } from '../../../lib/notify';
 import { useFillHeight } from '../../../lib/fill-height';
 import { AddressInput } from './AddressInput';
 import { reverseAddress, usePlaceMutations, usePlaces, type Place } from '../api';
@@ -45,7 +45,7 @@ export function PlacesManager() {
       const found = await reverseAddress(point);
       adderRef.current?.({ name: found?.name ?? '', address: found?.label ?? fallback, lat: point.lat, lon: point.lon, parentId: null });
     } catch (error) {
-      notifyError((error as Error).message);
+      notifyFailure(error);
       adderRef.current?.({ address: fallback, lat: point.lat, lon: point.lon, parentId: null });
     }
   };

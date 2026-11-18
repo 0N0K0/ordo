@@ -1,13 +1,4 @@
 import type { SheetInput, SheetItemInput } from '@ordo/shared';
-import * as fmt from '../../../lib/format';
-
-/**
- * Quantity and unit of an item: « 6 », « 250 g », « 1,5 kg », nothing without quantity.
- * @param {{ quantity?: number | null, unit?: string | null }} item Item.
- * @returns {string} Text.
- */
-export const quantityText = (item: { quantity?: number | null; unit?: string | null }) =>
-  item.quantity === null || item.quantity === undefined ? (item.unit ?? '') : `${fmt.number(item.quantity, 3)}${item.unit ? ` ${item.unit}` : ''}`;
 
 /**
  * Input of a sheet as it is, with some fields changed.

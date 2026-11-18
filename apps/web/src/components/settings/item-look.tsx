@@ -36,6 +36,19 @@ export function itemRenderOption(options: readonly ItemOption[]): (input: Combob
 }
 
 /**
+ * Options of the items of a flat settings list (a select, a column filter), each with its color and image for its avatar.
+ * @param {readonly { id: string, name: string, color?: string | null, iconUrl?: string | null }[]} items Items, in their order.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its name.
+ * @returns {ItemOption[]} Options.
+ */
+export function itemOptions<T extends { id: string; name: string; color?: string | null; iconUrl?: string | null }>(
+  items: readonly T[],
+  label: (item: T) => string = (item) => item.name,
+): ItemOption[] {
+  return items.map((item) => ({ value: item.id, label: label(item), color: item.color ?? 'gray', iconUrl: item.iconUrl }));
+}
+
+/**
  * Props of a Select or MultiSelect of the items of a flat settings list: each option with its avatar (its image, or
  * its initials on its color), as the chosen ones.
  * @param {readonly { id: string, name: string, color?: string | null, iconUrl?: string | null }[]} items Items, in their order.
@@ -46,6 +59,6 @@ export function listSelectProps<T extends { id: string; name: string; color?: st
   items: readonly T[],
   label: (item: T) => string = (item) => item.name,
 ): { data: ItemOption[]; renderOption: (input: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode } {
-  const data = items.map((item) => ({ value: item.id, label: label(item), color: item.color ?? 'gray', iconUrl: item.iconUrl }));
+  const data = itemOptions(items, label);
   return { data, renderOption: itemRenderOption(data) };
 }

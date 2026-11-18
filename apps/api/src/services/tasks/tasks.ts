@@ -4,20 +4,11 @@ import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { attachAssignees } from '../workspace/contributors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { assertProjectContributors, attachAssignees } from '../workspace/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
-
-/**
- * Error attached to a form field.
- * @param {string} field Field name.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
-function fieldError(field: string, message: string) {
-  return clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
-}
+import { assertAllExist, assertExists } from '../core/lookup';
 
 /**
  * Root project of each project: tasks can only be linked inside the same tree.
@@ -149,21 +140,13 @@ async function assertReferences(refs: {
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
 }): Promise<void> {
-  if (refs.beneficiaryIds?.length && (await prisma.contributor.count({ where: { id: { in: refs.beneficiaryIds } } })) !== new Set(refs.beneficiaryIds).size) throw notFound('Bénéficiaire');
-  if (refs.beneficiaryRelationIds?.length && (await prisma.treasuryRelation.count({ where: { id: { in: refs.beneficiaryRelationIds } } })) !== new Set(refs.beneficiaryRelationIds).size) throw notFound('Bénéficiaire');
-  if (refs.statusId && !(await prisma.taskStatus.findUnique({ where: { id: refs.statusId } }))) throw notFound('Statut');
-  if (refs.priorityId && !(await prisma.taskPriority.findUnique({ where: { id: refs.priorityId } }))) {
-    throw notFound('Priorité');
-  }
-  if (refs.typeId && !(await prisma.taskType.findUnique({ where: { id: refs.typeId } }))) throw notFound('Type');
-  if (refs.assigneeIds?.length) {
-    const count = await prisma.contributor.count({ where: { id: { in: refs.assigneeIds } } });
-    if (count !== new Set(refs.assigneeIds).size) throw notFound('Contributeur');
-  }
-  if (refs.tagIds?.length) {
-    const count = await prisma.taskTag.count({ where: { id: { in: refs.tagIds } } });
-    if (count !== new Set(refs.tagIds).size) throw notFound('Étiquette');
-  }
+  await assertAllExist(prisma.contributor, refs.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, refs.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertExists(prisma.taskStatus, refs.statusId, 'Statut');
+  await assertExists(prisma.taskPriority, refs.priorityId, 'Priorité');
+  await assertExists(prisma.taskType, refs.typeId, 'Type');
+  await assertAllExist(prisma.contributor, refs.assigneeIds, 'Contributeur');
+  await assertAllExist(prisma.taskTag, refs.tagIds, 'Étiquette');
 }
 
 export interface TaskInput {
@@ -258,6 +241,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
   if (input.parentId) await assertParent(input.parentId, projectId, null);
   if (input.milestoneId) await assertMilestone(input.milestoneId, projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, projectId);
+  await assertProjectContributors(projectId, input.assigneeIds ?? [], [], 'assigneeIds');
 
   const task = await prisma.task.create({
     data: {
@@ -277,7 +261,6 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
       tags: { connect: (input.tagIds ?? []).map((id) => ({ id })) },
     },
   });
-  if (projectId) await attachAssignees([{ projectId, contributorIds: input.assigneeIds ?? [] }]);
   return task;
 }
 
@@ -297,6 +280,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const previous = input.assigneeIds
     ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
     : [];
+  if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
 
   const updated = await prisma.task.update({
     where: { id },
@@ -314,11 +298,6 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       ...(input.tagIds && { tags: { set: input.tagIds.map((tagId) => ({ id: tagId })) } }),
     },
   });
-  // Only new assignees: a contributor detached from the project on purpose stays detached.
-  if (input.assigneeIds) {
-    const added = input.assigneeIds.filter((assigneeId) => !previous.includes(assigneeId));
-    if (task.projectId) await attachAssignees([{ projectId: task.projectId, contributorIds: added }]);
-  }
   return updated;
 }
 
@@ -718,8 +697,7 @@ interface BulkTaskChanges {
  */
 async function assertTasks(ids: string[]): Promise<void> {
   if (ids.length === 0) throw clientError('BAD_USER_INPUT', 'Aucune tâche sélectionnée.');
-  const count = await prisma.task.count({ where: { id: { in: ids } } });
-  if (count !== new Set(ids).size) throw notFound('Tâche');
+  await assertAllExist(prisma.task, ids, 'Tâche');
 }
 
 /**
@@ -751,9 +729,11 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
 
   const tasks = await prisma.task.findMany({
     where: { id: { in: ids } },
-    select: { id: true, projectId: true, startDate: true, endDate: true },
+    select: { id: true, projectId: true, startDate: true, endDate: true, assignees: { select: { id: true } } },
   });
   for (const task of tasks) {
+    // Of a project: its contributors only (those already assigned stay).
+    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds');
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.
@@ -792,7 +772,6 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         )
       : []),
   ]);
-  await attachAssignees(tasks.flatMap((task) => (task.projectId ? [{ projectId: task.projectId, contributorIds: changes.addAssigneeIds ?? [] }] : [])));
 }
 
 /**

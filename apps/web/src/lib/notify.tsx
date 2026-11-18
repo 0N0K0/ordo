@@ -119,6 +119,19 @@ export function notifyError(message: string): void {
  */
 export const onMutationError = (error: Error): void => notifyError(error.message);
 
+/** Message of an error thrown without one (not an `Error`). */
+export const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
+
+/**
+ * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback.
+ * @param {unknown} error What was thrown.
+ * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
+ * @returns {void}
+ */
+export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
+  notifyError(error instanceof Error ? error.message : fallback);
+}
+
 /**
  * Shows a success toast with an "Annuler" button, for a few seconds.
  * @param {string} message Message to display.

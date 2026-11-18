@@ -1,7 +1,8 @@
-import { ActionIcon, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, TextInput, Tooltip } from '@mantine/core';
+import { Anchor, Fieldset, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { EMPTY_ADDRESS, type Address } from '@ordo/shared';
-import { PlusIcon, XIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import { COUNTRY_OPTIONS } from './countries';
+import { RemoveButton } from '../actions/RemoveButton';
 
 interface AddressFieldsProps {
   legend: string;
@@ -39,11 +40,7 @@ export function AddressFields({ legend, value, onChange, errors = {} }: AddressF
               style={{ flex: 1 }}
             />
             {address.lines.length > 1 && (
-              <Tooltip label="Retirer la ligne">
-                <ActionIcon variant="subtle" color="gray" mb={4} aria-label={`Retirer la ligne ${index + 1}`} onClick={() => update({ lines: address.lines.filter((_, position) => position !== index) })}>
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton label="Retirer la ligne" mb={4} aria-label={`Retirer la ligne ${index + 1}`} onClick={() => update({ lines: address.lines.filter((_, position) => position !== index) })} />
             )}
           </Group>
         ))}

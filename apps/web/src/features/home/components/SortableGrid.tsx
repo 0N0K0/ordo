@@ -1,10 +1,9 @@
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { arrayMove, useSortable } from '@dnd-kit/sortable';
 import { SimpleGrid } from '@mantine/core';
 import { useMemo, type ReactNode } from 'react';
 import { DragHandleContext } from '../lib/drag-handle';
-import { useDragSensors } from '../../../lib/drag';
+import { SortableArea } from '../../../components/actions/sortable';
+import { sortableStyle } from '../../../components/actions/sortable-style';
 
 interface SortableItemProps {
   id: string;
@@ -17,19 +16,10 @@ interface SortableItemProps {
  * @returns {JSX.Element} Item.
  */
 function SortableItem({ id, children }: SortableItemProps) {
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
-  const handle = useMemo(() => ({ attributes, listeners }), [attributes, listeners]);
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  const handle = useMemo(() => ({ activator: setActivatorNodeRef, attributes, listeners, dragging: isDragging }), [setActivatorNodeRef, attributes, listeners, isDragging]);
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition,
-        position: 'relative',
-        zIndex: isDragging ? 1 : undefined,
-        opacity: isDragging ? 0.85 : undefined,
-      }}
-    >
+    <div ref={setNodeRef} style={{ ...sortableStyle({ transform, transition, isDragging }), opacity: isDragging ? 0.85 : undefined }}>
       <DragHandleContext.Provider value={handle}>{children}</DragHandleContext.Provider>
     </div>
   );
@@ -47,30 +37,16 @@ interface SortableGridProps {
  * @returns {JSX.Element} Grid.
  */
 export function SortableGrid({ items, onReorder }: SortableGridProps) {
-  const sensors = useDragSensors('sortable');
   const ids = items.map((item) => item.id);
-
-  /**
-   * Moves the dropped card to its new place.
-   * @param {DragEndEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    onReorder(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
-  };
-
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={ids} strategy={rectSortingStrategy}>
-        <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
-          {items.map((item) => (
-            <SortableItem key={item.id} id={item.id}>
-              {item.node}
-            </SortableItem>
-          ))}
-        </SimpleGrid>
-      </SortableContext>
-    </DndContext>
+    <SortableArea ids={ids} layout="grid" onMove={(_, from, to) => onReorder(arrayMove(ids, from, to))}>
+      <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
+        {items.map((item) => (
+          <SortableItem key={item.id} id={item.id}>
+            {item.node}
+          </SortableItem>
+        ))}
+      </SimpleGrid>
+    </SortableArea>
   );
 }

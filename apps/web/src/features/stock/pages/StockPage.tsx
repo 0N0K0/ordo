@@ -1,3 +1,4 @@
+import { categoryPaths } from '../../../components/tree/category-tree';
 import { countBy } from '@ordo/shared';
 import { useSetParams } from '../../../lib/search-params';
 import { Stack } from '@mantine/core';
@@ -13,7 +14,6 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 import * as fmt from '../../../lib/format';
 import { useStockCounts, useStockItems, useStockLocations, type StockCount } from '../api';
 import { MovementsTable } from '../components/MovementsTable';
-import { locationPaths } from '../lib/stock-format';
 import { StockLocations } from '../components/StockLocations';
 import { StockTable } from '../components/StockTable';
 
@@ -24,7 +24,7 @@ import { StockTable } from '../components/StockTable';
 function CountsTable() {
   const { data: counts } = useStockCounts();
   const { data: locations } = useStockLocations();
-  const places = locationPaths(locations ?? []);
+  const places = categoryPaths(locations ?? []);
   const columns: DataColumn<StockCount>[] = [
     {
       id: 'date',

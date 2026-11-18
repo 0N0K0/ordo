@@ -1,3 +1,4 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -96,11 +97,10 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          Documents et liens utiles au projet : cahier des charges, maquettes, dépôt de code…
-        </Text>
-        <Group gap="xs">
+      <SectionHeader
+        description="Documents et liens utiles au projet : cahier des charges, maquettes, dépôt de code…"
+        actions={
+          <>
           <FileButton
             multiple
             onChange={(files) =>
@@ -112,8 +112,9 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
             )}
           </FileButton>
           <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>Ajouter un lien</ActionButton>
-        </Group>
-      </Group>
+          </>
+        }
+      />
       {isPending ? (
         <ListSkeleton items={3} />
       ) : !resources?.length ? (

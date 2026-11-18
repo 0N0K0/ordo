@@ -1,40 +1,8 @@
 @layer app {
-  /* Group of products or items (a category or a store): its rows scroll sideways on a phone. */
-  .group {
-    /* Dimension */
-    overflow: hidden;
-  }
-
-  .scroller {
-    /* Dimension */
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
   /* Editable table: category headings, product rows, drop targets while dragging. */
   .table {
     /* Typographie */
     font-size: var(--mantine-font-size-sm);
-  }
-
-  .groupRow {
-    /* Arrière-Plan */
-    background-color: var(--mantine-color-default-hover);
-
-    &[data-depth='0'] {
-      /* Arrière-Plan */
-      background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
-    }
-
-    &[data-over] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 2px solid var(--mantine-primary-color-filled);
-      outline-offset: -2px;
-    }
   }
 
   .itemRow {
@@ -67,29 +35,9 @@
     }
   }
 
-  .handle {
-    /* Interaction */
-    cursor: grab;
-    touch-action: none;
-  }
-
-  .overlay {
-    /* Interaction */
-    cursor: grabbing;
-  }
-
   .nowrap {
     /* Typographie */
     white-space: nowrap;
-  }
-
-  /* Item bought: struck through, dimmed. */
-  .purchased {
-    /* Typographie */
-    text-decoration: line-through;
-
-    /* Effets */
-    opacity: 0.55;
   }
 
   /* Store mode: one big row per item, easy to tick with a thumb. */

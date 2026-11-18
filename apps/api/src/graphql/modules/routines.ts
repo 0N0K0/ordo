@@ -4,7 +4,9 @@ import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
+import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
 
@@ -97,11 +99,7 @@ builder.prismaObject('Routine', {
     id: t.exposeID('id'),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
-    categoryIds: t.idList({
-      description: 'Categories it is shown in.',
-      select: { categories: { select: { id: true } } },
-      resolve: (routine) => routine.categories.map((category) => category.id),
-    }),
+    categoryIds: t.idList(relationIds('categories', 'Categories it is shown in.')),
     parentId: t.exposeID('parentId', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
     recurrence: t.field({
@@ -148,9 +146,9 @@ builder.prismaObject('Routine', {
     travelAfter: t.exposeInt('travelAfter', { description: 'Minutes to get back.' }),
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (routine) => routine.archivedAt !== null }),
-    assigneeIds: t.idList({ select: { assignees: { select: { id: true } } }, resolve: (routine) => routine.assignees.map((assignee) => assignee.id) }),
-    beneficiaryIds: t.idList({ description: '« Bénéficiaires »: contributors it is for.', select: { beneficiaries: { select: { id: true } } }, resolve: (routine) => routine.beneficiaries.map((beneficiary) => beneficiary.id) }),
-    beneficiaryRelationIds: t.idList({ description: '« Bénéficiaires »: relations it is for.', select: { beneficiaryRelations: { select: { id: true } } }, resolve: (routine) => routine.beneficiaryRelations.map((relation) => relation.id) }),
+    assigneeIds: t.idList(relationIds('assignees')),
+    beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
+    beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations it is for.')),
     requiredIds: t.idList({
       description: 'Routines to do before this one.',
       select: { requires: { select: { requiredId: true } } },
@@ -321,7 +319,7 @@ const idOrNull = (id: string | number | null | undefined) => (id === null || id 
 const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput => ({
   title: input.title,
   description: input.description ?? null,
-  categoryIds: input.categoryIds.map(String),
+  categoryIds: input.categoryIds,
   parentId: idOrNull(input.parentId),
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
@@ -344,10 +342,10 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   travelBefore: input.travelBefore ?? 0,
   travelAfter: input.travelAfter ?? 0,
   projectId: idOrNull(input.projectId),
-  assigneeIds: input.assigneeIds.map(String),
-  beneficiaryIds: (input.beneficiaryIds ?? []).map(String),
-  beneficiaryRelationIds: (input.beneficiaryRelationIds ?? []).map(String),
-  requiredIds: input.requiredIds.map(String),
+  assigneeIds: input.assigneeIds,
+  beneficiaryIds: input.beneficiaryIds ?? [],
+  beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
+  requiredIds: input.requiredIds,
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -407,7 +405,7 @@ builder.queryFields((t) => ({
   routines: t.prismaField({
     type: ['Routine'],
     description: 'Every routine, archived ones included, in manual order.',
-    resolve: (query) => prisma.routine.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.routine.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   routineOccurrences: t.field({
     type: [RoutineOccurrenceRef],
@@ -456,16 +454,16 @@ builder.mutationFields((t) => ({
   }),
   updateRoutineCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(routines.updateCategory(String(id), { name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) })),
+    resolve: (_root, { id, input }) => done(routines.updateCategory(id, { name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) })),
   }),
   moveRoutineCategory: t.boolean({
     description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: (_root, { id, parentId, index }) => done(routines.moveCategory(String(id), idOrNull(parentId), index)),
+    resolve: (_root, { id, parentId, index }) => done(routines.moveCategory(id, idOrNull(parentId), index)),
   }),
   deleteRoutineCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(routines.deleteCategory(String(id))),
+    resolve: (_root, { id }) => done(routines.deleteCategory(id)),
   }),
   createRoutine: t.id({
     args: { input: t.arg({ type: RoutineInputType, required: true }) },
@@ -474,11 +472,11 @@ builder.mutationFields((t) => ({
   copySubRoutines: t.int({
     description: 'Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.',
     args: { fromId: t.arg.id({ required: true }), toId: t.arg.id({ required: true }) },
-    resolve: (_root, { fromId, toId }) => routines.copySubRoutines(String(fromId), String(toId)),
+    resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
   updateRoutine: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: (_root, { id, input }) => done(routines.updateRoutine(String(id), routineInput(input))),
+    resolve: (_root, { id, input }) => done(routines.updateRoutine(id, routineInput(input))),
   }),
   patchRoutine: t.boolean({
     description: 'Changes some fields of a routine (inline edits).',
@@ -486,13 +484,13 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) => {
       const changes: Partial<RoutineInput> = {};
       if (input.title !== undefined && input.title !== null) changes.title = input.title;
-      if (input.categoryIds) changes.categoryIds = input.categoryIds.map(String);
+      if (input.categoryIds) changes.categoryIds = input.categoryIds;
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;
-      if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
-      if (input.beneficiaryIds) changes.beneficiaryIds = input.beneficiaryIds.map(String);
-      if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds.map(String);
-      if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
+      if (input.assigneeIds) changes.assigneeIds = input.assigneeIds;
+      if (input.beneficiaryIds) changes.beneficiaryIds = input.beneficiaryIds;
+      if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds;
+      if (input.requiredIds) changes.requiredIds = input.requiredIds;
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
       if (input.location !== undefined) Object.assign(changes, { location: input.location ?? null, locationLat: input.locationLat ?? null, locationLon: input.locationLon ?? null });
       if (input.travelBefore !== undefined && input.travelBefore !== null) changes.travelBefore = input.travelBefore;
@@ -503,7 +501,7 @@ builder.mutationFields((t) => ({
       if (input.recurrence !== undefined && input.recurrence !== null) Object.assign(changes, { cases: [] });
       // Times of its own: a single moment.
       if (input.fromTime !== undefined || input.dueTime !== undefined) {
-        const current = await routines.momentOf(String(id));
+        const current = await routines.momentOf(id);
         changes.moments = [{ fromTime: input.fromTime !== undefined ? (input.fromTime ?? null) : current.fromTime, dueTime: input.dueTime !== undefined ? (input.dueTime ?? null) : current.dueTime, optional: false }];
       }
       if (input.startDate) changes.startDate = input.startDate;
@@ -512,7 +510,7 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      await routines.patchRoutine(String(id), changes);
+      await routines.patchRoutine(id, changes);
       return true;
     },
   }),
@@ -524,14 +522,14 @@ builder.mutationFields((t) => ({
       place: t.arg({ type: RoutinePlaceEnum, required: true }),
       categoryIds: t.arg.idList(),
     },
-    resolve: (_root, { id, targetId, place, categoryIds }) => done(routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null)),
+    resolve: (_root, { id, targetId, place, categoryIds }) => done(routines.moveRoutine(id, targetId, place, categoryIds || null)),
   }),
   bulkUpdateRoutines: t.int({
     description: 'Applies the same changes to several routines; returns how many changed.',
     args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
     resolve: (_root, { ids, changes }) => {
       const list = (value: (string | number)[] | null | undefined) => (value ? value.map(String) : undefined);
-      return routines.bulkUpdateRoutines(ids.map(String), {
+      return routines.bulkUpdateRoutines(ids, {
         addCategoryIds: list(changes.addCategoryIds),
         removeCategoryIds: list(changes.removeCategoryIds),
         addAssigneeIds: list(changes.addAssigneeIds),
@@ -553,22 +551,22 @@ builder.mutationFields((t) => ({
   }),
   bulkSetRoutinesArchived: t.int({
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids.map(String), archived),
+    resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids, archived),
   }),
   bulkSetRoutinesDone: t.int({
     description: 'Ticks or unticks the current occurrence of several routines; returns how many changed.',
     args: { ids: t.arg.idList({ required: true }), done: t.arg.boolean({ required: true }) },
-    resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids.map(String), done),
+    resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids, done),
   }),
   bulkDeleteRoutines: t.int({
     args: { ids: t.arg.idList({ required: true }) },
-    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids.map(String)),
+    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids),
   }),
   moveRoutineOccurrence: t.boolean({
     description:
       'Moves an occurrence to another day (postponed or brought forward) and / or other times ([{ fromTime, dueTime } | null] by time of the day, null: those of its rule; none: those it had); back to its own day and times, the exception is removed.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }), times: t.arg({ type: 'JSON' }) },
-    resolve: (_root, { id, date, to, times }) => done(routines.moveRoutineOccurrence(String(id), date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes))),
+    resolve: (_root, { id, date, to, times }) => done(routines.moveRoutineOccurrence(id, date, to, times === undefined || times === null ? undefined : (times as RoutineMoveTimes))),
   }),
   changeRoutineOccurrence: t.boolean({
     description: 'Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.',
@@ -581,20 +579,20 @@ builder.mutationFields((t) => ({
       fromTime: t.arg.string(),
       dueTime: t.arg.string(),
     },
-    resolve: (_root, { id, date, scope, to, slot, fromTime, dueTime }) => done(routines.changeRoutineOccurrence(String(id), date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null })),
+    resolve: (_root, { id, date, scope, to, slot, fromTime, dueTime }) => done(routines.changeRoutineOccurrence(id, date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null })),
   }),
   deleteRoutineOccurrence: t.boolean({
     description: 'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), scope: t.arg({ type: EventScope, required: true }) },
     resolve: async (_root, { id, date, scope }) => {
       if (scope === 'ALL') throw clientError('BAD_USER_INPUT', 'Archivez ou supprimez la routine elle-même.');
-      return routines.deleteRoutineOccurrence(String(id), date, scope);
+      return routines.deleteRoutineOccurrence(id, date, scope);
     },
   }),
   removeRoutineMove: t.boolean({
     description: 'Removes an exception: the occurrence goes back to its own day.',
     args: { id: t.arg.id({ required: true }), from: t.arg({ type: 'Date', required: true }) },
-    resolve: (_root, { id, from }) => done(routines.removeRoutineMove(String(id), from)),
+    resolve: (_root, { id, from }) => done(routines.removeRoutineMove(id, from)),
   }),
   setRoutineDone: t.field({
     type: 'Date',
@@ -602,6 +600,6 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }), slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }),
       doneAt: t.arg({ type: 'DateTime', description: 'When it was done (ticked after the fact); now by default.' }),
     },
-    resolve: async (_root, { id, done, date, slot, doneAt }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null, slot ?? null, doneAt ?? null)),
+    resolve: async (_root, { id, done, date, slot, doneAt }) => parseDay(await routines.setRoutineDone(id, done, date ?? null, slot ?? null, doneAt ?? null)),
   }),
 }));

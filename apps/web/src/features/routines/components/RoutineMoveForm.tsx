@@ -5,13 +5,14 @@ import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
+import { SubSection } from '../../../components/page/SubSection';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { localToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
 import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
-import { longDay, useRoutineMove } from '../hooks/use-routine-move';
+import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -75,7 +76,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
       .map((slot) => windowText(slot))
       .filter(Boolean)
       .join(', ');
-    return { value: day, label: `${fmt.capitalize(longDay(day))}${day === today ? ' (aujourd’hui)' : day < today ? ' (en retard)' : ''}${hours ? ` · ${hours}` : ''}` };
+    return { value: day, label: `${fmt.capitalize(fmt.dayLong(day))}${day === today ? ' (aujourd’hui)' : day < today ? ' (en retard)' : ''}${hours ? ` · ${hours}` : ''}` };
   });
 
   /**
@@ -112,7 +113,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           <>
             <Select
               label="Occurrence"
-              description={moved ? `Déjà déplacée depuis le ${longDay(moved.from)}.` : 'Ne change que celle-ci : c’est une exception, la règle ne change pas.'}
+              description={moved ? `Déjà déplacée depuis le ${fmt.dayLong(moved.from)}.` : 'Ne change que celle-ci : c’est une exception, la règle ne change pas.'}
               data={options}
               value={date}
               onChange={choose}
@@ -163,10 +164,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           </Text>
         )}
         {moves.length > 0 && (
-          <Stack gap={4}>
-            <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-              Exceptions
-            </Text>
+          <SubSection title="Exceptions">
             {moves.map((item) => (
               <Group key={item.from} gap="xs" wrap="nowrap">
                 <Text size="sm">{shortText(item.from)}</Text>
@@ -183,7 +181,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                     variant="subtle"
                     color="gray"
                     size="sm"
-                    aria-label={`Remettre l’occurrence du ${longDay(item.from)} à son jour`}
+                    aria-label={`Remettre l’occurrence du ${fmt.dayLong(item.from)} à son jour`}
                     loading={removeMove.isPending && removeMove.variables?.from === item.from}
                     onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: onMutationError })}
                   >
@@ -192,7 +190,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                 </Tooltip>
               </Group>
             ))}
-          </Stack>
+          </SubSection>
         )}
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
@@ -204,14 +202,14 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               onClick={() =>
                 confirmDestructive({
                   title: 'Annuler cette occurrence ?',
-                  risks: `L’occurrence du ${longDay(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
+                  risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
                   confirmLabel: 'Annuler l’occurrence',
                   onConfirm: () =>
                     deleteOccurrence.mutate(
                       { id: routine.id, date, scope: 'THIS' },
                       {
                         onSuccess: () => {
-                          notifySuccess(`Occurrence du ${longDay(date)} annulée.`);
+                          notifySuccess(`Occurrence du ${fmt.dayLong(date)} annulée.`);
                           onDone();
                         },
                         onError: onMutationError,

@@ -1,3 +1,4 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { plural, countOf } from '../../../lib/text';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -14,11 +15,10 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { categoryTree } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
-import { shoppingCategoryOptions } from '../../shopping/lib/shopping-format';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from '../api';
 import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
@@ -39,7 +39,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
   const mutations = useSheetMutations();
   const [label, setLabel] = useState('');
   const categories = shopping?.shoppingCategories ?? [];
-  const paths = new Map(categoryTree(categories).map((item) => [item.category.id, item.path]));
+  const paths = categoryPaths(categories);
   const categoryName = (item: ChecklistItem) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const columns: DataColumn<ChecklistItem>[] = [
     {
@@ -141,39 +141,45 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" gap="sm">
-        <Text size="sm" c="dimmed">
-          {done} / {list.items.length} {plural(done, 'fait')}
-          {occurrenceDate ? ` · ${fmt.dayLong(occurrenceDate)}` : ''}
-        </Text>
-        <Group gap="xs">
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<PlusIcon aria-hidden />}
-            onClick={() =>
-              openFormPanel('Ajouter une fiche', (close) => <SheetPicker onAdd={(sheetId, multiplier) => mutations.addToChecklist.mutateAsync({ id: list.id, sheetId, multiplier })} onDone={close} />)
-            }
-          >
-            Ajouter une fiche
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="gray"
-            leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-            onClick={() =>
-              confirmDestructive({
-                title: 'Refaire la liste',
-                risks: 'La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu.',
-                onConfirm: () => mutations.resetChecklist.mutate(list.id, { onSuccess: () => notifySuccess('Liste refaite.'), ...onError }),
-              })
-            }
-          >
-            Refaire depuis les fiches
-          </Button>
-        </Group>
-      </Group>
+      <SectionHeader
+        description={
+          <>
+            {done} / {list.items.length} {plural(done, 'fait')}
+            {occurrenceDate ? ` · ${fmt.dayLong(occurrenceDate)}` : ''}
+          </>
+        }
+        actions={
+          <>
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<PlusIcon aria-hidden />}
+              onClick={() =>
+                openFormPanel('Ajouter une fiche', (close) => (
+                  <SheetPicker onAdd={(sheetId, multiplier) => mutations.addToChecklist.mutateAsync({ id: list.id, sheetId, multiplier })} onDone={close} />
+                ))
+              }
+            >
+              Ajouter une fiche
+            </Button>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="gray"
+              leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
+              onClick={() =>
+                confirmDestructive({
+                  title: 'Refaire la liste',
+                  risks: 'La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu.',
+                  onConfirm: () => mutations.resetChecklist.mutate(list.id, { onSuccess: () => notifySuccess('Liste refaite.'), ...onError }),
+                })
+              }
+            >
+              Refaire depuis les fiches
+            </Button>
+          </>
+        }
+      />
       <DataTable
         view={view}
         verticalSpacing={4}
@@ -201,7 +207,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
               value={item.categoryId ?? null}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(shoppingCategoryOptions(categories))}
+              {...treeSelectProps(categoryOptions(categories))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),

@@ -1,16 +1,19 @@
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
 import { SidePanel } from '../../../components/panels/SidePanel';
+import { listSelectProps } from '../../../components/settings/item-look';
 import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
-import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
+import { PaperclipIcon, PlusIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { LineAttachments } from './LineAttachments';
-import { attachmentCount, newLine, type LineValues } from '../lib/lines';
+import { attachmentCount, categoryForDirection, newLine, valueInMode, type LineValues } from '../lib/lines';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
+import { SignedAmount } from '../../../components/money/SignedAmount';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -69,10 +72,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
    * @param {number} relative Relative amount of the line.
    * @returns {string | null} Category.
    */
-  const keepCategory = (id: string | null, relative: number) => {
-    const category = categories.find((item) => item.id === id);
-    return category && (category.direction === 'IN') === relative * sign > 0 ? category.id : null;
-  };
+  const keepCategory = (id: string | null, relative: number) => categoryForDirection(categories, id, relative * sign > 0 ? 'IN' : 'OUT');
 
   /**
    * New line: what is not split yet, for me, in the category of the entry and the planned context.
@@ -99,7 +99,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     );
   };
 
-  const contextOptions = contexts.map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl }));
+  const contextSelect = listSelectProps(contexts);
   // For whom: a member (none: me), or a relation (loan, gift…).
   const whomOptions = memberRelationOptions(members, settings?.treasuryRelations ?? []);
 
@@ -195,7 +195,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                           placeholder={EVERYDAY_CONTEXT}
                           clearable
                           searchable
-                          data={contextOptions}
+                          {...contextSelect}
                           value={line.contextId}
                           onChange={(contextId) => change(index, { contextId })}
                           error={error('contextId')}
@@ -218,12 +218,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         ]}
                         value={line.mode}
                         // The share stays the same when the unit changes.
-                        onChange={(mode) =>
-                          change(index, {
-                            mode: mode as TreasuryLineMode,
-                            value: mode === 'PERCENT' ? (amount ? round2((relative * 100) / amount) : 0) : relative,
-                          })
-                        }
+                        onChange={(mode) => change(index, { mode: mode as TreasuryLineMode, value: valueInMode(mode as TreasuryLineMode, relative, amount) })}
                       />
                     </Table.Td>
                     <Table.Td>
@@ -249,16 +244,10 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       </Tooltip>
                     </Table.Td>
                     <Table.Td ta="right">
-                      <Text size="sm" c={relative * sign < 0 ? 'red' : 'green'} aria-label={`Montant de la ligne ${index + 1}`}>
-                        {fmt.money(relative * sign)}
-                      </Text>
+                      <SignedAmount value={relative * sign} aria-label={`Montant de la ligne ${index + 1}`} />
                     </Table.Td>
                     <Table.Td>
-                      <Tooltip label="Retirer la ligne">
-                        <ActionIcon variant="subtle" color="gray" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))}>
-                          <XIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
+                      <RemoveButton label="Retirer la ligne" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))} />
                     </Table.Td>
                   </Table.Tr>
                 );

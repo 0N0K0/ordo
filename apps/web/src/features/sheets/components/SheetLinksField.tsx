@@ -1,7 +1,9 @@
-import { ActionIcon, Button, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { PlusIcon, XIcon } from '@phosphor-icons/react';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { PlusIcon } from '@phosphor-icons/react';
 import { onMutationError } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
+import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Sheets of a routine, an event or a task, each times a multiplier, saved as they change: each occurrence (or the
@@ -36,26 +38,17 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
             value={link.sheetId}
             onChange={(sheetId) => sheetId && save(current.map((other, position) => (position === index ? { ...other, sheetId } : other)))}
           />
-          <NumberInput
+          <MultiplierInput
             size="xs"
             w={90}
             aria-label={`Fois, fiche ${index + 1}`}
-            min={0.25}
-            max={999}
-            decimalScale={2}
-            decimalSeparator=","
-            prefix="× "
             value={link.multiplier}
             onBlur={(event) => {
               const value = Number(event.currentTarget.value.replace('× ', '').replace(',', '.')) || 1;
               if (value !== link.multiplier) save(current.map((other, position) => (position === index ? { ...other, multiplier: value } : other)));
             }}
           />
-          <Tooltip label="Retirer la fiche">
-            <ActionIcon variant="subtle" color="gray" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))}>
-              <XIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <RemoveButton label="Retirer la fiche" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
         </Group>
       ))}
       <div>

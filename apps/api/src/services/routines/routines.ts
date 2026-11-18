@@ -45,15 +45,16 @@ import {
   withMovedTimes,
 } from '@ordo/shared';
 import { z } from 'zod';
-import { deleteTreeNode } from '../core/trees';
+import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { BY_POSITION, moveInList, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { assertProjectContributors } from '../workspace/contributors';
 import { parisToday } from '../../today';
+import { assertAllExist, assertExists } from '../core/lookup';
 
 /**
  * Error attached to a form field.
@@ -61,7 +62,6 @@ import { parisToday } from '../../today';
  * @param {string} message Human-readable reason.
  * @returns {GraphQLError} BAD_USER_INPUT error.
  */
-const fieldError = (field: string, message: string) => clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -441,12 +441,7 @@ function slotsOn(routine: RoutineTiming, occurrence: string, schedules: Schedule
  */
 async function parseCategory(input: RoutineCategoryInput, id?: string) {
   const data = parseInput(routineCategorySchema, input);
-  if (!data.parentId) return data;
-  const all = await prisma.routineCategory.findMany({ select: { id: true, parentId: true } });
-  if (!all.some((category) => category.id === data.parentId)) throw notFound('Catégorie parente');
-  if (id && isUnderOrSelf(new Map(all.map((category) => [category.id, category.parentId])), data.parentId, id)) {
-    throw fieldError('parentId', 'Une catégorie ne peut pas être rangée sous elle-même.');
-  }
+  await assertTreeParent('routineCategory', data.parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' });
   return data;
 }
 
@@ -525,11 +520,11 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
-  if ((await prisma.routineCategory.count({ where: { id: { in: data.categoryIds } } })) !== data.categoryIds.length) throw fieldError('categoryIds', 'Catégorie introuvable.');
+  await assertAllExist(prisma.routineCategory, data.categoryIds, 'Catégorie', { field: 'categoryIds' });
   // The former schedules (sent by former clients) become its condition; its cases have theirs.
   if (!data.slotCondition) data.slotCondition = storedCondition({ slotCondition: null, scheduleIds: data.scheduleIds, excludedScheduleIds: data.excludedScheduleIds });
   const scheduleIds = [...new Set([...conditionScheduleIds(data.slotCondition), ...data.cases.flatMap((item) => conditionScheduleIds(item.condition))])];
-  if ((await prisma.workSchedule.count({ where: { id: { in: scheduleIds } } })) !== scheduleIds.length) throw fieldError('slotCondition', 'Plage introuvable.');
+  await assertAllExist(prisma.workSchedule, scheduleIds, 'Plage', { field: 'slotCondition' });
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
@@ -543,11 +538,10 @@ async function parseRoutine(input: RoutineInput, id?: string) {
     fromTime: data.moments[0]?.fromTime ?? null,
     dueTime: data.moments[0]?.dueTime ?? null,
   });
-  if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
-  if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
-  if ((await prisma.contributor.count({ where: { id: { in: data.beneficiaryIds } } })) !== data.beneficiaryIds.length) throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
-  if ((await prisma.treasuryRelation.count({ where: { id: { in: data.beneficiaryRelationIds } } })) !== data.beneficiaryRelationIds.length)
-    throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
+  await assertExists(prisma.project, data.projectId, 'Projet', { field: 'projectId' });
+  await assertAllExist(prisma.contributor, data.assigneeIds, 'Assigné', { field: 'assigneeIds' });
+  await assertAllExist(prisma.contributor, data.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, data.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   // Of a project: its contributors only (those already assigned stay).
   const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
   await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds');
@@ -930,7 +924,7 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
   if (occurrence > parisToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
   if (index < 0 || index >= Math.max(1, slotsOf(routine, occurrence, slots).length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
-  if (doneAt && doneAt.getTime() > Date.now()) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être faite dans le futur.', { fields: { doneAt: 'Heure à venir.' } });
+  if (doneAt && doneAt.getTime() > Date.now()) throw fieldError('doneAt', 'Une routine ne peut pas être faite dans le futur.', 'Heure à venir.');
   const key = { routineId_date_slot: { routineId: id, date: parseDay(occurrence), slot: index } };
   // When it was done: now, unless given (ticked after the fact).
   if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence), slot: index, ...(doneAt && { doneAt }) }, update: doneAt ? { doneAt } : {} });

@@ -1,10 +1,11 @@
 import { prisma } from '../../db';
 import type { ScheduledMail } from '../../generated/prisma/client';
-import { clientError, notFound } from '../../graphql/errors';
+import { errorMessage, fieldError, notFound } from '../../graphql/errors';
 import { findAccount } from './accounts';
 import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
+import { specialFolder } from './organize';
 import { deliverMessage, type SendMailInput } from './sender';
 import { forEachWorkspace, schedulePerWorkspace } from '../workspace/workspaces';
 
@@ -17,7 +18,7 @@ import { forEachWorkspace, schedulePerWorkspace } from '../workspace/workspaces'
  */
 export async function scheduleMail(input: SendMailInput, sendAt: Date): Promise<ScheduledMail> {
   if (Number.isNaN(sendAt.getTime()) || sendAt.getTime() < Date.now() + 30_000) {
-    throw clientError('BAD_USER_INPUT', 'Choisissez un moment à venir.', { fields: { sendAt: 'Choisissez un moment à venir.' } });
+    throw fieldError('sendAt', 'Choisissez un moment à venir.');
   }
   const account = await findAccount(input.accountId);
   const message = await buildMessage(account, input, { date: sendAt });
@@ -52,7 +53,7 @@ export async function sendScheduled(id: string): Promise<void> {
     await deliverMessage(account, { raw: Buffer.from(scheduled.raw), copy: Buffer.from(scheduled.copy), recipients: scheduled.recipients, references: scheduled.references }, scheduled.projectId);
     await prisma.scheduledMail.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     await prisma.scheduledMail.update({ where: { id }, data: { status: 'FAILED', error: message } });
     throw error;
   }
@@ -67,9 +68,7 @@ export async function cancelScheduled(id: string): Promise<void> {
   const scheduled = await prisma.scheduledMail.findUnique({ where: { id } });
   if (!scheduled || scheduled.status === 'SENT' || scheduled.status === 'SENDING') throw notFound('Envoi programmé');
   await withImap(scheduled.accountId, async (client) => {
-    const folders = await client.list();
-    const drafts = folders.find((item) => item.specialUse === '\\Drafts') ?? folders.find((item) => /^(drafts|brouillons)$/i.test(item.name));
-    const path = drafts ? drafts.path : (await client.mailboxCreate(['Drafts'])).path;
+    const path = await specialFolder(client, '\\Drafts', 'Drafts');
     await client.append(path, Buffer.from(scheduled.copy), ['\\Draft', '\\Seen']);
   });
   await prisma.scheduledMail.delete({ where: { id } });

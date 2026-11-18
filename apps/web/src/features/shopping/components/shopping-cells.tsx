@@ -1,3 +1,4 @@
+import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { ActionIcon, Select, Tooltip } from '@mantine/core';
 import { PeopleCell as SharedPeopleCell } from '../../../components/people/PeopleSelect';
 import { localToday } from '../../../lib/dates';
@@ -9,7 +10,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from '../api';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
-import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, shoppingCategoryTree, unitOptions, usePeople } from '../lib/shopping-format';
+import { rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { cellCombobox, cellField, cellMulti } from '../../../components/data-table/cells/cell-field';
 
@@ -67,18 +68,16 @@ interface PeopleCellProps {
   relationIds: string[];
   label: string;
   readOnly?: boolean;
-  /** Projects of the list: its contributors are the members offered. Optional. */
-  projectIds?: string[];
   onSave: (people: { memberIds: string[]; relationIds: string[] }) => void;
 }
 
 /**
- * "Pour" cell: members of the team or household and relations the row is for (saved when the list closes).
+ * "Pour" cell: contributors and relations the row is for (saved when the list closes).
  * @param {PeopleCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function PeopleCell({ memberIds, relationIds, label, readOnly = false, projectIds, onSave }: PeopleCellProps) {
-  const people = usePeople(projectIds, memberIds);
+export function PeopleCell({ memberIds, relationIds, label, readOnly = false, onSave }: PeopleCellProps) {
+  const people = usePeople();
   const value = rowPeopleKeys({ memberIds, relationIds });
   return (
     <SharedPeopleCell
@@ -183,7 +182,7 @@ interface CategoryCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function CategoryCell({ value, categories, label, readOnly = false, onSave }: CategoryCellProps) {
-  const placed = value ? shoppingCategoryTree(categories).find((item) => item.category.id === value) : undefined;
+  const placed = value ? categoryTree(categories).find((item) => item.category.id === value) : undefined;
   return (
     <Select
       {...cellCombobox}
@@ -192,7 +191,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      {...treeSelectProps(shoppingCategoryOptions(categories))}
+      {...treeSelectProps(categoryOptions(categories))}
       leftSection={placed ? <ItemAvatar name={placed.category.name} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}

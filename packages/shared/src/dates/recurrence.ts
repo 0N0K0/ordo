@@ -261,7 +261,7 @@ function weekdayPosition(date: Date): number {
  * @returns {boolean} That day.
  */
 function dayOfMonthMatches(rule: Recurrence, start: Date, day: Date): boolean {
-  const lastDay = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastDay = daysInMonth(day.getUTCFullYear(), day.getUTCMonth() + 1);
   if (rule.monthlyMode === 'WEEKDAY') {
     if (isoWeekday(day) !== (rule.weekday ?? isoWeekday(start))) return false;
     // Not chosen: the position of the first date (-1 when it was the last one of its month).

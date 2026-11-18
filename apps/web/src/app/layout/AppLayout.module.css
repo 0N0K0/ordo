@@ -85,33 +85,4 @@
       display: contents;
     }
   }
-
-  .resizeHandle {
-    --handle-width: 6px;
-
-    /* Position */
-    position: absolute;
-    top: 0;
-    right: calc(var(--handle-width) / -2);
-    bottom: 0;
-    z-index: 2;
-
-    /* Dimension */
-    width: var(--handle-width);
-
-    /* Arrière-Plan */
-    background-color: transparent;
-
-    &:hover,
-    .shell[data-resizing] & {
-      background-color: var(--mantine-primary-color-light);
-    }
-
-    /* Animation */
-    transition: background-color 120ms ease;
-
-    /* Interaction */
-    cursor: col-resize;
-    touch-action: none;
-  }
 }
