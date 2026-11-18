@@ -73,7 +73,7 @@ export function RoutinesCard({ today }: { today: string }) {
                       {routine.estimate} min
                     </Text>
                   )}
-                  <IconAction label="Reporter au lendemain" size="sm" aria-label={`Reporter « ${routine.label} » au lendemain`} onClick={() => postpone(routine)}>
+                  <IconAction label="Reporter au lendemain" size="sm" item={routine.label} onClick={() => postpone(routine)}>
                     <ArrowBendUpRightIcon aria-hidden />
                   </IconAction>
                 </Group>
@@ -94,9 +94,9 @@ export function ShoppingCard() {
   const { data } = useShoppingData();
   const { data: lists } = useShoppingLists();
   // The archived products and lists apart.
-  const missing = (data?.shoppingProducts ?? []).filter((product) => product.missing && !product.archived).length;
-  const open = (lists ?? [])
-    .filter((list) => !list.closed && !list.archived)
+  const missing = unarchived(data?.shoppingProducts ?? []).filter((product) => product.missing).length;
+  const open = unarchived(lists ?? [])
+    .filter((list) => !list.closed)
     .map((list) => ({ list, left: leftToBuy(list.items).length }))
     .sort((a, b) => b.list.createdAt.localeCompare(a.list.createdAt));
 

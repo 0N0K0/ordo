@@ -8,7 +8,7 @@ import { localDay, localInstant, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
-import { taskRef, type TaskContext } from '../../tasks/hooks/use-task-context';
+import { type TaskContext, taskNumbered } from '../../tasks/hooks/use-task-context';
 import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from '../api';
 import { timeTasks } from '../lib/time-tasks';
@@ -21,16 +21,16 @@ type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryVa
 
 /**
  * Day of a time, changed in place (its hour kept).
- * @param {{ entry: TimeEntry, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
+export function TimeDayCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
   const start = localParts(entry.startedAt);
   if (readOnly) return <>{fmt.dayLong(entry.startedAt)}</>;
   return (
     <EditableDate
       value={start.date}
-      label="Jour de ce temps"
+      label={label}
       onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: localInstant(date, localParts(row.startedAt).time).toISOString() }))}
     />
   );
@@ -38,27 +38,21 @@ export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readO
 
 /**
  * Start of a time, changed in place.
- * @param {{ entry: TimeEntry, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeStartCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
+export function TimeStartCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
   const start = localParts(entry.startedAt);
   if (readOnly) return <>{start.time}</>;
-  return (
-    <EditableTime
-      label="Heure de début de ce temps"
-      value={start.time}
-      onSave={(time) => time && save(entry, (row) => ({ startedAt: localInstant(localParts(row.startedAt).date, time).toISOString() }))}
-    />
-  );
+  return <EditableTime label={label} value={start.time} onSave={(time) => time && save(entry, (row) => ({ startedAt: localInstant(localParts(row.startedAt).date, time).toISOString() }))} />;
 }
 
 /**
  * Duration of a finished time, typed in place (1:30, 1h30, 90 or 1,5h).
- * @param {{ entry: TimeEntry, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeDurationCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
+export function TimeDurationCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
   const text = formatDuration(entrySeconds(entry));
   if (readOnly || !entry.endedAt)
     return (
@@ -69,7 +63,7 @@ export function TimeDurationCell({ entry, readOnly, save }: { entry: TimeEntry; 
   return (
     <EditableText
       value={text}
-      label="Durée de ce temps"
+      label={label}
       validate={(value) => (parseDuration(value ?? '') ? null : 'Durée attendue : 1:30, 1h30, 90 ou 1,5h.')}
       onSave={(value) => {
         const seconds = parseDuration(value ?? '');
@@ -81,17 +75,17 @@ export function TimeDurationCell({ entry, readOnly, save }: { entry: TimeEntry; 
 
 /**
  * Routine of a time, chosen in place.
- * @param {{ entry: TimeEntry, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
+export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
   const { data } = useRoutinesData();
   if (readOnly) return <>{entry.routineLabel}</>;
   return (
     <Select
       variant="unstyled"
       size="xs"
-      aria-label="Routine de ce temps"
+      aria-label={label}
       placeholder="—"
       clearable
       searchable
@@ -106,14 +100,14 @@ export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; r
 
 /**
  * Tasks of a time, chosen in place among those of its project (and of no project).
- * @param {{ entry: TimeEntry, context: TaskContext, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, context: TaskContext, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeTasksCell({ entry, context, readOnly, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; save: Save }) {
-  const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: `${taskRef(task)}${task.label}` }));
+export function TimeTasksCell({ entry, context, readOnly, label, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; label: string; save: Save }) {
+  const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: taskNumbered(task) }));
   return (
     <EditableMultiSelect
-      label="Tâches de ce temps"
+      label={label}
       data={options}
       value={entry.taskIds}
       readOnly={readOnly}
@@ -124,10 +118,10 @@ export function TimeTasksCell({ entry, context, readOnly, save }: { entry: TimeE
 
 /**
  * Event of a time, chosen in place among the events of its day (loaded when opened).
- * @param {{ entry: TimeEntry, readOnly: boolean, save: Save }} props Component props.
+ * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
+export function TimeEventCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
   const [opened, setOpened] = useState(false);
   const day = localDay(entry.startedAt);
   const { data: events } = useCalendarEvents(opened ? { from: day, to: day } : null);
@@ -138,7 +132,7 @@ export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; rea
   return (
     <EditablePopoverCell width={320} empty={!entry.calendarEventLabel} truncate opened={opened} onOpenedChange={setOpened} target={entry.calendarEventLabel ?? '—'}>
       <Select
-        label="Évènement du jour"
+        label={label}
         placeholder="Aucun"
         clearable
         data={options}

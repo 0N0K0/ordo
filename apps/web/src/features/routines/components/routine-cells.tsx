@@ -38,11 +38,11 @@ interface CellProps {
  * @returns {JSX.Element} Cell.
  */
 export function TitleCell({ routine, readOnly = false }: CellProps) {
-  const { apply } = useRoutineCellEdit(routine, 'title');
+  const { apply } = useRoutineCellEdit(routine, 'label');
   return (
     <EditableTitle
       value={routine.label}
-      label={`Libellé de ${routine.label}`}
+      label={routineCellLabel('Libellé', routine, 1)}
       schema={routineSchema.shape.label}
       // Not opened when read only (archived or being created): the form would change it.
       onOpen={readOnly ? undefined : () => openRoutineForm({ routine })}

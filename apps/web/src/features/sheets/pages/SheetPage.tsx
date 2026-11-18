@@ -11,7 +11,7 @@ import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -212,6 +212,7 @@ export function SheetPage() {
     ),
   ];
   const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.label ?? 'Fiche' });
+  const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
     (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, ON_ERROR),
@@ -281,7 +282,7 @@ export function SheetPage() {
           )
         }
         menu={{
-          name: `la fiche « ${sheet.label} »`,
+          about: `la fiche « ${sheet.label} »`,
           items: [
             !sheet.archived && {
               label: 'Dupliquer',
@@ -342,12 +343,12 @@ export function SheetPage() {
         addRow={locked ? undefined : addRow}
         getKey={(item) => item.id}
         cells={(item) => ({
-          label: <EditableText value={item.label} readOnly={locked} label={`Libellé de ${item.label}`} strong onSave={(next) => next && bulk('label')(item, { label: next })} />,
+          label: <EditableText value={item.label} readOnly={locked} label={cellLabelOf('label', item, 'Libellé')} strong onSave={(next) => next && bulk('label')(item, { label: next })} />,
           product: (
             <EditableSelect
               value={item.productId ?? null}
               readOnly={locked}
-              label={`Référence de ${item.label}`}
+              label={cellLabelOf('product', item, 'Référence')}
               nullable
               data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.label }))}
               onSave={(productId) => bulk('product')(item, { productId })}
@@ -358,21 +359,30 @@ export function SheetPage() {
               value={item.categoryId ?? null}
               categories={shoppingCategories}
               readOnly={locked}
-              label={`Catégorie de ${item.label}`}
+              label={cellLabelOf('category', item, 'Catégorie')}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),
           quantity: (
-            <EditableNumber value={item.quantity ?? null} readOnly={locked} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />
+            <EditableNumber
+              value={item.quantity ?? null}
+              readOnly={locked}
+              label={cellLabelOf('quantity', item, 'Quantité')}
+              decimals={3}
+              nullable
+              onSave={(quantity) => bulk('quantity')(item, { quantity })}
+            />
           ),
-          unit: <UnitCell value={item.unit ?? null} readOnly={locked} label={`Unité de ${item.label}`} onSave={(unit) => bulk('unit')(item, { unit })} />,
-          consumable: <EditableCheck value={item.consumable} readOnly={locked} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
+          unit: <UnitCell value={item.unit ?? null} readOnly={locked} label={cellLabelOf('unit', item, 'Unité')} onSave={(unit) => bulk('unit')(item, { unit })} />,
+          consumable: (
+            <EditableCheck value={item.consumable} readOnly={locked} label={cellLabelOf('consumable', item, 'Consommable')} onSave={(consumable) => bulk('consumable')(item, { consumable })} />
+          ),
           store: (
             <StoreCell
               value={item.storeId ?? null}
               stores={shopping?.shoppingStores ?? []}
               readOnly={locked}
-              label={`Magasin de ${item.label}`}
+              label={cellLabelOf('store', item, 'Magasin')}
               onSave={(storeId) => bulk('store')(item, { storeId })}
             />
           ),
@@ -382,7 +392,7 @@ export function SheetPage() {
               storageId={item.storageId ?? null}
               storages={shopping?.shoppingStorages ?? []}
               readOnly={locked}
-              label={`Conservation de ${item.label}`}
+              label={cellLabelOf('conservation', item, 'Conservation')}
               onSave={(conservation) => bulk('conservation')(item, conservation)}
             />
           ),
@@ -391,7 +401,7 @@ export function SheetPage() {
               memberIds={item.memberIds}
               relationIds={item.relationIds}
               readOnly={locked}
-              label={`Bénéficiaires de ${item.label}`}
+              label={cellLabelOf('people', item, 'Bénéficiaires')}
               onSave={(chosen) =>
                 bulk('people')(item, (target) => ({
                   memberIds: applyDiff(target.memberIds, item.memberIds, chosen.memberIds),
@@ -405,14 +415,14 @@ export function SheetPage() {
               link
               value={item.url ?? null}
               readOnly={locked}
-              label={`Lien vers ${item.label}`}
+              label={cellLabelOf('url', item, 'Lien')}
               placeholder="https://…"
               schema={shoppingItemSchema.shape.url}
               onSave={(url) => bulk('url')(item, { url })}
             />
           ),
-          optional: <EditableCheck value={item.optional} readOnly={locked} label={`${item.label} facultatif`} onSave={(optional) => bulk('optional')(item, { optional })} />,
-          note: <EditableText value={item.note ?? null} readOnly={locked} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          optional: <EditableCheck value={item.optional} readOnly={locked} label={cellLabelOf('optional', item, 'Facultatif')} onSave={(optional) => bulk('optional')(item, { optional })} />,
+          note: <EditableText value={item.note ?? null} readOnly={locked} label={cellLabelOf('note', item, 'Description')} nullable onSave={(note) => bulk('note')(item, { note })} />,
         })}
         actions={(item) => (
           <RowActions

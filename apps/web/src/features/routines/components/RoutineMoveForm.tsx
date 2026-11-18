@@ -1,7 +1,7 @@
 import { formCallbacks } from '../../../lib/form';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
@@ -193,9 +193,9 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             </DestructiveButton>
           )}
           {date && (
-            <Button type="submit" leftSection={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>
+            <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>
               {submitLabel}
-            </Button>
+            </ActionButton>
           )}
         </Group>
       </Stack>

@@ -1,6 +1,6 @@
-import { Button } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { ActionButton } from './ActionButton';
 
 interface AddItemButtonProps {
   /** Precise label: « Ajouter un numéro », « Ajouter une ligne »… */
@@ -20,8 +20,8 @@ interface AddItemButtonProps {
  */
 export function AddItemButton({ children, onClick, icon = <PlusIcon aria-hidden />, disabled = false }: AddItemButtonProps) {
   return (
-    <Button size="xs" variant="subtle" leftSection={icon} onClick={onClick} disabled={disabled} style={{ alignSelf: 'flex-start' }}>
+    <ActionButton priority="tertiary" icon={icon} onClick={onClick} disabled={disabled} style={{ alignSelf: 'flex-start' }}>
       {children}
-    </Button>
+    </ActionButton>
   );
 }

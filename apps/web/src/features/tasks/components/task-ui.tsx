@@ -11,7 +11,7 @@ import { useTaskLink } from '../hooks/use-task-link';
 import { type Contributor, type Task, type TaskLabel, type TaskLabelKind } from '../api';
 import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
-import { taskRef, type TaskContext } from '../hooks/use-task-context';
+import { type TaskContext, taskNumber, taskNumbered } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
@@ -33,7 +33,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
       <TaskStateIcon closed={closed ?? task.closed} blocked={blocked} />
       <Anchor component={Link} to={link.to(task.id)} size="sm" truncate>
         <Text span c="dimmed" size="sm">
-          {taskRef(task).trim()}
+          {taskNumber(task)}
         </Text>{' '}
         {task.label}
       </Anchor>
@@ -171,7 +171,7 @@ interface TaskSelectProps extends Omit<SelectProps, 'data'> {
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.label}`, context, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => taskNumbered(task), context, ...props }: TaskSelectProps) {
   return (
     <Select
       {...(context ? treeSelectProps(context.taskOptions(tasks)) : { data: tasks.map((task) => ({ value: task.id, label: labelOf(task) })) })}

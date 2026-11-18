@@ -6,6 +6,7 @@ import { ArrowSquareOutIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
 import type { MouseEvent } from 'react';
 import { FilePreview } from '../components/FilePreview';
 import { downloadUrl, viewableKind } from './viewable';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 /**
  * Opens a file in the app (a PDF or an image, in a viewer with its download and a new tab), or downloads it.
@@ -21,7 +22,7 @@ export function openFile(file: { url: string; filename: string; mimeType?: strin
   openModal(
     <Group gap="xs" wrap="nowrap">
       <span>{file.filename}</span>
-      <IconAction label="Ouvrir dans un nouvel onglet" component="a" href={file.url} target="_blank" rel="noopener">
+      <IconAction label="Ouvrir dans un nouvel onglet" component="a" href={file.url} {...EXTERNAL_LINK}>
         <ArrowSquareOutIcon aria-hidden />
       </IconAction>
       <IconAction label="Télécharger" component="a" href={downloadUrl(file.url)} item={file.filename}>

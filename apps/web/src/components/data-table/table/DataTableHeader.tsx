@@ -9,7 +9,7 @@ import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type Re
 import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';
-import { useDragSensors } from '../../../lib/drag';
+import { useDragSensors } from '../../dnd/drag';
 
 interface HeaderCellProps<R> {
   column: ShownColumn<R>;

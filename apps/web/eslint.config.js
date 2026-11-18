@@ -38,6 +38,11 @@ const RESTRICTED_PATHS = [
     message: 'Importer monthOfDay et yearOfDay de lib/dates : un seul chemin.',
   },
   {
+    name: '@ordo/shared',
+    importNames: ['dayIn', 'localInstant'],
+    message: 'Utiliser localDay / localInstant de lib/dates (le jour de l’utilisateur) : un seul chemin.',
+  },
+  {
     name: '@mantine/dates',
     importNames: ['TimeInput'],
     message: 'Utiliser TimePicker : 24 h et libellés par défaut (app/theme).',
@@ -125,8 +130,8 @@ export default defineConfig([
         // Archived elements: one filter, one switch.
         {
           selector:
-            "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > UnaryExpression.body[operator='!'] > MemberExpression.argument[property.name='archived'], CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > LogicalExpression.body[operator='||'] > UnaryExpression.left[operator='!'] > MemberExpression.argument[property.name='archived']",
-          message: 'Utiliser unarchived(items, keep) (lib/archive) : les archivés retirés, la valeur en cours gardée.',
+            "CallExpression[callee.property.name=/^(filter|find|some|every|findIndex)$/] > ArrowFunctionExpression > UnaryExpression.body[operator='!'] > MemberExpression.argument[object.type='Identifier'][property.name='archived'], CallExpression[callee.property.name=/^(filter|find|some|every|findIndex)$/] > ArrowFunctionExpression > LogicalExpression.body UnaryExpression[operator='!'] > MemberExpression.argument[object.type='Identifier'][property.name='archived'], CallExpression[callee.property.name=/^(filter|find|some|every|findIndex)$/] > ArrowFunctionExpression > BlockStatement.body ReturnStatement UnaryExpression[operator='!'] > MemberExpression.argument[object.type='Identifier'][property.name='archived']",
+          message: 'Utiliser unarchived(items, keep) (lib/archive), puis filter / find / some : les archivés retirés, la valeur en cours gardée.',
         },
         {
           selector: "JSXOpeningElement[name.name='ShowArchivedSwitch'] > JSXAttribute[name.name='count']",
@@ -135,7 +140,7 @@ export default defineConfig([
         {
           selector:
             "CallExpression[callee.property.name='slice'][arguments.0.value=0][arguments.1.value=4]:matches([callee.object.name=/(date|day|Date|Day|today)$/], [callee.object.property.name=/(date|day|Date|Day)$/])",
-          message: 'Utiliser yearOfDay(day) (@ordo/shared).',
+          message: 'Utiliser yearOfDay(day) (lib/dates).',
         },
         // Shared constants: one value.
         {
@@ -186,11 +191,11 @@ export default defineConfig([
         },
         {
           selector: 'Literal[value=/^\\/mail\\?/], TemplateElement[value.raw=/^\\/mail\\?/]',
-          message: "Utiliser mailPath(account, folder, uid) (app/pages), ou settingsPath('/mail') (app/layout/page-settings).",
+          message: "Utiliser mailPath(account, folder, uid) (app/pages), ou settingsPath('/mail') (app/pages).",
         },
         {
           selector: 'Literal[value=/[?&]settings=1/], TemplateElement[value.raw=/[?&]settings=1/]',
-          message: 'Utiliser settingsPath(path, section) (app/layout/page-settings).',
+          message: 'Utiliser settingsPath(path, section) (app/pages).',
         },
         // Days: a DateTime cut gives the UTC day; the Date scalar is already a day.
         {
@@ -212,8 +217,15 @@ export default defineConfig([
           message: 'Pas de « (s) » : plural(count, mot) ou countOf(count, mot) (lib/text).',
         },
         {
-          selector: "ConditionalExpression[test.operator=/^(>|!==|!=)$/][test.right.value=1][consequent.value='s']",
+          selector:
+            "ConditionalExpression[test.operator=/^(>|!==|!=)$/][test.right.value=1][consequent.value='s'], ConditionalExpression[test.operator=/^(===|==|<=)$/][test.right.value=1][alternate.value='s'], ConditionalExpression[test.operator='<'][test.right.value=2][alternate.value='s'], ConditionalExpression[test.operator=/^(===|==|<=)$/][test.right.value=1][consequent.value=/./][alternate.value=/s$/]:matches([test.left.name=/(count|length|total|size)$/i], [test.left.property.name=/^(length|size)$/])",
           message: 'Utiliser plural(count, mot) ou countOf(count, mot) (lib/text).',
+        },
+        {
+          // A plural helper of its own.
+          selector:
+            "FunctionDeclaration[id.name=/^(plural|plurali[sz]e)\\w*$/i], VariableDeclarator[id.name=/^(plural|plurali[sz]e)\\w*$/i]:matches([init.type='ArrowFunctionExpression'], [init.type='FunctionExpression'])",
+          message: 'Utiliser plural(count, singulier, pluriel), countOf ou countWith (lib/text) : pas d’aide de pluriel locale.',
         },
         // A count and its verb or determiner agree: « 1 élément sera retiré », « sa sous-tâche ».
         {
@@ -248,9 +260,30 @@ export default defineConfig([
           selector: 'BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]',
           message: 'Utiliser sameName(a, b) (lib/text) : casse et accents ignorés, comme la recherche.',
         },
+        // « Archiver » / « Restaurer » entry written by hand.
+        {
+          selector: "Property[key.name='label'] > Literal[value=/^(Archiver|Restaurer)$/], Property[key.name='label'] > ConditionalExpression > Literal[value=/^(Archiver|Restaurer)$/]",
+          message: 'Utiliser archiveEntry(element, setArchived, id) (lib/archive) : libellé, icône, annulation et menu.',
+        },
+        // The message of an error toast: notifyFailure (lib/notify) has the fallback of an error without one.
+        {
+          selector: "CallExpression[callee.name='notifyError'][arguments.0.property.name='message']",
+          message: 'Utiliser notifyFailure(error) ou onMutationError (lib/notify) : un message de repli pour une erreur sans message.',
+        },
+        // A tooltip around an action button: hidden when the button is disabled.
+        {
+          selector:
+            "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name=/^(ActionButton|IconAction)$/], JSXElement[openingElement.name.name='Tooltip'] JSXOpeningElement[name.name=/^(Button|ActionButton|IconAction|ActionIcon|UnstyledButton)$/]:has(> JSXAttribute[name.name='disabled']), JSXElement[openingElement.name.name='Tooltip'] > JSXExpressionContainer > Identifier[name=/[bB]utton$/]",
+          message: 'Utiliser la prop hint d’ActionButton ou d’IconAction (components/actions) : l’infobulle s’affiche aussi quand le bouton est désactivé.',
+        },
+        // Relations in a personal workspace: « Proche », with its agreement.
+        {
+          selector: 'Literal[value=/^(Nouvelle relation|Relation (modifiée|ajoutée|supprimée)\\.?|Supprimer la relation|Modifier la relation|Aucune relation\\.)$/]',
+          message: 'Utiliser relationWords(perso) (components/people/people-options) : « relation » en pro, « proche » en perso.',
+        },
         // People and schedules: one name per kind of workspace.
         {
-          selector: 'ConditionalExpression:matches([consequent.value=/^Proches?$/], [alternate.value=/^Relations?$/])',
+          selector: 'Literal[value=/^(Proches?|Relations?)$/], JSXText[value=/^\\s*(Proches?|Relations?)\\s*$/]',
           message: 'Utiliser relationNoun(perso, many) (components/people/people-options) : « Relations » en pro, « Proches » en perso.',
         },
         {
@@ -280,8 +313,9 @@ export default defineConfig([
         },
         {
           // Decision AB.
-          selector: "JSXOpeningElement[name.name='Button']:has(JSXAttribute[name.name='variant'][value.value='default']):has(JSXAttribute[name.name='leftSection'])",
-          message: 'Utiliser ActionButton priority="secondary" (components/actions/ActionButton) : icône et libellé, sans couleur (décision AB).',
+          selector:
+            "JSXOpeningElement[name.name='Button']:has(> JSXAttribute[name.name='leftSection']):not(:has(> JSXAttribute[name.name='variant'])), JSXOpeningElement[name.name='Button']:has(> JSXAttribute[name.name='leftSection']):has(> JSXAttribute[name.name='variant'][value.value=/^(default|filled)$/])",
+          message: 'Utiliser ActionButton (components/actions/ActionButton), priority primary / secondary / tertiary : icône et libellé (décision AB), AddItemButton pour ajouter.',
         },
         {
           // Decision AG.
@@ -302,16 +336,6 @@ export default defineConfig([
         {
           selector: "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name='Indicator']",
           message: 'Utiliser IconAction indicator={n} (components/actions/IconAction) : l’action en infobulle, le compte en pastille.',
-        },
-        {
-          selector:
-            "CallExpression[callee.property.name=/^(find|some|every|findIndex)$/] > ArrowFunctionExpression > UnaryExpression.body[operator='!'] > MemberExpression.argument[property.name='archived'], CallExpression[callee.property.name=/^(find|some|every|findIndex)$/] > ArrowFunctionExpression > LogicalExpression.body > UnaryExpression[operator='!'] > MemberExpression.argument[property.name='archived']",
-          message: 'Utiliser unarchived(items, keep) (lib/archive) puis find / some : les archivés retirés, la valeur en cours gardée.',
-        },
-        {
-          selector:
-            "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > LogicalExpression.body[operator='&&'] > UnaryExpression.left[operator='!'] > MemberExpression.argument[property.name='archived']",
-          message: 'Utiliser unarchived(items, keep) (lib/archive) puis filter : les archivés retirés, la valeur en cours gardée.',
         },
         {
           selector:
@@ -364,7 +388,8 @@ export default defineConfig([
           message: 'Utiliser LateBadge (features/home) ou fmt.daysLate (lib/format) : un seul retard, orange (décision AI).',
         },
         {
-          selector: 'ConditionalExpression[consequent.openingElement.name.name=/^Caret(Down|Right)Icon$/][alternate.openingElement.name.name=/^Caret(Down|Right)Icon$/]',
+          selector:
+            'ConditionalExpression[consequent.openingElement.name.name=/^Caret(Up|Down|Right|Left)Icon$/][alternate.openingElement.name.name=/^Caret(Up|Down|Right|Left)Icon$/], ConditionalExpression[consequent.name=/^Caret(Up|Down|Right|Left)Icon$/][alternate.name=/^Caret(Up|Down|Right|Left)Icon$/]',
           message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire » (décision AE).',
         },
         {
@@ -406,6 +431,76 @@ export default defineConfig([
           message: 'Utiliser personOptionRenderer(byId) (components/people/person-option).',
         },
         {
+          selector:
+            "ObjectExpression:has(> Property[key.name='id'][value.value='root']) > Property[key.name='children'] > ArrayExpression[elements.length=1] > ObjectExpression:has(> Property[key.name='type'][value.value='condition'])",
+          message: 'Utiliser conditionFilter(champ, opérateur, valeur) ou withinFilter(champ, période) (components/data-table/views/use-data-view).',
+        },
+        {
+          selector: "TemplateLiteral:has(> MemberExpression[property.name=/^(routineId|sprintId)$/]):has(> TemplateElement[value.raw='|'])",
+          message: 'Utiliser routineLinkKey(lien) / routineLinkOf(clé) (features/calendar/lib/event-input) ou sprintTaskKey(sprint, tâche) (features/dashboards/api).',
+        },
+        {
+          selector: "ConditionalExpression[test.property.name='perishable'][consequent.operator='??'][consequent.left.property.name='storageId']:not([alternate.raw='null'])",
+          message: 'Utiliser conservationKey(ligne) / conservationOf(clé) (features/shopping/lib/conservation).',
+        },
+        {
+          selector: "ArrowFunctionExpression[params.0.type='ArrayPattern'] > ObjectExpression > Property[key.name='value'] > CallExpression[callee.name='personKey']",
+          message: 'Utiliser personKeyOptions(type, noms) (components/people/people-keys).',
+        },
+        {
+          selector:
+            "ObjectExpression[properties.length=3]:has(> Property[key.name='parentId'][value.property.name='parentId']):has(> Property[key.name='color'][value.type='LogicalExpression'][value.right.raw='null'])",
+          message: 'Utiliser treeItemInput(valeurs) (components/settings/settings-api).',
+        },
+        {
+          selector: "JSXElement[openingElement.name.name='FileLink'] JSXOpeningElement[name.name='PaperclipIcon']",
+          message: 'Utiliser FileBadge (components/items/FileBadge) : un seul badge de fichier.',
+        },
+        {
+          selector: "CallExpression[callee.name='confirmDestructive'] Property[key.name='onConfirm'] CallExpression[callee.name='notifySuccess']",
+          message: 'Utiliser run: () => promesse et done: « Message. » de confirmDestructive.',
+        },
+        {
+          selector: "JSXAttribute[name.name='style'] Property[key.name=/^(transform|rotate)$/] Literal[value=/(rotate|deg)/]",
+          message: 'Utiliser FoldButton ou FoldChevron (components/actions) : un seul chevron de pliage (décision AE).',
+        },
+        {
+          selector:
+            "TryStatement > BlockStatement.finalizer CallExpression[callee.name=/^set\\w*(Loading|Pending|Exporting|Busy|Saving)$/][arguments.0.value=false], CallExpression[callee.property.name='finally'] CallExpression[callee.name=/^set\\w*(Loading|Pending|Exporting|Busy|Saving)$/][arguments.0.value=false]",
+          message: 'Utiliser useAsyncAction(action, { success, onDone, onError }) (lib/use-async-action).',
+        },
+        {
+          selector:
+            "CallExpression[callee.name='dateStyle']:has(Property[key.name='month'][value.value='long']):has(Property[key.name='year']):has(Property[key.name='day']):not(:has(Property[key.name='weekday']))",
+          message: 'Utiliser longDayText (@ordo/shared) ou fmt.dayInWords (lib/format).',
+        },
+        {
+          selector: "SpreadElement[argument.name='VAT_RATES']",
+          message: 'Utiliser vatRateOptions(taux) (features/accounting/lib/labels).',
+        },
+        {
+          selector:
+            "TemplateLiteral:has(> CallExpression[callee.object.name='Math'][callee.property.name='round']):has(> TemplateElement[value.raw=/^\\s?%/]), JSXExpressionContainer[expression.callee.object.name='Math'][expression.callee.property.name='round'] + JSXText[value=/^\\s?%/], BinaryExpression[operator='+'][left.callee.object.name='Math'][left.callee.property.name='round'][right.value=/^\\s?%/]",
+          message: 'Utiliser fmt.percent(valeur, 0) (lib/format).',
+        },
+        {
+          selector:
+            "BinaryExpression[operator='/'][right.value=100]:matches([left.name=/(cents|amounts?|remainder)$/i], [left.property.name=/(cents|amount|remainder)$/i], [left.object.name=/amounts$/], [left.arguments.0.name=/(cents|remainder)$/i])",
+          message: 'Utiliser fromCents(centimes) (@ordo/shared).',
+        },
+        {
+          selector: "BinaryExpression[operator='/'][right.value=100][left.callee.object.name='Math'][left.callee.property.name='round']",
+          message: 'Utiliser round2(valeur) (@ordo/shared) : arrondi à 2 décimales, ou fromCents(centimes) pour des centimes.',
+        },
+        {
+          selector: "TemplateLiteral[expressions.length>1]:has(> CallExpression[callee.name='taskRef']), BinaryExpression[operator='+']:has(> CallExpression[callee.name='taskRef'])",
+          message: 'Utiliser taskNumbered(task) (features/tasks/hooks/use-task-context) : « #12 Libellé ».',
+        },
+        {
+          selector: "CallExpression[callee.property.name='trim'][callee.object.callee.name='taskRef']",
+          message: 'Utiliser taskNumber(task) (features/tasks/hooks/use-task-context) : « #12 ».',
+        },
+        {
           selector: "TemplateLiteral:has(> TemplateElement[value.raw=/(^| )#$/]) > MemberExpression[property.name='number']",
           message: 'Utiliser taskName(task) / taskRef(task) (features/tasks/hooks/use-task-context) ou taskShortRef(task, projet, lieu) (components/markdown/remark-references).',
         },
@@ -420,7 +515,8 @@ export default defineConfig([
         },
         {
           selector: 'TemplateLiteral > TemplateElement[value.raw=/^(doc|imp):$/]',
-          message: 'Utiliser documentKey / allocationKey / allocationOfKey (features/treasury/components/EntryForm).',
+          message:
+            'Utiliser documentKey / allocationKey / allocationOfKey, les clés des documents réglés (fonctions de features/treasury/components/EntryForm.tsx ; le documentKey de features/treasury/lib/entry-env est une autre clé).',
         },
         {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value='red']",
@@ -429,6 +525,102 @@ export default defineConfig([
         {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value=/^(green|teal|blue|yellow|orange)$/]",
           message: 'Utiliser NoticeAlert (components/feedback/NoticeAlert) avec kind success / info / warning.',
+        },
+        // Files and documents: the messages and names of @ordo/shared.
+        {
+          selector: 'Literal[value=/Mo maximum/], TemplateElement[value.raw=/Mo maximum/]',
+          message: 'Utiliser fileTooLarge(nom) ou ICON_ERRORS (@ordo/shared) : le même message que l’API.',
+        },
+        {
+          selector: 'TemplateLiteral > TemplateElement[tail=true][value.raw=/\\.(pdf|zip|csv|ics)$/]',
+          message: 'Utiliser fileName(titre, extension) (lib/download) : nom nettoyé, comme les autres exports.',
+        },
+        {
+          selector:
+            "LogicalExpression:has(> BinaryExpression[right.value='INVOICE']):has(> BinaryExpression[right.value='DEPOSIT_INVOICE']), ArrayExpression[elements.length=2][elements.0.value='INVOICE'][elements.1.value='DEPOSIT_INVOICE'], ArrayExpression[elements.length=4][elements.0.value='QUOTE'][elements.1.value='INVOICE']",
+          message: 'Utiliser isInvoice(type), INVOICE_TYPES ou ACCOUNTING_DOCUMENT_TYPES (@ordo/shared).',
+        },
+        // Mail: the bricks of features/mail and @ordo/shared.
+        {
+          selector:
+            "ArrowFunctionExpression[body.type='MemberExpression'][body.property.name='email'][params.0.name='account'], ArrowFunctionExpression[body.callee.property.name='toLowerCase'][body.callee.object.property.name='email'][params.0.name='account']",
+          message: 'Utiliser useOwnAddresses() (features/mail/hooks/use-own-addresses).',
+        },
+        {
+          selector: "TSUnionType:has(TSLiteralType > Literal[value='correspondent'])",
+          message: 'Utiliser MailSortBy / MailSearchSortBy (@ordo/shared).',
+        },
+        // Small subtle text buttons: one look, one size (decision BE).
+        {
+          selector:
+            "JSXOpeningElement[name.name='Button']:has(JSXAttribute[name.name='leftSection']):has(JSXAttribute[name.name='variant'][value.value='subtle']):not(:has(JSXAttribute[name.name=/^(rightSection|justify|fullWidth|aria-expanded)$/]))",
+          message: 'Utiliser ActionButton priority="tertiary" (components/actions) : bouton texte discret, taille xs, danger en rouge.',
+        },
+        // The subject of the menus: « Actions de « X » » (decision BF).
+        {
+          selector:
+            "JSXOpeningElement[name.name=/^(ActionsMenu|RowActions|InlineActions)$/] > JSXAttribute[name.name='name'] :matches(Literal[value=/^(la|le|les|ce|ces|cet|cette|mon|du|des) /], Literal[value=/^l’/], TemplateElement[value.raw=/^(la|le|les|ce|ces|mon|du|des) /], TemplateElement[value.raw=/^l’/])",
+          message: 'Un nom dans name (cité : « Actions de « X » »), une description dans about (« la barre latérale ») : ActionsSubject (components/actions/actions-subject).',
+        },
+        // The workspace of a layer: « Label · Espace » (decision BG).
+        {
+          selector:
+            "TemplateLiteral:has(> TemplateElement[value.raw=/( · | \\(|espace « )$/]) > MemberExpression:matches([property.name='workspaceLabel'], [property.name='label'][object.property.name='workspace'])",
+          message: 'Utiliser inWorkspace(libellé, espace) (features/calendar/lib/layer-label) : « Libellé · Espace » partout.',
+        },
+        // Direction of a movement: « Entrées / Sorties » (decision BH).
+        {
+          selector: 'Literal[value=/^(Recettes|Dépenses|Entrées|Sorties)$|\\((recettes|dépenses)\\)/], TemplateElement[value.raw=/^(recettes|dépenses)$/]',
+          message: 'Utiliser DIRECTION_PLURALS (features/treasury/lib/direction) : « Entrées / Sorties » partout.',
+        },
+        // The arrow of a menu button (decision: MenuCaret); the menu target sets aria-haspopup itself.
+        {
+          selector: "JSXAttribute[name.name='rightSection'] JSXOpeningElement[name.name='CaretDownIcon'], JSXAttribute[name.name='aria-haspopup'][value.value='menu']",
+          message: 'Utiliser <MenuCaret /> (components/actions/MenuCaret) ; Menu.Target pose aria-haspopup et aria-expanded.',
+        },
+        // An icon button names its element by `item` (« Modifier « X » », decision W), not in a hand-written aria-label.
+        {
+          selector: "JSXOpeningElement[name.name='IconAction'] > JSXAttribute[name.name='aria-label'] > JSXExpressionContainer > TemplateLiteral",
+          message: 'Utiliser item (et hint pour un texte long) d’IconAction : l’action en infobulle, l’action et l’élément en libellé caché.',
+        },
+        {
+          // IconAction the wrong way round: a long text in label, the action in aria-label.
+          selector:
+            "JSXOpeningElement[name.name='IconAction']:has(> JSXAttribute[name.name='aria-label']) > JSXAttribute[name.name='label']:matches([value.value=/\\(/], :has(Literal[value=/\\(/]), :has(TemplateElement[value.raw=/\\(/]), :has(Identifier[name='hint']))",
+          message:
+            'IconAction (components/actions/IconAction) : l’action courte dans label, le texte long dans hint ; aria-label seulement pour un libellé caché qui n’est pas un nom (« Fermer le mail »).',
+        },
+        // A field named after its element: the common form.
+        {
+          selector: 'TemplateElement[value.raw=/^Libellé de /]',
+          message: 'Utiliser itemCellLabel(« Libellé », élément, count) (components/data-table/cells/cell-field) ou bulkCellLabels (data-table/selection/bulk-edit) : « Libellé de « X » ».',
+        },
+        // A client picked in a list: one select.
+        {
+          selector:
+            "JSXOpeningElement[name.name='Select']:matches(:has(> JSXAttribute[name.name='label'][value.value=/^Clients?$/]), :has(JSXAttribute[name.name='data'] :matches(Identifier[name=/^(clients|clients?(Options|Data))$/], MemberExpression[property.name='clients'])))",
+          message: 'Utiliser ClientSelect (features/projects/components/ClientSelect) : les clients sans les archivés, la valeur en cours gardée.',
+        },
+        // Outside links: one target and one rel.
+        {
+          selector: "JSXAttribute[name.name='rel'], Property[key.name='rel'], JSXAttribute[name.name='target'][value.value='_blank']",
+          message: 'Utiliser {...EXTERNAL_LINK} (components/actions/link-props) : nouvel onglet, noopener noreferrer.',
+        },
+        // Addresses of the app: app/pages.
+        {
+          selector:
+            "Literal[value=/^\\/(login|forgot-password|reset-password|confirm-email|accounting\\?|settings\\?tab=)/], TemplateElement[value.raw=/^\\/(login|forgot-password|reset-password|confirm-email|accounting\\?|settings\\?tab=)/], JSXAttribute[name.name=/^(to|href)$/][value.value='/'], JSXAttribute[name.name=/^(to|href)$/] > JSXExpressionContainer > Literal[value='/'], CallExpression[callee.name='navigate'] > Literal.arguments[value='/'], ConditionalExpression > Literal[value='/'], ArrayExpression > Literal[value='/'], LogicalExpression > Literal[value='/'], AssignmentExpression > Literal.right[value='/'], ReturnStatement > Literal[value='/'], Property[key.name=/^(to|href|pathname|redirect\\w*)$/] > Literal[value='/']",
+          message: 'Utiliser PAGES, AUTH_PATHS, OVERDUE_INVOICES_PATH, GITHUB_SETTINGS_PATH ou les aides d’adresse (app/pages).',
+        },
+        // Badges in capitals (decision AG): no tt="none".
+        {
+          selector: "JSXAttribute[name.name='tt'][value.value='none']",
+          message: 'Pas de tt="none" : les badges et titres gardent leurs capitales (décision AG).',
+        },
+        // Hidden labels of the cells: « Unité de « X » », or « (appliqué aux N cellules sélectionnées) » (decision BD).
+        {
+          selector: 'JSXOpeningElement[name.name=/^(Editable\\w+|(?!Links)\\w+Cell)$/] > JSXAttribute[name.name=/^(aria-)?label$/] > JSXExpressionContainer > TemplateLiteral',
+          message: 'Utiliser bulkCellLabels(view, nom) (data-table/selection/bulk-edit) ou itemCellLabel (cell-field) : la forme commune, sélection comprise.',
         },
       ],
     },

@@ -1,5 +1,5 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Group, Tooltip } from '@mantine/core';
+import { Group } from '@mantine/core';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimer } from '../api';
@@ -29,13 +29,16 @@ export function TimeLogActions({ context, onNew, projectId, archived = false }: 
       <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={onNew} disabled={!context || archived}>
         Nouveau temps
       </ActionButton>
-      {!archived && (
-        <Tooltip label={TIMER_REPLACED_HINT} disabled={!running.data}>
-          <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context}>
-            Démarrer le chrono
-          </ActionButton>
-        </Tooltip>
-      )}
+      {/* Archived: greyed out, as everywhere (read only). */}
+      <ActionButton
+        priority="secondary"
+        icon={<PlayIcon aria-hidden />}
+        hint={running.data && !archived ? TIMER_REPLACED_HINT : undefined}
+        onClick={() => context && openTimerForm(context, projectId)}
+        disabled={!context || archived}
+      >
+        Démarrer le chrono
+      </ActionButton>
     </Group>
   );
 }

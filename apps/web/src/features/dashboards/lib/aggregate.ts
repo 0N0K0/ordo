@@ -22,6 +22,7 @@ import { periodName, quarterName, relativePeriodName } from '../../../lib/period
 import { currentWeek } from '../../../lib/week';
 import { collator, countOf } from '../../../lib/text';
 import { yearOfDay } from '../../../lib/dates';
+import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -66,8 +67,8 @@ export const MEASURE_LABELS: Record<ChartMeasure, string> = {
   paid: 'Montant payé',
   balance: 'Reste dû',
   amount: 'Montant net (entrées − sorties)',
-  income: 'Entrées',
-  expense: 'Sorties',
+  income: DIRECTION_PLURALS.IN,
+  expense: DIRECTION_PLURALS.OUT,
 };
 /** Name of the single series, by measure. */
 const SERIES_NAMES: Record<ChartMeasure, string> = {
@@ -79,8 +80,8 @@ const SERIES_NAMES: Record<ChartMeasure, string> = {
   paid: 'Payé',
   balance: 'Reste dû',
   amount: 'Net',
-  income: 'Entrées',
-  expense: 'Sorties',
+  income: DIRECTION_PLURALS.IN,
+  expense: DIRECTION_PLURALS.OUT,
 };
 /**
  * Label of a measure in a source (the balance of the treasury is its cash, not an amount due).

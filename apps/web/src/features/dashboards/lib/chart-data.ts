@@ -10,7 +10,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../../treasury/api';
 
 import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartData } from './aggregate';
-import { useSprintTaskStatuses } from '../api';
+import { sprintTaskKey, useSprintTaskStatuses } from '../api';
 import { datasetParts, mergeDatasets } from './datasets';
 import { documentChartData, treasuryChartData } from './finance-records';
 import { taskChartData, type SprintView } from './task-records';
@@ -100,7 +100,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
           const tasks = scoped
             .filter((task) => task.sprintIds.includes(sprint.id))
             .map((task) => {
-              const then = statuses.get(`${sprint.id}|${task.id}`);
+              const then = statuses.get(sprintTaskKey(sprint.id, task.id));
               return then ? { ...task, statusId: then.statusId, closed: then.closed } : task;
             });
           matches.set(sprint.id, new Set(matchTasks(tasks, columns, part.config, today).map((task) => task.id)));

@@ -22,7 +22,7 @@ export function StopTimerButton({ entry, name, size }: { entry: TimeEntry; name?
       color="red"
       size={size}
       loading={isPending}
-      aria-label={name ? `Arrêter le chrono de ${name}` : 'Arrêter le chrono'}
+      item={name || undefined}
       onClick={(event) => {
         stopClick(event);
         stopTimer(entry);

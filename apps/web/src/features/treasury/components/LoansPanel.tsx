@@ -14,6 +14,8 @@ import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { archivedIds } from '../../../lib/archive';
+import { relationWords, type RelationWords } from '../../../components/people/people-options';
+import { useActiveWorkspace } from '../../workspaces/api';
 
 /** Row of the loans: a relation (what it owes or is owed), or one of its loan lines under it. */
 type LoanRow =
@@ -43,10 +45,15 @@ function BalanceBadge({ balance }: { balance: number }) {
   );
 }
 
-const COLUMNS: DataColumn<LoanRow>[] = [
+/**
+ * Columns of the loans, the relation told with the word of the workspace (« Relation » or « Proche »).
+ * @param {RelationWords} words Words of the relations.
+ * @returns {DataColumn<LoanRow>[]} Columns.
+ */
+const loanColumns = (words: RelationWords): DataColumn<LoanRow>[] => [
   {
     id: 'name',
-    label: 'Relation / ligne',
+    label: `${words.noun} / ligne`,
     size: 260,
     locked: true,
     sortValue: (row) => (row.kind === 'relation' ? row.name : row.label),
@@ -111,10 +118,13 @@ export function LoansPanel() {
   const { data: settings } = useTreasurySettings();
   // Comments of an archived relation are read only.
   const archivedRelations = archivedIds(settings?.treasuryRelations);
+  const { perso } = useActiveWorkspace();
+  const words = relationWords(perso);
+  const columns = useMemo(() => loanColumns(relationWords(perso)), [perso]);
   const rows = useMemo((): LoanRow[] => {
     const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
     return (loans ?? []).flatMap((item) => {
-      const name = nameOf.get(item.relationId) ?? 'Relation supprimée';
+      const name = nameOf.get(item.relationId) ?? `${words.noun} supprimé${words.feminine ? 'e' : ''}`;
       return [
         { kind: 'relation' as const, key: item.relationId, relationId: item.relationId, name, balance: item.balance, out: item.out, in: item.in },
         ...item.items.map((line) => ({
@@ -128,8 +138,8 @@ export function LoansPanel() {
         })),
       ];
     });
-  }, [loans, settings]);
-  const view = useDataView({ tableKey: 'treasury-loans', columns: COLUMNS, rows, title: 'Prêts', getKey: (row) => row.key });
+  }, [loans, settings, words.noun, words.feminine]);
+  const view = useDataView({ tableKey: 'treasury-loans', columns, rows, title: 'Prêts', getKey: (row) => row.key });
   const relations = (loans ?? []).map((item) => item.balance);
   const owedToMe = sumOf(
     relations.filter((balance) => balance > 0),

@@ -2,6 +2,7 @@ import { sumOf } from '@ordo/shared';
 
 import type { Task } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Tasks that can be linked to a task (parent, blocks, related): same project tree, not itself.
@@ -13,7 +14,7 @@ import type { TaskContext } from '../hooks/use-task-context';
  */
 export function linkableTasks(context: TaskContext, projectId: string | null, taskId: string | null, extra?: (candidate: Task) => boolean): Task[] {
   const root = context.rootOf(projectId);
-  return context.tasks.filter((candidate) => candidate.id !== taskId && !candidate.archived && context.rootOf(candidate.projectId) === root && (!extra || extra(candidate)));
+  return unarchived(context.tasks).filter((candidate) => candidate.id !== taskId && context.rootOf(candidate.projectId) === root && (!extra || extra(candidate)));
 }
 
 /**

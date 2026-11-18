@@ -1,10 +1,12 @@
 import { CountBadge } from '../../feedback/CountBadge';
 import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
-import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
+import { FoldChevron } from '../../actions/FoldChevron';
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
 import { ActionButton } from '../../actions/ActionButton';
+import { MenuCaret } from '../../actions/MenuCaret';
 
 /** Quick search of a toolbar. */
 interface ToolbarSearch {
@@ -149,7 +151,7 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
           color="gray"
           justify="space-between"
           leftSection={<ColumnsIcon aria-hidden />}
-          rightSection={<CaretDownIcon aria-hidden style={{ transform: columnsOpened ? 'rotate(180deg)' : undefined }} />}
+          rightSection={<FoldChevron expanded={columnsOpened} />}
           onClick={() => setColumnsOpened((opened) => !opened)}
           aria-expanded={columnsOpened}
           fullWidth
@@ -172,12 +174,7 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
       <Popover position="bottom-end" shadow="md" withinPortal width={width} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
           {/* eslint-disable-next-line no-restricted-syntax -- target of the options panel, with its caret. */}
-          <Button
-            variant="default"
-            leftSection={<SlidersHorizontalIcon aria-hidden />}
-            rightSection={<CaretDownIcon aria-hidden />}
-            aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}
-          >
+          <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<MenuCaret />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
             Options
           </Button>
         </Popover.Target>
@@ -192,9 +189,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
                   <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
                     Annuler
                   </ActionButton>
-                  <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
+                  <ActionButton icon={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
                     Enregistrer
-                  </Button>
+                  </ActionButton>
                 </Group>
                 {sections.length > 0 && <Divider />}
               </>

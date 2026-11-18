@@ -1,6 +1,7 @@
 import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
+import { normalize } from '../core/text';
 import { dateSchema, optionalColorSchema, type LabelFormValues } from '../core/workspace';
 
 const linkSchema = z
@@ -119,12 +120,12 @@ export const DEFAULT_SHOPPING_UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte',
 
 /**
  * Key of what a product line holds, the same in the sheets, the shopping lists and the stock: its product, or else its
- * label and unit (case and spaces aside). Two lines of the same key are the same product (summed, stored together).
+ * label and unit (case, accents and spaces aside, as `sameName`). Two lines of the same key are the same product (summed, stored together).
  * @param {{ productId?: string | null, label: string, unit?: string | null }} item Item.
  * @returns {string} Key.
  */
 export function productKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
   if (item.productId) return `p:${item.productId}`;
-  const clean = (text: string | null | undefined) => (text ?? '').trim().toLocaleLowerCase('fr').replace(/\s+/g, ' ');
+  const clean = (text: string | null | undefined) => normalize((text ?? '').trim()).replace(/\s+/g, ' ');
   return `l:${clean(item.label)}|${clean(item.unit)}`;
 }

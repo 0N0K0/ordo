@@ -1,3 +1,4 @@
+import { mailSearchSortBy, mailSortBy } from '@ordo/shared';
 import { done } from '../errors';
 import { prisma } from '../../db';
 import * as accounts from '../../services/mail/accounts';
@@ -349,7 +350,7 @@ builder.queryFields((t) => ({
     },
     resolve: (_root, { accountId, folder, page, search, unread, state, sort, ascending }) =>
       reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false, state === 'todo' || state === 'done' ? state : 'all', {
-        by: sort === 'correspondent' || sort === 'subject' || sort === 'size' ? sort : 'date',
+        by: mailSortBy(sort),
         ascending: ascending ?? false,
       }),
   }),
@@ -372,8 +373,7 @@ builder.queryFields((t) => ({
       sort: t.arg.string({ description: 'date (default), correspondent or subject.' }),
       ascending: t.arg.boolean({ description: 'Ascending order (descending by default).' }),
     },
-    resolve: (_root, { criteria, page, sort, ascending }) =>
-      searches.advancedSearch(criteria, Math.max(0, page), { by: sort === 'correspondent' || sort === 'subject' ? sort : 'date', ascending: ascending ?? false }),
+    resolve: (_root, { criteria, page, sort, ascending }) => searches.advancedSearch(criteria, Math.max(0, page), { by: mailSearchSortBy(sort), ascending: ascending ?? false }),
   }),
   mailLabels: t.prismaField({
     type: ['MailLabel'],

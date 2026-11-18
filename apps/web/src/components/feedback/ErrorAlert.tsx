@@ -1,5 +1,6 @@
 import { Alert, type AlertProps } from '@mantine/core';
-import { ErrorIcon } from './feedback-icons';
+import { ErrorFeedbackIcon } from './feedback-icons';
+import { FEEDBACK_COLORS } from './feedback-colors';
 
 /**
  * Error shown in a page or a panel (what failed to load, a broken link): the same red alert everywhere.
@@ -7,6 +8,5 @@ import { ErrorIcon } from './feedback-icons';
  * @returns {JSX.Element} Alert.
  */
 export function ErrorAlert(props: Omit<AlertProps, 'color' | 'icon'>) {
-  // eslint-disable-next-line no-restricted-syntax -- the one red alert.
-  return <Alert color="red" icon={<ErrorIcon />} {...props} />;
+  return <Alert color={FEEDBACK_COLORS.error} icon={<ErrorFeedbackIcon />} {...props} />;
 }

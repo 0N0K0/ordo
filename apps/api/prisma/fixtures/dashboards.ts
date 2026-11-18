@@ -1,18 +1,11 @@
-import { localAt } from './factories';
+import { chart, localAt } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, documentChartFilterSchema, emptyTableFilter, parseDay } from '@ordo/shared';
+import { addDays, documentChartFilterSchema, emptyTableFilter, INVOICE_TYPES, parseDay } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
-import type { Prisma, Project } from '../../src/generated/prisma/client';
+import type { Project } from '../../src/generated/prisma/client';
 
 type DocumentChartFilterInput = z.input<typeof documentChartFilterSchema>;
-
-/**
- * Chart configuration from the defaults.
- * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes (defaults filled by the schema).
- * @returns {Prisma.InputJsonValue} Stored configuration.
- */
-const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
 
 /**
  * Sprints and dashboards: four two-week sprints per active root project (two over, one running, one coming)
@@ -120,7 +113,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     {
       label: 'Reste à encaisser par client',
       wide: false,
-      config: chart({ source: 'documents', type: 'stackedBar', dimension: 'client', measure: 'balance', series: 'payment', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE'] } }),
+      config: chart({ source: 'documents', type: 'stackedBar', dimension: 'client', measure: 'balance', series: 'payment', documents: { types: [...INVOICE_TYPES] } }),
     },
     { label: 'Devis par statut de suivi', wide: false, config: chart({ source: 'documents', type: 'donut', dimension: 'trackingStatus', measure: 'count', documents: { types: ['QUOTE'] } }) },
     { label: 'Solde de trésorerie', wide: true, config: chart({ source: 'treasury', type: 'line', dimension: 'date', bucket: 'week', period: 'past:182', measure: 'balance' }) },
@@ -138,7 +131,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
   await prisma.dashboardChart.createMany({ data: financeCharts.map((item, position) => ({ ...item, dashboardId: finances.id, position })) });
 
   const sentQuotes = await prisma.documentStatus.findMany({ where: { scope: 'QUOTE', category: 'SENT' }, select: { id: true } });
-  const invoices: DocumentChartFilterInput = { types: ['INVOICE', 'DEPOSIT_INVOICE'] };
+  const invoices: DocumentChartFilterInput = { types: [...INVOICE_TYPES] };
   const invoicing = await prisma.dashboard.create({ data: { label: 'Facturation', projectId: null, position: 2 } });
   const invoicingCharts = [
     {

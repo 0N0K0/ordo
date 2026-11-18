@@ -1,5 +1,5 @@
 import { NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
-import { ClientSelect } from '../../workspace/components/ClientSelect';
+import { ClientSelect } from '../../projects/components/ClientSelect';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -9,6 +9,7 @@ import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } fr
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { documentPath } from '../../../app/pages';
+import { unarchived } from '../../../lib/archive';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -51,8 +52,8 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
 
   // An archived quote is read only: no deposit invoiced from it.
   const quotes: QuoteChoice[] = [
-    ...(documents.data ?? [])
-      .filter((document) => !document.archived && document.type === 'QUOTE' && document.status === 'FINAL')
+    ...unarchived(documents.data ?? [])
+      .filter((document) => document.type === 'QUOTE' && document.status === 'FINAL')
       .map((document) => ({
         value: `ordo:${document.id}`,
         label: `${document.number} — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
@@ -63,8 +64,8 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
         currency: document.currency,
         percent: document.depositType === 'PERCENT' ? (document.depositValue ?? null) : null,
       })),
-    ...(imported.data ?? [])
-      .filter((document) => !document.archived && document.type === 'QUOTE' && document.clientId)
+    ...unarchived(imported.data ?? [])
+      .filter((document) => document.type === 'QUOTE' && document.clientId)
       .map((document) => ({
         value: `imported:${document.id}`,
         label: `${document.number} (importé) — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,

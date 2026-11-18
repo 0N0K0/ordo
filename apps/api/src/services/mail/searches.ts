@@ -1,9 +1,9 @@
-import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
+import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSearchCriteriaSchema, type MailSearchSortBy, type MailSearchInput, mailSearchSchema, parseDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
-import { withImap, withMailbox } from './imap';
+import { folderLabel, isInbox, selectableFolders, withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
@@ -17,7 +17,7 @@ const IDS_PER_SEARCH = 25;
 
 /** Order of the mails found: latest first by default. */
 interface SearchSort {
-  by: 'date' | 'correspondent' | 'subject';
+  by: MailSearchSortBy;
   ascending: boolean;
 }
 /** Latest mails looked at in each folder. */
@@ -181,10 +181,10 @@ export async function advancedSearch(input: unknown, page: number, sort?: Search
 /**
  * Text a mail found is sorted on.
  * @param {MailSearchHit} hit Mail.
- * @param {'correspondent' | 'subject'} by Field.
+ * @param {Exclude<MailSearchSortBy, 'date'>} by Field.
  * @returns {string} Text.
  */
-function sortText(hit: MailSearchHit, by: 'correspondent' | 'subject'): string {
+function sortText(hit: MailSearchHit, by: Exclude<MailSearchSortBy, 'date'>): string {
   if (by === 'subject') return hit.subject;
   const first = hit.from[0];
   return first?.name || first?.address || '';
@@ -216,12 +216,9 @@ async function runSearch(criteria: MailSearchCriteria, page: number, sort: Searc
       try {
         const marks = new Map((await prisma.mailMark.findMany({ where: { accountId } })).map((mark) => [mark.messageId, mark]));
         const folders = await withImap(accountId, async (client) =>
-          (await client.list())
-            .filter((folder) => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent'))
-            .filter((folder) =>
-              criteria.scope === 'folder' ? folder.path === criteria.folder : criteria.scope === 'inbox' ? folder.path.toUpperCase() === 'INBOX' : !skipped.has(folder.specialUse ?? ''),
-            )
-            .map((folder) => ({ path: folder.path, name: folder.path.toUpperCase() === 'INBOX' ? 'Réception' : folder.name })),
+          selectableFolders(await client.list())
+            .filter((folder) => (criteria.scope === 'folder' ? folder.path === criteria.folder : criteria.scope === 'inbox' ? isInbox(folder.path) : !skipped.has(folder.specialUse ?? '')))
+            .map((folder) => ({ path: folder.path, name: folderLabel(folder) })),
         );
         const hits: MailSearchHit[] = [];
         for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks, linked ? (linkedIds.get(accountId) ?? []) : null)));

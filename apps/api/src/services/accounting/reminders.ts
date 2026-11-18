@@ -1,4 +1,4 @@
-import { formatOptionalDay, reminderMail, sendRemindersSchema } from '@ordo/shared';
+import { formatOptionalDay, isInvoice, reminderMail, sendRemindersSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parseInput, userErrorMessage } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -45,7 +45,7 @@ export async function sendReminders(input: { accountId: string; documentIds: str
     const result: ReminderResult = { documentId: document.id, number: document.number ?? '', error: null };
     results.push(result);
     const balance = balances.get(document.id)?.balance ?? 0;
-    if (document.status !== 'FINAL' || (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')) {
+    if (document.status !== 'FINAL' || !isInvoice(document.type)) {
       result.error = 'Ce n’est pas une facture validée.';
       continue;
     }

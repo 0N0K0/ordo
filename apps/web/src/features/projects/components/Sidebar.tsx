@@ -250,7 +250,7 @@ export function Sidebar() {
           style={{ flex: 1 }}
         />
         <ActionsMenu
-          name="la barre latérale"
+          about="la barre latérale"
           target={
             <IconAction label="Trier" variant="default" size="input-xs">
               <SortAscendingIcon aria-hidden />
@@ -263,7 +263,7 @@ export function Sidebar() {
           ]}
         />
         <ActionsMenu
-          name="la barre latérale"
+          about="la barre latérale"
           target={
             <IconAction label="Créer" size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
               <PlusIcon aria-hidden />

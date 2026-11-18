@@ -1,5 +1,5 @@
 import { closestCenter, pointerWithin, type CollisionDetection, type DndContextProps, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { useDragSensors } from '../../lib/drag';
+import { useDragSensors } from '../dnd/drag';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useState } from 'react';
 import type { TreePlace } from './category-tree';

@@ -12,12 +12,12 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ON_ERROR } from '../../../lib/notify';
-import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
+import { type TaskContext, taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
 import { EditableText } from '../../../components/data-table/cells/EditableCells';
-import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
 import { BaseLists } from '../components/BaseLists';
@@ -41,8 +41,8 @@ import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
-  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
-  { label: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
+  { label: 'En cours', config: { filter: conditionFilter('state', 'in', ['OPEN'], 'open') } },
+  { label: 'Clôturées', config: { filter: conditionFilter('state', 'in', ['CLOSED'], 'closed') } },
 ];
 
 /** What the columns of the lists need: the tasks, the categories and the stores. */
@@ -69,11 +69,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   const { context } = env;
   const taskLabel = (id: string) => {
     const task = context?.taskById.get(id);
-    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`) : '';
+    return task ? (context?.taskLabel(task) ?? taskNumbered(task)) : '';
   };
   const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
-    { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
+    { id: 'label', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
     {
       id: 'tasks',
       label: 'Tâches',
@@ -159,7 +159,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Clôturée le',
       size: 110,
       hiddenByDefault: true,
-      sortValue: (list) => (list.closedAt ? list.closedAt : null),
+      sortValue: (list) => list.closedAt || null,
       text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
       filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
     },
@@ -255,6 +255,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       updateList.mutate({ id: list.id, label: change.label ?? list.label, taskIds: change.taskIds ?? list.taskIds }, ON_ERROR);
     }
   };
+  const cellLabelOf = bulkCellLabels(view, (list: ShoppingList) => list.label);
   const bulk = bulkSaver<ShoppingList, { label?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);
 
   return (
@@ -282,10 +283,10 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         const { bought, total: required } = shoppingProgress(list.items);
         return {
           ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
-          name: (
+          label: (
             <Group gap="xs" wrap="nowrap">
-              <EditableText value={list.label} label={`Libellé de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
-              <IconAction label="Ouvrir la liste" component={Link} to={shoppingListPath(list.id)} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
+              <EditableText value={list.label} label={cellLabelOf('label', list, 'Libellé')} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('label')(list, { label })} />
+              <IconAction label="Ouvrir la liste" component={Link} to={shoppingListPath(list.id)} size="sm" item={list.label}>
                 <ArrowSquareInIcon aria-hidden />
               </IconAction>
               {list.archived && <ArchivedBadge feminine size="sm" />}
@@ -298,9 +299,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ),
           tasks: (
             <TasksCell
-              label={`Tâches de la liste ${list.label}`}
+              label={cellLabelOf('tasks', list, 'Tâches')}
               readOnly={lockedOf(list) || !context}
-              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.label}` }))}
+              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? taskNumbered(task) }))}
               options={taskOptions(context, list.taskIds)}
               value={list.taskIds}
               onSave={(taskIds) => bulk('tasks')(list, (target) => ({ taskIds: applyDiff(target.taskIds, list.taskIds, taskIds) }))}

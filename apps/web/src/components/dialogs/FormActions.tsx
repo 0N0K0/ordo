@@ -1,4 +1,4 @@
-import { Button, Group, type MantineSize } from '@mantine/core';
+import { Group, type MantineSize } from '@mantine/core';
 import { ArrowsLeftRightIcon, CheckIcon, DownloadSimpleIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../actions/ActionButton';
@@ -71,17 +71,17 @@ export function FormActions({
         </ActionButton>
       )}
       {submitLabel !== null && (
-        <Button
+        <ActionButton
           type={onSubmit ? 'button' : 'submit'}
           size={size}
           onClick={onSubmit}
           loading={loading}
           disabled={disabled}
-          leftSection={submitIcon ?? defaultSubmitIcon(submitLabel)}
+          icon={submitIcon ?? defaultSubmitIcon(submitLabel)}
           data-autofocus={autoFocus || undefined}
         >
           {submitLabel}
-        </Button>
+        </ActionButton>
       )}
     </Group>
   );

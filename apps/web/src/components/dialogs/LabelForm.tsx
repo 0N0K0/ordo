@@ -1,7 +1,7 @@
 import { Stack, TextInput } from '@mantine/core';
-import { useState } from 'react';
 import { z } from 'zod';
-import { useAppForm } from '../../lib/form';
+import { showFormError, useAppForm } from '../../lib/form';
+import { useAsyncAction } from '../../lib/use-async-action';
 import { FormActions } from './FormActions';
 
 export interface LabelFormProps {
@@ -11,7 +11,7 @@ export interface LabelFormProps {
   schema: z.ZodType<string>;
   /** Label of the submit button (« Créer », « Renommer »). */
   submitLabel: string;
-  /** Saves the label, trimmed: a promise keeps the form open (spinning) until it resolves, its failure under the field. */
+  /** Saves the label, trimmed: a promise keeps the form open (spinning) until it resolves, its failure under the field (an error of the label) or in a toast. */
   onSubmit: (label: string) => void | Promise<unknown>;
   /** Closes the form. */
   onDone: () => void;
@@ -29,20 +29,9 @@ export interface LabelFormProps {
  */
 export function LabelForm({ initial, schema, submitLabel, onSubmit, onDone, fieldLabel = 'Libellé', placeholder }: LabelFormProps) {
   const form = useAppForm<{ label: string }>({ initialValues: { label: initial }, schema: z.object({ label: schema }) });
-  const [loading, setLoading] = useState(false);
+  const { run, loading } = useAsyncAction(async (label: string) => onSubmit(label), { onDone, onError: (failure) => showFormError(form, failure) });
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit(({ label }) => {
-        const result = onSubmit(schema.parse(label));
-        if (!(result instanceof Promise)) return onDone();
-        setLoading(true);
-        result
-          .then(onDone)
-          .catch((failure: unknown) => form.setFieldError('label', failure instanceof Error ? failure.message : String(failure)))
-          .finally(() => setLoading(false));
-      })}
-    >
+    <form noValidate onSubmit={form.onSubmit(({ label }) => run(schema.parse(label)))}>
       <Stack gap="md">
         <TextInput label={fieldLabel} required data-autofocus placeholder={placeholder} {...form.getInputProps('label')} />
         <FormActions onCancel={onDone} submitLabel={submitLabel} loading={loading} />

@@ -2,6 +2,7 @@ import { ActionIcon, Group, Menu, Text, type ActionIconProps, type MenuProps } f
 import { CheckIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { linkProps } from './link-props';
+import { actionIconProps, subjectText, type ActionsSubject } from './actions-subject';
 import { IconAction } from './IconAction';
 
 /** Action of a menu (or of a row). */
@@ -63,9 +64,7 @@ function menuEntries(items: readonly RowMenuEntry[]): ShownEntry[] {
   return titled.filter((item, index, all) => item !== 'divider' || (index > 0 && index < all.length - 1 && all[index - 1] !== 'divider'));
 }
 
-interface ActionsMenuProps {
-  /** What the actions are about (« Actions de … »). */
-  name: string;
+interface ActionsMenuProps extends ActionsSubject {
   items: readonly RowMenuEntry[];
   /** Button opening the menu, when it is not a « … » one (a sort, a caret, a labelled button). Optional. Default = three vertical dots. */
   target?: ReactNode;
@@ -103,6 +102,7 @@ interface ActionsMenuProps {
  */
 export function ActionsMenu({
   name,
+  about,
   items,
   target,
   inRow = false,
@@ -140,7 +140,7 @@ export function ActionsMenu({
             color={variant === 'subtle' ? 'gray' : undefined}
             size={size}
             loading={loading}
-            aria-label={`Actions de ${name}`}
+            aria-label={`Actions de ${subjectText({ name, about })}`}
             onClick={inRow || nested ? (event) => event.stopPropagation() : undefined}
             onPointerDown={inRow ? (event) => event.stopPropagation() : undefined}
           >
@@ -181,9 +181,7 @@ export function ActionsMenu({
   );
 }
 
-interface InlineActionsProps {
-  /** Element the actions are about, its name (« Modifier « Urgent » »). */
-  name: string;
+interface InlineActionsProps extends ActionsSubject {
   /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators and section titles are left out. */
   items: readonly RowMenuEntry[];
 }
@@ -194,7 +192,7 @@ interface InlineActionsProps {
  * @param {InlineActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
-export function InlineActions({ name, items }: InlineActionsProps) {
+export function InlineActions({ name, about, items }: InlineActionsProps) {
   const actions = items.filter(isAction);
   const menu = actions.filter((action) => action.inMenu);
   return (
@@ -202,20 +200,11 @@ export function InlineActions({ name, items }: InlineActionsProps) {
       {actions
         .filter((action) => !action.inMenu)
         .map((action) => (
-          <IconAction
-            key={action.label}
-            label={action.label}
-            item={name}
-            hint={action.hint}
-            color={action.danger ? 'red' : 'gray'}
-            disabled={action.disabled}
-            onClick={action.onClick}
-            {...linkProps(action)}
-          >
+          <IconAction key={action.label} {...actionIconProps(action, { name, about })}>
             {action.icon}
           </IconAction>
         ))}
-      <ActionsMenu name={name} items={menu} />
+      <ActionsMenu name={name} about={about} items={menu} />
     </Group>
   );
 }

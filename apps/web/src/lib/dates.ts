@@ -1,4 +1,6 @@
-import { CALENDAR_DAY } from '@ordo/shared';
+// eslint-disable-next-line no-restricted-imports -- lib/dates itself.
+import { CALENDAR_DAY, dayIn, localInstant } from '@ordo/shared';
+
 /**
  * Local date-time of an instant, as ISO text without zone (YYYY-MM-DDTHH:MM:SS.sss).
  * @param {Date} date Instant.
@@ -14,8 +16,7 @@ function localIso(date: Date): string {
  * @returns {string} Day.
  */
 export function localDay(instant: Date | string): string {
-  // eslint-disable-next-line no-restricted-syntax -- the local day of an instant, from its local ISO form.
-  return localIso(typeof instant === 'string' ? new Date(instant) : instant).slice(0, 10);
+  return dayIn(typeof instant === 'string' ? new Date(instant) : instant);
 }
 
 /**
@@ -58,14 +59,5 @@ export function localMidnight(day: string): string {
   return localInstant(day).toISOString();
 }
 
-/**
- * Instant of a day and a time of the user (in their time zone): an alarm ringing, a time entry starting…
- * @param {string} day YYYY-MM-DD.
- * @param {string} [time] HH:MM. Optional. Default = 00:00 (the start of the day).
- * @returns {Date} Instant.
- */
-export function localInstant(day: string, time = '00:00'): Date {
-  const [year, month, date] = day.split('-').map(Number);
-  const [hours, minutes] = time.split(':').map(Number);
-  return new Date(year, month - 1, date, hours, minutes);
-}
+/** Instant of a day and a time of the user (`localInstant` of @ordo/shared, shared with the alarms). */
+export { localInstant };

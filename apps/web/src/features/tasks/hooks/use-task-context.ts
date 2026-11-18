@@ -2,9 +2,9 @@ import { mapById, byPosition, LEVEL, lineageOf } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../../components/markdown/remark-references';
-import { useWorkspace, type Project } from '../../workspace/api';
+import { useWorkspace, type Project } from '../../projects/api';
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
-import { projectFullPath, projectNodes, projectOptions } from '../../workspace/lib/tree';
+import { projectFullPath, projectNodes, projectOptions } from '../../projects/lib/tree';
 import { useMe } from '../../auth/api';
 import { unarchived } from '../../../lib/archive';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
@@ -101,6 +101,22 @@ const NO_PROJECT_NODE = 'project:none';
 export const taskRef = (task: { number: number | null }) => (task.number === null ? '' : `#${task.number} `);
 
 /**
+ * Number of a task without the space ("#12"), empty for a task of no project.
+ * @param {{ number: number | null }} task Task.
+ * @returns {string} Text.
+ */
+// eslint-disable-next-line no-restricted-syntax -- taskNumber itself.
+export const taskNumber = (task: { number: number | null }): string => taskRef(task).trim();
+
+/**
+ * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project.
+ * @param {{ number: number | null, label: string }} task Task.
+ * @returns {string} Text.
+ */
+// eslint-disable-next-line no-restricted-syntax -- taskNumbered itself.
+export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;
+
+/**
  * Name of a task in a message: its number ("#12"), or its title for a task of no project.
  * @param {{ number: number | null, title: string }} task Task.
  * @returns {string} Name.
@@ -162,7 +178,7 @@ export function useTaskContext() {
     const taskPath = (task: Task, fromProjectId: string | null = null) => {
       const names = lineageOf(new Map([...taskIndex, [task.id, task]]), task.id)
         .reverse()
-        .map((item) => `${taskRef(item)}${item.label}`);
+        .map((item) => taskNumbered(item));
       return [...(task.projectId && task.projectId !== fromProjectId ? [placeOf(task.projectId)] : []), ...names].join(LEVEL);
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
@@ -213,7 +229,7 @@ export function useTaskContext() {
         const ids = new Set(offered.map((task) => task.id));
         const taskNodes = [...mapById([...tasks, ...offered]).values()]
           .sort(byPosition)
-          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.label}` }));
+          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: taskNumbered(task) }));
         const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL, pathless: true }] : [];
         return treeOptions([...projectNodes(workspace), ...withoutProject, ...taskNodes], (id) => ids.has(id));
       },
@@ -224,8 +240,8 @@ export function useTaskContext() {
       isBlocked: (task) =>
         !task.closed &&
         task.blockedByIds.some((id) => {
-          const blocker = tasks.find((item) => item.id === id);
-          return blocker !== undefined && !blocker.archived && !blocker.closed;
+          const blocker = unarchived(tasks).find((item) => item.id === id);
+          return blocker !== undefined && !blocker.closed;
         }),
       suggestionsFor: (projectId) => ({ projectId, tasks: referenceTasks, contributors }),
       targetsFor: (projectId) => ({ projectId, taskById: referenceById, taskByNumber: referenceByNumber, handles }),

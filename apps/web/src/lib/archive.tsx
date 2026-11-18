@@ -178,6 +178,7 @@ export function archiveEntry(
   onDone?: () => void,
 ) {
   return {
+    // eslint-disable-next-line no-restricted-syntax -- archiveEntry itself.
     label: archived ? 'Restaurer' : 'Archiver',
     icon: archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
     onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label: `${type} « ${label} »`, feminine, cascade }).then(onDone),

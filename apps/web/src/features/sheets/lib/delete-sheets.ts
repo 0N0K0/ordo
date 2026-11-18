@@ -1,7 +1,7 @@
 import { sumOf } from '@ordo/shared';
 import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { plural, countWith } from '../../../lib/text';
+import { countWith } from '../../../lib/text';
 
 /** What the texts of a deletion say of a sheet. */
 interface DeletedSheet {
@@ -25,9 +25,12 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
     name: rowLabel,
     risks: (subject, one, sheets) => {
       const usedBy = sumOf(sheets, (sheet) => sheet.usedBy ?? 0);
-      const items = one ? countWith(sheets[0].items.length, 'élément', ['son', 'ses']) : 'leurs éléments';
-      const used = usedBy ? `, et retirés des ${usedBy} ${plural(usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui ${one ? 'l’ont' : 'les ont'}` : '';
-      return `${subject} et ${items} seront supprimés définitivement${used}. Les listes d’achats et les listes à cocher déjà faites ${one ? 'la' : 'les'} gardent.`;
+      // « ses 0 éléments » left out: a sheet without items is deleted alone (« sera supprimée »).
+      const alone = one && sheets[0].items.length === 0;
+      const items = alone ? '' : one ? ` et ${countWith(sheets[0].items.length, 'élément', ['son', 'ses'])}` : ' et leurs éléments';
+      const users = usedBy === 1 ? 'de la routine, de l’évènement ou de la tâche qui' : `des ${usedBy} routines, évènements ou tâches qui`;
+      const used = usedBy ? `, et ${alone ? 'retirée' : 'retirés'} ${users} ${one ? 'l’' : 'les '}${usedBy === 1 ? 'a' : 'ont'}` : '';
+      return `${subject}${items} ${alone ? 'sera supprimée' : 'seront supprimés'} définitivement${used}. Les listes d’achats et les listes à cocher déjà faites ${one ? 'la' : 'les'} gardent.`;
     },
     remove,
     clear,

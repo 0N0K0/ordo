@@ -16,6 +16,7 @@ import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import * as fmt from '../../../lib/format';
 import { projectLinkSchema } from '@ordo/shared';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 /**
  * Icon of a link, from its site.
@@ -131,7 +132,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                         {resource.label}
                       </FileLink>
                     ) : (
-                      <Anchor href={resource.url} target="_blank" rel="noopener noreferrer" fw={600} size="sm" truncate>
+                      <Anchor href={resource.url} {...EXTERNAL_LINK} fw={600} size="sm" truncate>
                         {resource.label}
                       </Anchor>
                     )}

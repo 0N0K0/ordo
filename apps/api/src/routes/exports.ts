@@ -25,10 +25,7 @@ exportsRouter.post(
 // iCalendar file of a calendar of the workspace (?calendar=<id>), or of all of them, downloaded.
 exportsRouter.get(
   '/calendar.ics',
-  downloadRoute(async (req) => {
-    const { name, content } = await calendarIcs(queryText(req.query.calendar) || null);
-    return { content, type: 'text/calendar; charset=utf-8', filename: fileName(name, 'ics') };
-  }, 'Export ICS impossible.'),
+  downloadRoute(async (req) => ({ ...(await calendarIcs(queryText(req.query.calendar) || null)), type: 'text/calendar; charset=utf-8' }), 'Export ICS impossible.'),
 );
 
 // PDF of a calendar view as displayed (its items sent by the app), downloaded.

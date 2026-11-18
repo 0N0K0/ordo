@@ -66,7 +66,7 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
           return (
             <Table.Th key={column.id} ta={column.numeric ? 'right' : undefined} fw={500}>
               <ActionsMenu
-                name={`total de ${column.label}`}
+                about={`total de « ${column.label} »`}
                 position="bottom-start"
                 target={
                   <UnstyledButton aria-label={`Total de ${column.label}`} style={{ whiteSpace: 'nowrap' }}>

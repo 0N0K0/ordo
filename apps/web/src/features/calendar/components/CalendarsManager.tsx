@@ -36,7 +36,7 @@ function OwnCalendars() {
       {...listMutations({ create, update, remove: { mutateAsync: ({ id }: { id: string }) => remove.mutateAsync(id) } })}
       headerActions={<CalendarsIcsButton disabled={!calendars.length} />}
       renderActions={(calendar) => (
-        <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download aria-label={`Exporter ${calendar.label} (.ics)`}>
+        <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download item={calendar.label}>
           <DownloadSimpleIcon aria-hidden />
         </IconAction>
       )}

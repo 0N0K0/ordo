@@ -1,10 +1,10 @@
+import { useSearchParam } from '../../../lib/search-params';
 import { sumOf } from '@ordo/shared';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { CopyIcon } from '@phosphor-icons/react';
 import { Checkbox, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
-import { useSearchParams } from 'react-router';
 
 import { outermost } from '../../../components/data-table/selection/selection-actions';
 import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
@@ -15,7 +15,7 @@ import { plural, countWith } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
 import { countSubtasks } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
-import { taskName, taskRef } from '../hooks/use-task-context';
+import { taskName, taskNumber, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useBulkUndo } from '../lib/bulk-undo';
 import { removedLinksNote, tasksLabel } from '../lib/bulk-label';
@@ -30,7 +30,7 @@ import { useAsyncAction } from '../../../lib/use-async-action';
 export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
   const { remove } = useBulkTaskMutations();
   const link = useTaskLink();
-  const [params] = useSearchParams();
+  const [openTaskId] = useSearchParam(TASK_PARAM);
   const [mode, setMode] = useState<'detach' | 'delete'>('detach');
   const single = tasks.length === 1 ? tasks[0] : null;
   const selected = new Set(tasks.map((task) => task.id));
@@ -45,7 +45,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
       { ids: [...selected], deleteSubtasks: mode === 'delete' },
       formCallbacks(null, single ? `Tâche ${taskName(single)} supprimée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'supprimée')}.`, () => {
         onDone(true);
-        if (selected.has(params.get(TASK_PARAM) ?? '')) link.close();
+        if (selected.has(openTaskId ?? '')) link.close();
       }),
     );
 
@@ -54,8 +54,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
       <DestructiveRisks>
         {single ? (
           <>
-            La tâche <strong>{`${taskRef(single).trim()} ${single.label}`}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la
-            plutôt.
+            La tâche <strong>{taskNumbered(single)}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la plutôt.
           </>
         ) : (
           `${tasksLabel(tasks.length)} et leurs commentaires seront supprimées définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
@@ -189,7 +188,7 @@ export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
     },
     {
       onDone: (last) => {
-        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last && taskRef(last) ? ` en ${taskRef(last).trim()}` : ''}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
+        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last && taskNumber(last) ? ` en ${taskNumber(last)}` : ''}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
         onDone(true);
         if (single && last) link.open(last.id);
       },

@@ -32,7 +32,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { nextPositionIn } from '../core/ordering';
+import { BY_POSITION, BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
 import { copyOf, findOpenList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
@@ -197,7 +197,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
  * @returns {Promise<Sheet>} Copy.
  */
 export async function duplicateSheet(id: string): Promise<Sheet> {
-  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
+  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: BY_POSITION, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   await assertNotArchived('SHEET', id);
   const copy = await createSheet({ label: copyName(sheet.label, SHEET_LABEL_MAX), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
@@ -324,7 +324,7 @@ export const sheetCategories = createLabelService<SheetCategory>('sheetCategory'
  * @returns {Promise<SheetPart[]>} Parts.
  */
 async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
-  const sheets = await prisma.sheet.findMany({ where: { id: { in: [...new Set(links.map((link) => link.sheetId))] } }, include: { items: { orderBy: { position: 'asc' }, include: withPeople } } });
+  const sheets = await prisma.sheet.findMany({ where: { id: { in: [...new Set(links.map((link) => link.sheetId))] } }, include: { items: { orderBy: BY_POSITION, include: withPeople } } });
   const byId = mapById(sheets);
   return links.flatMap((link) => {
     const sheet = byId.get(link.sheetId);
@@ -536,7 +536,7 @@ async function assertOwner(scope: OwnerScope): Promise<void> {
  * @returns {Promise<SheetPart[] | null>} Parts, or null when it has no sheets.
  */
 async function sheetPartsOf(scope: OwnerScope): Promise<SheetPart[] | null> {
-  const links = await prisma.sheetLink.findMany({ where: { ...scope, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
+  const links = await prisma.sheetLink.findMany({ where: { ...scope, sheet: { archivedAt: null } }, orderBy: BY_POSITION_ONLY });
   return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: fromDecimal(link.multiplier) }))) : null;
 }
 

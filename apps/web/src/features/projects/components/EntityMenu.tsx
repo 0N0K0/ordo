@@ -32,7 +32,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
 
   return (
     <ActionsMenu
-      name={`${kind} ${entityLabel(entity)}`}
+      about={`${kind} « ${entityLabel(entity)} »`}
       opened={opened}
       onChange={onChange}
       position="bottom-start"

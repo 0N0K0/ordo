@@ -1,9 +1,10 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowCounterClockwiseIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { FEEDBACK_COLORS } from '../components/feedback/feedback-colors';
-import { ErrorIcon, InfoFeedbackIcon, SuccessIcon, WarningFeedbackIcon } from '../components/feedback/feedback-icons';
+import { ErrorFeedbackIcon, InfoFeedbackIcon, SuccessFeedbackIcon, WarningFeedbackIcon } from '../components/feedback/feedback-icons';
+import { ActionButton } from '../components/actions/ActionButton';
 
 /**
  * Toasts (top right): an error stays until closed; any other closes on its own (paused while hovered), sooner when
@@ -39,18 +40,17 @@ function toastBody(id: string, lines: (string | null | undefined | false)[], act
       {actions.length > 0 && (
         <Group gap={4} wrap="wrap">
           {actions.map((action) => (
-            <Button
+            <ActionButton
+              priority="tertiary"
               key={action.label}
-              size="compact-sm"
-              variant="subtle"
-              leftSection={action.icon ?? <ArrowRightIcon aria-hidden />}
+              icon={action.icon ?? <ArrowRightIcon aria-hidden />}
               onClick={() => {
                 notifications.hide(id);
                 action.onClick();
               }}
             >
               {action.label}
-            </Button>
+            </ActionButton>
           ))}
         </Group>
       )}
@@ -96,7 +96,7 @@ export function notifyInfo({
  */
 export function notifySuccess(message: string): void {
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ color: FEEDBACK_COLORS.success, icon: <SuccessIcon />, message, autoClose: AUTO_CLOSE_MS });
+  notifications.show({ color: FEEDBACK_COLORS.success, icon: <SuccessFeedbackIcon />, message, autoClose: AUTO_CLOSE_MS });
 }
 
 /**
@@ -117,7 +117,7 @@ export function notifyWarning(title: string, message: string): void {
  */
 export function notifyError(message: string): void {
   // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
-  notifications.show({ color: FEEDBACK_COLORS.error, icon: <ErrorIcon />, title: 'Erreur', message, autoClose: false });
+  notifications.show({ color: FEEDBACK_COLORS.error, icon: <ErrorFeedbackIcon />, title: 'Erreur', message, autoClose: false });
 }
 
 /**
@@ -125,7 +125,7 @@ export function notifyError(message: string): void {
  * @param {Error} error Error.
  * @returns {void}
  */
-export const onMutationError = (error: Error): void => notifyError(error.message);
+export const onMutationError = (error: Error): void => notifyFailure(error);
 
 /** Options of a mutation whose success needs no toast (or is told elsewhere): its error in an error toast. */
 // eslint-disable-next-line no-restricted-syntax -- ON_ERROR itself.
@@ -145,13 +145,14 @@ export function toastCallbacks<T = unknown>(message: string | ((result: T) => st
 const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 
 /**
- * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback.
+ * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback
+ * when it has none (never an empty toast). The one rule of every error toast (onMutationError, useAsyncAction…).
  * @param {unknown} error What was thrown.
  * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
  * @returns {void}
  */
 export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
-  notifyError(error instanceof Error ? error.message : fallback);
+  notifyError(error instanceof Error && error.message ? error.message : fallback);
 }
 
 /**
@@ -166,7 +167,7 @@ export function notifyWithUndo(message: string, onUndo: () => void): void {
   notifications.show({
     id,
     color: FEEDBACK_COLORS.success,
-    icon: <SuccessIcon />,
+    icon: <SuccessFeedbackIcon />,
     autoClose: AUTO_CLOSE_READ_MS,
     message: toastBody(id, [message], [{ label: 'Annuler', icon: <ArrowCounterClockwiseIcon aria-hidden />, onClick: onUndo }]),
   });

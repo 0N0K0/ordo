@@ -3,6 +3,7 @@ import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
+import { dayIn, localInstant } from '../dates/days';
 
 /** What was done during a tracked time: plain text, several lines. Empty becomes null. */
 export const timeDescriptionSchema = z
@@ -172,16 +173,6 @@ export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
 }
 
 /**
- * Local midnight of a YYYY-MM-DD date.
- * @param {string} date Calendar date.
- * @returns {Date} Local date.
- */
-function localDay(date: string): Date {
-  const [year, month, day] = date.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-/**
  * Whether the schedule rings on a given local day: a day of its rule (the first day only without one).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} start Local first day.
@@ -190,10 +181,9 @@ function localDay(date: string): Date {
  */
 function ringsOn(schedule: AlarmSchedule, start: Date, day: Date): boolean {
   if (day < start) return false;
-  const key = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const rule = alarmRule(schedule);
-  if (!rule) return key(day) === key(start);
-  return occurrenceDates(rule, key(start), key(day), key(day)).length > 0;
+  if (!rule) return dayIn(day) === dayIn(start);
+  return occurrenceDates(rule, dayIn(start), dayIn(day), dayIn(day)).length > 0;
 }
 
 /**
@@ -216,7 +206,7 @@ function at(day: Date, time: string): Date {
  */
 export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBackDays = 2): Date | null {
   if (!schedule.startDate || !schedule.time) return null;
-  const start = localDay(schedule.startDate);
+  const start = localInstant(schedule.startDate);
   for (let offset = 0; offset <= lookBackDays; offset += 1) {
     const day = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() - offset);
     if (!ringsOn(schedule, start, day)) continue;
@@ -234,14 +224,14 @@ export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBa
  */
 export function nextOccurrence(schedule: AlarmSchedule, moment: Date): Date | null {
   if (!schedule.startDate || !schedule.time) return null;
-  const start = localDay(schedule.startDate);
+  const start = localInstant(schedule.startDate);
   const first = start > moment ? start : new Date(moment.getFullYear(), moment.getMonth(), moment.getDate());
   // Last day it may ring: the end of its rule, its first day without one.
   const rule = alarmRule(schedule);
   const end = rule ? rule.until : schedule.startDate;
   for (let offset = 0; offset < 800; offset += 1) {
     const day = new Date(first.getFullYear(), first.getMonth(), first.getDate() + offset);
-    if (end && day > localDay(end)) return null;
+    if (end && day > localInstant(end)) return null;
     if (!ringsOn(schedule, start, day)) continue;
     const occurrence = at(day, schedule.time);
     if (occurrence > moment) return occurrence;

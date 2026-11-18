@@ -1,9 +1,9 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural, countOf } from '../../../lib/text';
-import { Button, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -100,6 +100,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       ON_ERROR,
     );
   };
+  const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const bulk = bulkSaver<ChecklistItem, ItemChange>(view, saveItem);
 
   if (isPending) return <TableSkeleton rows={4} />;
@@ -135,11 +136,9 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
             >
               Ajouter une fiche
             </ActionButton>
-            <Button
-              size="xs"
-              variant="subtle"
-              color="gray"
-              leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
+            <ActionButton
+              priority="tertiary"
+              icon={<ArrowCounterClockwiseIcon aria-hidden />}
               onClick={() =>
                 confirmDestructive({
                   title: 'Refaire la liste',
@@ -150,7 +149,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
               }
             >
               Refaire depuis les fiches
-            </Button>
+            </ActionButton>
           </>
         }
       />
@@ -172,14 +171,18 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         getKey={(item) => item.id}
         isDone={(item) => Boolean(item.checkedAt)}
         cells={(item) => ({
-          done: <EditableCheck value={Boolean(item.checkedAt)} label={`${item.label} fait`} onSave={(checked) => bulk('done')(item, { checked })} />,
-          label: <EditableText value={item.label} label={`Libellé de ${item.label}`} onSave={(next) => next && bulk('label')(item, { label: next })} />,
-          quantity: <EditableNumber value={item.quantity ?? null} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />,
-          unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} onSave={(unit) => bulk('unit')(item, { unit })} />,
-          category: <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${item.label}`} onSave={(categoryId) => bulk('category')(item, { categoryId })} />,
-          note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          done: <EditableCheck value={Boolean(item.checkedAt)} label={cellLabelOf('done', item, 'Fait')} onSave={(checked) => bulk('done')(item, { checked })} />,
+          label: <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} onSave={(next) => next && bulk('label')(item, { label: next })} />,
+          quantity: (
+            <EditableNumber value={item.quantity ?? null} label={cellLabelOf('quantity', item, 'Quantité')} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />
+          ),
+          unit: <UnitCell value={item.unit ?? null} label={cellLabelOf('unit', item, 'Unité')} onSave={(unit) => bulk('unit')(item, { unit })} />,
+          category: (
+            <CategoryCell value={item.categoryId ?? null} categories={categories} label={cellLabelOf('category', item, 'Catégorie')} onSave={(categoryId) => bulk('category')(item, { categoryId })} />
+          ),
+          note: <EditableText value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} nullable onSave={(note) => bulk('note')(item, { note })} />,
           // Ticked, a consumable item that is a reference is taken from the stock.
-          consumable: <EditableCheck value={item.consumable} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
+          consumable: <EditableCheck value={item.consumable} label={cellLabelOf('consumable', item, 'Consommable')} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
           sources: (
             <StackedValues>
               {item.sources.map((source) => (

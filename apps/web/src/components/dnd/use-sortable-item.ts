@@ -21,6 +21,6 @@ export interface SortableHandle {
 export function useSortableItem(id: string, disabled = false): { ref: (element: HTMLElement | null) => void; style: CSSProperties; dragging: boolean; handle: SortableHandle } {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled });
   const handle = useMemo(() => ({ activator: setActivatorNodeRef, attributes, listeners, dragging: isDragging }), [setActivatorNodeRef, attributes, listeners, isDragging]);
-  const style: CSSProperties = { ...sortableStyle({ transform, transition, isDragging }), opacity: isDragging ? 'var(--onoko-dragging-opacity)' : undefined };
+  const style: CSSProperties = sortableStyle({ transform, transition, isDragging });
   return { ref: setNodeRef, style, dragging: isDragging, handle };
 }

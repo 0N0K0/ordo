@@ -14,8 +14,9 @@ import {
   sumOf,
   toCents,
   UNIT_LABELS,
+  isInvoice,
 } from '@ordo/shared';
-import { createPdf, PDF_TABLE, PDF_TEXT } from '../core/pdf-report';
+import { createPdf, PDF_TABLE, PDF_TEXT, type PdfDoc } from '../core/pdf-report';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { buyerSnapshot, documentTotals, findDocument, lineInput, sellerSnapshot, type Buyer, type DocumentWithLines, type Seller } from './accounting-documents';
@@ -157,11 +158,9 @@ function markdownBlocks(markdown: string): TextBlock[] {
 
   return blocks;
 }
-type Doc = PDFKit.PDFDocument;
-
 /**
  * Writes text blocks at a position, or measures them.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {TextBlock[]} blocks Blocks.
  * @param {object} box Position and style.
  * @param {number} box.x Left.
@@ -173,7 +172,7 @@ type Doc = PDFKit.PDFDocument;
  * @returns {number} Height.
  */
 function writeBlocks(
-  doc: Doc,
+  doc: PdfDoc,
   blocks: TextBlock[],
   box: {
     x: number;
@@ -244,9 +243,9 @@ class Flow {
   y: number;
 
   /**
-   * @param {Doc} doc PDF document.
+   * @param {PdfDoc} doc PDF document.
    */
-  constructor(private readonly doc: Doc) {
+  constructor(private readonly doc: PdfDoc) {
     this.y = doc.page.margins.top;
   }
 
@@ -362,13 +361,13 @@ function tableColumns(width: number, vatApplicable: boolean, discounts: boolean)
 
 /**
  * Writes the lines table across pages, its header repeated on each page.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {DocumentWithLines} document Document.
  * @param {DocumentTotals} totals Totals.
  * @returns {void}
  */
-function writeLines(doc: Doc, flow: Flow, document: DocumentWithLines, totals: DocumentTotals): void {
+function writeLines(doc: PdfDoc, flow: Flow, document: DocumentWithLines, totals: DocumentTotals): void {
   const width = doc.page.width - 2 * PAGE.margin;
   const columns = tableColumns(
     width,
@@ -468,13 +467,13 @@ function writeLines(doc: Doc, flow: Flow, document: DocumentWithLines, totals: D
 
 /**
  * Writes the totals, aligned right.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {DocumentWithLines} document Document.
  * @param {DocumentTotals} totals Totals.
  * @returns {void}
  */
-function writeTotals(doc: Doc, flow: Flow, document: DocumentWithLines, totals: DocumentTotals): void {
+function writeTotals(doc: PdfDoc, flow: Flow, document: DocumentWithLines, totals: DocumentTotals): void {
   const money = (cents: number) => formatMoney(cents, document.currency);
   const adjusted = totals.globalDiscount !== 0 || totals.deductions !== 0;
   const discountValue = document.globalDiscountValue === null ? null : fromDecimal(document.globalDiscountValue);
@@ -561,12 +560,12 @@ const SECTION_LINE_GAP = 1;
 
 /**
  * Height a section takes in a width.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Section} section Section.
  * @param {number} width Width.
  * @returns {number} Height.
  */
-function sectionHeight(doc: Doc, section: Section, width: number): number {
+function sectionHeight(doc: PdfDoc, section: Section, width: number): number {
   let height = 13;
   for (const line of section.lines) {
     // The label is bold: measured so, as one text with its value.
@@ -578,14 +577,14 @@ function sectionHeight(doc: Doc, section: Section, width: number): number {
 
 /**
  * Draws a section at a place.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Section} section Section.
  * @param {number} x Left.
  * @param {number} top Top.
  * @param {number} width Width.
  * @returns {number} Bottom.
  */
-function drawSection(doc: Doc, section: Section, x: number, top: number, width: number): number {
+function drawSection(doc: PdfDoc, section: Section, x: number, top: number, width: number): number {
   doc.font('bold').fontSize(8.5).fillColor(COLORS.accent).text(section.title, x, top, { width });
   let y = top + 13;
   for (const line of section.lines) {
@@ -608,12 +607,12 @@ function drawSection(doc: Doc, section: Section, x: number, top: number, width: 
 /**
  * Writes sections of small text side by side, kept together on a page: a main one on the left (over the full
  * width when alone), and one in the column of the totals block, aligned on its texts (bank details).
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {{ main?: Section, totalsColumn?: Section }} sections Sections (empty ones left out).
  * @returns {void}
  */
-function writeSections(doc: Doc, flow: Flow, { main, totalsColumn }: { main?: Section; totalsColumn?: Section }): void {
+function writeSections(doc: PdfDoc, flow: Flow, { main, totalsColumn }: { main?: Section; totalsColumn?: Section }): void {
   const right = totalsColumn?.lines.length ? totalsColumn : null;
   const left = main?.lines.length ? main : null;
   if (!left && !right) return;
@@ -628,13 +627,13 @@ function writeSections(doc: Doc, flow: Flow, { main, totalsColumn }: { main?: Se
 
 /**
  * Writes a titled section of small text over the full width.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {string} title Title.
  * @param {SectionLine[]} lines Lines.
  * @returns {void}
  */
-function writeSection(doc: Doc, flow: Flow, title: string, lines: SectionLine[]): void {
+function writeSection(doc: PdfDoc, flow: Flow, title: string, lines: SectionLine[]): void {
   writeSections(doc, flow, { main: { title, lines } });
 }
 /** Points per millimetre. */
@@ -661,7 +660,7 @@ const SELLER_SPACING = { line: 2.5, group: 8 };
  * Writes the header: logo and seller on the left (identifiers, address and contact in airy groups), title,
  * number and dates on the right, then the buyer on a white background where the window of an envelope shows it
  * (its identifiers under it, out of the window).
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {object} data Data.
  * @param {DocumentWithLines} data.document Document.
@@ -672,7 +671,7 @@ const SELLER_SPACING = { line: 2.5, group: 8 };
  * @returns {void}
  */
 function writeHeader(
-  doc: Doc,
+  doc: PdfDoc,
   flow: Flow,
   {
     document,
@@ -862,11 +861,11 @@ const HANDWRITING = { line: 42, signature: 100 };
 /**
  * Writes the "Bon pour accord" block of a quote, as on paper: "À ____, le __ / __ / ____" on lines to fill in
  * by hand, then "Signature et cachet" over a room closed by a line; on the right, kept on one page.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Flow} flow Flow.
  * @returns {void}
  */
-function writeApproval(doc: Doc, flow: Flow): void {
+function writeApproval(doc: PdfDoc, flow: Flow): void {
   const width = 280;
   const x = doc.page.width - PAGE.margin - width;
   const height = 22 + HANDWRITING.line + 14 + HANDWRITING.signature + 4;
@@ -918,12 +917,12 @@ function writeApproval(doc: Doc, flow: Flow): void {
 
 /**
  * Footer of every page: legal identity of the seller and page number; a watermark on drafts.
- * @param {Doc} doc PDF document.
+ * @param {PdfDoc} doc PDF document.
  * @param {Seller} seller Seller.
  * @param {boolean} draft Whether the document is a draft.
  * @returns {void}
  */
-function writeFooters(doc: Doc, draft: boolean, document: DocumentWithLines): void {
+function writeFooters(doc: PdfDoc, draft: boolean, document: DocumentWithLines): void {
   const reference = `${TYPE_TITLES[document.type]} ${draft ? 'provisoire' : 'N° ' + document.number} du ${printedDay(document.issueDate)}`;
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index++) {
@@ -970,7 +969,7 @@ interface DocumentPdf {
  * @returns {Promise<{ date: Date, method: string | null, amount: number }[]>} Payments (amounts in cents).
  */
 async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date: Date; method: string | null; amount: number }[]> {
-  if (document.status !== 'FINAL' || (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')) {
+  if (document.status !== 'FINAL' || !isInvoice(document.type)) {
     throw clientError('BAD_USER_INPUT', 'Seule une facture validée peut être acquittée.');
   }
   const balance = (await documentBalances()).get(document.id);

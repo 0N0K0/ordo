@@ -1,5 +1,5 @@
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { type AccountingLineInput, toCents, sumOf } from '@ordo/shared';
+import { type AccountingLineInput, toCents, sumOf, fromCents } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
@@ -37,7 +37,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   if (!offered.length) return null;
   return (
     <ActionsMenu
-      name="acompte"
+      about="l’acompte"
       position="bottom-start"
       target={
         <ActionButton priority="secondary" size="xs" icon={<MinusCircleIcon aria-hidden />}>
@@ -60,7 +60,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
                   description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
                   quantity: 1,
                   unit: 'FLAT' as const,
-                  unitPrice: item.cents / 100,
+                  unitPrice: fromCents(item.cents),
                   vatRate: vatApplicable ? item.rate : 0,
                   discountType: null,
                   discountValue: null,

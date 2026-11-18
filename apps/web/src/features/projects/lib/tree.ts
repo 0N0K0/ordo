@@ -154,8 +154,9 @@ export function clientProjectOptions(
   clientId: string | null,
   { archived = false, keepId = null, anyWhenNoClient = false }: { archived?: boolean; keepId?: string | null; anyWhenNoClient?: boolean } = {},
 ): TreeOption[] {
-  const offered = (workspace?.projects ?? []).filter(
-    (project) => (keepId != null && project.id === keepId) || ((archived || !project.archived) && ((anyWhenNoClient && !clientId) || project.clientId === clientId)),
+  const projects = workspace?.projects ?? [];
+  const offered = (archived ? projects : unarchived(projects, keepId)).filter(
+    (project) => (keepId != null && project.id === keepId) || (anyWhenNoClient && !clientId) || project.clientId === clientId,
   );
   return projectOptions(workspace, offered);
 }
@@ -323,8 +324,16 @@ function buildContextSection(workspace: Workspace, sort: SortMode, search: strin
  */
 export function buildFavoriteSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
   return buildContextSection(workspace, sort, search, {
-    clientIds: new Set(workspace.clients.filter((client) => client.favorite && !client.archived).map((client) => client.id)),
-    projectIds: new Set(workspace.projects.filter((project) => project.favorite && !project.archived).map((project) => project.id)),
+    clientIds: new Set(
+      unarchived(workspace.clients)
+        .filter((client) => client.favorite)
+        .map((client) => client.id),
+    ),
+    projectIds: new Set(
+      unarchived(workspace.projects)
+        .filter((project) => project.favorite)
+        .map((project) => project.id),
+    ),
     keep: (project) => !project.archived,
   });
 }

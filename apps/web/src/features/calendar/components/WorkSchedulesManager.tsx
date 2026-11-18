@@ -20,7 +20,7 @@ import {
 } from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -195,7 +195,7 @@ export function WorkSchedulesManager() {
     const input = {
       label: schedule.label,
       startDate: schedule.startDate,
-      endDate: schedule.endDate ? schedule.endDate : null,
+      endDate: schedule.endDate || null,
       cases: readScheduleCases(schedule.cases, schedule.startDate),
       exceptions: readScheduleExceptions(schedule.exceptions),
       typeId: schedule.typeId ?? null,
@@ -247,7 +247,7 @@ export function WorkSchedulesManager() {
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'name', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
+    { id: 'label', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
       bulk: true,
@@ -278,7 +278,7 @@ export function WorkSchedulesManager() {
       size: 120,
       sortValue: ({ schedule }) => (schedule.endDate ? schedule.endDate : '9999-12-31'),
       text: ({ schedule }) => (schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'),
-      filter: { kind: 'date', value: ({ schedule }) => (schedule.endDate ? schedule.endDate : null) },
+      filter: { kind: 'date', value: ({ schedule }) => schedule.endDate || null },
     },
     {
       id: 'hours',
@@ -310,6 +310,7 @@ export function WorkSchedulesManager() {
     title: schedulesTitle(perso),
     first: [{ label: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
+  const cellLabelOf = bulkCellLabels(view, (row) => row.schedule.label);
   const bulk = bulkSaver<ScheduleRow, Partial<WorkScheduleInput>>(view, (row, change) => Object.keys(change).length > 0 && saveSchedule(row.schedule, change));
 
   return (
@@ -357,7 +358,7 @@ export function WorkSchedulesManager() {
             // Archived: read only.
             if (schedule.archived) {
               return {
-                name: (
+                label: (
                   <Group gap="xs" wrap="nowrap">
                     <Text size="sm" fw={600}>
                       {schedule.label}
@@ -382,11 +383,11 @@ export function WorkSchedulesManager() {
               };
             }
             return {
-              name: <EditableText value={schedule.label} label={`Libellé de ${schedule.label}`} strong onSave={(label) => label && bulk('name')(row, { label })} />,
+              label: <EditableText value={schedule.label} label={cellLabelOf('label', row, 'Libellé')} strong onSave={(label) => label && bulk('label')(row, { label })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
-                  label={`Type de ${schedule.label}`}
+                  label={cellLabelOf('type', row, 'Type')}
                   leftSection={<ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />}
                   {...listSelectProps([{ id: NO_KIND, label: defaultLabel, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
@@ -395,7 +396,7 @@ export function WorkSchedulesManager() {
               start: (
                 <EditableDate
                   value={schedule.startDate}
-                  label={`Début de ${schedule.label}`}
+                  label={cellLabelOf('start', row, 'Début')}
                   // A start set after the end moves the end to it (decision Q).
                   onSave={(startDate) =>
                     startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))
@@ -404,8 +405,8 @@ export function WorkSchedulesManager() {
               ),
               end: (
                 <EditableDate
-                  value={schedule.endDate ? schedule.endDate : null}
-                  label={`Fin de ${schedule.label}`}
+                  value={schedule.endDate || null}
+                  label={cellLabelOf('end', row, 'Fin')}
                   nullable
                   minDate={schedule.startDate}
                   onSave={(endDate) =>

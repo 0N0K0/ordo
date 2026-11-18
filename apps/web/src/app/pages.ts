@@ -46,6 +46,24 @@ export const PAGES = {
   account: { path: '/account', title: 'Mon compte', icon: UserCircleIcon },
 } satisfies Record<string, AppPage>;
 
+/** Pages of the sign-in (outside the app), their addresses. */
+// eslint-disable-next-line no-restricted-syntax -- the addresses themselves.
+export const AUTH_PATHS = { login: '/login', forgotPassword: '/forgot-password', resetPassword: '/reset-password', confirmEmail: '/confirm-email' } as const;
+
+/** Overdue invoices: their tab of the billing. */
+export const OVERDUE_INVOICES_PATH = `${PAGES.accounting.path}?tab=overdue`;
+
+/** GitHub settings: their tab of the settings. */
+export const GITHUB_SETTINGS_PATH = `${PAGES.settings.path}?tab=github`;
+
+/**
+ * Route of the router for an address of the app: the address without its leading slash, and a sub-path.
+ * @param {string} path Address (`PAGES.x.path`, `AUTH_PATHS.x`).
+ * @param {string} [sub] Sub-path (`:id`, `imported/:id`). Optional.
+ * @returns {string} Route (`accounting/:id`).
+ */
+export const routeOf = (path: string, sub?: string): string => [path.slice(1), sub].filter(Boolean).join('/');
+
 /** Key of a page of the app. */
 export type PageKey = keyof typeof PAGES;
 

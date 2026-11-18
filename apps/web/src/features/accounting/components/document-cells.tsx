@@ -13,20 +13,23 @@ import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocu
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them); read only
  * for an archived document.
- * @param {{ document: AccountingDocumentSummary | ImportedDocument, projects: TreeOption[], onSave: (projectId: string | null) => void }} props Component props.
+ * @param {{ document: AccountingDocumentSummary | ImportedDocument, projects: TreeOption[], label: string, onSave: (projectId: string | null) => void }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function DocumentProjectCell({ document, projects, onSave }: { document: AccountingDocumentSummary | ImportedDocument; projects: TreeOption[]; onSave: (projectId: string | null) => void }) {
+export function DocumentProjectCell({
+  document,
+  projects,
+  label,
+  onSave,
+}: {
+  document: AccountingDocumentSummary | ImportedDocument;
+  projects: TreeOption[];
+  label: string;
+  onSave: (projectId: string | null) => void;
+}) {
   return (
     <div onClick={stopClick}>
-      <EditableSelect
-        value={document.projectId ?? null}
-        label={`Projet de ${document.number ?? 'ce brouillon'}`}
-        nullable
-        readOnly={document.archived}
-        {...treeSelectProps(projects)}
-        onSave={onSave}
-      />
+      <EditableSelect value={document.projectId ?? null} label={label} nullable readOnly={document.archived} {...treeSelectProps(projects)} onSave={onSave} />
     </div>
   );
 }
@@ -75,7 +78,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
       {!document.archived && (
         <FileButton multiple onChange={(files) => files.length && props.onAdd(files)}>
           {(buttonProps) => (
-            <IconAction label="Joindre des fichiers" {...buttonProps} size="sm" loading={addAttachments.isPending} aria-label={`Joindre des fichiers à ${name}`}>
+            <IconAction label="Joindre des fichiers" {...buttonProps} size="sm" loading={addAttachments.isPending} item={name}>
               <PlusIcon aria-hidden />
             </IconAction>
           )}

@@ -4,7 +4,7 @@ import { prisma } from '../../db';
 import { assertNotArchived } from '../core/archive';
 import type { MailLabel } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { withImap, withMailbox } from './imap';
+import { INBOX, isInbox, withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { assertExists } from '../core/lookup';
 import { createLabelService } from '../core/labels';
@@ -103,7 +103,7 @@ export async function specialFolder(client: ImapFlow, specialUse: SpecialUse, cr
 export async function reportSpam(accountId: string, folder: string, uids: number[], spam: boolean): Promise<string> {
   await assertNotArchived('MAIL_ACCOUNT', accountId);
   return withImap(accountId, async (client) => {
-    const target = spam ? await specialFolder(client, '\\Junk', 'Junk') : 'INBOX';
+    const target = spam ? await specialFolder(client, '\\Junk', 'Junk') : INBOX;
     return withMailbox(client, folder, async () => {
       // The keywords are a hint: servers without keywords just move the mails.
       await client.messageFlagsAdd(uids, [spam ? JUNK : NOT_JUNK], { uid: true }).catch(() => undefined);
@@ -143,7 +143,7 @@ export async function moveMails(accountId: string, folder: string, uids: number[
 function userFolder(folders: ListResponse[], path: string, refused: string): ListResponse {
   const folder = folders.find((item) => item.path === path);
   if (!folder) throw notFound('Dossier');
-  if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', refused);
+  if (isInbox(folder.path) || folder.specialUse) throw clientError('BAD_USER_INPUT', refused);
   return folder;
 }
 

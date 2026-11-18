@@ -2,7 +2,7 @@ import { prisma } from '../../src/db';
 import type { Project } from '../../src/generated/prisma/client';
 import { addFiles, addLink, createFolder } from '../../src/services/library/library';
 import { addProjectFiles, addProjectLink } from '../../src/services/workspace/project-resources';
-import { tinyPdf } from './mail';
+import { pdfFile } from './mail';
 
 /**
  * File of the fixtures.
@@ -12,14 +12,6 @@ import { tinyPdf } from './mail';
  * @returns {File} File.
  */
 const file = (name: string, content: string, type: string) => new File([content], name, { type });
-
-/**
- * PDF of the fixtures, with one line of text.
- * @param {string} name File name.
- * @param {string} text Text (ASCII).
- * @returns {File} File.
- */
-const pdf = (name: string, text: string) => file(name, tinyPdf(text), 'application/pdf');
 
 /**
  * Library and documents of the projects: folders (with sub-folders), files and links in them and at the root, one
@@ -38,13 +30,13 @@ export async function seedLibrary({ projects }: { projects: Project[] }): Promis
   const templates = await createFolder('Modèles', null);
   await createFolder('Archives', null);
 
-  await addFiles(insurance.id, [pdf('Attestation RC Pro 2026.pdf', 'Attestation RC Pro 2026'), pdf('Contrat multirisque bureau.pdf', 'Contrat multirisque')]);
+  await addFiles(insurance.id, [pdfFile('Attestation RC Pro 2026.pdf', 'Attestation RC Pro 2026'), pdfFile('Contrat multirisque bureau.pdf', 'Contrat multirisque')]);
   await addLink(insurance.id, { title: 'Espace client de l’assureur', url: 'https://www.example.com/assurance', note: 'Identifiant dans le gestionnaire de mots de passe.' });
   await addFiles(contracts.id, [
-    pdf('Bail commercial.pdf', 'Bail commercial'),
+    pdfFile('Bail commercial.pdf', 'Bail commercial'),
     file('Conditions générales de vente.md', '# Conditions générales de vente\n\n1. Objet\n2. Prix\n3. Paiement\n', 'text/markdown'),
   ]);
-  const [receipt] = await addFiles(invoices.id, [pdf('Facture clavier et souris.pdf', 'Facture clavier et souris')]);
+  const [receipt] = await addFiles(invoices.id, [pdfFile('Facture clavier et souris.pdf', 'Facture clavier et souris')]);
   await addFiles(templates.id, [file('Modèle de compte rendu.md', '# Compte rendu\n\n## Participants\n\n## Décisions\n\n## Actions\n', 'text/markdown')]);
   await addLink(templates.id, { title: 'Charte graphique', url: 'https://www.example.com/charte', note: null });
   await addLink(null, { title: 'Drive partagé', url: 'https://drive.example.com/atelier', note: 'Dossier partagé avec l’équipe.' });
@@ -67,7 +59,7 @@ export async function seedLibrary({ projects }: { projects: Project[] }): Promis
     await addProjectLink(project.id, { label: 'Dépôt de code', url: `https://github.com/atelier-demo/${slug}`, note: null });
     if (index % 2 === 0) await addProjectLink(project.id, { label: 'Recette', url: `https://recette.example.com/${slug}`, note: 'Accès : demo / demo' });
     await addProjectFiles(project.id, [
-      pdf('Cahier des charges.pdf', 'Cahier des charges'),
+      pdfFile('Cahier des charges.pdf', 'Cahier des charges'),
       file('Notes de lancement.md', `# ${project.label}\n\n- Objectifs\n- Planning\n- Contacts\n`, 'text/markdown'),
     ]);
   }

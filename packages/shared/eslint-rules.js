@@ -18,6 +18,12 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser sameName(a, b) (@ordo/shared) : casse et accents ignorés, comme la recherche.',
   },
   {
+    // One side folded, the other given as is (or folded beforehand): the same comparison, written once.
+    selector:
+      "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.type!='Literal']:not([right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]), BinaryExpression[operator=/^[!=]==$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][left.type!='Literal']:not([left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/])",
+    message: 'Utiliser sameName(a, b) (@ordo/shared) : casse et accents ignorés des deux côtés, comme la recherche.',
+  },
+  {
     selector:
       "BinaryExpression[operator=/^[!=]==$/][left.type='CallExpression'][right.type='CallExpression']:matches([left.callee.name=/^(normalize|fold\\w*)$/], [left.callee.object.callee.name='normalize'])",
     message: 'Utiliser sameName(a, b) (@ordo/shared) : pas de repli de noms recopié.',
@@ -38,6 +44,47 @@ export const SHARED_SYNTAX_RULES = [
   {
     selector: "Literal[value=86400000], BinaryExpression[operator='*'][right.value=1000]:has(Literal[value=24])",
     message: 'Utiliser DAY_MS (@ordo/shared).',
+  },
+  // A person's name: one schema, one maximum (decision BB).
+  {
+    selector: "CallExpression[callee.name='requiredText'][arguments.1.name='PERSON_NAME_REQUIRED']",
+    message: 'Utiliser personNameSchema (@ordo/shared) : 100 caractères au plus pour tout nom de personne.',
+  },
+  // Files: the same messages and fallback name in the web and the API.
+  {
+    selector: 'Literal[value=/Mo maximum/], TemplateElement[value.raw=/Mo maximum/]',
+    message: 'Utiliser fileTooLarge(nom) ou ICON_ERRORS (@ordo/shared) : le même message dans le web et l’API.',
+  },
+  {
+    selector:
+      "BinaryExpression[operator='*'][right.value=1024][left.operator='*'][left.right.value=1024][left.left.value=10], BinaryExpression[operator='*'][left.value=10][right.operator='*'][right.left.value=1024][right.right.value=1024]",
+    message: 'Utiliser MAX_ATTACHMENT_BYTES (@ordo/shared) : 10 Mo au plus pour une pièce jointe, dans le web et l’API.',
+  },
+  {
+    selector: 'Literal[value=/^(piece-jointe|fichier|sans-nom)$/], TemplateElement[value.raw=/^piece-jointe/]',
+    message: 'Utiliser UNNAMED_FILE (@ordo/shared) : un seul nom de repli pour un fichier.',
+  },
+  // Documents, mail, handles, days: one constant or helper each.
+  {
+    selector:
+      "LogicalExpression:has(> BinaryExpression[right.value='INVOICE']):has(> BinaryExpression[right.value='DEPOSIT_INVOICE']), ArrayExpression[elements.length=2][elements.0.value='INVOICE'][elements.1.value='DEPOSIT_INVOICE'], ArrayExpression[elements.length=4][elements.0.value='QUOTE'][elements.1.value='INVOICE']",
+    message: 'Utiliser isInvoice(type), INVOICE_TYPES ou ACCOUNTING_DOCUMENT_TYPES (@ordo/shared).',
+  },
+  {
+    selector: "TSUnionType:has(TSLiteralType > Literal[value='correspondent'])",
+    message: 'Utiliser MailSortBy / MailSearchSortBy (@ordo/shared).',
+  },
+  {
+    selector: 'Literal[value=39]',
+    message: 'Utiliser HANDLE_MAX (@ordo/shared).',
+  },
+  {
+    selector: "Literal[value='sv-SE']",
+    message: 'Utiliser dayIn(instant, fuseau) (@ordo/shared) : le jour d’un instant dans un fuseau.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='toLocaleLowerCase'][arguments.0.value='fr']",
+    message: 'Utiliser normalize (@ordo/shared) : casse et accents ignorés, comme sameName.',
   },
   // Plurals: one helper.
   {
@@ -87,6 +134,12 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser formatOptionalDay(date) (@ordo/shared).',
   },
   // Texts cut to a maximum: one helper.
+  {
+    // A text cut without telling: refused by its schema instead.
+    selector:
+      'CallExpression[callee.property.name=/^(slice|substring|substr)$/][callee.object.callee.property.name=/^trim(End|Start)?$/], CallExpression[callee.property.name=/^trim(End)?$/][callee.object.callee.property.name=/^(slice|substring|substr)$/][callee.object.arguments.0.value=0]',
+    message: 'Refuser un texte trop long par son schéma zod (parseInput dans l’API) au lieu de le couper sans prévenir, ou clipText(text, max) (@ordo/shared) pour un nom venu d’ailleurs.',
+  },
   {
     selector:
       "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0][arguments.1.type=/^(Literal|Identifier)$/]:matches([callee.object.name=/^(label|name|title|text|description|subject)$/], [callee.object.property.name=/^(label|name|title|text|description|subject)$/])",

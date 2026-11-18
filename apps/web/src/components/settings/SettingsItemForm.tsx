@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { IconField, type IconValue } from '../inputs/IconField';
 import { useColorSwatches } from '../../lib/use-color-swatches';
 import { useAppForm, formCallbacks } from '../../lib/form';
+import { useAsyncAction } from '../../lib/use-async-action';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
 import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
@@ -45,6 +46,8 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   colorRequired?: boolean;
   /** Placeholder of the name (« Virement, carte, chèque… »). Optional. */
   labelPlaceholder?: string;
+  /** Label of the name field (decision AD): « Nom » for people, physical or legal (counterparties). Optional. Default = « Libellé ». */
+  labelField?: string;
   /** Rule of the values (zod, `@ordo/shared`). */
   schema: Parameters<typeof useAppForm>[0]['schema'];
   /** Fields of the list of its own, in the form. Optional. */
@@ -86,6 +89,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   withColor = true,
   colorRequired = !tree,
   labelPlaceholder,
+  labelField = 'Libellé',
   schema,
   extra,
   create,
@@ -95,7 +99,6 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   const swatches = useColorSwatches();
   const look = useSettingsItemLook();
   const [icon, setIcon] = useState<IconValue>({ file: null, remove: false });
-  const [pending, setPending] = useState(false);
   const parentColor = tree && parentId ? categoryTree(tree).find((placed) => placed.category.id === parentId)?.color : null;
   const form = useAppForm<SettingsItemValues<E>>({
     initialValues: {
@@ -109,27 +112,24 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   });
 
   const callbacks = formCallbacks(form, item ? 'Modifications enregistrées.' : 'Ajout enregistré.', (id: string) => onDone(item ? undefined : id));
-  const handleSubmit = form.onSubmit(async (values) => {
-    setPending(true);
-    try {
+  const { run: save, loading: pending } = useAsyncAction(
+    async (values: SettingsItemValues<E>) => {
       const id = item ? (await update(item.id, values), item.id) : await create(values);
       // The image (and a color the list does not save itself) go through the look of every list.
       if (icon.file || icon.remove || withColor) {
         await look.mutateAsync({ kind, id, input: { ...(withColor && { color: values.color || null }), ...(icon.file ? { icon: icon.file } : icon.remove ? { removeIcon: true } : {}) } });
       }
-      callbacks.onSuccess(id);
-    } catch (error) {
-      callbacks.onError(error as Error);
-    } finally {
-      setPending(false);
-    }
-  });
+      return id;
+    },
+    { onDone: callbacks.onSuccess, onError: (error) => callbacks.onError(error as Error) },
+  );
+  const handleSubmit = form.onSubmit(save);
 
   const values = form.getValues();
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Libellé" required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
+        <TextInput label={labelField} required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
         {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
         <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (

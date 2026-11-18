@@ -1,6 +1,7 @@
 import { Group, Switch, Text, type MantineSpacing } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { inWorkspace } from '../lib/layer-label';
 
 interface SubscriptionRowProps {
   /** What is subscribed to (a calendar, a kind of slots). */
@@ -38,7 +39,7 @@ export function SubscriptionRow({ label, color, workspaceLabel, hint, subscribed
         )}
       </Text>
       {actions}
-      <Switch label="Abonné" aria-label={`Abonnement à ${label} (${workspaceLabel})`} checked={subscribed} onChange={(event) => onChange(event.currentTarget.checked)} />
+      <Switch label="Abonné" aria-label={`Abonnement à ${inWorkspace(label, workspaceLabel)}`} checked={subscribed} onChange={(event) => onChange(event.currentTarget.checked)} />
     </Group>
   );
 }

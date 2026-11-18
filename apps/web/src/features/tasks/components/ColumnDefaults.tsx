@@ -1,4 +1,4 @@
-import { Button, Text } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DataColumnsPanel } from '../../../components/data-table/toolbar/ColumnsPanel';
 import { localToday } from '../../../lib/dates';
@@ -7,6 +7,7 @@ import { useSetTaskColumnDefaults, useTaskColumnDefaults } from '../api';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { useTaskContext } from '../hooks/use-task-context';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Columns new task views of the workspace start with: those shown and their order, by drag and drop, in the panel of
@@ -23,9 +24,9 @@ export function ColumnDefaults() {
       title="Colonnes des nouvelles vues"
       actions={
         <>
-          <Button size="xs" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save.mutate(null, ON_ERROR)}>
+          <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save.mutate(null, ON_ERROR)}>
             Colonnes de l’app
-          </Button>
+          </ActionButton>
         </>
       }
     >

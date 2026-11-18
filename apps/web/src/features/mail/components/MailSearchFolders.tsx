@@ -6,9 +6,10 @@ import { countOf } from '../../../lib/text';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Box, Group, NavLink, Text } from '@mantine/core';
-import type { MailSearchCriteria } from '@ordo/shared';
+import type { MailSearchCriteria, MailSearchSortBy } from '@ordo/shared';
 import { EnvelopeSimpleIcon, FunnelIcon, MagnifyingGlassPlusIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 
+import { useOwnAddresses } from '../hooks/use-own-addresses';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
 import { MailListItem } from './MailListItem';
 import { MailListPane } from './MailListPane';
@@ -84,7 +85,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
 
 interface MailSearchListProps {
   /** Search folder, or criteria of an advanced search (and their order). */
-  query: { id: string } | { criteria: MailSearchCriteria; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean };
+  query: { id: string } | { criteria: MailSearchCriteria; sort?: MailSearchSortBy; ascending?: boolean };
   /** Message without any mail. Optional. */
   empty?: string;
   /** No move to another folder (the mails of a project). Optional. */
@@ -120,8 +121,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   const { data: labels } = useMailLabels();
   const { data: accounts } = useMailAccounts();
   const several = (accounts?.length ?? 0) > 1;
-  // Mails sent from one of these show their recipients.
-  const ownAddresses = new Set((accounts ?? []).map((account) => account.email.toLowerCase()));
+  const ownAddresses = useOwnAddresses();
   if (results.error) {
     return <ErrorAlert m="xs">{results.error.message}</ErrorAlert>;
   }

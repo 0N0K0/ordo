@@ -22,6 +22,7 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -169,7 +170,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
                         {[deliveryWindow(delivery), delivery.address, countOf(items.length, 'élément')].filter(Boolean).join(' · ')}
                       </Text>
                       {delivery.trackingUrl && /^https?:\/\//i.test(delivery.trackingUrl) && (
-                        <Anchor href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" size="xs">
+                        <Anchor href={delivery.trackingUrl} {...EXTERNAL_LINK} size="xs">
                           Suivi <ArrowSquareOutIcon aria-hidden style={{ verticalAlign: 'middle' }} />
                         </Anchor>
                       )}
@@ -179,7 +180,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
                         label={delivery.receivedAt ? 'Pas encore réceptionnée' : 'Réceptionnée (ses éléments achetés)'}
                         variant={delivery.receivedAt ? 'light' : 'subtle'}
                         color={delivery.receivedAt ? 'green' : 'gray'}
-                        aria-label={`Réceptionnée : ${delivery.label || 'livraison'}`}
+                        item={delivery.label || 'Livraison'}
                         onClick={() =>
                           setDeliveryReceived.mutate(
                             { id: delivery.id, received: !delivery.receivedAt },

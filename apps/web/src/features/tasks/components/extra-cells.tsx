@@ -123,12 +123,7 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         </Badge>
       )}
       {!task.archived && (
-        <IconAction
-          label="Nouvelle alarme"
-          size="sm"
-          aria-label={`Nouvelle alarme pour ${task.label}`}
-          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, label: task.label } })}
-        >
+        <IconAction label="Nouvelle alarme" size="sm" item={task.label} onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, label: task.label } })}>
           <PlusIcon aria-hidden />
         </IconAction>
       )}

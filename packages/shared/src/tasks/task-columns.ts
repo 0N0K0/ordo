@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { legacyLabelColumn, withLabelColumn } from '../tables/table-layout';
 
 /** Fixed meaning of a task status. */
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
@@ -13,9 +14,9 @@ export const TASK_STATUS_CATEGORY_LABELS: Record<'status' | 'task', Record<TaskS
   task: { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminée', CANCELLED: 'Annulée' },
 };
 
-/** Columns of the task table (the number is shown before the title). */
+/** Columns of the task table (the number is shown before the label). */
 export const TASK_COLUMNS = [
-  'title',
+  'label',
   'project',
   'status',
   'priority',
@@ -87,8 +88,8 @@ const columnIdsSchema = z.array(z.string().max(60)).max(200);
  */
 export const taskColumnDefaultsSchema = z.object({
   columnOrder: columnIdsSchema.default([]),
-  // The title is always shown.
-  hiddenColumns: columnIdsSchema.transform((columns) => columns.filter((column) => column !== 'title')).default([]),
+  // The label is always shown.
+  hiddenColumns: columnIdsSchema.transform((columns) => columns.filter((column) => column !== 'label')).default([]),
 });
 export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
 
@@ -98,6 +99,7 @@ export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
  * @returns {TaskColumnDefaults} Order and hidden columns.
  */
 export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
-  const parsed = taskColumnDefaultsSchema.safeParse(stored ?? {});
+  // Old id of the label column read as `label` (decision BI).
+  const parsed = taskColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn('tasks')));
   return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
 }

@@ -1,13 +1,10 @@
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { personKey } from '../../../components/people/people-keys';
+import { personKeyOptions } from '../../../components/people/people-keys';
 import { categoryColumn, quantityColumn, unitColumn } from './product-columns';
 import type { ShoppingCategory, ShoppingStore } from '../api';
 import { rowPeopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../../lib/format';
-
-/** Filter values of the rows not perishable, and perishable without a way of keeping. */
-const NOT_PERISHABLE = 'no';
-const PERISHABLE = 'yes';
+import { conservationKey, NOT_PERISHABLE, PERISHABLE } from './conservation';
 
 /** Names the columns of the products or items show. */
 interface ItemNames {
@@ -36,7 +33,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'name', label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     categoryColumn<T>(names.categories, { size: 150, hiddenByDefault: grouping === 'category', groupable: false }),
     {
       id: 'store',
@@ -72,7 +69,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       // Not perishable, perishable without a way of keeping, or each way of keeping.
       filter: {
         kind: 'choice',
-        value: (item) => (item.perishable ? (item.storageId ?? PERISHABLE) : NOT_PERISHABLE),
+        value: conservationKey,
         options: [
           { value: NOT_PERISHABLE, label: 'Non périssable' },
           { value: PERISHABLE, label: 'Périssable, sans mode' },
@@ -100,10 +97,9 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       filter: {
         kind: 'choices',
         value: rowPeopleKeys,
-        options: [
-          ...[...names.members].map(([id, name]) => ({ value: personKey('member', id), label: name })),
-          ...[...names.relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
-        ].map((option) => (names.archivedPeople?.has(option.value) ? { ...option, archived: true } : option)),
+        options: [...personKeyOptions('member', names.members), ...personKeyOptions('relation', names.relations)].map((option) =>
+          names.archivedPeople?.has(option.value) ? { ...option, archived: true } : option,
+        ),
       },
     },
     { id: 'url', bulk: true, label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },

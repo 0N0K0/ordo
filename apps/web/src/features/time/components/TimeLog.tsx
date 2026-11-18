@@ -3,12 +3,12 @@ import { plural, collator } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
-import { entrySeconds, formatDuration, lineageOf, sumOf } from '@ordo/shared';
+import { entrySeconds, formatDuration, lineageOf, sumOf, round2 } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -102,7 +102,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       sortValue: (entry) => entrySeconds(entry),
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
       text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : TIMER_RUNNING),
-      filter: { kind: 'number', value: (entry) => Math.round(entrySeconds(entry) / 36) / 100 },
+      filter: { kind: 'number', value: (entry) => round2(entrySeconds(entry) / 3600) },
     },
     {
       id: 'project',
@@ -230,6 +230,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     title: 'Temps passé',
     first: TIME_VIEWS,
   });
+  const cellLabelOf = bulkCellLabels(view, (entry: TimeEntry) => `temps du ${fmt.day(entry.startedAt)} à ${fmt.time(entry.startedAt)}`);
   const bulk = bulkSaver(view, saveOne);
   const total = finishedSeconds(view.rows);
   const unbilled = finishedSeconds(view.rows.filter((entry) => !entry.documentId));
@@ -273,21 +274,21 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       cells={(entry) => {
         const tasks = context ? entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined) : [];
         return {
-          day: <TimeDayCell entry={entry} readOnly={!editable(entry)} save={bulk('day')} />,
+          day: <TimeDayCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('day', entry, 'Jour')} save={bulk('day')} />,
           month: fmt.capitalize(fmt.month(entry.startedAt)),
-          start: <TimeStartCell entry={entry} readOnly={!editable(entry)} save={bulk('start')} />,
+          start: <TimeStartCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('start', entry, 'Heure de début')} save={bulk('start')} />,
           end: entry.endedAt ? (
             <Text span size="sm" c="dimmed">
               {fmt.time(entry.endedAt)}
             </Text>
           ) : null,
-          duration: entry.endedAt ? <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={bulk('duration')} /> : <TimerRunningBadge />,
+          duration: entry.endedAt ? <TimeDurationCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('duration', entry, 'Durée')} save={bulk('duration')} /> : <TimerRunningBadge />,
           project: (
             <>
               {context && editable(entry) ? (
                 <EditableSelect
                   value={entry.projectId ?? null}
-                  label="Projet de ce temps"
+                  label={cellLabelOf('project', entry, 'Projet')}
                   {...treeSelectProps(context.projectOptions(unarchived(context.projects, entry.projectId)))}
                   onSave={(next) => (next || entry.routineId) && bulk('project')(entry, { projectId: next || null })}
                 />
@@ -296,10 +297,10 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
               ) : null}
             </>
           ),
-          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} save={bulk('routine')} />,
+          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('routine', entry, 'Routine')} save={bulk('routine')} />,
           tasks:
             context && editable(entry) ? (
-              <TimeTasksCell entry={entry} context={context} readOnly={false} save={bulk('tasks')} />
+              <TimeTasksCell entry={entry} context={context} readOnly={false} label={cellLabelOf('tasks', entry, 'Tâches')} save={bulk('tasks')} />
             ) : (
               <StackedValues>
                 {tasks.map((task) => (
@@ -307,7 +308,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                 ))}
               </StackedValues>
             ),
-          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={bulk('event')} />,
+          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('event', entry, 'Évènement')} save={bulk('event')} />,
           invoice: entry.documentId && (
             <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={documentPath(entry.documentId)} style={{ cursor: 'pointer' }}>
               {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
@@ -319,7 +320,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
         // The running timer is edited from the timer; time on a final invoice is part of it (copied still).
         entry.endedAt && (
           <RowActions
-            name="ce temps"
+            about="ce temps"
             primary={!entry.documentNumber && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
               { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },

@@ -1,15 +1,15 @@
 import { mapById } from '@ordo/shared';
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 
-import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
+import { Checkbox, Group, Stack, Text } from '@mantine/core';
 import type { ColumnLayout } from '@ordo/shared';
 
 import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } from '../table/data-table';
-import { useDragSensors } from '../../../lib/drag';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DragHandle } from '../../dnd/DragHandle';
 import { useSortableItem } from '../../dnd/use-sortable-item';
+import { SortableArea } from '../../dnd/sortable';
+import { ActionButton } from '../../actions/ActionButton';
 
 /** Column of the panel. */
 interface ColumnsListItem {
@@ -29,7 +29,7 @@ function ColumnItem({ item, onToggle }: { item: ColumnsListItem; onToggle: (visi
   const { ref, style, handle } = useSortableItem(item.id);
   return (
     <Group ref={ref} gap="xs" wrap="nowrap" style={style}>
-      <DragHandle label={`Déplacer ${item.label}`} size="sm" {...handle} />
+      <DragHandle item={item.label} size="sm" {...handle} />
       <Checkbox size="xs" label={item.label} checked={item.visible} disabled={item.locked} onChange={(event) => onToggle(event.currentTarget.checked)} />
     </Group>
   );
@@ -47,39 +47,28 @@ interface ColumnsListProps {
 }
 
 /**
- * Columns of every table (tasks too): shown or hidden by their box, moved by drag and drop, back to the default ones.
+ * Columns of every table (tasks too): shown or hidden by their box, moved by drag and drop (or the keyboard on their
+ * handle), back to the default ones.
  * @param {ColumnsListProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
 function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true }: ColumnsListProps) {
-  const sensors = useDragSensors();
   const ids = items.map((item) => item.id);
-
-  /**
-   * Moves a dropped column.
-   * @param {DragEndEvent} event Drop.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    onReorder(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
-  };
 
   return (
     <Stack gap="xs">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          <Stack gap={4}>
-            {items.map((item) => (
-              <ColumnItem key={item.id} item={item} onToggle={(visible) => onToggle(item.id, visible)} />
-            ))}
-          </Stack>
-        </SortableContext>
-      </DndContext>
+      {/* Pointer, or keyboard on the handles (space, arrows, space). */}
+      <SortableArea ids={ids} layout="list" onMove={(_id, from, to) => onReorder(arrayMove(ids, from, to))}>
+        <Stack gap={4}>
+          {items.map((item) => (
+            <ColumnItem key={item.id} item={item} onToggle={(visible) => onToggle(item.id, visible)} />
+          ))}
+        </Stack>
+      </SortableArea>
       {onReset && (
-        <Button size="compact-sm" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onReset}>
+        <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onReset}>
           Colonnes par défaut
-        </Button>
+        </ActionButton>
       )}
       {withHint && (
         <Text size="xs" c="dimmed">

@@ -1,16 +1,18 @@
 import { GraphQLError } from 'graphql';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { Prisma } from '../generated/prisma/client';
 
 type ErrorCode = 'UNAUTHENTICATED' | 'BAD_USER_INPUT' | 'INVALID_CREDENTIALS' | 'INVALID_TOKEN' | 'CONFLICT' | 'NOT_FOUND' | 'TOO_MANY_REQUESTS' | 'SERVICE_UNAVAILABLE';
 
 /**
- * Error thrown when a requested record does not exist.
+ * Error thrown when a requested record does not exist: « X introuvable. », attached to a form field when one is given.
  * @param {string} what Human-readable name of the record ("Client", "Projet"…).
- * @returns {GraphQLError} NOT_FOUND error.
+ * @param {string} [field] Form field the error is attached to (BAD_USER_INPUT). Optional. Default = NOT_FOUND error.
+ * @returns {GraphQLError} NOT_FOUND error, or BAD_USER_INPUT error of the field.
  */
-export function notFound(what: string): GraphQLError {
-  return clientError('NOT_FOUND', `${what} introuvable.`);
+export function notFound(what: string, field?: string): GraphQLError {
+  // eslint-disable-next-line no-restricted-syntax -- notFound itself.
+  return field ? fieldError(field, `${what} introuvable.`) : clientError('NOT_FOUND', `${what} introuvable.`);
 }
 
 /**
@@ -35,14 +37,15 @@ export function rethrowUnique(error: unknown, message: string, field = 'label'):
 }
 
 /**
- * Record a query found, or NOT_FOUND when there is none.
+ * Record a query found, or NOT_FOUND when there is none (the error of a form field when one is given).
  * @param {PromiseLike<T | null>} query Query (a `findUnique`, a `findFirst`…).
  * @param {string} what Human-readable name of the record ("Client", "Projet"…).
+ * @param {string} [field] Form field the error is attached to (BAD_USER_INPUT). Optional. Default = NOT_FOUND error.
  * @returns {Promise<T>} Record.
  */
-export async function orNotFound<T>(query: PromiseLike<T | null>, what: string): Promise<T> {
+export async function orNotFound<T>(query: PromiseLike<T | null>, what: string, field?: string): Promise<T> {
   const record = await query;
-  if (record === null || record === undefined) throw notFound(what);
+  if (record === null || record === undefined) throw notFound(what, field);
   return record;
 }
 
@@ -84,6 +87,17 @@ export function unauthenticated(): GraphQLError {
 export function tooManyRequests(retryAfter: number): GraphQLError {
   const minutes = Math.ceil(retryAfter / 60);
   return clientError('TOO_MANY_REQUESTS', `Trop de tentatives. Réessayez dans ${minutes} min.`, { retryAfter });
+}
+
+/**
+ * Parses one field with its schema, its message under the field when refused (`parseInput` of a one-field object).
+ * @param {string} field Field name (where the message goes).
+ * @param {T} schema Zod schema of the field.
+ * @param {unknown} value Raw value.
+ * @returns {z.output<T>} Parsed value.
+ */
+export function parseField<T extends z.ZodType>(field: string, schema: T, value: unknown): z.output<T> {
+  return (parseInput(z.object({ [field]: schema }), { [field]: value }) as Record<string, z.output<T>>)[field];
 }
 
 /**

@@ -2,6 +2,7 @@ import { Anchor, type AnchorProps } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { handleFileClick } from '../lib/open-file';
 import { downloadUrl, viewableKind } from '../lib/viewable';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 interface FileLinkProps extends AnchorProps {
   url: string;
@@ -19,7 +20,7 @@ interface FileLinkProps extends AnchorProps {
 export function FileLink({ url, filename, mimeType, children, ...props }: FileLinkProps) {
   const kind = viewableKind({ url, filename, mimeType });
   return (
-    <Anchor {...props} href={kind ? url : downloadUrl(url)} target={kind ? '_blank' : undefined} rel="noopener" onClick={(event) => handleFileClick(event, { url, filename, mimeType })}>
+    <Anchor {...props} href={kind ? url : downloadUrl(url)} {...(kind ? EXTERNAL_LINK : {})} onClick={(event) => handleFileClick(event, { url, filename, mimeType })}>
       {children}
     </Anchor>
   );

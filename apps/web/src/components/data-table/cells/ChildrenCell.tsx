@@ -25,7 +25,7 @@ export function ChildrenCell({ children, add }: { children: ReactNode; add?: Add
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>{children}</StackedValues>
       {add && (
-        <IconAction label={add.label} size="sm" aria-label={`${add.label} à ${add.name}`} onClick={add.onClick} style={{ flex: 'none' }}>
+        <IconAction label={add.label} size="sm" item={add.name} onClick={add.onClick} style={{ flex: 'none' }}>
           <PlusIcon aria-hidden />
         </IconAction>
       )}

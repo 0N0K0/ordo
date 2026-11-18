@@ -57,7 +57,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         placeholder="Celle du mouvement"
         clearable
         value={line.date}
-        onChange={(date) => onChange({ date: date ? date : null })}
+        onChange={(date) => onChange({ date: date || null })}
       />
       <Select label="Projet" clearable searchable {...treeSelectProps(projects)} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
       <SupportingDocumentsSelect data={documentGroups} value={line} onChange={onChange} />

@@ -4,14 +4,14 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
+import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useArchivedToggle, useSetArchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -28,10 +28,11 @@ import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '.
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { vatRateOptions } from '../lib/labels';
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'title', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+  { id: 'label', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   {
     id: 'kind',
     bulk: true,
@@ -113,7 +114,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
               <Select
                 label="TVA"
                 allowDeselect={false}
-                data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
+                data={vatRateOptions(form.values.vatRate)}
                 value={String(form.values.vatRate)}
                 onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
                 error={form.errors.vatRate}
@@ -173,6 +174,7 @@ export function CatalogPanel() {
     title: 'Catalogue',
   });
   // An archived item is read only (restored by « Restaurer » in its menu).
+  const cellLabelOf = bulkCellLabels(view, (item: CatalogItem) => item.label);
   const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => !item.archived && saveItem(item, change));
 
   /**
@@ -230,10 +232,10 @@ export function CatalogPanel() {
       getKey={(item) => item.id}
       isArchived={(item) => item.archived}
       cells={(item) => ({
-        title: (
+        label: (
           <>
             <Group gap={6} wrap="nowrap">
-              <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={item.archived} onSave={(title) => title && bulk('title')(item, { label: title })} />
+              <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} strong readOnly={item.archived} onSave={(label) => label && bulk('label')(item, { label })} />
               {item.archived && <ArchivedBadge size="xs" />}
               {item.kind === 'DISBURSEMENT' && (
                 <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
@@ -251,7 +253,7 @@ export function CatalogPanel() {
         kind: (
           <EditableSelect
             value={item.kind}
-            label={`Nature de ${item.label}`}
+            label={cellLabelOf('kind', item, 'Nature')}
             readOnly={item.archived}
             data={[
               { value: 'ITEM', label: 'Prestation' },
@@ -263,7 +265,7 @@ export function CatalogPanel() {
         unit: (
           <EditableSelect
             value={item.unit}
-            label={`Unité de ${item.label}`}
+            label={cellLabelOf('unit', item, 'Unité')}
             readOnly={item.archived}
             data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
             onSave={(unit) => unit && bulk('unit')(item, { unit: unit as CatalogItemInput['unit'] })}
@@ -273,7 +275,7 @@ export function CatalogPanel() {
           <EditableNumber
             amount
             value={item.unitPrice}
-            label={`Prix HT de ${item.label}`}
+            label={cellLabelOf('price', item, 'Prix HT')}
             readOnly={item.archived}
             signed={item.kind === 'DISBURSEMENT'}
             onSave={(unitPrice) => unitPrice !== null && bulk('price')(item, { unitPrice })}
@@ -285,9 +287,9 @@ export function CatalogPanel() {
           ) : (
             <EditableSelect
               value={String(item.vatRate)}
-              label={`TVA de ${item.label}`}
+              label={cellLabelOf('vat', item, 'TVA')}
               readOnly={item.archived}
-              data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
+              data={vatRateOptions(item.vatRate)}
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
           ),

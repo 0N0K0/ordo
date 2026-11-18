@@ -1,4 +1,4 @@
-import { entityNameSchema, optionalColorSchema } from '@ordo/shared';
+import { personNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
@@ -28,7 +28,7 @@ async function findClient(id: string): Promise<Client> {
  */
 export async function createClient(input: { name: string; color?: string | null; icon?: File | null }): Promise<Client> {
   requirePro('clients');
-  const { name, color } = parseInput(z.object({ name: entityNameSchema, color: optionalColorSchema.optional() }), {
+  const { name, color } = parseInput(z.object({ name: personNameSchema, color: optionalColorSchema.optional() }), {
     name: input.name,
     color: input.color ?? null,
   });
@@ -49,7 +49,7 @@ export async function createClient(input: { name: string; color?: string | null;
 export async function updateClient(id: string, input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<Client> {
   const client = await findClient(id);
   if (client.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
-  const { name, color } = parseInput(z.object({ name: entityNameSchema.optional(), color: optionalColorSchema.optional() }), { name: input.name ?? undefined, color: input.color });
+  const { name, color } = parseInput(z.object({ name: personNameSchema.optional(), color: optionalColorSchema.optional() }), { name: input.name ?? undefined, color: input.color });
   const iconId = await resolveIconUpdate(client.iconId, input);
 
   const updated = await prisma.client.update({ where: { id }, data: { name, color, iconId } });

@@ -15,7 +15,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues, sumOf } from '@ordo/shared';
 import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
 
-import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -147,7 +147,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." />
       ) : (
         shown.map((sprint) => {
-          const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
+          const tasks = unarchived(context.tasks).filter((task) => task.sprintIds.includes(sprint.id));
           const done = tasks.filter((task) => context.isClosed(task));
           // Effort of the tasks without sub-tasks (a parent's effort is its sub-tasks').
           const effortOf = (items: typeof tasks) => sumOf(items, (task) => leafEffort(task, context));

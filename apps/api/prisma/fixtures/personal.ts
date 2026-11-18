@@ -1,6 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
-import type { z } from 'zod';
+import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
 import { createAlarm } from '../../src/services/tasks/alarms';
@@ -24,41 +23,20 @@ import {
 import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/tasks/task-recurrence';
 import { createView } from '../../src/services/tasks/task-views';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
-import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury/treasury';
+import { createAccount, realizeForecast } from '../../src/services/treasury/treasury';
 import { saveBudget } from '../../src/services/treasury/treasury-budgets';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE } from './factories';
+import { chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE } from './factories';
 import { initialsIcon } from './images';
-import { tinyPdf } from './mail';
+import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
 import { purgeWorkspace } from './purge';
 import { tickRoutines } from './routines';
-
-/**
- * Creates a movement; a split one has its categories on its lines only.
- * @param {Parameters<typeof saveEntry>[0]} input Movement.
- * @returns {ReturnType<typeof saveEntry>} Movement.
- */
-const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
-
-/**
- * Chart configuration from the defaults.
- * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes.
- * @returns {Prisma.InputJsonValue} Stored configuration.
- */
-const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
-
-/**
- * PDF of the fixtures.
- * @param {string} name File name.
- * @param {string} text Text (ASCII).
- * @returns {File} File.
- */
-const pdf = (name: string, text: string) => new File([tinyPdf(text)], name, { type: 'application/pdf' });
+import { BY_POSITION } from '../../src/services/core/ordering';
 
 /** What the personal workspace offers to the professional one. */
 interface SeededPersonal {
@@ -130,17 +108,17 @@ export async function seedPersonal({
   );
 
   // --- Projects (no clients in a personal workspace) and tasks ---------------------------------------------
-  const project = (title: string, color: string, parentId: string | null = null) => projectFactory.create({ label: title, color, parentId, clientId: null });
+  const project = (label: string, color: string, parentId: string | null = null) => projectFactory.create({ label, color, parentId, clientId: null });
   const bathroom = await project('Rénovation de la salle de bain', '#15aabf');
   const quotes = await project('Devis des artisans', '#15aabf', bathroom.id);
   const holidays = await project('Vacances d’été', '#fab005');
   const garden = await project('Jardin', '#40c057');
   const papers = await project('Administratif', DEFAULT_LABEL_COLOR);
   await prisma.project.update({ where: { id: bathroom.id }, data: { iconId: await initialsIcon('Salle de bain', '#15aabf') } });
-  const task = (projectId: string, title: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) =>
+  const task = (projectId: string, label: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) =>
     taskFactory.create({
       projectId,
-      label: title,
+      label,
       statusId: status.id,
       closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null,
       assignees: {
@@ -305,14 +283,14 @@ export async function seedPersonal({
   const account = await createAccount({ label: 'Compte joint', openingBalance: 2400, openingDate: day(-120) });
   await createAccount({ label: 'Livret A', openingBalance: 8000, openingDate: day(-120) });
   const categoryIds = new Map<string, string>();
-  const category = async (name: string, direction: 'IN' | 'OUT', parent?: string) => {
-    categoryIds.set(`${direction}:${name}`, (await createCategory({ label: name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null })).id);
+  const category = async (label: string, direction: 'IN' | 'OUT', parent?: string) => {
+    categoryIds.set(`${direction}:${label}`, (await createCategory({ label, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null })).id);
   };
-  for (const name of ['Salaires', 'Allocations', 'Cadeaux reçus']) await category(name, 'IN');
-  for (const name of ['Logement', 'Alimentation', 'Enfants', 'Loisirs', 'Santé', 'Cadeaux']) await category(name, 'OUT');
-  for (const name of ['Loyer', 'Énergie']) await category(name, 'OUT', 'Logement');
-  for (const name of ['Cantine', 'Activités']) await category(name, 'OUT', 'Enfants');
-  const out = (name: string) => categoryIds.get(`OUT:${name}`) ?? null;
+  for (const label of ['Salaires', 'Allocations', 'Cadeaux reçus']) await category(label, 'IN');
+  for (const label of ['Logement', 'Alimentation', 'Enfants', 'Loisirs', 'Santé', 'Cadeaux']) await category(label, 'OUT');
+  for (const label of ['Loyer', 'Énergie']) await category(label, 'OUT', 'Logement');
+  for (const label of ['Cantine', 'Activités']) await category(label, 'OUT', 'Enfants');
+  const out = (label: string) => categoryIds.get(`OUT:${label}`) ?? null;
   const card = (await createPaymentMethod({ label: 'Carte', incoming: false, outgoing: true })).id;
   const transfer = (await createPaymentMethod({ label: 'Virement', incoming: true, outgoing: true })).id;
   const landlord = (await createCounterparty({ name: 'Régie Lyon Centre', note: null })).id;
@@ -320,16 +298,7 @@ export async function seedPersonal({
   await saveContextPeriod(null, { contextId: holidaysContext, startDate: day(30), endDate: day(44), note: 'Gîte en Ardèche' });
   const entry = {
     accountId: account.id,
-    valueDate: null,
-    clientId: null,
-    counterpartyId: null,
-    projectId: null,
-    note: null,
-    recurrence: null,
-    allocations: [],
-    linkedEntryIds: [],
-    libraryDocumentIds: [],
-    projectResourceIds: [],
+    ...EMPTY_ENTRY,
     methodId: card,
   };
   // Salary and rent: repeated forecasts realized every month.
@@ -397,7 +366,7 @@ export async function seedPersonal({
   const freezer = (await shoppingStorages.create({ label: 'Congélateur', color: '#4c6ef5' })).id;
   const usual = await createBaseList('Courses habituelles');
   const medicine = await createBaseList('Pharmacie');
-  const shopCategory = async (name: string, color: string, baseListIds: string[]) => (await createShoppingCategory({ label: name, color, parentId: null, baseListIds })).id;
+  const shopCategory = async (label: string, color: string, baseListIds: string[]) => (await createShoppingCategory({ label, color, parentId: null, baseListIds })).id;
   const fresh = await shopCategory('Frais', '#82c91e', [usual.id]);
   const grocery = await shopCategory('Épicerie', '#fab005', [usual.id]);
   const care = await shopCategory('Soins', '#fa5252', [medicine.id]);
@@ -405,11 +374,7 @@ export async function seedPersonal({
     label,
     categoryId,
     storeId,
-    url: null,
-    note: null,
-    quantity: null,
-    unit: null,
-    unitPrice: null,
+    ...EMPTY_ARTICLE,
     ...changes,
   });
   for (const [baseListId, item, missing] of [
@@ -424,7 +389,7 @@ export async function seedPersonal({
     await createProduct({ ...item, baseListId, missing });
   }
   const weekly_list = await createList({ label: 'Courses du samedi', taskIds: [], baseListIds: [usual.id, medicine.id] });
-  for (const item of (await prisma.shoppingItem.findMany({ where: { listId: weekly_list.id }, orderBy: { position: 'asc' } })).slice(0, 2)) await setItemPurchased(item.id, true);
+  for (const item of (await prisma.shoppingItem.findMany({ where: { listId: weekly_list.id }, orderBy: BY_POSITION })).slice(0, 2)) await setItemPurchased(item.id, true);
   const party = await createList({ label: 'Anniversaire de Tom', taskIds: [birthday.id], baseListIds: [] });
   await addItem(party.id, article('Gâteau', grocery, supermarket, { quantity: 1, unitPrice: 18, note: 'Au chocolat, sans noix.' }));
   await addItem(party.id, article('Bougies', grocery, supermarket, { quantity: 1, unitPrice: 2.5 }));
@@ -439,8 +404,8 @@ export async function seedPersonal({
   const homeCategory = (await createRoutineCategory({ label: 'Maison', color: '#fd7e14', parentId: null })).id;
   const kidsCategory = (await createRoutineCategory({ label: 'Enfants', color: '#7950f2', parentId: null })).id;
   const healthCategory = (await createRoutineCategory({ label: 'Santé', color: '#fa5252', parentId: null })).id;
-  const routine = (title: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
-    createRoutine({ label: title, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], ...changes });
+  const routine = (label: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
+    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], ...changes });
   await routine('Se brosser les dents', rule({}), {
     categoryIds: [healthCategory],
     estimate: 3,
@@ -508,10 +473,10 @@ export async function seedPersonal({
   const healthFolder = await createFolder('Santé', null);
   const taxes = await createFolder('Impôts', null);
   const house = await createFolder('Logement', null);
-  await addFiles(healthFolder.id, [pdf('Carnet de vaccination de Tom.pdf', 'Carnet de vaccination'), pdf('Attestation mutuelle.pdf', 'Attestation mutuelle')]);
-  await addFiles(taxes.id, [pdf('Avis d’imposition 2026.pdf', 'Avis d imposition 2026')]);
+  await addFiles(healthFolder.id, [pdfFile('Carnet de vaccination de Tom.pdf', 'Carnet de vaccination'), pdfFile('Attestation mutuelle.pdf', 'Attestation mutuelle')]);
+  await addFiles(taxes.id, [pdfFile('Avis d’imposition 2026.pdf', 'Avis d imposition 2026')]);
   await addLink(taxes.id, { title: 'Espace particulier impots.gouv', url: 'https://www.impots.gouv.fr', note: null });
-  await addFiles(house.id, [pdf('Bail.pdf', 'Bail'), pdf('Quittance de loyer.pdf', 'Quittance de loyer')]);
+  await addFiles(house.id, [pdfFile('Bail.pdf', 'Bail'), pdfFile('Quittance de loyer.pdf', 'Quittance de loyer')]);
 
   // --- Dashboard of the household ------------------------------------------------------------------------------
   const board = await prisma.dashboard.create({ data: { label: 'Foyer', projectId: null, position: 0 } });

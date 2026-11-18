@@ -21,13 +21,11 @@ import { documentPath } from '../../../app/pages';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
- * @param {{ entry: AnyEntry, env: EntryEnv, save: EntrySave }} props Component props.
+ * @param {{ entry: AnyEntry, env: EntryEnv, label: string, save: EntrySave }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function PayerCell({ entry, env, save }: { entry: AnyEntry; env: EntryEnv; save: EntrySave }) {
-  return (
-    <EditableSelect value={payerKey(entry)} label={`${entry.amount < 0 ? 'Destinataire' : 'Émetteur'} de ${entry.label}`} nullable data={env.payers} onSave={(key) => save(entry, payerOfKey(key))} />
-  );
+export function PayerCell({ entry, env, label, save }: { entry: AnyEntry; env: EntryEnv; label: string; save: EntrySave }) {
+  return <EditableSelect value={payerKey(entry)} label={label} nullable data={env.payers} onSave={(key) => save(entry, payerOfKey(key))} />;
 }
 
 /**
@@ -69,7 +67,7 @@ export function DocumentsCell({
             <FileBadge
               filename={document.label}
               href={document.url}
-              target="_blank"
+              external
               // A file of the app (PDF, image) opens in its viewer.
               onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, filename: document.label })}
             />

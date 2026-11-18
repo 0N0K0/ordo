@@ -23,7 +23,7 @@ import { assertProjectContributors, attachAssignees } from '../workspace/contrib
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { ARCHIVED_MESSAGE, assertNoneArchived, type ArchivableModel } from '../core/archive';
+import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived, type ArchivableModel } from '../core/archive';
 import { subtreeIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
@@ -64,9 +64,8 @@ function descendantIds(id: string): Promise<string[]> {
  * @returns {Promise<void>}
  */
 async function assertProject(projectId: string): Promise<void> {
-  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { archivedAt: true } });
-  if (!project) throw fieldError('projectId', 'Projet introuvable.');
-  if (project.archivedAt) throw fieldError('projectId', 'Ce projet est archivé.');
+  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet', 'projectId');
+  await assertNotArchived('project', projectId, { field: 'projectId' });
 }
 
 /**
@@ -77,9 +76,8 @@ async function assertProject(projectId: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
-  const parent = await prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true, archivedAt: true } });
-  if (!parent) throw fieldError('parentId', 'Tâche parente introuvable.');
-  if (parent.archivedAt) throw fieldError('parentId', 'Cette tâche est archivée.');
+  const parent = await orNotFound(prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true } }), 'Tâche parente', 'parentId');
+  await assertNotArchived('task', parentId, { field: 'parentId' });
   const rootOf = await loadRootOf();
   if (rootOf(parent.projectId) !== rootOf(projectId)) {
     throw fieldError('parentId', projectId ? 'La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets.' : 'La tâche parente doit aussi être sans projet.');
@@ -113,8 +111,7 @@ async function assertSameTree(taskId: string, otherId: string): Promise<void> {
  */
 async function assertMilestone(milestoneId: string, projectId: string | null): Promise<void> {
   if (!projectId) throw fieldError('milestoneId', 'Une tâche sans projet n’a pas de jalon.');
-  const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
-  if (!milestone) throw fieldError('milestoneId', 'Jalon introuvable.');
+  const milestone = await orNotFound(prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } }), 'Jalon', 'milestoneId');
   const rootOf = await loadRootOf();
   if (rootOf(milestone.projectId) !== rootOf(projectId)) {
     throw fieldError('milestoneId', 'Le jalon doit appartenir au projet de la tâche ou à son arborescence.');
@@ -557,7 +554,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const { sourceId, cloneId } = queue.shift()!;
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
-          orderBy: { position: 'asc' },
+          orderBy: BY_POSITION,
           include: CLONED_LINKS,
         });
         for (const child of children) {

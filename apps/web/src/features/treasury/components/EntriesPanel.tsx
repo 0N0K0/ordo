@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useEntryCellSave, type EntryValues } from '../lib/entry-values';
-import { bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -145,6 +145,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
   const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS, archived: (entry) => entry.archived });
   // A change made on the bulk selection of a column saves each entry it fits (none: left as it is; archived ones are read only).
+  const cellLabelOf = bulkCellLabels(view, (entry) => entry.label);
   const bulk = bulkSaver<TreasuryEntry, Partial<EntryValues>>(view, (entry, change) => !entry.archived && Object.keys(change).length > 0 && saveEntry(entry, change));
   const actual = view.rows;
   const totals = periodTotals(actual);
@@ -223,17 +224,22 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                 settled: <SettledCell entry={entry} />,
               }
             : {
-                ...entryFieldCells(entry, env, (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>)),
-                date: <EditableDate value={entry.date} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
+                ...entryFieldCells(
+                  entry,
+                  env,
+                  (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>),
+                  (column, field) => cellLabelOf(column, entry, field),
+                ),
+                date: <EditableDate value={entry.date} label={cellLabelOf('date', entry, 'Exécution')} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
                 label: (
                   <Group gap={4} wrap="nowrap">
-                    <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && bulk('label')(entry, { label })} />
+                    <EditableText value={entry.label} label={cellLabelOf('label', entry, 'Libellé')} onSave={(label) => label && bulk('label')(entry, { label })} />
                     <EntryUrl url={entry.url} label={entry.label} />
                     {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
                   </Group>
                 ),
                 settled: <SettledCell entry={entry} />,
-                amount: <SignedAmountCell value={entry.amount} label={`Montant de ${entry.label}`} onSave={(change) => bulk('amount')(entry, change)} />,
+                amount: <SignedAmountCell value={entry.amount} label={cellLabelOf('amount', entry, 'Montant')} onSave={(change) => bulk('amount')(entry, change)} />,
                 comments: columns.find((column) => column.id === 'comments')?.text?.(entry),
               }
         }

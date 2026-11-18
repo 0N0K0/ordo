@@ -39,7 +39,7 @@ interface NewListFormProps {
 export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewListFormProps) {
   const { data } = useShoppingData();
   // The archived base lists and products are left out.
-  const missingOf = (id: string) => (data?.shoppingProducts ?? []).filter((product) => product.baseListId === id && product.missing && !product.archived).length;
+  const missingOf = (id: string) => unarchived(data?.shoppingProducts ?? []).filter((product) => product.baseListId === id && product.missing).length;
   const baseLists = unarchived(data?.shoppingBaseLists ?? []);
   const { perso } = useActiveWorkspace();
   const { context } = useTaskContext();

@@ -1,4 +1,4 @@
-import { IconAction } from '../../../components/actions/IconAction';
+import { FoldButton } from '../../../components/actions/FoldButton';
 import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
@@ -19,7 +19,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { CheckIcon, ClockIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -51,7 +51,7 @@ import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../lib/calendar-events';
+import { isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../lib/calendar-events';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -68,7 +68,8 @@ import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/Setting
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { HiddenChecklist } from '../components/HiddenChecklist';
-import { unarchived } from '../../../lib/archive';
+import { archivedIds, unarchived } from '../../../lib/archive';
+import { inWorkspace } from '../lib/layer-label';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -139,8 +140,8 @@ export function CalendarPage() {
   const hidden = useMemo(() => new Set(filters.hiddenCalendarIds ?? []), [filters.hiddenCalendarIds]);
   // Archived events and calendars: hidden until asked, read only.
   const showArchived = filters.archived === true;
-  const archivedCalendars = useMemo(() => archivedCalendarIds(calendarsData?.calendars), [calendarsData]);
-  const ownCalendars = useMemo(() => (calendarsData?.calendars ?? []).filter((calendar) => showArchived || !calendar.archived), [calendarsData, showArchived]);
+  const archivedCalendars = useMemo(() => archivedIds(calendarsData?.calendars), [calendarsData]);
+  const ownCalendars = useMemo(() => (showArchived ? (calendarsData?.calendars ?? []) : unarchived(calendarsData?.calendars ?? [])), [calendarsData, showArchived]);
   const subscriptions = useMemo(() => calendarsData?.calendarSubscriptions ?? [], [calendarsData]);
   const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
@@ -555,7 +556,7 @@ export function CalendarPage() {
               extendedProps: {
                 kind: 'routine',
                 occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
-                movedFrom: occurrence.movedFrom ? occurrence.movedFrom : null,
+                movedFrom: occurrence.movedFrom || null,
               },
             },
           });
@@ -726,7 +727,7 @@ export function CalendarPage() {
     })),
     ...subscriptions.map((subscription) => ({
       id: subscription.calendarId,
-      label: `${subscription.label} · ${subscription.workspace.label}`,
+      label: inWorkspace(subscription.label, subscription.workspace.label),
       color: subscription.color,
     })),
   ];
@@ -850,11 +851,9 @@ export function CalendarPage() {
               </SettingsSection>
               <SettingsSection title="Exporter">
                 <Group gap="sm" wrap="wrap">
-                  <Tooltip label="La vue affichée, pour l’imprimer">
-                    <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
-                      Vue en PDF
-                    </ActionButton>
-                  </Tooltip>
+                  <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} hint="La vue affichée, pour l’imprimer" loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
+                    Vue en PDF
+                  </ActionButton>
                   <CalendarsIcsButton />
                 </Group>
               </SettingsSection>
@@ -902,16 +901,11 @@ export function CalendarPage() {
             timeGridWeek: { duration: { days: weekLength(week) }, dateAlignment: 'week', dateIncrement: { weeks: 1 } },
           }}
           allDayContent={() => (
-            <IconAction
-              label={allDayExpanded ? 'Réduire' : 'Développer'}
-              variant="light"
-              size="sm"
+            <FoldButton
+              expanded={allDayExpanded}
               aria-label={allDayExpanded ? 'Réduire la ligne journée entière' : 'Développer la ligne journée entière'}
-              aria-expanded={allDayExpanded}
-              onClick={() => setAllDayExpanded(!allDayExpanded)}
-            >
-              {allDayExpanded ? <CaretUpIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-            </IconAction>
+              onToggle={() => setAllDayExpanded(!allDayExpanded)}
+            />
           )}
           // "+N": expands the whole all-day row instead of opening a popover (same view and period: no move).
           moreLinkClick={(info) => {

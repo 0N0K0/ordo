@@ -1,6 +1,6 @@
 import { Button } from '@mantine/core';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
-import { AlarmIcon, CalendarPlusIcon, CaretDownIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
 import { openNewDocument } from '../../features/accounting/lib/new-document';
@@ -14,6 +14,7 @@ import { openTimerForm } from '../../features/time/lib/open-timer-form';
 import { useActiveWorkspace } from '../../features/workspaces/api';
 import classes from './QuickActions.module.css';
 import { TIMER_REPLACED_HINT } from '../../features/time/hooks/use-start-timer';
+import { MenuCaret } from '../../components/actions/MenuCaret';
 
 interface QuickAction {
   /** Name of the item (menu, screen readers). */
@@ -63,21 +64,12 @@ export function QuickActions() {
 
   return (
     <ActionsMenu
-      name="l’ajout"
+      about="l’ajout"
       hover
       items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled, hint: action.hint }))}
       target={
         // On a very small screen, only the plus (the name stays for screen readers).
-        <Button
-          className={classes.add}
-          size="xs"
-          variant="light"
-          leftSection={<PlusIcon aria-hidden />}
-          rightSection={<CaretDownIcon aria-hidden size={12} />}
-          disabled={!context}
-          aria-haspopup="menu"
-          aria-label="Ajouter"
-        >
+        <Button className={classes.add} size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<MenuCaret />} disabled={!context} aria-label="Ajouter">
           <span className={classes.label}>Ajouter</span>
         </Button>
       }

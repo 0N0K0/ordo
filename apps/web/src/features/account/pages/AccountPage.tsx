@@ -3,7 +3,7 @@ import { EnvelopeSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
+import { PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
 import { useMemo } from 'react';
 
@@ -12,6 +12,7 @@ import { toastCallbacks } from '../../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../../auth/api';
 import { NewPasswordFields } from '../../auth/components/NewPasswordFields';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Username change form.
@@ -87,9 +88,9 @@ function EmailForm({ user }: { user: AccountUser }) {
             <Text size="sm">
               Un lien a été envoyé à <strong>{user.pendingEmail}</strong>. L’adresse sera remplacée une fois le lien ouvert.
             </Text>
-            <Button variant="subtle" size="xs" leftSection={<XIcon aria-hidden />} onClick={handleCancel} loading={cancelEmailChange.isPending}>
+            <ActionButton priority="tertiary" icon={<XIcon aria-hidden />} onClick={handleCancel} loading={cancelEmailChange.isPending}>
               Annuler le changement
-            </Button>
+            </ActionButton>
           </Stack>
         </NoticeAlert>
       )}

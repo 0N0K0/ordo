@@ -15,6 +15,7 @@ import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
@@ -74,7 +75,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
       <Group gap="xs" wrap="nowrap">
         <WorkspaceKindIcon kind={workspace.kind} />
         <TextInput
-          aria-label={`Libellé de « ${workspace.label} »`}
+          aria-label={itemCellLabel('Libellé', `« ${workspace.label} »`, 1)}
           style={{ flex: 1 }}
           value={label}
           maxLength={WORKSPACE_LABEL_MAX}

@@ -15,6 +15,7 @@ export function ClientSelect({ value, ...props }: Omit<SelectProps, 'data'>) {
   const clients = (workspace?.clients ?? []).map((client) => ({ ...client, label: client.name }));
   const current = clients.find((client) => client.id === value);
   return (
+    // eslint-disable-next-line no-restricted-syntax -- the clients' select itself.
     <Select
       label="Client"
       searchable

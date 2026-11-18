@@ -1,6 +1,6 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { endAfter, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
+import { endAfter, personNameSchema, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
 import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
@@ -24,16 +24,18 @@ export const commentBodySchema = z
   .max(65_536, 'Texte trop long.')
   .refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
 
+/** Most characters of a mention handle (as GitHub logins). */
+// eslint-disable-next-line no-restricted-syntax -- the maximum itself.
+export const HANDLE_MAX = 39;
+
 /** Identifier used in @mentions: lowercase letters, digits, "-" and "_". */
 export const handleSchema = z
   .string()
   .trim()
   .toLowerCase()
   .min(2, 'Au moins 2 caractères.')
-  .max(39, '39 caractères maximum.')
+  .max(HANDLE_MAX, `${HANDLE_MAX} caractères maximum.`)
   .regex(/^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/, 'Lettres, chiffres, « - » et « _ » ; ni au début ni à la fin pour « - » et « _ ».');
-
-export const contributorNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
 
 /**
  * Suggests a mention handle from a name ("Noémie Koelblen" → "noemie-koelblen").
@@ -41,14 +43,17 @@ export const contributorNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
  * @returns {string} Handle candidate.
  */
 export function suggestHandle(name: string): string {
-  return normalize(name)
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 39);
+  return (
+    normalize(name)
+      .replace(/[^a-z0-9]+/g, '-')
+      .slice(0, HANDLE_MAX)
+      // Trimmed after the cut too: a handle never ends with « - ».
+      .replace(/^-+|-+$/g, '')
+  );
 }
 
 export const contributorFormSchema = z.object({
-  name: contributorNameSchema,
+  name: personNameSchema,
   handle: handleSchema,
 });
 export type ContributorFormValues = z.input<typeof contributorFormSchema>;

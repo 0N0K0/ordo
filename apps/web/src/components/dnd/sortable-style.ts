@@ -6,10 +6,11 @@ import type { CSSProperties } from 'react';
 type SortableState = Pick<ReturnType<typeof useSortable>, 'transform' | 'transition' | 'isDragging'>;
 
 /**
- * Style of a sortable item: moved with the pointer (translated, never scaled), above the others while dragged.
+ * Style of a sortable item: moved with the pointer (translated, never scaled), above the others and dimmed while
+ * dragged (decision K).
  * @param {SortableState} state Transform, transition and dragging of useSortable.
  * @returns {CSSProperties} Style.
  */
 export function sortableStyle({ transform, transition, isDragging }: SortableState): CSSProperties {
-  return { transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined };
+  return { transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined, opacity: isDragging ? 'var(--onoko-dragging-opacity)' : undefined };
 }

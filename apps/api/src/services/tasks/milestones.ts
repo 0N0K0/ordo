@@ -2,7 +2,7 @@ import { dateSchema, markdownSchema, milestoneLabelSchema, parseOptionalDay } fr
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { assertNotArchived } from '../core/archive';
 
@@ -44,8 +44,8 @@ const fieldsSchema = z.object({
  * @returns {Promise<Milestone>} Created milestone.
  */
 export async function createMilestone(input: { projectId: string; label: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
-  const project = await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { archivedAt: true } }), 'Projet');
-  if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
+  await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }), 'Projet');
+  await assertNotArchived('project', input.projectId, { field: 'projectId' });
   const fields = parseInput(fieldsSchema.required({ label: true }), {
     label: input.label,
     description: input.description ?? null,

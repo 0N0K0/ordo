@@ -1,4 +1,4 @@
-import { Button, Divider, Popover, SegmentedControl, Select, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { Divider, Popover, SegmentedControl, Select, Stack, Switch, Text } from '@mantine/core';
 import { TRAVEL_MODE_LABELS, TRAVEL_MODES, formatDuration, travelMinutes, type GeoPoint, type TravelMode } from '@ordo/shared';
 import { CalculatorIcon, NavigationArrowIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { AddressInput, type AddressValue } from './AddressInput';
 import { travelTime, usePlaces } from '../api';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { itemOptions } from '../../../components/items/item-look';
 
 /** Start or end chosen: a saved place, another address, or (for the way back) the start. */
 const OTHER = 'other';
@@ -40,8 +41,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   const [summary, setSummary] = useState<string | null>(null);
 
   // Places with an address (their zones share their point), the archived ones left out.
-  const addressed = (places ?? []).filter((place) => !place.parentId && !place.archived);
-  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.label }));
+  const placeOptions = itemOptions((places ?? []).filter((place) => !place.parentId));
   /**
    * Point of a choice.
    * @param {string | null} choice Place id, OTHER or SAME.
@@ -53,7 +53,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
     const place = places?.find((item) => item.id === choice);
     return place ? { lat: place.lat, lon: place.lon } : null;
   };
-  const fromChoice = from ?? addressed[0]?.id ?? OTHER;
+  const fromChoice = from ?? placeOptions[0]?.value ?? OTHER;
   const start = pointOf(fromChoice, fromOther);
   // Back to the start: the start of the way there (asked for even when it is not computed).
   const end = to === SAME ? start : pointOf(to, toOther);
@@ -78,13 +78,20 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   });
 
   const button = (
-    <ActionButton priority="secondary" size="xs" icon={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
+    <ActionButton
+      priority="secondary"
+      size="xs"
+      icon={<NavigationArrowIcon aria-hidden />}
+      disabled={!eventPoint}
+      hint={eventPoint ? undefined : 'Choisissez d’abord une adresse proposée pour le lieu'}
+      onClick={() => setOpened((value) => !value)}
+    >
       Calculer les trajets
     </ActionButton>
   );
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-start" width={380} shadow="md" withinPortal trapFocus>
-      <Popover.Target>{eventPoint ? button : <Tooltip label="Choisissez d’abord une adresse proposée pour le lieu">{button}</Tooltip>}</Popover.Target>
+      <Popover.Target>{button}</Popover.Target>
       <Popover.Dropdown>
         <Stack gap="sm">
           <Stack gap="xs">
@@ -124,9 +131,9 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
               </>
             )}
           </Stack>
-          <Button size="xs" leftSection={<CalculatorIcon aria-hidden />} onClick={() => void compute()} loading={loading} disabled={!ready}>
+          <ActionButton size="xs" icon={<CalculatorIcon aria-hidden />} onClick={() => void compute()} loading={loading} disabled={!ready}>
             Calculer
-          </Button>
+          </ActionButton>
           {summary && (
             <Text size="xs" c="dimmed">
               {summary}

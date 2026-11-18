@@ -1,6 +1,6 @@
 import { stockLocationSchema } from '@ordo/shared';
 import { itemCreator } from '../../../components/settings/create-settings-item';
-import { itemMutations } from '../../../components/settings/settings-api';
+import { itemMutations, treeItemInput } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -14,16 +14,10 @@ import { useStockLocations, useStockMutations, type StockLocation } from '../api
  */
 export function useLocationItems(): SettingsItemKind<StockLocation> {
   const { createLocation, updateLocation } = useStockMutations();
-  /**
-   * Input of a place from the form values.
-   * @param {{ label: string, color: string, parentId: string | null }} values Values.
-   * @returns {object} Input.
-   */
-  const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color || null, parentId: values.parentId });
   return {
     kind: 'STOCK_LOCATION',
     schema: stockLocationSchema,
-    ...itemMutations({ create: createLocation, update: updateLocation }, input),
+    ...itemMutations({ create: createLocation, update: updateLocation }, treeItemInput),
   };
 }
 
