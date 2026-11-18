@@ -1,6 +1,6 @@
 import { CheckCircleIcon, InfoIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 
-// One icon per feedback type, shared by alerts and toasts.
+// One icon per feedback type, shared by alerts and toasts (their colours: feedback-colors).
 
 /**
  * Success feedback icon.

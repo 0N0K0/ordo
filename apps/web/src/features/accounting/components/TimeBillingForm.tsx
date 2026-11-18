@@ -1,10 +1,11 @@
+import { toggledIn } from '../../../lib/sets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { plural } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { type AccountingLineInput, formatDuration, toCents, VAT_RATES } from '@ordo/shared';
+import { type AccountingLineInput, formatDuration, toCents, VAT_RATES, sumOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntries } from '../../time/api';
@@ -18,6 +19,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { dateRangeProps } from '../../../components/inputs/date-range';
 
 /**
  * What a time was spent on: its tasks, then its description.
@@ -30,7 +32,15 @@ const workOf = (entry: BillableTime) => [entry.tasks.join(', '), entry.descripti
 const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
   { id: 'day', label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
   { id: 'work', label: 'Temps', size: 320, locked: true, sortValue: workOf, text: workOf },
-  { id: 'duration', label: 'Durée', size: 100, numeric: true, sortValue: (entry) => entry.seconds, text: (entry) => formatDuration(entry.seconds), formatTotal: (seconds) => formatDuration(Math.round(seconds)) },
+  {
+    id: 'duration',
+    label: 'Durée',
+    size: 100,
+    numeric: true,
+    sortValue: (entry) => entry.seconds,
+    text: (entry) => formatDuration(entry.seconds),
+    formatTotal: (seconds) => formatDuration(Math.round(seconds)),
+  },
 ];
 
 interface TimeBillingFormProps {
@@ -59,6 +69,13 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const [projectId, setProjectId] = useState<string | null>(initialProject ?? projects.find((option) => !option.disabled)?.value ?? null);
   const [from, setFrom] = useState<string | null>(start);
   const [to, setTo] = useState<string | null>(end);
+  const period = dateRangeProps({
+    value: [from, to],
+    onChange: ([first, last]) => {
+      setFrom(first);
+      setTo(last);
+    },
+  });
   const [grouping, setGrouping] = useState<TimeGrouping>('TOTAL');
   const [unit, setUnit] = useState<'HOUR' | 'DAY'>('HOUR');
   const [hoursPerDay, setHoursPerDay] = useState(7);
@@ -79,12 +96,12 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
       day: localDay(entry.startedAt),
       seconds: entry.duration ?? 0,
       description: entry.description ?? null,
-      tasks: entry.taskIds.map((id) => context?.taskById.get(id)?.title).filter((task): task is string => Boolean(task)),
+      tasks: entry.taskIds.map((id) => context?.taskById.get(id)?.label).filter((task): task is string => Boolean(task)),
     }))
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
-  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, title: title.trim() || 'Prestation', roundQuarter });
-  const total = lines.reduce((sum, line) => sum + toCents(line.quantity * line.unitPrice), 0);
+  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, label: title.trim() || 'Prestation', roundQuarter });
+  const total = sumOf(lines, (line) => toCents(line.quantity * line.unitPrice));
   const days = selected.map((entry) => entry.day).sort();
   const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
 
@@ -92,8 +109,8 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     <Stack gap="sm">
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <Select label="Projet" required searchable allowDeselect={false} {...treeSelectProps(projects)} value={projectId} onChange={setProjectId} />
-        <DatePickerInput label="Du" clearable value={from} onChange={setFrom} />
-        <DatePickerInput label="Au" clearable value={to} onChange={setTo} />
+        <DatePickerInput label="Du" clearable {...period.start} />
+        <DatePickerInput label="Au" clearable {...period.end} />
       </SimpleGrid>
 
       {!projectId ? (
@@ -123,19 +140,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
               />
             ),
             cell: (entry) => (
-              <Checkbox
-                size="xs"
-                aria-label={`Facturer le temps du ${entry.day}`}
-                checked={!unchecked.has(entry.id)}
-                onChange={() =>
-                  setUnchecked((current) => {
-                    const next = new Set(current);
-                    if (next.has(entry.id)) next.delete(entry.id);
-                    else next.add(entry.id);
-                    return next;
-                  })
-                }
-              />
+              <Checkbox size="xs" aria-label={`Facturer le temps du ${entry.day}`} checked={!unchecked.has(entry.id)} onChange={() => setUnchecked((current) => toggledIn(current, entry.id))} />
             ),
           }}
           cells={(entry) => ({
@@ -165,14 +170,14 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           label="Tarif du catalogue"
           placeholder="Aucun"
           clearable
-          data={rates.map((item) => ({ value: item.id, label: `${item.title} — ${fmt.money(item.unitPrice)} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
+          data={rates.map((item) => ({ value: item.id, label: `${item.label} — ${fmt.money(item.unitPrice)} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
           onChange={(id) => {
             const item = rates.find((rate) => rate.id === id);
             if (!item) return;
             setUnit(item.unit as 'HOUR' | 'DAY');
             setUnitPrice(item.unitPrice);
             setVatRate(item.vatRate);
-            setTitle(item.title);
+            setTitle(item.label);
           }}
         />
       )}
@@ -204,14 +209,17 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         </LabeledField>
       </SimpleGrid>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-        <AmountInput
-          label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'}
-          min={0}
-          value={unitPrice}
-          onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)}
-        />
+        <AmountInput label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'} min={0} value={unitPrice} onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)} />
         {unit === 'DAY' ? (
-          <NumberInput label="Heures par jour" min={1} max={24} decimalScale={2} decimalSeparator="," value={hoursPerDay} onChange={(value) => setHoursPerDay(typeof value === 'number' && value > 0 ? value : 7)} />
+          <NumberInput
+            label="Heures par jour"
+            min={1}
+            max={24}
+            decimalScale={2}
+            decimalSeparator=","
+            value={hoursPerDay}
+            onChange={(value) => setHoursPerDay(typeof value === 'number' && value > 0 ? value : 7)}
+          />
         ) : (
           <Checkbox label="Arrondir au quart d’heure supérieur" mt={28} checked={roundQuarter} onChange={(event) => setRoundQuarter(event.currentTarget.checked)} />
         )}
@@ -228,9 +236,20 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
       <Group justify="space-between" align="center">
         <Text size="sm" c="dimmed">
-          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
+          {selected.length} temps, {formatDuration(sumOf(selected, (entry) => entry.seconds))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
         </Text>
-        <FormActions onCancel={onCancel} submitLabel="Ajouter les lignes" disabled={lines.length === 0} onSubmit={() => onAdd(lines, selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })), { start: days[0], end: days[days.length - 1] })} />
+        <FormActions
+          onCancel={onCancel}
+          submitLabel="Ajouter les lignes"
+          disabled={lines.length === 0}
+          onSubmit={() =>
+            onAdd(
+              lines,
+              selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })),
+              { start: days[0], end: days[days.length - 1] },
+            )
+          }
+        />
       </Group>
     </Stack>
   );

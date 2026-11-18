@@ -1,4 +1,18 @@
-import { ancestorsOf, commentBodySchema, dateSchema, effortSchema, groupBy, lineageOf, mapById, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, taskTitleSchema } from '@ordo/shared';
+import {
+  ancestorsOf,
+  dateSchema,
+  effortSchema,
+  groupBy,
+  lineageOf,
+  mapById,
+  markdownSchema,
+  movedTo,
+  parseOptionalDay,
+  reaches,
+  slotRuleSchema,
+  type TaskInput as SharedTaskInput,
+  taskLabelSchema,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
@@ -13,6 +27,7 @@ import { ARCHIVED_MESSAGE, assertNoneArchived, type ArchivableModel } from '../c
 import { subtreeIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
+import { commentBody } from '../core/comments';
 
 /**
  * Root project of each project: tasks can only be linked inside the same tree.
@@ -185,40 +200,16 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
   if (restoring) return;
   const ids = (value: string | readonly string[] | null | undefined): string[] => (typeof value === 'string' ? [value] : [...(value ?? [])]);
   for (const key of Object.keys(ACTIVE_REFS) as (keyof ActiveRefs)[]) {
-    const kept = new Set(ids(current[key]));
-    const added = ids(refs[key]).filter((id) => !kept.has(id));
     const [model, field] = ACTIVE_REFS[key];
-    if (added.length) await assertNoneArchived(model, added).catch(() => Promise.reject(fieldError(field, ARCHIVED_MESSAGE)));
+    await assertNoneArchived(model, ids(refs[key]), { keep: ids(current[key]), field });
   }
 }
 
-export interface TaskInput {
-  title?: string | null;
-  description?: string | null;
-  projectId?: string | null;
-  statusId?: string | null;
-  priorityId?: string | null;
-  typeId?: string | null;
-  assigneeIds?: string[] | null;
-  tagIds?: string[] | null;
-  effort?: number | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  deadline?: string | null;
-  /** « Date min »: not to be done before. */
-  minDate?: string | null;
-  parentId?: string | null;
-  milestoneId?: string | null;
-  sprintIds?: string[] | null;
-  /** « Bénéficiaires »: contributors and relations the task is for. */
-  beneficiaryIds?: string[] | null;
-  beneficiaryRelationIds?: string[] | null;
-  /** Slots the task is done on or out of; null: the default of the workspace. */
-  slotRule?: unknown;
-}
+/** Fields of a task sent to create or change it, its slot rule as GraphQL gives it (JSON, checked by the schema). */
+export type TaskInput = Omit<SharedTaskInput, 'slotRule'> & { slotRule?: unknown };
 
 const detailsSchema = z.object({
-  title: taskTitleSchema.optional(),
+  label: taskLabelSchema.optional(),
   description: markdownSchema.optional(),
   effort: effortSchema.optional(),
   startDate: dateSchema.optional(),
@@ -236,7 +227,7 @@ const detailsSchema = z.object({
  */
 function parseDetails(input: TaskInput, current?: { startDate: Date | null; endDate: Date | null }) {
   const details = parseInput(detailsSchema, {
-    title: input.title ?? undefined,
+    label: input.label ?? undefined,
     description: input.description,
     effort: input.effort,
     startDate: input.startDate,
@@ -247,7 +238,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
   });
   assertDateRange(details, current);
   return {
-    title: details.title,
+    label: details.label,
     description: details.description,
     effort: details.effort,
     startDate: parseOptionalDay(details.startDate),
@@ -259,20 +250,12 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
 }
 
 /**
- * Next position at the end of the global task order.
- * @returns {Promise<number>} Position.
- */
-async function nextPosition(): Promise<number> {
-  return nextPositionIn('task');
-}
-
-/**
  * Creates a task at the end of the list.
- * @param {TaskInput & { title: string }} input Task input (no project: a task of none, without number).
+ * @param {TaskInput & { label: string }} input Task input (no project: a task of none, without number).
  * @returns {Promise<Task>} Created task.
  */
-export async function createTask(input: TaskInput & { title: string }): Promise<Task> {
-  if (!input.title?.trim()) throw fieldError('title', 'Le titre est requis.');
+export async function createTask(input: TaskInput & { label: string }): Promise<Task> {
+  if (!input.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
   const details = parseDetails(input);
   const projectId = input.projectId ?? null;
   if (projectId) await assertProject(projectId);
@@ -286,14 +269,14 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
   const task = await prisma.task.create({
     data: {
       ...details,
-      title: details.title!,
+      label: details.label!,
       projectId,
       statusId: input.statusId ?? null,
       priorityId: input.priorityId ?? null,
       typeId: input.typeId ?? null,
       parentId: input.parentId ?? null,
       milestoneId: input.milestoneId ?? null,
-      position: await nextPosition(),
+      position: await nextPositionIn('task'),
       sprints: { connect: connectIds(input.sprintIds ?? []) },
       assignees: { connect: connectIds(input.assigneeIds ?? []) },
       beneficiaries: { connect: connectIds(input.beneficiaryIds ?? []) },
@@ -330,9 +313,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
-  const previous = input.assigneeIds
-    ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
-    : [];
+  const previous = input.assigneeIds ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id) : [];
   if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
 
   const updated = await prisma.task.update({
@@ -355,8 +336,8 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
 }
 
 /**
- * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along
- * (and its archived ancestors, alone).
+ * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along (and its archived
+ * ancestors, alone: their other sub-tasks archived along with them then stay archived on their own).
  * @param {string} id Task id.
  * @param {boolean} archived Target state.
  * @returns {Promise<Task>} Updated task.
@@ -379,18 +360,23 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<Ta
   }
 
   const ancestorIds: string[] = [];
-  for (let parentId = task.parentId; parentId; ) {
+  for (let parentId = task.parentId; parentId;) {
     const parent = await prisma.task.findUnique({ where: { id: parentId }, select: { id: true, parentId: true, archivedAt: true } });
     if (!parent) break;
     if (parent.archivedAt) ancestorIds.push(parent.id);
     parentId = parent.parentId;
   }
-  const [, , updated] = await prisma.$transaction([
+  const [, , , updated] = await prisma.$transaction([
     prisma.task.updateMany({
       where: { id: { in: descendants }, archivedByCascade: true },
       data: { archivedAt: null, archivedByCascade: false },
     }),
     prisma.task.updateMany({ where: { id: { in: ancestorIds } }, data: { archivedAt: null, archivedByCascade: false } }),
+    // Sub-tasks archived by the cascade of a restored ancestor now stay archived on their own.
+    prisma.task.updateMany({
+      where: { archivedByCascade: true, id: { notIn: [id, ...descendants] }, parentId: { in: ancestorIds } },
+      data: { archivedByCascade: false },
+    }),
     prisma.task.update({ where: { id }, data: { archivedAt: null, archivedByCascade: false } }),
   ]);
   return updated;
@@ -444,9 +430,7 @@ export async function transferTask(id: string, projectId: string | null): Promis
     where: { id: { in: moved }, milestoneId: { not: null } },
     select: { id: true, milestone: { select: { projectId: true } } },
   });
-  const losingMilestone = movedTasks
-    .filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot)
-    .map((item) => item.id);
+  const losingMilestone = movedTasks.filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot).map((item) => item.id);
   // Same for sprints: each task leaves those of another tree.
   const sprintTasks = await prisma.task.findMany({
     where: { id: { in: moved }, sprints: { some: {} } },
@@ -488,6 +472,15 @@ export async function transferTask(id: string, projectId: string | null): Promis
   return { task: results[3], removedLinks };
 }
 
+/** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
+const CLONED_LINKS = {
+  assignees: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
+  tags: { select: { id: true } },
+  sprints: { select: { id: true } },
+} as const;
+
 /**
  * Clones a task (every field, assignees and links, but not comments), optionally with its sub-tasks.
  * @param {string} id Task id.
@@ -495,11 +488,17 @@ export async function transferTask(id: string, projectId: string | null): Promis
  * @returns {Promise<Task>} Clone of the task.
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
-  const include = { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
+  const include = {
+    ...CLONED_LINKS,
+    blocking: true,
+    blockedBy: true,
+    relationsA: true,
+    relationsB: true,
+  };
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
 
   return prisma.$transaction(async (tx) => {
-    let position = ((await tx.task.aggregate({ _max: { position: true } }))._max.position ?? -1) + 1;
+    let position = await nextPositionIn('task', {}, tx);
 
     /**
      * Copies one task under a parent.
@@ -508,12 +507,20 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
-      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; beneficiaries: { select: { id: true } }; beneficiaryRelations: { select: { id: true } }; tags: { select: { id: true } }; sprints: { select: { id: true } } } }>,
+      task: Prisma.TaskGetPayload<{
+        include: {
+          assignees: { select: { id: true } };
+          beneficiaries: { select: { id: true } };
+          beneficiaryRelations: { select: { id: true } };
+          tags: { select: { id: true } };
+          sprints: { select: { id: true } };
+        };
+      }>,
       parentId: string | null,
     ) =>
       tx.task.create({
         data: {
-          title: task.title,
+          label: task.label,
           description: task.description,
           projectId: task.projectId,
           statusId: task.statusId,
@@ -537,15 +544,9 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
 
     const clone = await copy(source, source.parentId);
     await tx.taskBlock.createMany({
-      data: [
-        ...source.blocking.map((link) => ({ blockerId: clone.id, blockedId: link.blockedId })),
-        ...source.blockedBy.map((link) => ({ blockerId: link.blockerId, blockedId: clone.id })),
-      ],
+      data: [...source.blocking.map((link) => ({ blockerId: clone.id, blockedId: link.blockedId })), ...source.blockedBy.map((link) => ({ blockerId: link.blockerId, blockedId: clone.id }))],
     });
-    const related = [
-      ...source.relationsA.map((link) => link.taskBId),
-      ...source.relationsB.map((link) => link.taskAId),
-    ];
+    const related = [...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
     await tx.taskRelation.createMany({
       data: related.map((other) => (clone.id < other ? { taskAId: clone.id, taskBId: other } : { taskAId: other, taskBId: clone.id })),
     });
@@ -557,7 +558,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
           orderBy: { position: 'asc' },
-          include: { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } } },
+          include: CLONED_LINKS,
         });
         for (const child of children) {
           const childClone = await copy(child, cloneId);
@@ -641,35 +642,45 @@ export async function removeTaskRelation(taskId: string, otherId: string): Promi
 }
 
 /**
- * Adds a comment to a task.
+ * Checks that a comment exists and that its task can still take changes (not archived).
+ * @param {string} id Comment id.
+ * @returns {Promise<void>}
+ */
+async function assertCommentTask(id: string): Promise<void> {
+  const comment = await orNotFound(prisma.taskComment.findUnique({ where: { id }, select: { task: { select: { archivedAt: true } } } }), 'Commentaire');
+  if (comment.task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+}
+
+/**
+ * Adds a comment to a task (not an archived one: its comments are read only too).
  * @param {string} taskId Task id.
  * @param {string} body Markdown body.
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function addComment(taskId: string, body: string): Promise<TaskComment> {
-  await findTask(taskId);
-  const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
-  return prisma.taskComment.create({ data: { taskId, body: parsed.body } });
+  const task = await findTask(taskId);
+  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  return prisma.taskComment.create({ data: { taskId, body: commentBody(body) } });
 }
 
 /**
- * Edits a comment.
+ * Edits a comment (not one of an archived task).
  * @param {string} id Comment id.
  * @param {string} body New markdown body.
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function updateComment(id: string, body: string): Promise<TaskComment> {
-  await assertExists(prisma.taskComment, id, 'Commentaire');
-  const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
-  return prisma.taskComment.update({ where: { id }, data: { body: parsed.body } });
+  await assertCommentTask(id);
+  return prisma.taskComment.update({ where: { id }, data: { body: commentBody(body) } });
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (not one of an archived task).
  * @param {string} id Comment id.
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
+  await assertCommentTask(id);
   await forgetGithubComment(id);
   await deleteOrNotFound(prisma.taskComment, id, 'Commentaire');
 }
@@ -698,7 +709,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
   const others = ordered.filter((task) => task.id !== id).map((task) => task.id);
   const index = beforeId === null ? others.length : others.indexOf(beforeId);
   if (index < 0) throw notFound('Tâche');
-  const order = [...others.slice(0, index), id, ...others.slice(index)];
+  const order = movedTo(others, id, index);
   const current = new Map(ordered.map((task) => [task.id, task.position]));
   // Only rows whose position changes are written.
   await prisma.$transaction([
@@ -804,7 +815,15 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   // Archived values are not given anew (those of one of the tasks stay valid: the same change on the others).
   const all = (pick: (task: (typeof tasks)[number]) => (string | null)[]): string[] => tasks.flatMap(pick).filter((id): id is string => id !== null);
   await assertActiveRefs(
-    { statusId: changes.statusId, priorityId: changes.priorityId, typeId: changes.typeId, milestoneId: changes.milestoneId, sprintIds: changes.addSprintIds, assigneeIds: changes.addAssigneeIds, tagIds: changes.addTagIds },
+    {
+      statusId: changes.statusId,
+      priorityId: changes.priorityId,
+      typeId: changes.typeId,
+      milestoneId: changes.milestoneId,
+      sprintIds: changes.addSprintIds,
+      assigneeIds: changes.addAssigneeIds,
+      tagIds: changes.addTagIds,
+    },
     {
       statusId: all((task) => [task.statusId]),
       priorityId: all((task) => [task.priorityId]),
@@ -818,7 +837,14 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   );
   for (const task of tasks) {
     // Of a project: its contributors only (those already assigned stay).
-    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds', restoring);
+    if (changes.addAssigneeIds?.length)
+      await assertProjectContributors(
+        task.projectId,
+        changes.addAssigneeIds,
+        task.assignees.map((assignee) => assignee.id),
+        'assigneeIds',
+        restoring,
+      );
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.

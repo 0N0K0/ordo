@@ -1,15 +1,13 @@
-import { addDays, DATE_PERIOD_LABELS, filterPeriod, type CalendarScale, type DatePeriod } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, filterPeriod, type CalendarScale, type DatePeriod, quarterOf } from '@ordo/shared';
 import * as fmt from './format';
+import { yearOfDay } from './dates';
 
 /** Period offered by the export forms: a period of the filters (« Ce mois-ci », « Le mois dernier »…), or dates chosen. */
 export type PeriodPreset = Extract<DatePeriod, 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'lastQuarter' | 'thisYear' | 'lastYear'> | 'custom';
 
 const PRESET_PERIODS = ['thisMonth', 'lastMonth', 'thisQuarter', 'lastQuarter', 'thisYear', 'lastYear'] as const satisfies readonly PeriodPreset[];
 
-export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
-  ...PRESET_PERIODS.map((value) => ({ value, label: DATE_PERIOD_LABELS[value] })),
-  { value: 'custom', label: 'Dates choisies' },
-];
+export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [...PRESET_PERIODS.map((value) => ({ value, label: DATE_PERIOD_LABELS[value] })), { value: 'custom', label: 'Dates choisies' }];
 
 /**
  * First and last days of a preset period: the period of the filters (`filterPeriod`, whose end is the day after the
@@ -28,7 +26,7 @@ export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: stri
  * @param {string} day A day of the quarter (YYYY-MM-DD).
  * @returns {string} Name.
  */
-export const quarterName = (day: string) => `T${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1} ${day.slice(0, 4)}`;
+export const quarterName = (day: string) => `T${quarterOf(day)} ${yearOfDay(day)}`;
 
 /**
  * Name of a calendar period: "Novembre 2026", "T4 2026", "2026".
@@ -37,7 +35,7 @@ export const quarterName = (day: string) => `T${Math.floor((Number(day.slice(5, 
  * @returns {string} Name.
  */
 export function periodName(scale: CalendarScale, start: string): string {
-  if (scale === 'year') return start.slice(0, 4);
+  if (scale === 'year') return String(yearOfDay(start));
   if (scale === 'quarter') return quarterName(start);
   return fmt.capitalize(fmt.month(start));
 }

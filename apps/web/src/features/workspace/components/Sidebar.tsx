@@ -1,9 +1,10 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, CloseButton, Box, Group, NavLink, ScrollArea, Stack, TextInput, Tooltip } from '@mantine/core';
+import { CloseButton, Box, Group, NavLink, ScrollArea, Stack, TextInput } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { PackageIcon, ArchiveIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, SortAscendingIcon, SquaresFourIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -67,39 +68,22 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Activités',
     icon: <SquaresFourIcon aria-hidden />,
-    links: [
-      pageLink('tasks', <TasksNavBadge />),
-      pageLink('routines'),
-      pageLink('calendar', <AgendaNavBadge />),
-      pageLink('time', <TimeNavBadge />),
-      pageLink('alarms'),
-    ],
+    links: [pageLink('tasks', <TasksNavBadge />), pageLink('routines'), pageLink('calendar', <AgendaNavBadge />), pageLink('time', <TimeNavBadge />), pageLink('alarms')],
   },
   {
     label: 'Économat',
     icon: <PackageIcon aria-hidden />,
-    links: [
-      pageLink('shopping'),
-      pageLink('sheets'),
-      pageLink('stock'),
-    ],
+    links: [pageLink('shopping'), pageLink('sheets'), pageLink('stock')],
   },
   {
     label: 'Finances',
     icon: <WalletIcon aria-hidden />,
-    links: [
-      pageLink('accounting'),
-      pageLink('treasury', <TreasuryNavBadge />),
-    ],
+    links: [pageLink('accounting'), pageLink('treasury', <TreasuryNavBadge />)],
   },
   {
     label: 'Ressources',
     icon: <ArchiveIcon aria-hidden />,
-    links: [
-      pageLink('mail', <MailNavBadge />),
-      pageLink('documents'),
-      pageLink('dashboards'),
-    ],
+    links: [pageLink('mail', <MailNavBadge />), pageLink('documents'), pageLink('dashboards')],
   },
 ];
 /** Pages a personal workspace does not have. */
@@ -198,29 +182,14 @@ export function Sidebar() {
 
   const searching = search.trim().length > 0;
   const data = workspace.data;
-  const favorites = useMemo(
-    () => (data ? buildFavoriteSection(data, sort, search) : null),
-    [data, sort, search],
-  );
-  const active = useMemo(
-    () => (data ? buildActiveSection(data, sort, search) : null),
-    [data, sort, search],
-  );
-  const archives = useMemo(
-    () => (data ? buildArchiveSection(data, sort, search) : null),
-    [data, sort, search],
-  );
+  const favorites = useMemo(() => (data ? buildFavoriteSection(data, sort, search) : null), [data, sort, search]);
+  const active = useMemo(() => (data ? buildActiveSection(data, sort, search) : null), [data, sort, search]);
+  const archives = useMemo(() => (data ? buildArchiveSection(data, sort, search) : null), [data, sort, search]);
 
   // While searching, every branch is open so matches are visible.
   const isExpanded = (key: string) => searching || !collapsed.includes(key);
-  const toggleNode = (key: string) =>
-    setCollapsed((current) =>
-      current.includes(key)
-        ? current.filter((id) => id !== key)
-        : [...current, key],
-    );
-  const toggleSection = (key: SectionKey) =>
-    setSections((current) => ({ ...current, [key]: !current[key] }));
+  const toggleNode = (key: string) => setCollapsed((current) => (current.includes(key) ? current.filter((id) => id !== key) : [...current, key]));
+  const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !current[key] }));
 
   /**
    * Expands or collapses a set of nodes.
@@ -228,12 +197,7 @@ export function Sidebar() {
    * @param {boolean} expanded Target state.
    * @returns {void}
    */
-  const setKeysExpanded = (keys: string[], expanded: boolean) =>
-    setCollapsed((current) =>
-      expanded
-        ? current.filter((key) => !keys.includes(key))
-        : [...new Set([...current, ...keys])],
-    );
+  const setKeysExpanded = (keys: string[], expanded: boolean) => setCollapsed((current) => (expanded ? current.filter((key) => !keys.includes(key)) : [...new Set([...current, ...keys])]));
 
   /**
    * Fold / unfold actions of one tree, for the menus of its rows.
@@ -241,17 +205,12 @@ export function Sidebar() {
    * @param {string} prefix Expand key prefix of the tree.
    * @returns {TreeExpansion} Actions.
    */
-  const expansionFor = (
-    section: TreeSection,
-    prefix: string,
-  ): TreeExpansion => {
-    const keysOf = (entity: EntityRef) =>
-      subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
+  const expansionFor = (section: TreeSection, prefix: string): TreeExpansion => {
+    const keysOf = (entity: EntityRef) => subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
     const groupKeys = noClientKeys(section, prefix);
     return {
       hasChildren: (entity) => keysOf(entity).length > 0,
-      setSubtreeExpanded: (entity, expanded) =>
-        setKeysExpanded(keysOf(entity), expanded),
+      setSubtreeExpanded: (entity, expanded) => setKeysExpanded(keysOf(entity), expanded),
       noClientFoldable: groupKeys.length > 0,
       setNoClientExpanded: (expanded) => setKeysExpanded(groupKeys, expanded),
     };
@@ -265,27 +224,17 @@ export function Sidebar() {
    */
   const allExpandedHandler = (section: TreeSection, prefix: string) => {
     const keys = sectionKeys(section, prefix);
-    return keys.length > 0
-      ? (expanded: boolean) => setKeysExpanded(keys, expanded)
-      : undefined;
+    return keys.length > 0 ? (expanded: boolean) => setKeysExpanded(keys, expanded) : undefined;
   };
 
-  const activeCount = active
-    ? active.clients.length + active.orphans.length
-    : 0;
+  const activeCount = active ? active.clients.length + active.orphans.length : 0;
   const favoriteCount = favorites ? countSectionItems(favorites) : 0;
   const archiveCount = archives ? countSectionItems(archives) : 0;
   const noResult = searching ? 'Aucun résultat.' : null;
 
   return (
     <Stack h="100%" gap={0}>
-      <NavLink
-        component={Link}
-        to={PAGES.home.path}
-        label={PAGES.home.title}
-        leftSection={<PAGES.home.icon aria-hidden />}
-        active={pathname === '/'}
-      />
+      <NavLink component={Link} to={PAGES.home.path} label={PAGES.home.title} leftSection={<PAGES.home.icon aria-hidden />} active={pathname === '/'} />
       <Box pb="xs" style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}>
         <MenuGroups groups={groups} pathname={pathname} />
       </Box>
@@ -295,15 +244,7 @@ export function Sidebar() {
           placeholder="Rechercher"
           aria-label="Rechercher un client ou un projet"
           leftSection={<MagnifyingGlassIcon aria-hidden />}
-          rightSection={
-            searching ? (
-              <CloseButton
-                size="xs"
-                aria-label="Effacer la recherche"
-                onClick={() => setSearch('')}
-              />
-            ) : null
-          }
+          rightSection={searching ? <CloseButton size="xs" aria-label="Effacer la recherche" onClick={() => setSearch('')} /> : null}
           value={search}
           onChange={(event) => setSearch(event.currentTarget.value)}
           style={{ flex: 1 }}
@@ -311,11 +252,9 @@ export function Sidebar() {
         <ActionsMenu
           name="la barre latérale"
           target={
-            <Tooltip label="Trier">
-              <ActionIcon variant="default" size="input-xs" aria-label="Trier">
-                <SortAscendingIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <IconAction label="Trier" variant="default" size="input-xs">
+              <SortAscendingIcon aria-hidden />
+            </IconAction>
           }
           items={[
             { section: 'Trier' },
@@ -326,11 +265,9 @@ export function Sidebar() {
         <ActionsMenu
           name="la barre latérale"
           target={
-            <Tooltip label="Créer">
-              <ActionIcon size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
-                <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <IconAction label="Créer" size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
+              <PlusIcon aria-hidden />
+            </IconAction>
           }
           items={newEntityEntries(actions, perso)}
         />
@@ -338,32 +275,14 @@ export function Sidebar() {
 
       <ScrollArea style={{ flex: 1 }} px="xs" type="scroll">
         {workspace.isPending && <TreeSkeleton />}
-        {workspace.isError && (
-          <ErrorAlert m="xs">
-            {workspace.error.message}
-          </ErrorAlert>
-        )}
+        {workspace.isError && <ErrorAlert m="xs">{workspace.error.message}</ErrorAlert>}
         {data && favorites && active && archives && (
           <>
             {/* Favorites and archives only show when they have content (or matches while searching). */}
             {favoriteCount > 0 && (
-              <SidebarSection
-                title="Favoris"
-                count={favoriteCount}
-                opened={sections.favorites}
-                onToggle={() => toggleSection('favorites')}
-                onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}
-              >
-                <TreeExpansionContext.Provider
-                  value={expansionFor(favorites, 'fav:')}
-                >
-                  <StaticTree
-                    section={favorites}
-                    label="Favoris"
-                    keyPrefix="fav:"
-                    isExpanded={isExpanded}
-                    onToggle={toggleNode}
-                  />
+              <SidebarSection title="Favoris" count={favoriteCount} opened={sections.favorites} onToggle={() => toggleSection('favorites')} onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}>
+                <TreeExpansionContext.Provider value={expansionFor(favorites, 'fav:')}>
+                  <StaticTree section={favorites} label="Favoris" keyPrefix="fav:" isExpanded={isExpanded} onToggle={toggleNode} />
                 </TreeExpansionContext.Provider>
               </SidebarSection>
             )}
@@ -378,54 +297,37 @@ export function Sidebar() {
             >
               {activeCount > 0 ? (
                 <TreeExpansionContext.Provider value={expansionFor(active, '')}>
-                  <ActiveTree
-                    section={active}
-                    dndEnabled={sort === 'manual' && !searching && !touch}
-                    isExpanded={isExpanded}
-                    onToggle={toggleNode}
-                  />
+                  <ActiveTree section={active} dndEnabled={sort === 'manual' && !searching && !touch} isExpanded={isExpanded} onToggle={toggleNode} />
                 </TreeExpansionContext.Provider>
               ) : (
                 <Stack gap="xs" px="sm" py="xs">
-                  <EmptyState compact icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />} message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')} />
-                  {
-                    !searching && (
-                      <ActionsRow>
-                        {newEntityEntries(actions, perso).map(
-                          (entry) =>
-                            entry &&
-                            entry !== 'divider' &&
-                            'label' in entry && (
-                              <ActionButton key={entry.label} priority="secondary" size="xs" icon={entry.icon} onClick={entry.onClick}>
-                                {entry.label}
-                              </ActionButton>
-                            ),
-                        )}
-                      </ActionsRow>
-                    )
-                  }
+                  <EmptyState
+                    compact
+                    icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />}
+                    message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
+                  />
+                  {!searching && (
+                    <ActionsRow>
+                      {newEntityEntries(actions, perso).map(
+                        (entry) =>
+                          entry &&
+                          entry !== 'divider' &&
+                          'label' in entry && (
+                            <ActionButton key={entry.label} priority="secondary" size="xs" icon={entry.icon} onClick={entry.onClick}>
+                              {entry.label}
+                            </ActionButton>
+                          ),
+                      )}
+                    </ActionsRow>
+                  )}
                 </Stack>
               )}
             </SidebarSection>
 
             {archiveCount > 0 && (
-              <SidebarSection
-                title="Archives"
-                count={archiveCount}
-                opened={sections.archives}
-                onToggle={() => toggleSection('archives')}
-                onSetAllExpanded={allExpandedHandler(archives, 'archive:')}
-              >
-                <TreeExpansionContext.Provider
-                  value={expansionFor(archives, 'archive:')}
-                >
-                  <StaticTree
-                    section={archives}
-                    label="Archives"
-                    keyPrefix="archive:"
-                    isExpanded={isExpanded}
-                    onToggle={toggleNode}
-                  />
+              <SidebarSection title="Archives" count={archiveCount} opened={sections.archives} onToggle={() => toggleSection('archives')} onSetAllExpanded={allExpandedHandler(archives, 'archive:')}>
+                <TreeExpansionContext.Provider value={expansionFor(archives, 'archive:')}>
+                  <StaticTree section={archives} label="Archives" keyPrefix="archive:" isExpanded={isExpanded} onToggle={toggleNode} />
                 </TreeExpansionContext.Provider>
               </SidebarSection>
             )}

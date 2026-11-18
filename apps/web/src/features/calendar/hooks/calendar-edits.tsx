@@ -50,7 +50,7 @@ export function useCalendarEdits() {
       return revert?.();
     }
     update.mutate(
-      { id: schedule.id, input: { name: schedule.name, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
+      { id: schedule.id, input: { label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
       {
         ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
         onError: (error) => {
@@ -76,7 +76,7 @@ export function useCalendarEdits() {
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
       {
-        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
+        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée : « ${routine.label} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.label} » modifiée.`),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -100,9 +100,9 @@ export function useCalendarEdits() {
       {
         onError: onMutationError,
         onSuccess: (archived) => {
-          if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.title} » est archivée.`);
+          if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
           else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, ON_ERROR));
-          else notifySuccess(`« ${routine.title} » s’arrête avant le ${fmt.dayLong(date)}.`);
+          else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },
     );
@@ -141,7 +141,7 @@ export function useCalendarEdits() {
    * @returns {void}
    */
   const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    openFormPanel(`« ${occurrence.routine.title} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
+    openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
         onClose={close}

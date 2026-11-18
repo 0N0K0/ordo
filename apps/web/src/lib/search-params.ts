@@ -13,16 +13,16 @@ export function useSetParams() {
   return useCallback(
     (changes: ParamChanges, { only = false, push = false }: { only?: boolean; push?: boolean } = {}) =>
       setParams(
-      (current) => {
-        const next = new URLSearchParams(only ? undefined : current);
-        for (const [key, value] of Object.entries(changes)) {
-          if (value === null || value === undefined || value === '') next.delete(key);
-          else next.set(key, value);
-        }
-        return next;
-      },
-      { replace: !push },
-    ),
+        (current) => {
+          const next = new URLSearchParams(only ? undefined : current);
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null || value === undefined || value === '') next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: !push },
+      ),
     [setParams],
   );
 }

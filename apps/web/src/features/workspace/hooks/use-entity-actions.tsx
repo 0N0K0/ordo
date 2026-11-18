@@ -1,10 +1,24 @@
+import { clientPath, projectPath } from '../../../app/pages';
 import { openFormPanel } from '../../../components/panels/panels';
 import { openModal } from '../../../components/panels/open-modal';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
-import { descendantIds, useSetClientArchived, useSetClientFavorite, useSetProjectArchived, useSetProjectFavorite, useUpdateClient, useUpdateProject, workspaceQueryKey, type Client, type Project, type Workspace } from '../api';
+import type { ArchiveMutation } from '../../../lib/archive';
+import {
+  descendantIds,
+  useSetClientArchived,
+  useSetClientFavorite,
+  useSetProjectArchived,
+  useSetProjectFavorite,
+  useUpdateClient,
+  useUpdateProject,
+  workspaceQueryKey,
+  type Client,
+  type Project,
+  type Workspace,
+} from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
 import { ProjectForm } from '../components/ProjectForm';
@@ -17,7 +31,7 @@ export type EntityRef = { type: 'client'; item: Client } | { type: 'project'; it
  * @returns {string} Label.
  */
 export function entityLabel(entity: EntityRef): string {
-  return entity.type === 'client' ? entity.item.name : entity.item.title;
+  return entity.type === 'client' ? entity.item.name : entity.item.label;
 }
 
 /**
@@ -67,27 +81,13 @@ export function useEntityActions() {
   };
 
   /**
-   * Archives or restores, with an undo toast.
+   * Archive mutation of a client (its projects along) or a project, for `archiveEntry`.
    * @param {EntityRef} entity Client or project.
-   * @param {boolean} archived Target state.
-   * @param {boolean} [notify=true] Whether to show the toast. Optional. Default = true.
-   * @returns {void}
+   * @returns {ArchiveMutation} Mutation.
    */
-  const setArchived = (entity: EntityRef, archived: boolean, notify = true): void => {
-    const mutation = entity.type === 'client' ? setClientArchived : setProjectArchived;
-    mutation.mutate(
-      { id: entity.item.id, archived },
-      {
-        onSuccess: () => {
-          if (!notify) return;
-          const cascade = entity.type === 'client' && archived ? ' avec ses projets' : '';
-          const message = `« ${entityLabel(entity)} » ${archived ? 'archivé' : 'restauré'}${cascade}.`;
-          notifyWithUndo(message, () => setArchived(entity, !archived, false));
-        },
-        onError: onMutationError,
-      },
-    );
-  };
+  const archiver = (entity: EntityRef): ArchiveMutation => ({
+    mutateAsync: ({ ids: [id], archived }) => (entity.type === 'client' ? setClientArchived.mutateAsync({ id, archived }) : setProjectArchived.mutateAsync({ id, archived })),
+  });
 
   /**
    * Renames a client or retitles a project.
@@ -98,12 +98,12 @@ export function useEntityActions() {
   const rename = (entity: EntityRef, label: string): void => {
     if (label === entityLabel(entity)) return;
     if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, ON_ERROR);
-    else updateProject.mutate({ id: entity.item.id, input: { title: label } }, ON_ERROR);
+    else updateProject.mutate({ id: entity.item.id, input: { label } }, ON_ERROR);
   };
 
   return {
     setFavorite,
-    setArchived,
+    archiver,
     rename,
 
     /**
@@ -111,10 +111,7 @@ export function useEntityActions() {
      * @param {Client} [client] Client to edit. Optional.
      * @returns {void}
      */
-    openClientForm: (client?: Client) =>
-      openFormPanel(client ? 'Modifier le client' : 'Nouveau client', (close) => (
-        <ClientForm client={client} onDone={close} />
-      )),
+    openClientForm: (client?: Client) => openFormPanel(client ? 'Modifier le client' : 'Nouveau client', (close) => <ClientForm client={client} onDone={close} />),
 
     /**
      * Opens the project form (creation when no project is given).
@@ -144,7 +141,7 @@ export function useEntityActions() {
             projectCount={projectCount}
             onDone={(deleted) => {
               close();
-              if (deleted) leaveIfOn(`/clients/${entity.item.id}`);
+              if (deleted) leaveIfOn(clientPath(entity.item.id));
             }}
           />
         ));
@@ -157,7 +154,7 @@ export function useEntityActions() {
             subProjectCount={subProjectCount}
             onDone={(deleted) => {
               close();
-              if (deleted) leaveIfOn(`/projects/${entity.item.id}`);
+              if (deleted) leaveIfOn(projectPath(entity.item.id));
             }}
           />
         ));

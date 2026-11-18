@@ -1,10 +1,10 @@
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { formCallbacks } from '../../../lib/form';
+import { toastCallbacks } from '../../../lib/notify';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Select, SimpleGrid, Stack } from '@mantine/core';
 import type { TreasuryDirection } from '@ordo/shared';
-import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
+import { counterpartyItems, useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { TeamPanel } from './TeamPanel';
 import { DirectionBadge } from './DirectionBadge';
@@ -91,14 +91,14 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       title="Tiers"
       description="Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office."
       noun="le tiers"
-      items={counterparties}
+      items={counterpartyItems(counterparties)}
       usage={new Map(counterparties.map((counterparty) => [counterparty.id, counterparty.entryCount]))}
       usageNoun="mouvements"
       remove={(id) => deleteCounterparty.mutateAsync(id)}
       deleteMessage={(counterparty) => (
         <>
-          « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''} Cette
-          action est irréversible.
+          « {counterparty.name} » sera supprimé définitivement.
+          {counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}
         </>
       )}
     />
@@ -120,8 +120,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
    * @param {Partial<typeof current>} changes Category changed.
    * @returns {void}
    */
-  const save = (changes: Partial<typeof current>) =>
-    setInvoiceCategories.mutate({ ...current, ...changes }, formCallbacks(null, 'Catégorie enregistrée.'));
+  const save = (changes: Partial<typeof current>) => setInvoiceCategories.mutate({ ...current, ...changes }, toastCallbacks('Catégorie enregistrée.'));
   return (
     <SettingsSection title="Factures et avoirs" description="Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.">
       {/* Side by side when the sidebar is wide enough (its width, not the window's). */}

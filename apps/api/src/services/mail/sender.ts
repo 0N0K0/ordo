@@ -23,11 +23,7 @@ export interface SendMailInput extends MailFields {
  * @param {string | null} projectId Project it was written from.
  * @returns {Promise<string[]>} Projects the sent mail was linked to.
  */
-export async function deliverMessage(
-  account: MailAccount,
-  message: Pick<BuiltMessage, 'raw' | 'copy' | 'recipients' | 'references'>,
-  projectId: string | null,
-): Promise<string[]> {
+export async function deliverMessage(account: MailAccount, message: Pick<BuiltMessage, 'raw' | 'copy' | 'recipients' | 'references'>, projectId: string | null): Promise<string[]> {
   try {
     await createSmtpTransport(account, decryptSecret(account.smtpPassword)).sendMail({
       envelope: { from: account.email, to: message.recipients },

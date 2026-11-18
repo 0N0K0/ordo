@@ -6,11 +6,10 @@ import * as company from '../../services/accounting/company';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
+import { reloaded } from '../reload';
+import { attachmentUrl } from '../../services/core/attachments';
 
-export const AccountingDocumentTypeEnum = builder.enumType(
-  'AccountingDocumentType',
-  { values: ACCOUNTING_DOCUMENT_TYPES },
-);
+export const AccountingDocumentTypeEnum = builder.enumType('AccountingDocumentType', { values: ACCOUNTING_DOCUMENT_TYPES });
 
 const ClientKindEnum = builder.enumType('ClientKind', {
   values: ['COMPANY', 'INDIVIDUAL'] as const,
@@ -49,7 +48,7 @@ builder.prismaObject('ClientService', {
   fields: (t) => ({
     id: t.exposeID('id'),
     clientId: t.exposeID('clientId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     address: t.field({
       type: 'JSON',
       nullable: true,
@@ -97,8 +96,7 @@ builder.prismaObject('CompanyProfile', {
     logoUrl: t.string({
       nullable: true,
       select: { logoId: true },
-      resolve: (profile) =>
-        profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null,
+      resolve: (profile) => (profile.logoId ? attachmentUrl({ id: profile.logoId, filename: 'logo' }) : null),
     }),
     bankName: t.exposeString('bankName', { nullable: true }),
     accountHolder: t.exposeString('accountHolder', { nullable: true }),
@@ -114,21 +112,19 @@ builder.prismaObject('CompanyProfile', {
   }),
 });
 
-const DocumentSequence = builder
-  .objectRef<company.SequenceInfo>('DocumentSequence')
-  .implement({
-    fields: (t) => ({
-      type: t.field({
-        type: AccountingDocumentTypeEnum,
-        resolve: (sequence) => sequence.type,
-      }),
-      year: t.exposeInt('year'),
-      nextNumber: t.exposeInt('nextNumber'),
-      minimum: t.exposeInt('minimum', {
-        description: 'Lowest allowed next number.',
-      }),
+const DocumentSequence = builder.objectRef<company.SequenceInfo>('DocumentSequence').implement({
+  fields: (t) => ({
+    type: t.field({
+      type: AccountingDocumentTypeEnum,
+      resolve: (sequence) => sequence.type,
     }),
-  });
+    year: t.exposeInt('year'),
+    nextNumber: t.exposeInt('nextNumber'),
+    minimum: t.exposeInt('minimum', {
+      description: 'Lowest allowed next number.',
+    }),
+  }),
+});
 
 const ClientDetailsInput = builder.inputType('ClientDetailsInput', {
   fields: (t) => ({
@@ -148,7 +144,7 @@ const ClientDetailsInput = builder.inputType('ClientDetailsInput', {
 
 const ClientServiceInput = builder.inputType('ClientServiceInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     address: t.field({ type: 'JSON' }),
     email: t.string({ required: true }),
     phones: t.field({ type: 'JSON', required: true }),
@@ -202,8 +198,7 @@ builder.queryFields((t) => ({
     type: 'Client',
     nullable: true,
     args: { id: t.arg.id({ required: true }) },
-    resolve: (query, _root, { id }) =>
-      prisma.client.findUnique({ ...query, where: { id } }),
+    resolve: (query, _root, { id }) => prisma.client.findUnique({ ...query, where: { id } }),
   }),
   companyProfile: t.prismaField({
     type: 'CompanyProfile',
@@ -251,8 +246,7 @@ builder.mutationFields((t) => ({
     },
   }),
   setDocumentSequence: t.boolean({
-    description:
-      'Sets the number the next final document of a type gets in a year.',
+    description: 'Sets the number the next final document of a type gets in a year.',
     args: {
       type: t.arg({ type: AccountingDocumentTypeEnum, required: true }),
       year: t.arg.int({ required: true }),
@@ -272,7 +266,7 @@ builder.mutationFields((t) => ({
         address: (input.address ?? null) as never,
         phones: input.phones as never,
       });
-      return prisma.client.findUniqueOrThrow({ ...query, where: { id } });
+      return reloaded(prisma.client, query, { id });
     },
   }),
   createClientService: t.prismaField({

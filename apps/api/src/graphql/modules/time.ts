@@ -3,16 +3,17 @@ import { ALARM_FREQUENCIES, ALARM_TYPES, type AlarmInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as alarms from '../../services/tasks/alarms';
 import * as timeEntries from '../../services/tasks/time-entries';
-import { builder } from '../builder';
+import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { subtreeIds } from '../../services/core/trees';
+import { reloaded } from '../reload';
 
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId', { nullable: true }),
     routineId: t.exposeID('routineId', { nullable: true, description: 'Routine the time is spent on.' }),
-    routineTitle: t.string({ nullable: true, select: { routine: { select: { title: true } } }, resolve: (entry) => entry.routine?.title ?? null }),
+    routineLabel: t.string({ nullable: true, select: { routine: { select: { label: true } } }, resolve: (entry) => entry.routine?.label ?? null }),
     description: t.exposeString('description', { nullable: true }),
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
@@ -23,7 +24,7 @@ builder.prismaObject('TimeEntry', {
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
     calendarEventId: t.exposeID('calendarEventId', { nullable: true, description: 'Calendar event the time was spent on.' }),
     calendarOccurrenceDate: t.expose('calendarOccurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
-    calendarEventTitle: t.string({ nullable: true, select: { calendarEvent: { select: { title: true } } }, resolve: (entry) => entry.calendarEvent?.title ?? null }),
+    calendarEventLabel: t.string({ nullable: true, select: { calendarEvent: { select: { label: true } } }, resolve: (entry) => entry.calendarEvent?.label ?? null }),
     documentNumber: t.string({
       nullable: true,
       description: 'Number of that invoice, null while it is a draft.',
@@ -39,7 +40,7 @@ const AlarmFrequencyEnum = builder.enumType('AlarmFrequency', { values: ALARM_FR
 builder.prismaObject('Alarm', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     note: t.exposeString('note', { nullable: true }),
     type: t.field({ type: AlarmTypeEnum, resolve: (alarm) => alarm.type }),
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
@@ -73,27 +74,31 @@ const TimeEventInput = builder.inputType('TimeEventInput', {
 const eventLink = (event: { eventId: string; occurrenceDate?: string | null } | null | undefined) =>
   event === undefined ? undefined : event === null ? null : { eventId: event.eventId, occurrenceDate: event.occurrenceDate ?? null };
 
+/**
+ * What a time is spent on, for a timer and an entry: a project, a routine (its project by default) or both, its tasks,
+ * its description and event.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const spentOnFields = (t: InputFields) => ({
+  projectId: t.id(),
+  routineId: t.id(),
+  taskIds: t.idList({ required: true }),
+  description: t.string(),
+  event: t.field({ type: TimeEventInput }),
+});
+
 const TimerInput = builder.inputType('TimerInput', {
   description: 'A project, a routine (its project by default) or both.',
-  fields: (t) => ({
-    projectId: t.id(),
-    routineId: t.id(),
-    taskIds: t.idList({ required: true }),
-    description: t.string(),
-    event: t.field({ type: TimeEventInput }),
-  }),
+  fields: (t) => spentOnFields(t),
 });
 
 const TimeEntryInput = builder.inputType('TimeEntryInput', {
   description: 'A project, a routine (its project by default) or both.',
   fields: (t) => ({
-    projectId: t.id(),
-    routineId: t.id(),
-    taskIds: t.idList({ required: true }),
-    description: t.string(),
+    ...spentOnFields(t),
     startedAt: t.field({ type: 'DateTime', required: true }),
     duration: t.int({ required: true, description: 'Seconds.' }),
-    event: t.field({ type: TimeEventInput }),
   }),
 });
 
@@ -112,7 +117,7 @@ const TimeEntryUpdateInput = builder.inputType('TimeEntryUpdateInput', {
 
 const AlarmInput = builder.inputType('AlarmInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     note: t.string(),
     type: t.field({ type: AlarmTypeEnum, required: true }),
     startDate: t.field({ type: 'Date' }),
@@ -149,8 +154,7 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description:
-      'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
+    description: 'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
     args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
     resolve: async (query, _root, { projectId, routineId, since }) => {
       const projectIds = projectId ? await subtreeIds('project', projectId) : undefined;
@@ -176,43 +180,35 @@ builder.queryFields((t) => ({
   }),
 }));
 
-/**
- * Reloads a time entry with the requested selection.
- * @param {object} query Pothos query.
- * @param {string} id Entry id.
- * @returns {Promise<object>} Entry.
- */
-const reloadEntry = (query: object, id: string) => prisma.timeEntry.findUniqueOrThrow({ ...query, where: { id } });
-
 builder.mutationFields((t) => ({
   startTimer: t.prismaField({
     type: 'TimeEntry',
     description: 'Starts a timer; the running one is stopped first.',
     args: { input: t.arg({ type: TimerInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.startTimer({ ...input, event: eventLink(input.event) })).id),
+    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.startTimer({ ...input, event: eventLink(input.event) })),
   }),
   setTimerPaused: t.prismaField({
     type: 'TimeEntry',
     args: { paused: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { paused }) => reloadEntry(query, (await timeEntries.setTimerPaused(paused)).id),
+    resolve: async (query, _root, { paused }) => reloaded(prisma.timeEntry, query, timeEntries.setTimerPaused(paused)),
   }),
   stopTimer: t.prismaField({
     type: 'TimeEntry',
     nullable: true,
     resolve: async (query) => {
       const entry = await timeEntries.stopTimer();
-      return entry ? reloadEntry(query, entry.id) : null;
+      return entry ? reloaded(prisma.timeEntry, query, entry) : null;
     },
   }),
   createTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { input: t.arg({ type: TimeEntryInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.createTimeEntry({ ...input, event: eventLink(input.event) })).id),
+    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.createTimeEntry({ ...input, event: eventLink(input.event) })),
   }),
   updateTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TimeEntryUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloadEntry(query, (await timeEntries.updateTimeEntry(id, { ...input, event: eventLink(input.event) })).id),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.timeEntry, query, timeEntries.updateTimeEntry(id, { ...input, event: eventLink(input.event) })),
   }),
   deleteTimeEntry: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -222,14 +218,12 @@ builder.mutationFields((t) => ({
   createAlarm: t.prismaField({
     type: 'Alarm',
     args: { input: t.arg({ type: AlarmInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      prisma.alarm.findUniqueOrThrow({ ...query, where: { id: (await alarms.createAlarm(alarmInput(input))).id } }),
+    resolve: async (query, _root, { input }) => reloaded(prisma.alarm, query, alarms.createAlarm(alarmInput(input))),
   }),
   updateAlarm: t.prismaField({
     type: 'Alarm',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: AlarmInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      prisma.alarm.findUniqueOrThrow({ ...query, where: { id: (await alarms.updateAlarm(id, alarmInput(input))).id } }),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.alarm, query, alarms.updateAlarm(id, alarmInput(input))),
   }),
   markAlarmFired: t.boolean({
     description: 'Records that an alarm rang for the occurrence at `at`.',

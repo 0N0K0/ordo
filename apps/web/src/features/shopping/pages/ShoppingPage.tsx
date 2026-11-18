@@ -1,16 +1,17 @@
-import { PAGES } from '../../../app/pages';
-import { useSetParams } from '../../../lib/search-params';
+import { IconAction } from '../../../components/actions/IconAction';
+import { PAGES, shoppingListPath } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Group, Stack, Tooltip } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { Badge, Group, Stack } from '@mantine/core';
+
 import { ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, CheckCircleIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useMemo } from 'react';
+import { Link } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { EditableText } from '../../../components/data-table/cells/EditableCells';
 import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -25,22 +26,23 @@ import { shoppingTotal } from '../lib/export';
 import { openNewList } from '../lib/open-new-list';
 import { ListActionsMenu } from '../components/ListActions';
 import { TasksCell } from '../components/shopping-cells';
-import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping, leftToBuy, shoppingProgress } from '../lib/shopping-format';
+import { listClosed, listsOfProjects, listTasks, taskOptions, leftToBuy, shoppingProgress } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
-import { archiveRowsAction, deleteRowsAction, duplicateRowsAction, forEachRow } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteRowsAction, duplicateRowsAction, forEachRow } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { localDay } from '../../../lib/dates';
-import { useSetArchived, visibleItems } from '../../../lib/archive';
+import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
-  { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
-  { name: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
+  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
+  { label: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
 ];
 
 /** What the columns of the lists need: the tasks, the categories and the stores. */
@@ -67,11 +69,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   const { context } = env;
   const taskLabel = (id: string) => {
     const task = context?.taskById.get(id);
-    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.title}`) : '';
+    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`) : '';
   };
-  const stateOf = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
+  const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
-    { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.name, text: (list) => list.name },
+    { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
     {
       id: 'tasks',
       label: 'Tâches',
@@ -105,11 +107,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'État',
       size: 110,
       hiddenByDefault: true,
-      sortValue: (list) => (stateOf(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (stateOf(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
+      sortValue: (list) => (listState(list) === 'CLOSED' ? 1 : 0),
+      text: (list) => (listState(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
       filter: {
         kind: 'choice',
-        value: stateOf,
+        value: listState,
         options: [
           { value: 'OPEN', label: 'En cours' },
           { value: 'CLOSED', label: 'Clôturée' },
@@ -175,7 +177,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Catégories',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [env.categories.find((category) => category.id === item.categoryId)?.name ?? ''] : [])))].join(', '),
+      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [env.categories.find((category) => category.id === item.categoryId)?.label ?? ''] : [])))].join(', '),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
@@ -187,20 +189,20 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Magasins',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.name ?? ''] : [])))].join(', '),
+      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.label ?? ''] : [])))].join(', '),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
-        options: env.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })),
+        options: env.stores.map((store) => ({ value: store.id, label: store.label, archived: store.archived })),
       },
     },
     {
       id: 'itemNames',
-      label: 'Produits (noms)',
+      label: 'Produits (libellés)',
       size: 220,
       hiddenByDefault: true,
       groupable: false,
-      text: (list) => list.items.map((item) => item.name).join(', '),
+      text: (list) => list.items.map((item) => item.label).join(', '),
     },
   ];
 }
@@ -226,8 +228,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const { context } = useTaskContext();
   const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
   const setArchived = useSetArchived('SHOPPING_LIST', [shoppingKey]);
-  const [showArchived, setShowArchived] = useState(false);
-  const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
+  const { grouping } = useShoppingGrouping('list');
   const closedOf = (list: ShoppingList) => listClosed(list, context);
   // Archived or closed: read only.
   const lockedOf = (list: ShoppingList) => list.archived || closedOf(list);
@@ -236,10 +237,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
     [context, shopping, listComments],
   );
   // Without sort, the latest first.
-  const rows = useMemo(
-    () => [...visibleItems(projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []), showArchived)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [lists, context, projectIds, showArchived],
-  );
+  const scoped = useMemo(() => (projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? [])), [lists, context, projectIds]);
+  const { shown, toggle: archivedToggle } = useArchivedToggle(scoped);
+  const rows = useMemo(() => [...shown].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [shown]);
   const view = useDataView({ tableKey: 'shopping-lists', projectId: projectId ?? null, columns, rows, title: 'Listes d’achats', first: LIST_VIEWS, getKey: (list) => list.id });
 
   /**
@@ -248,14 +248,14 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
    * @param {(list: ShoppingList) => { name?: string, taskIds?: string[] }} changeFor Change of each.
    * @returns {void}
    */
-  const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { name?: string; taskIds?: string[] }) => {
+  const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { label?: string; taskIds?: string[] }) => {
     for (const list of targets) {
       if (lockedOf(list)) continue;
       const change = changeFor(list);
-      updateList.mutate({ id: list.id, name: change.name ?? list.name, taskIds: change.taskIds ?? list.taskIds }, { onError: onMutationError });
+      updateList.mutate({ id: list.id, label: change.label ?? list.label, taskIds: change.taskIds ?? list.taskIds }, ON_ERROR);
     }
   };
-  const bulk = bulkSaver<ShoppingList, { name?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);
+  const bulk = bulkSaver<ShoppingList, { label?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);
 
   return (
     <DataTable
@@ -269,7 +269,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         manualText: 'Sans tri : les listes les plus récentes d’abord.',
         actions: (
           <Group gap="md">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(lists ?? []).filter((list) => list.archived).length} label="Afficher les archivées" />
+            <ShowArchivedSwitch {...archivedToggle} label="Afficher les archivées" />
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ projectIds })}>
               Nouvelle liste
             </ActionButton>
@@ -284,15 +284,13 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
           name: (
             <Group gap="xs" wrap="nowrap">
-              <EditableText value={list.name} label={`Nom de la liste ${list.name}`} strong readOnly={lockedOf(list)} onSave={(name) => name && bulk('name')(list, { name })} />
-              <Tooltip label="Ouvrir la liste">
-                <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
-                  <ArrowSquareInIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <EditableText value={list.label} label={`Libellé de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
+              <IconAction label="Ouvrir la liste" component={Link} to={shoppingListPath(list.id)} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
+                <ArrowSquareInIcon aria-hidden />
+              </IconAction>
               {list.archived && <ArchivedBadge feminine size="sm" />}
               {list.entryId && (
-                <Badge size="xs" variant="light" tt="none">
+                <Badge size="xs" variant="light">
                   Payée
                 </Badge>
               )}
@@ -300,9 +298,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ),
           tasks: (
             <TasksCell
-              label={`Tâches de la liste ${list.name}`}
+              label={`Tâches de la liste ${list.label}`}
               readOnly={lockedOf(list) || !context}
-              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.title}` }))}
+              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.label}` }))}
               options={taskOptions(context, list.taskIds)}
               value={list.taskIds}
               onSave={(taskIds) => bulk('tasks')(list, (target) => ({ taskIds: applyDiff(target.taskIds, list.taskIds, taskIds) }))}
@@ -324,7 +322,6 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       selectionLabel={(count) => selectedLabel(count, ['liste', 'listes'])}
       selectionActions={(checked, clear) => {
         const allClosed = checked.every((list) => list.closedAt);
-        const allArchived = checked.every((list) => list.archived);
         // An archived list is read only: no copy, no close.
         const changes: SelectionAction[] = checked.some((list) => list.archived)
           ? []
@@ -348,17 +345,10 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
             ];
         return [
           ...changes,
-          archiveRowsAction({
-            archived: allArchived,
-            apply: (archived) => setArchived.mutateAsync({ ids: checked.map((list) => list.id), archived }),
-            label: countOf(checked.length, 'liste'),
-            count: checked.length,
-            feminine: true,
-            clear,
-          }),
+          archiveItemsAction(checked, setArchived, { noun: 'liste', feminine: true, clear }),
           deleteRowsAction(checked, {
             title: 'Supprimer les listes',
-            risks: `${countOf(checked.length, 'liste')} et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
+            risks: `${countOf(checked.length, 'liste')} et ${plural(checked.length, 'ses', 'leurs')} éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
             remove: (list) => deleteList.mutateAsync({ id: list.id }),
             done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'supprimée')}.`,
             clear,
@@ -369,21 +359,22 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   );
 }
 
+/** Tabs of the shopping page. */
+const SHOPPING_TABS = ['base', 'lists'] as const;
+
 /**
  * Shopping page (consumables in a professional workspace): the base lists ("références"), where what is missing is
  * marked, and the lists made from them; the settings hold the categories (a tree) and the stores.
  * @returns {JSX.Element} Page.
  */
 export function ShoppingPage() {
-  const [params] = useSearchParams();
-  const setParams = useSetParams();
-  const tab = params.get('tab') === 'lists' ? 'lists' : 'base';
+  const [tab, setTab] = usePageTab(SHOPPING_TABS);
 
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.shopping.title} />
       <ShoppingSettings />
-      <PageTabs value={tab} onChange={(value) => setParams({ tab: value === 'lists' ? 'lists' : null })} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
             Références

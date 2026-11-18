@@ -78,23 +78,37 @@ interface AsyncMutation<V> {
 }
 
 /**
- * Props of a SettingsList from the mutations of a list (create `{ input }`-less values, update `{ id, input }`, delete
- * `{ id }`, move `{ id, index }`): only the fields of the list are sent (its name and color by default).
+ * Creation and update of the items of a list from its mutations (create from its input, update `{ id, input }`): only
+ * the fields of the list are sent (its label and color by default). For a `SettingsItemKind` (a form, a quick creation).
  * @param {object} mutations Mutations of the list.
  * @param {AsyncMutation<I>} mutations.create Creation, from its input.
  * @param {AsyncMutation<{ id: string, input: I }>} mutations.update Update.
- * @param {AsyncMutation<{ id: string }>} mutations.remove Deletion.
- * @param {AsyncMutation<{ id: string, index: number }>} [mutations.move] Move in a flat list. Optional.
- * @param {(values: V) => I} [toInput] Input of the list from the form values. Optional. Default = its name and color.
- * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown>, remove: (id: string) => Promise<unknown> }} Props (the list reorders itself).
+ * @param {(values: V) => I} [toInput] Input of the list from the form values. Optional. Default = its label and color.
+ * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown> }} Creation (giving the id) and update.
  */
-export function listMutations<V extends { name: string; color: string }, I = { name: string; color: string }>(
-  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }>; remove: AsyncMutation<{ id: string }> },
-  toInput: (values: V) => I = (values) => ({ name: values.name, color: values.color }) as I,
+export function itemMutations<V extends { label: string }, I = { label: string; color: string }>(
+  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }> },
+  toInput: (values: V) => I = (values) => ({ label: values.label, color: (values as { color?: string }).color }) as I,
 ) {
   return {
     create: async (values: V) => createdId(await mutations.create.mutateAsync(toInput(values))),
     update: (id: string, values: V) => mutations.update.mutateAsync({ id, input: toInput(values) }),
-    remove: (id: string) => mutations.remove.mutateAsync({ id }),
   };
+}
+
+/**
+ * Props of a SettingsList from the mutations of a list (create `{ input }`-less values, update `{ id, input }`, delete
+ * `{ id }`): only the fields of the list are sent (its label and color by default).
+ * @param {object} mutations Mutations of the list.
+ * @param {AsyncMutation<I>} mutations.create Creation, from its input.
+ * @param {AsyncMutation<{ id: string, input: I }>} mutations.update Update.
+ * @param {AsyncMutation<{ id: string }>} mutations.remove Deletion.
+ * @param {(values: V) => I} [toInput] Input of the list from the form values. Optional. Default = its label and color.
+ * @returns {{ create: (values: V) => Promise<string>, update: (id: string, values: V) => Promise<unknown>, remove: (id: string) => Promise<unknown> }} Props (the list reorders itself).
+ */
+export function listMutations<V extends { label: string; color: string }, I = { label: string; color: string }>(
+  mutations: { create: AsyncMutation<I>; update: AsyncMutation<{ id: string; input: I }>; remove: AsyncMutation<{ id: string }> },
+  toInput?: (values: V) => I,
+) {
+  return { ...itemMutations<V, I>(mutations, toInput), remove: (id: string) => mutations.remove.mutateAsync({ id }) };
 }

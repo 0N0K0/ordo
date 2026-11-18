@@ -1,7 +1,8 @@
-import { PersonAvatar } from '../../../components/people/PersonOption';
+import * as fmt from '../../../lib/format';
+import { PersonAvatar } from '../../../components/people/people-rows';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { addressLabel, fullDate, senderName, type Address } from '../lib/mail-format';
+import { addressLabel, senderName, type Address } from '../lib/mail-format';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { handleFileClick } from '../../files/lib/open-file';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
@@ -43,7 +44,7 @@ export function MailHeader({ subject, from, to, cc, date, actions, extra }: Mail
             {cc.length > 0 && ` · Cc : ${cc.map(addressLabel).join(', ')}`}
           </Text>
           <Text size="xs" c="dimmed">
-            {fullDate(date)}
+            {fmt.dateTime(date)}
           </Text>
           {extra}
         </Stack>
@@ -63,15 +64,15 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
     <Group gap="xs">
       {files.map((file) => {
         // A PDF or an image opens in the app's viewer, another file downloads.
-        const viewable = Boolean(viewableKind(file));
+        const viewable = Boolean(viewableKind({ url: file.url, filename: file.name }));
         return (
           <FileBadge
             key={file.key}
-            name={file.name}
+            filename={file.name}
             size={file.size}
             href={viewable ? file.url : downloadUrl(file.url)}
             target={viewable ? '_blank' : undefined}
-            onClick={(event) => handleFileClick(event, file)}
+            onClick={(event) => handleFileClick(event, { url: file.url, filename: file.name })}
           />
         );
       })}

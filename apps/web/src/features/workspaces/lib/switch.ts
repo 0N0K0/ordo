@@ -1,4 +1,5 @@
 import { pinWorkspace } from '../../../lib/graphql-client';
+import { PAGES } from '../../../app/pages';
 
 /** Cookie naming the workspace shown (read by the API, links and downloads included). */
 const COOKIE = 'ordo_workspace';
@@ -46,8 +47,8 @@ export function rememberWorkspace(id: string): void {
 const ITEM_PAGES: [RegExp, string][] = [
   [/^\/projects\/[^/]+/, '/'],
   [/^\/clients\/[^/]+/, '/'],
-  [/^\/accounting\/(imported\/)?[^/]+/, '/accounting'],
-  [/^\/shopping\/[^/]+/, '/shopping'],
+  [/^\/accounting\/(imported\/)?[^/]+/, PAGES.accounting.path],
+  [/^\/shopping\/[^/]+/, PAGES.shopping.path],
 ];
 
 /** Parameters of a page that still mean something in another workspace (others name its items or views). */

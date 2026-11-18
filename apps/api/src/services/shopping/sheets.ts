@@ -1,25 +1,28 @@
 import {
   addQuantities,
   checklistItemSchema,
+  clipText,
   copyName,
   ITEM_NOTE_MAX,
   itemNoteSchema,
   mapById,
   parseDay,
+  parseOptionalDay,
+  productKey,
   quantitySchema,
   readSheetSources,
   roundQuantity,
+  SHEET_LABEL_MAX,
   sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
-  sheetItemKey,
   sheetItemSchema,
   type SheetLinkInput,
   sheetLinkSchema,
   sheetMultiplierSchema,
   sheetSchema,
   type SheetSource,
-  SHOPPING_NAME_MAX,
+  SHOPPING_LABEL_MAX,
   shoppingItemSchema,
   timesSheet,
   UNIT_MAX,
@@ -30,7 +33,7 @@ import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
-import { copyOf, findOpenList, nextPosition } from './shopping';
+import { copyOf, findOpenList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
@@ -46,7 +49,7 @@ export type SheetOwner = { routineId: string; occurrenceDate: string } | { event
 /** Item of a sheet, as it is summed into a list. */
 interface SheetPart {
   sheetId: string;
-  sheetName: string;
+  sheetLabel: string;
   productId: string | null;
   label: string;
   categoryId: string | null;
@@ -149,10 +152,7 @@ const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
 async function assertCategories(ids: string[], current: string[] = []): Promise<string[]> {
   const unique = [...new Set(ids)];
   await assertAllExist(prisma.sheetCategory, unique, 'Catégorie');
-  await assertNoneArchived(
-    'SHEET_CATEGORY',
-    unique.filter((id) => !current.includes(id)),
-  );
+  await assertNoneArchived('SHEET_CATEGORY', unique, { keep: current, field: 'categoryIds' });
   return unique;
 }
 
@@ -164,11 +164,11 @@ async function assertCategories(ids: string[], current: string[] = []): Promise<
 export async function createSheet(input: SheetInput): Promise<Sheet> {
   const data = parseInput(sheetSchema, input);
   await assertExists(prisma.project, data.projectId, 'Projet');
-  await assertNotArchived('project', data.projectId);
+  await assertNotArchived('project', data.projectId, { field: 'projectId' });
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
-    data: { name: data.name, note: data.note || null, projectId: data.projectId, position, categories: { connect: connectIds(categories) } },
+    data: { label: data.label, note: data.note || null, projectId: data.projectId, position, categories: { connect: connectIds(categories) } },
   });
 }
 
@@ -183,12 +183,12 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
   await assertNotArchived('SHEET', id);
   const data = parseInput(sheetSchema, input);
   await assertExists(prisma.project, data.projectId, 'Projet');
-  if (data.projectId !== sheet.projectId) await assertNotArchived('project', data.projectId);
+  await assertNotArchived('project', data.projectId, { keep: sheet.projectId, field: 'projectId' });
   const categories = await assertCategories(
     data.categoryIds,
     sheet.categories.map((category) => category.id),
   );
-  return prisma.sheet.update({ where: { id }, data: { name: data.name, note: data.note || null, projectId: data.projectId, categories: { set: connectIds(categories) } } });
+  return prisma.sheet.update({ where: { id }, data: { label: data.label, note: data.note || null, projectId: data.projectId, categories: { set: connectIds(categories) } } });
 }
 
 /**
@@ -199,7 +199,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   await assertNotArchived('SHEET', id);
-  const copy = await createSheet({ name: copyName(sheet.name, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  const copy = await createSheet({ label: copyName(sheet.label, SHEET_LABEL_MAX), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({
@@ -260,7 +260,7 @@ export async function addSheetItem(sheetId: string, input: SheetItemInput): Prom
 export async function addSheetProducts(sheetId: string, productIds: string[]): Promise<number> {
   await findOpenSheet(sheetId);
   await assertNoneArchived('SHOPPING_PRODUCT', productIds);
-  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { name: 'asc' }, include: withPeople });
+  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { label: 'asc' }, include: withPeople });
   const position = await nextPositionIn('sheetItem', { sheetId });
   const start = position;
   // Each with its people (many-to-many: created one by one).
@@ -270,7 +270,7 @@ export async function addSheetProducts(sheetId: string, productIds: string[]): P
         data: {
           sheetId,
           productId: product.id,
-          label: product.name,
+          label: product.label,
           categoryId: product.categoryId,
           quantity: product.quantity,
           unit: product.unit,
@@ -331,7 +331,7 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
     if (!sheet) throw notFound('Fiche');
     return sheet.items.map((item) => ({
       sheetId: sheet.id,
-      sheetName: sheet.name,
+      sheetLabel: sheet.label,
       productId: item.productId,
       label: item.label,
       categoryId: item.categoryId,
@@ -360,15 +360,15 @@ const QUANTITY_MAX = 999_999;
  */
 function fitForShopping(part: SheetPart): SheetPart {
   /**
-   * Text cut to a length.
+   * Text cut to a length (clipText), none kept as none.
    * @param {string | null} text Text.
    * @param {number} max Most characters.
    * @returns {string | null} Cut text.
    */
-  const cut = (text: string | null, max: number): string | null => (text === null ? null : text.trim().slice(0, max));
+  const cut = (text: string | null, max: number): string | null => (text === null ? null : clipText(text, max));
   return {
     ...part,
-    label: parseInput(shoppingItemSchema.shape.name, cut(part.label, SHOPPING_NAME_MAX)),
+    label: parseInput(shoppingItemSchema.shape.label, cut(part.label, SHOPPING_LABEL_MAX)),
     note: parseInput(itemNoteSchema, cut(part.note, ITEM_NOTE_MAX)),
     unit: parseInput(unitSchema, cut(part.unit, UNIT_MAX)),
     quantity: part.quantity === null ? null : parseInput(quantitySchema, Math.min(part.quantity, QUANTITY_MAX)),
@@ -385,7 +385,7 @@ function withSource(sources: SheetSource[], part: SheetPart): SheetSource[] {
   const own = sources.find((source) => source.sheetId === part.sheetId);
   return own
     ? sources.map((source) => (source === own ? { ...source, quantity: addQuantities(source.quantity, part.quantity) } : source))
-    : [...sources, { sheetId: part.sheetId, name: part.sheetName, quantity: part.quantity }];
+    : [...sources, { sheetId: part.sheetId, label: part.sheetLabel, quantity: part.quantity }];
 }
 
 // Shopping lists ----------------------------------------------------------------------------------------------------
@@ -408,10 +408,10 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   const productById = mapById(products);
   return prisma.$transaction(async (tx) => {
     const items = await tx.shoppingItem.findMany({ where: { listId, purchasedAt: null } });
-    const byKey = new Map(items.map((item) => [sheetItemKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
-    let position = await nextPosition(listId);
+    const byKey = new Map(items.map((item) => [productKey({ productId: item.productId, label: item.label, unit: item.unit }), item]));
+    let position = await nextPositionIn('shoppingItem', { listId }, tx);
     for (const part of parts) {
-      const key = sheetItemKey(part);
+      const key = productKey(part);
       const item = byKey.get(key);
       if (item) {
         const updated = await tx.shoppingItem.update({
@@ -450,7 +450,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
         : await tx.shoppingItem.create({
             data: {
               listId,
-              name: part.label,
+              label: part.label,
               categoryId: part.categoryId,
               note: part.note,
               quantity: toDecimal(part.quantity),
@@ -537,7 +537,7 @@ async function assertOwner(scope: OwnerScope): Promise<void> {
  */
 async function sheetPartsOf(scope: OwnerScope): Promise<SheetPart[] | null> {
   const links = await prisma.sheetLink.findMany({ where: { ...scope, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
-  return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() }))) : null;
+  return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: fromDecimal(link.multiplier) }))) : null;
 }
 
 /**
@@ -581,7 +581,7 @@ function summedRows(parts: SheetPart[]) {
     { productId: string | null; label: string; categoryId: string | null; quantity: number | null; unit: string | null; note: string | null; consumable: boolean; sources: SheetSource[] }
   >();
   for (const part of parts) {
-    const key = sheetItemKey(part);
+    const key = productKey(part);
     const row = rows.get(key);
     if (row) {
       row.quantity = addQuantities(row.quantity, part.quantity);
@@ -626,7 +626,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
   // The archived sheets do not fill checklists anymore.
   const parts = await sheetPartsOf(ownerOnly);
   if (!parts) return null;
-  const occurrence = 'occurrenceDate' in owner ? parseDay(owner.occurrenceDate) : null;
+  const occurrence = parseOptionalDay('occurrenceDate' in owner ? owner.occurrenceDate : null);
   try {
     return await prisma.checklist.create({ data: { ...ownerOnly, occurrenceDate: occurrence, items: { create: summedRows(parts) } } });
   } catch (error) {
@@ -663,10 +663,10 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
   const parts = await partsOf([{ sheetId, multiplier: parseInput(sheetMultiplierSchema, multiplier) }]);
   await prisma.$transaction(async (tx) => {
     const items = await tx.checklistItem.findMany({ where: { listId: id } });
-    const byKey = new Map(items.map((item) => [sheetItemKey(item), item]));
+    const byKey = new Map(items.map((item) => [productKey(item), item]));
     let position = items.reduce((max, item) => Math.max(max, item.position), -1) + 1;
     for (const part of parts) {
-      const key = sheetItemKey(part);
+      const key = productKey(part);
       const item = byKey.get(key);
       if (item) {
         byKey.set(

@@ -4,13 +4,14 @@ import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput,
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { AddressFields } from '../../../components/address/AddressFields';
+import { AddressFields } from './AddressFields';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
 
@@ -67,12 +68,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
       .map(([key, message]) => [key.slice('address.'.length), String(message)]),
   );
 
-  const handleSubmit = form.onSubmit((values) =>
-    update.mutate(
-      { ...values, address: values.address } as CompanyProfileInput as never,
-      formCallbacks(form, 'Profil de la société enregistré.'),
-    ),
-  );
+  const handleSubmit = form.onSubmit((values) => update.mutate({ ...values, address: values.address } as CompanyProfileInput as never, formCallbacks(form, 'Profil de la société enregistré.')));
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -80,48 +76,18 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
         <Fieldset legend="Identité">
           <Stack gap="sm">
             <Group gap="md" align="center">
-              <Avatar
-                src={profile.logoUrl}
-                size={64}
-                radius="sm"
-                color="initials"
-                name={profile.name || 'Logo'}
-              />
+              <Avatar src={profile.logoUrl} size={64} radius="sm" color="initials" name={profile.name || 'Logo'} />
               <Stack gap={4}>
                 <Group gap="xs">
-                  <FileButton
-                    accept="image/png,image/jpeg"
-                    onChange={(file) =>
-                      file &&
-                      setLogo.mutate(file, toastCallbacks('Logo enregistré.'))
-                    }
-                  >
+                  <FileButton accept="image/png,image/jpeg" onChange={(file) => file && setLogo.mutate(file, toastCallbacks('Logo enregistré.'))}>
                     {(props) => (
-                      <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<UploadSimpleIcon aria-hidden />}
-                        loading={setLogo.isPending}
-                        {...props}
-                      >
-                        {profile.logoUrl
-                          ? 'Changer le logo'
-                          : 'Ajouter un logo'}
-                      </Button>
+                      <ActionButton priority="secondary" size="xs" icon={<UploadSimpleIcon aria-hidden />} loading={setLogo.isPending} {...props}>
+                        {profile.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+                      </ActionButton>
                     )}
                   </FileButton>
                   {profile.logoUrl && (
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      color="red"
-                      leftSection={<TrashIcon aria-hidden />}
-                      onClick={() =>
-                        setLogo.mutate(null, {
-                          onError: onMutationError,
-                        })
-                      }
-                    >
+                    <Button size="xs" variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => setLogo.mutate(null, ON_ERROR)}>
                       Retirer
                     </Button>
                   )}
@@ -132,57 +98,25 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
               </Stack>
             </Group>
             <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
-              <TextInput
-                label="Nom de la société"
-                required
-                {...form.getInputProps('name')}
-              />
-              <TextInput
-                label="Forme juridique"
-                placeholder="SASU, EURL, EI, micro-entreprise…"
-                {...form.getInputProps('legalForm')}
-              />
-              <TextInput
-                label="Capital"
-                placeholder="1 000 €"
-                {...form.getInputProps('capital')}
-              />
+              <TextInput label="Nom de la société" required {...form.getInputProps('name')} />
+              <TextInput label="Forme juridique" placeholder="SASU, EURL, EI, micro-entreprise…" {...form.getInputProps('legalForm')} />
+              <TextInput label="Capital" placeholder="1 000 €" {...form.getInputProps('capital')} />
               <TextInput label="SIREN" {...form.getInputProps('siren')} />
               <TextInput label="SIRET" {...form.getInputProps('siret')} />
-              <TextInput
-                label="Code NAF / APE"
-                placeholder="62.01Z"
-                {...form.getInputProps('activityCode')}
-              />
+              <TextInput label="Code NAF / APE" placeholder="62.01Z" {...form.getInputProps('activityCode')} />
             </SimpleGrid>
-            <TextInput
-              label="Immatriculation"
-              placeholder="RCS Paris 123 456 789, RM…"
-              {...form.getInputProps('registration')}
-            />
+            <TextInput label="Immatriculation" placeholder="RCS Paris 123 456 789, RM…" {...form.getInputProps('registration')} />
           </Stack>
         </Fieldset>
 
-        <AddressFields
-          legend="Adresse"
-          value={form.values.address ?? null}
-          onChange={(address) => form.setFieldValue('address', address)}
-          errors={addressErrors}
-        />
+        <AddressFields legend="Adresse" value={form.values.address ?? null} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors} />
 
         <Fieldset legend="Coordonnées">
-          <TextInput
-            label="Nom du contact"
-            {...form.getInputProps('contact')}
-          />
+          <TextInput label="Nom du contact" {...form.getInputProps('contact')} />
           <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
             <TextInput label="Email" {...form.getInputProps('email')} />
             <TextInput label="Téléphone" {...form.getInputProps('phone')} />
-            <TextInput
-              label="Site internet"
-              placeholder="https://…"
-              {...form.getInputProps('website')}
-            />
+            <TextInput label="Site internet" placeholder="https://…" {...form.getInputProps('website')} />
           </SimpleGrid>
         </Fieldset>
 
@@ -192,34 +126,19 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
               label="TVA non applicable"
               description="Franchise en base : pas de TVA sur les documents, la mention ci-dessous est imprimée."
               checked={!form.values.vatApplicable}
-              onChange={(event) =>
-                form.setFieldValue(
-                  'vatApplicable',
-                  !event.currentTarget.checked,
-                )
-              }
+              onChange={(event) => form.setFieldValue('vatApplicable', !event.currentTarget.checked)}
             />
             {form.values.vatApplicable ? (
-              <TextInput
-                label="Numéro de TVA intracommunautaire"
-                placeholder="FR12345678901"
-                {...form.getInputProps('vatNumber')}
-              />
+              <TextInput label="Numéro de TVA intracommunautaire" placeholder="FR12345678901" {...form.getInputProps('vatNumber')} />
             ) : (
-              <TextInput
-                label="Mention"
-                {...form.getInputProps('vatExemptionText')}
-              />
+              <TextInput label="Mention" {...form.getInputProps('vatExemptionText')} />
             )}
           </Stack>
         </Fieldset>
 
         <Fieldset legend="Banque (RIB)">
           <SimpleGrid type="container" cols={{ base: 1, '400px': 2 }} spacing="sm">
-            <TextInput
-              label="Titulaire du compte"
-              {...form.getInputProps('accountHolder')}
-            />
+            <TextInput label="Titulaire du compte" {...form.getInputProps('accountHolder')} />
             <TextInput label="Banque" {...form.getInputProps('bankName')} />
             <TextInput label="IBAN" {...form.getInputProps('iban')} />
             <TextInput label="BIC" {...form.getInputProps('bic')} />
@@ -229,63 +148,23 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
         <Fieldset legend="Conditions et mentions par défaut">
           <Stack gap="sm">
             <Text size="xs" c="dimmed">
-              Reprises dans chaque nouveau document, où elles restent
-              modifiables.
+              Reprises dans chaque nouveau document, où elles restent modifiables.
             </Text>
             <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
-              <NumberInput
-                label="Échéance des factures"
-                description="Si les conditions ne la donnent pas."
-                suffix=" jours"
-                min={0}
-                max={365}
-                {...form.getInputProps('paymentDays')}
-              />
-              <NumberInput
-                label="Validité des devis"
-                suffix=" jours"
-                min={1}
-                max={365}
-                {...form.getInputProps('quoteValidityDays')}
-              />
-              <TextInput
-                label="Libellé de la référence client"
-                placeholder="Référence dossier, bon de commande…"
-                {...form.getInputProps('referenceLabel')}
-              />
+              <NumberInput label="Échéance des factures" description="Si les conditions ne la donnent pas." suffix=" jours" min={0} max={365} {...form.getInputProps('paymentDays')} />
+              <NumberInput label="Validité des devis" suffix=" jours" min={1} max={365} {...form.getInputProps('quoteValidityDays')} />
+              <TextInput label="Libellé de la référence client" placeholder="Référence dossier, bon de commande…" {...form.getInputProps('referenceLabel')} />
             </SimpleGrid>
             <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
-              <Autocomplete
-                label="Conditions de règlement"
-                placeholder="À réception"
-                data={PAYMENT_TERMS_PRESETS}
-                {...form.getInputProps('paymentTerms')}
-              />
-              <Autocomplete
-                label="Mode de règlement"
-                placeholder="Virement bancaire"
-                data={PAYMENT_METHOD_PRESETS}
-                {...form.getInputProps('paymentMethods')}
-              />
-              <Autocomplete
-                label="Intérêts de retard"
-                placeholder="Taux d’intérêt légal en vigueur"
-                data={LATE_INTEREST_PRESETS}
-                {...form.getInputProps('lateInterest')}
-              />
+              <Autocomplete label="Conditions de règlement" placeholder="À réception" data={PAYMENT_TERMS_PRESETS} {...form.getInputProps('paymentTerms')} />
+              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
+              <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
             </SimpleGrid>
             <Text size="xs" c="dimmed">
-              Choisissez ou complétez. « À réception », « À 30 jours », « À 45
-              jours fin de mois »… donnent aussi l’échéance des factures.
-              L’indemnité forfaitaire de 40 € est ajoutée d’office pour les
+              Choisissez ou complétez. « À réception », « À 30 jours », « À 45 jours fin de mois »… donnent aussi l’échéance des factures. L’indemnité forfaitaire de 40 € est ajoutée d’office pour les
               clients professionnels.
             </Text>
-            <Textarea
-              label="Autres mentions"
-              autosize
-              minRows={2}
-              {...form.getInputProps('otherMentions')}
-            />
+            <Textarea label="Autres mentions" autosize minRows={2} {...form.getInputProps('otherMentions')} />
           </Stack>
         </Fieldset>
 
@@ -305,9 +184,7 @@ function NumberingSettings() {
   const [year, setYear] = useState(currentYear);
   const { data: sequences, isPending } = useDocumentSequences(year);
   const { setSequence } = useCompanyMutations();
-  const [edits, setEdits] = useState<
-    Partial<Record<AccountingDocumentType, number>>
-  >({});
+  const [edits, setEdits] = useState<Partial<Record<AccountingDocumentType, number>>>({});
 
   return (
     <SettingsSection
@@ -361,20 +238,15 @@ function NumberingSettings() {
                   </Table.Td>
                   <Table.Td ff="monospace">{documentNumber(sequence.type, year, value)}</Table.Td>
                   <Table.Td>
-                    <Button
+                    <ActionButton
+                      priority="secondary"
                       size="xs"
-                      variant="default"
                       disabled={value === sequence.nextNumber}
-                      leftSection={<FloppyDiskIcon aria-hidden />}
-                      onClick={() =>
-                        setSequence.mutate(
-                          { type: sequence.type, year, nextNumber: value },
-                          toastCallbacks('Numérotation enregistrée.'),
-                        )
-                      }
+                      icon={<FloppyDiskIcon aria-hidden />}
+                      onClick={() => setSequence.mutate({ type: sequence.type, year, nextNumber: value }, toastCallbacks('Numérotation enregistrée.'))}
                     >
                       Enregistrer
-                    </Button>
+                    </ActionButton>
                   </Table.Td>
                 </Table.Tr>
               );
@@ -395,17 +267,8 @@ export function CompanySettings() {
   return (
     <Stack gap="lg">
       <SettingsSection title="Ma société" description="Imprimée sur les devis, factures et avoirs.">
-          {!isPending && profile && !profile.name && (
-            <NoticeAlert kind="info">
-              Renseignez au moins le nom de la société avant d’éditer des
-              documents.
-            </NoticeAlert>
-          )}
-          {isPending || !profile ? (
-            <FormSkeleton fields={8} />
-          ) : (
-            <CompanyForm profile={profile} />
-          )}
+        {!isPending && profile && !profile.name && <NoticeAlert kind="info">Renseignez au moins le nom de la société avant d’éditer des documents.</NoticeAlert>}
+        {isPending || !profile ? <FormSkeleton fields={8} /> : <CompanyForm profile={profile} />}
       </SettingsSection>
       <NumberingSettings />
     </Stack>

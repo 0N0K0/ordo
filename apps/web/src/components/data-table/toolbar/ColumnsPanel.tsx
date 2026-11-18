@@ -8,8 +8,8 @@ import type { ColumnLayout } from '@ordo/shared';
 import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } from '../table/data-table';
 import { useDragSensors } from '../../../lib/drag';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
-import { DragHandle } from '../../actions/DragHandle';
-import { useSortableItem } from '../../actions/use-sortable-item';
+import { DragHandle } from '../../dnd/DragHandle';
+import { useSortableItem } from '../../dnd/use-sortable-item';
 
 /** Column of the panel. */
 interface ColumnsListItem {

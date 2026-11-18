@@ -1,5 +1,6 @@
-import { ActionIcon, Anchor, Checkbox, Popover, Group, NumberInput, Select, Text, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { IconAction } from '../../actions/IconAction';
+import { Anchor, Checkbox, Popover, Group, NumberInput, Select, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
@@ -7,7 +8,7 @@ import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
 import { accepted, cellCombobox, cellField, cellKeys, checked, stopClick, type CellSchema } from './cell-field';
-import { TimeField } from '../../inputs/TimeField';
+import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
 
 interface EditableTextProps {
   value: string | null;
@@ -78,11 +79,9 @@ export function EditableText({ value, label, nullable = false, validate, schema,
   return (
     <Group gap={2} wrap="nowrap">
       {input}
-      <Tooltip label={value}>
-        <ActionIcon component="a" href={value} target="_blank" rel="noopener noreferrer" size="sm" variant="subtle" color="gray" aria-label={`Ouvrir ${value}`} onClick={stopClick}>
-          <ArrowSquareOutIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <IconAction label={value} component="a" href={value} target="_blank" rel="noopener noreferrer" size="sm" aria-label={`Ouvrir ${value}`} onClick={stopClick}>
+        <ArrowSquareOutIcon aria-hidden />
+      </IconAction>
     </Group>
   );
 }
@@ -164,8 +163,7 @@ export function EditableNumber({
       readOnly={readOnly}
       decimalScale={decimals}
       allowDecimal={decimals > 0}
-      decimalSeparator=","
-      thousandSeparator=" "
+      {...FRENCH_NUMBER_FORMAT}
       suffix={unit ? ` ${unit}` : undefined}
       allowNegative={signed}
       min={min}
@@ -197,7 +195,7 @@ interface EditableTimeProps {
  * @returns {JSX.Element} Cell.
  */
 export function EditableTime({ value, label, clearable = false, readOnly = false, onSave }: EditableTimeProps) {
-  return <TimeField {...cellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} onClick={stopClick} />;
+  return <TimePicker {...cellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} onClick={stopClick} />;
 }
 
 interface EditableDateProps {

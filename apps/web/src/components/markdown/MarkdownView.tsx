@@ -30,7 +30,7 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
   // Attachments: PDFs and images open in the app's viewer, other files download.
   if (href.startsWith('/api/attachments/')) {
     return (
-      <FileLink url={href} name={decodeURIComponent(href.split('/').pop() ?? '')}>
+      <FileLink url={href} filename={decodeURIComponent(href.split('/').pop() ?? '')}>
         {children}
       </FileLink>
     );

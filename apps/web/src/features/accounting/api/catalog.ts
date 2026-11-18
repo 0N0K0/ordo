@@ -13,7 +13,7 @@ const CatalogItemsDocument = graphql(`
     catalogItems {
       id
       kind
-      title
+      label
       description
       unit
       unitPrice
@@ -66,8 +66,7 @@ export function useCatalogMutations() {
   return {
     create: useCatalogMutation(async (input: CatalogItemInput) => (await execute(CreateCatalogItem, { input: { ...input, description: input.description ?? null } })).createCatalogItem),
     update: useCatalogMutation(
-      async ({ id, input }: { id: string; input: CatalogItemInput }) =>
-        (await execute(UpdateCatalogItem, { id, input: { ...input, description: input.description ?? null } })).updateCatalogItem,
+      async ({ id, input }: { id: string; input: CatalogItemInput }) => (await execute(UpdateCatalogItem, { id, input: { ...input, description: input.description ?? null } })).updateCatalogItem,
     ),
     remove: useCatalogMutation(async (id: string) => (await execute(DeleteCatalogItem, { id })).deleteCatalogItem),
   };

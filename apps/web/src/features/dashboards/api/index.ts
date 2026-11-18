@@ -44,12 +44,12 @@ const DashboardsDocument = graphql(`
       id
       projectId
       archived
-      name
+      label
       position
       charts {
         id
         dashboardId
-        title
+        label
         config
         wide
         position
@@ -59,13 +59,13 @@ const DashboardsDocument = graphql(`
 `);
 
 const CreateDashboard = graphql(`
-  mutation CreateDashboard($name: String!, $projectId: ID) {
-    createDashboard(name: $name, projectId: $projectId)
+  mutation CreateDashboard($label: String!, $projectId: ID) {
+    createDashboard(label: $label, projectId: $projectId)
   }
 `);
 const RenameDashboard = graphql(`
-  mutation RenameDashboard($id: ID!, $name: String!) {
-    renameDashboard(id: $id, name: $name)
+  mutation RenameDashboard($id: ID!, $label: String!) {
+    renameDashboard(id: $id, label: $label)
   }
 `);
 const DeleteDashboard = graphql(`
@@ -128,7 +128,7 @@ function useDashboardMutation<TVariables, TResult>(mutationFn: (variables: TVari
 }
 
 interface ChartValues {
-  title: string;
+  label: string;
   config: unknown;
   wide: boolean;
 }
@@ -139,8 +139,8 @@ interface ChartValues {
  */
 export function useDashboardMutations() {
   return {
-    create: useDashboardMutation(async (variables: { name: string; projectId: string | null }) => (await execute(CreateDashboard, variables)).createDashboard),
-    rename: useDashboardMutation(async (variables: { id: string; name: string }) => (await execute(RenameDashboard, variables)).renameDashboard),
+    create: useDashboardMutation(async (variables: { label: string; projectId: string | null }) => (await execute(CreateDashboard, variables)).createDashboard),
+    rename: useDashboardMutation(async (variables: { id: string; label: string }) => (await execute(RenameDashboard, variables)).renameDashboard),
     remove: useDashboardMutation(async (id: string) => (await execute(DeleteDashboard, { id })).deleteDashboard),
     move: useMoveDashboard(),
     createChart: useDashboardMutation(async (variables: { dashboardId: string; input: ChartValues }) => (await execute(CreateChart, variables)).createDashboardChart),

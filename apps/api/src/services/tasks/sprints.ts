@@ -17,7 +17,7 @@ async function findSprint(id: string): Promise<Sprint> {
 const fieldsSchema = sprintSchema(markdownSchema);
 
 export interface SprintInput {
-  name: string;
+  label: string;
   goal?: string | null;
   startDate: string;
   endDate: string;
@@ -31,7 +31,7 @@ export interface SprintInput {
 function sprintData(input: SprintInput) {
   const fields = parseInput(fieldsSchema, { ...input, goal: input.goal ?? null });
   return {
-    name: fields.name,
+    label: fields.label,
     goal: fields.goal,
     startDate: parseDay(fields.startDate),
     endDate: parseDay(fields.endDate),

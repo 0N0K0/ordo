@@ -50,9 +50,7 @@ function extractFiles(value: unknown, path: string, files: Map<File, string[]>):
   }
   if (Array.isArray(value)) return value.map((item, index) => extractFiles(item, `${path}.${index}`, files));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, extractFiles(item, `${path}.${key}`, files)]),
-    );
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, extractFiles(item, `${path}.${key}`, files)]));
   }
   return value;
 }
@@ -88,10 +86,7 @@ function buildBody(query: string, variables: unknown): { body: BodyInit; headers
  * @param {TVariables} [variables] Operation variables. Optional when the operation has none.
  * @returns {Promise<TResult>} Operation data.
  */
-export function execute<TResult, TVariables>(
-  document: TypedDocumentString<TResult, TVariables>,
-  ...[variables]: TVariables extends Record<string, never> ? [] : [TVariables]
-): Promise<TResult> {
+export function execute<TResult, TVariables>(document: TypedDocumentString<TResult, TVariables>, ...[variables]: TVariables extends Record<string, never> ? [] : [TVariables]): Promise<TResult> {
   return request(workspaceId, document.toString(), variables);
 }
 

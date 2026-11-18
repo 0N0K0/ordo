@@ -7,6 +7,7 @@ import type { TreasuryAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { PeriodRangeFields } from '../../../components/inputs/PeriodRangeFields';
 import { usePeriodRange } from '../../../components/inputs/use-period-range';
+import { archivedLabel } from '../../../lib/archive';
 
 interface StatementFormProps {
   accounts: TreasuryAccount[];
@@ -42,7 +43,7 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
         label="Compte"
         placeholder="Tous les comptes"
         clearable
-        data={accounts.map((account) => ({ value: account.id, label: account.archived ? `${account.name} (archivé)` : account.name }))}
+        data={accounts.map((account) => ({ value: account.id, label: archivedLabel(account) }))}
         value={accountId}
         onChange={setAccountId}
       />

@@ -9,7 +9,7 @@
     opacity: 0;
 
     /* Animation */
-    transition: opacity 120ms ease;
+    transition: opacity var(--onoko-transition);
   }
 
   [data-reveal-host]:hover [data-reveal],

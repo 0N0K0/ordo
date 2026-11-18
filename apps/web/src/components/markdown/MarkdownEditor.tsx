@@ -1,15 +1,30 @@
-import { ActionIcon, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconAction } from '../actions/IconAction';
+import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
 import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
-import { AtIcon, CheckSquareIcon, CodeIcon, HashIcon, LinkIcon, ListBulletsIcon, ListNumbersIcon, MarkdownLogoIcon, PaperclipIcon, QuotesIcon, TextBIcon, TextHIcon, TextItalicIcon } from '@phosphor-icons/react';
+import {
+  AtIcon,
+  CheckSquareIcon,
+  CodeIcon,
+  HashIcon,
+  LinkIcon,
+  ListBulletsIcon,
+  ListNumbersIcon,
+  MarkdownLogoIcon,
+  PaperclipIcon,
+  QuotesIcon,
+  TextBIcon,
+  TextHIcon,
+  TextItalicIcon,
+} from '@phosphor-icons/react';
 import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { attachmentMarkdown, uploadAttachment } from '../../lib/attachments';
+import { attachmentMarkdown, uploadAttachment } from './attachments';
 import { notifyError } from '../../lib/notify';
 import { completeReference, insertLink, isUrl, prefixLines, referenceAt, wrapSelection, type EditResult, type ReferenceToken } from './markdown-commands';
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
-import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
+import { referenceLabel, taskReferenceUrl, taskShortRef, type ReferenceTargets, type ReferenceTask } from './remark-references';
 import { countOf, normalize } from '../../lib/text';
-import { PersonOption } from '../people/PersonOption';
+import { PersonOption } from '../people/people-rows';
 
 export interface MarkdownSuggestions {
   /** Project of the text: its tasks come first and show without their project. */
@@ -85,18 +100,7 @@ const LIST_ITEM = /^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)\. |> )/;
  * @param {MarkdownEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function MarkdownEditor({
-  value,
-  onChange,
-  suggestions,
-  label,
-  placeholder = 'Écrivez en markdown…',
-  minRows = 6,
-  autoFocus,
-  error,
-  onSubmitShortcut,
-  onBlur,
-}: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, suggestions, label, placeholder = 'Écrivez en markdown…', minRows = 6, autoFocus, error, onSubmitShortcut, onBlur }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
   const [tab, setTab] = useState<string | null>('write');
@@ -122,12 +126,12 @@ export function MarkdownEditor({
     if (token.trigger === '#') {
       // Tasks of the project of the text first; a reference is a link to the task by its id.
       return suggestions.tasks
-        .filter((task) => String(task.number).startsWith(query) || normalize(task.title).includes(query))
+        .filter((task) => String(task.number).startsWith(query) || normalize(task.label).includes(query))
         .sort((a, b) => Number(b.projectId === suggestions.projectId) - Number(a.projectId === suggestions.projectId))
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
           key: `t${task.id}`,
-          reference: `[${task.number === null ? task.title : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
+          reference: `[${taskShortRef(task, task.projectId, task.place)}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
               {task.number !== null && (
@@ -138,7 +142,7 @@ export function MarkdownEditor({
                 </>
               )}
               <Text span size="sm">
-                {task.title}
+                {task.label}
               </Text>
             </>
           ),
@@ -361,34 +365,28 @@ export function MarkdownEditor({
                 {COMMANDS.map((command) => (
                   <Group key={command.label} gap={2} wrap="nowrap">
                     {command.divider && <span className={classes.divider} />}
-                    <Tooltip label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label={command.label}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => run(command.edit)}
-                      >
-                        {command.icon}
-                      </ActionIcon>
-                    </Tooltip>
+                    <IconAction
+                      label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label}
+                      size="sm"
+                      aria-label={command.label}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => run(command.edit)}
+                    >
+                      {command.icon}
+                    </IconAction>
                   </Group>
                 ))}
                 <span className={classes.divider} />
-                <Tooltip label="Joindre des fichiers (images affichées, autres fichiers en lien)">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label="Joindre des fichiers"
-                    loading={uploading > 0}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <PaperclipIcon />
-                  </ActionIcon>
-                </Tooltip>
+                <IconAction
+                  label="Joindre des fichiers (images affichées, autres fichiers en lien)"
+                  size="sm"
+                  aria-label="Joindre des fichiers"
+                  loading={uploading > 0}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <PaperclipIcon />
+                </IconAction>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -472,9 +470,7 @@ export function MarkdownEditor({
         <Group gap={6} className={classes.footer} aria-live="polite">
           {uploading > 0 ? <Loader size={12} /> : <MarkdownLogoIcon aria-hidden />}
           <Text size="xs" c="dimmed">
-            {uploading > 0
-              ? `Envoi de ${countOf(uploading, 'fichier')}…`
-              : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
+            {uploading > 0 ? `Envoi de ${countOf(uploading, 'fichier')}…` : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
           </Text>
         </Group>
       </Paper>

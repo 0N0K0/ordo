@@ -15,14 +15,7 @@ export interface EditResult {
  * @param {string} placeholder Text inserted when nothing is selected.
  * @returns {EditResult} New text and selection (around the wrapped text).
  */
-export function wrapSelection(
-  value: string,
-  start: number,
-  end: number,
-  before: string,
-  after: string,
-  placeholder: string,
-): EditResult {
+export function wrapSelection(value: string, start: number, end: number, before: string, after: string, placeholder: string): EditResult {
   if (value.slice(start - before.length, start) === before && value.slice(end, end + after.length) === after) {
     return {
       value: value.slice(0, start - before.length) + value.slice(start, end) + value.slice(end + after.length),
@@ -46,12 +39,7 @@ export function wrapSelection(
  * @param {string | ((index: number) => string)} prefix Prefix, or a function for numbered lists.
  * @returns {EditResult} New text and selection (covering the edited lines).
  */
-export function prefixLines(
-  value: string,
-  start: number,
-  end: number,
-  prefix: string | ((index: number) => string),
-): EditResult {
+export function prefixLines(value: string, start: number, end: number, prefix: string | ((index: number) => string)): EditResult {
   const lineStart = value.lastIndexOf('\n', start - 1) + 1;
   const nextBreak = value.indexOf('\n', end);
   const lineEnd = nextBreak === -1 ? value.length : nextBreak;

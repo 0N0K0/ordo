@@ -1,13 +1,15 @@
+import { ALARM_LABEL_MAX, clipText } from '@ordo/shared';
 import { SubSection } from '../../../components/page/SubSection';
-import { ActionButton } from '../../../components/actions/ActionButton';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { AlarmIcon, PlusIcon } from '@phosphor-icons/react';
+import { AlarmIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { AlarmList } from './AlarmList';
 import { useAlarms } from '../api';
 import { useAlarmForm } from '../hooks/use-alarm-form';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 
 /**
  * Alerts of a task, in its panel: its alarms (on / off, edit, copy, delete) and a button for a new one, created
@@ -21,25 +23,18 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
   const { data, isPending } = useAlarms();
   const openForm = useAlarmForm(context);
   const alarms = (data ?? []).filter((alarm) => alarm.taskId === task.id);
-  const create = () => openForm(undefined, { defaults: { title: task.title.slice(0, 120), projectId: task.projectId, taskId: task.id } });
+  const create = () => openForm(undefined, { defaults: { label: clipText(task.label, ALARM_LABEL_MAX), projectId: task.projectId, taskId: task.id } });
 
   return (
-    <SubSection
-      title="Alertes"
-      gap="xs"
-      action={
-        <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={create}>
-          Nouvelle alerte
-        </ActionButton>
-      }
-    >
+    <SubSection title="Alarmes" gap="xs">
       {isPending ? (
         <ListSkeleton items={1} lines={2} />
       ) : alarms.length ? (
         <AlarmList alarms={alarms} context={context} openForm={openForm} showTarget={false} />
       ) : (
-        <EmptyState compact icon={<AlarmIcon aria-hidden />} message="Aucune alerte pour cette tâche." />
+        <EmptyState compact icon={<AlarmIcon aria-hidden />} message="Aucune alarme pour cette tâche." />
       )}
+      <AddItemButton onClick={create}>Ajouter une alarme</AddItemButton>
     </SubSection>
   );
 }

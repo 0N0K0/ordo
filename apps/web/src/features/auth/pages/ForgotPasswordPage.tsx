@@ -25,10 +25,7 @@ export function ForgotPasswordPage() {
 
   return (
     <>
-      <AuthHeader
-        title="Mot de passe oublié"
-        description="Saisissez votre identifiant ou votre adresse email : vous recevrez un lien pour choisir un nouveau mot de passe."
-      />
+      <AuthHeader title="Mot de passe oublié" description="Saisissez votre identifiant ou votre adresse email : vous recevrez un lien pour choisir un nouveau mot de passe." />
       {requestReset.isSuccess ? (
         <NoticeAlert kind="success" title="Demande envoyée">
           Si un compte correspond, un email contenant un lien valable 30 minutes vient d’être envoyé.
@@ -36,13 +33,7 @@ export function ForgotPasswordPage() {
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
-            <TextInput
-              label="Identifiant ou adresse email"
-              autoComplete="username"
-              autoFocus
-              required
-              {...form.getInputProps('identifier')}
-            />
+            <TextInput label="Identifiant ou adresse email" autoComplete="username" autoFocus required {...form.getInputProps('identifier')} />
             <Button type="submit" leftSection={<PaperPlaneTiltIcon aria-hidden />} loading={requestReset.isPending} fullWidth>
               Envoyer le lien
             </Button>

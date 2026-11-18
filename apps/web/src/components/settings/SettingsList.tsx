@@ -1,7 +1,8 @@
-import { ActionIcon, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon } from '@phosphor-icons/react';
-import { useEffect, useState, type ReactNode } from 'react';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../lib/archive';
+import { InlineActions } from '../actions/ActionsMenu';
+import { Group, Text, ThemeIcon } from '@mantine/core';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
+import { useEffect, type ReactNode } from 'react';
+import { archiveWithUndo, useSetArchived, useArchivedToggle } from '../../lib/archive';
 import { notifySuccess, ON_ERROR, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
 import { categoryTree } from '../tree/category-tree';
@@ -10,12 +11,11 @@ import { EmptyState } from '../feedback/EmptyState';
 import { ListSkeleton } from '../feedback/Skeletons';
 import { ShowArchivedSwitch } from '../filters/ShowArchivedSwitch';
 import { openFormPanel } from '../panels/panels';
-import { ArchivedBadge } from '../items/ItemBadge';
+import { ArchivedBadge } from '../feedback/ArchivedBadge';
 import { useReorderSettingsItems } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemKind, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';
 import { ActionButton } from '../actions/ActionButton';
-import { RemoveButton } from '../actions/RemoveButton';
 
 interface SettingsListProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {
   title: string;
@@ -73,7 +73,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   nested = false,
   withColor = true,
   colorRequired,
-  namePlaceholder,
+  labelPlaceholder,
   usage,
   usageNoun,
   schema,
@@ -95,9 +95,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
   const setArchived = useSetArchived(kind);
-  const [showArchived, setShowArchived] = useState(false);
-  const archivedCount = items.filter((item) => item.archived).length;
-  const shown = visibleItems(items, showArchived);
+  const { shown, showArchived, toggle: archivedToggle } = useArchivedToggle(items);
   const feminine = noun.startsWith('la ');
 
   /**
@@ -116,7 +114,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         initial={initial}
         withColor={withColor}
         colorRequired={colorRequired}
-        namePlaceholder={namePlaceholder}
+        labelPlaceholder={labelPlaceholder}
         schema={schema}
         extra={extra}
         create={create}
@@ -185,8 +183,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         <>
           {deleteMessage?.(item, path) ?? (
             <>
-              « {path} » sera supprimé définitivement{used && usageNoun ? ` et retiré des ${used} ${usageNoun} qui l’utilisent` : ''}.{nested ? ' Ses sous-éléments remonteront d’un niveau.' : ''}{' '}
-              Cette action est irréversible.
+              « {path} » sera supprimé définitivement{used && usageNoun ? ` et retiré des ${used} ${usageNoun} qui l’utilisent` : ''}.{nested ? ' Ses sous-éléments remonteront d’un niveau.' : ''}
             </>
           )}
         </>
@@ -204,7 +201,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
       actions={
         <>
           <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
+            <ShowArchivedSwitch {...archivedToggle} />
             {headerActions}
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
               Ajouter
@@ -246,26 +243,26 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
           renderActions={({ category, path }) => (
             <>
               {renderActions?.(category)}
-              {nested && !category.archived && (
-                <Tooltip label="Ajouter un sous-élément">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un sous-élément à ${path}`} onClick={() => openForm({ parentId: category.id })}>
-                    <PlusIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              {!category.archived && (
-                <Tooltip label="Modifier">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ item: category })}>
-                    <PencilSimpleIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              <Tooltip label={category.archived ? 'Restaurer' : 'Archiver'}>
-                <ActionIcon variant="subtle" color="gray" aria-label={`${category.archived ? 'Restaurer' : 'Archiver'} ${path}`} onClick={() => toggleArchived(category, path)}>
-                  {category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-                </ActionIcon>
-              </Tooltip>
-              <RemoveButton label={undeletable?.(category) ?? 'Supprimer'} aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)} />
+              <InlineActions
+                name={path}
+                items={[
+                  nested && !category.archived && { label: 'Ajouter un sous-élément', icon: <PlusIcon aria-hidden />, onClick: () => openForm({ parentId: category.id }) },
+                  !category.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ item: category }) },
+                  {
+                    label: category.archived ? 'Restaurer' : 'Archiver',
+                    icon: category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                    onClick: () => toggleArchived(category, path),
+                  },
+                  {
+                    label: 'Supprimer',
+                    icon: <TrashIcon aria-hidden />,
+                    danger: true,
+                    disabled: Boolean(undeletable?.(category)),
+                    hint: undeletable?.(category) ?? undefined,
+                    onClick: () => confirmDelete(category, path),
+                  },
+                ]}
+              />
             </>
           )}
           onMove={handleMove}

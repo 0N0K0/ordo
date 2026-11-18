@@ -27,7 +27,7 @@ export function useRoutineMove() {
         onError: onMutationError,
         onSuccess: () => {
           onDone?.();
-          notifyWithUndo(`« ${routine.title} » ${what}.`, () => moveOccurrence.mutate({ id: routine.id, date: to, to: date, times: times?.previous }, ON_ERROR));
+          notifyWithUndo(`« ${routine.label} » ${what}.`, () => moveOccurrence.mutate({ id: routine.id, date: to, to: date, times: times?.previous }, ON_ERROR));
         },
       },
     );

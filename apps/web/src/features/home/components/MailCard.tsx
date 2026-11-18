@@ -1,3 +1,6 @@
+import { NO_SUBJECT } from '@ordo/shared';
+import { unarchived } from '../../../lib/archive';
+import { mailPath, PAGES } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { localDay } from '../../../lib/dates';
 import { Text } from '@mantine/core';
@@ -17,13 +20,13 @@ import * as fmt from '../../../lib/format';
 export function MailCard({ today }: { today: string }) {
   const accounts = useMailAccounts();
   // The archived accounts apart.
-  const accountIds = accounts.data?.filter((account) => !account.archived).map((account) => account.id) ?? [];
+  const accountIds = unarchived(accounts.data ?? []).map((account) => account.id);
   const unread = useUnreadMails(accountIds);
   const loading = accounts.isPending || (accountIds.length > 0 && !unread.data);
   const several = accountIds.length > 1;
 
   return (
-    <HomeCard title="Mails non lus" icon={<EnvelopeSimpleIcon aria-hidden />} to="/mail" linkLabel="Boîte de réception" loading={loading}>
+    <HomeCard title="Mails non lus" icon={<EnvelopeSimpleIcon aria-hidden />} to={PAGES.mail.path} linkLabel="Boîte de réception" loading={loading}>
       {!loading && accountIds.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée." />}
       {!loading && unread.error && unread.data?.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Boîte mail injoignable." />}
       {!loading && accountIds.length > 0 && !unread.error && unread.data?.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun mail non lu." />}
@@ -36,16 +39,16 @@ export function MailCard({ today }: { today: string }) {
             return (
               <HomeRow
                 key={`${accountId}-${message.uid}`}
-                to={`/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`}
+                to={mailPath(accountId, 'INBOX', message.uid)}
                 emphasis
-                title={message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
+                label={message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
                 subtitle={
                   <>
-                    {message.subject || '(sans objet)'}
+                    {message.subject || NO_SUBJECT}
                     {account && (
                       <Text span size="xs" c="dimmed">
                         {' '}
-                        · {account.name}
+                        · {account.label}
                       </Text>
                     )}
                   </>

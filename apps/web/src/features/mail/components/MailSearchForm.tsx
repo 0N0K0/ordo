@@ -8,9 +8,10 @@ import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 
 /**
- * Search folder: name, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
+ * Search folder: label, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
  * not created on the mail server.
  * @param {{ search?: MailSearch, initial?: MailSearchCriteria, onDone: (id?: string) => void }} props Search edited (none: new), criteria of a new one, and close (given the new id).
  * @returns {JSX.Element} Form.
@@ -20,11 +21,12 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
   const { data: labels } = useMailLabels();
   const { create, update } = useMailSearchMutations();
   const criteria: MailSearchCriteria = { ...EMPTY_MAIL_SEARCH, ...(search ? (search.criteria as Partial<MailSearchCriteria>) : (initial ?? { state: 'todo' })) };
-  const form = useAppForm<MailSearchCriteria & { name: string } & Record<string, unknown>>({
-    initialValues: { ...criteria, name: search?.name ?? (initial ? 'Recherche' : 'À traiter') },
+  const form = useAppForm<MailSearchCriteria & { label: string } & Record<string, unknown>>({
+    initialValues: { ...criteria, label: search?.label ?? (initial ? 'Recherche' : 'À traiter') },
     schema: mailSearchSchema,
   });
   const values = form.values;
+  const received = dateRangeProps(formRange(form, 'since', 'until'));
 
   return (
     <form
@@ -47,11 +49,11 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
         <Text size="sm" c="dimmed">
           Un dossier de recherche rassemble les mails qui répondent à ses critères, dans une ou plusieurs boîtes. Il n’existe que dans Ordo : rien n’est créé sur le serveur.
         </Text>
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}
-          data={unarchived(accounts ?? [], values.accountIds).map((account) => ({ value: account.id, label: `${account.name} (${account.email})` }))}
+          data={unarchived(accounts ?? [], values.accountIds).map((account) => ({ value: account.id, label: `${account.label} (${account.email})` }))}
           clearable
           {...form.getInputProps('accountIds')}
         />
@@ -93,8 +95,8 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <TextInput label="À" placeholder="Nom ou adresse" {...form.getInputProps('to')} />
           <TextInput label="Objet" {...form.getInputProps('subject')} />
           <TextInput label="Corps" {...form.getInputProps('body')} />
-          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...form.getInputProps('since')} />
-          <DatePickerInput label="Jusqu’au" clearable placeholder="—" minDate={values.since ?? undefined} {...form.getInputProps('until')} />
+          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...received.start} />
+          <DatePickerInput label="Jusqu’au" clearable placeholder="—" {...received.end} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
         <FormActions onCancel={() => onDone()} loading={create.isPending || update.isPending} />

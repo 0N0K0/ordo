@@ -2,15 +2,15 @@ import { done } from '../errors';
 import { prisma } from '../../db';
 import * as auth from '../../services/core/auth';
 import { builder } from '../builder';
-import { requireSession } from '../context';
+import { signedInSession } from '../context';
+import { reloaded } from '../reload';
 
 builder.queryField('me', (t) =>
   t.prismaField({
     type: 'User',
     nullable: true,
     skipTypeScopes: true,
-    resolve: (query, _root, _args, ctx) =>
-      ctx.session ? prisma.user.findUnique({ ...query, where: { id: ctx.session.userId } }) : null,
+    resolve: (query, _root, _args, ctx) => (ctx.session ? prisma.user.findUnique({ ...query, where: { id: ctx.session.userId } }) : null),
   }),
 );
 
@@ -25,7 +25,7 @@ builder.mutationFields((t) => ({
     },
     resolve: async (query, _root, args, ctx) => {
       const user = await auth.login(ctx.req, ctx.res, args);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      return reloaded(prisma.user, query, user);
     },
   }),
 
@@ -63,7 +63,7 @@ builder.mutationFields((t) => ({
       currentPassword: t.arg.string({ required: true }),
       password: t.arg.string({ required: true }),
     },
-    resolve: (_root, { currentPassword, password }, ctx) => done(auth.changePassword(requireSession(ctx), currentPassword, password)),
+    resolve: (_root, { currentPassword, password }, ctx) => done(auth.changePassword(signedInSession(ctx), currentPassword, password)),
   }),
 
   changeUsername: t.prismaField({
@@ -73,8 +73,8 @@ builder.mutationFields((t) => ({
       username: t.arg.string({ required: true }),
     },
     resolve: async (query, _root, { currentPassword, username }, ctx) => {
-      const user = await auth.changeUsername(requireSession(ctx), currentPassword, username);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      const user = await auth.changeUsername(signedInSession(ctx), currentPassword, username);
+      return reloaded(prisma.user, query, user);
     },
   }),
 
@@ -86,16 +86,16 @@ builder.mutationFields((t) => ({
       email: t.arg.string({ required: true }),
     },
     resolve: async (query, _root, { currentPassword, email }, ctx) => {
-      const user = await auth.requestEmailChange(requireSession(ctx), currentPassword, email);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      const user = await auth.requestEmailChange(signedInSession(ctx), currentPassword, email);
+      return reloaded(prisma.user, query, user);
     },
   }),
 
   cancelEmailChange: t.prismaField({
     type: 'User',
     resolve: async (query, _root, _args, ctx) => {
-      const user = await auth.cancelEmailChange(requireSession(ctx));
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      const user = await auth.cancelEmailChange(signedInSession(ctx));
+      return reloaded(prisma.user, query, user);
     },
   }),
 }));

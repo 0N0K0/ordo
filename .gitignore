@@ -31,3 +31,4 @@ apps/api/src/generated
 
 # Playwright MCP artifacts
 .playwright-mcp
+.jscpd-report/

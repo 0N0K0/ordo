@@ -2,11 +2,11 @@ import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Group, Select, Text } from '@mantine/core';
 
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
 import { MultiplierInput } from './MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { unarchived } from '../../../lib/archive';
+import { unarchived, archivedIds } from '../../../lib/archive';
 
 /**
  * Sheets of a routine, an event or a task, each times a multiplier, saved as they change: each occurrence (or the
@@ -19,14 +19,14 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const { data: links } = useSheetLinks(owner);
   const { setLinks } = useSheetMutations();
   const current = (links ?? []).map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier }));
-  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, { onError: onMutationError });
+  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, ON_ERROR);
   // The archived sheets are not offered (those linked already stay).
   const options = unarchived(
     sheets ?? [],
     current.map((link) => link.sheetId),
-  ).map((sheet) => ({ value: sheet.id, label: sheet.name }));
-  const archivedIds = new Set((sheets ?? []).filter((sheet) => sheet.archived).map((sheet) => sheet.id));
-  const free = options.filter((option) => !archivedIds.has(option.value) && !current.some((link) => link.sheetId === option.value));
+  ).map((sheet) => ({ value: sheet.id, label: sheet.label }));
+  const archived = archivedIds(sheets);
+  const free = options.filter((option) => !archived.has(option.value) && !current.some((link) => link.sheetId === option.value));
   return (
     <LabeledField label="Fiches">
       <Text size="xs" c="dimmed">
@@ -53,7 +53,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
               if (value !== link.multiplier) save(current.map((other, position) => (position === index ? { ...other, multiplier: value } : other)));
             }}
           />
-          <RemoveButton label="Retirer la fiche" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
+          <RemoveButton label="Retirer" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
         </Group>
       ))}
       <AddItemButton disabled={free.length === 0} onClick={() => save([...current, { sheetId: free[0].value, multiplier: 1 }])}>

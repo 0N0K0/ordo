@@ -1,8 +1,27 @@
-import { addDays, CALENDAR_PERIOD, calendarRange, type CalendarScale, calendarStart, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, filterPeriod, isTimeDimension, round2, shiftCalendar, weekStartOf } from '@ordo/shared';
+import {
+  addDays,
+  CALENDAR_PERIOD,
+  calendarRange,
+  type CalendarScale,
+  calendarStart,
+  type ChartBucket,
+  type ChartConfig,
+  type ChartDimension,
+  type ChartGroupDimension,
+  type ChartMeasure,
+  type ChartSource,
+  filterPeriod,
+  isTimeDimension,
+  round2,
+  shiftCalendar,
+  weekStartOf,
+  sumOf,
+} from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
 import { currentWeek } from '../../../lib/week';
 import { collator, countOf } from '../../../lib/text';
+import { yearOfDay } from '../../../lib/dates';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -150,7 +169,6 @@ const NONE_ORDER = '￿';
  */
 export const none = (label: string): Key[] => [{ key: 'none', label, order: NONE_ORDER, color: 'gray.5' }];
 
-
 /**
  * Bucket of a day: the day, the Monday of its week, the first of its month, quarter or year.
  * @param {string} day YYYY-MM-DD.
@@ -183,7 +201,7 @@ export function nextBucket(start: string, bucket: ChartBucket): string {
  * @returns {string} "3 nov.", "sem. 3 nov.", "nov. 2026", "T4 2026", "2026".
  */
 export function bucketLabel(start: string, bucket: ChartBucket): string {
-  if (bucket === 'year') return start.slice(0, 4);
+  if (bucket === 'year') return String(yearOfDay(start));
   if (bucket === 'quarter') return quarterName(start);
   if (bucket === 'month') return fmt.monthShort(start);
   return bucket === 'week' ? `sem. ${fmt.dayShort(start)}` : fmt.dayShort(start);
@@ -315,7 +333,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
   const slices = xs
     .map((x, index) => ({
       name: x.label,
-      value: round2(series.reduce((sum, serie) => sum + (cells.get(`${x.key}|${serie.key}`) ?? 0), 0)),
+      value: round2(sumOf(series, (serie) => cells.get(`${x.key}|${serie.key}`) ?? 0)),
       color: x.color ?? PALETTE[index % PALETTE.length],
     }))
     .filter((slice) => slice.value !== 0);

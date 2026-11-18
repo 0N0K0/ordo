@@ -9,6 +9,7 @@ import './styles/tokens.css';
 import './styles/dialogs.css';
 import './styles/tabs.css';
 import './styles/reveal.css';
+import './styles/drop.css';
 
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -17,8 +18,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
-import { UpdatePrompt } from './components/feedback/UpdatePrompt';
-import { WeekDatesProvider } from './components/inputs/WeekDatesProvider';
+import { UpdatePrompt } from './app/UpdatePrompt';
+import { WeekDatesProvider } from './app/WeekDatesProvider';
 import { queryClient } from './lib/query-client';
 import { router } from './app/router';
 import { iconDefaults, theme } from './app/theme';

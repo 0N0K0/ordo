@@ -1,21 +1,22 @@
-import { PAGES } from '../../../app/pages';
+import { MailHeaderActions } from '../components/MailHeaderActions';
+import { PAGES, SETTINGS_PARAM } from '../../../app/pages';
 import { MailListControls } from '../components/MailListControls';
 import { MAIL_SORTS, type DoneFilter } from '../lib/mail-list';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { useSetParams } from '../../../lib/search-params';
 import { countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
-import { ActionButton } from '../../../components/actions/ActionButton';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Badge, Box, Button, Grid, Group, NavLink, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Badge, Box, Grid, NavLink, Paper, Stack, Text } from '@mantine/core';
 import { mapById } from '@ordo/shared';
 
-import { ArrowsClockwiseIcon, ClockCountdownIcon, EnvelopeSimpleIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from '../api';
+import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from '../api';
 import { AccountFolders, type DraggedMails } from '../components/MailFolders';
 import { MailListItem } from '../components/MailListItem';
 import { MailListPane } from '../components/MailListPane';
@@ -23,7 +24,7 @@ import { MailLabelsManager } from '../components/MailLabelsManager';
 import { MailSelectionBar } from '../components/MailOrganizeActions';
 import classes from './MailPage.module.css';
 import { MailReader } from '../components/MailReader';
-import { AdvancedSearchPanel } from '../components/AdvancedSearchPanel';
+import { AdvancedSearchHeader, AdvancedSearchPanel } from '../components/AdvancedSearchPanel';
 import { MailSearchFolders, MailSearchList } from '../components/MailSearchFolders';
 import { openSearchForm } from '../lib/open-search-form';
 import { useMailSearch } from '../hooks/use-mail-search';
@@ -31,10 +32,10 @@ import { ScheduledMailsList } from '../components/ScheduledMailsList';
 import { MailAccountsManager } from '../components/MailAccountsManager';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SETTINGS_PARAM, useSettingsOpened } from '../../../app/layout/page-settings';
+import { useSettingsOpened } from '../../../app/layout/page-settings';
 import { unarchived } from '../../../lib/archive';
-
-
+import { MailSearchBar } from '../components/MailSearchBar';
+import { selectionFlags, usePageSelection } from '../hooks/use-page-selection';
 
 /**
  * Mail client: accounts (managed in a dialog, or right in the page without any) and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
@@ -68,9 +69,7 @@ export function MailPage() {
   const [sortBy, sortDirection] = sortParam.split('-') as [string, string];
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
   const messages = useMailMessages(
-    accountId && !scheduledView && !searchId && !advanced
-      ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter, sort: sortBy, ascending: sortDirection === 'asc' }
-      : null,
+    accountId && !scheduledView && !searchId && !advanced ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter, sort: sortBy, ascending: sortDirection === 'asc' } : null,
   );
   const { data: folders } = useMailFolders(accountId);
   const { data: labels } = useMailLabels();
@@ -80,10 +79,7 @@ export function MailPage() {
   // Mails sent from one of these show their recipients.
   const ownAddresses = useMemo(() => new Set((accounts ?? []).map((account) => account.email.toLowerCase())), [accounts]);
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
-  const [selection, setSelection] = useState<{ key: string; uids: number[] }>({ key: '', uids: [] });
-  const selectionKey = `${accountId}|${folder}|${page}|${doneFilter}|${debouncedSearch}`;
-  const selected = selection.key === selectionKey ? selection.uids : [];
-  const setSelected = (uids: number[]) => setSelection({ key: selectionKey, uids });
+  const { selected, setSelected, tick } = usePageSelection<number>(`${accountId}|${folder}|${page}|${doneFilter}|${debouncedSearch}`);
   const [dragged, setDragged] = useState<DraggedMails | null>(null);
   // Accounts and flags are managed in the settings sidebar (the old ?accounts=1 opens it).
   const { setOpened: setSettingsOpened } = useSettingsOpened();
@@ -91,7 +87,6 @@ export function MailPage() {
   useEffect(() => {
     if (params.get('accounts') === '1') setParams({ accounts: null, [SETTINGS_PARAM]: '1' });
   }, [params, setParams]);
-  const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
 
   /**
@@ -105,7 +100,10 @@ export function MailPage() {
     return (
       <Stack gap="lg">
         <PageHeader title={PAGES.mail.title} />
-        <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'} />
+        <EmptyState
+          icon={<EnvelopeSimpleIcon aria-hidden />}
+          message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'}
+        />
         <MailAccountsManager />
       </Stack>
     );
@@ -113,6 +111,15 @@ export function MailPage() {
 
   const total = messages.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / (messages.data?.pageSize ?? 50)));
+
+  // Results of a search (saved or advanced): their pages, the mail opened, the labels managed.
+  const searchListProps = {
+    page,
+    onPage: (value: number) => update({ page: value > 1 ? String(value) : null, uid: null }),
+    onOpen: (mail: { accountId: string; folder: string; uid: number }) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) }),
+    onOpenGone: () => update({ uid: null }),
+    onManageLabels: openSettings,
+  };
 
   return (
     <Stack gap="md" className={classes.page}>
@@ -125,11 +132,8 @@ export function MailPage() {
         title={PAGES.mail.title}
         actions={
           <>
-          <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-            <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>Relever</ActionButton>
-          </Tooltip>
-          <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>Nouveau mail</ActionButton>
-        </>
+            <MailHeaderActions onCompose={() => compose({ accountId })} />
+          </>
         }
       />
       <Grid gap="md" classNames={{ root: classes.grid, inner: classes.gridInner }}>
@@ -177,19 +181,13 @@ export function MailPage() {
               </div>
             ) : advanced && accountId ? (
               <>
-                <Group justify="space-between" p="xs" gap="xs" className={classes.listHeader}>
-                  <Text size="sm" fw={600}>
-                    Recherche avancée
-                  </Text>
-                  <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
-                      {advancedOpen ? 'Masquer les critères' : 'Modifier'}
-                    </Button>
-                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<XIcon aria-hidden />} onClick={() => mailSearch.setAdvanced(null, { page: null, uid: null })}>
-                      Quitter
-                    </Button>
-                  </Group>
-                </Group>
+                <AdvancedSearchHeader
+                  p="xs"
+                  className={classes.listHeader}
+                  open={advancedOpen}
+                  onToggle={() => mailSearch.setAdvancedOpen(!advancedOpen)}
+                  onQuit={() => mailSearch.setAdvanced(null, { page: null, uid: null })}
+                />
                 {advancedOpen && (
                   <Box p="xs" className={classes.listHeader}>
                     <AdvancedSearchPanel
@@ -202,48 +200,21 @@ export function MailPage() {
                     />
                   </Box>
                 )}
-                <MailSearchList
-                  query={{ criteria: advanced }}
-                  page={page}
-                  onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
-                  open={uid !== null ? { accountId, folder, uid } : null}
-                  onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
-                  onOpenGone={() => update({ uid: null })}
-                  onManageLabels={openSettings}
-                />
+                <MailSearchList query={{ criteria: advanced }} open={uid !== null ? { accountId, folder, uid } : null} {...searchListProps} />
               </>
             ) : searchId ? (
-              <MailSearchList
-                query={{ id: searchId }}
-                page={page}
-                onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
-                open={accountId && uid !== null ? { accountId, folder, uid } : null}
-                onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
-                  onOpenGone={() => update({ uid: null })}
-                  onManageLabels={openSettings}
-              />
+              <MailSearchList query={{ id: searchId }} open={accountId && uid !== null ? { accountId, folder, uid } : null} {...searchListProps} />
             ) : (
               <MailListPane
                 top={
                   <>
-                    <Group gap={4} wrap="nowrap">
-                      <TextInput
-                        size="xs"
-                        style={{ flex: 1 }}
-                        placeholder="Rechercher (objet, expéditeur, texte)"
-                        aria-label="Rechercher dans le dossier"
-                        leftSection={<MagnifyingGlassIcon aria-hidden />}
-                        value={search}
-                        onChange={(event) => {
-                          mailSearch.setText(event.currentTarget.value, { page: null });
-                        }}
-                      />
-                      <Tooltip label="Recherche avancée">
-                        <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => mailSearch.setAdvancedOpen(!advancedOpen)}>
-                          <SlidersHorizontalIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
+                    <MailSearchBar
+                      label="Rechercher dans le dossier"
+                      value={search}
+                      onChange={(text) => mailSearch.setText(text, { page: null })}
+                      advancedOpen={advancedOpen}
+                      onToggleAdvanced={() => mailSearch.setAdvancedOpen(!advancedOpen)}
+                    />
                     {advancedOpen && accountId && (
                       <AdvancedSearchPanel
                         accountId={accountId}
@@ -265,8 +236,7 @@ export function MailPage() {
                   selected.length > 0 && accountId ? (
                     <MailSelectionBar
                       groups={[{ accountId, folder, uids: selected }]}
-                      done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
-                      labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
+                      {...selectionFlags(selectedMessages, labels)}
                       onGone={() => {
                         setSelected([]);
                         if (uid !== null && selected.includes(uid)) update({ uid: null });
@@ -294,7 +264,15 @@ export function MailPage() {
                       <EmptyState
                         plain
                         icon={<EnvelopeSimpleIcon aria-hidden />}
-                        message={debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
+                        message={
+                          debouncedSearch
+                            ? 'Aucun mail ne correspond à la recherche.'
+                            : doneFilter === 'todo'
+                              ? 'Aucun mail à traiter.'
+                              : doneFilter === 'done'
+                                ? 'Aucun mail traité.'
+                                : 'Aucun mail dans ce dossier.'
+                        }
                       />
                     </Box>
                   ) : undefined
@@ -314,7 +292,7 @@ export function MailPage() {
                       ownAddresses={ownAddresses}
                       active={message.uid === uid}
                       ticked={ticked}
-                      onTick={(checked) => setSelected(checked ? [...selected, message.uid] : selected.filter((item) => item !== message.uid))}
+                      onTick={(checked) => tick(message.uid, checked)}
                       onOpen={() => update({ uid: String(message.uid) })}
                       onDragStart={
                         accountId

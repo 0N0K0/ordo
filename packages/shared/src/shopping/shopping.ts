@@ -1,7 +1,7 @@
 import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
-import { colorSchema, dateSchema, labelNameSchema, optionalColorSchema } from '../core/workspace';
+import { dateSchema, optionalColorSchema, type LabelFormValues } from '../core/workspace';
 
 const linkSchema = z
   .union([z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }), z.literal('')])
@@ -12,8 +12,8 @@ const linkSchema = z
 export const UNIT_MAX = 50;
 /** Most characters of the note of a product (sheet, stock or shopping item). */
 export const ITEM_NOTE_MAX = 500;
-/** Most characters of the name of a shopping product or item. */
-export const SHOPPING_NAME_MAX = 120;
+/** Most characters of the label of a shopping product or item. */
+export const SHOPPING_LABEL_MAX = 120;
 
 /** Quantity of a product (sheet, stock or shopping item): 0 or more. */
 export const quantitySchema = z.number({ error: 'Nombre attendu.' }).min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
@@ -23,16 +23,12 @@ export const unitSchema = optionalText(UNIT_MAX);
 export const itemNoteSchema = optionalText(ITEM_NOTE_MAX);
 const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne peut pas être négatif.').max(9_999_999, 'Prix trop grand.').nullable();
 
-/** Store: a name and a color. */
-export const shoppingStoreSchema = z.object({ name: labelNameSchema, color: colorSchema });
-export type ShoppingStoreInput = z.input<typeof shoppingStoreSchema>;
-
-/** Storage mode of perishable products (fresh, frozen…): a name and a color, as a store. */
-export const shoppingStorageSchema = shoppingStoreSchema;
+/** Store, storage mode or unit: a label and a color (labelFormSchema). */
+export type ShoppingStoreInput = LabelFormValues;
 
 /** Category of products, in a tree. */
 export const shoppingCategorySchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
   /** Base lists it is offered in (none: all; a sub-category without any takes those of its parent). */
@@ -42,7 +38,7 @@ export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
 /** Fields shared by a product of the base list and an item of a list. */
 const shoppingFields = {
-  name: requiredText(SHOPPING_NAME_MAX),
+  label: requiredText(SHOPPING_LABEL_MAX),
   categoryId: z.string().nullable(),
   storeId: z.string().nullable(),
   url: linkSchema,
@@ -69,13 +65,16 @@ export type ShoppingProductInput = z.input<typeof shoppingProductSchema>;
 export const shoppingItemSchema = z.object({ ...shoppingFields, optional: z.boolean().default(false) });
 export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
 
-/** Base list ("liste type"): its name. */
-export const shoppingBaseListNameSchema = requiredText(80);
+/** Base list ("liste type"): its label. */
+export const shoppingBaseListLabelSchema = requiredText(80);
 
-export const shoppingListNameSchema = requiredText(120);
+/** Longest label of a shopping list. */
+export const SHOPPING_LIST_LABEL_MAX = 120;
 
-/** Name and tasks of a shopping list, as its forms edit them. */
-export const shoppingListFormSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
+export const shoppingListLabelSchema = requiredText(SHOPPING_LIST_LABEL_MAX);
+
+/** Label and tasks of a shopping list, as its forms edit them. */
+export const shoppingListFormSchema = z.object({ label: shoppingListLabelSchema, taskIds: z.array(z.string()) });
 
 /**
  * Estimated cost of a product or an item: its quantity (1 without) times its unit price.
@@ -117,3 +116,15 @@ export function shoppingShares(items: readonly { quantity: number | null; unitPr
 
 /** Units of quantity a new workspace starts with (then set in the shopping settings). */
 export const DEFAULT_SHOPPING_UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'] as const;
+
+/**
+ * Key of what a product line holds, the same in the sheets, the shopping lists and the stock: its product, or else its
+ * label and unit (case and spaces aside). Two lines of the same key are the same product (summed, stored together).
+ * @param {{ productId?: string | null, label: string, unit?: string | null }} item Item.
+ * @returns {string} Key.
+ */
+export function productKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
+  if (item.productId) return `p:${item.productId}`;
+  const clean = (text: string | null | undefined) => (text ?? '').trim().toLocaleLowerCase('fr').replace(/\s+/g, ' ');
+  return `l:${clean(item.label)}|${clean(item.unit)}`;
+}

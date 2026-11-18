@@ -1,6 +1,7 @@
-import { ActionIcon, Group, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Group } from '@mantine/core';
 import { CheckCircleIcon, CircleDashedIcon, CircleIcon } from '@phosphor-icons/react';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../api';
 import { windowText } from '../lib/routine-format';
 import classes from './Routines.module.css';
@@ -26,22 +27,21 @@ interface DoneToggleProps {
  */
 function DoneToggle({ label, hint, done, optional = false, disabled = false, size = 'sm', onChange }: DoneToggleProps) {
   return (
-    <Tooltip label={done ? 'Marquer comme à faire' : hint}>
-      <ActionIcon
-        variant={done ? 'light' : 'subtle'}
-        color={done ? 'green' : 'gray'}
-        radius="xl"
-        size={size}
-        className={classes.doneToggle}
-        data-done={done || undefined}
-        aria-label={label}
-        aria-pressed={done}
-        disabled={disabled}
-        onClick={() => onChange(!done)}
-      >
-        {done ? <CheckCircleIcon weight="fill" aria-hidden /> : optional ? <CircleDashedIcon aria-hidden /> : <CircleIcon aria-hidden />}
-      </ActionIcon>
-    </Tooltip>
+    <IconAction
+      label={done ? 'Marquer comme à faire' : hint}
+      variant={done ? 'light' : 'subtle'}
+      color={done ? 'green' : 'gray'}
+      radius="xl"
+      size={size}
+      className={classes.doneToggle}
+      data-done={done || undefined}
+      aria-label={label}
+      aria-pressed={done}
+      disabled={disabled}
+      onClick={() => onChange(!done)}
+    >
+      {done ? <CheckCircleIcon weight="fill" aria-hidden /> : optional ? <CircleDashedIcon aria-hidden /> : <CircleIcon aria-hidden />}
+    </IconAction>
   );
 }
 
@@ -61,11 +61,11 @@ interface RoutineDoneTogglesProps {
 export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: RoutineDoneTogglesProps) {
   const { setDone } = useRoutineMutations();
   const started = routine.currentDate !== null;
-  const save = (slot: number, done: boolean) => setDone.mutate({ id: routine.id, done, slot }, { onError: onMutationError });
+  const save = (slot: number, done: boolean) => setDone.mutate({ id: routine.id, done, slot }, ON_ERROR);
   if (routine.slots.length <= 1) {
     return (
       <DoneToggle
-        label={`${routine.title} faite`}
+        label={`${routine.label} faite`}
         hint={!started ? 'Pas encore commencée' : dateLabel ? `Marquer comme faite (${dateLabel})` : 'Marquer comme faite'}
         done={routine.done}
         disabled={disabled || !started}
@@ -81,7 +81,7 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
           <DoneToggle
             key={slot.index}
             size="xs"
-            label={`${routine.title}, ${when}, faite`}
+            label={`${routine.label}, ${when}, faite`}
             hint={!started ? 'Pas encore commencée' : `${when}${slot.optional ? ' (facultatif)' : ''}`}
             done={started && slot.done}
             optional={slot.optional}

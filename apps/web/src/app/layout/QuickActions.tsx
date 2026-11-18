@@ -13,6 +13,7 @@ import { useRunningTimer } from '../../features/time/api';
 import { openTimerForm } from '../../features/time/lib/open-timer-form';
 import { useActiveWorkspace } from '../../features/workspaces/api';
 import classes from './QuickActions.module.css';
+import { TIMER_REPLACED_HINT } from '../../features/time/hooks/use-start-timer';
 
 interface QuickAction {
   /** Name of the item (menu, screen readers). */
@@ -20,6 +21,8 @@ interface QuickAction {
   icon: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /** What it does besides (a timer running stops). Optional. */
+  hint?: string;
 }
 
 /**
@@ -50,8 +53,8 @@ export function QuickActions() {
   const actions: QuickAction[] = [
     { title: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
     { title: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
-    // One timer runs at a time: the one running shows on the right of the bar.
-    { title: running.data ? 'Chrono (un chrono tourne déjà)' : 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, disabled: Boolean(running.data) },
+    // One timer runs at a time: the one running stops (decision Y).
+    { title: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: running.data ? TIMER_REPLACED_HINT : undefined },
     { title: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
     { title: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
     // No invoicing in a personal workspace.
@@ -62,7 +65,7 @@ export function QuickActions() {
     <ActionsMenu
       name="l’ajout"
       hover
-      items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled }))}
+      items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled, hint: action.hint }))}
       target={
         // On a very small screen, only the plus (the name stays for screen readers).
         <Button

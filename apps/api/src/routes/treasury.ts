@@ -9,6 +9,6 @@ treasuryRouter.get(
   '/statement.pdf',
   downloadRoute(async (req) => {
     const pdf = await treasuryStatementPdf({ from: queryText(req.query.from), to: queryText(req.query.to), accountId: queryText(req.query.accountId) || null });
-    return { content: pdf.content, type: 'application/pdf', filename: pdf.name };
+    return { content: pdf.content, type: 'application/pdf', filename: pdf.filename };
   }, 'Relevé impossible.'),
 );

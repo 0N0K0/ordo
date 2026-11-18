@@ -9,7 +9,7 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath, PAGES } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const ElsewhereAlarmsDocument = graphql(`
@@ -19,12 +19,12 @@ const ElsewhereAlarmsDocument = graphql(`
       task {
         id
         number
-        title
+        label
         projectId
       }
       project {
         id
-        title
+        label
       }
     }
     runningTimeEntry {
@@ -57,7 +57,7 @@ const CALENDAR_MS = 5 * 60_000;
  * @returns {JSX.Element | null} Mail watcher of the workspace, or nothing.
  */
 function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
-  const { id, name } = workspace;
+  const { id, label } = workspace;
   const sources = workspace.notifyElsewhere.join(',');
 
   useEffect(() => {
@@ -93,9 +93,9 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      * @returns {RingLink[]} Links.
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
-      if (alarm.task) return [link(`${taskRef(alarm.task)}${alarm.task.title}`, taskPath(alarm.task))];
-      if (alarm.project) return [link(alarm.project.title, `/projects/${alarm.project.id}`)];
-      return [link(`Ouvrir « ${name} »`, '/')];
+      if (alarm.task) return [link(`${taskRef(alarm.task)}${alarm.task.label}`, taskPath(alarm.task))];
+      if (alarm.project) return [link(alarm.project.label, projectPath(alarm.project.id))];
+      return [link(`Ouvrir « ${label} »`, '/')];
     };
 
     /**
@@ -133,16 +133,16 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
       timers.push(
         window.setInterval(() => {
           const now = new Date();
-          if (wanted.has('CALENDAR')) ringReminders(upcoming, now, [link(`Voir l’agenda de « ${name} »`, '/calendar')], name);
-          if (wanted.has('ALARMS')) for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), name);
+          if (wanted.has('CALENDAR')) ringReminders(upcoming, now, [link(`Voir l’agenda de « ${label} »`, PAGES.calendar.path)], label);
+          if (wanted.has('ALARMS')) for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), label);
         }, TICK_MS),
       );
     }
     return () => timers.forEach((timer) => window.clearInterval(timer));
-  }, [id, name, sources]);
+  }, [id, label, sources]);
 
   // New mails: fetched every 10 minutes, and when asked.
-  return workspace.notifyElsewhere.includes('MAILS') ? <MailWatcher workspace={{ id, name }} /> : null;
+  return workspace.notifyElsewhere.includes('MAILS') ? <MailWatcher workspace={{ id, label }} /> : null;
 }
 
 /**

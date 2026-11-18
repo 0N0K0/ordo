@@ -1,4 +1,4 @@
-import { collator } from '@ordo/shared';
+import { collator, NO_SUBJECT, sameName, sumOf } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -94,7 +94,7 @@ async function messageMarks(accountId: string, folder: string, uid: number, mess
       return message ? [...(message.flags ?? [])] : [];
     });
   });
-  if (flags) return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
+  if (flags) return flagMarks(flags);
   const mark = messageId ? await prisma.mailMark.findUnique({ where: { accountId_messageId: { accountId, messageId } } }) : null;
   return { labelIds: mark?.labelIds ?? [], done: mark?.done ?? false };
 }
@@ -119,7 +119,10 @@ function envelopeAddresses(list: MessageAddressObject[] | undefined): MailAddres
 export function parsedAddresses(value: AddressObject | AddressObject[] | undefined): MailAddress[] {
   const groups = value ? (Array.isArray(value) ? value : [value]) : [];
   return groups.flatMap((group) =>
-    group.value.flatMap((item) => (item.group ?? [item])).filter((item) => item.address).map((item) => ({ name: item.name || null, address: item.address! })),
+    group.value
+      .flatMap((item) => item.group ?? [item])
+      .filter((item) => item.address)
+      .map((item) => ({ name: item.name || null, address: item.address! })),
   );
 }
 
@@ -198,7 +201,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
 async function sumOverAccounts(count: (accountId: string) => Promise<number>): Promise<number> {
   const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
   const counts = await Promise.all(accounts.map((account) => count(account.id).catch(() => 0)));
-  return counts.reduce((sum, value) => sum + value, 0);
+  return sumOf(counts, (value) => value);
 }
 
 /**
@@ -207,7 +210,7 @@ async function sumOverAccounts(count: (accountId: string) => Promise<number>): P
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
 export function todoMails(): Promise<number> {
-  return sumOverAccounts(async (accountId) => (await listFolders(accountId)).reduce((sum, folder) => sum + (folder.todo ?? 0), 0));
+  return sumOverAccounts(async (accountId) => sumOf(await listFolders(accountId), (folder) => folder.todo ?? 0));
 }
 
 /**
@@ -256,6 +259,15 @@ async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Pro
 export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true } as const;
 
 /**
+ * Flags and done state of a mail read from its IMAP keywords.
+ * @param {string[]} flags IMAP flags of the mail.
+ * @returns {{ labelIds: string[], done: boolean }} Marks.
+ */
+function flagMarks(flags: string[]): { labelIds: string[]; done: boolean } {
+  return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => sameName(flag, DONE_KEYWORD)) };
+}
+
+/**
  * Summary of a fetched message, with its flags and done state: its IMAP keywords, or the marks kept in Ordo.
  * @param {FetchMessageObject} message Message fetched with SUMMARY_FETCH.
  * @param {boolean} keywords Whether its folder takes keywords.
@@ -263,13 +275,12 @@ export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStruc
  * @returns {MailSummary} Summary.
  */
 export function toSummary(message: FetchMessageObject, keywords: boolean, marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>): MailSummary {
-  const flags = [...(message.flags ?? [])];
-  const mark = keywords ? null : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
+  const mark = keywords ? flagMarks([...(message.flags ?? [])]) : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
   return {
-    labelIds: keywords ? flags.map(keywordLabel).filter((id): id is string => id !== null) : (mark?.labelIds ?? []),
-    done: keywords ? flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) : (mark?.done ?? false),
+    labelIds: mark?.labelIds ?? [],
+    done: mark?.done ?? false,
     uid: message.uid,
-    subject: message.envelope?.subject || '(sans objet)',
+    subject: message.envelope?.subject || NO_SUBJECT,
     from: envelopeAddresses(message.envelope?.from),
     to: envelopeAddresses(message.envelope?.to),
     date: new Date(message.envelope?.date ?? message.internalDate ?? Date.now()),
@@ -329,11 +340,7 @@ export async function listMessages(
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
       const messages: MailSummary[] = [];
-      const fetched: AsyncGenerator<FetchMessageObject, false | void> = client.fetch(
-        pageUids,
-        SUMMARY_FETCH,
-        { uid: true },
-      );
+      const fetched: AsyncGenerator<FetchMessageObject, false | void> = client.fetch(pageUids, SUMMARY_FETCH, { uid: true });
       for await (const message of fetched) messages.push(toSummary(message, keywords, marks));
       // In the order of the page.
       const rank = new Map(pageUids.map((uid, index) => [uid, index]));
@@ -410,10 +417,8 @@ export async function readMessage(accountId: string, folder: string, uid: number
     uid,
     messageId: bareMessageId(parsed.messageId),
     inReplyTo: bareMessageId(parsed.inReplyTo),
-    references: (Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : [])
-      .map(bareMessageId)
-      .filter((id): id is string => id !== null),
-    subject: parsed.subject || '(sans objet)',
+    references: (Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : []).map(bareMessageId).filter((id): id is string => id !== null),
+    subject: parsed.subject || NO_SUBJECT,
     from: parsedAddresses(parsed.from),
     to: parsedAddresses(parsed.to),
     cc: parsedAddresses(parsed.cc),

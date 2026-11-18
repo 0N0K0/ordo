@@ -8,6 +8,7 @@ import { useAsyncAction } from '../../../lib/use-async-action';
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from '../api/documents';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { documentPath } from '../../../app/pages';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -54,7 +55,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       .filter((document) => !document.archived && document.type === 'QUOTE' && document.status === 'FINAL')
       .map((document) => ({
         value: `ordo:${document.id}`,
-        label: `${document.number} — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,
+        label: `${document.number} — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number ?? '',
         issueDate: document.issueDate,
@@ -66,7 +67,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       .filter((document) => !document.archived && document.type === 'QUOTE' && document.clientId)
       .map((document) => ({
         value: `imported:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,
+        label: `${document.number} (importé) — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number,
         issueDate: document.issueDate,
@@ -90,7 +91,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       fallback: 'Création impossible.',
       onDone: (created) => {
         onDone();
-        void navigate(`/accounting/${created}`);
+        void navigate(documentPath(created));
       },
     },
   );

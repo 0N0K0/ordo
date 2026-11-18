@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import {
   addDays,
   type FilterConditionOf,
@@ -12,12 +13,13 @@ import {
   isoWeekYear,
   type TableSort,
   weekdayOf,
+  quarterOf,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
 import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
-import { dayOf, monthOfDay } from '../../../lib/dates';
+import { dayOf, monthOfDay, yearOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
@@ -70,8 +72,7 @@ function filterable<R>(columns: readonly DataColumn<R>[]) {
  */
 function offeredChoices(options: readonly ColumnChoice[], values: readonly string[]): ColumnChoice[] {
   if (!options.some((option) => option.archived)) return [...options];
-  const kept = new Set(values);
-  const offered = new Set(options.filter((option) => !option.archived || kept.has(option.value)).map((option) => option.value));
+  const offered = new Set(unarchived(options, values, (option) => option.value).map((option) => option.value));
   // Parents of the choices offered, to keep their tree.
   const byValue = new Map(options.map((option) => [option.value, option]));
   const parents = new Set<string>();
@@ -101,7 +102,7 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
       const options = offeredChoices(filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [], values);
       // Choices of a tree (categories, projects, tasks…) offered as their tree.
       return options.some((option) => option.depth !== undefined)
-        ? treeSelectProps(options.map((option) => ({ ...option, name: option.name ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
+        ? treeSelectProps(options.map((option) => ({ ...option, nodeLabel: option.nodeLabel ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
         : options.some(hasAvatar)
           ? { data: options, renderOption: itemRenderOption(options) }
           : { data: options };
@@ -232,8 +233,7 @@ const weekOf = (date: string) => ({ year: isoWeekYear(date), week: isoWeek(date)
  * @returns {{ key: string, label: string }} Group.
  */
 function periodGroup(date: string, period: GroupPeriod): { key: string; label: string } {
-  const year = Number(date.slice(0, 4));
-  const month = Number(date.slice(5, 7));
+  const year = yearOfDay(date);
   switch (period) {
     case 'DAY':
       return { key: date, label: fmt.capitalize(fmt.dayLong(date)) };
@@ -244,8 +244,7 @@ function periodGroup(date: string, period: GroupPeriod): { key: string; label: s
     case 'MONTH':
       return { key: monthOfDay(date), label: periodName('month', `${monthOfDay(date)}-01`) };
     case 'QUARTER': {
-      const quarter = Math.ceil(month / 3);
-      return { key: `${year}-Q${quarter}`, label: quarterName(date) };
+      return { key: `${year}-Q${quarterOf(date)}`, label: quarterName(date) };
     }
     case 'YEAR':
       return { key: String(year), label: String(year) };

@@ -11,9 +11,9 @@ import { useAlarmMutations, useAlarms, type Alarm } from '../api';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath, PAGES } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const TICK_MS = 15_000;
@@ -82,10 +82,10 @@ export function AlarmCenter() {
       const { tasksData: data, workspace: space } = latest.current;
       const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
       // Its number is only unique in its project: the project comes with it.
-      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
-      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.title}`, taskPath(task))];
+      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.label : undefined;
+      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.label}`, taskPath(task))];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
-      return project ? [link(project.title, `/projects/${project.id}`)] : [];
+      return project ? [link(project.label, projectPath(project.id))] : [];
     };
 
     /**
@@ -95,12 +95,12 @@ export function AlarmCenter() {
     const tick = () => {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
-      ringReminders(upcoming.current, now, [link('Voir l’agenda', '/calendar')]);
+      ringReminders(upcoming.current, now, [link('Voir l’agenda', PAGES.calendar.path)]);
       ringRoutineReminders(
         latest.current.routinesData?.routines ?? [],
         now,
-        [link('Voir les routines', '/routines')],
-        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: onMutationError }),
+        [link('Voir les routines', PAGES.routines.path)],
+        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       if (!list) return;

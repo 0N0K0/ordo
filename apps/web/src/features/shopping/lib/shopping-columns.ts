@@ -14,7 +14,7 @@ interface ItemNames {
   categories: readonly ShoppingCategory[];
   stores: readonly ShoppingStore[];
   /** Ways of keeping. Optional. */
-  storages?: readonly { id: string; name: string; archived?: boolean }[];
+  storages?: readonly { id: string; label: string; archived?: boolean }[];
   /** Names of the members and relations. */
   members: ReadonlyMap<string, string>;
   relations: ReadonlyMap<string, string>;
@@ -30,13 +30,13 @@ interface ItemNames {
  * @returns {DataColumn<T>[]} Columns.
  */
 export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping, names: ItemNames, extra: DataColumn<T>[] = []): DataColumn<T>[] {
-  const storeName = new Map(names.stores.map((store) => [store.id, store.name]));
+  const storeName = new Map(names.stores.map((store) => [store.id, store.label]));
   const storeOf = (item: T) => (item.storeId ? (storeName.get(item.storeId) ?? '') : '');
-  const storageName = new Map((names.storages ?? []).map((storage) => [storage.id, storage.name]));
+  const storageName = new Map((names.storages ?? []).map((storage) => [storage.id, storage.label]));
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'name', label: 'Label', size: 260, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
+    { id: 'name', label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     categoryColumn<T>(names.categories, { size: 150, hiddenByDefault: grouping === 'category', groupable: false }),
     {
       id: 'store',
@@ -46,7 +46,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       hiddenByDefault: grouping === 'store',
       sortValue: (item) => storeOf(item) || null,
       text: storeOf,
-      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })) },
+      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.label, archived: store.archived })) },
     },
     quantityColumn<T>({ size: 88 }),
     unitColumn<T>({ size: 100 }),
@@ -76,7 +76,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
         options: [
           { value: NOT_PERISHABLE, label: 'Non périssable' },
           { value: PERISHABLE, label: 'Périssable, sans mode' },
-          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.name, archived: storage.archived })),
+          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.label, archived: storage.archived })),
         ],
       },
     },

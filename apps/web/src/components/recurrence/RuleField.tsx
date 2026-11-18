@@ -1,7 +1,7 @@
 import type { Recurrence } from '@ordo/shared';
 import * as fmt from '../../lib/format';
 import { describeRecurrence } from './describe-recurrence';
-import { RepetitionEditor } from './RepetitionEditor';
+import { RuleEditor } from './RepetitionEditor';
 import { RepetitionField } from './RepetitionField';
 
 interface RuleFieldProps {
@@ -37,17 +37,7 @@ export function RuleField({ value, onChange, start, label, description, error, r
       onChange={onChange}
       valid={(draft) => !required || draft !== null}
       describe={(rule) => (rule ? [fmt.capitalize(describeRecurrence(rule, start, weekly))] : [])}
-      editor={(draft, setDraft) => (
-        <RepetitionEditor
-          mode="RULE"
-          onModeChange={() => undefined}
-          cases={[{ since: null, until: null, anchor: null, rule: draft, times: null }]}
-          onChange={(cases) => setDraft(cases[0]?.rule ?? null)}
-          start={start}
-          weekly={weekly}
-          allowNone={!required}
-        />
-      )}
+      editor={(draft, setDraft) => <RuleEditor rule={draft} onChange={setDraft} start={start} weekly={weekly} allowNone={!required} />}
     />
   );
 }

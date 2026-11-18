@@ -1,16 +1,11 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { SegmentedControl, Select } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
-import { calendarStart, type CalendarScale, type ChartConfig } from '@ordo/shared';
+import { CALENDAR_SCALE_OPTIONS, calendarStart, type CalendarScale, type ChartConfig } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { calendarParts } from '../lib/aggregate';
 import { relativePeriodName } from '../../../lib/periods';
 
-const SCALES: { value: CalendarScale; label: string }[] = [
-  { value: 'month', label: 'Mois' },
-  { value: 'quarter', label: 'Trimestre' },
-  { value: 'year', label: 'Année' },
-];
 /** Name of a chosen period of each scale. */
 const CHOSEN: Record<CalendarScale, string> = { month: 'Mois choisi', quarter: 'Trimestre choisi', year: 'Année choisie' };
 
@@ -40,7 +35,7 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
     <LabeledField label="Période">
       <SegmentedControl
         size="xs"
-        data={SCALES}
+        data={CALENDAR_SCALE_OPTIONS}
         value={scale}
         // A chosen period keeps its first day, on the new scale.
         onChange={(next) => set(next as CalendarScale, chosen ? calendarStart(next as CalendarScale, anchor) : anchor)}

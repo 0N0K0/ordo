@@ -1,6 +1,7 @@
+import { unarchived } from '../../../lib/archive';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { Badge } from '@mantine/core';
-import { formatDuration } from '@ordo/shared';
+import { formatDuration, sumOf } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useCalendarEvents } from '../../calendar/api';
 import { useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
@@ -50,7 +51,7 @@ export function TimeNavBadge() {
   const { data: running } = useRunningTimer();
   if (!time || (!time.today && !running)) return null;
   return (
-    <Badge size="sm" variant="light" tt="none" color={running ? 'red' : 'blue'} aria-label={`${formatDuration(time.today)} aujourd’hui${running ? ', chrono en cours' : ''}`}>
+    <Badge size="sm" variant="light" color={running ? 'red' : 'blue'} aria-label={`${formatDuration(time.today)} aujourd’hui${running ? ', chrono en cours' : ''}`}>
       {formatDuration(time.today)}
     </Badge>
   );
@@ -62,11 +63,11 @@ export function TimeNavBadge() {
  */
 export function TreasuryNavBadge() {
   const { data: accounts } = useTreasuryAccounts();
-  const open = accounts?.filter((account) => !account.archived) ?? [];
+  const open = unarchived(accounts ?? []);
   if (open.length === 0) return null;
-  const balance = open.reduce((sum, account) => sum + account.balance, 0);
+  const balance = sumOf(open, (account) => account.balance);
   return (
-    <Badge size="sm" variant="light" tt="none" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
+    <Badge size="sm" variant="light" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
       {fmt.moneyCompact(balance)}
     </Badge>
   );

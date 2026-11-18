@@ -19,6 +19,31 @@ export const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true,
  */
 export const stopClick = (event: SyntheticEvent) => event.stopPropagation();
 
+/** Borderless field of a row that opens on a click: its click kept from the row. */
+// eslint-disable-next-line no-restricted-syntax -- stoppedCellField itself.
+export const stoppedCellField = { ...cellField, onClick: stopClick } as const;
+
+/** Select field of a row that opens on a click: its click kept from the row. */
+// eslint-disable-next-line no-restricted-syntax -- stoppedCellCombobox itself.
+export const stoppedCellCombobox = { ...cellCombobox, onClick: stopClick } as const;
+
+/**
+ * Props of a picker in a cell (a parent, a link): borderless, « — » when empty, cleared unless read only, its click kept
+ * from the row, its dropdown above the table.
+ * @param {boolean} readOnly Shown only.
+ * @returns {object} Select props.
+ */
+export const cellPicker = (readOnly: boolean) =>
+  ({
+    variant: 'unstyled',
+    size: 'xs',
+    placeholder: readOnly ? undefined : '—',
+    readOnly,
+    clearable: !readOnly,
+    onClick: stopClick,
+    comboboxProps: { withinPortal: true },
+  }) as const;
+
 /**
  * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
  * @param {KeyboardEvent<HTMLInputElement>} event Key event.
@@ -73,4 +98,16 @@ export function checked<T>(schema: CellSchema<T>, value: unknown, fallback: stri
  */
 export function cellLabel(field: string, of: string, count: number): string {
   return count > 1 ? `${field} (appliqué aux ${count} cellules sélectionnées)` : `${field} ${of}`;
+}
+
+/**
+ * Accessible label of a cell field of a named item, the same for tasks and routines: « Statut de la tâche #12 »,
+ * « Lieu de « Ménage » » (see cellLabel).
+ * @param {string} field Field name.
+ * @param {string} item Item, named: « la tâche #12 », « « Ménage » ».
+ * @param {number} count Number of rows the edit applies to.
+ * @returns {string} Label.
+ */
+export function itemCellLabel(field: string, item: string, count: number): string {
+  return cellLabel(field, `de ${item}`, count);
 }

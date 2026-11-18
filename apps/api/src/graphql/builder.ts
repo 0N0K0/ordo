@@ -1,4 +1,4 @@
-import { isRealDay } from '@ordo/shared';
+import { formatDay, isRealDay } from '@ordo/shared';
 import SchemaBuilder from '@pothos/core';
 import PrismaPlugin from '@pothos/plugin-prisma';
 import ScopeAuthPlugin from '@pothos/plugin-scope-auth';
@@ -48,7 +48,7 @@ builder.scalarType('File', {
 
 builder.scalarType('Date', {
   description: 'Calendar date, YYYY-MM-DD.',
-  serialize: (date) => date.toISOString().slice(0, 10),
+  serialize: (date) => formatDay(date),
   parseValue: (value) => {
     if (typeof value !== 'string' || !isRealDay(value)) throw new TypeError('Date must be YYYY-MM-DD.');
     return value;
@@ -74,3 +74,9 @@ builder.scalarType('DateTime', {
 // Every root field requires a session unless it opts out with `skipTypeScopes`.
 builder.queryType({ authScopes: { loggedIn: true } });
 builder.mutationType({ authScopes: { loggedIn: true } });
+
+/** Field builder of an input type (`fields: (t) => …` of `builder.inputType`), for field lists shared by several inputs. */
+export type InputFields = Parameters<Parameters<typeof builder.inputType>[1]['fields']>[0];
+
+/** Schema types of the builder (for helpers typed against its field builders). */
+export type BuilderTypes = typeof builder extends PothosSchemaTypes.SchemaBuilder<infer Types> ? Types : never;

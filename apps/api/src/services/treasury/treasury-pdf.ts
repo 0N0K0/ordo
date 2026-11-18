@@ -1,5 +1,25 @@
-import { addDays, capitalize, formatDay, formatMoney, longDayText, mapById, monthText, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
-import PDFDocument from 'pdfkit';
+import {
+  addDays,
+  capitalize,
+  countOf,
+  daySchema,
+  endAfter,
+  fileName,
+  formatDay,
+  formatMoney,
+  longDayText,
+  mapById,
+  monthOfDate,
+  monthOfDay,
+  monthText,
+  offsetLinkedMovements,
+  parseDay,
+  pathOf,
+  plural,
+  printedDay,
+  splitAmounts,
+  sumOf,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { BY_POSITION } from '../core/ordering';
@@ -7,8 +27,6 @@ import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
 import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport, writeHeading } from '../core/pdf-report';
 import { decimalCents, fromDecimal } from '../core/decimal';
-
-type Doc = InstanceType<typeof PDFDocument>;
 
 /** Period (and account) of a statement. */
 const statementSchema = z
@@ -18,7 +36,7 @@ const statementSchema = z
     /** One account, or all of them. */
     accountId: z.string().nullable(),
   })
-  .refine((period) => period.from <= period.to, { path: ['to'], message: 'La fin de la période précède son début.' })
+  .refine(...endAfter('from', 'to'))
   .refine((period) => period.to <= addDays(period.from, 366 * 10), { path: ['to'], message: 'Dix ans au plus.' });
 type StatementInput = z.input<typeof statementSchema>;
 
@@ -49,9 +67,9 @@ interface Column {
  * Forecasts are left out. The running balance only counts an entry from the opening date of its account, and
  * an account opened during the period adds its opening balance that day.
  * @param {StatementInput} input Period and account.
- * @returns {Promise<{ name: string, content: Buffer }>} File name and PDF.
+ * @returns {Promise<{ filename: string, content: Buffer }>} File name and PDF.
  */
-export async function treasuryStatementPdf(input: StatementInput): Promise<{ name: string; content: Buffer }> {
+export async function treasuryStatementPdf(input: StatementInput): Promise<{ filename: string; content: Buffer }> {
   const { from, to, accountId } = parseInput(statementSchema, input);
   const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: BY_POSITION });
   if (accountId && !accounts.length) throw notFound('Compte');
@@ -61,16 +79,16 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   const entries = await prisma.treasuryEntry.findMany({
     where: { status: 'ACTUAL', accountId: { in: accounts.map((account) => account.id) }, date: { gte: parseDay(from), lte: parseDay(to) } },
     include: {
-      account: { select: { name: true } },
+      account: { select: { label: true } },
       category: { select: { id: true } },
-      method: { select: { name: true } },
+      method: { select: { label: true } },
       client: { select: { name: true } },
       counterparty: { select: { name: true } },
       allocations: { select: { document: { select: { number: true } }, importedDocument: { select: { number: true } } } },
       links: { select: { id: true, label: true } },
       linkedBy: { select: { id: true, label: true } },
       libraryDocuments: { select: { title: true } },
-      projectResources: { select: { title: true } },
+      projectResources: { select: { label: true } },
       lines: {
         orderBy: { position: 'asc' },
         select: {
@@ -82,8 +100,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
           date: true,
           member: { select: { name: true } },
           relation: { select: { name: true } },
-          context: { select: { name: true } },
-          project: { select: { title: true } },
+          context: { select: { label: true } },
+          project: { select: { label: true } },
         },
       },
     },
@@ -91,32 +109,38 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   });
 
   // Category paths ("Parent › Enfant").
-  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, parentId: true } });
+  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, parentId: true } });
   const categoryById = mapById(categories);
   /**
    * Full path of a category.
    * @param {string | null} id Category id.
    * @returns {string} Path, empty without category.
    */
-  const categoryPath = (id: string | null) => pathOf(categoryById, id, (category) => category.name);
+  const categoryPath = (id: string | null) => pathOf(categoryById, id, (category) => category.label);
 
   const openingDates = new Map(accounts.map((account) => [account.id, formatDay(account.openingDate)]));
   const counted = (entry: (typeof entries)[number]) => formatDay(entry.date) >= (openingDates.get(entry.accountId) ?? '');
-  const opening = (await Promise.all(accounts.map((account) => accountBalance(account, addDays(from, -1))))).reduce((sum, value) => sum + value, 0);
-  const closing = (await Promise.all(accounts.map((account) => accountBalance(account, to)))).reduce((sum, value) => sum + value, 0);
+  const opening = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, addDays(from, -1)))), (value) => value);
+  const closing = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, to))), (value) => value);
   // Accounts opened during the period: their opening balance, that day.
   const openings = accounts
     .filter((account) => formatDay(account.openingDate) >= from && formatDay(account.openingDate) <= to)
-    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: decimalCents(account.openingBalance) }));
+    .map((account) => ({ day: formatDay(account.openingDate), label: account.label, amount: decimalCents(account.openingBalance) }));
 
   const amounts = entries.map((entry) => decimalCents(entry.amount));
-  const incoming = amounts.filter((amount) => amount > 0).reduce((sum, amount) => sum + amount, 0);
-  const outgoing = -amounts.filter((amount) => amount < 0).reduce((sum, amount) => sum + amount, 0);
+  const incoming = sumOf(
+    amounts.filter((amount) => amount > 0),
+    (amount) => amount,
+  );
+  const outgoing = -sumOf(
+    amounts.filter((amount) => amount < 0),
+    (amount) => amount,
+  );
   // Linked money in and out of the period offsetting each other.
   const remaining = offsetLinkedMovements(
     entries.map((entry, index) => ({ id: entry.id, amount: amounts[index], linkedIds: [...entry.links, ...entry.linkedBy].map((linked) => linked.id), period: 'all' })),
   );
-  const offset = entries.reduce((sum, entry, index) => sum + (amounts[index] > 0 ? amounts[index] - Math.round(remaining.get(entry.id) ?? amounts[index]) : 0), 0);
+  const offset = sumOf(entries, (entry, index) => (amounts[index] > 0 ? amounts[index] - Math.round(remaining.get(entry.id) ?? amounts[index]) : 0));
 
   const { doc, top, finish } = await startReport({ title: `Relevé du ${printedDay(from)} au ${printedDay(to)}` });
 
@@ -135,19 +159,16 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     { label: 'Solde', width: 66, align: 'right' },
   ];
   const labelIndex = 2;
-  fixed[labelIndex].width = pageWidth - fixed.reduce((sum, column) => sum + column.width, 0);
-  const xs = fixed.map((_, index) => MARGIN + fixed.slice(0, index).reduce((sum, column) => sum + column.width, 0));
+  fixed[labelIndex].width = pageWidth - sumOf(fixed, (column) => column.width);
+  const xs = fixed.map((_, index) => MARGIN + sumOf(fixed.slice(0, index), (column) => column.width));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 
   // Title and summary.
-  const scope = several ? 'Tous les comptes' : accounts[0].name;
+  const scope = several ? 'Tous les comptes' : accounts[0].label;
   y =
-    writeHeading(
-      doc,
-      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') },
-      { x: MARGIN, y, width: pageWidth },
-    ) + 8;
+    writeHeading(doc, { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') }, { x: MARGIN, y, width: pageWidth }) +
+    8;
   const figures = [
     { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },
@@ -171,7 +192,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   });
   y += 36 + 6;
   const notes = [
-    `${entries.length} mouvement${entries.length > 1 ? 's' : ''} réel${entries.length > 1 ? 's' : ''}, par date d’exécution ; les prévisions ne sont pas incluses.`,
+    `${countOf(entries.length, 'mouvement')} ${plural(entries.length, 'réel')}, par date d’exécution ; les prévisions ne sont pas incluses.`,
     offset > 0 ? `Dont ${money(offset)} d’entrées et de sorties liées qui se compensent (entrées nettes ${money(incoming - offset)}, sorties nettes ${money(outgoing - offset)}).` : '',
   ].filter(Boolean);
   doc.font('regular').fontSize(7.5).fillColor(COLORS.muted).text(notes.join(' '), MARGIN, y, { width: pageWidth });
@@ -220,7 +241,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   };
 
   header();
-  const byMonth = new Set(entries.map((entry) => formatDay(entry.date).slice(0, 7))).size > 1 || from.slice(0, 7) !== to.slice(0, 7);
+  const byMonth = new Set(entries.map((entry) => monthOfDate(entry.date))).size > 1 || monthOfDay(from) !== monthOfDay(to);
   let running = opening;
   let month = '';
   let pendingOpenings = [...openings];
@@ -233,23 +254,29 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   }
   entries.forEach((entry, index) => {
     const day = formatDay(entry.date);
-    if (byMonth && day.slice(0, 7) !== month) {
-      month = day.slice(0, 7);
-      const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => formatDay(other.date).slice(0, 7) === month);
-      const monthIn = ofMonth.filter(({ amount }) => amount > 0).reduce((sum, { amount }) => sum + amount, 0);
-      const monthOut = -ofMonth.filter(({ amount }) => amount < 0).reduce((sum, { amount }) => sum + amount, 0);
+    if (byMonth && monthOfDay(day) !== month) {
+      month = monthOfDay(day);
+      const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => monthOfDate(other.date) === month);
+      const monthIn = sumOf(
+        ofMonth.filter(({ amount }) => amount > 0),
+        ({ amount }) => amount,
+      );
+      const monthOut = -sumOf(
+        ofMonth.filter(({ amount }) => amount < 0),
+        ({ amount }) => amount,
+      );
       band(capitalize(monthText(month)), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
     }
     // Accounts opened by then.
     for (const account of pendingOpenings.filter((item) => item.day <= day)) {
       running += account.amount;
-      band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+      band(`${printedDay(account.day)} — Ouverture du compte ${account.label}`, `Solde ${money(running)}`, COLORS.fill);
     }
     pendingOpenings = pendingOpenings.filter((item) => item.day > day);
     if (counted(entry)) running += amounts[index];
 
     const linked = [...entry.links, ...entry.linkedBy].map((item) => item.label);
-    const supports = [...entry.libraryDocuments, ...entry.projectResources].map((item) => item.title);
+    const supports = [...entry.libraryDocuments.map((item) => item.title), ...entry.projectResources.map((item) => item.label)];
     const documents = entry.allocations.map((allocation) => allocation.document?.number ?? (allocation.importedDocument ? `${allocation.importedDocument.number} (importé)` : '')).filter(Boolean);
     const details = [
       documents.length ? `Règle ${documents.join(', ')}` : '',
@@ -265,8 +292,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       entry.label,
       entry.client?.name ?? entry.counterparty?.name ?? '',
       categoryPath(entry.category?.id ?? null),
-      entry.method?.name ?? '',
-      ...(several ? [entry.account.name] : []),
+      entry.method?.label ?? '',
+      ...(several ? [entry.account.label] : []),
       amounts[index] < 0 ? money(-amounts[index]) : '',
       amounts[index] > 0 ? money(amounts[index]) : '',
       money(running),
@@ -315,8 +342,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
             [
               line.label ?? '',
               line.relation ? `pour ${line.relation.name}` : line.member ? `pour ${line.member.name}` : '',
-              line.context?.name ?? '',
-              line.project ? `projet ${line.project.title}` : '',
+              line.context?.label ?? '',
+              line.project ? `projet ${line.project.label}` : '',
               line.loan ? 'prêt' : '',
               line.date ? `le ${printedDay(line.date)}` : '',
             ]
@@ -362,11 +389,11 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened after the last entry.
   for (const account of pendingOpenings) {
     running += account.amount;
-    band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+    band(`${printedDay(account.day)} — Ouverture du compte ${account.label}`, `Solde ${money(running)}`, COLORS.fill);
   }
   y += 4;
   band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printedDay(to)} : ${money(closing)}`, COLORS.month);
 
   const content = await finish();
-  return { name: safeFilename(`Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`), content };
+  return { filename: fileName(`Relevé ${several ? 'trésorerie' : accounts[0].label} du ${from} au ${to}`, 'pdf'), content };
 }

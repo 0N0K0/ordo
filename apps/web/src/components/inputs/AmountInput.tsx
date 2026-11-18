@@ -2,6 +2,7 @@ import { round2 } from '@ordo/shared';
 import { NumberInput, type NumberInputProps } from '@mantine/core';
 import { useState, type FocusEvent } from 'react';
 import { currencySymbol } from '../../lib/format';
+import { FRENCH_NUMBER_FORMAT } from './number-format';
 
 /** Decimals an amount is typed and kept with (shown rounded to 2). */
 const AMOUNT_DECIMALS = 4;
@@ -31,8 +32,7 @@ export function AmountInput({ value, onFocus, onBlur, currency = 'EUR', suffix, 
   const [focused, setFocused] = useState(false);
   return (
     <NumberInput
-      decimalSeparator=","
-      thousandSeparator=" "
+      {...FRENCH_NUMBER_FORMAT}
       suffix={suffix ?? (currency ? ` ${currencySymbol(currency)}` : undefined)}
       {...props}
       decimalScale={focused ? AMOUNT_DECIMALS : 2}

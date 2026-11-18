@@ -11,7 +11,7 @@
       --page-gutter: 32px;
     }
 
-    @media (min-width: 70em) {
+    @media (min-width: $desktop-breakpoint) {
       --page-gutter: 48px;
     }
 

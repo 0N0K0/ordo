@@ -33,8 +33,8 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
   const { transferChart } = useDashboardMutations();
   const chosen = choices.find((dashboard) => dashboard.id === dashboardId)?.id ?? choices[0]?.id ?? null;
   const destinationProps = treeSelectProps([
-    { value: GENERAL, label: 'Tableau de bord général (tous les projets)', name: 'Tableau de bord général (tous les projets)', depth: 0, parent: null },
-    ...context.projectOptions(context.projects.filter((project) => !project.archived)),
+    { value: GENERAL, label: 'Tableau de bord général (tous les projets)', nodeLabel: 'Tableau de bord général (tous les projets)', depth: 0, parent: null },
+    ...context.projectOptions(unarchived(context.projects)),
   ]);
 
   return (
@@ -53,7 +53,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
         data-autofocus
       />
       {choices.length > 0 ? (
-        <Select label="Tableau de bord" allowDeselect={false} data={choices.map((dashboard) => ({ value: dashboard.id, label: dashboard.name }))} value={chosen} onChange={setDashboardId} />
+        <Select label="Tableau de bord" allowDeselect={false} data={choices.map((dashboard) => ({ value: dashboard.id, label: dashboard.label }))} value={chosen} onChange={setDashboardId} />
       ) : (
         dashboards && (
           <Text size="sm" c="dimmed">

@@ -6,6 +6,9 @@ export const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 /** A day written YYYY-MM-DD (its form only, not whether it exists). */
 export const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/** A local date-time without seconds nor zone, YYYY-MM-DDTHH:MM (as a `datetime-local` field gives it). */
+export const LOCAL_DATE_TIME_PATTERN = new RegExp(`^${DAY_PATTERN.source.slice(1, -1)}T${TIME_OF_DAY_PATTERN.source.slice(1, -1)}$`);
+
 /** Time of the day field (HH:MM). */
 export const timeOfDaySchema = z.string().regex(TIME_OF_DAY_PATTERN, 'Heure attendue (HH:MM).');
 

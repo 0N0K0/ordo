@@ -1,14 +1,9 @@
+import { unarchived } from '../../../lib/archive';
 import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
-import type {
-  ClientFieldsFragment,
-  LabelFieldsFragment,
-  ProjectFieldsFragment,
-  ProjectStatusFieldsFragment,
-  WorkspaceQuery,
-} from '../../../graphql/graphql';
+import type { ClientFieldsFragment, LabelFieldsFragment, ProjectFieldsFragment, ProjectStatusFieldsFragment, WorkspaceQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 
 export type Client = ClientFieldsFragment;
@@ -33,7 +28,7 @@ graphql(`
   fragment LabelFields on ProjectCategory {
     id
     archived
-    name
+    label
     color
     position
     iconUrl
@@ -44,7 +39,7 @@ graphql(`
   fragment ProjectStatusFields on ProjectStatus {
     id
     archived
-    name
+    label
     color
     iconUrl
     position
@@ -54,7 +49,7 @@ graphql(`
 graphql(`
   fragment ProjectFields on Project {
     id
-    title
+    label
     clientId
     parentId
     iconUrl
@@ -178,7 +173,7 @@ const MoveProjectDocument = graphql(`
 `);
 
 const CreateProjectCategoryDocument = graphql(`
-  mutation CreateProjectCategory($input: NameColorInput!) {
+  mutation CreateProjectCategory($input: LabelColorInput!) {
     createProjectCategory(input: $input) {
       ...LabelFields
     }
@@ -186,7 +181,7 @@ const CreateProjectCategoryDocument = graphql(`
 `);
 
 const UpdateProjectCategoryDocument = graphql(`
-  mutation UpdateProjectCategory($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateProjectCategory($id: ID!, $input: LabelColorPatch!) {
     updateProjectCategory(id: $id, input: $input) {
       ...LabelFields
     }
@@ -200,7 +195,7 @@ const DeleteProjectCategoryDocument = graphql(`
 `);
 
 const CreateProjectStatusDocument = graphql(`
-  mutation CreateProjectStatus($input: NameColorInput!) {
+  mutation CreateProjectStatus($input: LabelColorInput!) {
     createProjectStatus(input: $input) {
       ...ProjectStatusFields
     }
@@ -208,7 +203,7 @@ const CreateProjectStatusDocument = graphql(`
 `);
 
 const UpdateProjectStatusDocument = graphql(`
-  mutation UpdateProjectStatus($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {
     updateProjectStatus(id: $id, input: $input) {
       ...ProjectStatusFields
     }
@@ -220,7 +215,6 @@ const DeleteProjectStatusDocument = graphql(`
     deleteProjectStatus(id: $id)
   }
 `);
-
 
 export const workspaceQueryKey = ['workspace'] as const;
 
@@ -300,8 +294,7 @@ export function descendantIds(projects: Project[], id: string): Set<string> {
  */
 export function useCreateClient() {
   return useWorkspaceMutation({
-    mutationFn: async (input: { name: string; color?: string | null; icon?: File | null }) =>
-      (await execute(CreateClientDocument, { input })).createClient,
+    mutationFn: async (input: { name: string; color?: string | null; icon?: File | null }) => (await execute(CreateClientDocument, { input })).createClient,
   });
 }
 
@@ -311,10 +304,8 @@ export function useCreateClient() {
  */
 export function useUpdateClient() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: {
-      id: string;
-      input: { name?: string; color?: string | null; icon?: File | null; removeIcon?: boolean };
-    }) => (await execute(UpdateClientDocument, variables)).updateClient,
+    mutationFn: async (variables: { id: string; input: { name?: string; color?: string | null; icon?: File | null; removeIcon?: boolean } }) =>
+      (await execute(UpdateClientDocument, variables)).updateClient,
     optimistic: (workspace, { id, input }) => ({
       ...workspace,
       clients: patch(workspace.clients, id, (client) => ({
@@ -332,8 +323,7 @@ export function useUpdateClient() {
  */
 export function useSetClientFavorite() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; favorite: boolean }) =>
-      (await execute(SetClientFavoriteDocument, variables)).setClientFavorite,
+    mutationFn: async (variables: { id: string; favorite: boolean }) => (await execute(SetClientFavoriteDocument, variables)).setClientFavorite,
     optimistic: (workspace, { id, favorite }) => ({
       ...workspace,
       clients: patch(workspace.clients, id, (client) => ({ ...client, favorite })),
@@ -347,15 +337,12 @@ export function useSetClientFavorite() {
  */
 export function useSetClientArchived() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; archived: boolean }) =>
-      (await execute(SetClientArchivedDocument, variables)).setClientArchived,
+    mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetClientArchivedDocument, variables)).setClientArchived,
     optimistic: (workspace, { id, archived }) => ({
       ...workspace,
       clients: patch(workspace.clients, id, (client) => ({ ...client, archived })),
       // Restoring brings back only the projects archived with the client: the refetch settles it.
-      projects: archived
-        ? workspace.projects.map((project) => (project.clientId === id ? { ...project, archived: true } : project))
-        : workspace.projects,
+      projects: archived ? workspace.projects.map((project) => (project.clientId === id ? { ...project, archived: true } : project)) : workspace.projects,
     }),
   });
 }
@@ -366,8 +353,7 @@ export function useSetClientArchived() {
  */
 export function useDeleteClient() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; deleteProjects: boolean }) =>
-      (await execute(DeleteClientDocument, variables)).deleteClient,
+    mutationFn: async (variables: { id: string; deleteProjects: boolean }) => (await execute(DeleteClientDocument, variables)).deleteClient,
     optimistic: (workspace, { id, deleteProjects }) => ({
       ...workspace,
       clients: workspace.clients.filter((client) => client.id !== id),
@@ -384,21 +370,18 @@ export function useDeleteClient() {
  */
 export function useMoveClient() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; index: number }) =>
-      (await execute(MoveClientDocument, variables)).moveClient,
+    mutationFn: async (variables: { id: string; index: number }) => (await execute(MoveClientDocument, variables)).moveClient,
     optimistic: (workspace, { id, index }) => {
       const moved = workspace.clients.find((client) => client.id === id);
       if (!moved) return workspace;
-      const siblings = workspace.clients
-        .filter((client) => !client.archived)
-        .sort(byPosition);
+      const siblings = unarchived(workspace.clients).sort(byPosition);
       return { ...workspace, clients: reposition(workspace.clients, siblings, moved, index) };
     },
   });
 }
 
 interface ProjectInputValues {
-  title: string;
+  label: string;
   clientId?: string | null;
   parentId?: string | null;
   categoryIds?: string[];
@@ -417,8 +400,7 @@ interface ProjectInputValues {
  */
 export function useCreateProject() {
   return useWorkspaceMutation({
-    mutationFn: async (input: Omit<ProjectInputValues, 'removeIcon'>) =>
-      (await execute(CreateProjectDocument, { input })).createProject,
+    mutationFn: async (input: Omit<ProjectInputValues, 'removeIcon'>) => (await execute(CreateProjectDocument, { input })).createProject,
   });
 }
 
@@ -428,13 +410,12 @@ export function useCreateProject() {
  */
 export function useUpdateProject() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; input: Partial<ProjectInputValues> }) =>
-      (await execute(UpdateProjectDocument, variables)).updateProject,
+    mutationFn: async (variables: { id: string; input: Partial<ProjectInputValues> }) => (await execute(UpdateProjectDocument, variables)).updateProject,
     optimistic: (workspace, { id, input }) => ({
       ...workspace,
       projects: patch(workspace.projects, id, (project) => ({
         ...project,
-        ...(input.title !== undefined && { title: input.title }),
+        ...(input.label !== undefined && { label: input.label }),
       })),
     }),
   });
@@ -446,8 +427,7 @@ export function useUpdateProject() {
  */
 export function useSetProjectFavorite() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; favorite: boolean }) =>
-      (await execute(SetProjectFavoriteDocument, variables)).setProjectFavorite,
+    mutationFn: async (variables: { id: string; favorite: boolean }) => (await execute(SetProjectFavoriteDocument, variables)).setProjectFavorite,
     optimistic: (workspace, { id, favorite }) => ({
       ...workspace,
       projects: patch(workspace.projects, id, (project) => ({ ...project, favorite })),
@@ -461,17 +441,13 @@ export function useSetProjectFavorite() {
  */
 export function useSetProjectArchived() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; archived: boolean }) =>
-      (await execute(SetProjectArchivedDocument, variables)).setProjectArchived,
+    mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetProjectArchivedDocument, variables)).setProjectArchived,
     optimistic: (workspace, { id, archived }) => {
       // Archiving cascades to sub-projects; restoring is settled by the refetch.
-      const affected = archived ? descendantIds(workspace.projects, id) : new Set<string>();
-      affected.add(id);
+      const affected = archived ? subtreeOf(workspace.projects, id) : new Set([id]);
       return {
         ...workspace,
-        projects: workspace.projects.map((project) =>
-          affected.has(project.id) ? { ...project, archived } : project,
-        ),
+        projects: workspace.projects.map((project) => (affected.has(project.id) ? { ...project, archived } : project)),
       };
     },
   });
@@ -485,7 +461,7 @@ export function useDeleteProject() {
   return useWorkspaceMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectDocument, variables)).deleteProject,
     optimistic: (workspace, { id }) => {
-      const removed = descendantIds(workspace.projects, id).add(id);
+      const removed = subtreeOf(workspace.projects, id);
       return { ...workspace, projects: workspace.projects.filter((project) => !removed.has(project.id)) };
     },
   });
@@ -497,27 +473,16 @@ export function useDeleteProject() {
  */
 export function useMoveProject() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; parentId: string | null; clientId: string | null; index: number }) =>
-      (await execute(MoveProjectDocument, variables)).moveProject,
+    mutationFn: async (variables: { id: string; parentId: string | null; clientId: string | null; index: number }) => (await execute(MoveProjectDocument, variables)).moveProject,
     optimistic: (workspace, { id, parentId, clientId, index }) => {
       const project = workspace.projects.find((item) => item.id === id);
       if (!project) return workspace;
-      const targetClientId = parentId
-        ? (workspace.projects.find((item) => item.id === parentId)?.clientId ?? null)
-        : clientId;
-      const siblings = workspace.projects
-        .filter((item) =>
-          parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId,
-        )
-        .filter((item) => !item.archived)
-        .sort(byPosition);
+      const targetClientId = parentId ? (workspace.projects.find((item) => item.id === parentId)?.clientId ?? null) : clientId;
+      const siblings = unarchived(workspace.projects.filter((item) => (parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId))).sort(byPosition);
       const descendants = descendantIds(workspace.projects, id);
-      const projects = reposition(
-        workspace.projects,
-        siblings,
-        { ...project, parentId, clientId: targetClientId },
-        index,
-      ).map((item) => (descendants.has(item.id) ? { ...item, clientId: targetClientId } : item));
+      const projects = reposition(workspace.projects, siblings, { ...project, parentId, clientId: targetClientId }, index).map((item) =>
+        descendants.has(item.id) ? { ...item, clientId: targetClientId } : item,
+      );
       return { ...workspace, projects };
     },
   });
@@ -529,8 +494,7 @@ export function useMoveProject() {
  */
 export function useCreateProjectCategory() {
   return useWorkspaceMutation({
-    mutationFn: async (input: { name: string; color: string }) =>
-      (await execute(CreateProjectCategoryDocument, { input })).createProjectCategory,
+    mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectCategoryDocument, { input })).createProjectCategory,
   });
 }
 
@@ -540,8 +504,7 @@ export function useCreateProjectCategory() {
  */
 export function useUpdateProjectCategory() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; input: { name?: string; color?: string } }) =>
-      (await execute(UpdateProjectCategoryDocument, variables)).updateProjectCategory,
+    mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectCategoryDocument, variables)).updateProjectCategory,
   });
 }
 
@@ -551,8 +514,7 @@ export function useUpdateProjectCategory() {
  */
 export function useDeleteProjectCategory() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string }) =>
-      (await execute(DeleteProjectCategoryDocument, variables)).deleteProjectCategory,
+    mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectCategoryDocument, variables)).deleteProjectCategory,
   });
 }
 
@@ -562,8 +524,7 @@ export function useDeleteProjectCategory() {
  */
 export function useCreateProjectStatus() {
   return useWorkspaceMutation({
-    mutationFn: async (input: { name: string; color: string }) =>
-      (await execute(CreateProjectStatusDocument, { input })).createProjectStatus,
+    mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectStatusDocument, { input })).createProjectStatus,
   });
 }
 
@@ -573,8 +534,7 @@ export function useCreateProjectStatus() {
  */
 export function useUpdateProjectStatus() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; input: { name?: string; color?: string } }) =>
-      (await execute(UpdateProjectStatusDocument, variables)).updateProjectStatus,
+    mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectStatusDocument, variables)).updateProjectStatus,
   });
 }
 
@@ -584,8 +544,6 @@ export function useUpdateProjectStatus() {
  */
 export function useDeleteProjectStatus() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string }) =>
-      (await execute(DeleteProjectStatusDocument, variables)).deleteProjectStatus,
+    mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectStatusDocument, variables)).deleteProjectStatus,
   });
 }
-

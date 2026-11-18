@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
@@ -19,7 +20,10 @@ const tablePdfSchema = reportHeadingSchema.extend({
     )
     .max(10_000),
   /** Alignment of each column (numbers to the right); left when omitted. */
-  align: z.array(z.enum(['left', 'right'])).max(30).default([]),
+  align: z
+    .array(z.enum(['left', 'right']))
+    .max(30)
+    .default([]),
 });
 type TablePdfInput = z.input<typeof tablePdfSchema>;
 
@@ -42,7 +46,11 @@ const MAX_NATURAL = { first: 340, other: 170 };
  * @returns {number[]} Widths.
  */
 function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth: number): number[] {
-  const measure = (text: string, bold: boolean) => doc.font(bold ? 'bold' : 'regular').fontSize(FONT_SIZE).widthOfString(text);
+  const measure = (text: string, bold: boolean) =>
+    doc
+      .font(bold ? 'bold' : 'regular')
+      .fontSize(FONT_SIZE)
+      .widthOfString(text);
   const columns = table.columns.map((label, index) => {
     const marked = table.rows.some((row) => row.kind === 'task' || row.kind === 'event');
     const extra = 2 * PAD + (index === 0 ? (marked ? MARKER : 0) + INDENT * Math.max(0, ...table.rows.map((row) => row.depth)) : 0);
@@ -52,9 +60,9 @@ function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth
     const natural = Math.max(minimum, Math.min(index === 0 ? MAX_NATURAL.first : MAX_NATURAL.other, Math.max(measure(label, true), ...texts.map((text) => measure(text, false)))) + extra);
     return { minimum, natural };
   });
-  const naturalSum = columns.reduce((sum, column) => sum + column.natural, 0);
+  const naturalSum = sumOf(columns, (column) => column.natural);
   if (naturalSum <= pageWidth) return columns.map((column) => (column.natural / naturalSum) * pageWidth);
-  const minimumSum = columns.reduce((sum, column) => sum + column.minimum, 0);
+  const minimumSum = sumOf(columns, (column) => column.minimum);
   if (minimumSum >= pageWidth) return columns.map((column) => (column.minimum / minimumSum) * pageWidth);
   // Between the two: every column keeps its minimum, the rest goes in proportion of what each would like.
   const ratio = (pageWidth - minimumSum) / (naturalSum - minimumSum);
@@ -74,7 +82,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
 
   const pageWidth = doc.page.width - 2 * MARGIN;
   const widths = columnWidths(doc, table, pageWidth);
-  const xs = widths.map((_, index) => MARGIN + widths.slice(0, index).reduce((sum, width) => sum + width, 0));
+  const xs = widths.map((_, index) => MARGIN + sumOf(widths.slice(0, index), (width) => width));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 
@@ -129,13 +137,20 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     const markerX = MARGIN + PAD + row.depth * INDENT;
     const markerY = y + PAD + FONT_SIZE / 2;
     if (row.kind === 'event') doc.circle(markerX + 2.5, markerY, 2.5).fill(COLORS.event);
-    else if (!plain) doc.rect(markerX, markerY - 2.5, 5, 5).lineWidth(0.8).stroke(COLORS.task);
+    else if (!plain)
+      doc
+        .rect(markerX, markerY - 2.5, 5, 5)
+        .lineWidth(0.8)
+        .stroke(COLORS.task);
     doc.fillColor(COLORS.text);
-    table.columns.forEach((_, index) =>
-      doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }),
-    );
+    table.columns.forEach((_, index) => doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }));
     y += height;
-    doc.moveTo(MARGIN, y).lineTo(MARGIN + pageWidth, y).lineWidth(0.4).strokeColor(COLORS.border).stroke();
+    doc
+      .moveTo(MARGIN, y)
+      .lineTo(MARGIN + pageWidth, y)
+      .lineWidth(0.4)
+      .strokeColor(COLORS.border)
+      .stroke();
   }
 
   return finish();

@@ -1,9 +1,7 @@
-import { ActionIcon, Text, UnstyledButton } from '@mantine/core';
-import {
-  CaretRightIcon,
-  DotsThreeIcon,
-  FolderPlusIcon,
-} from '@phosphor-icons/react';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { UnstyledButton } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
+import { FolderPlusIcon } from '@phosphor-icons/react';
 import { forwardRef, useState, type CSSProperties } from 'react';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -29,10 +27,7 @@ interface NoClientRowProps {
  * @param {NoClientRowProps} props Component props; the ref goes to the row, for drag and drop.
  * @returns {JSX.Element} Row.
  */
-export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function NoClientRow(
-  { expanded, onToggle, hasChildren, canAddProject = false, style },
-  ref,
-) {
+export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function NoClientRow({ expanded, onToggle, hasChildren, canAddProject = false, style }, ref) {
   const actions = useEntityActions();
   // Without clients (personal workspace), the group holds every project.
   const { perso } = useActiveWorkspace();
@@ -58,14 +53,8 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       }}
     >
       <UnstyledButton className={classes.groupToggle} onClick={onToggle} disabled={!hasChildren}>
-        <span className={rowClasses.spacer}>
-          {hasChildren && (
-            <CaretRightIcon className={rowClasses.chevron} data-expanded={expanded || undefined} aria-hidden />
-          )}
-        </span>
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          {perso ? 'Tous les projets' : 'Sans client'}
-        </Text>
+        <span className={rowClasses.spacer}>{hasChildren && <FoldChevron expanded={expanded} />}</span>
+        <Caption>{perso ? 'Tous les projets' : 'Sans client'}</Caption>
       </UnstyledButton>
 
       {hasMenu && (
@@ -75,11 +64,8 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
             opened={menuOpened}
             onChange={setMenuOpened}
             position="bottom-start"
-            target={
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions sur les projets sans client" onPointerDown={(event) => event.stopPropagation()}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            }
+            inRow
+            size="sm"
             items={[
               canAddProject && { label: 'Ajouter un projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm() },
               'divider',

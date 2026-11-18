@@ -50,15 +50,6 @@ export function listDate(iso: string): string {
 }
 
 /**
- * Full date of an open mail.
- * @param {string} iso Date.
- * @returns {string} Label.
- */
-export function fullDate(iso: string): string {
-  return fmt.dateTime(iso);
-}
-
-/**
  * Escapes text for HTML.
  * @param {string} text Text.
  * @returns {string} Escaped text.
@@ -76,4 +67,15 @@ export function escapeHtml(text: string): string {
 export function prefixedSubject(subject: string, prefix: 'Re' | 'Tr'): string {
   const pattern = prefix === 'Re' ? /^(re|ré|aw)\s*:/i : /^(tr|fwd?)\s*:/i;
   return pattern.test(subject.trim()) ? subject : `${prefix} : ${subject}`;
+}
+
+/**
+ * Message of mails moved to a folder: « Mail déplacé dans « Factures ». », « 3 mails déplacés dans « Factures ». ».
+ * @param {number} count Mails moved.
+ * @param {string} folder Folder.
+ * @returns {string} Message.
+ */
+export function movedMailsMessage(count: number, folder: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- movedMailsMessage itself.
+  return `${count > 1 ? `${count} mails déplacés` : 'Mail déplacé'} dans « ${folder} ».`;
 }

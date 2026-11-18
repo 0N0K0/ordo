@@ -26,19 +26,8 @@ export function LoginPage() {
       <AuthHeader title="Connexion" />
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
-          <TextInput
-            label="Identifiant ou adresse email"
-            autoComplete="username"
-            autoFocus
-            required
-            {...form.getInputProps('identifier')}
-          />
-          <PasswordInput
-            label="Mot de passe"
-            autoComplete="current-password"
-            required
-            {...form.getInputProps('password')}
-          />
+          <TextInput label="Identifiant ou adresse email" autoComplete="username" autoFocus required {...form.getInputProps('identifier')} />
+          <PasswordInput label="Mot de passe" autoComplete="current-password" required {...form.getInputProps('password')} />
           <Anchor component={Link} to="/forgot-password" size="sm">
             Mot de passe oublié ?
           </Anchor>

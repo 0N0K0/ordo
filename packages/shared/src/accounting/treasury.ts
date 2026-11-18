@@ -1,14 +1,15 @@
 import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
-import { mapById } from '../core/collections';
+import { mapById, sumOf } from '../core/collections';
+import { clipText } from '../core/text';
 import { z } from 'zod';
-import { requiredText, optionalText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
-import { printedDay, recurrenceSchema } from '../dates/recurrence';
+import { printedDay } from '../dates/days';
+import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
-const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
-export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
+export type DocumentStatusScope = 'QUOTE' | 'INVOICE';
 export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
 export type DocumentStatusCategory = (typeof DOCUMENT_STATUS_CATEGORIES)[number];
 
@@ -30,7 +31,7 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
 
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
 export const treasuryAccountSchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   openingBalance: amount,
   openingDate: daySchema(),
 });
@@ -48,11 +49,14 @@ export type TreasuryAllocationInput = z.input<typeof treasuryAllocationSchema>;
 const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 
-const name = requiredText(100);
+/** Label of a treasury item (an account, a category…). */
+const label = requiredText(100);
+/** Name of a person (a counterparty, a relation). */
+const name = requiredText(100, PERSON_NAME_REQUIRED);
 
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({
-  name,
+  label,
   color: optionalColorSchema.optional(),
   direction: z.enum(TREASURY_DIRECTIONS),
   parentId: z.string().nullable(),
@@ -61,7 +65,7 @@ export type TreasuryCategoryInput = z.input<typeof treasuryCategorySchema>;
 
 /** Payment method, usable for money in, out or both. */
 export const treasuryPaymentMethodSchema = z
-  .object({ name, incoming: z.boolean(), outgoing: z.boolean() })
+  .object({ label, incoming: z.boolean(), outgoing: z.boolean() })
   .refine((method) => method.incoming || method.outgoing, { path: ['incoming'], message: 'Choisissez au moins un sens.' });
 export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSchema>;
 
@@ -77,11 +81,16 @@ export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
  * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
  * without lines).
  */
+/** Longest label of a treasury entry. */
+export const ENTRY_LABEL_MAX = 300;
+/** Longest label of a line of a treasury entry. */
+export const ENTRY_LINE_LABEL_MAX = 200;
+
 const treasuryEntryLineSchema = z
   .object({
     /** Line kept (its links from other entries stay); none for a new line. */
     id: z.string().nullish(),
-    label: optionalText(200),
+    label: optionalText(ENTRY_LINE_LABEL_MAX),
     mode: z.enum(TREASURY_LINE_MODES),
     value: z.number({ error: 'Valeur attendue.' }),
     memberId: z.string().nullable(),
@@ -127,12 +136,12 @@ export function lineCents(entryAmount: number, line: { mode: TreasuryLineMode; v
 export function splitAmounts(entryAmount: number, lines: readonly { mode: TreasuryLineMode; value: number }[]): { amounts: number[]; remainder: number } {
   const total = toCents(entryAmount);
   const amounts = lines.map((line) => lineCents(entryAmount, line));
-  return { amounts, remainder: total - amounts.reduce((sum, value) => sum + value, 0) };
+  return { amounts, remainder: total - sumOf(amounts, (value) => value) };
 }
 
 /** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
 export const treasuryRelationSchema = z.object({
-  name: requiredText(100),
+  name,
   note: optionalText(500),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
@@ -141,7 +150,7 @@ export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 
 /** Context of spending, not in a tree; a line without context is everyday spending. */
 export const treasuryContextSchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
 });
 
@@ -157,7 +166,7 @@ export const treasuryContextPeriodSchema = z
     endDate: daySchema(),
     note: optionalText(200),
   })
-  .refine((period) => period.endDate >= period.startDate, { path: ['endDate'], message: 'La fin précède le début.' });
+  .refine(...endAfter('startDate', 'endDate'));
 export type TreasuryContextPeriodInput = z.input<typeof treasuryContextPeriodSchema>;
 
 /**
@@ -191,7 +200,7 @@ export const treasuryBudgetSchema = z
     /** Last month (YYYY-MM), included; none: no end. */
     repeatUntil: monthSchema.nullable(),
   })
-  .refine((budget) => !budget.repeatUntil || !budget.repeatEvery || budget.repeatUntil >= budget.month, { path: ['repeatUntil'], message: 'La fin précède le début.' })
+  .refine((budget) => !budget.repeatEvery || endsAfter(budget.month, budget.repeatUntil), { path: ['repeatUntil'], message: END_AFTER_START })
   .refine((budget) => !budget.memberId || !budget.relationId, { path: ['memberId'], message: 'Un membre ou une relation, pas les deux.' });
 export type TreasuryBudgetInput = z.input<typeof treasuryBudgetSchema>;
 
@@ -220,7 +229,7 @@ export const treasuryEntrySchema = z
     /** Execution date. */
     date: daySchema(),
     valueDate: daySchema().nullable(),
-    label: requiredText(300, 'Le libellé est requis.'),
+    label: requiredText(ENTRY_LABEL_MAX),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
     methodId: z.string().nullable(),
@@ -264,7 +273,7 @@ export const treasuryEntrySchema = z
       if (entry.linkedEntryIds.length) context.addIssue({ code: 'custom', path: ['linkedEntryIds'], message: onLines });
       if (entry.libraryDocumentIds.length || entry.projectResourceIds.length) context.addIssue({ code: 'custom', path: ['libraryDocumentIds'], message: onLines });
     }
-    const allocated = entry.allocations.reduce((sum, allocation) => sum + toCents(allocation.amount), 0);
+    const allocated = sumOf(entry.allocations, (allocation) => toCents(allocation.amount));
     if (allocated > Math.abs(toCents(entry.amount))) {
       context.addIssue({ code: 'custom', path: ['allocations'], message: 'Les documents réglés dépassent le montant du mouvement.' });
     }
@@ -479,7 +488,8 @@ function statementAmount(value: string | undefined): number | null {
 function statementDate(value: string | undefined, format: StatementMapping['dateFormat']): string | null {
   const parts = (value ?? '').trim().split(/[/.-]/);
   if (parts.length !== 3) return null;
-  let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
+  const [first, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
+  let year = first;
   if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
   const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   return isRealDay(date) ? date : null;
@@ -497,12 +507,14 @@ export function readStatement(text: string, mapping: StatementMapping): Statemen
     .slice(mapping.skipRows)
     .flatMap((cells) => {
       const date = statementDate(cells[mapping.dateColumn], mapping.dateFormat);
-      const label = mapping.labelColumns
-        .map((column) => (cells[column] ?? '').trim())
-        .filter(Boolean)
-        .join(' — ')
-        .replace(/\s+/g, ' ')
-        .slice(0, 300);
+      const label = clipText(
+        mapping.labelColumns
+          .map((column) => (cells[column] ?? '').trim())
+          .filter(Boolean)
+          .join(' — ')
+          .replace(/\s+/g, ' '),
+        ENTRY_LABEL_MAX,
+      );
       let amount: number | null;
       if (mapping.amountColumn !== null) amount = statementAmount(cells[mapping.amountColumn]);
       else {

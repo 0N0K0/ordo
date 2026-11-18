@@ -20,7 +20,7 @@ function sniff(buffer: Buffer): IconKind | null {
   if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpeg';
   if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
 
-  const head = buffer.toString('utf8', 0, 2048).replace(/^﻿/, '');
+  const head = buffer.toString('utf8', 0, 2048).replace(/^\uFEFF/, '');
   const withoutProlog = head.replace(/^\s*(<\?xml[^>]*\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|\s)*/i, '');
   return withoutProlog.startsWith('<svg') ? 'svg' : null;
 }
@@ -47,11 +47,7 @@ async function processIcon(file: File): Promise<{ mimeType: string; data: Buffer
   }
 
   try {
-    const data = await sharp(buffer)
-      .rotate()
-      .resize(ICON_SIZE, ICON_SIZE, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 85 })
-      .toBuffer();
+    const data = await sharp(buffer).rotate().resize(ICON_SIZE, ICON_SIZE, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 85 }).toBuffer();
     return { mimeType: 'image/webp', data };
   } catch {
     throw fieldError('icon', 'Cette image est illisible.');
@@ -96,10 +92,7 @@ export async function deleteOrphanIcons(iconIds: (string | null | undefined)[]):
  * @param {boolean | null} [input.removeIcon] Whether to remove the current icon. Optional.
  * @returns {Promise<string | null | undefined>} New icon id, null to remove it, undefined to keep it.
  */
-export async function resolveIconUpdate(
-  currentIconId: string | null,
-  input: { icon?: File | null; removeIcon?: boolean | null },
-): Promise<string | null | undefined> {
+export async function resolveIconUpdate(currentIconId: string | null, input: { icon?: File | null; removeIcon?: boolean | null }): Promise<string | null | undefined> {
   if (input.icon) return storeIcon(input.icon);
   if (input.removeIcon && currentIconId) return null;
   return undefined;

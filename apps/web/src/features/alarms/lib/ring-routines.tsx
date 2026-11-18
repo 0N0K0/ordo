@@ -39,11 +39,11 @@ export function ringRoutineReminders(routines: Routine[], now: Date, links: Ring
         playChime();
         const when = [windowText(slot), routine.location].filter(Boolean).join(' · ');
         const lines = [moment !== slot.fromTime && moment !== slot.dueTime ? `Partir à ${moment}` : null, when];
-        systemNotification(routine.title, lines.filter(Boolean).join(' · ') || undefined, key);
+        systemNotification(routine.label, lines.filter(Boolean).join(' · ') || undefined, key);
         notifyInfo({
           id: key,
           icon: <ArrowsClockwiseIcon />,
-          title: routine.title,
+          title: routine.label,
           lines,
           actions: [{ label: 'Marquer comme faite', icon: <CheckCircleIcon aria-hidden />, onClick: () => markDone(routine, slot.index) }, ...links],
         });

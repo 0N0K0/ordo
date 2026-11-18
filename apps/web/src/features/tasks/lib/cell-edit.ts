@@ -1,6 +1,7 @@
+import { unarchived } from '../../../lib/archive';
 import type { TaskColumn } from '@ordo/shared';
 import { useEntityCellEdit } from '../../../components/data-table/selection/bulk-edit';
-import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
 import { tasksLabel } from './bulk-label';
@@ -24,8 +25,8 @@ export function useCellEdit(task: Task, column: TaskColumn) {
   const { data } = useTasksData();
   return useEntityCellEdit<Task, TaskChange, BulkChanges>(task, column, {
     // Archived tasks are read only: left out of the changes made on a selection.
-    rows: (data?.tasks ?? []).filter((item) => !item.archived),
-    save: (item, change) => updateTask.mutate({ id: item.id, input: change }, { onError: onMutationError }),
+    rows: unarchived(data?.tasks ?? []),
+    save: (item, change) => updateTask.mutate({ id: item.id, input: change }, ON_ERROR),
     // Snapshot taken before the change, for the undo.
     saveMany: (rows, changes) =>
       update.mutate(

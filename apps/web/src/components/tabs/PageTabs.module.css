@@ -17,7 +17,7 @@
   /* On all the width of the page, beyond its margins (the sidebar and the window edge close it on its sides). */
   .list {
     /* Position: at the top of the window while the page scrolls, with a loose density (md in width and in height). */
-    @media (min-width: $tablet-breakpoint) and (min-height: 67.5em) {
+    @media (min-width: $tablet-breakpoint) and (min-height: $height-md-breakpoint) {
       position: sticky;
       top: var(--app-shell-header-offset, 0rem);
       z-index: 3;
@@ -129,8 +129,8 @@
 
     /* Animation */
     transition:
-      background-color 120ms ease,
-      color 120ms ease;
+      background-color var(--onoko-transition),
+      color var(--onoko-transition);
 
     /* Interaction */
     cursor: pointer;

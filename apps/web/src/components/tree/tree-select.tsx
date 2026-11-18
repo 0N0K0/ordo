@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ItemAvatar } from '../items/ItemAvatar';
 import { hasAvatar } from '../items/item-look';
 import { normalize } from '../../lib/text';
+import { childrenByParent, LEVEL } from '@ordo/shared';
 
 /** Node of a tree offered in a select. */
 export interface TreeNode {
@@ -18,15 +19,13 @@ export interface TreeNode {
   pathless?: boolean;
 }
 
-import { childrenByParent, LEVEL } from '@ordo/shared';
-
 /**
  * Option of a select of a tree: its full path as its label (shown once chosen, in pills, cells…), its own name indented
  * under its parent in the list.
  */
 export interface TreeOption extends ComboboxItem {
-  /** Name of the node alone. */
-  name: string;
+  /** Label of the node alone (`label` is its full path). */
+  nodeLabel: string;
   /** 0 for the top level. */
   depth: number;
   /** Value of the parent option, null at the top level. */
@@ -50,7 +49,7 @@ export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) =>
    * Adds the options of the children of a parent, recursively; true when one of them is offered.
    * @param {string | null} parent Parent id.
    * @param {number} depth Depth of the children.
-   * @param {string[]} path Names of the parents, from the top.
+   * @param {string[]} path Labels of the parents, from the top.
    * @returns {boolean} Something offered below.
    */
   const visit = (parent: string | null, depth: number, path: string[]): boolean => {
@@ -59,7 +58,16 @@ export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) =>
       if (excluded.has(node.id)) continue;
       const at = options.length;
       const selectable = offered(node.id);
-      options.push({ value: node.id, label: [...path, node.label].join(LEVEL), name: node.label, depth, parent, color: node.color, iconUrl: node.iconUrl, ...(!selectable && { disabled: true }) });
+      options.push({
+        value: node.id,
+        label: [...path, node.label].join(LEVEL),
+        nodeLabel: node.label,
+        depth,
+        parent,
+        color: node.color,
+        iconUrl: node.iconUrl,
+        ...(!selectable && { disabled: true }),
+      });
       const below = visit(node.id, depth + 1, node.pathless ? path : [...path, node.label]);
       // A parent without anything to select below it is of no use.
       if (!selectable && !below) options.splice(at, 1);
@@ -72,7 +80,7 @@ export function treeOptions(nodes: readonly TreeNode[], offered: (id: string) =>
 }
 
 /**
- * Props of a Select or MultiSelect of a tree: the options by their name, indented under their parent (their full path
+ * Props of a Select or MultiSelect of a tree: the options by their label, indented under their parent (their full path
  * once chosen), and a search of the names keeping the parents of the options found.
  * @param {TreeOption[]} options Options (from treeOptions).
  * @returns {{ data: TreeOption[], renderOption: (input: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode, filter: OptionsFilter }} Props.
@@ -89,9 +97,9 @@ export function treeSelectProps(options: TreeOption[]): {
       const tree = byValue.get(option.value);
       return (
         <Group gap="xs" wrap="nowrap" style={{ paddingLeft: `calc(${tree?.depth ?? 0} * var(--mantine-spacing-md))` }}>
-          {tree && hasAvatar(tree) && <ItemAvatar name={tree.name} iconUrl={tree.iconUrl} color={tree.color} />}
+          {tree && hasAvatar(tree) && <ItemAvatar name={tree.nodeLabel} iconUrl={tree.iconUrl} color={tree.color} />}
           <Text size="sm" fw={option.disabled ? 600 : undefined} c={option.disabled ? 'dimmed' : undefined} truncate>
-            {tree?.name ?? option.label}
+            {tree?.nodeLabel ?? option.label}
           </Text>
         </Group>
       );
@@ -102,7 +110,7 @@ export function treeSelectProps(options: TreeOption[]): {
       // Options found with what is under them (in tree order, a parent comes first), and their parents.
       const found = new Set<string>();
       for (const option of options) {
-        if (normalize(option.name).includes(query) || (option.parent !== null && found.has(option.parent))) found.add(option.value);
+        if (normalize(option.nodeLabel).includes(query) || (option.parent !== null && found.has(option.parent))) found.add(option.value);
       }
       const kept = new Set<string>();
       for (const value of found) {

@@ -1,14 +1,15 @@
-import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
+import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
+import { Group, Paper, Table, Text } from '@mantine/core';
 import { ItemAvatar } from '../items/ItemAvatar';
-import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
 import classes from './CategoryTree.module.css';
-import { pointerPlace, treeCollision, useFolded } from './tree-dnd';
-import { useDragSensors } from '../../lib/drag';
+import { useFolded, useTreeDrop } from './tree-dnd';
+
 import treeRow from './tree-drop.module.css';
-import { DragHandle } from '../actions/DragHandle';
+import { DragHandle } from '../dnd/DragHandle';
+import { FoldButton } from '../actions/FoldButton';
 
 interface CategoryRowProps<C extends TreeCategory> {
   placed: PlacedCategory<C>;
@@ -50,16 +51,10 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
-          {!nested ? null : folded !== undefined ? (
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${path}`} aria-expanded={!folded} onClick={onToggle}>
-              {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-            </ActionIcon>
-          ) : (
-            <span className={treeRow.caretSpace} />
-          )}
-          <ItemAvatar name={category.name} iconUrl={category.iconUrl} color={color} size={22} />
+          {!nested ? null : folded !== undefined ? <FoldButton expanded={!folded} item={path} onToggle={onToggle} /> : <span className={treeRow.caretSpace} />}
+          <ItemAvatar name={category.label} iconUrl={category.iconUrl} color={color} size={22} />
           <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>
-            {category.name}
+            {category.label}
           </Text>
           {badges}
         </Group>
@@ -79,9 +74,9 @@ interface CategoryTreeProps<C extends TreeCategory> {
   categories: readonly C[];
   /** Key remembering the folded categories in this browser. Optional. */
   storageKey?: string;
-  /** Cell after the name (number of uses…). Optional. */
+  /** Cell after the label (number of uses…). Optional. */
   renderMeta?: (placed: PlacedCategory<C>) => ReactNode;
-  /** Badges after the name. Optional. */
+  /** Badges after the label. Optional. */
   renderBadges?: (category: C) => ReactNode;
   /** Buttons at the end of a row. */
   renderActions: (placed: PlacedCategory<C>) => ReactNode;
@@ -105,9 +100,6 @@ interface CategoryTreeProps<C extends TreeCategory> {
 export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true, canMove, locked }: CategoryTreeProps<C>) {
   const tree = categoryTree(categories);
   const [folded, toggle] = useFolded(storageKey);
-  const [dragged, setDragged] = useState<string | null>(null);
-  const [drop, setDrop] = useState<{ id: string; place: TreePlace } | null>(null);
-  const sensors = useDragSensors('plain');
 
   const parents = new Set(tree.map(({ category }) => category.parentId).filter(Boolean));
   // A folded category hides all its sub-categories.
@@ -129,59 +121,23 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
     return destination && (!canMove || canMove(id, destination.parentId)) ? destination : null;
   };
 
-  /**
-   * Updates where the dragged category would go.
-   * @param {DragMoveEvent | DragOverEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragMove = (event: DragMoveEvent | DragOverEvent) => {
-    const next = pointerPlace(event, nested);
-    setDrop((current) => (current?.id === next?.id && current?.place === next?.place ? current : next));
-  };
-
-  /**
-   * Moves the dropped category where the pointer shows.
-   * @param {DragEndEvent} event Drop.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const place = drop?.place ?? (nested ? 'INSIDE' : 'AFTER');
-    setDragged(null);
-    setDrop(null);
-    if (!over) return;
-    const destination = allowed(String(active.id), String(over.id), place);
-    if (destination) onMove(String(active.id), destination.parentId, destination.index);
-  };
+  const { dragged, dropOn, dndProps } = useTreeDrop({
+    nested,
+    fallback: nested ? 'INSIDE' : 'AFTER',
+    destination: allowed,
+    onDrop: (id, destination) => onMove(id, destination.parentId, destination.index),
+    taken: (id) => `${tree.find((item) => item.category.id === id)?.category.label ?? 'Catégorie'} saisie.`,
+    moved: 'Catégorie déplacée.',
+  });
 
   const active = dragged ? tree.find((item) => item.category.id === dragged) : undefined;
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={treeCollision}
-      onDragStart={({ active: start }) => setDragged(String(start.id))}
-      onDragMove={handleDragMove}
-      onDragOver={handleDragMove}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => {
-        setDragged(null);
-        setDrop(null);
-      }}
-      accessibility={{
-        announcements: {
-          onDragStart: () => `${active?.category.name ?? 'Catégorie'} saisie.`,
-          onDragOver: () => undefined,
-          onDragMove: () => undefined,
-          onDragEnd: ({ over }) => (over ? 'Catégorie déplacée.' : 'Déplacement annulé.'),
-          onDragCancel: () => 'Déplacement annulé.',
-        },
-      }}
-    >
+    <DndContext {...dndProps}>
       <Table verticalSpacing={4}>
         <Table.Tbody>
           {shown.map((placed) => {
             const { id } = placed.category;
-            const dropHere = dragged !== null && drop?.id === id && allowed(dragged, id, drop.place) ? drop.place : null;
             return (
               <CategoryRow
                 key={id}
@@ -189,7 +145,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
                 meta={renderMeta?.(placed)}
                 badges={renderBadges?.(placed.category)}
                 actions={renderActions(placed)}
-                drop={dropHere}
+                drop={dropOn(id)}
                 folded={parents.has(id) ? folded.has(id) : undefined}
                 onToggle={() => toggle(id)}
                 nested={nested}
@@ -205,7 +161,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
             <Group gap="xs" wrap="nowrap">
               <DotsSixVerticalIcon weight="bold" aria-hidden />
               <Text size="sm" fw={500}>
-                {active.category.name}
+                {active.category.label}
               </Text>
             </Group>
           </Paper>

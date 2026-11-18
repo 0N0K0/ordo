@@ -1,5 +1,6 @@
+import { localAt, relativeDay } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, EMPTY_MAIL_SEARCH } from '@ordo/shared';
+import { EMPTY_MAIL_SEARCH } from '@ordo/shared';
 import { ImapFlow } from 'imapflow';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { prisma } from '../../src/db';
@@ -103,7 +104,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   await prisma.mailAccount.deleteMany({ where: { email: DEMO_MAILBOX.email } });
   const account = await prisma.mailAccount.create({
     data: {
-      name: 'Démo',
+      label: 'Démo',
       email: DEMO_MAILBOX.email,
       displayName: ME.name,
       imapHost: DEMO_MAILBOX.imap.host,
@@ -137,7 +138,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
     return;
   }
   const at = (index: number) => people[index % people.length];
-  const day = (offset: number) => addDays(today, offset);
+  const day = relativeDay(today);
   const [a, b, c, d] = [at(0), at(1), at(2), at(3)];
 
   const mails: Mail[] = [
@@ -146,8 +147,8 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
       folder: 'INBOX',
       from: a.person,
       to: [ME],
-      subject: `${a.project?.title ?? 'Notre projet'} : cahier des charges`,
-      text: `Bonjour,\n\nComme convenu, voici notre cahier des charges pour ${a.project?.title ?? 'le projet'}. Les points prioritaires sont l’espace client et la prise de rendez-vous.\n\nPouvez-vous nous faire un retour d’ici la fin de semaine ?\n\nBien cordialement,\n${a.person.name}\n${a.company}`,
+      subject: `${a.project?.label ?? 'Notre projet'} : cahier des charges`,
+      text: `Bonjour,\n\nComme convenu, voici notre cahier des charges pour ${a.project?.label ?? 'le projet'}. Les points prioritaires sont l’espace client et la prise de rendez-vous.\n\nPouvez-vous nous faire un retour d’ici la fin de semaine ?\n\nBien cordialement,\n${a.person.name}\n${a.company}`,
       date: day(-20),
       hour: 9,
       seen: true,
@@ -160,7 +161,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
       from: ME,
       to: [a.person],
       replyTo: 'brief',
-      subject: `Re: ${a.project?.title ?? 'Notre projet'} : cahier des charges`,
+      subject: `Re: ${a.project?.label ?? 'Notre projet'} : cahier des charges`,
       text: `Bonjour ${a.firstName},\n\nMerci pour le cahier des charges. Nous revenons vers vous jeudi avec un planning et une estimation.\n\nBonne journée,\nAtelier Ordo`,
       date: day(-19),
       hour: 14,
@@ -172,7 +173,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
       from: a.person,
       to: [ME],
       replyTo: 'brief-reply',
-      subject: `Re: ${a.project?.title ?? 'Notre projet'} : cahier des charges`,
+      subject: `Re: ${a.project?.label ?? 'Notre projet'} : cahier des charges`,
       text: `Parfait, merci. Nous serons disponibles jeudi après-midi pour en parler.\n\n${a.firstName}`,
       date: day(-18),
       hour: 11,
@@ -330,7 +331,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   const inbox = new Map<string, number>();
   const ordered = [...mails].sort((x, y) => `${x.date}${String(x.hour).padStart(2, '0')}`.localeCompare(`${y.date}${String(y.hour).padStart(2, '0')}`));
   for (const mail of ordered) {
-    const date = new Date(`${mail.date}T${String(mail.hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`);
+    const date = localAt(mail.date, mail.hour, faker.number.int({ min: 0, max: 59 }));
     const messageId = `<${faker.string.alphanumeric(16)}@${mail.from.address.split('@')[1]}>`;
     if (mail.key) ids.set(mail.key, messageId);
     const parent = mail.replyTo ? ids.get(mail.replyTo) : undefined;
@@ -359,7 +360,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   }
 
   // --- Flags, done mails and search folders (reused when they exist: the kept mail accounts may use them) ------
-  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { name } })) ?? (await mailLabels.create({ name, color }));
+  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { label: name } })) ?? (await mailLabels.create({ label: name, color }));
   const urgent = (await label('Urgent', '#fa5252')).id;
   const billing = (await label('À facturer', '#fab005')).id;
   await label('Personnel', '#e64980');
@@ -371,15 +372,15 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   await mark(['Règlement de votre facture', 'Question sur votre devis'], { labelId: billing, on: true });
   await mark(['Votre échéancier de cotisations est disponible', 'Votre facture du mois est disponible', 'Règlement de votre facture'], { done: true });
   for (const search of [
-    { ...EMPTY_MAIL_SEARCH, name: 'À traiter', state: 'todo' as const },
-    { ...EMPTY_MAIL_SEARCH, name: 'Mails urgents', scope: 'all' as const, labelIds: [urgent] },
-    { ...EMPTY_MAIL_SEARCH, name: 'Avec pièces jointes', scope: 'all' as const, attachments: true },
+    { ...EMPTY_MAIL_SEARCH, label: 'À traiter', state: 'todo' as const },
+    { ...EMPTY_MAIL_SEARCH, label: 'Mails urgents', scope: 'all' as const, labelIds: [urgent] },
+    { ...EMPTY_MAIL_SEARCH, label: 'Avec pièces jointes', scope: 'all' as const, attachments: true },
   ]) {
-    if (!(await prisma.mailSearch.findFirst({ where: { name: search.name } }))) await createSearch(search);
+    if (!(await prisma.mailSearch.findFirst({ where: { label: search.label } }))) await createSearch(search);
   }
 
   // --- A mail scheduled for tomorrow morning ------------------------------------------------------------
-  const sendAt = new Date(`${day(1)}T08:30:00`);
+  const sendAt = localAt(day(1), 8, 30);
   await scheduleMail(
     {
       accountId: account.id,

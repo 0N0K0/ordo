@@ -5,15 +5,15 @@ import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
-import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
+import { taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
-import { subtreeIds } from '../lib/task-links';
+
 import { linkableTasks } from '../lib/task-links';
 import { taskName, taskRef, type TaskContext } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
@@ -21,17 +21,13 @@ import { useCellEdit } from '../lib/cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
-
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, cellLabel, stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellCombobox, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
-
-/** Select fields of the cells, a click kept from the row. */
-const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
-
+import { dateRangeProps } from '../../../components/inputs/date-range';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -41,7 +37,7 @@ const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
  * @returns {string} Label.
  */
 function fieldLabel(name: string, task: Task, count: number): string {
-  return cellLabel(name, `de la tâche ${taskName(task)}`, count);
+  return itemCellLabel(name, `la tâche ${taskName(task)}`, count);
 }
 
 /**
@@ -56,9 +52,9 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
   const children = context.childrenOf(task.id);
   return (
     <EditableTitle
-      value={task.title}
-      label={`Titre de la tâche ${taskName(task)}`}
-      schema={taskTitleSchema}
+      value={task.label}
+      label={`Libellé de la tâche ${taskName(task)}`}
+      schema={taskLabelSchema}
       to={link.to(task.id)}
       before={
         <>
@@ -76,7 +72,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
         )
       }
       readOnly={task.archived}
-      onSave={(title) => apply({ title })}
+      onSave={(label) => apply({ label })}
     />
   );
 }
@@ -157,7 +153,7 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
   const { apply, count } = useCellEdit(task, 'milestone');
   return (
     <Select
-      {...cellCombobox}
+      {...stoppedCellCombobox}
       aria-label={fieldLabel('Jalon', task, count)}
       data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
@@ -182,7 +178,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       label={fieldLabel('Étiquettes', task, count)}
       items={task.tagIds.flatMap((id) => {
         const tag = context.tagById.get(id);
-        return tag ? [{ id, label: tag.name, icon: <ItemAvatar name={tag.name} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
+        return tag ? [{ id, label: tag.label, icon: <ItemAvatar name={tag.label} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
       })}
       {...listSelectProps(context.tags, undefined, task.tagIds)}
       value={task.tagIds}
@@ -261,7 +257,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((id) => !candidates.some((candidate) => candidate.id === id))
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
-  const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
+  const label = cellLabel('Tâches dont dépend', `la tâche ${taskName(task)}`, count);
   return (
     <EditableMultiSelect
       label={label}
@@ -304,7 +300,17 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
  */
 export function EffortCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'effort');
-  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} readOnly={task.archived} onSave={(effort) => apply({ effort }, { effort })} />;
+  return (
+    <EditableNumber
+      value={task.effort}
+      label={fieldLabel('Effort', task, count)}
+      min={0}
+      nullable
+      saveUnchanged={count > 1}
+      readOnly={task.archived}
+      onSave={(effort) => apply({ effort }, { effort })}
+    />
+  );
 }
 
 interface DateCellProps {
@@ -316,6 +322,9 @@ interface DateCellProps {
 
 const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max', minDate: 'Date min' } as const;
 
+/** Period each date column bounds: its start and end columns. */
+const DATE_RANGES = { startDate: ['startDate', 'endDate'], endDate: ['startDate', 'endDate'], minDate: ['minDate', 'deadline'], deadline: ['minDate', 'deadline'] } as const;
+
 /**
  * Start, end or "Date max" cell: date picker.
  * @param {DateCellProps} props Component props.
@@ -323,6 +332,10 @@ const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max',
  */
 export function DateCell({ task, column, alert }: DateCellProps) {
   const { apply, count } = useCellEdit(task, column);
+  const [startKey, endKey] = DATE_RANGES[column];
+  const side = column === startKey ? 'start' : 'end';
+  // A single task keeps a valid period (the other bound follows); with several, the API checks every task.
+  const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
   return (
     <DatePickerInput
       variant="unstyled"
@@ -331,10 +344,8 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       onClick={stopClick}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}
-      // A single task keeps a valid range; with several, the API checks every task.
-      minDate={column === 'endDate' && count < 2 ? (task.startDate ?? undefined) : undefined}
-      maxDate={column === 'startDate' && count < 2 ? (task.endDate ?? undefined) : undefined}
-      onChange={(date) => apply({ [column]: date }, { [column]: date })}
+      minDate={count < 2 ? bounds.minDate : undefined}
+      onChange={(date) => (count < 2 ? bounds.onChange(date) : apply({ [column]: date }, { [column]: date }))}
       readOnly={task.archived}
       clearable={!task.archived}
       placeholder={task.archived ? undefined : '—'}
@@ -380,13 +391,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
-  const ON_ERROR = { onError: onMutationError };
-  const label =
-    count > 1
-      ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
-      : kind === 'blocking'
-        ? `Tâches que bloque la tâche ${taskName(task)}`
-        : `Tâches relatives à la tâche ${taskName(task)}`;
+  const label = kind === 'blocking' ? cellLabel('Tâches que bloque', `la tâche ${taskName(task)}`, count) : cellLabel('Tâches relatives', `à la tâche ${taskName(task)}`, count);
   /**
    * Adds or removes a link, on the edited task or each task of the selection.
    * @param {string} id Other task.
@@ -425,23 +430,17 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
  */
 export function ParentCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'parent');
-  const excluded = subtreeIds(context, task.id);
+  const excluded = subtreeOf(context.tasks, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id, (candidate) => !excluded.has(candidate.id));
   return (
     <TaskSelect
       context={context}
       tasks={candidates}
-      variant="unstyled"
-      size="xs"
+      {...cellPicker(task.archived)}
       aria-label={fieldLabel('Tâche parente', task, count)}
-      placeholder={task.archived ? undefined : '—'}
-      readOnly={task.archived}
-      clearable={!task.archived}
       value={task.parentId}
       // A task is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
-      onClick={stopClick}
-      comboboxProps={{ withinPortal: true }}
     />
   );
 }
@@ -468,8 +467,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
         { ids: targets, projectId },
         toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
-    const linked = (item: Task) =>
-      item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
+    const linked = (item: Task) => item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
     if (!moved.some((item) => linked(item) && context.rootOf(projectId) !== context.rootOf(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
@@ -479,7 +477,5 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
       onConfirm: transfer,
     });
   };
-  return (
-    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />
-  );
+  return <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />;
 }

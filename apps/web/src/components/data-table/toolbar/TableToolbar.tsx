@@ -4,6 +4,7 @@ import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, 
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
+import { ActionButton } from '../../actions/ActionButton';
 
 /** Quick search of a toolbar. */
 interface ToolbarSearch {
@@ -170,6 +171,7 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
       {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
       <Popover position="bottom-end" shadow="md" withinPortal width={width} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
+          {/* eslint-disable-next-line no-restricted-syntax -- target of the options panel, with its caret. */}
           <Button
             variant="default"
             leftSection={<SlidersHorizontalIcon aria-hidden />}
@@ -187,9 +189,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
                   Modifications non enregistrées
                 </Text>
                 <Group gap="xs" grow>
-                  <Button variant="default" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
+                  <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
                     Annuler
-                  </Button>
+                  </ActionButton>
                   <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
                     Enregistrer
                   </Button>

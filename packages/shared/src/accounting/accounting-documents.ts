@@ -1,8 +1,11 @@
+import { sumOf } from '../core/collections';
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
-import { requiredText, optionalText } from '../core/rules';
-import { addDays } from '../dates/recurrence';
-import { daySchema } from '../dates/times';
+import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
+import { addDays } from '../dates/days';
+import { LOCALE } from '../core/numbers';
+import { daySchema, startDaySchema } from '../dates/times';
+import { recurrenceSchema } from '../dates/recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
@@ -18,7 +21,7 @@ const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant
 
 const accountingLineSchema = z.object({
   kind: z.enum(LINE_KINDS),
-  title: z.string().trim().max(300, '300 caractères maximum.'),
+  label: z.string().trim().max(300, '300 caractères maximum.'),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')
@@ -46,7 +49,7 @@ export const accountingDocumentInputSchema = z
     dueDate: daySchema().nullable(),
     serviceStart: daySchema().nullable(),
     serviceEnd: daySchema().nullable(),
-    title: optionalText(300),
+    label: optionalText(300),
     introduction: optionalText(20_000),
     referenceLabel: optionalText(60),
     referenceValue: optionalText(200),
@@ -70,9 +73,7 @@ export const accountingDocumentInputSchema = z
     if (document.dueDate && document.dueDate < document.issueDate) {
       context.addIssue({ code: 'custom', path: ['dueDate'], message: 'L’échéance doit suivre la date du document.' });
     }
-    if (document.serviceStart && document.serviceEnd && document.serviceEnd < document.serviceStart) {
-      context.addIssue({ code: 'custom', path: ['serviceEnd'], message: 'La fin de la prestation doit suivre son début.' });
-    }
+    if (!endsAfter(document.serviceStart, document.serviceEnd)) context.addIssue({ code: 'custom', path: ['serviceEnd'], message: END_AFTER_START });
     if (document.depositType === 'PERCENT' && (document.depositValue ?? 0) > 100) {
       context.addIssue({ code: 'custom', path: ['depositValue'], message: '100 % maximum.' });
     }
@@ -80,8 +81,8 @@ export const accountingDocumentInputSchema = z
       context.addIssue({ code: 'custom', path: ['globalDiscountValue'], message: '100 % maximum.' });
     }
     document.lines.forEach((line, index) => {
-      if (line.kind !== 'TEXT' && !line.title.trim()) {
-        context.addIssue({ code: 'custom', path: ['lines', index, 'title'], message: 'Le libellé est requis.' });
+      if (line.kind !== 'TEXT' && !line.label.trim()) {
+        context.addIssue({ code: 'custom', path: ['lines', index, 'label'], message: 'Le libellé est requis.' });
       }
       if (line.discountType === 'PERCENT' && (line.discountValue ?? 0) > 100) {
         context.addIssue({ code: 'custom', path: ['lines', index, 'discountValue'], message: '100 % maximum.' });
@@ -210,7 +211,7 @@ export function computeTotals(document: {
     return { gross, discount, net };
   });
 
-  const itemsNet = [...items.values()].reduce((sum, value) => sum + value, 0);
+  const itemsNet = sumOf([...items.values()], (value) => value);
   const globalDiscount = discountOn(itemsNet, document.globalDiscountType, document.globalDiscountValue);
   // The overall discount is spread over the rates in proportion of their bases; the last rate gets the rest.
   const rates = [...new Set([...items.keys(), ...deductionsByRate.keys()])].sort((a, b) => b - a);
@@ -222,9 +223,9 @@ export function computeTotals(document: {
     const base = itemBase - share - (deductionsByRate.get(rate) ?? 0);
     return { rate, base, vat: percentOf(base, rate) };
   });
-  const deductions = [...deductionsByRate.values()].reduce((sum, value) => sum + value, 0);
+  const deductions = sumOf([...deductionsByRate.values()], (value) => value);
   const totalNet = itemsNet - globalDiscount - deductions;
-  const totalVat = vat.reduce((sum, item) => sum + item.vat, 0);
+  const totalVat = sumOf(vat, (item) => item.vat);
   return {
     lines,
     itemsNet,
@@ -251,7 +252,8 @@ export function moneyFormat(currency: string, options: Intl.NumberFormatOptions 
   const key = `${currency}|${JSON.stringify(options)}`;
   let format = moneyFormats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, ...options });
+    // eslint-disable-next-line no-restricted-syntax -- the money format itself.
+    format = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, ...options });
     moneyFormats.set(key, format);
   }
   return format;
@@ -284,15 +286,7 @@ export const PAYMENT_METHOD_PRESETS = ['Virement bancaire', 'Chèque', 'Carte ba
 /** Usual late payment interests. */
 export const LATE_INTEREST_PRESETS = ['Taux d’intérêt légal en vigueur', 'Trois fois le taux d’intérêt légal', 'Taux de la BCE majoré de 10 points'];
 /** Usual billing schedules of a quote. */
-export const BILLING_SCHEDULE_PRESETS = [
-  'En une fois, à la livraison',
-  'À la commande',
-  'Au mois, en fin de mois',
-  'Tous les 1er du mois',
-  'Tous les 15 du mois',
-  'À l’avancement',
-  'Par jalon',
-];
+export const BILLING_SCHEDULE_PRESETS = ['En une fois, à la livraison', 'À la commande', 'Au mois, en fin de mois', 'Tous les 1er du mois', 'Tous les 15 du mois', 'À l’avancement', 'Par jalon'];
 
 /**
  * Whether payment terms ask to pay on receipt ("À réception", "Comptant"): the due date is then the issue date,
@@ -348,7 +342,7 @@ export const importedDocumentSchema = z
       .transform((value) => value || null)
       .nullable(),
     projectId: z.string().nullable(),
-    title: z
+    label: z
       .string()
       .trim()
       .max(300)
@@ -378,7 +372,7 @@ export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
 /** Product or service of the catalogue: default fields of a line. */
 export const catalogItemSchema = z.object({
   kind: z.enum(['ITEM', 'DISBURSEMENT']),
-  title: requiredText(300, 'Le libellé est requis.'),
+  label: requiredText(300),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')
@@ -406,3 +400,13 @@ export const SENT_VIA_LABELS: Record<SendingChannel, string> = {
 
 /** Days after an invoice was sent before it may be reminded. */
 export const REMINDER_DELAY_DAYS = 15;
+
+/** Schedule of a recurring invoice: its label, repetition, first issue date, drafts or final invoices, active. */
+export const recurringInvoiceSchema = z.object({
+  label: requiredText(200),
+  recurrence: recurrenceSchema,
+  startDate: startDaySchema,
+  autoFinalize: z.boolean(),
+  active: z.boolean(),
+});
+export type RecurringInvoiceInput = z.input<typeof recurringInvoiceSchema>;

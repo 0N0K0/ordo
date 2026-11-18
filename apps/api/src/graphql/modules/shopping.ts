@@ -3,23 +3,17 @@ import { prisma } from '../../db';
 import * as shopping from '../../services/shopping/shopping';
 import { readSheetSources } from '@ordo/shared';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type BuilderTypes, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject, LabelColorInput, LabelColorPatch, treeItemObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 import { fromDecimal } from '../../services/core/decimal';
+import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
 
-builder.prismaObject('ShoppingCategory', {
-  description: 'Category of the shopping products, in a tree.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
-    parentId: t.exposeID('parentId', { nullable: true }),
-    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
-    baseListIds: t.idList(relationIds('baseLists', 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).')),
-  }),
-});
+treeItemObject('ShoppingCategory', { description: 'Category of the shopping products, in a tree.', positionDescription: 'Manual order among its siblings.' });
+builder.prismaObjectFields('ShoppingCategory', (t) => ({
+  baseListIds: t.idList(relationIds('baseLists', 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).')),
+}));
 
 labelObject('ShoppingStorage', { description: 'Storage mode of perishable products (fresh, frozen…).' });
 
@@ -31,9 +25,40 @@ builder.prismaObject('ShoppingBaseList', {
   description: 'Base list ("liste type"): products usually bought together.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     position: t.exposeInt('position'),
   }),
+});
+
+/** What a product of a base list and an item of a shopping list have in common. */
+interface BoughtShape {
+  categoryId: string | null;
+  storeId: string | null;
+  url: string | null;
+  note: string | null;
+  quantity: Parameters<typeof fromDecimal>[0];
+  unit: string | null;
+  unitPrice: Parameters<typeof fromDecimal>[0];
+  perishable: boolean;
+  storageId: string | null;
+}
+
+/**
+ * Fields of what is bought, on a base list or a shopping list: its category, store, link, note, quantity, unit, price
+ * and how it is kept.
+ * @param {PothosSchemaTypes.FieldBuilder<BuilderTypes, BoughtShape, 'PrismaObject'>} t Field builder.
+ * @returns {object} Fields.
+ */
+const boughtFields = (t: PothosSchemaTypes.FieldBuilder<BuilderTypes, BoughtShape, 'PrismaObject'>) => ({
+  categoryId: t.exposeID('categoryId', { nullable: true }),
+  storeId: t.exposeID('storeId', { nullable: true }),
+  url: t.exposeString('url', { nullable: true }),
+  note: t.exposeString('note', { nullable: true }),
+  quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
+  unit: t.exposeString('unit', { nullable: true }),
+  unitPrice: t.float({ nullable: true, resolve: (item) => fromDecimal(item.unitPrice) }),
+  perishable: t.exposeBoolean('perishable'),
+  storageId: t.exposeID('storageId', { nullable: true }),
 });
 
 builder.prismaObject('ShoppingProduct', {
@@ -41,20 +66,12 @@ builder.prismaObject('ShoppingProduct', {
   fields: (t) => ({
     id: t.exposeID('id'),
     baseListId: t.exposeID('baseListId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     stockTracked: t.exposeBoolean('stockTracked', { description: 'Followed in the stock.' }),
     consumable: t.exposeBoolean('consumable', { description: 'Used up (taken from the stock by sheets and checklists).' }),
     autoStock: t.exposeBoolean('autoStock', { description: 'Added to the stock by itself once bought (else proposed).' }),
     stockLocationId: t.exposeID('stockLocationId', { nullable: true, description: 'Place it goes to in the stock.' }),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    storeId: t.exposeID('storeId', { nullable: true }),
-    url: t.exposeString('url', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (product) => fromDecimal(product.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (product) => fromDecimal(product.unitPrice) }),
-    perishable: t.exposeBoolean('perishable'),
-    storageId: t.exposeID('storageId', { nullable: true }),
+    ...boughtFields(t as unknown as Parameters<typeof boughtFields>[0]),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true, description: 'Date of the last purchase: once past, the product is marked missing.' }),
     missing: t.exposeBoolean('missing'),
     lastPurchasedAt: t.expose('lastPurchasedAt', { type: 'DateTime', nullable: true }),
@@ -70,16 +87,8 @@ builder.prismaObject('ShoppingItem', {
     id: t.exposeID('id'),
     listId: t.exposeID('listId'),
     productId: t.exposeID('productId', { nullable: true }),
-    name: t.exposeString('name'),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    storeId: t.exposeID('storeId', { nullable: true }),
-    url: t.exposeString('url', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (item) => fromDecimal(item.unitPrice) }),
-    perishable: t.exposeBoolean('perishable'),
-    storageId: t.exposeID('storageId', { nullable: true }),
+    label: t.exposeString('label'),
+    ...boughtFields(t as unknown as Parameters<typeof boughtFields>[0]),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
     purchasedAt: t.expose('purchasedAt', { type: 'DateTime', nullable: true }),
     optional: t.exposeBoolean('optional', { description: 'Not needed: bought if possible (the list is done without it).' }),
@@ -99,7 +108,7 @@ builder.prismaObject('ShoppingList', {
   description: 'Shopping list, possibly attached to some tasks and to the treasury entry paying it.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     taskIds: t.idList(relationIds('tasks')),
     entryId: t.exposeID('entryId', { nullable: true }),
     entry: t.relation('entry', { nullable: true, description: 'Treasury entry paying the list.' }),
@@ -120,24 +129,19 @@ builder.prismaObject('ShoppingList', {
 });
 
 const CategoryInput = builder.inputType('ShoppingCategoryInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id(), baseListIds: t.idList() }),
+  fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id(), baseListIds: t.idList() }),
 });
 
-
-
-const shoppingFields = (t: Parameters<Parameters<typeof builder.inputType>[1]['fields']>[0]) => ({
-  name: t.string({ required: true }),
-  categoryId: t.id(),
-  storeId: t.id(),
-  url: t.string(),
-  note: t.string(),
-  quantity: t.float(),
-  unit: t.string(),
+/**
+ * Fields of a shopping product and of a shopping item.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const shoppingFields = (t: InputFields) => ({
+  label: t.string({ required: true }),
+  ...productInputFields(t, { people: true, perishable: false }),
+  ...purchaseInputFields(t),
   unitPrice: t.float(),
-  memberIds: t.idList({ required: true }),
-  relationIds: t.idList({ required: true }),
-  perishable: t.boolean(),
-  storageId: t.id(),
   expiresAt: t.field({ type: 'Date' }),
 });
 
@@ -148,23 +152,15 @@ const ProductInput = builder.inputType('ShoppingProductInput', {
 const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => ({ ...shoppingFields(t), optional: t.boolean({ description: 'Not needed: bought if possible.' }) }) });
 
 /**
- * Item input with omitted optional fields as null.
+ * Item input with omitted optional fields as null (an empty id too, as in the sheets and the stock).
  * @param {typeof ItemInput.$inferInput} input GraphQL input.
  * @returns {object} Service input.
  */
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
   ...input,
-  categoryId: input.categoryId ?? null,
-  storeId: input.storeId ?? null,
-  url: input.url ?? null,
-  note: input.note ?? null,
-  quantity: input.quantity ?? null,
-  unit: input.unit ?? null,
+  ...productInput(input),
+  ...purchaseInput(input),
   unitPrice: input.unitPrice ?? null,
-  memberIds: input.memberIds,
-  relationIds: input.relationIds,
-  perishable: input.perishable ?? false,
-  storageId: input.storageId || null,
   expiresAt: input.expiresAt ?? null,
   optional: input.optional ?? false,
 });
@@ -175,7 +171,7 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
  * @returns {object} Service input.
  */
 const categoryInput = (input: typeof CategoryInput.$inferInput) => ({
-  name: input.name,
+  label: input.label,
   color: input.color ?? null,
   parentId: input.parentId || null,
   baseListIds: input.baseListIds ?? [],
@@ -185,7 +181,7 @@ builder.queryFields((t) => ({
   shoppingCategories: t.prismaField({
     type: ['ShoppingCategory'],
     description: 'Categories of the shopping products (a tree).',
-    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   shoppingStores: t.prismaField({
     type: ['ShoppingStore'],
@@ -209,14 +205,13 @@ builder.queryFields((t) => ({
   shoppingProducts: t.prismaField({
     type: ['ShoppingProduct'],
     description: 'Products of all the base lists (references).',
-    resolve: (query) => prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.shoppingProduct.findMany({ ...query, orderBy: { label: 'asc' } }),
   }),
   shoppingLists: t.prismaField({
     type: ['ShoppingList'],
     description: 'Shopping lists, latest first: all, or those of a task.',
     args: { taskId: t.arg.id() },
-    resolve: (query, _root, { taskId }) =>
-      prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: taskId } } } : {}, orderBy: { createdAt: 'desc' } }),
+    resolve: (query, _root, { taskId }) => prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: taskId } } } : {}, orderBy: { createdAt: 'desc' } }),
   }),
 }));
 
@@ -244,12 +239,12 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids, baseListId),
   }),
   createShoppingBaseList: t.id({
-    args: { name: t.arg.string({ required: true }) },
-    resolve: async (_root, { name }) => (await shopping.createBaseList(name)).id,
+    args: { label: t.arg.string({ required: true }) },
+    resolve: async (_root, { label }) => (await shopping.createBaseList(label)).id,
   }),
   renameShoppingBaseList: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: (_root, { id, name }) => done(shopping.renameBaseList(id, name)),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }) },
+    resolve: (_root, { id, label }) => done(shopping.renameBaseList(id, label)),
   }),
   deleteShoppingBaseList: t.boolean({
     description: 'Deletes a base list with its products (the lists made from them keep their items).',
@@ -274,12 +269,12 @@ builder.mutationFields((t) => ({
   }),
   createShoppingList: t.id({
     description: 'Creates a list, empty or with the missing products of some base lists.',
-    args: { name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }), baseListIds: t.arg.idList({ required: true }) },
-    resolve: async (_root, { name, taskIds, baseListIds }) => (await shopping.createList({ name, taskIds: taskIds, baseListIds: baseListIds })).id,
+    args: { label: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }), baseListIds: t.arg.idList({ required: true }) },
+    resolve: async (_root, { label, taskIds, baseListIds }) => (await shopping.createList({ label, taskIds: taskIds, baseListIds: baseListIds })).id,
   }),
   updateShoppingList: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }) },
-    resolve: (_root, { id, name, taskIds }) => done(shopping.updateList(id, { name, taskIds: taskIds })),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }) },
+    resolve: (_root, { id, label, taskIds }) => done(shopping.updateList(id, { label, taskIds: taskIds })),
   }),
   setShoppingListClosed: t.boolean({
     args: { id: t.arg.id({ required: true }), closed: t.arg.boolean({ required: true }) },
@@ -332,7 +327,7 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-const nameColor = { create: NameColorInput, update: NameColorPatch };
+const nameColor = { create: LabelColorInput, update: LabelColorPatch };
 labelMutations('ShoppingStore', shopping.shoppingStores, nameColor);
 labelMutations('ShoppingStorage', shopping.shoppingStorages, nameColor);
 labelMutations('ShoppingUnit', { create: shopping.createUnit, update: shopping.updateUnit, remove: shopping.deleteUnit }, nameColor, {

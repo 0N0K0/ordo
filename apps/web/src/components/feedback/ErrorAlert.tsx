@@ -7,5 +7,6 @@ import { ErrorIcon } from './feedback-icons';
  * @returns {JSX.Element} Alert.
  */
 export function ErrorAlert(props: Omit<AlertProps, 'color' | 'icon'>) {
+  // eslint-disable-next-line no-restricted-syntax -- the one red alert.
   return <Alert color="red" icon={<ErrorIcon />} {...props} />;
 }

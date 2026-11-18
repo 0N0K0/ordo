@@ -46,3 +46,39 @@ export function countBy<T>(items: readonly T[], keysOf: (item: T) => string | re
   }
   return counts;
 }
+
+/**
+ * A list of ids with some added and some removed, each once (the same changes made to several items).
+ * @param {readonly string[]} list Current ids.
+ * @param {readonly string[]} [added] Ids added. Optional.
+ * @param {readonly string[]} [removed] Ids removed. Optional.
+ * @returns {string[]} New ids.
+ */
+export function changedList(list: readonly string[], added: readonly string[] = [], removed: readonly string[] = []): string[] {
+  return [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+}
+
+/**
+ * Sum of a value over items.
+ * @param {readonly T[]} items Items.
+ * @param {(item: T, index: number) => number} valueOf Value of an item (and its index).
+ * @returns {number} Sum (0 for no item).
+ */
+export function sumOf<T>(items: readonly T[], valueOf: (item: T, index: number) => number): number {
+  let total = 0;
+  for (const [index, item] of items.entries()) total += valueOf(item, index);
+  return total;
+}
+
+/**
+ * List with an item moved to an index, the others kept in their order; the index is bounded to the list.
+ * @param {readonly T[]} others Items in their order, without the moved one.
+ * @param {T} moved Item moved.
+ * @param {number} index Its new index.
+ * @returns {T[]} New order.
+ */
+export function movedTo<T>(others: readonly T[], moved: T, index: number): T[] {
+  const target = Math.max(0, Math.min(index, others.length));
+  // eslint-disable-next-line no-restricted-syntax -- movedTo itself.
+  return [...others.slice(0, target), moved, ...others.slice(target)];
+}

@@ -1,4 +1,4 @@
-import { addDays, allowedAt, blockingEvent, effectiveSlotRule, kindedSlots, knownSlotRule, readSlotRule, scheduleKinds, type KindedSlot } from '@ordo/shared';
+import { addDays, allowedAt, blockingEvent, dayPart, effectiveSlotRule, type KindedSlot, kindedSlots, knownSlotRule, readSlotRule, scheduleKinds } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspace } from '../../workspace-context';
 import { eventOccurrences } from './calendar-events';
@@ -30,7 +30,7 @@ async function workspaceSlots(from: string, to: string): Promise<{ slots: Kinded
  */
 function userNow(utcOffset: number): { date: string; time: string } {
   const iso = new Date(Date.now() + utcOffset * 60_000).toISOString();
-  return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
+  return { date: dayPart(iso), time: iso.slice(11, 16) };
 }
 
 /**

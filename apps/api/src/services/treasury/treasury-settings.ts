@@ -6,13 +6,13 @@ import {
   type TreasuryCounterpartyInput,
   type TreasuryPaymentMethodInput,
 } from '@ordo/shared';
-import { nextPosition } from '../core/settings-lists';
+import { nextPositionIn } from '../core/ordering';
 import { subtreeIds, treeListService } from '../core/trees';
 import { prisma } from '../../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
 import { fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
-import { assertNotArchived, ARCHIVED_MESSAGE } from '../core/archive';
+import { assertNotArchived } from '../core/archive';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /** Category of the treasury as validated. */
@@ -22,7 +22,7 @@ type ParsedCategory = ReturnType<typeof treasuryCategorySchema.parse>;
  * Categories of the treasury, in a tree of one direction each; a deleted one's sub-categories move up to its parent,
  * its entries lose their category.
  */
-const categories = treeListService<TreasuryCategory, ParsedCategory>(
+const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCategoryInput>(
   'treasuryCategory',
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
   {
@@ -31,11 +31,11 @@ const categories = treeListService<TreasuryCategory, ParsedCategory>(
       if (!data.parentId) return data;
       const parent = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: data.parentId } }), 'Catégorie parente');
       // Nothing is put under an archived category (a category already there stays).
-      if (parent.archivedAt && current?.parentId !== parent.id) throw fieldError('parentId', ARCHIVED_MESSAGE);
+      await assertNotArchived('treasuryCategory', parent.id, { keep: current?.parentId, field: 'parentId' });
       if (parent.direction !== data.direction) throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
       return data;
     },
-    moveInput: (category, parentId) => ({ name: category.name, color: category.color, direction: category.direction, parentId }),
+    moveInput: (category, parentId) => ({ label: category.label, color: category.color, direction: category.direction, parentId }),
     siblings: (category) => ({ direction: category.direction }),
     async save(id, data, current, parsed) {
       if (parsed.direction === current.direction) return prisma.treasuryCategory.update({ where: { id }, data });
@@ -52,44 +52,12 @@ const categories = treeListService<TreasuryCategory, ParsedCategory>(
 );
 
 /**
- * Creates a category, last among its siblings.
- * @param {TreasuryCategoryInput} input Category.
- * @returns {Promise<TreasuryCategory>} Category.
+ * A category: created last among its siblings, updated (under another parent, it goes last; changing its direction
+ * moves its sub-categories along and is refused while entries of the other direction use it), moved under another one
+ * of the same direction (or to the top level) at an index, deleted (its sub-categories move up to its parent, its
+ * entries lose their category).
  */
-export function createCategory(input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  return categories.create(input);
-}
-
-/**
- * Updates a category (under another parent, it goes last). Changing its direction moves its sub-categories along and
- * is refused while entries of the other direction use it.
- * @param {string} id Category id.
- * @param {TreasuryCategoryInput} input Category.
- * @returns {Promise<TreasuryCategory>} Category.
- */
-export function updateCategory(id: string, input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  return categories.update(id, input);
-}
-
-/**
- * Moves a category under another one of the same direction (or to the top level), at an index among its new siblings.
- * @param {string} id Category id.
- * @param {string | null} parentId New parent.
- * @param {number | null} [index] Index among the siblings; last when omitted. Optional.
- * @returns {Promise<void>}
- */
-export function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  return categories.move(id, parentId, index);
-}
-
-/**
- * Deletes a category: its sub-categories move up to its parent, its entries lose their category.
- * @param {string} id Category id.
- * @returns {Promise<void>}
- */
-export function deleteCategory(id: string): Promise<void> {
-  return categories.remove(id);
-}
+export const { create: createCategory, update: updateCategory, move: moveCategory, remove: deleteCategory } = categories;
 
 /**
  * Creates a payment method.
@@ -97,7 +65,7 @@ export function deleteCategory(id: string): Promise<void> {
  * @returns {Promise<TreasuryPaymentMethod>} Method.
  */
 export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Promise<TreasuryPaymentMethod> {
-  return prisma.treasuryPaymentMethod.create({ data: { ...parseInput(treasuryPaymentMethodSchema, input), position: await nextPosition('TREASURY_PAYMENT_METHOD') } });
+  return prisma.treasuryPaymentMethod.create({ data: { ...parseInput(treasuryPaymentMethodSchema, input), position: await nextPositionIn('treasuryPaymentMethod') } });
 }
 
 /**
@@ -134,7 +102,7 @@ export async function deletePaymentMethod(id: string): Promise<void> {
  * @returns {Promise<TreasuryCounterparty>} Counterparty.
  */
 export async function createCounterparty(input: TreasuryCounterpartyInput): Promise<TreasuryCounterparty> {
-  return prisma.treasuryCounterparty.create({ data: { ...parseInput(treasuryCounterpartySchema, input), position: await nextPosition('TREASURY_COUNTERPARTY') } });
+  return prisma.treasuryCounterparty.create({ data: { ...parseInput(treasuryCounterpartySchema, input), position: await nextPositionIn('treasuryCounterparty') } });
 }
 
 /**
@@ -171,9 +139,9 @@ export async function setInvoiceCategories(input: { invoiceCategoryId: string | 
     [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
   ] as const) {
     if (!id) continue;
-    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true, archivedAt: true } }), 'Catégorie');
+    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } }), 'Catégorie');
     // An archived category stays the one set, but is not set any more.
-    if (category.archivedAt && id !== (await getCompanyProfile())[field]) throw fieldError(field, ARCHIVED_MESSAGE);
+    await assertNotArchived('treasuryCategory', id, { keep: (await getCompanyProfile())[field], field });
     if (category.direction !== direction) {
       const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
       throw fieldError(field, message);

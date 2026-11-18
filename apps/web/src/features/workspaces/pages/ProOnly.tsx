@@ -15,7 +15,7 @@ export function ProOnly({ children }: { children: ReactNode }) {
     <PageMessage
       icon={<HouseLineIcon size="55%" aria-hidden />}
       title="Indisponible dans un espace personnel"
-      message={<>L’espace « {workspace?.name} » est personnel : il n’a ni facturation, ni clients, ni société.</>}
+      message={<>L’espace « {workspace?.label} » est personnel : il n’a ni facturation, ni clients, ni société.</>}
     />
   );
 }

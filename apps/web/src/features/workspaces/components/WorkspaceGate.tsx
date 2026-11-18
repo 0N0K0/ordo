@@ -1,8 +1,8 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { Center, Loader } from '@mantine/core';
 import type { ReactNode } from 'react';
 
 import { useWorkspaces } from '../api';
+import { FullPageLoader } from '../../../components/feedback/FullPageLoader';
 
 /**
  * Shows its content once the workspace is known: pages differ in a personal one, and the requests of the tab are
@@ -16,11 +16,7 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
     return <ErrorAlert m="md">{error.message}</ErrorAlert>;
   }
   if (!data) {
-    return (
-      <Center h="100vh">
-        <Loader aria-label="Chargement de l’espace" />
-      </Center>
-    );
+    return <FullPageLoader label="Chargement de l’espace" />;
   }
   return children;
 }

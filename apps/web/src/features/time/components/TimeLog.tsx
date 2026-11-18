@@ -1,8 +1,9 @@
-import { plural } from '../../../lib/text';
+import { unarchived } from '../../../lib/archive';
+import { plural, collator } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
-import { collator, entrySeconds, formatDuration, lineageOf, type TableFilterGroup } from '@ordo/shared';
+import { entrySeconds, formatDuration, lineageOf, sumOf } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -11,10 +12,10 @@ import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { TaskRef } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeMutations, type TimeEntry, type TimeEntryValues } from '../api';
@@ -28,20 +29,19 @@ import { deleteRowsAction } from '../../../components/data-table/selection/selec
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { TIMER_RUNNING, TimerRunningBadge } from './TimerStop';
+import { documentPath } from '../../../app/pages';
 
 /**
  * Seconds of the finished times (a running timer counts once stopped).
  * @param {readonly TimeEntry[]} entries Times.
  * @returns {number} Seconds.
  */
-const finishedSeconds = (entries: readonly TimeEntry[]) => entries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0);
-
-/**
- * Filter of the times started within a period.
- * @param {string} period Period token (thisWeek, thisMonth…).
- * @returns {TableFilterGroup} Filter.
- */
-const within = (period: string): TableFilterGroup => ({ type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'day', field: 'day', operator: 'within', value: period }] });
+const finishedSeconds = (entries: readonly TimeEntry[]) =>
+  sumOf(
+    entries.filter((entry) => entry.endedAt),
+    (entry) => entrySeconds(entry),
+  );
 
 /**
  * Events the times were spent on, as filter options.
@@ -50,15 +50,15 @@ const within = (period: string): TableFilterGroup => ({ type: 'group', id: 'root
  */
 function events(entries: readonly TimeEntry[]): { value: string; label: string }[] {
   const byId = new Map<string, string>();
-  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventTitle ?? 'Évènement');
+  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventLabel ?? 'Évènement');
   return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => collator.compare(a.label, b.label));
 }
 
 /** Views made the first time the times are shown, by day: this week (opened first), this month, every time. */
 const TIME_VIEWS: FirstTableView[] = [
-  { name: 'Cette semaine', config: { filter: within('thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
-  { name: 'Ce mois-ci', config: { filter: within('thisMonth'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
-  { name: 'Tous', config: { groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Cette semaine', config: { filter: withinFilter('day', 'thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Ce mois-ci', config: { filter: withinFilter('day', 'thisMonth'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Tous', config: { groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
 ];
 
 /**
@@ -70,7 +70,7 @@ const TIME_VIEWS: FirstTableView[] = [
  * @returns {DataColumn<TimeEntry>[]} Columns.
  */
 function timeColumns(context: TaskContext | null, comments: Map<string, number>, routines: TreeOption[], entries: readonly TimeEntry[]): DataColumn<TimeEntry>[] {
-  const projectName = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
+  const projectLabelOf = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
   return [
     {
       id: 'day',
@@ -101,7 +101,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       numeric: true,
       sortValue: (entry) => entrySeconds(entry),
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
-      text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : 'En cours'),
+      text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : TIMER_RUNNING),
       filter: { kind: 'number', value: (entry) => Math.round(entrySeconds(entry) / 36) / 100 },
     },
     {
@@ -109,8 +109,8 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       bulk: true,
       label: 'Projet',
       size: 180,
-      sortValue: (entry) => projectName(entry) || null,
-      text: projectName,
+      sortValue: (entry) => projectLabelOf(entry) || null,
+      text: projectLabelOf,
       // A project keeps the times of its sub-projects.
       filter: {
         kind: 'choices',
@@ -124,8 +124,8 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       bulk: true,
       label: 'Routine',
       size: 180,
-      sortValue: (entry) => entry.routineTitle ?? null,
-      text: (entry) => entry.routineTitle ?? '',
+      sortValue: (entry) => entry.routineLabel ?? null,
+      text: (entry) => entry.routineLabel ?? '',
       filter: { kind: 'choice', value: (entry) => entry.routineId ?? null, options: routines },
       groupable: true,
     },
@@ -140,15 +140,15 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
           .filter((task) => task !== undefined)
           .map((task) => context?.taskLabel(task) ?? '')
           .join(', '),
-      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.title })) },
+      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.label })) },
     },
     {
       id: 'event',
       bulk: true,
       label: 'Évènement',
       size: 200,
-      sortValue: (entry) => entry.calendarEventTitle ?? null,
-      text: (entry) => entry.calendarEventTitle ?? '',
+      sortValue: (entry) => entry.calendarEventLabel ?? null,
+      text: (entry) => entry.calendarEventLabel ?? '',
       filter: { kind: 'choice', value: (entry) => entry.calendarEventId ?? null, options: events(entries) },
       groupable: true,
     },
@@ -215,7 +215,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
    */
   const saveOne = (entry: TimeEntry, change: Partial<TimeEntryValues>) =>
     // A time on a final invoice, or running, is left as it is.
-    editable(entry) && update.mutate({ id: entry.id, input: change }, { onError: onMutationError });
+    editable(entry) && update.mutate({ id: entry.id, input: change }, ON_ERROR);
   const { data: routinesData } = useRoutinesData();
   const routineOptions = routineTreeOptions(routinesData?.routines ?? []);
   const entryComments = useCommentCounts(
@@ -245,7 +245,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           {
             ...deleteRowsAction(deletable, {
               title: 'Supprimer les temps',
-              risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}. Cette action est irréversible.`,
+              risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}.`,
               remove: (entry) => remove.mutateAsync(entry.id),
               done: `${deletable.length} temps ${plural(deletable.length, 'supprimé')}.`,
               clear,
@@ -281,24 +281,18 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
               {fmt.time(entry.endedAt)}
             </Text>
           ) : null,
-          duration: entry.endedAt ? (
-            <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={bulk('duration')} />
-          ) : (
-            <Badge size="sm" color="red" variant="light">
-              En cours
-            </Badge>
-          ),
+          duration: entry.endedAt ? <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={bulk('duration')} /> : <TimerRunningBadge />,
           project: (
             <>
               {context && editable(entry) ? (
                 <EditableSelect
                   value={entry.projectId ?? null}
                   label="Projet de ce temps"
-                  {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === entry.projectId)))}
+                  {...treeSelectProps(context.projectOptions(unarchived(context.projects, entry.projectId)))}
                   onSave={(next) => (next || entry.routineId) && bulk('project')(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
-                context?.projectById.get(entry.projectId)?.title
+                context?.projectById.get(entry.projectId)?.label
               ) : null}
             </>
           ),
@@ -315,7 +309,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
             ),
           event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={bulk('event')} />,
           invoice: entry.documentId && (
-            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
+            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={documentPath(entry.documentId)} style={{ cursor: 'pointer' }}>
               {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
             </Badge>
           ),

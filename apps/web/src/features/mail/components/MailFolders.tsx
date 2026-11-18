@@ -3,13 +3,12 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Box, Button, Group, NavLink, Stack, Text, TextInput } from '@mantine/core';
+import { Box, Button, Group, NavLink, Stack, Text } from '@mantine/core';
+import { requiredText } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
   ArrowsOutCardinalIcon,
-  CaretDownIcon,
-  CaretRightIcon,
   EnvelopeSimpleIcon,
   FileIcon,
   FolderIcon,
@@ -21,10 +20,13 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
-import { FormActions } from '../../../components/dialogs/FormActions';
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
+import { FoldButton } from '../../../components/actions/FoldButton';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { movedMailsMessage } from '../lib/mail-format';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -47,37 +49,8 @@ interface SelectedFolder {
   folder: string;
 }
 
-/**
- * Name of a folder to create or rename.
- * @param {{ initial: string, label: string, onSubmit: (name: string) => Promise<unknown>, onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
- */
-function FolderNameForm({ initial, label, onSubmit, onDone }: { initial: string; label: string; onSubmit: (name: string) => Promise<unknown>; onDone: () => void }) {
-  const [name, setName] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!name.trim()) {
-          setError('Le nom est requis.');
-          return;
-        }
-        setLoading(true);
-        onSubmit(name.trim())
-          .then(onDone)
-          .catch((failure: Error) => setError(failure.message))
-          .finally(() => setLoading(false));
-      }}
-    >
-      <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus value={name} error={error} onChange={(event) => setName(event.currentTarget.value)} />
-        <FormActions onCancel={onDone} submitLabel={label} loading={loading} />
-      </Stack>
-    </form>
-  );
-}
+/** Rule of the name of a folder. */
+const FOLDER_NAME = requiredText(255);
 
 interface AccountFoldersProps {
   account: MailAccount;
@@ -112,13 +85,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   const placeFolder = (folder: { path: string; name: string }, parent: string | null) =>
     moveFolder.mutate(
       { accountId: account.id, path: folder.path, parent },
-      {
-        onSuccess: (path) => {
-          notifySuccess(parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`);
-          if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`, (path) => {
+        if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+      }),
     );
 
   /**
@@ -133,17 +102,17 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
         <Text size="sm" c="dimmed">
           Le dossier, ses sous-dossiers et leurs mails changent de place.
         </Text>
-        <Button
-          variant="default"
+        <ActionButton
+          priority="secondary"
           justify="flex-start"
-          leftSection={<FolderIcon aria-hidden />}
+          icon={<FolderIcon aria-hidden />}
           onClick={() => {
             close();
             placeFolder(folder, null);
           }}
         >
           Premier niveau
-        </Button>
+        </ActionButton>
         {choices.map((item) => (
           <Button
             key={item.path}
@@ -195,9 +164,13 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askCreate = (parent: string | null) => {
-    openFormPanel(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', (close) => (
-      <FolderNameForm initial="" label="Créer" onDone={close} onSubmit={(name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.'))} />
-    ));
+    openLabelForm(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', {
+      initial: '',
+      fieldLabel: 'Nom',
+      schema: FOLDER_NAME,
+      submitLabel: 'Créer',
+      onSubmit: (name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.')),
+    });
   };
 
   /**
@@ -206,19 +179,17 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askRename = (folder: { path: string; name: string }) => {
-    openFormPanel('Renommer le dossier', (close) => (
-      <FolderNameForm
-        initial={folder.name}
-        label="Renommer"
-        onDone={close}
-        onSubmit={(name) =>
-          rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
-            notifySuccess('Dossier renommé.');
-            if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
-          })
-        }
-      />
-    ));
+    openLabelForm('Renommer le dossier', {
+      initial: folder.name,
+      fieldLabel: 'Nom',
+      schema: FOLDER_NAME,
+      submitLabel: 'Renommer',
+      onSubmit: (name) =>
+        rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {
+          notifySuccess('Dossier renommé.');
+          if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+        }),
+    });
   };
 
   /**
@@ -229,7 +200,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   const askDelete = (folder: { path: string; name: string }) => {
     confirmDestructive({
       title: 'Supprimer le dossier',
-      risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur. Cette action est irréversible.</>,
+      risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur.</>,
       onConfirm: () => {
         remove.mutate(
           { accountId: account.id, path: folder.path },
@@ -243,7 +214,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
 
   return (
     <NavLink
-      label={account.name}
+      label={account.label}
       description={account.email}
       defaultOpened
       leftSection={<EnvelopeSimpleIcon aria-hidden />}
@@ -290,19 +261,13 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             leftSection={
               <Group gap={2} wrap="nowrap">
                 {hasChildren ? (
-                  <ActionIcon
+                  <FoldButton
                     size="xs"
-                    variant="subtle"
-                    color="gray"
-                    aria-label={folded ? `Développer ${folder.name}` : `Réduire ${folder.name}`}
-                    aria-expanded={!folded}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setCollapsed(folded ? collapsed.filter((path) => path !== folder.path) : [...collapsed, folder.path]);
-                    }}
-                  >
-                    {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-                  </ActionIcon>
+                    expanded={!folded}
+                    item={folder.name}
+                    inRow
+                    onToggle={() => setCollapsed(folded ? collapsed.filter((path) => path !== folder.path) : [...collapsed, folder.path])}
+                  />
                 ) : (
                   <Box w={22} />
                 )}
@@ -368,7 +333,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               event.preventDefault();
               move.mutate(
                 { accountId: account.id, folder: dragged.folder, uids: dragged.uids, target: folder.path },
-                formCallbacks(null, `${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`, onDropped),
+                formCallbacks(null, movedMailsMessage(dragged.uids.length, folder.name), onDropped),
               );
             }}
             style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${folder.depth} * var(--mantine-spacing-md))` }}

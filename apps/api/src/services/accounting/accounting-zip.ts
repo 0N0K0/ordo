@@ -1,4 +1,4 @@
-import { isRealDay, parseDay, safeFilename, type AccountingDocumentType } from '@ordo/shared';
+import { type AccountingDocumentType, END_AFTER_START, isRealDay, parseDay, safeFilename } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -14,23 +14,16 @@ const FOLDERS: Record<AccountingDocumentType, string> = {
 const TYPES = Object.keys(FOLDERS) as AccountingDocumentType[];
 
 /**
- * Name safe in an archive.
- * @param {string} name Name.
- * @returns {string} Name.
- */
-const safe = (name: string) => safeFilename(name).trim() || 'sans-nom';
-
-/**
  * ZIP of the documents issued over a period, one folder per type: the final documents of Ordo as printed
  * (PDF with their Factur-X), and optionally the files of the imported ones.
  * @param {{ from: string, to: string, types: string[], imported: boolean }} input Period (days included), types, imported documents.
- * @returns {Promise<{ name: string, content: Buffer }>} Archive and its name.
+ * @returns {Promise<{ filename: string, content: Buffer }>} Archive and its file name.
  */
-export async function documentsZip(input: { from: string; to: string; types: string[]; imported: boolean }): Promise<{ name: string; content: Buffer }> {
+export async function documentsZip(input: { from: string; to: string; types: string[]; imported: boolean }): Promise<{ filename: string; content: Buffer }> {
   if (![input.from, input.to].every(isRealDay)) throw clientError('BAD_USER_INPUT', 'Période invalide.');
   const from = parseDay(input.from);
   const to = parseDay(input.to);
-  if (from > to) throw clientError('BAD_USER_INPUT', 'Période invalide.');
+  if (from > to) throw clientError('BAD_USER_INPUT', END_AFTER_START);
   const types = TYPES.filter((type) => input.types.includes(type));
   if (types.length === 0) throw clientError('BAD_USER_INPUT', 'Choisissez au moins un type de document.');
 
@@ -43,7 +36,7 @@ export async function documentsZip(input: { from: string; to: string; types: str
   // One at a time: each PDF is built in memory.
   for (const document of documents) {
     const pdf = await documentPdf(document.id);
-    files.push({ name: `${FOLDERS[document.type]}/${safe(pdf.filename)}`, data: new Uint8Array(pdf.content), date: document.finalizedAt ?? document.issueDate });
+    files.push({ name: `${FOLDERS[document.type]}/${safeFilename(pdf.filename)}`, data: new Uint8Array(pdf.content), date: document.finalizedAt ?? document.issueDate });
   }
   if (input.imported) {
     const imported = await prisma.importedDocument.findMany({
@@ -53,10 +46,10 @@ export async function documentsZip(input: { from: string; to: string; types: str
     });
     for (const document of imported) {
       if (!document.attachment) continue;
-      const extension = /\.[^.]{1,8}$/.exec(document.attachment.name)?.[0] ?? '';
-      files.push({ name: `${FOLDERS[document.type]}/${safe(`${document.number} (importé)`)}${extension}`, data: document.attachment.data, date: document.issueDate });
+      const extension = /\.[^.]{1,8}$/.exec(document.attachment.filename)?.[0] ?? '';
+      files.push({ name: `${FOLDERS[document.type]}/${safeFilename(`${document.number} (importé)`)}${extension}`, data: document.attachment.data, date: document.issueDate });
     }
   }
   if (files.length === 0) throw clientError('BAD_USER_INPUT', 'Aucun document sur cette période.');
-  return { name: `Documents comptables du ${input.from} au ${input.to}.zip`, content: zipFiles(files) };
+  return { filename: `Documents comptables du ${input.from} au ${input.to}.zip`, content: zipFiles(files) };
 }

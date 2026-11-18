@@ -23,11 +23,10 @@ builder.prismaObject('LibraryDocument', {
     note: t.exposeString('note', { nullable: true }),
     url: t.string({
       description: 'Link address, or URL of the file.',
-      select: { attachment: { select: { id: true, name: true } } },
-      resolve: (document) =>
-        document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`,
+      select: { attachment: { select: { id: true, filename: true } } },
+      resolve: (document) => (document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.filename ?? 'fichier')}`),
     }),
-    fileName: t.string({ nullable: true, select: { attachment: { select: { name: true } } }, resolve: (document) => document.attachment?.name ?? null }),
+    fileName: t.string({ nullable: true, select: { attachment: { select: { filename: true } } }, resolve: (document) => document.attachment?.filename ?? null }),
     mimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
     size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (document) => document.attachment?.size ?? null }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

@@ -2,7 +2,8 @@ import { entityNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from './workspaces';
@@ -15,14 +16,6 @@ import { requirePro } from './workspaces';
 async function findClient(id: string): Promise<Client> {
   const client = await orNotFound(prisma.client.findUnique({ where: { id } }), 'Client');
   return client;
-}
-
-/**
- * Next position at the end of the client list.
- * @returns {Promise<number>} Position.
- */
-async function nextClientPosition(): Promise<number> {
-  return nextPositionIn('client');
 }
 
 /**
@@ -40,11 +33,11 @@ export async function createClient(input: { name: string; color?: string | null;
     color: input.color ?? null,
   });
   const iconId = input.icon ? await storeIcon(input.icon) : null;
-  return prisma.client.create({ data: { name, color, iconId, position: await nextClientPosition() } });
+  return prisma.client.create({ data: { name, color, iconId, position: await nextPositionIn('client') } });
 }
 
 /**
- * Updates the name and/or icon of a client.
+ * Updates the name and/or icon of a client (not an archived one: restore it first).
  * @param {string} id Client id.
  * @param {object} input Changes.
  * @param {string | null} [input.name] New name. Optional.
@@ -53,15 +46,10 @@ export async function createClient(input: { name: string; color?: string | null;
  * @param {boolean | null} [input.removeIcon] Removes the current icon. Optional.
  * @returns {Promise<Client>} Updated client.
  */
-export async function updateClient(
-  id: string,
-  input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null },
-): Promise<Client> {
+export async function updateClient(id: string, input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<Client> {
   const client = await findClient(id);
-  const { name, color } = parseInput(
-    z.object({ name: entityNameSchema.optional(), color: optionalColorSchema.optional() }),
-    { name: input.name ?? undefined, color: input.color },
-  );
+  if (client.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const { name, color } = parseInput(z.object({ name: entityNameSchema.optional(), color: optionalColorSchema.optional() }), { name: input.name ?? undefined, color: input.color });
   const iconId = await resolveIconUpdate(client.iconId, input);
 
   const updated = await prisma.client.update({ where: { id }, data: { name, color, iconId } });
@@ -127,10 +115,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   });
 
   if (deleteProjects) {
-    await prisma.$transaction([
-      prisma.project.deleteMany({ where: { clientId: id } }),
-      prisma.client.delete({ where: { id } }),
-    ]);
+    await prisma.$transaction([prisma.project.deleteMany({ where: { clientId: id } }), prisma.client.delete({ where: { id } })]);
     await deleteOrphanIcons([client.iconId, ...projects.map((project) => project.iconId)]);
     return;
   }
@@ -140,9 +125,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   const roots = projects.filter((project) => project.parentId === null);
   await prisma.$transaction([
     prisma.project.updateMany({ where: { clientId: id }, data: { clientId: null, archivedByCascade: false } }),
-    ...roots.map((project, index) =>
-      prisma.project.update({ where: { id: project.id }, data: { position: start + index } }),
-    ),
+    ...roots.map((project, index) => prisma.project.update({ where: { id: project.id }, data: { position: start + index } })),
     prisma.client.delete({ where: { id } }),
   ]);
   await deleteOrphanIcons([client.iconId]);

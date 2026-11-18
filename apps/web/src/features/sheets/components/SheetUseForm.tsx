@@ -10,16 +10,16 @@ import { MultiplierInput } from './MultiplierInput';
 /**
  * Use of a sheet (times a multiplier): its consumable items that are references followed in stock are taken from it,
  * the lots that expire first first.
- * @param {{ sheetId: string, name: string, onDone: () => void }} props Sheet, its name, and what follows.
+ * @param {{ sheetId: string, label: string, onDone: () => void }} props Sheet, its label, and what follows.
  * @returns {JSX.Element} Form.
  */
-export function SheetUseForm({ sheetId, name, onDone }: { sheetId: string; name: string; onDone: () => void }) {
+export function SheetUseForm({ sheetId, label, onDone }: { sheetId: string; label: string; onDone: () => void }) {
   const { use } = useSheetMutations();
   const [multiplier, setMultiplier] = useState(1);
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
-        Les éléments consommables de « {name} » qui sont des références suivies en stock en sont retirés, en commençant par les lots qui périment le plus tôt.
+        Les éléments consommables de « {label} » qui sont des références suivies en stock en sont retirés, en commençant par les lots qui périment le plus tôt.
       </Text>
       <MultiplierInput label="Combien de fois" w={160} value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} data-autofocus />
       <FormActions

@@ -1,4 +1,4 @@
-import { documentPaymentSchema, parseDay, SENDING_CHANNELS, type DocumentPaymentInput } from '@ordo/shared';
+import { type DocumentPaymentInput, documentPaymentSchema, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type AccountingDocument } from '../../generated/prisma/client';
@@ -31,7 +31,7 @@ export async function documentBalances(): Promise<Map<string, DocumentBalance>> 
     select: { id: true, type: true, sourceId: true, totalGross: true, allocations: { select: { amount: true } } },
   });
   const gross = (document: (typeof documents)[number]) => decimalCents(document.totalGross);
-  const paid = (document: (typeof documents)[number]) => document.allocations.reduce((sum, allocation) => sum + decimalCents(allocation.amount), 0);
+  const paid = (document: (typeof documents)[number]) => sumOf(document.allocations, (allocation) => decimalCents(allocation.amount));
   const creditNotes = new Map<string, typeof documents>();
   for (const document of documents) {
     if (document.type === 'CREDIT_NOTE' && document.sourceId) creditNotes.set(document.sourceId, [...(creditNotes.get(document.sourceId) ?? []), document]);
@@ -41,8 +41,8 @@ export async function documentBalances(): Promise<Map<string, DocumentBalance>> 
   for (const document of documents) {
     if (document.type !== 'CREDIT_NOTE') {
       const credits = creditNotes.get(document.id) ?? [];
-      const credited = credits.reduce((sum, credit) => sum + decimalCents(credit.totalGross), 0);
-      const refunded = credits.reduce((sum, credit) => sum + paid(credit), 0);
+      const credited = sumOf(credits, (credit) => decimalCents(credit.totalGross));
+      const refunded = sumOf(credits, (credit) => paid(credit));
       result.set(document.id, { paid: paid(document), credited, balance: gross(document) - credited - paid(document) + refunded });
     }
   }
@@ -68,7 +68,7 @@ export async function importedBalances(): Promise<Map<string, DocumentBalance>> 
   });
   return new Map(
     documents.map((document) => {
-      const paid = document.allocations.reduce((sum, allocation) => sum + decimalCents(allocation.amount), 0);
+      const paid = sumOf(document.allocations, (allocation) => decimalCents(allocation.amount));
       return [document.id, { paid, credited: 0, balance: document.settled ? 0 : decimalCents(document.totalGross) - paid }];
     }),
   );
@@ -141,7 +141,7 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
   const document = await finalDocument(id);
   const status = await scopedStatus(statusId, document.type);
   // An archived status stays the one of its documents, but is not given any more.
-  if (status.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', status.id);
+  await assertNotArchived('DOCUMENT_STATUS', status.id, { keep: document.trackingStatusId, field: 'statusId' });
   return prisma.accountingDocument.update({
     where: { id },
     data: {
@@ -192,7 +192,7 @@ export async function markSent(id: string, options: { date?: string | null; via?
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
-  if (chosen && chosen.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', chosen.id);
+  await assertNotArchived('DOCUMENT_STATUS', chosen?.id, { keep: document.trackingStatusId, field: 'statusId' });
   const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
   return prisma.accountingDocument.update({
     where: { id },
@@ -267,8 +267,8 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   await assertExists(prisma.treasuryAccount, payment.accountId, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId);
-  await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId);
+  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId, { field: 'accountId' });
+  await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId, { field: 'methodId' });
   const refund = document.type === 'CREDIT_NOTE';
   if (payment.methodId) {
     const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
@@ -283,7 +283,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const category = chosen
     ? { id: chosen }
     : await prisma.treasuryCategory.findFirst({
-        where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
+        where: { label: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
         orderBy: { createdAt: 'asc' },
         select: { id: true },
       });

@@ -1,9 +1,9 @@
-import { LabeledField } from '../inputs/LabeledField';
-import { AddItemButton } from '../actions/AddItemButton';
+import { LabeledField } from '../../../components/inputs/LabeledField';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Group, TextInput } from '@mantine/core';
 import type { Phone } from '@ordo/shared';
 import { PhoneIcon } from '@phosphor-icons/react';
-import { RemoveButton } from '../actions/RemoveButton';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Phone numbers with a label each ("Standard", "Mobile"…).
@@ -30,7 +30,7 @@ export function PhonesField({ value, onChange }: { value: Phone[]; onChange: (va
             value={phone.number}
             onChange={(event) => onChange(value.map((item, position) => (position === index ? { ...item, number: event.currentTarget.value } : item)))}
           />
-          <RemoveButton label="Retirer le numéro" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))} />
+          <RemoveButton label="Retirer" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))} />
         </Group>
       ))}
       <AddItemButton onClick={() => onChange([...value, { label: '', number: '' }])}>Ajouter un numéro</AddItemButton>

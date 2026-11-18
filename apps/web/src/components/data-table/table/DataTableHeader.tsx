@@ -1,10 +1,11 @@
+import { fittedLayout, movedColumnOrder } from './column-fit';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Group, Table } from '@mantine/core';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
-import { contentWidth } from './column-fit';
+
 import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';
@@ -154,18 +155,7 @@ export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sor
    * @param {ColumnMove} where Where.
    * @returns {void}
    */
-  const move = (id: string, where: ColumnMove) => {
-    const others = order.filter((item) => item !== id);
-    const index = shown.findIndex((column) => column.id === id);
-    let at: number;
-    if (where === 'start') at = 0;
-    else if (where === 'end') at = others.length;
-    else {
-      const neighbour = shown[where === 'left' ? index - 1 : index + 1].id;
-      at = others.indexOf(neighbour) + (where === 'right' ? 1 : 0);
-    }
-    onLayoutChange(withOrder(columns, layout, [...others.slice(0, at), id, ...others.slice(at)]));
-  };
+  const move = (id: string, where: ColumnMove) => onLayoutChange(withOrder(columns, layout, movedColumnOrder(order, shown, id, where)));
 
   /**
    * Fits a column to its content, or gives it back its default width when it already is.
@@ -173,18 +163,7 @@ export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sor
    * @param {number} index Index among the shown columns.
    * @returns {void}
    */
-  const fit = (column: ShownColumn<R>, index: number) => {
-    if (!tableRef.current) return;
-    const width = clampWidth(contentWidth(tableRef.current, before + index) + 2);
-    const { [column.id]: _dropped, ...others } = layout.columnSizing; // eslint-disable-line @typescript-eslint/no-unused-vars
-    if (fitted.current.get(column.id) === column.width || Math.abs(width - column.width) <= 2) {
-      fitted.current.delete(column.id);
-      onLayoutChange({ ...layout, columnSizing: others });
-      return;
-    }
-    fitted.current.set(column.id, width);
-    onLayoutChange({ ...layout, columnSizing: { ...others, [column.id]: width } });
-  };
+  const fit = (column: ShownColumn<R>, index: number) => tableRef.current && onLayoutChange(fittedLayout(tableRef.current, layout, column, before + index, fitted.current));
 
   return (
     <Table.Thead className={classes.head}>

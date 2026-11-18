@@ -1,5 +1,4 @@
-import { Box } from '@mantine/core';
-import { openModal } from '../../../components/panels/open-modal';
+import { openFile } from '../../files/lib/open-file';
 
 import { paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../../mail/lib/compose-options';
@@ -28,16 +27,8 @@ export function pdfUrl(id: string, download = false, paid = false): string {
  * @returns {void}
  */
 export function openPdfPreview(id: string, title: string): void {
-  openModal(title, () => (
-      <Box
-        component="iframe"
-        src={`${pdfUrl(id)}#view=FitH&t=${Date.now()}`}
-        title={title}
-        w="100%"
-        h="80vh"
-        style={{ border: 0, display: 'block' }}
-      />
-    ), { size: '64rem' });
+  // The time in the address: generated again, not the one the browser keeps.
+  openFile({ url: `${pdfUrl(id)}?t=${Date.now()}`, filename: title, mimeType: 'application/pdf' });
 }
 
 /**
@@ -66,7 +57,7 @@ interface DocumentMail {
   /** Payment terms ("À réception": no date to pay before). */
   paymentTerms: string | null;
   projectId: string | null;
-  attachments: { name: string; url: string }[];
+  attachments: { filename: string; url: string }[];
   companyName: string;
   recipient: { email: string | null; firstName: string | null };
   /** Reminder of an unpaid invoice: what is still due, in cents. */
@@ -119,7 +110,7 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
   }
   const files = await Promise.all([
     fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`),
-    ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.name)),
+    ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.filename)),
   ]);
   return {
     to: document.recipient.email ? [document.recipient.email] : [],
@@ -127,9 +118,7 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
     body: [
       `<p>Bonjour${document.recipient.firstName ? ` ${escapeHtml(document.recipient.firstName)}` : ''},</p>`,
       `<p>Veuillez trouver ci-joint ${phrase.article} n° ${escapeHtml(document.number)} ${escapeHtml(detail)}.</p>`,
-      document.type === 'QUOTE'
-        ? '<p>Pour l’accepter, il vous suffit de nous le retourner signé avec la mention « Bon pour accord ».</p>'
-        : '',
+      document.type === 'QUOTE' ? '<p>Pour l’accepter, il vous suffit de nous le retourner signé avec la mention « Bon pour accord ».</p>' : '',
       '<p>Cordialement,</p>',
     ].join(''),
     files,

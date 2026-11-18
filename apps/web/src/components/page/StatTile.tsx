@@ -1,4 +1,5 @@
 import { Paper, Stack, Text } from '@mantine/core';
+import { Caption } from './Caption';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { TextSkeleton } from '../feedback/Skeletons';
@@ -24,9 +25,7 @@ interface StatTileProps {
 export function StatTile({ label, value, hint, hintColor = 'dimmed', valueColor, to, loading }: StatTileProps) {
   const content = (
     <Stack gap={2}>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600} truncate>
-        {label}
-      </Text>
+      <Caption truncate>{label}</Caption>
       {loading ? (
         <TextSkeleton title lines={0} />
       ) : (

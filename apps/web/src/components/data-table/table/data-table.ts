@@ -1,14 +1,15 @@
-import { mapById } from '@ordo/shared';
+import { mapById, sumOf } from '@ordo/shared';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { collator } from '../../../lib/text';
+import { archivedIds } from '../../../lib/archive';
 
 /** Choice of a column filtered by its values. */
 export interface ColumnChoice {
   value: string;
   /** Label (of a tree: its full path). */
   label: string;
-  /** Name alone of a choice of a tree, shown indented in its list. Optional. Default = its label. */
-  name?: string;
+  /** Label alone of a choice of a tree, shown indented in its list. Optional. Default = its label. */
+  nodeLabel?: string;
   /** Depth in a tree (categories, projects…): the choices are offered as their tree. Optional. */
   depth?: number;
   /** Value of its parent in the tree. Optional. */
@@ -33,7 +34,7 @@ export interface ColumnChoice {
  * @returns {ColumnChoice[]} Choices.
  */
 export function withArchived(options: readonly ColumnChoice[], items: readonly { id: string; archived?: boolean | null }[]): ColumnChoice[] {
-  const archived = new Set(items.filter((item) => item.archived).map((item) => item.id));
+  const archived = archivedIds(items);
   return options.map((option) => (archived.has(option.value) ? { ...option, archived: true } : option));
 }
 
@@ -241,5 +242,5 @@ export function toggleSort(sorting: readonly TableSort[], id: string, multi: boo
  * @returns {number} Width (px).
  */
 export function tableWidth<R>(shown: readonly ShownColumn<R>[], extra = 0): number {
-  return shown.reduce((sum, column) => sum + column.width, extra);
+  return extra + sumOf(shown, (column) => column.width);
 }

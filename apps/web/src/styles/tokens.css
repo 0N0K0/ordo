@@ -5,5 +5,14 @@
 
     /* Opacity of a dragged row, card, tab or column header. */
     --onoko-dragging-opacity: 0.5;
+
+    /* Opacity of what is set back (decision U): archived, done or closed, or left out (an unticked or skipped row). */
+    --onoko-muted-opacity: 0.5;
+
+    /* Opacity of a list being refreshed (shown while the new one loads): still readable. */
+    --onoko-stale-opacity: 0.6;
+
+    /* Duration and easing of the small transitions (hover, reveal, fold): sober, the same everywhere. */
+    --onoko-transition: 150ms ease;
   }
 }

@@ -1,9 +1,9 @@
 import { copyName } from '../../../lib/text';
 import { useSetParams } from '../../../lib/search-params';
-import { byPosition } from '@ordo/shared';
+import { byPosition, VIEW_LABEL_MAX } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
 
 /** Saved view with its configuration parsed. */
@@ -32,7 +32,7 @@ interface SavedViewsOptions<C> {
   /** Configuration of a new blank view. */
   blank: () => C;
   /** Views made when the scope has none, the first one opened by default. */
-  first: () => { name: string; config: C }[];
+  first: () => { label: string; config: C }[];
   /** Whether the first views can be made (what they start with is known). Optional. Default = true. */
   ready?: boolean;
   /** URL parameter of the selected view. Optional. Default = 'view'. */
@@ -69,7 +69,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
     if (!viewsQuery.isSuccess || !ready || views.length > 0 || created.current === scope) return;
     created.current = scope;
     void (async () => {
-      for (const view of first()) await createAsync({ name: view.name, config: view.config, projectId, kind, tableKey });
+      for (const view of first()) await createAsync({ label: view.label, config: view.config, projectId, kind, tableKey });
     })().catch(onMutationError);
   }, [viewsQuery.isSuccess, ready, views.length, createAsync, projectId, kind, tableKey, first]);
 
@@ -127,9 +127,9 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {boolean} fromCurrent Whether to start from the current working configuration.
      * @returns {void}
      */
-    createView: (name: string, fromCurrent: boolean) =>
+    createView: (label: string, fromCurrent: boolean) =>
       mutations.create.mutate(
-        { name, config: fromCurrent && config ? config : blank(), projectId, kind, tableKey },
+        { label, config: fromCurrent && config ? config : blank(), projectId, kind, tableKey },
         {
           onSuccess: (view) => {
             if (fromCurrent && current) discard(current.id);
@@ -145,14 +145,14 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {string} name New name.
      * @returns {void}
      */
-    rename: (id: string, name: string) => mutations.update.mutate({ id, input: { name } }, { onError: onMutationError }),
+    rename: (id: string, label: string) => mutations.update.mutate({ id, input: { label } }, ON_ERROR),
 
     /**
      * Duplicates a view (saved configuration) and opens the copy.
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, name: copyName(view.name, 60) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
+    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, label: copyName(view.label, VIEW_LABEL_MAX) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
 
     /**
      * Deletes a view.
@@ -178,7 +178,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, { onError: onMutationError }),
+    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, ON_ERROR),
 
     /**
      * Moves a view tab.
@@ -186,7 +186,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {number} index Target index.
      * @returns {void}
      */
-    move: (id: string, index: number) => mutations.move.mutate({ id, index }, { onError: onMutationError }),
+    move: (id: string, index: number) => mutations.move.mutate({ id, index }, ON_ERROR),
   };
 }
 

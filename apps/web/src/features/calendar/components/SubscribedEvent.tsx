@@ -6,6 +6,7 @@ import * as fmt from '../../../lib/format';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { calendarPath } from '../../../app/pages';
 
 /**
  * When an occurrence takes place, in words.
@@ -49,7 +50,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
       <Group gap="xs">
         <ColorSwatch color={subscription.color} size={12} />
         <Text size="sm">
-          {subscription.name} · espace « {subscription.workspace.name} »
+          {subscription.label} · espace « {subscription.workspace.label} »
         </Text>
         <Badge size="xs" variant="light" color="gray">
           Lecture seule
@@ -73,8 +74,8 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
         onCancel={onClose}
         cancelLabel="Fermer"
         submitIcon={<ArrowSquareOutIcon aria-hidden />}
-        submitLabel={`Ouvrir dans « ${subscription.workspace.name} »`}
-        onSubmit={() => switchWorkspace(subscription.workspace.id, `/calendar?date=${occurrence.startDate}`)}
+        submitLabel={`Ouvrir dans « ${subscription.workspace.label} »`}
+        onSubmit={() => switchWorkspace(subscription.workspace.id, calendarPath(occurrence.startDate))}
       />
     </Stack>
   );

@@ -1,16 +1,15 @@
 import { copyName } from '../../../lib/text';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence, ALARM_LABEL_MAX } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { timeTasks } from '../../time/lib/time-tasks';
-import { describeTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
-import { RepetitionEditor } from '../../../components/recurrence/RepetitionEditor';
+import { describeAlarmTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
+import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -28,7 +27,7 @@ const TYPE_HELP: Record<AlarmType, string> = {
 };
 
 interface AlarmFormValues extends Record<string, unknown> {
-  title: string;
+  label: string;
   note: string;
   type: AlarmType;
   startDate: string | null;
@@ -42,7 +41,7 @@ interface AlarmFormValues extends Record<string, unknown> {
 
 /** Values a new alarm starts with (e.g. the task it is created from). */
 export interface AlarmDefaults {
-  title?: string;
+  label?: string;
   projectId?: string | null;
   taskId?: string | null;
 }
@@ -58,7 +57,7 @@ interface AlarmFormProps {
 }
 
 /**
- * Alarm creation / edition: title, type, schedule (date, time, repetition, weekdays, end) or tracking
+ * Alarm creation / edition: label, type, schedule (date, time, repetition, weekdays, end) or tracking
  * duration, optional project or task, note.
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
@@ -67,7 +66,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      title: alarm ? (copy ? copyName(alarm.title) : alarm.title) : (defaults?.title ?? ''),
+      label: alarm ? (copy ? copyName(alarm.label, ALARM_LABEL_MAX) : alarm.label) : (defaults?.label ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -93,15 +92,9 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('title')} />
+        <TextInput label="Libellé" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
         <Stack gap={4}>
-          <SegmentedControl
-            fullWidth
-            data={TYPES}
-            value={type}
-            onChange={(value) => form.setFieldValue('type', value as AlarmType)}
-            aria-label="Type d’alarme"
-          />
+          <SegmentedControl fullWidth data={TYPES} value={type} onChange={(value) => form.setFieldValue('type', value as AlarmType)} aria-label="Type d’alarme" />
           <Text size="xs" c="dimmed">
             {TYPE_HELP[type]}
           </Text>
@@ -125,18 +118,16 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             value={{ startDate: form.values.startDate, time: form.values.time, recurrence: form.values.recurrence }}
             onChange={(timing) => form.setValues({ ...timing })}
             valid={(draft) => Boolean(draft.startDate && draft.time)}
-            describe={(timing) => (timing.startDate ? [describeTiming(timing)] : [])}
+            describe={(timing) => (timing.startDate ? [describeAlarmTiming(timing)] : [])}
             editor={(draft, setDraft) => (
-              <RepetitionEditor<null>
-                mode="RULE"
-                onModeChange={() => undefined}
-                cases={[{ since: null, until: null, anchor: null, rule: draft.recurrence, times: null }]}
-                onChange={(cases) => setDraft({ ...draft, recurrence: cases[0]?.rule ?? null })}
+              <RuleEditor
+                rule={draft.recurrence}
+                onChange={(recurrence) => setDraft({ ...draft, recurrence })}
                 start={draft.startDate ?? localToday()}
                 footer={
                   <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
                     <DatePickerInput label={draft.recurrence ? 'À partir du' : 'Date'} required value={draft.startDate} onChange={(startDate) => startDate && setDraft({ ...draft, startDate })} />
-                    <TimeField label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
+                    <TimePicker label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
                   </SimpleGrid>
                 }
               />

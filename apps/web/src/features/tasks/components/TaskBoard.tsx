@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -20,7 +21,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventKey, filterUses, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, filterUses, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -29,7 +30,21 @@ import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTaskSelectionActions } from './BulkBar';
 import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './extra-cells';
-import { AssigneesCell, BlockedByCell, DateCell, EffortCell, LabelCell, MilestoneCell, ParentCell, SprintCell, TagsCell, TaskBeneficiariesCell, TaskLinksCell, TaskProjectCell, TitleCell } from './inline-cells';
+import {
+  AssigneesCell,
+  BlockedByCell,
+  DateCell,
+  EffortCell,
+  LabelCell,
+  MilestoneCell,
+  ParentCell,
+  SprintCell,
+  TagsCell,
+  TaskBeneficiariesCell,
+  TaskLinksCell,
+  TaskProjectCell,
+  TitleCell,
+} from './inline-cells';
 import { groupDefaults } from '../lib/new-task-defaults';
 import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
@@ -49,9 +64,9 @@ const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
 
 /** Views made the first time: the open tasks, mine, all. */
 const TASK_VIEWS: FirstTableView[] = [
-  { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
+  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
   {
-    name: 'Mes tâches',
+    label: 'Mes tâches',
     config: {
       filter: {
         type: 'group',
@@ -64,7 +79,7 @@ const TASK_VIEWS: FirstTableView[] = [
       },
     },
   },
-  { name: 'Toutes' },
+  { label: 'Toutes' },
 ];
 
 /**
@@ -148,11 +163,21 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       (periodEvents.data ?? [])
         .filter((event) => !projectIds || (event.projectId && projectIds.has(event.projectId)))
         .sort((a, b) => a.start.localeCompare(b.start))
-        .map((event): TaskTableRow => ({ kind: 'event', key: eventKey(event), event })),
+        .map((event): TaskTableRow => ({ kind: 'event', key: eventRowKey(event), event })),
     [periodEvents.data, projectIds],
   );
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
-  const view = useDataView({ tableKey: 'tasks', projectId, columns, rows, title, views, getKey: (row) => row.key, archived: (row) => row.kind === 'task' && row.task.archived });
+  const view = useDataView({
+    tableKey: 'tasks',
+    projectId,
+    columns,
+    rows,
+    title,
+    views,
+    getKey: (row) => row.key,
+    archived: (row) => row.kind === 'task' && row.task.archived,
+    archivedLabel: 'Afficher les archivées',
+  });
   const eventComments = useCommentCounts(
     'EVENT',
     eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
@@ -238,8 +263,8 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                 </Tooltip>
               )}
               {alarmCounts.has(task.id) && (
-                <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alerte')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
-                  <AlarmIcon aria-label="Alertes" className={classes.recurring} />
+                <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alarme')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
+                  <AlarmIcon aria-label="Alarmes" className={classes.recurring} />
                 </Tooltip>
               )}
             </>
@@ -275,7 +300,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     };
   };
 
-  const canCreate = (context?.projects.filter((project) => !project.archived).length ?? 0) > 0;
+  const canCreate = unarchived(context?.projects ?? []).length > 0;
   const config = view.config;
   // The group a new task goes in gives it its value (status, assignee…).
   const groupBy = view.groupColumn && (TASK_GROUP_BY as readonly string[]).includes(view.groupColumn.id) ? (view.groupColumn.id as TaskGroupBy) : null;
@@ -290,7 +315,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         framed
         verticalSpacing={4}
         bar={{
-          searchLabel: 'Rechercher (titre, numéro, description)',
+          searchLabel: 'Rechercher (libellé, numéro, description)',
           manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
           actions: (
             <Group gap="sm" wrap="nowrap">
@@ -336,6 +361,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         readOnly={(row) => row.kind === 'event'}
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
+        isDone={(row) => row.kind === 'task' && row.task.closed}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (
@@ -346,7 +372,10 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                 // An archived task is read only: no sub-task added under it.
                 ...(row.task.archived
                   ? []
-                  : [{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) }, 'divider' as const]),
+                  : [
+                      { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
+                      'divider' as const,
+                    ]),
                 ...taskActions.menu(row.task),
               ]}
             />

@@ -1,11 +1,14 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { unarchived } from '../../../lib/archive';
+
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { listSelectProps } from '../../../components/items/item-look';
-import { ActionIcon, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
-import { PlusIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/shared';
+
+import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useWorkspace } from '../../workspace/api';
@@ -14,13 +17,15 @@ import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
 import { LinesEditor } from './LinesEditor';
 import type { LineLink } from '../lib/lines';
+import { documentGroups, payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
+import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
-import { CategoryItemForm, CounterpartyItemForm, MethodItemForm } from './TreasuryItemForms';
-import { ContextForm, RelationForm } from './TeamPanel';
+import { useCategoryCreators, useEntryCreators } from '../hooks/use-settings-items';
+import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { projectOptions } from '../../workspace/lib/tree';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
+
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -29,6 +34,40 @@ import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+
+/** Prefixes of the key of a document settled in a choice: made in Ordo, or imported. */
+const DOCUMENT_KEY = 'doc:';
+const IMPORTED_KEY = 'imp:';
+
+/**
+ * Key of a document in the choice of the documents settled: « doc:id » or « imp:id ».
+ * @param {string} id Document.
+ * @param {boolean} imported Whether it is imported.
+ * @returns {string} Key.
+ */
+const documentKey = (id: string, imported: boolean): string => `${imported ? IMPORTED_KEY : DOCUMENT_KEY}${id}`;
+
+/**
+ * Key of a document settled, in the choice of the documents (see documentKey).
+ * @param {{ documentId?: string | null, importedDocumentId?: string | null }} allocation Document settled.
+ * @returns {string | null} Key, none without a document.
+ */
+function allocationKey(allocation: { documentId?: string | null; importedDocumentId?: string | null }): string | null {
+  if (allocation.documentId) return documentKey(allocation.documentId, false);
+  return allocation.importedDocumentId ? documentKey(allocation.importedDocumentId, true) : null;
+}
+
+/**
+ * Document settled of a key of the choice of the documents (see allocationKey).
+ * @param {string | null} key Key.
+ * @returns {{ documentId: string | null, importedDocumentId: string | null }} Document settled.
+ */
+function allocationOfKey(key: string | null): { documentId: string | null; importedDocumentId: string | null } {
+  return {
+    documentId: key?.startsWith(DOCUMENT_KEY) ? key.slice(DOCUMENT_KEY.length) : null,
+    importedDocumentId: key?.startsWith(IMPORTED_KEY) ? key.slice(IMPORTED_KEY.length) : null,
+  };
+}
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -44,24 +83,6 @@ interface LinkedSummary {
  * @returns {LineLink} Link.
  */
 const entryLink = (entry: LinkedSummary): LineLink => ({ kind: 'entry', id: entry.id, entryLabel: entry.label, date: entry.date, label: null, amount: entry.amount });
-
-/**
- * A select with a button creating a new option next to it.
- * @param {{ label: string, onCreate: () => void, children: ReactNode }} props Component props: what the button creates, the action, the select.
- * @returns {JSX.Element} Field.
- */
-function WithCreate({ label, onCreate, children }: { label: string; onCreate: () => void; children: ReactNode }) {
-  return (
-    <Group gap={4} align="flex-end" wrap="nowrap">
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-      <Tooltip label={label}>
-        <ActionIcon variant="default" size="input-sm" aria-label={label} onClick={onCreate}>
-          <PlusIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-    </Group>
-  );
-}
 
 interface EntryFormProps {
   entry?: TreasuryEntry | ForecastEntry;
@@ -82,10 +103,6 @@ interface EntryFormProps {
 export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  // Category, method or counterparty created from the form.
-  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | 'relation' | null>(null);
-  // Line a context or a relation is created for.
-  const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: item.date })));
   const { data: workspace } = useWorkspace();
@@ -94,7 +111,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const { data: documents } = useAccountingDocuments();
   const { data: imported } = useImportedDocuments();
   const { createEntry, updateEntry } = useTreasuryMutations();
-  const open = (accounts ?? []).filter((account) => !account.archived || account.id === entry?.accountId);
+  const open = unarchived(accounts ?? [], entry?.accountId);
   const form = useAppForm<EntryValues>({
     initialValues: entryValues(entry, { status, copy, accountId: open[0]?.id ?? '' }),
     schema: treasuryEntrySchema,
@@ -105,66 +122,48 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const incoming = values.direction === 'IN';
   const forecast = values.status === 'FORECAST';
   // Key of the payer select: "client:<id>" or "tiers:<id>".
-  const payer = values.clientId ? `client:${values.clientId}` : values.counterpartyId ? `tiers:${values.counterpartyId}` : null;
+  const payer = payerKey(values);
   const categories = settings?.treasuryCategories ?? [];
+  const createCategory = useCategoryCreators(categories);
+  const create = useEntryCreators(values.direction);
   const methods = (settings?.treasuryPaymentMethods ?? []).filter((method) => (incoming ? method.incoming : method.outgoing) || method.id === values.methodId);
-  const payers = [
-    {
-      group: 'Clients',
-      items: (workspace?.clients ?? []).filter((client) => !client.archived || `client:${client.id}` === payer).map((client) => ({ value: `client:${client.id}`, label: client.name })),
-    },
-    {
-      group: 'Tiers',
-      items: (settings?.treasuryCounterparties ?? [])
-        .filter((counterparty) => !counterparty.archived || `tiers:${counterparty.id}` === payer)
-        .map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name })),
-    },
-  ].filter((group) => group.items.length);
+  const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? [])
+    .map((group) => ({ ...group, items: unarchived(group.items, payer, (item) => item.value) }))
+    .filter((group) => group.items.length);
   // Supporting documents, grouped by place: the library, then each project (the entry's project first).
-  const documentGroups = new Map<string, { value: string; label: string }[]>();
-  const documentKey = (document: { source: string; id: string }) => `${document.source === 'LIBRARY' ? 'lib' : 'res'}:${document.id}`;
-  for (const document of [...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)].sort(
-    (a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY') || Number(b.projectId === values.projectId) - Number(a.projectId === values.projectId),
-  )) {
-    const group = document.source === 'LIBRARY' ? `Bibliothèque` : `Projet ${document.place}`;
-    const items = documentGroups.get(group) ?? [];
-    if (!items.some((item) => item.value === documentKey(document))) {
-      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.title} (${document.place})` : document.title });
-    }
-    documentGroups.set(group, items);
-  }
-  const selectedDocuments = [...values.libraryDocumentIds.map((id) => `lib:${id}`), ...values.projectResourceIds.map((id) => `res:${id}`)];
-  const documentData = [...documentGroups].map(([group, items]) => ({ group, items }));
+  const documentData = documentGroups([...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)], values.projectId);
   // Projects of the entry or of its lines, archived ones only when chosen already.
   const chosenProjects = new Set([values.projectId, ...values.lines.map((line) => line.projectId)]);
   // Each project with its full path: client › project › sub-project.
-  const projectChoices = projectOptions(
-    workspace,
-    (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)),
-  );
+  const projectChoices = projectOptions(workspace, unarchived(workspace?.projects ?? [], [...chosenProjects]));
 
+  /**
+   * Option of a document the entry can settle: its name (kept for the label of the entry) and what is left due.
+   * @param {string} value Key (« doc:id », « imp:id »).
+   * @param {string} name Number and client of the document.
+   * @param {{ balance?: number | null, currency: Parameters<typeof fmt.money>[1] }} document Document.
+   * @returns {{ value: string, name: string, label: string, balance: number }} Option.
+   */
+  const settleOption = (value: string, name: string, document: { balance?: number | null; currency: Parameters<typeof fmt.money>[1] }) => ({
+    value,
+    name,
+    label: `${name} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
+    balance: document.balance ?? 0,
+  });
   // Documents it can settle: still due and not archived, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
   const settleable = [
     ...(documents ?? [])
       .filter((document) => document.status === 'FINAL' && document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => ({
-        value: `doc:${document.id}`,
-        label: `${document.number} — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
-        balance: document.balance ?? 0,
-      })),
+      .map((document) => settleOption(documentKey(document.id, false), `${document.number} — ${document.clientName}`, document)),
     ...(imported ?? [])
       .filter((document) => document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => ({
-        value: `imp:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
-        balance: document.balance ?? 0,
-      })),
+      .map((document) => settleOption(documentKey(document.id, true), `${document.number} (importé) — ${document.clientName}`, document)),
   ];
-  const allocated = values.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-  const keyOf = (allocation: TreasuryAllocationInput) => (allocation.documentId ? `doc:${allocation.documentId}` : allocation.importedDocumentId ? `imp:${allocation.importedDocumentId}` : null);
+  const allocated = sumOf(values.allocations, (allocation) => allocation.amount);
+  const keyOf = (allocation: TreasuryAllocationInput) => allocationKey(allocation);
 
   const handleSubmit = form.onSubmit((input) => {
     const payload = entryPayload(input);
@@ -225,45 +224,40 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             {!split && (
-              <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
-                <Select
-                  label="Catégorie"
-                  clearable
-                  searchable
-                  placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-                  {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
-                  {...form.getInputProps('categoryId')}
-                />
-              </WithCreate>
-            )}
-            <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
-              <Select
-                label="Moyen de paiement"
+              <CreatableSelect
+                label="Catégorie"
                 clearable
-                placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
-                {...listSelectProps(methods, undefined, values.methodId)}
-                {...form.getInputProps('methodId')}
+                searchable
+                onCreate={createCategory[values.direction]}
+                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un libellé pour la créer'}
+                {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
+                {...form.getInputProps('categoryId')}
               />
-            </WithCreate>
-          </SimpleGrid>
-          <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>
-            <Select
-              label={incoming ? 'Émetteur' : 'Destinataire'}
+            )}
+            <CreatableSelect
+              label="Moyen de paiement"
               clearable
-              searchable
-              placeholder="Client ou tiers"
-              nothingFoundMessage="Aucun client ni tiers"
-              data={payers}
-              value={payer}
-              onChange={(key) =>
-                form.setValues({
-                  clientId: key?.startsWith('client:') ? key.slice(7) : null,
-                  counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
-                })
-              }
-              error={form.errors.clientId ?? form.errors.counterpartyId}
+              onCreate={create.method}
+              placeholder={methods.length ? '—' : 'Aucun : tapez un libellé pour le créer'}
+              {...listSelectProps(methods, undefined, values.methodId)}
+              {...form.getInputProps('methodId')}
             />
-          </WithCreate>
+          </SimpleGrid>
+          <CreatableSelect
+            label={incoming ? 'Émetteur' : 'Destinataire'}
+            onCreate={async (name) => {
+              const id = await create.counterparty(name);
+              return id && `tiers:${id}`;
+            }}
+            clearable
+            searchable
+            placeholder="Client ou tiers"
+            nothingFoundMessage="Aucun client ni tiers"
+            data={payers}
+            value={payer}
+            onChange={(key) => form.setValues(payerOfKey(key))}
+            error={form.errors.clientId ?? form.errors.counterpartyId}
+          />
           {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
           <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
           <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
@@ -301,14 +295,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             entryId={entry?.id ?? null}
             projects={projectChoices}
             documentGroups={documentData}
-            onCreateContext={(index) => {
-              setContextLine(index);
-              setCreating('context');
-            }}
-            onCreateRelation={(index) => {
-              setContextLine(index);
-              setCreating('relation');
-            }}
           />
 
           {split ? (
@@ -317,22 +303,11 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             </Text>
           ) : (
             <>
-              <BatchMultiSelect
-                label="Pièces justificatives"
-                description="Documents de la bibliothèque ou des projets."
-                placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
-                searchable
-                clearable
-                nothingFoundMessage="Aucun document"
+              <SupportingDocumentsSelect
                 data={documentData}
-                value={selectedDocuments}
-                onChange={(keys) =>
-                  form.setValues({
-                    libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-                    projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-                  })
-                }
-                error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+                value={values}
+                onChange={(documents) => form.setValues({ ...documents })}
+                error={(form.errors.libraryDocumentIds ?? form.errors.projectResourceIds) as string | undefined}
               />
 
               <Divider label="Mouvements liés" labelPosition="left" />
@@ -397,17 +372,17 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     style={{ flex: 1 }}
                     data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
                     value={keyOf(allocation)}
+                    error={form.errors[`allocations.${index}`]}
                     onChange={(key) => {
                       const option = settleable.find((item) => item.value === key);
                       const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
                       form.setFieldValue(`allocations.${index}`, {
-                        documentId: key?.startsWith('doc:') ? key.slice(4) : null,
-                        importedDocumentId: key?.startsWith('imp:') ? key.slice(4) : null,
+                        ...allocationOfKey(key),
                         amount,
                       });
                       // An empty entry takes the amount and the name of the document it settles.
                       if (option && !values.amount) form.setFieldValue('amount', allocated - allocation.amount + amount);
-                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
+                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.name}`);
                     }}
                   />
                   <AmountInput
@@ -426,15 +401,9 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                 </Text>
               )}
               <Group justify="space-between">
-                <Button
-                  size="xs"
-                  variant="default"
-                  leftSection={<PlusIcon aria-hidden />}
-                  disabled={settleable.length === values.allocations.length}
-                  onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
-                >
+                <AddItemButton disabled={settleable.length === values.allocations.length} onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}>
                   {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
-                </Button>
+                </AddItemButton>
                 {values.allocations.length > 0 && (
                   <Text size="xs" c="dimmed">
                     {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
@@ -446,75 +415,8 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
           <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
         </Stack>
-        <SidePanel
-          opened={creating !== null}
-          onClose={() => setCreating(null)}
-          title={
-            creating === 'category'
-              ? 'Nouvelle catégorie'
-              : creating === 'method'
-                ? 'Nouveau moyen de paiement'
-                : creating === 'context'
-                  ? 'Nouveau contexte'
-                  : creating === 'relation'
-                    ? 'Nouvelle relation'
-                    : 'Nouveau tiers'
-          }
-        >
-          {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
-          <div onSubmit={(event) => event.stopPropagation()}>
-            {creating === 'category' && (
-              <CategoryItemForm
-                direction={values.direction}
-                categories={categories}
-                onDone={(id) => {
-                  if (id) form.setFieldValue('categoryId', id);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'relation' && (
-              <RelationForm
-                onDone={(id) => {
-                  if (id && contextLine !== null) {
-                    form.setFieldValue(`lines.${contextLine}.relationId`, id);
-                    form.setFieldValue(`lines.${contextLine}.memberId`, null);
-                  }
-                  setContextLine(null);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'context' && (
-              <ContextForm
-                onDone={(id) => {
-                  if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
-                  setContextLine(null);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'method' && (
-              <MethodItemForm
-                direction={values.direction}
-                onDone={(id) => {
-                  if (id) form.setFieldValue('methodId', id);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'counterparty' && (
-              <CounterpartyItemForm
-                onDone={(id) => {
-                  if (id) form.setValues({ clientId: null, counterpartyId: id });
-                  setCreating(null);
-                }}
-              />
-            )}
-          </div>
-        </SidePanel>
       </form>
-      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} />}
+      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
     </Stack>
   );
 }

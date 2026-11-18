@@ -1,8 +1,8 @@
+import { unarchived, archivedIds } from '../../../lib/archive';
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
-import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
+import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH, sumOf } from '@ordo/shared';
 import type { Client, Project, Workspace } from '../api';
-import { collator } from '../../../lib/text';
-import { normalize } from '../../../lib/text';
+import { collator, normalize } from '../../../lib/text';
 
 export type SortMode = 'manual' | 'name';
 
@@ -31,12 +31,12 @@ export interface TreeSection {
 }
 
 /**
- * Label used for sorting and search: name of a client, title of a project.
+ * Label used for sorting and search: name of a client, label of a project.
  * @param {Client | Project} item Client or project.
  * @returns {string} Label.
  */
 function labelOf(item: Client | Project): string {
-  return 'title' in item ? item.title : item.name;
+  return 'name' in item ? item.name : item.label;
 }
 
 /**
@@ -46,9 +46,7 @@ function labelOf(item: Client | Project): string {
  * @returns {T[]} Sorted copy.
  */
 function sortItems<T extends Client | Project>(items: T[], sort: SortMode): T[] {
-  return [...items].sort((a, b) =>
-    sort === 'name' ? collator.compare(labelOf(a), labelOf(b)) : a.position - b.position,
-  );
+  return [...items].sort((a, b) => (sort === 'name' ? collator.compare(labelOf(a), labelOf(b)) : a.position - b.position));
 }
 
 /**
@@ -77,7 +75,7 @@ function buildForest(roots: Project[], projects: Project[], sort: SortMode): Pro
  */
 function filterForest(nodes: ProjectNode[], matches: (label: string) => boolean): ProjectNode[] {
   return nodes.flatMap((node) => {
-    if (matches(node.project.title)) return [node];
+    if (matches(node.project.label)) return [node];
     const children = filterForest(node.children, matches);
     return children.length > 0 ? [{ ...node, children }] : [];
   });
@@ -113,7 +111,7 @@ function filterSection(section: TreeSection, search: string): TreeSection {
 function projectPath(workspace: Workspace, project: Project): string {
   const names = lineageOf(mapById(workspace.projects), project.parentId)
     .reverse()
-    .map((parent) => parent.title);
+    .map((parent) => parent.label);
   const client = workspace.clients.find((item) => item.id === project.clientId);
   return [...(client ? [client.name] : []), ...names].join(LEVEL);
 }
@@ -125,7 +123,7 @@ function projectPath(workspace: Workspace, project: Project): string {
  * @returns {string} "Client › Projet › Sous-projet" (without client: "Projet › Sous-projet").
  */
 export function projectFullPath(workspace: Workspace, project: Project): string {
-  return [projectPath(workspace, project), project.title].filter(Boolean).join(LEVEL);
+  return [projectPath(workspace, project), project.label].filter(Boolean).join(LEVEL);
 }
 
 /**
@@ -137,7 +135,7 @@ export function projectFullPath(workspace: Workspace, project: Project): string 
  */
 export function projectOptions(workspace: Workspace | undefined, projects: Project[]): TreeOption[] {
   const offered = new Set(projects.map((project) => project.id));
-  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.title })));
+  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.label })));
   return treeOptions(projectNodes(workspace), (id) => offered.has(id));
 }
 
@@ -173,7 +171,9 @@ export function projectNodes(workspace: Workspace): TreeNode[] {
   return [
     ...[...workspace.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
     { id: 'client:none', parentId: null, label: 'Sans client', pathless: true },
-    ...[...workspace.projects].sort(byOrder).map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.title, color: project.color, iconUrl: project.iconUrl })),
+    ...[...workspace.projects]
+      .sort(byOrder)
+      .map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.label, color: project.color, iconUrl: project.iconUrl })),
   ];
 }
 
@@ -216,13 +216,10 @@ export function canHaveChildren(projects: Project[], id: string): boolean {
  * @returns {TreeSection} Active section.
  */
 export function buildActiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
-  const active = workspace.projects.filter((project) => !project.archived);
+  const active = unarchived(workspace.projects);
   const roots = active.filter((project) => !project.parentId);
   const section: TreeSection = {
-    clients: sortItems(
-      workspace.clients.filter((client) => !client.archived),
-      sort,
-    ).map((client) => ({
+    clients: sortItems(unarchived(workspace.clients), sort).map((client) => ({
       client,
       projects: buildForest(
         roots.filter((project) => project.clientId === client.id),
@@ -257,12 +254,7 @@ interface ContextSeeds {
  * @param {ContextSeeds} seeds Section content.
  * @returns {TreeSection} Section with its context keys.
  */
-function buildContextSection(
-  workspace: Workspace,
-  sort: SortMode,
-  search: string,
-  { clientIds, projectIds, keep }: ContextSeeds,
-): TreeSection {
+function buildContextSection(workspace: Workspace, sort: SortMode, search: string, { clientIds, projectIds, keep }: ContextSeeds): TreeSection {
   const byId = mapById(workspace.projects);
   const childrenOf = new Map<string, Project[]>();
   for (const project of workspace.projects) {
@@ -280,9 +272,7 @@ function buildContextSection(
     content.add(project.id);
     (childrenOf.get(project.id) ?? []).filter(keep).forEach(addSubtree);
   };
-  workspace.projects
-    .filter((project) => keep(project) && ((project.clientId && clientIds.has(project.clientId) && !project.parentId) || projectIds.has(project.id)))
-    .forEach(addSubtree);
+  workspace.projects.filter((project) => keep(project) && ((project.clientId && clientIds.has(project.clientId) && !project.parentId) || projectIds.has(project.id))).forEach(addSubtree);
 
   // Ancestors and clients of the content are shown as context.
   const included = new Set(content);
@@ -334,9 +324,7 @@ function buildContextSection(
 export function buildFavoriteSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
   return buildContextSection(workspace, sort, search, {
     clientIds: new Set(workspace.clients.filter((client) => client.favorite && !client.archived).map((client) => client.id)),
-    projectIds: new Set(
-      workspace.projects.filter((project) => project.favorite && !project.archived).map((project) => project.id),
-    ),
+    projectIds: new Set(workspace.projects.filter((project) => project.favorite && !project.archived).map((project) => project.id)),
     keep: (project) => !project.archived,
   });
 }
@@ -351,8 +339,8 @@ export function buildFavoriteSection(workspace: Workspace, sort: SortMode, searc
  */
 export function buildArchiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
   return buildContextSection(workspace, sort, search, {
-    clientIds: new Set(workspace.clients.filter((client) => client.archived).map((client) => client.id)),
-    projectIds: new Set(workspace.projects.filter((project) => project.archived).map((project) => project.id)),
+    clientIds: archivedIds(workspace.clients),
+    projectIds: archivedIds(workspace.projects),
     keep: (project) => project.archived,
   });
 }
@@ -363,17 +351,8 @@ export function buildArchiveSection(workspace: Workspace, sort: SortMode, search
  * @returns {number} Count.
  */
 export function countSectionItems(section: TreeSection): number {
-  const countForest = (nodes: ProjectNode[]): number =>
-    nodes.reduce(
-      (sum, node) => sum + (section.context?.has(`p:${node.project.id}`) ? 0 : 1) + countForest(node.children),
-      0,
-    );
-  return (
-    section.clients.reduce(
-      (sum, node) => sum + (section.context?.has(`c:${node.client.id}`) ? 0 : 1) + countForest(node.projects),
-      0,
-    ) + countForest(section.orphans)
-  );
+  const countForest = (nodes: ProjectNode[]): number => sumOf(nodes, (node) => (section.context?.has(`p:${node.project.id}`) ? 0 : 1) + countForest(node.children));
+  return sumOf(section.clients, (node) => (section.context?.has(`c:${node.client.id}`) ? 0 : 1) + countForest(node.projects)) + countForest(section.orphans);
 }
 
 /**
@@ -406,11 +385,7 @@ export function noClientKeys(section: TreeSection, prefix: string): string[] {
  */
 export function sectionKeys(section: TreeSection, prefix: string): string[] {
   return [
-    ...section.clients.flatMap((node) =>
-      node.projects.length > 0
-        ? [`${prefix}${node.client.id}`, ...node.projects.flatMap((child) => projectKeys(child, prefix))]
-        : [],
-    ),
+    ...section.clients.flatMap((node) => (node.projects.length > 0 ? [`${prefix}${node.client.id}`, ...node.projects.flatMap((child) => projectKeys(child, prefix))] : [])),
     ...noClientKeys(section, prefix),
   ];
 }
@@ -422,11 +397,7 @@ export function sectionKeys(section: TreeSection, prefix: string): string[] {
  * @param {{ type: 'client' | 'project', id: string }} target Node to fold or unfold.
  * @returns {string[]} Keys, empty when the node has no children in the section.
  */
-export function subtreeKeys(
-  section: TreeSection,
-  prefix: string,
-  target: { type: 'client' | 'project'; id: string },
-): string[] {
+export function subtreeKeys(section: TreeSection, prefix: string, target: { type: 'client' | 'project'; id: string }): string[] {
   if (target.type === 'client') {
     const node = section.clients.find((item) => item.client.id === target.id);
     if (!node || node.projects.length === 0) return [];

@@ -11,7 +11,7 @@ builder.prismaObject('CatalogItem', {
   fields: (t) => ({
     id: t.exposeID('id'),
     kind: t.field({ type: LineKindEnum, resolve: (item) => item.kind }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     unit: t.field({ type: UnitEnum, resolve: (item) => item.unit }),
     unitPrice: t.float({ resolve: (item) => fromDecimal(item.unitPrice) }),
@@ -22,7 +22,7 @@ builder.prismaObject('CatalogItem', {
 const CatalogItemInput = builder.inputType('CatalogItemInput', {
   fields: (t) => ({
     kind: t.field({ type: LineKindEnum, required: true, description: 'ITEM or DISBURSEMENT.' }),
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     unit: t.field({ type: UnitEnum, required: true }),
     unitPrice: t.float({ required: true }),
@@ -40,8 +40,8 @@ const itemInput = (input: typeof CatalogItemInput.$inferInput) => ({ ...input, d
 builder.queryFields((t) => ({
   catalogItems: t.prismaField({
     type: ['CatalogItem'],
-    description: 'Catalogue, by title.',
-    resolve: (query) => prisma.catalogItem.findMany({ ...query, orderBy: { title: 'asc' } }),
+    description: 'Catalogue, by label.',
+    resolve: (query) => prisma.catalogItem.findMany({ ...query, orderBy: { label: 'asc' } }),
   }),
 }));
 

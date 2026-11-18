@@ -1,7 +1,9 @@
+import { AddItemButton } from '../../actions/AddItemButton';
 import { arrayMove } from '@dnd-kit/sortable';
-import { ActionIcon, Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { ArrowDownIcon, ArrowUpIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { RemoveButton } from '../../actions/RemoveButton';
+import { IconAction } from '../../actions/IconAction';
 
 interface SortPanelProps<K extends string> {
   sorting: { id: K; desc: boolean }[];
@@ -55,20 +57,20 @@ export function SortPanel<K extends string>({ sorting, onChange, keys, labels, m
               ]}
               aria-label="Sens"
             />
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Monter" disabled={index === 0} onClick={() => onChange(arrayMove(sorting, index, index - 1))}>
+            <IconAction label="Monter" aria-label="Monter ce tri" size="sm" disabled={index === 0} onClick={() => onChange(arrayMove(sorting, index, index - 1))}>
               <ArrowUpIcon aria-hidden />
-            </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Descendre" disabled={index === sorting.length - 1} onClick={() => onChange(arrayMove(sorting, index, index + 1))}>
+            </IconAction>
+            <IconAction label="Descendre" aria-label="Descendre ce tri" size="sm" disabled={index === sorting.length - 1} onClick={() => onChange(arrayMove(sorting, index, index + 1))}>
               <ArrowDownIcon aria-hidden />
-            </ActionIcon>
-            <RemoveButton label="Retirer ce tri" size="sm" onClick={() => onChange(sorting.filter((_, i) => i !== index))} />
+            </IconAction>
+            <RemoveButton label="Retirer" aria-label="Retirer ce tri" size="sm" onClick={() => onChange(sorting.filter((_, i) => i !== index))} />
           </Group>
         ))
       )}
       <Group justify="space-between">
-        <Button size="compact-sm" variant="subtle" leftSection={<PlusIcon aria-hidden />} disabled={available.length === 0} onClick={() => onChange([...sorting, { id: available[0], desc: false }])}>
+        <AddItemButton disabled={available.length === 0} onClick={() => onChange([...sorting, { id: available[0], desc: false }])}>
           Ajouter un tri
-        </Button>
+        </AddItemButton>
         {sorting.length > 0 && (
           <Button size="compact-sm" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => onChange([])}>
             Revenir à l’ordre manuel

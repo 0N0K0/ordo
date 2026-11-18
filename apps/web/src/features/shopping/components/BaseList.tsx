@@ -3,13 +3,13 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Button, Group, Stack, Switch, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
+
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+
+import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { openMoveProducts } from '../lib/open-move-products';
 import { withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
@@ -20,8 +20,8 @@ import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
-import { blankInput, EMPTY_GROUPS_LABEL, categoriesForBaseList, usePeople, type ShoppingGrouping } from '../lib/shopping-format';
-import { GroupingControl } from './GroupingControl';
+import { blankInput, categoriesForBaseList, usePeople } from '../lib/shopping-format';
+import { GroupingOptions } from './GroupingControl';
 import { itemColumns } from '../lib/shopping-columns';
 import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
 import * as fmt from '../../../lib/format';
@@ -32,14 +32,15 @@ import { EditableCheck, EditableSelect } from '../../../components/data-table/ce
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../../stock/api';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
+import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [
-  { name: 'Tous' },
-  { name: 'Manquants', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'missing', field: 'missing', operator: 'isTrue', value: null }] } } },
+  { label: 'Tous' },
+  { label: 'Manquants', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'missing', field: 'missing', operator: 'isTrue', value: null }] } } },
 ];
 
 /**
@@ -51,7 +52,7 @@ const BASE_LIST_VIEWS: FirstTableView[] = [
 function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
   confirmDestructive({
     title: 'Retirer le produit',
-    risks: <>« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</>,
+    risks: <>« {product.label} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent.</>,
     confirmLabel: 'Retirer',
     onConfirm: () => {
       onConfirm();
@@ -68,7 +69,7 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
   id: 'missing',
   name: 'Manque',
   value: (product) => product.missing,
-  label: (product) => `${product.name} manque`,
+  label: (product) => `${product.label} manque`,
   hint: (product) => (product.missing ? 'Manque : sera sur la prochaine liste générée (cliquer : ne manque plus)' : 'Ne manque pas (cliquer : manque)'),
   icon: <ShoppingCartSimpleIcon aria-hidden />,
   color: 'orange',
@@ -89,16 +90,15 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
-  const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.baseGrouping', defaultValue: 'category' });
-  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
+  const groupingOptions = useShoppingGrouping('base');
+  const { grouping, showEmpty } = groupingOptions;
   const people = usePeople();
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
   const places = categoryPaths(locations ?? []);
   const setArchived = useSetArchived('SHOPPING_PRODUCT', [shoppingKey]);
-  const [showArchived, setShowArchived] = useState(false);
-  const all = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
-  const products = [...visibleItems(all, showArchived)];
+  const all = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.label, b.label));
+  const { shown: products, toggle: archivedToggle } = useArchivedToggle(all);
   // The archived products are not on the lists made.
   const missing = products.filter((product) => product.missing && !product.archived);
   // An archived base list is read only.
@@ -114,7 +114,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     void archiveWithUndo(setArchived, {
       ids: targets.map((product) => product.id),
       archived,
-      label: targets.length === 1 ? `Produit « ${targets[0]!.name} »` : countOf(targets.length, 'produit'),
+      label: targets.length === 1 ? `Produit « ${targets[0]!.label} »` : countOf(targets.length, 'produit'),
     });
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
   const productComments = useCommentCounts(
@@ -205,7 +205,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     getKey: (item) => item.id,
     columns,
     rows: products,
-    title: baseList.name,
+    title: baseList.label,
     first: BASE_LIST_VIEWS,
     bulkColumns: [{ id: 'missing', label: 'Manque' }],
   });
@@ -225,10 +225,10 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
-        manualText="Sans tri : les produits par nom, dans leurs catégories."
+        manualText="Sans tri : les produits par libellé, dans leurs catégories."
         actions={
           <Group gap="sm" wrap="nowrap">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((product) => product.archived).length} />
+            <ShowArchivedSwitch {...archivedToggle} />
             <ActionButton priority="secondary" icon={<ArrowsLeftRightIcon aria-hidden />} disabled={locked || products.length === 0 || otherBaseLists === 0} onClick={() => openMoveProducts(baseList)}>
               Déplacer des produits
             </ActionButton>
@@ -240,18 +240,16 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             </Button>
           </Group>
         }
-        displayOptions={
-          <>
-            <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-          </>
-        }
+        displayOptions={<GroupingOptions {...groupingOptions} />}
       />
 
       {isPending ? (
         <TableSkeleton rows={4} />
       ) : products.length === 0 ? (
-        <EmptyState icon={<BasketIcon aria-hidden />} message={<>{products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}</>} />
+        <EmptyState
+          icon={<BasketIcon aria-hidden />}
+          message={<>{products.length ? 'Aucun produit ne correspond.' : `« ${baseList.label} » est vide : ajoutez-y ce que vous achetez d’habitude.`}</>}
+        />
       ) : (
         <ShoppingTable
           view={view}
@@ -273,18 +271,12 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             deleteRowsAction(rows, {
               label: 'Retirer',
               title: 'Retirer les produits',
-              risks: `${countOf(rows.length, 'produit')} seront retirés de « ${baseList.name} » ; les listes déjà faites les gardent.`,
+              risks: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de « ${baseList.label} » ; les listes déjà faites ${plural(rows.length, 'le gardent', 'les gardent')}.`,
               remove: (product) => mutations.deleteProduct.mutateAsync({ id: product.id }),
               done: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'retiré')}.`,
               clear,
             }),
-            archiveRowsAction({
-              archived: rows.every((product) => product.archived),
-              apply: (archived) => setArchived.mutateAsync({ ids: rows.map((product) => product.id), archived }),
-              label: countOf(rows.length, 'produit'),
-              count: rows.length,
-              clear,
-            }),
+            archiveItemsAction(rows, setArchived, { noun: 'produit', clear }),
           ]}
           grouping={grouping}
           showEmpty={showEmpty}
@@ -294,7 +286,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             // A product added is usually missing.
             onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
           }}
-          label={`Produits de ${baseList.name}`}
+          label={`Produits de ${baseList.label}`}
           onSave={(product, input) => !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, ON_ERROR)}
           toggle={MISSING_TOGGLE((ids, missing) => {
             const open = ids.filter((id) => !all.find((product) => product.id === id)?.archived);
@@ -309,7 +301,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             stockTracked: (
               <EditableCheck
                 value={product.stockTracked}
-                label={`${product.name} suivie en stock`}
+                label={`${product.label} suivie en stock`}
                 readOnly={locked || product.archived}
                 onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })}
               />
@@ -317,7 +309,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             consumable: (
               <EditableCheck
                 value={product.consumable}
-                label={`${product.name} consommable`}
+                label={`${product.label} consommable`}
                 readOnly={locked || product.archived}
                 onSave={(consumable) => stockBulk('consumable')(product, { consumable })}
               />
@@ -325,7 +317,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             autoStock: (
               <EditableCheck
                 value={product.autoStock}
-                label={`${product.name} ajoutée au stock une fois achetée`}
+                label={`${product.label} ajoutée au stock une fois achetée`}
                 readOnly={locked || product.archived || !product.stockTracked}
                 onSave={(autoStock) => stockBulk('autoStock')(product, (target) => (target.stockTracked ? { autoStock } : {}))}
               />
@@ -333,7 +325,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             stockLocation: (
               <EditableSelect
                 value={product.stockLocationId ?? null}
-                label={`Emplacement en stock de ${product.name}`}
+                label={`Emplacement en stock de ${product.label}`}
                 nullable
                 readOnly={locked || product.archived}
                 {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], product.stockLocationId)))}
@@ -353,7 +345,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           }}
           actions={(product) => (
             <RowActions
-              name={product.name}
+              name={product.label}
               primary={
                 !locked &&
                 !product.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }

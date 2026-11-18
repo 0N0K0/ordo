@@ -1,18 +1,21 @@
+import { localAt, rule } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
 import { parisToday } from '../../src/today';
-import { addDays, DEFAULT_RECURRENCE, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
+import { addDays, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/core/geo';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
-import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, setRoutineArchived, slotsOf } from '../../src/services/routines/routines';
-
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
+import {
+  changeRoutineOccurrence,
+  createCategory,
+  createRoutine,
+  deleteRoutineOccurrence,
+  moveRoutineOccurrence,
+  occurrencesBetween,
+  bulkSetRoutinesArchived,
+  slotsOf,
+} from '../../src/services/routines/routines';
 
 /**
  * Ticks most occurrences of the routines of the current workspace over the last four weeks (each time of the day
@@ -34,7 +37,7 @@ export async function tickRoutines(today: string): Promise<{ routineId: string; 
           routineId: routine.id,
           date: parseDay(date),
           slot,
-          doneAt: new Date(`${date}T${String(hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`),
+          doneAt: localAt(date, hour, faker.number.int({ min: 0, max: 59 })),
         });
       }
     }
@@ -59,13 +62,13 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   const today = parisToday();
 
   // --- Places ------------------------------------------------------------------------------------------
-  const office = await savePlace(null, { name: 'Bureau', address: '12 rue de la République, 69002 Lyon', lat: 45.7615, lon: 4.8357 });
-  const gym = await savePlace(null, { name: 'Salle de sport', address: '40 quai Perrache, 69002 Lyon', lat: 45.7436, lon: 4.8215 });
-  await savePlace(null, { name: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });
-  await savePlace(null, { name: 'Client — Villeurbanne', address: '20 cours Émile Zola, 69100 Villeurbanne', lat: 45.7699, lon: 4.8803 });
+  const office = await savePlace(null, { label: 'Bureau', address: '12 rue de la République, 69002 Lyon', lat: 45.7615, lon: 4.8357 });
+  const gym = await savePlace(null, { label: 'Salle de sport', address: '40 quai Perrache, 69002 Lyon', lat: 45.7436, lon: 4.8215 });
+  await savePlace(null, { label: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });
+  await savePlace(null, { label: 'Client — Villeurbanne', address: '20 cours Émile Zola, 69100 Villeurbanne', lat: 45.7699, lon: 4.8803 });
 
   // --- Categories --------------------------------------------------------------------------------------
-  const category = async (name: string, color: string | null, parentId: string | null = null) => (await createCategory({ name, color, parentId })).id;
+  const category = async (label: string, color: string | null, parentId: string | null = null) => (await createCategory({ label, color, parentId })).id;
   const work = await category('Bureau', '#228be6');
   const paperwork = await category('Administratif', '#fab005', work);
   const tidying = await category('Rangement', '#12b886', work);
@@ -73,8 +76,8 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   const learning = await category('Apprentissage', '#7950f2');
 
   const activeRoots = projects.filter((project) => project.parentId === null && !project.archivedAt);
-  const base = (title: string, startOffset: number, recurrence: Recurrence, changes: Partial<RoutineInput> = {}): RoutineInput => ({
-    title,
+  const base = (label: string, startOffset: number, recurrence: Recurrence, changes: Partial<RoutineInput> = {}): RoutineInput => ({
+    label,
     description: null,
     categoryIds: [],
     parentId: null,
@@ -95,7 +98,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
       fromTime: '09:00',
       dueTime: '10:00',
       estimate: 10,
-      location: office.name,
+      location: office.label,
       locationLat: office.lat,
       locationLon: office.lon,
       assigneeIds: mine,
@@ -140,7 +143,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
       fromTime: '18:30',
       dueTime: '20:00',
       estimate: 60,
-      location: gym.name,
+      location: gym.label,
       locationLat: gym.lat,
       locationLon: gym.lon,
       travelBefore: 15,
@@ -154,7 +157,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   const plants = await createRoutine(base('Arroser les plantes', -50, rule({ weekdays: [1] }), { categoryIds: [tidying], estimate: 5 }));
   if (activeRoots[0]) {
     await createRoutine(
-      base(`Point d’avancement — ${activeRoots[0].title}`, -35, rule({ weekdays: [4] }), { projectId: activeRoots[0].id, fromTime: '11:00', dueTime: '12:00', estimate: 20, assigneeIds: mine }),
+      base(`Point d’avancement — ${activeRoots[0].label}`, -35, rule({ weekdays: [4] }), { projectId: activeRoots[0].id, fromTime: '11:00', dueTime: '12:00', estimate: 20, assigneeIds: mine }),
     );
   }
   await createRoutine(base('Lire un chapitre de documentation', -40, rule({ frequency: 'DAILY', count: 60 }), { categoryIds: [learning], estimate: 20, dueTime: '22:00' }));
@@ -184,10 +187,10 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   // The mail picked up later on one day, and the gym skipped once.
   const late = await next(mail.id, 1);
   if (late) await changeRoutineOccurrence(mail.id, late, 'THIS', late, 0, { fromTime: '14:00', dueTime: '15:00' });
-  const gymRoutine = routines.find((routine) => routine.title === 'Sport');
+  const gymRoutine = routines.find((routine) => routine.label === 'Sport');
   const skipped = gymRoutine ? await next(gymRoutine.id) : null;
   if (gymRoutine && skipped) await deleteRoutineOccurrence(gymRoutine.id, skipped, 'THIS');
 
   // An archived routine (with its history).
-  await setRoutineArchived(watch.id, true);
+  await bulkSetRoutinesArchived([watch.id], true);
 }

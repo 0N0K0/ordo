@@ -1,2 +1,2 @@
-/* Mantine styles first, app styles override them. */
-@layer mantine, app;
+/* Mantine styles first, app styles override them, then the states shared by every component (styles/drop.css). */
+@layer mantine, app, states;

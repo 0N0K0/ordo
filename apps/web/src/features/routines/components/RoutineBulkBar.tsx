@@ -1,4 +1,5 @@
-import { mapById } from '@ordo/shared';
+import { unarchived } from '../../../lib/archive';
+import { mapById, ROUTINE_LABEL_MAX } from '@ordo/shared';
 import { ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
 
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
@@ -10,7 +11,7 @@ import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { plural, copyName } from '../../../lib/text';
 
 /** Actions on routines that their columns cannot do. */
-export interface RoutineRowsActions {
+interface RoutineRowsActions {
   done: SelectionAction;
   postpone: SelectionAction;
   duplicate: SelectionAction;
@@ -32,7 +33,7 @@ export function useRoutineRowsActions() {
     const ids = routines.map((routine) => routine.id);
     const label = routinesLabel(ids.length);
     const allArchived = routines.every((routine) => routine.archived);
-    const active = routines.filter((routine) => !routine.archived);
+    const active = unarchived(routines);
     const activeIds = active.map((routine) => routine.id);
     const activeLabel = routinesLabel(activeIds.length);
     const allDone = active.every((routine) => routine.currentDate === null || isDone(routine));
@@ -70,7 +71,7 @@ export function useRoutineRowsActions() {
           ),
           {
             duplicate: async (routine) => {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: copyName(routine.title) });
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label, ROUTINE_LABEL_MAX) });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
             },
             done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,
@@ -91,8 +92,8 @@ export function useRoutineRowsActions() {
       remove: deleteRowsAction(routines, {
         title: single ? 'Supprimer la routine' : 'Supprimer les routines',
         risks: single
-          ? `« ${single.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour la retirer sans perdre ses données, archivez-la plutôt.`
-          : `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
+          ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt.`
+          : `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour les retirer sans perdre leurs données, archivez-les plutôt.`,
         removeAll: () => bulkRemove.mutateAsync(ids),
         done: `${label} ${plural(ids.length, 'supprimée')}.`,
         clear: onClear,

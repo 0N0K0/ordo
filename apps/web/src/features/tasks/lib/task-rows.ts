@@ -23,7 +23,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'number':
       return task.number;
     case 'title':
-      return task.title;
+      return task.label;
     case 'project':
       return context.projectLabel(task.projectId);
     case 'status':
@@ -53,7 +53,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return names[0] ?? null;
     }
     case 'tags': {
-      const names = task.tagIds.map((id) => context.tagById.get(id)?.name ?? '').sort(collator.compare);
+      const names = task.tagIds.map((id) => context.tagById.get(id)?.label ?? '').sort(collator.compare);
       return names[0] ?? null;
     }
     case 'effort':
@@ -77,7 +77,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       const keys = task.sprintIds
         .map((id) => context.sprintById.get(id))
         .filter((sprint) => sprint !== undefined)
-        .map((sprint) => `${sprint.startDate} ${sprint.name}`)
+        .map((sprint) => `${sprint.startDate} ${sprint.label}`)
         .sort();
       return keys[0] ?? null;
     }
@@ -107,7 +107,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
 export function eventSortValue(event: EventOccurrence, column: TaskSortKey, context: TaskContext): SortValue {
   switch (column) {
     case 'title':
-      return event.title;
+      return event.label;
     case 'project':
       return event.projectId ? context.projectLabel(event.projectId) : null;
     case 'assignees': {

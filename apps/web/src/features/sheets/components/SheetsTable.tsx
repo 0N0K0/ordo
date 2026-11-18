@@ -1,8 +1,8 @@
 import { countOf, plural } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
 import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -12,7 +12,7 @@ import { EditableMultiSelect, EditableSelect } from '../../../components/data-ta
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -22,12 +22,14 @@ import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
 import { sheetInput } from '../lib/sheet-format';
-import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { deleteSheetsAction } from '../lib/delete-sheets';
+import { sheetPath } from '../../../app/pages';
 
 /**
  * Columns of the sheets.
@@ -37,16 +39,16 @@ import { ArchivedBadge } from '../../../components/items/ItemBadge';
  * @returns {DataColumn<Sheet>[]} Columns.
  */
 function sheetColumns(context: TaskContext | null, categories: SheetCategory[], inProject: boolean): DataColumn<Sheet>[] {
-  const projectName = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
-  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const projectLabelOf = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
+  const categoryLabel = new Map(categories.map((category) => [category.id, category.label]));
   const categoryText = (sheet: Sheet) =>
     sheet.categoryIds
-      .map((id) => categoryName.get(id) ?? '')
+      .map((id) => categoryLabel.get(id) ?? '')
       .filter(Boolean)
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.name, text: (sheet) => sheet.name },
+    { id: 'name', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -67,12 +69,12 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       size: 200,
       bulk: true,
       hiddenByDefault: inProject,
-      sortValue: (sheet) => projectName(sheet) || null,
-      text: projectName,
+      sortValue: (sheet) => projectLabelOf(sheet) || null,
+      text: projectLabelOf,
       filter: {
         kind: 'choice',
         value: (sheet) => sheet.projectId ?? null,
-        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.title })),
+        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.label })),
       },
       groupable: true,
     },
@@ -113,13 +115,13 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
   const { context } = useTaskContext();
   const { create, update, duplicate, remove } = useSheetMutations();
   const setArchived = useSetArchived('SHEET', [sheetsKey]);
-  const [showArchived, setShowArchived] = useState(false);
+  const { shown, toggle: archivedToggle } = useArchivedToggle(sheets ?? []);
   const view = useDataView({
     tableKey: 'sheets',
     projectId,
     getKey: (sheet) => sheet.id,
     columns: sheetColumns(context, categories ?? [], projectId !== null),
-    rows: [...visibleItems(sheets ?? [], showArchived)],
+    rows: shown,
     title: 'Fiches',
   });
   // The archived sheets are left as they are.
@@ -132,7 +134,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
    * Creates a sheet and opens its page.
    * @returns {void}
    */
-  const createSheet = () => create.mutate({ name: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...ON_ERROR });
+  const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(sheetPath(id)), ...ON_ERROR });
 
   return (
     <DataTable
@@ -146,29 +148,16 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         ...(rows.some((sheet) => sheet.archived)
           ? []
           : [duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` })]),
-        archiveRowsAction({
-          archived: rows.every((sheet) => sheet.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((sheet) => sheet.id), archived }),
-          label: countOf(rows.length, 'fiche'),
-          count: rows.length,
-          feminine: true,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les fiches',
-          risks: `${countOf(rows.length, 'fiche')} et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
-          remove: (sheet) => remove.mutateAsync(sheet.id),
-          done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'supprimée')}.`,
-          clear,
-        }),
+        archiveItemsAction(rows, setArchived, { noun: 'fiche', feminine: true, clear }),
+        deleteSheetsAction(rows, (sheet) => remove.mutateAsync(sheet.id), clear),
       ]}
       verticalSpacing="xs"
       highlightOnHover
       bar={{
-        searchLabel: 'Rechercher (nom, élément)',
+        searchLabel: 'Rechercher (libellé, élément)',
         actions: (
           <Group gap="md">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(sheets ?? []).filter((sheet) => sheet.archived).length} label="Afficher les archivées" />
+            <ShowArchivedSwitch {...archivedToggle} label="Afficher les archivées" />
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={createSheet} loading={create.isPending}>
               Nouvelle fiche
             </ActionButton>
@@ -182,12 +171,12 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         />
       }
       getKey={(sheet) => sheet.id}
-      rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/sheets/${sheet.id}`) })}
+      rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(sheetPath(sheet.id)) })}
       cells={(sheet) => ({
         name: (
           <Group gap="xs" wrap="nowrap">
-            <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
-              {sheet.name}
+            <Anchor component={Link} to={sheetPath(sheet.id)} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+              {sheet.label}
             </Anchor>
             {sheet.archived && <ArchivedBadge feminine size="xs" />}
           </Group>
@@ -196,7 +185,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableMultiSelect
               value={sheet.categoryIds}
-              label={`Catégories de ${sheet.name}`}
+              label={`Catégories de ${sheet.label}`}
               readOnly={sheet.archived}
               {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
               onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
@@ -207,10 +196,10 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableSelect
               value={sheet.projectId ?? null}
-              label={`Projet de ${sheet.name}`}
+              label={`Projet de ${sheet.label}`}
               nullable
               readOnly={sheet.archived}
-              {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === sheet.projectId)))}
+              {...treeSelectProps(context.projectOptions(unarchived(context.projects, sheet.projectId)))}
               onSave={(next) => bulk('project')(sheet, { projectId: next })}
             />
           </div>
@@ -234,32 +223,22 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       actions={(sheet) => (
         <div onClick={(event) => event.stopPropagation()}>
           <RowActions
-            name={sheet.name}
+            name={sheet.label}
             primary={
               sheet.archived
-                ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
-                : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
+                ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(sheetPath(sheet.id)) }
+                : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(sheetPath(sheet.id)) }
             }
             items={[
               // Archived: read only, not used anymore.
               !sheet.archived && {
                 label: 'Utiliser cette fiche…',
                 icon: <CookingPotIcon aria-hidden />,
-                onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
+                onClick: () => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} label={sheet.label} onDone={close} />),
               },
               !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
-              archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
-              {
-                label: 'Supprimer',
-                icon: <TrashIcon aria-hidden />,
-                danger: true,
-                onClick: () =>
-                  confirmDestructive({
-                    title: 'Supprimer la fiche',
-                    risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} ${plural(sheet.usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent. Cette action est irréversible.`,
-                    onConfirm: () => remove.mutate(sheet.id, toastCallbacks('Fiche supprimée.')),
-                  }),
-              },
+              archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
+              rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}
           />
         </div>

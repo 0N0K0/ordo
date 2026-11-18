@@ -44,7 +44,7 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
   const confirmDelete = (entry: TimeEntry) => {
     confirmDestructive({
       title: 'Supprimer le temps',
-      risks: `Ce temps (${formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches. Cette action est irréversible.`,
+      risks: `Ce temps (${formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches.`,
       run: () => remove.mutateAsync(entry.id),
       done: 'Temps supprimé.',
     });

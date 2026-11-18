@@ -4,12 +4,13 @@ import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
 import { errorMessage } from '../../graphql/errors';
-import { attachmentData } from '../core/attachments';
+import { attachmentData, attachmentUrl } from '../core/attachments';
 import { withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { NO_SUBJECT } from '@ordo/shared';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -30,10 +31,7 @@ function referencedIds(parsed: ParsedMail): string[] {
  * @param {boolean} options.sent Whether it was sent from Ordo.
  * @returns {Promise<MailMessage>} Copy.
  */
-export async function copyToProject(
-  parsed: ParsedMail,
-  { projectId, accountId, sent }: { projectId: string; accountId: string | null; sent: boolean },
-): Promise<MailMessage> {
+export async function copyToProject(parsed: ParsedMail, { projectId, accountId, sent }: { projectId: string; accountId: string | null; sent: boolean }): Promise<MailMessage> {
   const messageId = bareMessageId(parsed.messageId) ?? `ordo-${randomUUID()}`;
   const existing = await prisma.mailMessage.findUnique({ where: { projectId_messageId: { projectId, messageId } } });
   if (existing) return existing;
@@ -48,7 +46,7 @@ export async function copyToProject(
         messageId,
         inReplyTo: bareMessageId(parsed.inReplyTo),
         references,
-        subject: parsed.subject || '(sans objet)',
+        subject: parsed.subject || NO_SUBJECT,
         fromName: from?.name ?? null,
         fromAddress: from?.address ?? '',
         to: parsedAddresses(parsed.to) as object[],
@@ -66,9 +64,9 @@ export async function copyToProject(
           mailMessageId: message.id,
           contentId: attachment.contentId?.replace(/^<|>$/g, '') ?? null,
         },
-        select: { id: true, name: true },
+        select: { id: true, filename: true },
       });
-      urls.push(`/api/attachments/${stored.id}/${encodeURIComponent(stored.name)}`);
+      urls.push(attachmentUrl(stored));
     }
     // Inline images point to the stored copies.
     const html = messageHtml(parsed, (index) => urls[index]);
@@ -106,9 +104,7 @@ export async function unlinkMail(id: string): Promise<void> {
  * @returns {Promise<string[]>} Projects.
  */
 export async function conversationProjects(references: string[], projectId: string | null): Promise<string[]> {
-  const linked = references.length
-    ? await prisma.mailMessage.findMany({ where: { messageId: { in: references } }, select: { projectId: true } })
-    : [];
+  const linked = references.length ? await prisma.mailMessage.findMany({ where: { messageId: { in: references } }, select: { projectId: true } }) : [];
   return [...new Set([...(projectId ? [projectId] : []), ...linked.map((item) => item.projectId)])];
 }
 
@@ -172,18 +168,12 @@ async function followConversations(): Promise<void> {
               });
               if (last <= from) return;
               let maxUid = from;
-              for await (const message of client.fetch(
-                `${from + 1}:*`,
-                { uid: true, envelope: true, headers: ['references'] },
-                { uid: true },
-              )) {
+              for await (const message of client.fetch(`${from + 1}:*`, { uid: true, envelope: true, headers: ['references'] }, { uid: true })) {
                 // "n:*" also returns the last message when there is none after n.
                 if (message.uid <= from) continue;
                 maxUid = Math.max(maxUid, message.uid);
                 const header = message.headers?.toString('utf8') ?? '';
-                const ids = [message.envelope?.inReplyTo, ...(header.match(/<[^>]+>/g) ?? [])]
-                  .map(bareMessageId)
-                  .filter((id): id is string => id !== null);
+                const ids = [message.envelope?.inReplyTo, ...(header.match(/<[^>]+>/g) ?? [])].map(bareMessageId).filter((id): id is string => id !== null);
                 const own = bareMessageId(message.envelope?.messageId);
                 const projects = new Set(ids.flatMap((id) => [...(projectsOf.get(id) ?? [])]));
                 for (const project of own ? (projectsOf.get(own) ?? []) : []) projects.delete(project);
@@ -221,4 +211,3 @@ async function followConversations(): Promise<void> {
 export function scheduleConversationFollowUp(intervalMs = 5 * 60_000): void {
   schedulePerWorkspace('Suivi des conversations', () => followConversations(), { delay: 30_000, interval: intervalMs });
 }
-

@@ -5,6 +5,7 @@ import type { GeoPoint, PlaceInput, TravelMode } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type { PlacesQuery, SearchAddressesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { notifyFailure } from '../../../lib/notify';
 
 export type Place = PlacesQuery['places'][number];
 export type AddressSuggestion = SearchAddressesQuery['searchAddresses'][number];
@@ -16,7 +17,7 @@ const PlacesDocument = graphql(`
     places {
       id
       archived
-      name
+      label
       address
       parentId
       lat
@@ -32,8 +33,8 @@ const PlacesDocument = graphql(`
 const SearchAddressesDocument = graphql(`
   query SearchAddresses($text: String!, $near: GeoPointInput) {
     searchAddresses(text: $text, near: $near) {
+      address
       label
-      name
       lat
       lon
     }
@@ -43,8 +44,8 @@ const SearchAddressesDocument = graphql(`
 const ReverseAddressDocument = graphql(`
   query ReverseAddress($point: GeoPointInput!) {
     reverseAddress(point: $point) {
+      address
       label
-      name
       lat
       lon
     }
@@ -122,8 +123,8 @@ export function rootPlace(place: Place, byId: ReadonlyMap<string, Place>): Place
  * @returns {string} Text.
  */
 export function zonesText(root: Place, zones: readonly Place[]): string {
-  const prefix = `${root.name}${LEVEL}`;
-  return `${prefix}${zones.map((zone) => (zone.path.startsWith(prefix) ? zone.path.slice(prefix.length) : zone.name)).join(ZONE_SEPARATOR)}`;
+  const prefix = `${root.label}${LEVEL}`;
+  return `${prefix}${zones.map((zone) => (zone.path.startsWith(prefix) ? zone.path.slice(prefix.length) : zone.label)).join(ZONE_SEPARATOR)}`;
 }
 
 /**
@@ -135,7 +136,7 @@ export function zonesText(root: Place, zones: readonly Place[]): string {
 export function zonesOfText(text: string, places: readonly Place[]): { root: Place; zoneIds: string[] } | null {
   const byId = mapById(places);
   for (const root of places.filter((place) => !place.parentId)) {
-    const prefix = `${root.name}${LEVEL}`;
+    const prefix = `${root.label}${LEVEL}`;
     if (!text.startsWith(prefix)) continue;
     const zones = places.filter((place) => place.parentId && rootPlace(place, byId).id === root.id);
     const ids = text
@@ -184,6 +185,24 @@ export function useAddressSearch(text: string, near: GeoPoint | null) {
  */
 export async function reverseAddress(point: GeoPoint): Promise<AddressSuggestion | null> {
   return (await execute(ReverseAddressDocument, { point })).reverseAddress ?? null;
+}
+
+/**
+ * Address of a point clicked on the map, the same rule everywhere: the address found, else its coordinates
+ * (« 48.85660, 2.35220 »), a failed lookup told in a toast.
+ * @param {GeoPoint} point Point clicked.
+ * @returns {Promise<{ label: string | null, address: string }>} Label of the place found (none: null) and address.
+ */
+export async function pickedAddress(point: GeoPoint): Promise<{ label: string | null; address: string }> {
+  const coordinates = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
+  try {
+    // eslint-disable-next-line no-restricted-syntax -- pickedAddress itself.
+    const found = await reverseAddress(point);
+    return { label: found?.label ?? null, address: found?.address ?? coordinates };
+  } catch (error) {
+    notifyFailure(error);
+    return { label: null, address: coordinates };
+  }
 }
 
 /**

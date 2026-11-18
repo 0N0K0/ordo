@@ -1,4 +1,4 @@
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 
 /**
@@ -11,10 +11,8 @@ import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 export function EntryUrl({ url, label }: { url: string | null | undefined; label: string }) {
   if (!url) return null;
   return (
-    <Tooltip label={url}>
-      <ActionIcon component="a" href={url} target="_blank" rel="noopener noreferrer" size="sm" variant="subtle" color="gray" aria-label={`Ouvrir le lien de ${label}`}>
-        <ArrowSquareOutIcon aria-hidden />
-      </ActionIcon>
-    </Tooltip>
+    <IconAction label={url} component="a" href={url} target="_blank" rel="noopener noreferrer" size="sm" aria-label={`Ouvrir le lien de ${label}`}>
+      <ArrowSquareOutIcon aria-hidden />
+    </IconAction>
   );
 }

@@ -36,7 +36,7 @@ const SheetsDocument = graphql(`
     sheets(projectId: $projectId) {
       id
       archived
-      name
+      label
       note
       projectId
       categoryIds
@@ -71,7 +71,7 @@ const SheetDocument = graphql(`
     sheet(id: $id) {
       id
       archived
-      name
+      label
       note
       projectId
       categoryIds
@@ -104,7 +104,7 @@ const SheetCategoriesDocument = graphql(`
     sheetCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -143,7 +143,7 @@ const ChecklistDocument = graphql(`
         position
         sources {
           sheetId
-          name
+          label
           quantity
         }
       }
@@ -190,14 +190,14 @@ const UseSheet = graphql(`
   }
 `);
 const CreateSheetCategory = graphql(`
-  mutation CreateSheetCategory($input: NameColorInput!) {
+  mutation CreateSheetCategory($input: LabelColorInput!) {
     createSheetCategory(input: $input) {
       id
     }
   }
 `);
 const UpdateSheetCategory = graphql(`
-  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateSheetCategory($id: ID!, $input: LabelColorPatch!) {
     updateSheetCategory(id: $id, input: $input) {
       id
     }

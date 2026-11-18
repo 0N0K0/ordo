@@ -1,6 +1,7 @@
-import { Button, Group, type ButtonProps } from '@mantine/core';
+import { Button, Group, Radio, Stack, Text, type ButtonProps } from '@mantine/core';
 import { TrashIcon, XIcon } from '@phosphor-icons/react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { ActionButton } from '../actions/ActionButton';
 
 interface DestructiveActionsProps {
   onConfirm: () => void;
@@ -24,9 +25,9 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
       <Button color="red" leftSection={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
         {confirmLabel}
       </Button>
-      <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onCancel}>
+      <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
         Annuler
-      </Button>
+      </ActionButton>
     </Group>
   );
 }
@@ -51,5 +52,42 @@ export function DeleteButton({ onClick, loading = false, children = 'Supprimer' 
     <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
       {children}
     </DestructiveButton>
+  );
+}
+
+/** Last sentence of every destructive confirmation (decision X). */
+// eslint-disable-next-line no-restricted-syntax -- the one place the sentence is written.
+const IRREVERSIBLE = 'Cette action est irréversible.';
+
+/**
+ * Risks of a destructive dialog, the same everywhere: what the action does and loses, then « Cette action est
+ * irréversible. ».
+ * @param {{ children: ReactNode }} props Component props: the risks (a sentence, or more).
+ * @returns {JSX.Element} Text.
+ */
+export function DestructiveRisks({ children }: { children: ReactNode }) {
+  return (
+    <Text size="sm" component="div">
+      {children} {IRREVERSIBLE}
+    </Text>
+  );
+}
+
+/** What a deletion does with what hangs from the element: kept (detached), or deleted along. */
+type CascadeMode = 'detach' | 'delete';
+
+/**
+ * Choice of a deletion for what hangs from the element (sub-tasks, projects…): keep it, or delete it along, for good.
+ * @param {{ label: string, keepLabel: string, value: CascadeMode, onChange: (mode: CascadeMode) => void }} props Question, what keeping does, choice and its change.
+ * @returns {JSX.Element} Choice.
+ */
+export function CascadeChoice({ label, keepLabel, value, onChange }: { label: string; keepLabel: string; value: CascadeMode; onChange: (mode: CascadeMode) => void }) {
+  return (
+    <Radio.Group label={label} value={value} onChange={(mode) => onChange(mode as CascadeMode)}>
+      <Stack gap="xs" mt="xs">
+        <Radio value="detach" label={keepLabel} />
+        <Radio value="delete" label="Les supprimer aussi, définitivement" color="red" />
+      </Stack>
+    </Radio.Group>
   );
 }

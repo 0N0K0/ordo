@@ -1,4 +1,17 @@
-import { addDays, daysBetween, formatDay, groupBy, isTaskCases, parseDay, type TaskRepetition, taskRepetitionDates, taskRepetitionSchema, withDeletedDates } from '@ordo/shared';
+import {
+  addDays,
+  daysBetween,
+  formatDay,
+  formatOptionalDay,
+  groupBy,
+  isTaskCases,
+  parseDay,
+  parseOptionalDay,
+  type TaskRepetition,
+  taskRepetitionDates,
+  taskRepetitionSchema,
+  withDeletedDates,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task } from '../../generated/prisma/client';
@@ -20,8 +33,7 @@ function storedTaskRepetition(value: unknown): TaskRepetition | null {
  * @returns {string | null} Calendar date.
  */
 function anchorOf(task: Pick<Task, 'startDate' | 'endDate'>): string | null {
-  const date = task.startDate ?? task.endDate;
-  return date ? formatDay(date) : null;
+  return formatOptionalDay(task.startDate ?? task.endDate);
 }
 
 /**
@@ -51,7 +63,7 @@ export async function setTaskRecurrence(id: string, recurrence: unknown): Promis
 /**
  * Creates the occurrences of the recurring tasks falling in a period (the one displayed by the calendar),
  * and only them: a series without end never creates more than what is looked at. An occurrence copies its
- * series' first task (title, description, project, priority, type, assignees, tags, effort, parent), opens with
+ * series' first task (label, description, project, priority, type, assignees, tags, effort, parent), opens with
  * the first "to do" status, and its dates move with its occurrence date.
  * @param {string} from First date.
  * @param {string} to Last date.
@@ -76,11 +88,11 @@ export async function materializeTaskOccurrences(from: string, to: string): Prom
     for (const date of taskRepetitionDates(rule, anchor, from, to)) {
       if (existing.has(date)) continue;
       const shift = daysBetween(anchor, date);
-      const moved = (value: Date | null) => (value ? parseDay(addDays(formatDay(value), shift)) : null);
+      const moved = (value: Date | null) => parseOptionalDay(value && addDays(formatDay(value), shift));
       // The unique (series, date) pair is not enforced by the schema: concurrent calls are serialized by the check above.
       await prisma.task.create({
         data: {
-          title: task.title,
+          label: task.label,
           description: task.description,
           projectId: task.projectId,
           statusId: status?.id ?? null,

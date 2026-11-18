@@ -4,7 +4,7 @@ import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
 import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon } from '@phosphor-icons/react';
+import { ArrowSquareOutIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { onMutationError } from '../../../lib/notify';
 import { useStockMutations } from '../../stock/api';
@@ -14,6 +14,8 @@ import { useShoppingData, useShoppingMutations, type ShoppingItem, type Shopping
 import { NO_GROUP, shoppingRows, visibleRows } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { Caption } from '../../../components/page/Caption';
 
 interface HeadingProps {
   name: string;
@@ -43,11 +45,17 @@ function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: He
       style={{ paddingLeft: `calc(${Math.max(0, depth - 1)} * var(--mantine-spacing-md))` }}
     >
       <Group gap="xs" wrap="nowrap">
-        {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+        <FoldChevron expanded={!collapsed} />
         {(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
-        <Text fw={depth <= 1 ? 700 : 600} size={depth === 0 ? 'lg' : 'sm'} tt={depth === 0 ? undefined : 'uppercase'} c={depth === 0 ? undefined : 'dimmed'} style={{ flex: 1 }}>
-          {name}
-        </Text>
+        {depth === 0 ? (
+          <Text fw={700} size="lg" style={{ flex: 1 }}>
+            {name}
+          </Text>
+        ) : (
+          <Caption fw={depth <= 1 ? 700 : 600} size="sm" style={{ flex: 1 }}>
+            {name}
+          </Caption>
+        )}
         <Badge size={depth === 0 ? 'lg' : 'md'} variant={count ? 'filled' : 'light'} color={count ? undefined : 'green'} aria-label={`${count} à acheter`}>
           {count}
         </Badge>
@@ -82,8 +90,8 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
   const inStores = toBuy.filter((item) => !item.deliveryId || !delivered.has(item.deliveryId));
   const deliverySections = deliveries.map((delivery) => ({ delivery, items: toBuy.filter((item) => item.deliveryId === delivery.id) })).filter((section) => section.items.length > 0);
   const sections = [
-    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, iconUrl: store.iconUrl, items: inStores.filter((item) => item.storeId === store.id) })),
-    { key: NO_GROUP, name: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
+    ...stores.map((store) => ({ key: store.id, label: store.label, color: store.color as string | null, iconUrl: store.iconUrl, items: inStores.filter((item) => item.storeId === store.id) })),
+    { key: NO_GROUP, label: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
   ].filter((section) => section.items.length > 0);
 
   /**
@@ -117,7 +125,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       style={{ marginLeft: `calc(${depth} * var(--mantine-spacing-md))` }}
     >
       <Checkbox.Indicator size="lg" />
-      <Text className={classes.storeName}>{item.name}</Text>
+      <Text className={classes.storeName}>{item.label}</Text>
       {fmt.quantity(item) && (
         <Text size="md" fw={600} className={classes.nowrap}>
           {fmt.quantity(item)}
@@ -140,7 +148,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       entry.kind === 'group' ? (
         <Heading
           key={`${prefix}${entry.id ?? NO_GROUP}`}
-          name={entry.name}
+          name={entry.label}
           color={entry.color}
           iconUrl={data?.shoppingCategories.find((category) => category.id === entry.id)?.iconUrl}
           count={entry.items.length}
@@ -160,7 +168,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         <Group justify="space-between" wrap="nowrap">
           <Stack gap={0}>
             <Title order={2} size="h3">
-              {list.name}
+              {list.label}
             </Title>
             <Text size="sm" c="dimmed">
               {toBuy.length} à acheter · {bought.length} sur {list.items.length} {plural(bought.length, 'acheté')}
@@ -211,7 +219,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
             <Heading
-              name={section.name}
+              name={section.label}
               color={section.color}
               iconUrl={'iconUrl' in section ? section.iconUrl : null}
               count={section.items.length}
@@ -226,7 +234,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
           <Stack gap="xs">
             <UnstyledButton className={classes.storeHeading} data-depth={0} onClick={() => toggle('bought')} aria-expanded={!collapsed.has('bought')}>
               <Group gap="xs" wrap="nowrap">
-                {collapsed.has('bought') ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+                <FoldChevron expanded={!collapsed.has('bought')} />
                 <Text fw={700} size="lg" c="dimmed" style={{ flex: 1 }}>
                   Acheté
                 </Text>

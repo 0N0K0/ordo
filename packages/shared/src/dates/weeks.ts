@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import { weekdayOfDate } from './days';
-import { addDays } from './recurrence';
-
-export { weekdayOfDate };
+import { addDays, weekdayOfDate } from './days';
 
 /** Day of the week, 1 (Monday) to 7 (Sunday). */
 const weekdaySchema = z.number().int().min(1).max(7);
@@ -18,6 +15,13 @@ export type WeekSpan = z.infer<typeof weekSpanSchema>;
 export const DEFAULT_WEEK: WeekSpan = { start: 1, end: 7 };
 
 export const WEEKDAY_LABELS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] as const;
+
+/** Short names of the days of the week, Monday first: « lun. », « mar. »… */
+// eslint-disable-next-line no-restricted-syntax -- the abbreviation of a weekday, not a cut text.
+export const WEEKDAY_SHORT_LABELS = WEEKDAY_LABELS.map((label) => `${label.slice(0, 3)}.`);
+
+/** Options of a choice of a day of the week, Monday (« 1 ») first, the same everywhere (repetitions, routines). */
+export const weekdayOptions: { value: string; label: string }[] = WEEKDAY_LABELS.map((label, index) => ({ value: String(index + 1), label }));
 
 /**
  * Days of a week: from its first day to its last one included (8 from a day to the same day).

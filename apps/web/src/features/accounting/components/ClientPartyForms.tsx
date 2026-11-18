@@ -1,7 +1,7 @@
 import { SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Address, type Phone } from '@ordo/shared';
-import { AddressFields } from '../../../components/address/AddressFields';
-import { PhonesField } from '../../../components/address/PhonesField';
+import { AddressFields } from './AddressFields';
+import { PhonesField } from './PhonesField';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
@@ -61,15 +61,7 @@ export function ClientDetailsForm({ client, onDone }: { client: ClientBilling; o
   const company = form.values.kind === 'COMPANY';
 
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((values) =>
-        updateDetails.mutate(
-          { id: client.id, input: values },
-          formCallbacks(form, 'Coordonnées enregistrées.', onDone),
-        ),
-      )}
-    >
+    <form noValidate onSubmit={form.onSubmit((values) => updateDetails.mutate({ id: client.id, input: values }, formCallbacks(form, 'Coordonnées enregistrées.', onDone)))}>
       <Stack gap="md">
         <SegmentedControl
           data={[
@@ -107,7 +99,7 @@ export function ClientDetailsForm({ client, onDone }: { client: ClientBilling; o
 }
 
 interface ServiceValues extends Record<string, unknown> {
-  name: string;
+  label: string;
   address: Address | null;
   email: string;
   phones: Phone[];
@@ -122,7 +114,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
   const { createService, updateService } = useClientPartyMutations();
   const form = useAppForm<ServiceValues>({
     initialValues: {
-      name: service?.name ?? '',
+      label: service?.label ?? '',
       address: (service?.address as Address | null) ?? null,
       email: service?.email ?? '',
       phones: (service?.phones as Phone[]) ?? [],
@@ -131,12 +123,9 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
   });
   const callbacks = formCallbacks(form, service ? 'Service modifié.' : 'Service ajouté.', onDone);
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) => (service ? updateService.mutate({ id: service.id, input }, callbacks) : createService.mutate({ clientId, input }, callbacks)))}
-    >
+    <form noValidate onSubmit={form.onSubmit((input) => (service ? updateService.mutate({ id: service.id, input }, callbacks) : createService.mutate({ clientId, input }, callbacks)))}>
       <Stack gap="md">
-        <TextInput label="Nom du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('name')} />
+        <TextInput label="Libellé du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
         <AddressFields legend="Adresse" value={form.values.address} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors(form.errors)} />
         <TextInput label="Email" {...form.getInputProps('email')} />
         <PhonesField value={form.values.phones} onChange={(phones) => form.setFieldValue('phones', phones)} />
@@ -160,17 +149,7 @@ interface ContactValues extends Record<string, unknown> {
  * @param {{ client: ClientBilling, contact?: ClientContact, serviceId?: string | null, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function ClientContactForm({
-  client,
-  contact,
-  serviceId,
-  onDone,
-}: {
-  client: ClientBilling;
-  contact?: ClientContact;
-  serviceId?: string | null;
-  onDone: () => void;
-}) {
+export function ClientContactForm({ client, contact, serviceId, onDone }: { client: ClientBilling; contact?: ClientContact; serviceId?: string | null; onDone: () => void }) {
   const { createContact, updateContact } = useClientPartyMutations();
   const form = useAppForm<ContactValues>({
     initialValues: {
@@ -185,12 +164,7 @@ export function ClientContactForm({
   });
   const callbacks = formCallbacks(form, contact ? 'Contact modifié.' : 'Contact ajouté.', onDone);
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) =>
-        contact ? updateContact.mutate({ id: contact.id, input }, callbacks) : createContact.mutate({ clientId: client.id, input }, callbacks),
-      )}
-    >
+    <form noValidate onSubmit={form.onSubmit((input) => (contact ? updateContact.mutate({ id: contact.id, input }, callbacks) : createContact.mutate({ clientId: client.id, input }, callbacks)))}>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <TextInput label="Prénom" required data-autofocus {...form.getInputProps('firstName')} />
@@ -199,7 +173,7 @@ export function ClientContactForm({
           <Select
             label="Service"
             placeholder={client.services.length ? 'Aucun (client)' : 'Aucun service'}
-            data={client.services.map((service) => ({ value: service.id, label: service.name }))}
+            data={client.services.map((service) => ({ value: service.id, label: service.label }))}
             clearable
             disabled={client.services.length === 0}
             {...form.getInputProps('serviceId')}

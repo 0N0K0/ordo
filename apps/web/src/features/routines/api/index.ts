@@ -1,3 +1,5 @@
+import { changedList } from '@ordo/shared';
+import type { RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
   readSlotCondition,
@@ -26,7 +28,7 @@ const RoutinesDataDocument = graphql(`
     routineCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       parentId
@@ -34,7 +36,7 @@ const RoutinesDataDocument = graphql(`
     }
     routines {
       id
-      title
+      label
       description
       categoryIds
       parentId
@@ -306,7 +308,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
   const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
   return {
     id: `${DRAFT}${(draftCount += 1)}`,
-    title: input.title,
+    label: input.label,
     description: input.description ?? null,
     categoryIds: input.categoryIds ?? [],
     parentId: input.parentId ?? null,
@@ -409,7 +411,7 @@ function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds
 
 /** Inline changes of a routine. */
 export interface RoutinePatchValues {
-  title?: string;
+  label?: string;
   categoryIds?: string[];
   parentId?: string | null;
   estimate?: number | null;
@@ -435,26 +437,7 @@ export interface RoutinePatchValues {
   slotCondition?: SlotCondition | null;
 }
 
-/** Same changes for several routines: values set, or ids added to and removed from their lists. */
-export interface RoutineBulkChanges {
-  addCategoryIds?: string[];
-  removeCategoryIds?: string[];
-  addAssigneeIds?: string[];
-  removeAssigneeIds?: string[];
-  addRequiredIds?: string[];
-  removeRequiredIds?: string[];
-  estimate?: number | null;
-  projectId?: string | null;
-  fromTime?: string | null;
-  dueTime?: string | null;
-  startDate?: string;
-  recurrence?: Recurrence;
-  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « à partir du ». */
-  cases?: RoutineCaseInput[];
-  moments?: RoutineSlot[];
-  slotCondition?: SlotCondition | null;
-  opensOn?: RoutineOpens | null;
-}
+export type { RoutineBulkChanges };
 
 /**
  * Routine as the input of a full update (to put it back as it was).
@@ -463,7 +446,7 @@ export interface RoutineBulkChanges {
  */
 export function routineInputOf(routine: Routine): RoutineInput {
   return {
-    title: routine.title,
+    label: routine.label,
     description: routine.description,
     categoryIds: routine.categoryIds,
     parentId: routine.parentId,
@@ -486,15 +469,6 @@ export function routineInputOf(routine: Routine): RoutineInput {
     requiredIds: routine.requiredIds,
   };
 }
-
-/**
- * List with ids added and removed.
- * @param {string[]} list Current ids.
- * @param {string[]} [added] Added ids. Optional.
- * @param {string[]} [removed] Removed ids. Optional.
- * @returns {string[]} New ids.
- */
-const changedList = (list: string[], added: string[] = [], removed: string[] = []) => [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
 
 /**
  * A routine with bulk changes applied (for the cache).

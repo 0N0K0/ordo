@@ -1,6 +1,8 @@
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { IconAction } from '../actions/IconAction';
+import { Group } from '@mantine/core';
 import { CaretLeftIcon, CaretRightIcon, CalendarDotIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { ActionButton } from '../actions/ActionButton';
 
 interface PeriodNavProps {
   /** The period shown (its name, or a picker of it). */
@@ -26,21 +28,17 @@ interface PeriodNavProps {
 export function PeriodNav({ children, onPrevious, onNext, onToday, current = false, last = false, labels = { previous: 'Période précédente', next: 'Période suivante' } }: PeriodNavProps) {
   return (
     <Group gap="xs" wrap="nowrap">
-      <Button variant="default" leftSection={<CalendarDotIcon aria-hidden />} disabled={current} onClick={onToday}>
+      <ActionButton priority="secondary" icon={<CalendarDotIcon aria-hidden />} disabled={current} onClick={onToday}>
         Aujourd’hui
-      </Button>
+      </ActionButton>
       <Group gap={2} wrap="nowrap">
-        <Tooltip label={labels.previous}>
-          <ActionIcon variant="subtle" color="gray" size="lg" aria-label={labels.previous} onClick={onPrevious}>
-            <CaretLeftIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label={labels.previous} size="lg" onClick={onPrevious}>
+          <CaretLeftIcon aria-hidden />
+        </IconAction>
         {children}
-        <Tooltip label={labels.next}>
-          <ActionIcon variant="subtle" color="gray" size="lg" aria-label={labels.next} disabled={last} onClick={onNext}>
-            <CaretRightIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label={labels.next} size="lg" disabled={last} onClick={onNext}>
+          <CaretRightIcon aria-hidden />
+        </IconAction>
       </Group>
     </Group>
   );

@@ -27,7 +27,7 @@ libraryRouter.get('/:id/view', async (req, res) => {
   // No "sandbox": browsers do not show PDFs in a sandboxed frame.
   sendDownload(res, Buffer.from(document.attachment.data), {
     type: 'application/pdf',
-    filename: document.attachment.name,
+    filename: document.attachment.filename,
     inline: true,
     securityPolicy: "default-src 'none'; frame-ancestors 'self'",
   });

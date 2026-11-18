@@ -24,7 +24,7 @@ export function useTaskStatusItems(): SettingsItemKind<TaskStatus, { category: T
       initial: (status) => ({ category: status?.category ?? 'TODO' }),
       render: (form) => <Select label="Catégorie" data={STATUS_CATEGORY_OPTIONS} allowDeselect={false} {...form.getInputProps('category')} />,
     },
-    ...listMutations(statuses, (values: { name: string; color: string; category: TaskStatusCategory }) => ({ name: values.name, color: values.color, category: values.category })),
+    ...listMutations(statuses, (values: { label: string; color: string; category: TaskStatusCategory }) => ({ label: values.label, color: values.color, category: values.category })),
   };
 }
 

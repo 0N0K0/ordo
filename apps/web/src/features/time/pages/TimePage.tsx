@@ -38,8 +38,8 @@ export function TimePage() {
       <SectionHeader title="Temps passé" />
       {taskId && (
         <Group gap="xs">
-          <Badge size="lg" variant="light" tt="none" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
-            Tâche : {task ? `${taskRef(task)}${task.title}` : 'introuvable'}
+          <Badge size="lg" variant="light" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
+            Tâche : {task ? `${taskRef(task)}${task.label}` : 'introuvable'}
           </Badge>
         </Group>
       )}

@@ -10,7 +10,7 @@ export const sheetItemSchema = z.object({
   /** Item kept (its comments with it); none: a new one. */
   id: z.string().nullish(),
   productId: z.string().nullable(),
-  label: requiredText(200, 'Le libellé est requis.'),
+  label: requiredText(200),
   /** Category of the shopping products. */
   categoryId: z.string().nullable(),
   quantity: quantitySchema.nullable(),
@@ -30,9 +30,12 @@ export const sheetItemSchema = z.object({
 });
 export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
-/** Sheet: a name, a note, its project and categories (its items are changed one by one). */
+/** Longest label of a sheet. */
+export const SHEET_LABEL_MAX = 100;
+
+/** Sheet: a label, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
-  name: requiredText(100),
+  label: requiredText(SHEET_LABEL_MAX),
   note: z.string().max(20_000, 'Note trop longue.').nullable(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),
@@ -40,9 +43,9 @@ export const sheetSchema = z.object({
 });
 export type SheetInput = z.infer<typeof sheetSchema>;
 
-/** Category of the sheets: a name and a color. */
+/** Category of the sheets: a label and a color. */
 export const sheetCategorySchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
 });
 export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;
@@ -60,7 +63,8 @@ export const checklistItemSchema = sheetItemSchema;
 /** Share of a sheet in an item of a list (shopping list or checklist). */
 export interface SheetSource {
   sheetId: string;
-  name: string;
+  /** Label of the sheet when it was added. */
+  label: string;
   /** Quantity it brings (none: no quantity). */
   quantity: number | null;
 }
@@ -71,19 +75,8 @@ export interface SheetSource {
  * @returns {SheetSource[]} Sources.
  */
 export function readSheetSources(value: unknown): SheetSource[] {
-  const parsed = z.array(z.object({ sheetId: z.string(), name: z.string(), quantity: z.number().nullable() })).safeParse(value);
+  const parsed = z.array(z.object({ sheetId: z.string(), label: z.string(), quantity: z.number().nullable() })).safeParse(value);
   return parsed.success ? parsed.data : [];
-}
-
-/**
- * Key items are summed by: their product, or else their label and unit (case and spaces aside).
- * @param {{ productId?: string | null, label: string, unit?: string | null }} item Item.
- * @returns {string} Key.
- */
-export function sheetItemKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
-  if (item.productId) return `p:${item.productId}`;
-  const clean = (text: string | null | undefined) => (text ?? '').trim().toLocaleLowerCase('fr').replace(/\s+/g, ' ');
-  return `l:${clean(item.label)}|${clean(item.unit)}`;
 }
 
 /**

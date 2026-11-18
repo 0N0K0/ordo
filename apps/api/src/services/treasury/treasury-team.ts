@@ -6,16 +6,16 @@ import {
   type TreasuryContextInput,
   type TreasuryContextPeriodInput,
   type TreasuryRelationInput,
-  normalize,
-  requiredText,
+  contributorNameSchema,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
-import { createContributor } from '../workspace/contributors';
+import { createContributor, freeHandle } from '../workspace/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
+import { nextPositionIn } from '../core/ordering';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
 const memberWhere = { OR: [{ teamMember: true }, { userId: { not: null } }] } satisfies Prisma.ContributorWhereInput;
@@ -39,23 +39,6 @@ export async function listMembers(): Promise<Contributor[]> {
 }
 
 /**
- * Handle free in the workspace for a new contributor named so.
- * @param {string} name Name.
- * @returns {Promise<string>} Handle.
- */
-async function freeHandle(name: string): Promise<string> {
-  const base =
-    normalize(name)
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 30) || 'membre';
-  const taken = new Set((await prisma.contributor.findMany({ where: { handle: { startsWith: base } }, select: { handle: true } })).map((item) => item.handle));
-  let handle = base;
-  for (let index = 2; taken.has(handle); index += 1) handle = `${base}-${index}`;
-  return handle;
-}
-
-/**
  * Adds a member: an existing contributor, or a new one created with this name (a member always is a contributor).
  * @param {{ contributorId?: string | null, name?: string | null }} input Contributor, or name of a new one.
  * @returns {Promise<Contributor>} Member.
@@ -68,7 +51,7 @@ export async function addMember(input: { contributorId?: string | null; name?: s
     if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
     return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
   }
-  const { name } = parseInput(z.object({ name: requiredText(100) }), { name: input.name ?? '' });
+  const { name } = parseInput(z.object({ name: contributorNameSchema }), { name: input.name ?? '' });
   const contributor = await createContributor({ name, handle: await freeHandle(name) });
   return prisma.contributor.update({ where: { id: contributor.id }, data: { teamMember: true } });
 }
@@ -97,11 +80,10 @@ export async function saveContext(id: string | null, input: TreasuryContextInput
   try {
     return await prisma.$transaction(async (tx) => {
       if (id) return tx.treasuryContext.update({ where: { id }, data });
-      const { _max } = await tx.treasuryContext.aggregate({ _max: { position: true } });
-      return tx.treasuryContext.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+      return tx.treasuryContext.create({ data: { ...data, position: await nextPositionIn('treasuryContext', {}, tx) } });
     });
   } catch (error) {
-    rethrowUnique(error, 'Un contexte porte déjà ce nom.');
+    rethrowUnique(error, 'Un contexte porte déjà ce libellé.');
   }
 }
 
@@ -124,7 +106,7 @@ export async function saveContextPeriod(id: string | null, input: TreasuryContex
   const data = parseInput(treasuryContextPeriodSchema, input);
   await assertExists(prisma.treasuryContext, data.contextId, 'Contexte');
   // A period is part of its context: none added to, nor taken from, an archived one.
-  await assertNotArchived('TREASURY_CONTEXT', data.contextId);
+  await assertNotArchived('TREASURY_CONTEXT', data.contextId, { field: 'contextId' });
   const fields = { contextId: data.contextId, startDate: parseDay(data.startDate), endDate: parseDay(data.endDate), note: data.note };
   if (!id) return prisma.treasuryContextPeriod.create({ data: fields });
   const previous = await orNotFound(prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { contextId: true } }), 'Période');

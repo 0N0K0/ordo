@@ -6,7 +6,6 @@ import type {
   ForecastEntriesQuery,
   TreasuryAccountsQuery,
   TreasuryEntriesQuery,
-  TreasuryEntrySearchQuery,
   TreasuryDocumentOptionsQuery,
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
@@ -27,13 +26,23 @@ export type TreasurySettings = TreasurySettingsQuery;
 export type TreasuryCategory = TreasurySettingsQuery['treasuryCategories'][number];
 export type TreasuryPaymentMethod = TreasurySettingsQuery['treasuryPaymentMethods'][number];
 export type TreasuryCounterparty = TreasurySettingsQuery['treasuryCounterparties'][number];
+/** Counterparty as an item of a settings list: its name as its label (a counterparty keeps a name, as a person). */
+export type TreasuryCounterpartyItem = TreasuryCounterparty & { label: string };
+
+/**
+ * Counterparties as items of a settings list (which show and edit a label).
+ * @param {readonly TreasuryCounterparty[]} counterparties Counterparties.
+ * @returns {TreasuryCounterpartyItem[]} Items.
+ */
+export function counterpartyItems(counterparties: readonly TreasuryCounterparty[]): TreasuryCounterpartyItem[] {
+  return counterparties.map((counterparty) => ({ ...counterparty, label: counterparty.name }));
+}
 export type TreasuryMember = TreasurySettingsQuery['treasuryMembers'][number];
 export type TreasuryContext = TreasurySettingsQuery['treasuryContexts'][number];
 export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number];
 export type TreasuryContextPeriod = TreasurySettingsQuery['treasuryContextPeriods'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
-export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
 // Under the accounting key: payments change documents, and documents change the forecast.
 export const treasuryKey = [...accountingQueryKey, 'treasury'];
@@ -45,7 +54,7 @@ graphql(`
     id
     archived
     accountId
-    accountName
+    accountLabel
     status
     date
     valueDate
@@ -53,7 +62,7 @@ graphql(`
     amount
     categoryId
     methodId
-    methodName
+    methodLabel
     clientId
     counterpartyId
     payerName
@@ -127,7 +136,7 @@ graphql(`
     id
     source
     kind
-    title
+    label
     url
     projectId
     place
@@ -146,7 +155,7 @@ const AccountsDocument = graphql(`
   query TreasuryAccounts {
     treasuryAccounts {
       id
-      name
+      label
       color
       iconUrl
       openingBalance
@@ -208,7 +217,7 @@ const SettingsDocument = graphql(`
     treasuryCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       direction
@@ -219,7 +228,7 @@ const SettingsDocument = graphql(`
     treasuryPaymentMethods {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -247,7 +256,7 @@ const SettingsDocument = graphql(`
     treasuryContexts {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -279,7 +288,7 @@ const EntrySearchDocument = graphql(`
       label
       amount
       status
-      accountName
+      accountLabel
       lines {
         id
         label
@@ -489,8 +498,8 @@ function useTreasuryMutation<TVariables, TResult>(mutationFn: (variables: TVaria
   return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
-export interface AccountValues {
-  name: string;
+interface AccountValues {
+  label: string;
   openingBalance: number;
   openingDate: string;
 }
@@ -518,13 +527,9 @@ export function useTreasuryMutations() {
     updateMethod: useTreasuryMutation(async (variables: { id: string; input: TreasuryPaymentMethodInput }) => (await execute(UpdateMethod, variables)).updateTreasuryPaymentMethod),
     deleteMethod: useTreasuryMutation(async (id: string) => (await execute(DeleteMethod, { id })).deleteTreasuryPaymentMethod),
     createCounterparty: useTreasuryMutation(async (input: TreasuryCounterpartyInput) => (await execute(CreateCounterparty, { input } as never)).createTreasuryCounterparty),
-    updateCounterparty: useTreasuryMutation(
-      async (variables: { id: string; input: TreasuryCounterpartyInput }) => (await execute(UpdateCounterparty, variables as never)).updateTreasuryCounterparty,
-    ),
+    updateCounterparty: useTreasuryMutation(async (variables: { id: string; input: TreasuryCounterpartyInput }) => (await execute(UpdateCounterparty, variables as never)).updateTreasuryCounterparty),
     deleteCounterparty: useTreasuryMutation(async (id: string) => (await execute(DeleteCounterparty, { id })).deleteTreasuryCounterparty),
-    realize: useTreasuryMutation(
-      async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast,
-    ),
+    realize: useTreasuryMutation(async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast),
   };
 }
 
@@ -553,7 +558,7 @@ const DeleteRelation = graphql(`
 `);
 
 const SaveContext = graphql(`
-  mutation SaveTreasuryContext($id: ID, $input: NameColorInput!) {
+  mutation SaveTreasuryContext($id: ID, $input: LabelColorInput!) {
     saveTreasuryContext(id: $id, input: $input)
   }
 `);
@@ -598,9 +603,11 @@ export function useTreasuryTeamMutations() {
       mutationFn: async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember,
       onSettled: contributorsChanged,
     }),
-    saveRelation: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation),
+    saveRelation: useTreasuryMutation(
+      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
+    ),
     deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
-    saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
+    saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
     deleteContext: useTreasuryMutation(async (id: string) => (await execute(DeleteContext, { id })).deleteTreasuryContext),
     saveContextPeriod: useTreasuryMutation(
       async (variables: { id: string | null; input: { contextId: string; startDate: string; endDate: string; note: string | null } }) =>

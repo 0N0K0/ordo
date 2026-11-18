@@ -25,7 +25,7 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
       locked: true,
       bulk: true,
       sortValue: (lot) => lot.quantity,
-      text: (lot) => fmt.number(lot.quantity, 3),
+      text: (lot) => fmt.quantity({ quantity: lot.quantity }),
       filter: { kind: 'number', value: (lot) => lot.quantity },
     },
     {

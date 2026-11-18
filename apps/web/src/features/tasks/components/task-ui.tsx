@@ -1,7 +1,8 @@
+import { unarchived } from '../../../lib/archive';
 import { mapById } from '@ordo/shared';
 import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { PersonOption } from '../../../components/people/PersonOption';
+
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
@@ -15,6 +16,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { personName } from '../../../components/people/people-options';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 /**
  * Link to a task, "#12 Title".
@@ -33,7 +35,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
         <Text span c="dimmed" size="sm">
           {taskRef(task).trim()}
         </Text>{' '}
-        {task.title}
+        {task.label}
       </Anchor>
     </Group>
   );
@@ -71,7 +73,7 @@ export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSe
     <CreatableSelect
       onCreate={kind ? create : undefined}
       {...listSelectProps(labels, undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={onChange}
       clearable
@@ -104,7 +106,7 @@ export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
       onChange={onChange}
       searchable
       clearable
-      nothingFoundMessage="Aucune étiquette : tapez son nom pour la créer"
+      nothingFoundMessage="Aucune étiquette : tapez son libellé pour la créer"
     />
   );
 }
@@ -131,10 +133,7 @@ export function AssigneesSelect({ contributors, value, onChange, label = 'Assign
       label={label}
       description={description}
       data={contributors.map((contributor) => ({ value: contributor.id, label: personName(contributor) }))}
-      renderOption={({ option }) => {
-        const contributor = byId.get(option.value);
-        return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
-      }}
+      renderOption={personOptionRenderer(byId)}
       value={value}
       onChange={onChange}
       error={error}
@@ -153,7 +152,7 @@ interface ProjectSelectProps extends Omit<SelectProps, 'data'> {
  * @returns {JSX.Element} Select.
  */
 export function ProjectSelect({ context, ...props }: ProjectSelectProps) {
-  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === props.value));
+  const options = context.projectOptions(unarchived(context.projects, props.value));
   return <Select {...treeSelectProps(options)} searchable nothingFoundMessage="Aucun projet" {...props} />;
 }
 
@@ -172,7 +171,7 @@ interface TaskSelectProps extends Omit<SelectProps, 'data'> {
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.title}`, context, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.label}`, context, ...props }: TaskSelectProps) {
   return (
     <Select
       {...(context ? treeSelectProps(context.taskOptions(tasks)) : { data: tasks.map((task) => ({ value: task.id, label: labelOf(task) })) })}

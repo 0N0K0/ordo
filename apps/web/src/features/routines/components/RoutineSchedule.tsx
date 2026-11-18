@@ -1,13 +1,25 @@
+import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { TravelField } from '../../geo/components/TravelField';
 import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot, DURATION_UNITS } from '@ordo/shared';
+import {
+  opensFits,
+  readOpens,
+  readSlotCondition,
+  routineSchedule,
+  type RoutineOpens,
+  type SlotCondition,
+  type Recurrence,
+  type RepetitionCase,
+  type RoutineCase,
+  type RoutineSlot,
+  DURATION_UNITS,
+} from '@ordo/shared';
 import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
@@ -20,10 +32,11 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { SlotConditionBuilder } from './SlotConditionBuilder';
 import { describeSlotCondition } from '../lib/slot-condition-text';
-import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from '../lib/routine-format';
+import { DAILY, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { SlotTimesFields } from './SlotTimesFields';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -54,7 +67,6 @@ interface RoutineTimes {
   opens: RoutineOpens | null;
 }
 
-
 /** A moment from the start to the end of the day. */
 const ANY_TIME: RoutineSlot = { fromTime: null, dueTime: null, optional: false };
 
@@ -75,23 +87,10 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
     <LabeledField label="Moments de la journée">
       {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
-          <TimeField
-            size="xs"
-            aria-label={`À partir de, moment ${position + 1}, cas ${index + 1}`}
-            leftSection={<Text size="xs">dès</Text>}
-            value={moment.fromTime ?? ''}
-            onChange={(value) => update(position, { fromTime: value || null })}
-          />
-          <TimeField
-            size="xs"
-            aria-label={`Avant, moment ${position + 1}, cas ${index + 1}`}
-            leftSection={<Text size="xs">avant</Text>}
-            value={moment.dueTime ?? ''}
-            onChange={(value) => update(position, { dueTime: value || null })}
-          />
+          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} />
           <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
           {(allowEmpty || moments.length > 1) && (
-            <RemoveButton label="Retirer le moment" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
+            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
           )}
         </Group>
       ))}
@@ -139,8 +138,16 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
  */
 function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes>[] {
   if (value.mode === 'CASES')
-    return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) } }));
-  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } }];
+    return value.cases.map((item) => ({
+      since: item.from,
+      until: item.until ?? null,
+      anchor: null,
+      rule: item.recurrence,
+      times: { moments: item.slots, condition: item.condition ?? null, opens: readOpens(item.opens) },
+    }));
+  return [
+    { since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition, opens: value.opensOn } },
+  ];
 }
 
 /**
@@ -161,10 +168,23 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
   if (value.mode === 'CASES')
     return {
       ...value,
-      cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times.moments, condition: item.times.condition, opens: fittingOpens(item.times.opens, item.rule) })),
+      cases: cases.map((item) => ({
+        from: item.since,
+        until: item.until,
+        recurrence: item.rule ?? DAILY,
+        slots: item.times.moments,
+        condition: item.times.condition,
+        opens: fittingOpens(item.times.opens, item.rule),
+      })),
     };
   const recurrence = cases[0]?.rule ?? value.recurrence;
-  return { ...value, recurrence, moments: cases[0]?.times.moments ?? value.moments, slotCondition: cases[0]?.times.condition ?? null, opensOn: fittingOpens(cases[0]?.times.opens ?? null, recurrence) };
+  return {
+    ...value,
+    recurrence,
+    moments: cases[0]?.times.moments ?? value.moments,
+    slotCondition: cases[0]?.times.condition ?? null,
+    opensOn: fittingOpens(cases[0]?.times.opens ?? null, recurrence),
+  };
 }
 
 /**
@@ -191,7 +211,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
                   ? draft.cases
                   : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition, opens: draft.opensOn }]
                 : [],
-            moments: mode === 'CASES' ? [] : draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME]),
+            moments: mode === 'CASES' ? [] : (draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME])),
             slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
             // Its « à partir du » goes to the first case, and back.
             opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
@@ -219,10 +239,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
 function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
   const start = value.startDate || localToday();
   const times = routineTimes(names);
-  return [
-    `À partir du ${fmt.day(start)}`,
-    ...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`),
-  ];
+  return [`À partir du ${fmt.day(start)}`, ...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`)];
 }
 
 /** Whole repetition of a routine, as saved. */
@@ -233,7 +250,7 @@ type RoutineRepetition = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' 
  * @param {Routine} routine Routine.
  * @returns {RoutineRepetitionValue} Repetition.
  */
-function repetitionOf(routine: Routine): RoutineRepetitionValue {
+function routineRepetitionValue(routine: Routine): RoutineRepetitionValue {
   const cases = ((routine.cases as RoutineCase[] | null) ?? []).map((item) => ({ ...item, opens: readOpens(item.opens) }));
   return {
     mode: cases.length ? 'CASES' : 'RULE',
@@ -259,15 +276,27 @@ const validRepetition = (draft: RoutineRepetitionValue) => Boolean(draft.startDa
  * @param {{ routine: Routine, opened: boolean, onClose: () => void, onApply: (repetition: RoutineRepetition) => void, header?: ReactNode }} props Routine edited, opened, closing, saving, what it applies to.
  * @returns {JSX.Element} Modal.
  */
-export function RoutineRepetitionModal({ routine, opened, onClose, onApply, header }: { routine: Routine; opened: boolean; onClose: () => void; onApply: (repetition: RoutineRepetition) => void; header?: ReactNode }) {
+export function RoutineRepetitionModal({
+  routine,
+  opened,
+  onClose,
+  onApply,
+  header,
+}: {
+  routine: Routine;
+  opened: boolean;
+  onClose: () => void;
+  onApply: (repetition: RoutineRepetition) => void;
+  header?: ReactNode;
+}) {
   const { data: schedules } = useWorkSchedules();
   const names = scheduleChoices(schedules).names;
-  const [draft, setDraft] = useState<RoutineRepetitionValue>(() => repetitionOf(routine));
+  const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
       opened={opened}
       onClose={onClose}
-      title={`Répétition et moments de « ${routine.title} »`}
+      title={`Répétition et moments de « ${routine.label} »`}
       header={header}
       draft={draft}
       setDraft={setDraft}
@@ -338,16 +367,21 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} error={errors.travelBefore} />
         <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} error={errors.travelAfter} />
         <Stack justify="flex-end">
-          <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })} />
+          <TravelCalculator
+            eventPoint={point}
+            onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+          />
         </Stack>
       </SimpleGrid>
       <RemindersSelect
-        label="Alertes"
+        label="Rappels"
         description={
-          timed ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.' : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
+          timed
+            ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
+            : 'Donnez-lui un horaire ou une plage pour recevoir des rappels.'
         }
         leftSection={<BellIcon aria-hidden />}
-        emptyLabel="Aucune"
+        emptyLabel="Aucun"
         disabled={!timed}
         presets={ROUTINE_REMINDERS}
         value={values.reminders}

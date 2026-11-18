@@ -5,7 +5,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon, PlugsIcon, KeyIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifySuccess, toastCallbacks } from '../../../lib/notify';
+import { notifySuccess } from '../../../lib/notify';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from '../api';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -30,10 +30,7 @@ function LoginField({ id, login }: { id: string; login: string | null }) {
       onBlur={() => {
         const next = value.trim().replace(/^@/, '') || null;
         if (next === login) return;
-        setLogin.mutate(
-          { id, login: next },
-          { onSuccess: () => setError(null), onError: (saveError) => setError(saveError.message) },
-        );
+        setLogin.mutate({ id, login: next }, { onSuccess: () => setError(null), onError: (saveError) => setError(saveError.message) });
       }}
     />
   );
@@ -56,7 +53,14 @@ export function GithubSettings() {
    * @returns {void}
    */
   const confirmRemove = () => {
-    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', confirmIcon: <PlugsIcon aria-hidden />, onConfirm: () => { removeToken.mutate(undefined, toastCallbacks('GitHub déconnecté.')); } });
+    confirmDestructive({
+      title: 'Déconnecter GitHub',
+      risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.',
+      confirmLabel: 'Déconnecter',
+      confirmIcon: <PlugsIcon aria-hidden />,
+      run: () => removeToken.mutateAsync(undefined),
+      done: 'GitHub déconnecté.',
+    });
   };
 
   if (isPending) return <FormSkeleton fields={3} />;

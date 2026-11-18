@@ -1,7 +1,9 @@
+import { unarchived } from '../../../lib/archive';
 import { useEntityCellEdit } from '../../../components/data-table/selection/bulk-edit';
-import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from '../api';
 import { countOf } from '../../../lib/text';
+import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 /** Columns of the routine table edited together on a cell selection. */
 type RoutineColumn =
@@ -54,7 +56,7 @@ function useBulkRoutineChanges() {
     bulkUpdate.mutate(
       { ids, changes },
       {
-        onSuccess: () => notifyWithUndo(message, () => restore.mutate(before, { onError: onMutationError })),
+        onSuccess: () => notifyWithUndo(message, () => restore.mutate(before, ON_ERROR)),
         onError: onMutationError,
       },
     );
@@ -76,8 +78,8 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   const applyBulk = useBulkRoutineChanges();
   return useEntityCellEdit<Routine, RoutinePatchValues, RoutineBulkChanges>(routine, TABLE_COLUMNS[column] ?? column, {
     // Archived routines are read only: left out of the changes made on a selection.
-    rows: (data?.routines ?? []).filter((item) => !item.archived),
-    save: (item, change) => patch.mutate({ id: item.id, input: change }, { onError: onMutationError }),
+    rows: unarchived(data?.routines ?? []),
+    save: (item, change) => patch.mutate({ id: item.id, input: change }, ON_ERROR),
     saveMany: (rows, changes) =>
       applyBulk(
         rows.map((item) => item.id),
@@ -87,3 +89,12 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
     label: routinesLabel,
   });
 }
+
+/**
+ * Accessible label of a cell of the routine table, mentioning the bulk edit of a selection (itemCellLabel).
+ * @param {string} field Field name.
+ * @param {Routine} routine Routine.
+ * @param {number} count Routines changed by an edit.
+ * @returns {string} Label.
+ */
+export const routineCellLabel = (field: string, routine: Routine, count: number): string => itemCellLabel(field, `« ${routine.label} »`, count);

@@ -11,7 +11,8 @@ import { useWorkspace } from '../api';
  */
 export function ClientSelect({ value, ...props }: Omit<SelectProps, 'data'>) {
   const { data: workspace } = useWorkspace();
-  const clients = workspace?.clients ?? [];
+  // Clients keep their name: offered under it as the label of the options.
+  const clients = (workspace?.clients ?? []).map((client) => ({ ...client, label: client.name }));
   const current = clients.find((client) => client.id === value);
   return (
     <Select

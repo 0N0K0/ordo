@@ -1,4 +1,6 @@
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
+import { relationNoun } from '../../../components/people/people-options';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
 import { beneficiariesOf, beneficiaryKeys, useBeneficiaries, type Beneficiaries } from '../hooks/use-beneficiaries';
 
@@ -8,7 +10,7 @@ const BENEFICIARIES_LABEL = 'Bénéficiaires';
 interface BeneficiariesSelectProps {
   value: Beneficiaries;
   onChange: (value: Beneficiaries) => void;
-  /** Help under the field. Optional. */
+  /** Help under the field. Optional. Default = « Pour qui c’est : contributeurs ou relations » (« proches » in a personal workspace). */
   description?: string;
   disabled?: boolean;
 }
@@ -19,12 +21,13 @@ interface BeneficiariesSelectProps {
  * @param {BeneficiariesSelectProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function BeneficiariesSelect({ value, onChange, description = 'Pour qui c’est : contributeurs ou proches.', disabled }: BeneficiariesSelectProps) {
+export function BeneficiariesSelect({ value, onChange, description, disabled }: BeneficiariesSelectProps) {
   const { options } = useBeneficiaries(value);
+  const { perso } = useActiveWorkspace();
   return (
     <PeopleSelect
       label={BENEFICIARIES_LABEL}
-      description={description}
+      description={description ?? `Pour qui c’est : contributeurs ou ${relationNoun(perso, true).toLowerCase()}.`}
       placeholder="Personne en particulier"
       data={options}
       value={beneficiaryKeys(value)}

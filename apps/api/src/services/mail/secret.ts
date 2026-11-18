@@ -8,10 +8,7 @@ import { clientError } from '../../graphql/errors';
  */
 function key(): Buffer {
   if (!env.MAIL_ENCRYPTION_KEY) {
-    throw clientError(
-      'BAD_USER_INPUT',
-      'MAIL_ENCRYPTION_KEY manque dans le .env de l’API (générez-la avec « openssl rand -base64 32 »).',
-    );
+    throw clientError('BAD_USER_INPUT', 'MAIL_ENCRYPTION_KEY manque dans le .env de l’API (générez-la avec « openssl rand -base64 32 »).');
   }
   return Buffer.from(env.MAIL_ENCRYPTION_KEY, 'base64');
 }

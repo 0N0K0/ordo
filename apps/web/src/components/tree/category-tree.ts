@@ -1,16 +1,16 @@
-import { childrenByParent, LEVEL, mapById, subtreeOf } from '@ordo/shared';
+import { childrenByParent, LEVEL, mapById } from '@ordo/shared';
 import { treeOptions, type TreeOption } from './tree-select';
 import { collator } from '../../lib/text';
 
-/** Category of a tree (shopping, routines…): a name, an optional color and a parent. */
+/** Category of a tree (shopping, routines…): a label, an optional color and a parent. */
 export interface TreeCategory {
   id: string;
-  name: string;
+  label: string;
   color?: string | null;
   /** Image shown as its avatar. Optional. */
   iconUrl?: string | null;
   parentId?: string | null;
-  /** Manual order among its siblings (by name when equal). Optional. */
+  /** Manual order among its siblings (by label when equal). Optional. */
   position?: number;
 }
 
@@ -26,15 +26,15 @@ export interface PlacedCategory<C extends TreeCategory> {
 }
 
 /**
- * Order of siblings: manual position, then name.
+ * Order of siblings: manual position, then label.
  * @param {TreeCategory} a Category.
  * @param {TreeCategory} b Category.
  * @returns {number} Comparison.
  */
-const bySiblingOrder = (a: TreeCategory, b: TreeCategory) => (a.position ?? 0) - (b.position ?? 0) || collator.compare(a.name, b.name);
+const bySiblingOrder = (a: TreeCategory, b: TreeCategory) => (a.position ?? 0) - (b.position ?? 0) || collator.compare(a.label, b.label);
 
 /**
- * Categories in tree order: each one followed by its sub-categories, in their manual order (then by name).
+ * Categories in tree order: each one followed by its sub-categories, in their manual order (then by label).
  * @param {readonly C[]} categories All categories.
  * @returns {PlacedCategory<C>[]} Placed categories.
  */
@@ -51,7 +51,7 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
    */
   const visit = (parent: string | null, depth: number, prefix: string, inherited: string | null) => {
     for (const category of [...(children.get(parent) ?? [])].sort(bySiblingOrder)) {
-      const path = prefix ? `${prefix}${LEVEL}${category.name}` : category.name;
+      const path = prefix ? `${prefix}${LEVEL}${category.label}` : category.label;
       const color = category.color ?? inherited;
       placed.push({ category, depth, path, color });
       visit(category.id, depth + 1, path, color);
@@ -62,7 +62,7 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
 }
 
 /**
- * Select options of the categories, in tree order, each name indented under its parent (treeSelectProps).
+ * Select options of the categories, in tree order, each label indented under its parent (treeSelectProps).
  * @param {readonly TreeCategory[]} categories All categories.
  * @param {string} [exclude] Category left out with its sub-categories (the one edited). Optional.
  * @param {(id: string) => boolean} [offered] Whether a category can be chosen (the others show greyed out above those that can). Optional.
@@ -70,7 +70,7 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
  */
 export function categoryOptions(categories: readonly TreeCategory[], exclude?: string, offered?: (id: string) => boolean): TreeOption[] {
   return treeOptions(
-    categoryTree(categories).map(({ category, color }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color, iconUrl: category.iconUrl })),
+    categoryTree(categories).map(({ category, color }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.label, color, iconUrl: category.iconUrl })),
     offered,
     new Set(exclude ? [exclude] : []),
   );
@@ -83,16 +83,6 @@ export function categoryOptions(categories: readonly TreeCategory[], exclude?: s
  */
 export function categoryPaths(categories: readonly TreeCategory[]): Map<string, string> {
   return new Map(categoryTree(categories).map((placed) => [placed.category.id, placed.path]));
-}
-
-/**
- * A category and all its sub-categories.
- * @param {readonly TreeCategory[]} categories All categories.
- * @param {string} id Category.
- * @returns {Set<string>} Ids.
- */
-export function categorySubtree(categories: readonly TreeCategory[], id: string): Set<string> {
-  return subtreeOf(categories, id);
 }
 
 /** Where a dragged category is dropped on another one: before it, after it or under it (last). */

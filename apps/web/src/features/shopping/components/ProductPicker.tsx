@@ -1,13 +1,14 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { formCallbacks } from '../../../lib/form';
 import { categoryPaths } from '../../../components/tree/category-tree';
-import { normalize } from '@ordo/shared';
+
 import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
-import { collator, countOf, plural } from '../../../lib/text';
+import { collator, countOf, plural, normalize } from '../../../lib/text';
 import { unarchived } from '../../../lib/archive';
 
 /**
@@ -34,9 +35,9 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
   const products = unarchived(data?.shoppingProducts ?? [])
     .filter(
       (product) =>
-        offeredLists.has(product.baseListId) && (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || normalize(product.name).includes(needle)),
+        offeredLists.has(product.baseListId) && (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || normalize(product.label).includes(needle)),
     )
-    .sort((a, b) => collator.compare(a.name, b.name));
+    .sort((a, b) => collator.compare(a.label, b.label));
   const addable = products.filter((product) => !inList.has(product.id));
   const groups = baseLists.map((baseList) => ({ baseList, products: products.filter((product) => product.baseListId === baseList.id) })).filter((group) => group.products.length > 0);
 
@@ -70,7 +71,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
           aria-label="Référence"
           placeholder="Toutes les références"
           clearable
-          data={baseLists.map((baseList) => ({ value: baseList.id, label: baseList.name }))}
+          data={baseLists.map((baseList) => ({ value: baseList.id, label: baseList.label }))}
           value={baseListId}
           onChange={setBaseListId}
           w={220}
@@ -96,9 +97,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
           <Stack gap="md">
             {groups.map(({ baseList, products: items }) => (
               <Stack key={baseList.id} gap={6}>
-                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                  {baseList.name}
-                </Text>
+                <Caption>{baseList.label}</Caption>
                 {items.map((product) => {
                   const present = inList.has(product.id);
                   const path = product.categoryId ? pathOf.get(product.categoryId) : undefined;
@@ -110,14 +109,14 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
                       onChange={(event) => toggle(product.id, event.currentTarget.checked)}
                       label={
                         <Group gap={6} wrap="nowrap">
-                          <Text size="sm">{product.name}</Text>
+                          <Text size="sm">{product.label}</Text>
                           {product.missing && (
-                            <Badge size="xs" variant="light" color="orange" tt="none">
+                            <Badge size="xs" variant="light" color="orange">
                               manque
                             </Badge>
                           )}
                           {present && (
-                            <Badge size="xs" variant="outline" color="gray" tt="none">
+                            <Badge size="xs" variant="outline" color="gray">
                               déjà dans la liste
                             </Badge>
                           )}

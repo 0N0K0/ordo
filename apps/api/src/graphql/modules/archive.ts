@@ -1,6 +1,7 @@
 import * as archive from '../../services/core/archive';
 import { builder } from '../builder';
 import { done } from '../errors';
+import { ARCHIVED_DESCRIPTION } from '../label-inputs';
 
 const ArchivableKindEnum = builder.enumType('ArchivableKind', {
   description: 'Kind of element archived or restored by `setArchived`: main elements of the features and every settings list (clients, projects, tasks and routines have their own mutations).',
@@ -46,9 +47,7 @@ const TYPES = [
 ] as const;
 
 for (const type of TYPES) {
-  builder.prismaObjectField(type as 'Sheet', 'archived', (t) =>
-    t.boolean({ description: 'Archived: hidden by default, read only.', select: { archivedAt: true }, resolve: (item) => item.archivedAt !== null }),
-  );
+  builder.prismaObjectField(type as 'Sheet', 'archived', (t) => t.boolean({ description: ARCHIVED_DESCRIPTION, select: { archivedAt: true }, resolve: (item) => item.archivedAt !== null }));
 }
 
 builder.mutationFields((t) => ({

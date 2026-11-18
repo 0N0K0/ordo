@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, formatDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
@@ -31,7 +31,7 @@ import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../s
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { projectFactory, taskFactory, TIME_ZONE } from './factories';
+import { localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE } from './factories';
 import { initialsIcon } from './images';
 import { tinyPdf } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -44,13 +44,6 @@ import { tickRoutines } from './routines';
  * @returns {ReturnType<typeof saveEntry>} Movement.
  */
 const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
-
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
 
 /**
  * Chart configuration from the defaults.
@@ -110,7 +103,7 @@ export async function seedPersonal({
   await purgeWorkspace();
   if (user) await ensureMeContributor(user);
   const meId = user ? await meContributorId(user.id) : null;
-  const day = (offset: number) => addDays(today, offset);
+  const day = relativeDay(today);
   const date = (value: string) => parseDay(value);
 
   // --- Household: members (contributors) and a relation ---------------------------------------------------
@@ -123,31 +116,31 @@ export async function seedPersonal({
   const granny = await saveRelation(null, { name: 'Mamie', note: 'Garde les enfants le mercredi.' });
 
   // --- Labels ---------------------------------------------------------------------------------------
-  const todo = await prisma.taskStatus.create({ data: { name: 'À faire', color: '#868e96', category: 'TODO', position: 0 } });
-  const doing = await prisma.taskStatus.create({ data: { name: 'En cours', color: '#228be6', category: 'IN_PROGRESS', position: 1 } });
-  const done = await prisma.taskStatus.create({ data: { name: 'Fait', color: '#40c057', category: 'DONE', position: 2 } });
-  const dropped = await prisma.taskStatus.create({ data: { name: 'Abandonné', color: '#fa5252', category: 'CANCELLED', position: 3 } });
-  const urgent = await prisma.taskPriority.create({ data: { name: 'Urgent', color: '#fa5252', position: 0 } });
+  const todo = await prisma.taskStatus.create({ data: { label: 'À faire', color: DEFAULT_LABEL_COLOR, category: 'TODO', position: 0 } });
+  const doing = await prisma.taskStatus.create({ data: { label: 'En cours', color: '#228be6', category: 'IN_PROGRESS', position: 1 } });
+  const done = await prisma.taskStatus.create({ data: { label: 'Fait', color: '#40c057', category: 'DONE', position: 2 } });
+  const dropped = await prisma.taskStatus.create({ data: { label: 'Abandonné', color: '#fa5252', category: 'CANCELLED', position: 3 } });
+  const urgent = await prisma.taskPriority.create({ data: { label: 'Urgent', color: '#fa5252', position: 0 } });
   const tags = await Promise.all(
     [
       ['maison', '#fd7e14'],
       ['enfants', '#7950f2'],
       ['papiers', '#fab005'],
-    ].map(([name, color], position) => prisma.taskTag.create({ data: { name, color, position } })),
+    ].map(([name, color], position) => prisma.taskTag.create({ data: { label: name, color, position } })),
   );
 
   // --- Projects (no clients in a personal workspace) and tasks ---------------------------------------------
-  const project = (title: string, color: string, parentId: string | null = null) => projectFactory.create({ title, color, parentId, clientId: null });
+  const project = (title: string, color: string, parentId: string | null = null) => projectFactory.create({ label: title, color, parentId, clientId: null });
   const bathroom = await project('Rénovation de la salle de bain', '#15aabf');
   const quotes = await project('Devis des artisans', '#15aabf', bathroom.id);
   const holidays = await project('Vacances d’été', '#fab005');
   const garden = await project('Jardin', '#40c057');
-  const papers = await project('Administratif', '#868e96');
+  const papers = await project('Administratif', DEFAULT_LABEL_COLOR);
   await prisma.project.update({ where: { id: bathroom.id }, data: { iconId: await initialsIcon('Salle de bain', '#15aabf') } });
   const task = (projectId: string, title: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) =>
     taskFactory.create({
       projectId,
-      title,
+      label: title,
       statusId: status.id,
       closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null,
       assignees: {
@@ -177,28 +170,28 @@ export async function seedPersonal({
   await setTaskRecurrence(canteen.id, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }));
   await materializeTaskOccurrences(day(-21), day(30));
   for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: date(today) } } })) {
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T19:00:00`) } });
+    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 19) } });
   }
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
     await createView({
       kind: 'TABLE',
       tableKey: 'tasks',
-      name: 'Mes tâches',
+      label: 'Mes tâches',
       config: { filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
     });
-  await createView({ kind: 'TABLE', tableKey: 'tasks', name: 'Par étiquette', config: { filter: emptyTableFilter(), groupBy: 'tags' } });
+  await createView({ kind: 'TABLE', tableKey: 'tasks', label: 'Par étiquette', config: { filter: emptyTableFilter(), groupBy: 'tags' } });
 
   // --- Places --------------------------------------------------------------------------------------------
-  const home = await savePlace(null, { name: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });
-  const school = await savePlace(null, { name: 'École', address: '15 rue Rachais, 69007 Lyon', lat: 45.7492, lon: 4.8478 });
-  const conservatory = await savePlace(null, { name: 'Conservatoire', address: '4 montée Cardinal Decourtray, 69005 Lyon', lat: 45.7615, lon: 4.8215 });
+  const home = await savePlace(null, { label: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });
+  const school = await savePlace(null, { label: 'École', address: '15 rue Rachais, 69007 Lyon', lat: 45.7492, lon: 4.8478 });
+  const conservatory = await savePlace(null, { label: 'Conservatoire', address: '4 montée Cardinal Decourtray, 69005 Lyon', lat: 45.7615, lon: 4.8215 });
 
   // --- Calendar: family calendar, its events, the professional one subscribed to ------------------------------
-  const family = await prisma.calendar.create({ data: { name: 'Famille', color: '#e64980', position: 0 } });
-  const kids = (await prisma.calendarCategory.create({ data: { name: 'Enfants', color: '#7950f2', position: 0 } })).id;
-  const health = (await prisma.calendarCategory.create({ data: { name: 'Santé', color: '#fa5252', position: 1 } })).id;
-  const leisure = (await prisma.calendarCategory.create({ data: { name: 'Loisirs', color: '#40c057', position: 2 } })).id;
+  const family = await prisma.calendar.create({ data: { label: 'Famille', color: '#e64980', position: 0 } });
+  const kids = (await prisma.calendarCategory.create({ data: { label: 'Enfants', color: '#7950f2', position: 0 } })).id;
+  const health = (await prisma.calendarCategory.create({ data: { label: 'Santé', color: '#fa5252', position: 1 } })).id;
+  const leisure = (await prisma.calendarCategory.create({ data: { label: 'Loisirs', color: '#40c057', position: 2 } })).id;
   const event = {
     description: null,
     location: null,
@@ -216,7 +209,7 @@ export async function seedPersonal({
   };
   await createCalendarEvent({
     ...event,
-    title: 'Piano de Léa',
+    label: 'Piano de Léa',
     location: conservatory.address,
     locationLat: conservatory.lat,
     locationLon: conservatory.lon,
@@ -232,7 +225,7 @@ export async function seedPersonal({
   });
   await createCalendarEvent({
     ...event,
-    title: 'Anniversaire de Tom',
+    label: 'Anniversaire de Tom',
     allDay: true,
     startDate: day(9),
     startTime: null,
@@ -245,7 +238,7 @@ export async function seedPersonal({
   });
   await createCalendarEvent({
     ...event,
-    title: 'Repas chez Mamie',
+    label: 'Repas chez Mamie',
     location: '3 place Bellecour, 69002 Lyon',
     locationLat: 45.7578,
     locationLon: 4.832,
@@ -260,7 +253,7 @@ export async function seedPersonal({
   });
   await createCalendarEvent({
     ...event,
-    title: 'Dentiste — Tom',
+    label: 'Dentiste — Tom',
     location: 'Cabinet dentaire',
     startDate: day(4),
     startTime: '17:30',
@@ -272,7 +265,7 @@ export async function seedPersonal({
   });
   await createCalendarEvent({
     ...event,
-    title: 'Vacances d’été',
+    label: 'Vacances d’été',
     allDay: true,
     startDate: day(30),
     startTime: null,
@@ -285,16 +278,21 @@ export async function seedPersonal({
   await subscribe(proCalendarId);
 
   // --- Schedules: default kind renamed, a childcare kind every other week, working hours subscribed to -----------
-  await saveDefaultScheduleKind({ name: 'Disponibilités', color: '#40c057', dayDisplay: 'SLOT_BACKGROUND', dayBar: true, monthDisplay: 'BACKGROUND' });
+  await saveDefaultScheduleKind({ label: 'Disponibilités', color: '#40c057', dayDisplay: 'SLOT_BACKGROUND', dayBar: true, monthDisplay: 'BACKGROUND' });
   const range = (start: string, end: string) => ({ start, end });
   const weekly = (weekdays: number[], ranges: { start: string; end: string }[], every = 1) => ({ pattern: 'WEEKLY', weekdays, every, from: null, allDay: false, ranges });
   await prisma.workSchedule.create({
-    data: { name: 'Soirs et week-ends', startDate: date(addDays(monday, -56)), cases: [weekly([1, 2, 3, 4, 5], [range('19:00', '22:00')]), weekly([6, 7], [range('09:00', '22:00')])], exceptions: [] },
+    data: {
+      label: 'Soirs et week-ends',
+      startDate: date(addDays(monday, -56)),
+      cases: [weekly([1, 2, 3, 4, 5], [range('19:00', '22:00')]), weekly([6, 7], [range('09:00', '22:00')])],
+      exceptions: [],
+    },
   });
-  const childcare = await saveScheduleType(null, { name: 'Garde des enfants', color: '#7950f2', dayDisplay: 'DAY_BACKGROUND', dayBar: true, monthDisplay: 'BORDER' });
+  const childcare = await saveScheduleType(null, { label: 'Garde des enfants', color: '#7950f2', dayDisplay: 'DAY_BACKGROUND', dayBar: true, monthDisplay: 'BORDER' });
   const childcareSchedule = await prisma.workSchedule.create({
     data: {
-      name: 'Semaines de garde',
+      label: 'Semaines de garde',
       typeId: childcare.id,
       startDate: date(addDays(monday, -28)),
       cases: [weekly([1, 2, 4, 5], [range('16:30', '19:30')], 2), weekly([3], [range('12:00', '19:30')], 2)],
@@ -304,21 +302,21 @@ export async function seedPersonal({
   await subscribeScheduleKind(proWorkspaceId, null);
 
   // --- Treasury of the household ---------------------------------------------------------------------------
-  const account = await createAccount({ name: 'Compte joint', openingBalance: 2400, openingDate: day(-120) });
-  await createAccount({ name: 'Livret A', openingBalance: 8000, openingDate: day(-120) });
+  const account = await createAccount({ label: 'Compte joint', openingBalance: 2400, openingDate: day(-120) });
+  await createAccount({ label: 'Livret A', openingBalance: 8000, openingDate: day(-120) });
   const categoryIds = new Map<string, string>();
   const category = async (name: string, direction: 'IN' | 'OUT', parent?: string) => {
-    categoryIds.set(`${direction}:${name}`, (await createCategory({ name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null })).id);
+    categoryIds.set(`${direction}:${name}`, (await createCategory({ label: name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null })).id);
   };
   for (const name of ['Salaires', 'Allocations', 'Cadeaux reçus']) await category(name, 'IN');
   for (const name of ['Logement', 'Alimentation', 'Enfants', 'Loisirs', 'Santé', 'Cadeaux']) await category(name, 'OUT');
   for (const name of ['Loyer', 'Énergie']) await category(name, 'OUT', 'Logement');
   for (const name of ['Cantine', 'Activités']) await category(name, 'OUT', 'Enfants');
   const out = (name: string) => categoryIds.get(`OUT:${name}`) ?? null;
-  const card = (await createPaymentMethod({ name: 'Carte', incoming: false, outgoing: true })).id;
-  const transfer = (await createPaymentMethod({ name: 'Virement', incoming: true, outgoing: true })).id;
+  const card = (await createPaymentMethod({ label: 'Carte', incoming: false, outgoing: true })).id;
+  const transfer = (await createPaymentMethod({ label: 'Virement', incoming: true, outgoing: true })).id;
   const landlord = (await createCounterparty({ name: 'Régie Lyon Centre', note: null })).id;
-  const holidaysContext = (await saveContext(null, { name: 'Vacances', color: '#fab005' })).id;
+  const holidaysContext = (await saveContext(null, { label: 'Vacances', color: '#fab005' })).id;
   await saveContextPeriod(null, { contextId: holidaysContext, startDate: day(30), endDate: day(44), note: 'Gîte en Ardèche' });
   const entry = {
     accountId: account.id,
@@ -380,7 +378,7 @@ export async function seedPersonal({
     categoryId: out('Loisirs'),
     lines: [{ label: null, mode: 'PERCENT', value: 100, memberId: null, contextId: holidaysContext, categoryId: out('Loisirs') }],
   });
-  const month = today.slice(0, 7);
+  const month = monthOfDay(today);
   for (const [name, amount, changes] of [
     ['Alimentation', 600, {}],
     ['Loisirs', 80, { memberId: lea.id }],
@@ -392,19 +390,19 @@ export async function seedPersonal({
   await saveBudget(null, { month, memberId: null, contextId: null, repeatEvery: 1, repeatUntil: null, categoryId: categoryIds.get('IN:Salaires')!, amount: 2650 });
 
   // --- Shopping --------------------------------------------------------------------------------------------
-  const market = (await shoppingStores.create({ name: 'Marché', color: '#40c057' })).id;
-  const supermarket = (await shoppingStores.create({ name: 'Supermarché', color: '#228be6' })).id;
-  const pharmacy = (await shoppingStores.create({ name: 'Pharmacie', color: '#fa5252' })).id;
-  const fridge = (await shoppingStorages.create({ name: 'Réfrigérateur', color: '#15aabf' })).id;
-  const freezer = (await shoppingStorages.create({ name: 'Congélateur', color: '#4c6ef5' })).id;
+  const market = (await shoppingStores.create({ label: 'Marché', color: '#40c057' })).id;
+  const supermarket = (await shoppingStores.create({ label: 'Supermarché', color: '#228be6' })).id;
+  const pharmacy = (await shoppingStores.create({ label: 'Pharmacie', color: '#fa5252' })).id;
+  const fridge = (await shoppingStorages.create({ label: 'Réfrigérateur', color: '#15aabf' })).id;
+  const freezer = (await shoppingStorages.create({ label: 'Congélateur', color: '#4c6ef5' })).id;
   const usual = await createBaseList('Courses habituelles');
   const medicine = await createBaseList('Pharmacie');
-  const shopCategory = async (name: string, color: string, baseListIds: string[]) => (await createShoppingCategory({ name, color, parentId: null, baseListIds })).id;
+  const shopCategory = async (name: string, color: string, baseListIds: string[]) => (await createShoppingCategory({ label: name, color, parentId: null, baseListIds })).id;
   const fresh = await shopCategory('Frais', '#82c91e', [usual.id]);
   const grocery = await shopCategory('Épicerie', '#fab005', [usual.id]);
   const care = await shopCategory('Soins', '#fa5252', [medicine.id]);
-  const article = (name: string, categoryId: string, storeId: string, changes: Record<string, unknown> = {}) => ({
-    name,
+  const article = (label: string, categoryId: string, storeId: string, changes: Record<string, unknown> = {}) => ({
+    label,
     categoryId,
     storeId,
     url: null,
@@ -425,12 +423,12 @@ export async function seedPersonal({
   ] as const) {
     await createProduct({ ...item, baseListId, missing });
   }
-  const weekly_list = await createList({ name: 'Courses du samedi', taskIds: [], baseListIds: [usual.id, medicine.id] });
+  const weekly_list = await createList({ label: 'Courses du samedi', taskIds: [], baseListIds: [usual.id, medicine.id] });
   for (const item of (await prisma.shoppingItem.findMany({ where: { listId: weekly_list.id }, orderBy: { position: 'asc' } })).slice(0, 2)) await setItemPurchased(item.id, true);
-  const party = await createList({ name: 'Anniversaire de Tom', taskIds: [birthday.id], baseListIds: [] });
+  const party = await createList({ label: 'Anniversaire de Tom', taskIds: [birthday.id], baseListIds: [] });
   await addItem(party.id, article('Gâteau', grocery, supermarket, { quantity: 1, unitPrice: 18, note: 'Au chocolat, sans noix.' }));
   await addItem(party.id, article('Bougies', grocery, supermarket, { quantity: 1, unitPrice: 2.5 }));
-  const lastWeek = await createList({ name: 'Courses de la semaine dernière', taskIds: [], baseListIds: [] });
+  const lastWeek = await createList({ label: 'Courses de la semaine dernière', taskIds: [], baseListIds: [] });
   await addItem(lastWeek.id, article('Légumes', fresh, market, { quantity: 3, unit: 'kg', unitPrice: 2.8 }));
   for (const item of await prisma.shoppingItem.findMany({ where: { listId: lastWeek.id } })) await setItemPurchased(item.id, true);
   await setListClosed(lastWeek.id, true);
@@ -438,11 +436,11 @@ export async function seedPersonal({
   if (paid) await attachListEntry(lastWeek.id, paid.id);
 
   // --- Routines ------------------------------------------------------------------------------------------
-  const homeCategory = (await createRoutineCategory({ name: 'Maison', color: '#fd7e14', parentId: null })).id;
-  const kidsCategory = (await createRoutineCategory({ name: 'Enfants', color: '#7950f2', parentId: null })).id;
-  const healthCategory = (await createRoutineCategory({ name: 'Santé', color: '#fa5252', parentId: null })).id;
+  const homeCategory = (await createRoutineCategory({ label: 'Maison', color: '#fd7e14', parentId: null })).id;
+  const kidsCategory = (await createRoutineCategory({ label: 'Enfants', color: '#7950f2', parentId: null })).id;
+  const healthCategory = (await createRoutineCategory({ label: 'Santé', color: '#fa5252', parentId: null })).id;
   const routine = (title: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
-    createRoutine({ title, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], ...changes });
+    createRoutine({ label: title, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], ...changes });
   await routine('Se brosser les dents', rule({}), {
     categoryIds: [healthCategory],
     estimate: 3,
@@ -467,7 +465,7 @@ export async function seedPersonal({
   await routine('Aller chercher les enfants à l’école', rule({}), {
     categoryIds: [kidsCategory],
     scheduleIds: [childcareSchedule.id],
-    location: school.name,
+    location: school.label,
     locationLat: school.lat,
     locationLon: school.lon,
     travelBefore: 15,
@@ -483,21 +481,21 @@ export async function seedPersonal({
     fromTime: '19:00',
     dueTime: '21:00',
     estimate: 10,
-    location: home.name,
+    location: home.label,
     locationLat: home.lat,
     locationLon: home.lon,
     projectId: garden.id,
   });
   await routine('Vitamine D', rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }), { categoryIds: [healthCategory], dueTime: '09:00', reminders: [0] });
   const checks = await tickRoutines(today);
-  const gardenRoutine = await prisma.routine.findFirst({ where: { title: 'Arroser le jardin' } });
+  const gardenRoutine = await prisma.routine.findFirst({ where: { label: 'Arroser le jardin' } });
   for (const check of checks.filter((item) => item.routineId === gardenRoutine?.id).slice(0, 6)) {
     await createTimeEntry({ routineId: check.routineId, projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
   }
 
   // --- Tracked time on the projects ------------------------------------------------------------------------
   for (let index = 0; index < 6; index += 1) {
-    const startedAt = new Date(`${day(-faker.number.int({ min: 1, max: 30 }))}T${String(faker.number.int({ min: 9, max: 17 })).padStart(2, '0')}:00:00`);
+    const startedAt = localAt(day(-faker.number.int({ min: 1, max: 30 })), faker.number.int({ min: 9, max: 17 }));
     await createTimeEntry({
       projectId: faker.helpers.arrayElement([bathroom.id, garden.id, papers.id]),
       description: faker.helpers.arrayElement(['Bricolage', 'Rangement', 'Papiers']),
@@ -516,24 +514,24 @@ export async function seedPersonal({
   await addFiles(house.id, [pdf('Bail.pdf', 'Bail'), pdf('Quittance de loyer.pdf', 'Quittance de loyer')]);
 
   // --- Dashboard of the household ------------------------------------------------------------------------------
-  const board = await prisma.dashboard.create({ data: { name: 'Foyer', projectId: null, position: 0 } });
+  const board = await prisma.dashboard.create({ data: { label: 'Foyer', projectId: null, position: 0 } });
   await prisma.dashboardChart.createMany({
     data: [
       {
-        title: 'Dépenses par catégorie',
+        label: 'Dépenses par catégorie',
         wide: false,
         config: chart({ source: 'treasury', type: 'donut', dimension: 'category', period: 'past:91', measure: 'expense', treasury: { direction: 'out' } }),
       },
-      { title: 'Solde du compte joint', wide: true, config: chart({ source: 'treasury', type: 'line', dimension: 'date', bucket: 'week', period: 'past:91', measure: 'balance' }) },
-      { title: 'Tâches par projet', wide: false, config: chart({ type: 'stackedBar', dimension: 'project', series: 'state' }) },
+      { label: 'Solde du compte joint', wide: true, config: chart({ source: 'treasury', type: 'line', dimension: 'date', bucket: 'week', period: 'past:91', measure: 'balance' }) },
+      { label: 'Tâches par projet', wide: false, config: chart({ type: 'stackedBar', dimension: 'project', series: 'state' }) },
     ].map((item, position) => ({ ...item, dashboardId: board.id, position })),
   });
 
   // --- Alarms and notifications --------------------------------------------------------------------------------
   const alarm = { note: null, interval: 1, weekdays: [], endDate: null, minutes: null, projectId: null, taskId: null, enabled: true };
-  await createAlarm({ ...alarm, title: 'Sortir les poubelles', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [2], startDate: monday, time: '20:30', taskId: bins.id, projectId: garden.id });
-  await createAlarm({ ...alarm, title: 'Acheter le cadeau de Tom', type: 'REMINDER', frequency: 'ONCE', startDate: day(5), time: '12:00', taskId: birthday.id, projectId: papers.id });
-  await createAlarm({ ...alarm, title: 'Relevé des compteurs', type: 'REMINDER', frequency: 'MONTHLY', startDate: day(-20), time: '18:00' });
+  await createAlarm({ ...alarm, label: 'Sortir les poubelles', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [2], startDate: monday, time: '20:30', taskId: bins.id, projectId: garden.id });
+  await createAlarm({ ...alarm, label: 'Acheter le cadeau de Tom', type: 'REMINDER', frequency: 'ONCE', startDate: day(5), time: '12:00', taskId: birthday.id, projectId: papers.id });
+  await createAlarm({ ...alarm, label: 'Relevé des compteurs', type: 'REMINDER', frequency: 'MONTHLY', startDate: day(-20), time: '18:00' });
   await setWorkspaceNotifications(workspace.id, ['ALARMS', 'CALENDAR']);
 
   console.log('Fixtures de l’espace personnel :', {

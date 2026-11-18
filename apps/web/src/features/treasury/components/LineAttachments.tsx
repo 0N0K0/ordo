@@ -1,9 +1,10 @@
+import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
 import { Checkbox, Group, Select, Stack } from '@mantine/core';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { DatePickerInput } from '@mantine/dates';
 import { linkKey, type LineLink, type LineValues } from '../lib/lines';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
+
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -25,8 +26,6 @@ interface LineAttachmentsProps {
  * @returns {JSX.Element} Fields.
  */
 export function LineAttachments({ line, onChange, entryId, projects, documentGroups, onClose }: LineAttachmentsProps) {
-  const selectedDocuments = [...line.libraryDocumentIds.map((id) => `lib:${id}`), ...line.projectResourceIds.map((id) => `res:${id}`)];
-
   /**
    * Replaces the links of the line.
    * @param {LineLink[]} links Links.
@@ -61,22 +60,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         onChange={(date) => onChange({ date: date ? date : null })}
       />
       <Select label="Projet" clearable searchable {...treeSelectProps(projects)} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
-      <BatchMultiSelect
-        label="Pièces justificatives"
-        description="Documents de la bibliothèque ou des projets."
-        placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
-        searchable
-        clearable
-        nothingFoundMessage="Aucun document"
-        data={documentGroups}
-        value={selectedDocuments}
-        onChange={(keys) =>
-          onChange({
-            libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-            projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-          })
-        }
-      />
+      <SupportingDocumentsSelect data={documentGroups} value={line} onChange={onChange} />
       <LabeledField
         label="Liens"
         description="Une ligne d’un autre mouvement, ou un mouvement entier s’il n’est pas décomposé. Liés sur une même période, une entrée et une sortie se compensent dans les graphiques."

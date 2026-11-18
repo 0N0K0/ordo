@@ -54,7 +54,7 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         placeholder="Tous"
         data={unarchived(statuses ?? [], filter.statusIds).map((status) => ({
           value: status.id,
-          label: `${status.name} (${status.scope === 'QUOTE' ? 'devis' : 'factures'})`,
+          label: `${status.label} (${status.scope === 'QUOTE' ? 'devis' : 'factures'})`,
         }))}
         value={filter.statusIds}
         onChange={(statusIds) => set({ statusIds })}
@@ -87,7 +87,7 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
       ...categoryTree(all).map(({ category, path }) => ({
         id: path,
         parentId: category.parentId ? (paths.get(category.parentId) ?? null) : `direction:${category.direction}`,
-        label: category.name,
+        label: category.label,
         color: category.color,
       })),
     ],
@@ -101,7 +101,7 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         placeholder="Tous"
         data={unarchived(accounts ?? [], filter.accountIds).map((account) => ({
           value: account.id,
-          label: account.name,
+          label: account.label,
         }))}
         value={filter.accountIds}
         onChange={(accountIds) => set({ accountIds })}
@@ -143,7 +143,7 @@ export function SourceFilters({ source, config, context, change }: { source: Cha
   if (source === 'treasury') return <TreasuryFilters config={config} change={change} />;
   return (
     <>
-      <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
+      <TextInput placeholder="Recherche (libellé, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
       <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
       <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
     </>

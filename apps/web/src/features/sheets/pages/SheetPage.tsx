@@ -1,10 +1,11 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
-import { BackLink } from '../../../components/page/BackLink';
-import { Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+
+import { PAGES, sheetPath } from '../../../app/pages';
+import { Paper, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -21,7 +22,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { ON_ERROR, onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { Comments } from '../../comments/components/Comments';
@@ -29,21 +30,23 @@ import { useShoppingData } from '../../shopping/api';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
-import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
 import { SheetsSettings } from '../components/SheetsSettings';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { usePeople } from '../../shopping/lib/shopping-format';
 import { sheetItemSchema, shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
-import { countOf, plural } from '../../../lib/text';
+import { countOf, plural, sameName } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { DetailHeader } from '../../../components/page/DetailHeader';
+import { deleteSheetsAction } from '../lib/delete-sheets';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
@@ -56,12 +59,12 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
   const { data } = useShoppingData();
   const { addProducts } = useSheetMutations();
   const [ids, setIds] = useState<string[]>([]);
-  const baseNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
+  const baseNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.label]));
   // The archived references are not offered.
   const products = unarchived(data?.shoppingProducts ?? []);
   const groups = [...new Set(products.map((product) => product.baseListId))].map((baseListId) => ({
     group: baseNames.get(baseListId) ?? '',
-    items: products.filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.name })),
+    items: products.filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.label })),
   }));
   return (
     <Stack gap="md">
@@ -101,20 +104,20 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
   const { update } = useSheetMutations();
   const { data: categories } = useSheetCategories();
   const { context } = useTaskContext();
-  const [name, setName] = useState(sheet.name);
+  const [name, setName] = useState(sheet.label);
   const [note, setNote] = useState(sheet.note ?? '');
-  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, { onError: onMutationError });
+  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR);
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="sm">
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <TextInput
-            label="Nom"
+            label="Libellé"
             required
             readOnly={sheet.archived}
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
-            onBlur={() => (name.trim() && name.trim() !== sheet.name ? save({ name: name.trim() }) : setName(sheet.name))}
+            onBlur={() => (name.trim() && name.trim() !== sheet.label ? save({ label: name.trim() }) : setName(sheet.label))}
           />
           {context && (
             <ProjectSelect
@@ -168,7 +171,7 @@ export function SheetPage() {
   const products = shopping?.shoppingProducts ?? [];
   // The archived references are not offered (but the current one).
   const offeredProducts = unarchived(products);
-  const productName = new Map(products.map((product) => [product.id, product.name]));
+  const productName = new Map(products.map((product) => [product.id, product.label]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
   const people = usePeople();
   const comments = useCommentCounts(
@@ -208,32 +211,17 @@ export function SheetPage() {
       (item) => item.note,
     ),
   ];
-  const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.name ?? 'Fiche' });
+  const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.label ?? 'Fiche' });
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
     (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, ON_ERROR),
   );
 
   if (isPending) return <DetailSkeleton />;
-  if (!sheet)
-    return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
+  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo={PAGES.sheets.path} backLabel={PAGES.sheets.title} />;
 
   const locked = sheet.archived;
-  const remove = {
-    label: 'Supprimer',
-    icon: <TrashIcon aria-hidden />,
-    danger: true,
-    onClick: () =>
-      confirmDestructive({
-        title: 'Supprimer la fiche',
-        risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-        onConfirm: () =>
-          mutations.remove.mutate(
-            sheet.id,
-            formCallbacks(null, 'Fiche supprimée.', () => navigate('/sheets')),
-          ),
-      }),
-  };
+  const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate(PAGES.sheets.path))));
 
   /**
    * Row adding an item by its label, at the end of the table or of a group (the item takes the value of its group); a
@@ -250,12 +238,12 @@ export function SheetPage() {
         where={`dans ${group?.label ?? 'la fiche'}`}
         schema={sheetItemSchema.shape.label}
         onCreate={(text) => {
-          const product = offeredProducts.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
+          const product = offeredProducts.find((other) => sameName(other.label, text));
           return mutations.addItem.mutateAsync({
             sheetId: sheet.id,
             input: {
               productId: product?.id ?? null,
-              label: product?.name ?? text,
+              label: product?.label ?? text,
               categoryId: product?.categoryId ?? null,
               quantity: null,
               unit: product?.unit ?? null,
@@ -271,56 +259,43 @@ export function SheetPage() {
 
   return (
     <Stack gap="lg">
-      <BackLink to="/sheets">Fiches</BackLink>
-      <PageHeader
-        title={
-          sheet.archived ? (
-            <Group gap="xs" component="span">
-              {sheet.name}
-              <ArchivedBadge feminine />
-            </Group>
-          ) : (
-            sheet.name
-          )
+      <DetailHeader
+        back={{ to: PAGES.sheets.path, label: PAGES.sheets.title }}
+        page={<PageHeader title={PAGES.sheets.title} />}
+        title={sheet.label}
+        badges={sheet.archived && <ArchivedBadge feminine />}
+        subtitle={
+          <Text size="sm" c="dimmed">
+            {`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
+          </Text>
         }
-        description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
         actions={
-          sheet.archived ? (
-            <ActionButton
-              priority="secondary"
-              icon={<ArrowCounterClockwiseIcon aria-hidden />}
-              onClick={() => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: false, label: `Fiche « ${sheet.name} »`, feminine: true })}
-              menu={[remove]}
-            >
-              Restaurer
-            </ActionButton>
-          ) : (
+          !sheet.archived && (
             <ActionButton
               priority="secondary"
               icon={<CookingPotIcon aria-hidden />}
-              onClick={() => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />)}
-              menu={[
-                {
-                  label: 'Dupliquer',
-                  icon: <CopyIcon aria-hidden />,
-                  onClick: () =>
-                    mutations.duplicate.mutate(
-                      sheet.id,
-                      formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
-                    ),
-                },
-                {
-                  label: 'Archiver',
-                  icon: <ArchiveIcon aria-hidden />,
-                  onClick: () => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: true, label: `Fiche « ${sheet.name} »`, feminine: true }),
-                },
-                remove,
-              ]}
+              onClick={() => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} label={sheet.label} onDone={close} />)}
             >
               Utiliser cette fiche
             </ActionButton>
           )
         }
+        menu={{
+          name: `la fiche « ${sheet.label} »`,
+          items: [
+            !sheet.archived && {
+              label: 'Dupliquer',
+              icon: <CopyIcon aria-hidden />,
+              onClick: () =>
+                mutations.duplicate.mutate(
+                  sheet.id,
+                  formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(sheetPath(copy))),
+                ),
+            },
+            archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
+            remove,
+          ],
+        }}
       />
       {/* Made again once saved (its texts are those of the sheet). */}
       <SheetFields key={`${sheet.id}:${sheet.updatedAt}`} sheet={sheet} />
@@ -333,11 +308,11 @@ export function SheetPage() {
           locked
             ? undefined
             : (rows, clear) => [
-                deleteRowsAction([rows], {
+                deleteRowsAction(rows, {
                   label: 'Retirer',
                   title: 'Retirer les éléments',
-                  risks: `${countOf(rows.length, 'élément')} seront retirés de la fiche.`,
-                  remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
+                  risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la fiche.`,
+                  removeAll: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
                   done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
                   clear,
                 }),
@@ -374,7 +349,7 @@ export function SheetPage() {
               readOnly={locked}
               label={`Référence de ${item.label}`}
               nullable
-              data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.name }))}
+              data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.label }))}
               onSave={(productId) => bulk('product')(item, { productId })}
             />
           ),
@@ -442,7 +417,11 @@ export function SheetPage() {
         actions={(item) => (
           <RowActions
             name={item.label}
-            primary={{ label: 'Commentaires', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} />) }}
+            primary={{
+              label: 'Commentaires',
+              icon: <PlusIcon aria-hidden />,
+              onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} readOnly={sheet.archived} />),
+            }}
             items={[
               !locked && {
                 label: 'Retirer',
@@ -452,7 +431,7 @@ export function SheetPage() {
                   confirmDestructive({
                     title: 'Retirer l’élément',
                     risks: `« ${item.label} » sera retiré de la fiche, avec ses commentaires. Les listes déjà faites le gardent.`,
-                    onConfirm: () => mutations.removeItems.mutate([item.id], ON_ERROR),
+                    run: () => mutations.removeItems.mutateAsync([item.id]),
                   }),
               },
             ]}

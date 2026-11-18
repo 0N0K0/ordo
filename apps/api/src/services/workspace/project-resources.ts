@@ -1,4 +1,4 @@
-import { optionalText, requiredText } from '@ordo/shared';
+import { projectLinkSchema as linkSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { ProjectResource } from '../../generated/prisma/client';
@@ -6,12 +6,6 @@ import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { assertExists } from '../core/lookup';
-
-const linkSchema = z.object({
-  title: requiredText(200, 'Le titre est requis.'),
-  url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  note: optionalText(1000),
-});
 
 /**
  * Next position among the resources of a project.
@@ -45,22 +39,22 @@ export async function addProjectFiles(projectId: string, files: File[]): Promise
   for (const file of files) {
     if (file.size > 10 * 1024 * 1024) throw clientError('BAD_USER_INPUT', `« ${file.name} » est trop lourd (10 Mo maximum).`);
     const attachment = await prisma.attachment.create({ data: attachmentData(file.name, Buffer.from(await file.arrayBuffer())) });
-    await prisma.projectResource.create({ data: { kind: 'FILE', title: attachment.name, attachmentId: attachment.id, projectId, position: position++ } });
+    await prisma.projectResource.create({ data: { kind: 'FILE', label: attachment.filename, attachmentId: attachment.id, projectId, position: position++ } });
   }
 }
 
 /**
  * Renames a resource and changes its note (and the address of a link).
  * @param {string} id Resource.
- * @param {{ title: string, url?: string | null, note?: string | null }} input Changes.
+ * @param {{ label: string, url?: string | null, note?: string | null }} input Changes.
  * @returns {Promise<ProjectResource>} Resource.
  */
-export async function updateProjectResource(id: string, input: { title: string; url?: string | null; note?: string | null }): Promise<ProjectResource> {
+export async function updateProjectResource(id: string, input: { label: string; url?: string | null; note?: string | null }): Promise<ProjectResource> {
   const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
   const data =
     resource.kind === 'LINK'
-      ? parseInput(linkSchema, { title: input.title, url: input.url ?? resource.url ?? '', note: input.note ?? null })
-      : parseInput(linkSchema.omit({ url: true }), { title: input.title, note: input.note ?? null });
+      ? parseInput(linkSchema, { label: input.label, url: input.url ?? resource.url ?? '', note: input.note ?? null })
+      : parseInput(linkSchema.omit({ url: true }), { label: input.label, note: input.note ?? null });
   return prisma.projectResource.update({ where: { id }, data });
 }
 

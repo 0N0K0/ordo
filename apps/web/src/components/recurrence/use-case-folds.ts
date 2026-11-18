@@ -1,3 +1,4 @@
+import { toggledIn } from '../../lib/sets';
 import { useState } from 'react';
 
 /**
@@ -8,13 +9,7 @@ export function useCaseFolds() {
   const [unfolded, setUnfolded] = useState<ReadonlySet<number>>(new Set());
   return {
     isOpen: (index: number) => unfolded.has(index),
-    toggle: (index: number) =>
-      setUnfolded((current) => {
-        const next = new Set(current);
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-        return next;
-      }),
+    toggle: (index: number) => setUnfolded((current) => toggledIn(current, index)),
     open: (index: number) => setUnfolded((current) => new Set(current).add(index)),
     // The cases after a removed one move up.
     removed: (index: number) => setUnfolded((current) => new Set([...current].filter((item) => item !== index).map((item) => (item > index ? item - 1 : item)))),

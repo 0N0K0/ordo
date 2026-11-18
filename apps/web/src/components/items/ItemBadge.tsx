@@ -1,11 +1,10 @@
-import { Badge, type BadgeProps, type MantineSize } from '@mantine/core';
-import { ArchiveIcon } from '@phosphor-icons/react';
+import { Badge, type BadgeProps } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from './ItemAvatar';
 
 interface ItemBadgeProps extends Omit<BadgeProps, 'color' | 'children'> {
   /** Item of a settings list (a status, a category, a flag…); none: nothing shown. */
-  item: { name: string; color?: string | null; iconUrl?: string | null } | null | undefined;
+  item: { label: string; color?: string | null; iconUrl?: string | null } | null | undefined;
   /** Shown without an item. Optional. Default = nothing. */
   empty?: ReactNode;
   onClick?: () => void;
@@ -17,7 +16,7 @@ interface ItemBadgeProps extends Omit<BadgeProps, 'color' | 'children'> {
  * @param {ItemBadgeProps} props Component props.
  * @returns {JSX.Element | null} Badge.
  */
-export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBadgeProps) {
+export function ItemBadge({ item, empty, leftSection, ...props }: ItemBadgeProps) {
   if (!item) return empty ? <>{empty}</> : null;
   return (
     <Badge
@@ -25,23 +24,9 @@ export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBad
       radius="sm"
       {...props}
       color={item.color ?? 'gray'}
-      style={{ textTransform: 'none', ...(typeof style === 'object' ? style : {}) }}
-      leftSection={item.iconUrl ? <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
+      leftSection={item.iconUrl ? <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
     >
-      {item.name}
-    </Badge>
-  );
-}
-
-/**
- * « Archivé » badge of an archived thing (a task, a project, a list, an account), the same everywhere.
- * @param {{ feminine?: boolean, size?: MantineSize }} props Agreement with a feminine noun (« Archivée »), size.
- * @returns {JSX.Element} Badge.
- */
-export function ArchivedBadge({ feminine = false, size }: { feminine?: boolean; size?: MantineSize }) {
-  return (
-    <Badge color="gray" variant="light" size={size} leftSection={<ArchiveIcon aria-hidden />}>
-      {feminine ? 'Archivée' : 'Archivé'}
+      {item.label}
     </Badge>
   );
 }

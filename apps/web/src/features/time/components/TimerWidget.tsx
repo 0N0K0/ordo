@@ -27,7 +27,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
           <UnstyledButton className={classes.summary} onClick={toggle} aria-label="Détails du chrono">
             <span className={classes.dot} aria-hidden />
             <Text size="sm" truncate maw={160} visibleFrom="sm">
-              {project?.title ?? entry.routineTitle ?? 'Chrono'}
+              {project?.label ?? entry.routineLabel ?? 'Chrono'}
             </Text>
             <Text size="sm" ff="monospace" fw={600}>
               {formatClock(entrySeconds(entry, now))}

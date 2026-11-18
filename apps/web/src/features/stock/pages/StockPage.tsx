@@ -1,10 +1,9 @@
 import { PAGES } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { categoryPaths } from '../../../components/tree/category-tree';
 import { countBy } from '@ordo/shared';
-import { useSetParams } from '../../../lib/search-params';
 import { Stack } from '@mantine/core';
 import { ArchiveIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
-import { useSearchParams } from 'react-router';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -85,19 +84,20 @@ function StockSettings() {
   );
 }
 
+/** Tabs of the inventory page. */
+const STOCK_TABS = ['stock', 'movements', 'counts'] as const;
+
 /**
  * Inventory page: the stock (its items and their lots), the history of its movements, the inventories made, and its
  * settings (the places).
  * @returns {JSX.Element} Page.
  */
 export function StockPage() {
-  const [params] = useSearchParams();
-  const setParams = useSetParams();
-  const tab = params.get('tab') ?? 'stock';
+  const [tab, setTab] = usePageTab(STOCK_TABS);
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.stock.title} />
-      <PageTabs value={tab} onChange={(value) => setParams({ tab: value && value !== 'stock' ? value : null }, { only: true })} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="stock" leftSection={<ArchiveIcon aria-hidden />}>
             Stock

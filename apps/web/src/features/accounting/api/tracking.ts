@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope, SendingChannel } from '@ordo/shared';
@@ -15,7 +16,7 @@ const DocumentStatusesDocument = graphql(`
       id
       archived
       scope
-      name
+      label
       color
       iconUrl
       category
@@ -62,13 +63,13 @@ const SendReminders = graphql(`
 `);
 
 const CreateStatus = graphql(`
-  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {
-    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)
+  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $label: String!, $color: String!, $category: DocumentStatusCategory!) {
+    createDocumentStatus(scope: $scope, label: $label, color: $color, category: $category)
   }
 `);
 const UpdateStatus = graphql(`
-  mutation UpdateDocumentStatus($id: ID!, $name: String, $color: String, $category: DocumentStatusCategory) {
-    updateDocumentStatus(id: $id, name: $name, color: $color, category: $category)
+  mutation UpdateDocumentStatus($id: ID!, $label: String, $color: String, $category: DocumentStatusCategory) {
+    updateDocumentStatus(id: $id, label: $label, color: $color, category: $category)
   }
 `);
 const DeleteStatus = graphql(`
@@ -129,7 +130,7 @@ export function useOverdueInvoices(today: string) {
   // An archived invoice is not reminded (hidden from the day-to-day views).
   return useQuery({
     queryKey: [...accountingQueryKey, 'overdue', today],
-    queryFn: async () => (await execute(OverdueInvoicesDocument, { today })).overdueInvoices.filter((invoice) => !invoice.archived),
+    queryFn: async () => unarchived((await execute(OverdueInvoicesDocument, { today })).overdueInvoices),
   });
 }
 
@@ -150,12 +151,11 @@ function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVar
 export function useDocumentStatusMutations(scope: DocumentStatusScope) {
   return {
     create: useAccountingMutation(
-      async (input: { name: string; color: string; category?: DocumentStatusCategory }) =>
-        (await execute(CreateStatus, { scope, name: input.name, color: input.color, category: input.category ?? 'SENT' })).createDocumentStatus,
+      async (input: { label: string; color: string; category?: DocumentStatusCategory }) =>
+        (await execute(CreateStatus, { scope, label: input.label, color: input.color, category: input.category ?? 'SENT' })).createDocumentStatus,
     ),
     update: useAccountingMutation(
-      async ({ id, input }: { id: string; input: { name?: string; color?: string; category?: DocumentStatusCategory } }) =>
-        (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
+      async ({ id, input }: { id: string; input: { label?: string; color?: string; category?: DocumentStatusCategory } }) => (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
     ),
     remove: useAccountingMutation(async ({ id }: { id: string }) => (await execute(DeleteStatus, { id })).deleteDocumentStatus),
   };
@@ -174,9 +174,7 @@ export function useTrackingMutations() {
     accept: useAccountingMutation(async (variables: { id: string; date: string; file: File | null }) => (await execute(AcceptQuote, variables)).acceptQuote),
     removeSigned: useAccountingMutation(async (id: string) => (await execute(RemoveSignedQuote, { id })).removeSignedQuote),
     addReminder: useAccountingMutation(async (variables: { id: string; note: string | null }) => (await execute(AddReminder, variables)).addDocumentReminder),
-    sendReminders: useAccountingMutation(
-      async (variables: { accountId: string; documentIds: string[] }) => (await execute(SendReminders, variables)).sendDocumentReminders,
-    ),
+    sendReminders: useAccountingMutation(async (variables: { accountId: string; documentIds: string[] }) => (await execute(SendReminders, variables)).sendDocumentReminders),
     deleteReminder: useAccountingMutation(async (id: string) => (await execute(DeleteReminder, { id })).deleteDocumentReminder),
     recordPayment: useAccountingMutation(
       async (variables: { id: string; input: DocumentPaymentInput }) =>

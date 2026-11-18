@@ -7,7 +7,7 @@
 
   .itemRow {
     /* Animation */
-    transition: background-color 150ms ease;
+    transition: background-color var(--onoko-transition);
 
     &:hover {
       /* Arrière-Plan */
@@ -26,7 +26,7 @@
 
     &[data-done] {
       /* Effets */
-      opacity: 0.55;
+      opacity: var(--onoko-muted-opacity);
     }
   }
 
@@ -56,7 +56,7 @@
     border: 1px solid var(--mantine-color-default-border);
 
     /* Animation */
-    transition: opacity 150ms ease;
+    transition: opacity var(--onoko-transition);
 
     /* Interaction */
     cursor: pointer;
@@ -67,7 +67,7 @@
       text-decoration: line-through;
 
       /* Effets */
-      opacity: 0.55;
+      opacity: var(--onoko-muted-opacity);
     }
   }
 
@@ -91,7 +91,7 @@
     padding-inline: var(--mantine-spacing-xs);
 
     /* Animation */
-    transition: background-color 150ms ease;
+    transition: background-color var(--onoko-transition);
 
     /* Interaction */
     cursor: pointer;

@@ -19,7 +19,7 @@ const StockLocationsDocument = graphql(`
     stockLocations {
       id
       archived
-      name
+      label
       color
       iconUrl
       parentId

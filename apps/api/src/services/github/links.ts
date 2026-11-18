@@ -9,7 +9,7 @@ import { githubToken } from './client';
  * @returns {Promise<GithubProjectLink | null>} Link.
  */
 async function linkOfProject(projectId: string): Promise<GithubProjectLink | null> {
-  for (let current: string | null = projectId; current; ) {
+  for (let current: string | null = projectId; current;) {
     const link = await prisma.githubProjectLink.findUnique({ where: { projectId: current } });
     if (link) return link;
     current = (await prisma.project.findUnique({ where: { id: current }, select: { parentId: true } }))?.parentId ?? null;
@@ -43,7 +43,5 @@ export async function forgetGithubItems(ids: string[]): Promise<void> {
 export async function forgetGithubComment(id: string): Promise<void> {
   const comment = await prisma.taskComment.findUnique({ where: { id }, select: { githubCommentId: true } });
   if (!comment?.githubCommentId) return;
-  void (async () => deleteIssueComment(await githubToken(), comment.githubCommentId!))().catch((error: unknown) =>
-    console.warn('Commentaire GitHub non supprimé.', error),
-  );
+  void (async () => deleteIssueComment(await githubToken(), comment.githubCommentId!))().catch((error: unknown) => console.warn('Commentaire GitHub non supprimé.', error));
 }

@@ -11,7 +11,7 @@ const WorkspacesQueryDocument = graphql(`
   query Workspaces {
     workspaces {
       id
-      name
+      label
       kind
       position
       notifyElsewhere
@@ -105,11 +105,11 @@ export function useWorkspaceMutations() {
   const onSuccess = () => queryClient.invalidateQueries({ queryKey: workspacesQueryKey });
   return {
     create: useMutation({
-      mutationFn: async (input: { name: string; kind: WorkspaceKind }) => (await execute(CreateWorkspaceMutation, { input })).createWorkspace.id,
+      mutationFn: async (input: { label: string; kind: WorkspaceKind }) => (await execute(CreateWorkspaceMutation, { input })).createWorkspace.id,
       onSuccess,
     }),
     update: useMutation({
-      mutationFn: (variables: { id: string; input: { name: string; kind: WorkspaceKind } }) => execute(UpdateWorkspaceMutation, variables),
+      mutationFn: (variables: { id: string; input: { label: string; kind: WorkspaceKind } }) => execute(UpdateWorkspaceMutation, variables),
       onSuccess,
     }),
     setNotifications: useMutation({

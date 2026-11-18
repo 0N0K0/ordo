@@ -1,7 +1,8 @@
-import { prisma } from '../../db';
-import { clientError } from '../../graphql/errors';
+import { modelDelegate } from './delegate';
+import { clientError, fieldError } from '../../graphql/errors';
 import { assertAllExist } from './lookup';
 import { SETTINGS_LISTS } from './settings-lists';
+import { BY_POSITION } from './ordering';
 
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
@@ -64,7 +65,7 @@ const modelOf = (target: ArchivableKind | ArchivableModel): ArchivableModel => (
  * @param {ArchivableModel} model Model.
  * @returns {ArchiveDelegate} Its Prisma delegate (scoped to the current workspace, as every model).
  */
-const delegate = (model: ArchivableModel) => (prisma as unknown as Record<string, ArchiveDelegate>)[model];
+const delegate = (model: ArchivableModel) => modelDelegate<ArchiveDelegate>(model);
 
 /**
  * Condition of the elements archived, or not (every model tells it by its `archivedAt` date).
@@ -89,34 +90,54 @@ export async function setArchived(kind: ArchivableKind, ids: readonly string[], 
   await delegate(model).updateMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, data: { archivedAt: archived ? new Date() : null } });
 }
 
+/** How a value chosen in a form is checked: the values it had stay valid, the error shows under its field. */
+export interface ChosenOptions {
+  /** Values already there (the current value or values of the field): accepted even if archived. Optional. */
+  keep?: string | readonly (string | null | undefined)[] | null;
+  /** Field of the input (« categoryId », « lines.0.categoryId »): the error shows under it. Optional. Default = a toast. */
+  field?: string;
+}
+
 /**
- * Refuses a change of an archived element (BAD_USER_INPUT « Élément archivé… »). Nothing is checked without id nor
- * for an element that does not exist (its own lookup tells it).
+ * Refuses an archived element (BAD_USER_INPUT « Élément archivé… »): a change of it, or a value newly chosen in a
+ * form (decision AA: with `field`, the error shows under the field; the values in `keep` stay valid). Nothing is
+ * checked without id nor for an element that does not exist (its own lookup tells it).
  * @param {ArchivableKind | ArchivableModel} target Kind or Prisma model of the element (« SHEET », « sheet »…).
  * @param {string | null | undefined} id Element. Optional.
+ * @param {ChosenOptions} [options] Values kept and field of a chosen value. Optional.
  * @returns {Promise<void>}
  */
-export async function assertNotArchived(target: ArchivableKind | ArchivableModel, id: string | null | undefined): Promise<void> {
-  if (id) await assertNoneArchived(target, [id]);
+export async function assertNotArchived(target: ArchivableKind | ArchivableModel, id: string | null | undefined, options: ChosenOptions = {}): Promise<void> {
+  if (id) await assertNoneArchived(target, [id], options);
 }
 
 /**
- * Refuses a change of elements when one of them is archived (BAD_USER_INPUT « Élément archivé… »).
+ * Refuses elements when one of them is archived (BAD_USER_INPUT « Élément archivé… »), as `assertNotArchived`.
  * @param {ArchivableKind | ArchivableModel} target Kind or Prisma model of the elements.
- * @param {readonly string[] | null | undefined} ids Elements. Optional.
+ * @param {readonly (string | null | undefined)[] | null | undefined} ids Elements (empty values skipped). Optional.
+ * @param {ChosenOptions} [options] Values kept and field of chosen values. Optional.
  * @returns {Promise<void>}
  */
-export async function assertNoneArchived(target: ArchivableKind | ArchivableModel, ids: readonly string[] | null | undefined): Promise<void> {
-  if (!ids?.length) return;
+export async function assertNoneArchived(target: ArchivableKind | ArchivableModel, ids: readonly (string | null | undefined)[] | null | undefined, options: ChosenOptions = {}): Promise<void> {
+  const kept = new Set(typeof options.keep === 'string' ? [options.keep] : (options.keep ?? []));
+  const checked = [...new Set(ids ?? [])].filter((id): id is string => Boolean(id) && !kept.has(id));
+  if (!checked.length) return;
   const model = modelOf(target);
-  if ((await delegate(model).count({ where: { id: { in: [...new Set(ids)] }, ...archivedWhere(true) } })) > 0) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  if ((await delegate(model).count({ where: { id: { in: checked }, ...archivedWhere(true) } })) === 0) return;
+  throw options.field ? fieldError(options.field, ARCHIVED_MESSAGE) : clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+}
+
+/** Model delegate able to find the first record of a list (`prisma.calendar`, `tx.documentStatus`…). */
+interface FirstDelegate<T> {
+  findFirst(args: { where: object; orderBy: typeof BY_POSITION }): PromiseLike<T | null>;
 }
 
 /**
- * Prisma `where` of a list showing the archived elements or not (`archivedAt` models).
- * @param {boolean | null | undefined} showArchived Archived ones shown too. Optional. Default = hidden.
- * @returns {{ archivedAt?: null }} Condition to spread in a `where`.
+ * First record of a list in its manual order that is not archived, else the first one (archived), else none.
+ * @param {FirstDelegate} model Model delegate.
+ * @param {object} [where] The list: its scope. Optional. Default = every record.
+ * @returns {Promise<T | null>} Record.
  */
-export function archivedFilter(showArchived?: boolean | null): { archivedAt?: null } {
-  return showArchived ? {} : { archivedAt: null };
+export async function firstActive<T>(model: FirstDelegate<T>, where: object = {}): Promise<T | null> {
+  return (await model.findFirst({ where: { ...where, archivedAt: null }, orderBy: BY_POSITION })) ?? model.findFirst({ where, orderBy: BY_POSITION });
 }

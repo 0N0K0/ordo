@@ -102,7 +102,7 @@ function openDocument(document: LibraryDocument): void {
     return;
   }
   // PDFs and images in the app's viewer, other files downloaded.
-  openFile({ url: document.url, name: document.title, mimeType: document.mimeType });
+  openFile({ url: document.url, filename: document.title, mimeType: document.mimeType });
 }
 
 interface FolderTreeProps {

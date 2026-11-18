@@ -1,6 +1,7 @@
 import { Button, Group, type MantineSize } from '@mantine/core';
 import { ArrowsLeftRightIcon, CheckIcon, DownloadSimpleIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { ActionButton } from '../actions/ActionButton';
 
 interface FormActionsProps {
   /** Label of the submit button; null: none (a dialog that is only closed). Optional. Default = « Enregistrer ». */
@@ -65,9 +66,9 @@ export function FormActions({
   const buttons = (
     <Group justify="flex-end" gap={size === 'xs' ? 'xs' : 'sm'}>
       {onCancel && (
-        <Button variant="default" size={size} leftSection={cancelIcon} onClick={onCancel}>
+        <ActionButton priority="secondary" size={size} icon={cancelIcon} onClick={onCancel}>
           {cancelLabel}
-        </Button>
+        </ActionButton>
       )}
       {submitLabel !== null && (
         <Button

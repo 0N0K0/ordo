@@ -1,10 +1,32 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, EVERYDAY_CONTEXT, mapById, offsetLinkedMovements, plannedContext, round2, splitAmounts } from '@ordo/shared';
+import {
+  addDays,
+  type ChartConfig,
+  type ChartDimension,
+  type ChartGroupDimension,
+  type ChartMeasure,
+  EVERYDAY_CONTEXT,
+  mapById,
+  offsetLinkedMovements,
+  plannedContext,
+  round2,
+  splitAmounts,
+} from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../../treasury/api';
+import type {
+  ProjectionItem,
+  TreasuryAccount,
+  TreasuryCategory,
+  TreasuryContext,
+  TreasuryContextPeriod,
+  TreasuryEntry,
+  TreasuryMember,
+  TreasuryProjection,
+  TreasuryRelation,
+} from '../../treasury/api';
 import { categoryLineage, categoryPathLineage } from '../../treasury/lib/categories';
 import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, type ChartData, type ChartRecord, type Key } from './aggregate';
 
@@ -36,7 +58,7 @@ interface ChartDocument {
   clientId: string | null;
   clientName: string;
   projectId: string | null;
-  status: { id: string; name: string; color: string } | null;
+  status: { id: string; label: string; color: string } | null;
   totalNet: number;
   totalGross: number;
   paid: number;
@@ -183,8 +205,8 @@ export function documentChartData(
               ? [
                   {
                     key: document.status.id,
-                    label: document.status.name,
-                    order: document.status.name,
+                    label: document.status.label,
+                    order: document.status.label,
                     color: document.status.color,
                   },
                 ]
@@ -202,7 +224,7 @@ export function documentChartData(
               ? [
                   {
                     key: document.projectId,
-                    label: context.projectById.get(document.projectId)?.title ?? '',
+                    label: context.projectById.get(document.projectId)?.label ?? '',
                     order: context.projectLabel(document.projectId),
                   },
                 ]
@@ -378,7 +400,16 @@ export function treasuryChartData({
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,
       // A line of its own day (deferred debit card) counts that day.
-      movement: { ...base, ...(line.date ? { date: line.date } : {}), ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
+      movement: {
+        ...base,
+        ...(line.date ? { date: line.date } : {}),
+        ...category(line.categoryId ?? null),
+        amount: amounts[index] / 100,
+        projectId: line.projectId ?? null,
+        memberId: line.memberId ?? null,
+        relationId: line.relationId ?? null,
+        contextId: line.contextId ?? null,
+      },
       linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
     }));
     if (remainder !== 0 || !entry.lines.length) {
@@ -388,7 +419,10 @@ export function treasuryChartData({
         linkedIds: [...entry.linkedEntries.map((linked) => `entry:${linked.id}`), ...entry.linkedByLines.map((linked) => `line:${linked.id}`)],
       });
     }
-    partIds.set(entry.id, own.map((part) => part.id));
+    partIds.set(
+      entry.id,
+      own.map((part) => part.id),
+    );
     parts.push(...own);
   }
   /**
@@ -442,7 +476,7 @@ export function treasuryChartData({
             : none('Sans catégorie');
         case 'account': {
           const account = movement.accountId ? accountById.get(movement.accountId) : undefined;
-          return account ? [{ key: account.id, label: account.name, order: account.name }] : none('Sans compte');
+          return account ? [{ key: account.id, label: account.label, order: account.label }] : none('Sans compte');
         }
         case 'direction':
           return movement.amount >= 0 ? [{ key: 'in', label: 'Entrées', order: 0, color: 'green.6' }] : [{ key: 'out', label: 'Sorties', order: 1, color: 'red.6' }];
@@ -451,7 +485,7 @@ export function treasuryChartData({
             ? [
                 {
                   key: movement.projectId,
-                  label: context.projectById.get(movement.projectId)?.title ?? '',
+                  label: context.projectById.get(movement.projectId)?.label ?? '',
                   order: context.projectLabel(movement.projectId),
                 },
               ]
@@ -465,7 +499,7 @@ export function treasuryChartData({
         case 'context': {
           const item = movement.contextId ? contextById.get(movement.contextId) : undefined;
           return item
-            ? [{ key: item.id, label: item.name, order: String(item.position).padStart(6, '0'), color: item.color }]
+            ? [{ key: item.id, label: item.label, order: String(item.position).padStart(6, '0'), color: item.color }]
             : [{ key: 'everyday', label: EVERYDAY_CONTEXT, order: '', color: 'gray.5' }];
         }
         case 'entryStatus':

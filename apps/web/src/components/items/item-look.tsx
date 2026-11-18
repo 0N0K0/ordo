@@ -10,7 +10,7 @@ import { ItemAvatar } from './ItemAvatar';
  */
 export const hasAvatar = (option: { color?: string | null; iconUrl?: string | null }) => Boolean(option.color || option.iconUrl);
 
-/** Option of an item of a settings list: its name, with its color and image for its avatar. */
+/** Option of an item of a settings list: its label, with its color and image for its avatar. */
 interface ItemOption extends ComboboxItem {
   color?: string | null;
   iconUrl?: string | null;
@@ -39,7 +39,7 @@ export function itemRenderOption(options: readonly ItemOption[]): (input: Combob
 /** Item of a flat settings list offered as an option. */
 interface OptionItem {
   id: string;
-  name: string;
+  label: string;
   color?: string | null;
   iconUrl?: string | null;
   /** Archived: not offered, unless kept. Optional. */
@@ -53,11 +53,11 @@ type KeptValues = string | readonly (string | null | undefined)[] | null | undef
  * Options of the items of a flat settings list (a select, a column filter), each with its color and image for its
  * avatar; the archived items left out, except the current value(s).
  * @param {readonly OptionItem[]} items Items, in their order.
- * @param {(item: T) => string} [label] Label of an item. Optional. Default = its name.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
  * @param {KeptValues} [keep] Current value(s), offered even when archived. Optional.
  * @returns {ItemOption[]} Options.
  */
-export function itemOptions<T extends OptionItem>(items: readonly T[], label: (item: T) => string = (item) => item.name, keep?: KeptValues): ItemOption[] {
+export function itemOptions<T extends OptionItem>(items: readonly T[], label: (item: T) => string = (item) => item.label, keep?: KeptValues): ItemOption[] {
   return unarchived(items, keep).map((item) => ({ value: item.id, label: label(item), color: item.color ?? 'gray', iconUrl: item.iconUrl }));
 }
 
@@ -65,10 +65,10 @@ export function itemOptions<T extends OptionItem>(items: readonly T[], label: (i
  * Choices of a column filter on the items of a flat settings list: all of them (archived ones keep their labels in
  * groups and saved filters), the archived flagged so the filter offers them only while they are in it.
  * @param {readonly OptionItem[]} items Items, in their order.
- * @param {(item: T) => string} [label] Label of an item. Optional. Default = its name.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
  * @returns {(ItemOption & { archived?: boolean })[]} Choices.
  */
-export function itemChoices<T extends OptionItem>(items: readonly T[], label: (item: T) => string = (item) => item.name): (ItemOption & { archived?: boolean })[] {
+export function itemChoices<T extends OptionItem>(items: readonly T[], label: (item: T) => string = (item) => item.label): (ItemOption & { archived?: boolean })[] {
   return items.map((item) => ({ value: item.id, label: label(item), color: item.color ?? 'gray', iconUrl: item.iconUrl, ...(item.archived && { archived: true }) }));
 }
 
@@ -76,13 +76,13 @@ export function itemChoices<T extends OptionItem>(items: readonly T[], label: (i
  * Props of a Select or MultiSelect of the items of a flat settings list: each option with its avatar (its image, or
  * its initials on its color), as the chosen ones; the archived items left out, except the current value(s).
  * @param {readonly OptionItem[]} items Items, in their order.
- * @param {(item: T) => string} [label] Label of an item. Optional. Default = its name.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
  * @param {KeptValues} [keep] Current value(s), offered even when archived. Optional.
  * @returns {{ data: ItemOption[], renderOption: (input: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode }} Props.
  */
 export function listSelectProps<T extends OptionItem>(
   items: readonly T[],
-  label: (item: T) => string = (item) => item.name,
+  label: (item: T) => string = (item) => item.label,
   keep?: KeptValues,
 ): { data: ItemOption[]; renderOption: (input: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode } {
   const data = itemOptions(items, label, keep);

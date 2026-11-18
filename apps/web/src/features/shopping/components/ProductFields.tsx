@@ -31,7 +31,7 @@ export function UnitField({ value, onChange, current, ...props }: UnitFieldProps
       description="Tapez une unité absente pour l’ajouter aux paramètres des achats."
       placeholder="Aucune"
       // A unit is kept by its name.
-      onCreate={async (name) => (await createSettingsItem('Nouvelle unité', units, name))?.name ?? null}
+      onCreate={async (name) => (await createSettingsItem('Nouvelle unité', units, name))?.label ?? null}
       data={unitOptions(unarchived(data?.shoppingUnits ?? []), current)}
       searchable
       clearable

@@ -34,7 +34,7 @@ export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTim
   const message = pause
     ? `Pendant une pause de vos plages de travail : ${pause.label || 'pause'}.`
     : slots.length
-      ? `En dehors de vos horaires de travail ce jour-là (${slots.map((slot) => `${slot.start}–${slot.end}`).join(', ')}).`
+      ? `En dehors de vos plages de travail ce jour-là (${slots.map((slot) => `${slot.start}–${slot.end}`).join(', ')}).`
       : 'Pas de plage de travail prévue ce jour-là.';
   return (
     <NoticeAlert kind="warning" py="xs">

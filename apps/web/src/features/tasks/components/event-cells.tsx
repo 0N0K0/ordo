@@ -4,9 +4,9 @@ import { addDays, daysBetween, formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useNow } from '../../../lib/use-now';
 
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess, ON_ERROR } from '../../../lib/notify';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
-import { eventKey, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, type TaskTableRow } from '../lib/task-columns';
 import type { TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/lib/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
@@ -16,7 +16,7 @@ import classes from './TaskTable.module.css';
 import type { TaskContext } from '../hooks/use-task-context';
 import { EVENT_STATES, eventState } from '../lib/event-format';
 
-import { cellField as sharedField, stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellField } from '../../../components/data-table/cells/cell-field';
 import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -48,7 +48,7 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
       <Tooltip label={reason} disabled={!struck}>
         <UnstyledButton onClick={() => openEvent({ occurrence: event })} style={{ minWidth: 0 }}>
           <Text size="sm" fw={500} truncate td={struck ? 'line-through' : undefined} c={struck ? 'dimmed' : undefined}>
-            {event.title}
+            {event.label}
           </Text>
         </UnstyledButton>
       </Tooltip>
@@ -60,10 +60,6 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
     </Group>
   );
 }
-
-/** Look of the cell fields, like those of the tasks. */
-/** Fields of the cells, a click kept from the row. */
-const cellField = { ...sharedField, onClick: stopClick } as const;
 
 /**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
@@ -78,7 +74,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
   return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
     // The events of the selection of the table (on this column), else this one.
     const events = (table?.rows ?? []).flatMap((row) => (row.kind === 'event' ? [row.event] : []));
-    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventKey, rows: events }, column, event);
+    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventRowKey, rows: events }, column, event);
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
       const chosen = await askScope({ action: 'update' });
@@ -88,10 +84,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
     for (const target of targets) {
       const change = typeof changes === 'function' ? changes(target) : changes;
       if (!Object.keys(change).length) continue;
-      update.mutate(
-        { id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } },
-        { onError: onMutationError },
-      );
+      update.mutate({ id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } }, ON_ERROR);
     }
     if (targets.length > 1) notifySuccess(`Modification appliquée à ${targets.length} évènements.`);
   };
@@ -109,7 +102,7 @@ export function EventPeopleCell({ event, context }: { event: EventOccurrence; co
       value={event.contributorIds}
       projectId={event.projectId}
       context={context}
-      label={`Personnes de l’évènement ${event.title}`}
+      label={`Personnes de l’évènement ${event.label}`}
       onSave={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
     />
   );
@@ -126,7 +119,7 @@ export function EventStatusCell({ event }: { event: EventOccurrence }) {
   const now = useNow(true, 60_000);
   const { label, color } = EVENT_STATES[eventState(event, now)];
   return (
-    <Badge variant="light" color={color} radius="sm" style={{ textTransform: 'none' }}>
+    <Badge variant="light" color={color} radius="sm">
       {label}
     </Badge>
   );
@@ -182,27 +175,27 @@ const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.en
 
 /**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
- * zone). Moving the start moves the end too (same duration); the end never goes before the start.
+ * zone). Moving the start moves the end too (same duration); an end set before the start moves the start to it (decision Q).
  * @param {{ event: EventOccurrence, side: 'start' | 'end' }} props Occurrence and side.
  * @returns {JSX.Element} Cell.
  */
 export function EventWhenCell({ event, side }: { event: EventOccurrence; side: 'start' | 'end' }) {
   const save = useEventSave(event, side === 'start' ? 'startDate' : 'endDate');
-  const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.title}`;
+  const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.label}`;
   const startDate = event.startDate;
   const endDate = event.endDate;
 
   if (event.allDay) {
     return (
       <DatePickerInput
-        {...cellField}
+        {...stoppedCellField}
         aria-label={label}
         value={side === 'start' ? startDate : endDate}
         minDate={side === 'end' ? startDate : undefined}
         onChange={(date) => {
           if (!date) return;
-          // Each event keeps its own length; an end never comes before its start.
-          if (side === 'end') void save((target) => (date >= target.startDate ? { endDate: date } : {}));
+          // Each event keeps its own length; an end set before its start brings the start to it.
+          if (side === 'end') void save((target) => (date >= target.startDate ? { endDate: date } : { startDate: date, endDate: date }));
           else void save((target) => ({ startDate: date, endDate: addDays(date, spanOf(target)) }));
         }}
         popoverProps={{ withinPortal: true }}
@@ -210,11 +203,10 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
     );
   }
 
-  const start = wall(startDate, event.startTime ?? null);
   const value = side === 'start' ? `${startDate} ${event.startTime}:00` : `${endDate} ${event.endTime}:00`;
   return (
     <DateTimePicker
-      {...cellField}
+      {...stoppedCellField}
       aria-label={label}
       value={value}
       minDate={side === 'end' ? startDate : undefined}
@@ -228,8 +220,11 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
             const newEnd = fromWall(moved + lengthOf(target));
             return { startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time };
           });
-        } else if (moved < start) notifyError('La fin ne peut pas être avant le début.');
-        else void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? { endDate: date, endTime: clock.slice(0, 5) } : {}));
+        } else {
+          // An end set before the start brings the start to it.
+          const end = { endDate: date, endTime: clock.slice(0, 5) };
+          void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? end : { ...end, startDate: date, startTime: end.endTime }));
+        }
       }}
       popoverProps={{ withinPortal: true }}
     />
@@ -246,7 +241,7 @@ export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
   const save = useEventSave(event, 'beneficiaries');
   return (
     <BeneficiariesCell
-      label={`Bénéficiaires de ${event.title}`}
+      label={`Bénéficiaires de ${event.label}`}
       value={event}
       onSave={(beneficiaries) =>
         void save((target) => ({

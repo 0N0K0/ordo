@@ -14,7 +14,7 @@ interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
   onAdd: (sheetId: string, multiplier: number) => Promise<unknown>;
   /** Sheets already in the list, that can be taken out (their share of the items). Optional. */
-  present?: { sheetId: string; name: string }[];
+  present?: { sheetId: string; label: string }[];
   onRemove?: (sheetId: string) => Promise<unknown>;
   onDone: () => void;
 }
@@ -43,7 +43,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           label="Fiche"
           placeholder={sheets?.length ? 'Choisir une fiche' : 'Aucune fiche'}
           searchable
-          data={(sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.name }))}
+          data={(sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.label }))}
           value={sheetId}
           onChange={setSheetId}
           style={{ flex: 1 }}
@@ -55,14 +55,14 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
         <LabeledField label="Fiches de la liste">
           {present.map((sheet) => (
             <Group key={sheet.sheetId} gap="xs" justify="space-between" wrap="nowrap">
-              <Text size="sm">{sheet.name}</Text>
+              <Text size="sm">{sheet.label}</Text>
               <RemoveButton
-                label="Retirer la fiche de la liste"
-                aria-label={`Retirer ${sheet.name} de la liste`}
+                label="Retirer"
+                aria-label={`Retirer ${sheet.label} de la liste`}
                 onClick={() =>
                   confirmDestructive({
                     title: 'Retirer la fiche',
-                    risks: `La part de « ${sheet.name} » sera retirée des quantités de la liste, et les éléments qu’elle seule apportait (pas encore achetés ou cochés) seront supprimés.`,
+                    risks: `La part de « ${sheet.label} » sera retirée des quantités de la liste, et les éléments qu’elle seule apportait (pas encore achetés ou cochés) seront supprimés.`,
                     onConfirm: () =>
                       onRemove(sheet.sheetId)
                         .then(() => notifySuccess('Fiche retirée.'))

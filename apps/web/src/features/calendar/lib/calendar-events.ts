@@ -1,5 +1,8 @@
+import type { EventInput } from '@fullcalendar/core';
 import { addDays, mapById, readScheduleDisplay, type ScheduleDisplay, type WorkScheduleRule } from '@ordo/shared';
 import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import { archivedIds } from '../../../lib/archive';
+import classes from '../pages/CalendarPage.module.css';
 
 /** Schedule of another workspace subscribed to. */
 type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['data']>[number];
@@ -37,37 +40,41 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
  * @returns {Set<string>} Ids.
  */
 export function archivedCalendarIds(calendars: readonly { id: string; archived: boolean }[] | undefined): Set<string> {
-  return new Set((calendars ?? []).filter((calendar) => calendar.archived).map((calendar) => calendar.id));
+  return archivedIds(calendars);
 }
 
-/** Schedule shown as slots: its rule, the color of its kind, its name, whether of another workspace, and its display. */
-export interface ScheduleSource {
+/** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
+interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
   color: string | null;
-  name: string;
+  label: string;
   foreign: boolean;
   display: ScheduleDisplay;
 }
 
 /**
+ * Label of a layer of slots, the same everywhere (the agenda, its layers, the day of a routine): « Libellé (Type) »,
+ * and « · Espace » after it for a schedule of another workspace.
+ * @param {string} label Label of the schedule.
+ * @param {string | null | undefined} type Label of its kind (none, or the same: left out).
+ * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
+ * @returns {string} Label.
+ */
+function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
+  return `${label}${type && type !== label ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
+}
+
+/**
  * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
- * those of other workspaces subscribed to (their name followed by their workspace).
+ * those of other workspaces subscribed to, each labelled « Libellé (Type) » (`scheduleLayerLabel`).
  * @param {readonly WorkSchedule[]} own Schedules of the workspace.
  * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
  * @param {readonly ScheduleType[]} types Kinds of slots.
  * @param {DefaultKind} defaultKind Default kind of the workspace.
- * @param {{ kindNames?: boolean }} [options] Named after their kind (« Travail », « Travail · Atelier ») rather than
- *   their own name. Optional. Default = own name.
  * @returns {ScheduleSource[]} Sources.
  */
-export function scheduleSources(
-  own: readonly WorkSchedule[],
-  foreign: readonly ForeignSchedule[],
-  types: readonly ScheduleType[],
-  defaultKind: DefaultKind,
-  { kindNames = false }: { kindNames?: boolean } = {},
-): ScheduleSource[] {
+export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly ForeignSchedule[], types: readonly ScheduleType[], defaultKind: DefaultKind): ScheduleSource[] {
   const typeOf = mapById(types);
   return [
     ...own.map((schedule) => {
@@ -77,7 +84,7 @@ export function scheduleSources(
         schedule,
         rule: scheduleRules([schedule])[0],
         color: kind?.color ?? null,
-        name: kindNames ? (kind?.name ?? schedule.name) : schedule.name,
+        label: scheduleLayerLabel(schedule.label, kind?.label),
         foreign: false,
         display: readScheduleDisplay(kind),
       };
@@ -86,9 +93,24 @@ export function scheduleSources(
       schedule,
       rule: scheduleRules([schedule])[0],
       color: schedule.color ?? null,
-      name: `${kindNames ? (schedule.typeName ?? schedule.name) : schedule.name} · ${schedule.workspaceName}`,
+      label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
       foreign: true,
       display: readScheduleDisplay(schedule),
     })),
   ];
+}
+
+/**
+ * Look of the bar of a schedule on a day (the all-day row of the week and the day): in the color of its kind (working
+ * hours without one), hatched for a schedule of another workspace.
+ * @param {{ color: string | null, foreign: boolean }} source Schedule shown.
+ * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
+ */
+export function slotBarLook({ color, foreign }: { color: string | null; foreign: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
+  return {
+    backgroundColor: color ?? 'var(--mantine-color-green-light)',
+    borderColor: color ?? 'var(--mantine-color-green-light)',
+    textColor: 'var(--mantine-color-text)',
+    classNames: [classes.slotBar, ...(foreign ? [classes.subscribedSlot] : [])],
+  };
 }

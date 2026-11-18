@@ -45,7 +45,7 @@ export function MailListPane({ top, selection, toolbar, status, stale, page, pag
         </Group>
       </Stack>
       {status ?? (
-        <div className={classes.paneScroll} style={{ opacity: stale ? 0.6 : 1 }}>
+        <div className={classes.paneScroll} style={{ opacity: stale ? 'var(--onoko-stale-opacity)' : 1 }}>
           {children}
         </div>
       )}

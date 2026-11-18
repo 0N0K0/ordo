@@ -1,9 +1,11 @@
+import { modelDelegate } from './delegate';
 import { commentBodySchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
-import { assertExists, deleteOrNotFound } from './lookup';
+import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { assertNotArchived, type ArchivableModel } from './archive';
+import { deleteOrNotFound } from './lookup';
 
 /** Items that take comments (tasks have their own), and their column on a comment. */
 export const COMMENT_TARGETS = {
@@ -27,34 +29,69 @@ export const COMMENT_TARGETS = {
 } as const;
 export type CommentTarget = keyof typeof COMMENT_TARGETS;
 
+/** Model of an item commented, and the archivable element that locks it: itself, or the element it is in (its field). */
+type TargetModel = { model: string; lock?: ArchivableModel; via?: string };
+
+/** Model of each item that takes comments (a mail is named by its Message-ID, kept on its server). */
+const TARGET_MODELS: Record<Exclude<CommentTarget, 'MAIL'>, TargetModel> = {
+  ROUTINE: { model: 'routine', lock: 'routine' },
+  EVENT: { model: 'calendarEvent', lock: 'calendarEvent' },
+  SCHEDULE: { model: 'workSchedule', lock: 'workSchedule' },
+  TIME_ENTRY: { model: 'timeEntry' },
+  SHOPPING_LIST: { model: 'shoppingList', lock: 'shoppingList' },
+  SHOPPING_PRODUCT: { model: 'shoppingProduct', lock: 'shoppingProduct' },
+  SHOPPING_ITEM: { model: 'shoppingItem', lock: 'shoppingList', via: 'listId' },
+  SHEET_ITEM: { model: 'sheetItem', lock: 'sheet', via: 'sheetId' },
+  STOCK_ITEM: { model: 'stockItem', lock: 'stockItem' },
+  DOCUMENT: { model: 'accountingDocument', lock: 'accountingDocument' },
+  IMPORTED_DOCUMENT: { model: 'importedDocument', lock: 'importedDocument' },
+  CATALOG_ITEM: { model: 'catalogItem', lock: 'catalogItem' },
+  TREASURY_ENTRY: { model: 'treasuryEntry', lock: 'treasuryEntry' },
+  BUDGET: { model: 'treasuryBudget', lock: 'treasuryBudget' },
+  RELATION: { model: 'treasuryRelation', lock: 'treasuryRelation' },
+  LIBRARY_DOCUMENT: { model: 'libraryDocument' },
+};
+
+/** Model delegate able to find one record by id (`prisma.routine`…). */
+interface FindDelegate {
+  findUnique(args: { where: { id: string }; select: Record<string, true> }): PromiseLike<Record<string, string> | null>;
+}
+
 /**
- * Checks that the item a comment goes on exists (a mail is named by its Message-ID, kept on its server).
+ * Checks that the item a comment goes on exists and is not archived, nor in an archived element (an item of a sheet or
+ * of a shopping list): an archived element is read only, its comments too.
  * @param {CommentTarget} target Kind of item.
  * @param {string} id Item id (Message-ID for a mail).
  * @returns {Promise<void>}
  */
 async function assertTarget(target: CommentTarget, id: string): Promise<void> {
-  const where = { where: { id }, select: { id: true } };
-  const found = {
-    ROUTINE: () => prisma.routine.findUnique(where),
-    EVENT: () => prisma.calendarEvent.findUnique(where),
-    SCHEDULE: () => prisma.workSchedule.findUnique(where),
-    TIME_ENTRY: () => prisma.timeEntry.findUnique(where),
-    SHOPPING_LIST: () => prisma.shoppingList.findUnique(where),
-    SHOPPING_PRODUCT: () => prisma.shoppingProduct.findUnique(where),
-    SHOPPING_ITEM: () => prisma.shoppingItem.findUnique(where),
-    SHEET_ITEM: () => prisma.sheetItem.findUnique(where),
-    STOCK_ITEM: () => prisma.stockItem.findUnique(where),
-    DOCUMENT: () => prisma.accountingDocument.findUnique(where),
-    IMPORTED_DOCUMENT: () => prisma.importedDocument.findUnique(where),
-    CATALOG_ITEM: () => prisma.catalogItem.findUnique(where),
-    TREASURY_ENTRY: () => prisma.treasuryEntry.findUnique(where),
-    BUDGET: () => prisma.treasuryBudget.findUnique(where),
-    RELATION: () => prisma.treasuryRelation.findUnique(where),
-    LIBRARY_DOCUMENT: () => prisma.libraryDocument.findUnique(where),
-    MAIL: async () => (id.trim() ? { id } : null),
-  }[target];
-  if (!(await found())) throw notFound('Élément');
+  if (target === 'MAIL') {
+    if (!id.trim()) throw notFound('Élément');
+    return;
+  }
+  const { model, lock, via } = TARGET_MODELS[target];
+  const item = await orNotFound(modelDelegate<FindDelegate>(model).findUnique({ where: { id }, select: { [via ?? 'id']: true } }), 'Élément');
+  if (lock) await assertNotArchived(lock, item[via ?? 'id']);
+}
+
+/**
+ * Checks that the item of a comment can still take changes (assertTarget).
+ * @param {string} id Comment id.
+ * @returns {Promise<void>}
+ */
+async function assertCommentTarget(id: string): Promise<void> {
+  const comment = await orNotFound(prisma.comment.findUnique({ where: { id } }), 'Commentaire');
+  const target = (Object.keys(COMMENT_TARGETS) as CommentTarget[]).find((kind) => comment[COMMENT_TARGETS[kind]]);
+  if (target) await assertTarget(target, comment[COMMENT_TARGETS[target]]!);
+}
+
+/**
+ * Body of a comment, checked (markdown, not empty).
+ * @param {string} body Markdown.
+ * @returns {string} Body.
+ */
+export function commentBody(body: string): string {
+  return parseInput(z.object({ body: commentBodySchema }), { body }).body;
 }
 
 /**
@@ -71,35 +108,36 @@ export async function commentCounts(target: CommentTarget, ids: string[]): Promi
 }
 
 /**
- * Comments an item.
+ * Comments an item (not an archived one).
  * @param {CommentTarget} target Kind of item.
  * @param {string} id Item id (Message-ID for a mail).
  * @param {string} body Markdown.
  * @returns {Promise<Comment>} Comment.
  */
 export async function addComment(target: CommentTarget, id: string, body: string): Promise<Comment> {
-  const data = parseInput(z.object({ body: commentBodySchema }), { body });
+  const text = commentBody(body);
   await assertTarget(target, id);
-  return prisma.comment.create({ data: { body: data.body, [COMMENT_TARGETS[target]]: id } });
+  return prisma.comment.create({ data: { body: text, [COMMENT_TARGETS[target]]: id } });
 }
 
 /**
- * Changes a comment.
+ * Changes a comment (not one of an archived item).
  * @param {string} id Comment id.
  * @param {string} body Markdown.
  * @returns {Promise<Comment>} Comment.
  */
 export async function updateComment(id: string, body: string): Promise<Comment> {
-  const data = parseInput(z.object({ body: commentBodySchema }), { body });
-  await assertExists(prisma.comment, id, 'Commentaire');
-  return prisma.comment.update({ where: { id }, data: { body: data.body } });
+  const text = commentBody(body);
+  await assertCommentTarget(id);
+  return prisma.comment.update({ where: { id }, data: { body: text } });
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (not one of an archived item).
  * @param {string} id Comment id.
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
+  await assertCommentTarget(id);
   await deleteOrNotFound(prisma.comment, id, 'Commentaire');
 }

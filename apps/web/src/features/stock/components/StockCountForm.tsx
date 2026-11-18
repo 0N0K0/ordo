@@ -1,18 +1,19 @@
+import { locationSelectProps } from '../hooks/use-location-select';
 import { formCallbacks } from '../../../lib/form';
 import { isUnderOrSelf } from '@ordo/shared';
-import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
+import { categoryPaths } from '../../../components/tree/category-tree';
 import { Select, Stack, Text, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { treeSelectProps } from '../../../components/tree/tree-select';
+
 import * as fmt from '../../../lib/format';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
-import { unarchivedOffered } from '../../../lib/archive';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -36,7 +37,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
    */
   const within = (id: string | null | undefined) => !locationId || (!!id && isUnderOrSelf(parentOf, id, locationId));
   // The archived items are not counted.
-  const rows = (items ?? []).filter((item) => !item.archived && within(item.locationId));
+  const rows = unarchived(items ?? []).filter((item) => within(item.locationId));
   const columns: DataColumn<StockItem>[] = [
     { id: 'label', label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
     { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
@@ -48,21 +49,13 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
       numeric: true,
       locked: true,
       sortValue: (item) => counts.get(item.id) ?? null,
-      text: (item) => (counts.has(item.id) ? fmt.number(counts.get(item.id)!, 3) : ''),
+      text: (item) => fmt.quantity({ quantity: counts.get(item.id) }),
     },
   ];
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
   return (
     <Stack gap="md">
-      <Select
-        label="Emplacement"
-        placeholder="Tout le stock"
-        clearable
-        searchable
-        {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], locationId)))}
-        value={locationId}
-        onChange={setLocationId}
-      />
+      <Select label="Emplacement" placeholder="Tout le stock" clearable searchable {...locationSelectProps(locations ?? [], locationId)} value={locationId} onChange={setLocationId} />
       <Text size="xs" c="dimmed">
         Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l’écart avec l’attendu est noté dans l’historique.
       </Text>
@@ -78,7 +71,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
               min={0}
               allowNegative={false}
               hideControls
-              placeholder={fmt.number(item.quantity, 3)}
+              placeholder={fmt.quantity({ quantity: item.quantity })}
               value={counts.get(item.id) ?? ''}
               onChange={(value) =>
                 setCounts((current) => {

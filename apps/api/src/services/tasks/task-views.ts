@@ -1,4 +1,4 @@
-import { tableKeySchema, tableViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
+import { tableKeySchema, tableViewConfigSchema, taskViewLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
@@ -49,15 +49,15 @@ const scopeOf = (view: TaskView) => viewScope(view.projectId, view.kind, view.ta
 /**
  * Creates a view at the end of its scope. The first view of a scope becomes its default one.
  * @param {object} input View input.
- * @param {string} input.name Name.
+ * @param {string} input.label Label.
  * @param {unknown} input.config Configuration.
  * @param {string | null} [input.projectId] Project, or null / omitted for the home page. Optional.
  * @param {ViewKind | null} [input.kind] Kind of the view: the rows of a table (default; the former kinds are no longer made). Optional.
  * @param {string | null} [input.tableKey] Table of a view of kind TABLE (required for it). Optional.
  * @returns {Promise<TaskView>} Created view.
  */
-export async function createView(input: { name: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
-  const { name } = parseInput(z.object({ name: taskViewNameSchema }), input);
+export async function createView(input: { label: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
+  const { label } = parseInput(z.object({ label: taskViewLabelSchema }), input);
   const kind = input.kind ?? 'TABLE';
   const tableKey = kind === 'TABLE' ? parseInput(z.object({ tableKey: tableKeySchema }), { tableKey: input.tableKey }).tableKey : null;
   const config = parseConfig(kind, input.config);
@@ -65,7 +65,7 @@ export async function createView(input: { name: string; config: unknown; project
   await assertExists(prisma.project, projectId, 'Projet');
   const [position, count] = await Promise.all([nextPositionIn('taskView', viewScope(projectId, kind, tableKey)), prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) })]);
   return prisma.taskView.create({
-    data: { name, kind, tableKey, config, projectId, position, isDefault: count === 0 },
+    data: { label, kind, tableKey, config, projectId, position, isDefault: count === 0 },
   });
 }
 
@@ -73,29 +73,27 @@ export async function createView(input: { name: string; config: unknown; project
  * Renames a view and/or saves its configuration.
  * @param {string} id View id.
  * @param {object} input Changes; omitted fields are left unchanged.
- * @param {string | null} [input.name] New name. Optional.
+ * @param {string | null} [input.label] New label. Optional.
  * @param {unknown} [input.config] New configuration. Optional.
  * @returns {Promise<TaskView>} Updated view.
  */
-export async function updateView(id: string, input: { name?: string | null; config?: unknown }): Promise<TaskView> {
+export async function updateView(id: string, input: { label?: string | null; config?: unknown }): Promise<TaskView> {
   const view = await findView(id);
-  const { name } = parseInput(z.object({ name: taskViewNameSchema.optional() }), { name: input.name ?? undefined });
+  const { label } = parseInput(z.object({ label: taskViewLabelSchema.optional() }), { label: input.label ?? undefined });
   const config = input.config === undefined || input.config === null ? undefined : parseConfig(view.kind, input.config);
-  return prisma.taskView.update({ where: { id }, data: { name, config } });
+  return prisma.taskView.update({ where: { id }, data: { label, config } });
 }
 
 /**
  * Duplicates a view, placed right after it.
  * @param {string} id View id.
- * @param {string} name Name of the copy.
+ * @param {string} label Label of the copy.
  * @returns {Promise<TaskView>} Copy.
  */
-export async function duplicateView(id: string, name: string): Promise<TaskView> {
+export async function duplicateView(id: string, label: string): Promise<TaskView> {
   const source = await findView(id);
-  const copy = await createView({ name, config: source.config, projectId: source.projectId, kind: source.kind, tableKey: source.tableKey });
-  const ids = (
-    await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })
-  ).map((v) => v.id);
+  const copy = await createView({ label, config: source.config, projectId: source.projectId, kind: source.kind, tableKey: source.tableKey });
+  const ids = (await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })).map((v) => v.id);
   await moveView(copy.id, ids.indexOf(source.id) + 1);
   return copy;
 }

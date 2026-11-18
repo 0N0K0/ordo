@@ -15,7 +15,7 @@ export interface ReferenceTask {
   projectId: string | null;
   /** Number within its project; none without project (it is only referenced by its id). */
   number: number | null;
-  title: string;
+  label: string;
   /** Client and project path of its project ("Client › Projet › Sous-projet"). */
   place: string;
 }
@@ -39,15 +39,27 @@ export const NO_SUGGESTIONS: MarkdownSuggestions = { projectId: null, tasks: [],
 
 /**
  * Label of a task reference seen from the project of a text: "#12" in the same project, "Client › Projet #12"
- * otherwise, its title for a task of no project.
+ * otherwise, its label for a task of no project.
  * @param {ReferenceTask} task Task.
  * @param {string | null} projectId Project of the text.
  * @returns {string} Label.
  */
 export function referenceLabel(task: ReferenceTask, projectId: string | null): string {
-  // A task of no project has no number: its title.
-  if (task.number === null) return task.title;
-  return task.projectId === projectId ? `#${task.number}` : `${task.place} #${task.number}`;
+  return taskShortRef(task, projectId, task.place);
+}
+
+/**
+ * Short reference of a task seen from a project: "#12" in the same project, "Projet #12" otherwise (numbers are per
+ * project), its label for a task of no project (it has no number).
+ * @param {{ number: number | null, label: string, projectId: string | null }} task Task.
+ * @param {string | null} projectId Project it is seen from.
+ * @param {string} place Name of the project of the task (its path).
+ * @returns {string} Reference.
+ */
+export function taskShortRef(task: { number: number | null; label: string; projectId: string | null }, projectId: string | null, place: string): string {
+  if (task.number === null) return task.label;
+  // eslint-disable-next-line no-restricted-syntax -- taskShortRef itself.
+  return task.projectId === projectId ? `#${task.number}` : `${place} #${task.number}`;
 }
 
 /** Address of a task in a text: by its id (its number changes with a transfer). */
@@ -71,13 +83,7 @@ function splitText(text: string, targets: ReferenceTargets): MdNode[] {
     const [, before, reference, number, handle] = match;
     const start = match.index + before.length;
     const task = number && targets.projectId ? targets.taskByNumber.get(`${targets.projectId}:${number}`) : undefined;
-    const url = number
-      ? task
-        ? taskReferenceUrl(task.id)
-        : null
-      : targets.handles.has(handle.toLowerCase())
-        ? `/?assignee=${handle.toLowerCase()}`
-        : null;
+    const url = number ? (task ? taskReferenceUrl(task.id) : null) : targets.handles.has(handle.toLowerCase()) ? `/?assignee=${handle.toLowerCase()}` : null;
     if (!url) continue;
     if (start > last) nodes.push({ type: 'text', value: text.slice(last, start) });
     nodes.push({ type: 'link', url, children: [{ type: 'text', value: reference }] });

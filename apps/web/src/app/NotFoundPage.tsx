@@ -9,7 +9,7 @@ import { PageMessage } from '../components/feedback/PageMessage';
 export function NotFoundPage() {
   return (
     <Center h="100dvh" p="md">
-      <PageMessage code="404" icon={<CompassIcon size="60%" weight="duotone" aria-hidden />} title="Page introuvable" message="L’adresse demandée n’existe pas ou a été déplacée." />
+      <PageMessage code="404" icon={<CompassIcon size="55%" aria-hidden />} title="Page introuvable" message="L’adresse demandée n’existe pas ou a été déplacée." />
     </Center>
   );
 }

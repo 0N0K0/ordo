@@ -6,6 +6,8 @@ interface AddItemButtonProps {
   /** Precise label: « Ajouter un numéro », « Ajouter une ligne »… */
   children: ReactNode;
   onClick: () => void;
+  /** Icon instead of the « + » (a group of filters…). Optional. */
+  icon?: ReactNode;
   /** Nothing left to add. Optional. Default = false. */
   disabled?: boolean;
 }
@@ -16,9 +18,9 @@ interface AddItemButtonProps {
  * @param {AddItemButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */
-export function AddItemButton({ children, onClick, disabled = false }: AddItemButtonProps) {
+export function AddItemButton({ children, onClick, icon = <PlusIcon aria-hidden />, disabled = false }: AddItemButtonProps) {
   return (
-    <Button size="xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={onClick} disabled={disabled} style={{ alignSelf: 'flex-start' }}>
+    <Button size="xs" variant="subtle" leftSection={icon} onClick={onClick} disabled={disabled} style={{ alignSelf: 'flex-start' }}>
       {children}
     </Button>
   );
