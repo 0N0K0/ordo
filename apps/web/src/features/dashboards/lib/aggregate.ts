@@ -1,5 +1,6 @@
 import { addDays, CALENDAR_PERIOD, calendarRange, type CalendarScale, calendarStart, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, filterPeriod, isTimeDimension, round2, shiftCalendar, weekStartOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
+import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
 import { currentWeek } from '../../../lib/week';
 import { collator, countOf } from '../../../lib/text';
 
@@ -184,7 +185,7 @@ export function nextBucket(start: string, bucket: ChartBucket): string {
 export function bucketLabel(start: string, bucket: ChartBucket): string {
   const date = new Date(`${start}T00:00:00Z`);
   if (bucket === 'year') return start.slice(0, 4);
-  if (bucket === 'quarter') return `T${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
+  if (bucket === 'quarter') return quarterName(start);
   if (bucket === 'month') return fmt.monthShort(date);
   return bucket === 'week' ? `sem. ${fmt.dayShort(date)}` : fmt.dayShort(date);
 }
@@ -210,7 +211,6 @@ const ROLLING_LABELS: Record<string, string> = {
   'next:365': '12 prochains mois',
   all: 'Toute la période',
 };
-const CURRENT_LABELS = { month: ['Mois en cours', 'Mois précédent'], quarter: ['Trimestre en cours', 'Trimestre précédent'], year: ['Année en cours', 'Année précédente'] } as const;
 
 /**
  * Name of a period: rolling ("12 derniers mois"), current or previous ("Mois en cours"), or chosen ("mars 2026",
@@ -221,12 +221,9 @@ const CURRENT_LABELS = { month: ['Mois en cours', 'Mois précédent'], quarter: 
 export function periodLabel(period: ChartConfig['period']): string {
   const match = CALENDAR_PERIOD.exec(period);
   if (!match) return ROLLING_LABELS[period] ?? period;
-  const scale = match[1] as keyof typeof CURRENT_LABELS;
-  if (match[2] === '0' || match[2] === '-1') return CURRENT_LABELS[scale][match[2] === '0' ? 0 : 1];
-  const start = match[2];
-  if (scale === 'year') return start.slice(0, 4);
-  if (scale === 'quarter') return `T${Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1} ${start.slice(0, 4)}`;
-  return fmt.capitalize(fmt.month(start));
+  const scale = match[1] as CalendarScale;
+  if (match[2] === '0' || match[2] === '-1') return relativePeriodName(scale, match[2] === '-1');
+  return periodName(scale, match[2]);
 }
 
 /**

@@ -161,7 +161,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ### 21. Divers
 
-- **Noms de période :** les trimestres s'écrivent « 1er trimestre 2026 » dans les tableaux et la trésorerie, « T2 2026 » dans les tableaux de bord ; `CURRENT_LABELS` (`aggregate.ts:213`) répète `PERIOD_PRESETS`. Proposition : `periodName(scale, start)` dans `lib/periods.ts`. À décider : la forme des trimestres.
+- **Noms de période :** les trimestres s'écrivent « 1er trimestre 2026 » dans les tableaux et la trésorerie, « T2 2026 » dans les tableaux de bord ; `CURRENT_LABELS` (`aggregate.ts:213`) répète `PERIOD_PRESETS`. **Fait** : `periodName`, `quarterName` et `relativePeriodName` (`lib/periods.ts`) ; les trimestres s'écrivent « T4 2026 » partout.
 - **Tableaux de bord :** les filtres de source sont copiés dans `ChartEditor.tsx:285-293` et `DatasetsEditor.tsx:227-235` ; `SOURCE_LABELS` est défini deux fois.
 - **Mail :** les compteurs « à traiter » et « non lus » dans `MailNavBadge.tsx:18-31` et `MailFolders.tsx:321-334`.
 - **Page indisponible :** `ProOnly.tsx:16` et `EntityState.tsx:33`. Proposition : `PageMessage` dans `components/feedback/`.
@@ -187,8 +187,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 Reste à décider :
 
-1. La forme des trimestres, puis `periodName` (21).
-2. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
+1. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
 
 ## Restent à part
 

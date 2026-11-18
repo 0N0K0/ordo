@@ -25,7 +25,8 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { localToday } from '../../../lib/dates';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryAccount, type TreasuryEntry } from '../api';
-import { CHART_SCALES, periodLabel } from '../lib/chart-period';
+import { CHART_SCALES } from '../lib/chart-period';
+import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
 import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
@@ -367,8 +368,8 @@ export function TreasuryPage() {
             >
               <Popover opened={picking} onChange={setPicking} position="bottom" shadow="md" withArrow>
                 <Popover.Target>
-                  <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodLabel(scale, periodFirst)})`}>
-                    {periodLabel(scale, periodFirst)}
+                  <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodName(scale, periodFirst)})`}>
+                    {periodName(scale, periodFirst)}
                   </Button>
                 </Popover.Target>
                 <Popover.Dropdown>
