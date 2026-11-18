@@ -1,11 +1,11 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
+import { formCallbacks } from '../../../lib/form';
 import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { countOf, normalize, plural } from '../../../lib/text';
 import { listSelectProps } from '../../../components/items/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, ArrowLeftIcon, ArrowRightIcon, EyeIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import * as fmt from '../../../lib/format';
@@ -221,13 +221,12 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           occurrence: row.forecast && !notRealized.has(row.key) ? row.forecast.occurrence : null,
         })),
       },
-      {
-        onSuccess: ({ created, realized }) => {
-          notifySuccess(`${countOf(created, 'opération')} ${plural(created, 'importée')}${realized ? `, ${countOf(realized, 'prévision')} ${plural(realized, 'réalisée')}` : ''}.`);
-          onDone();
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(
+        null,
+        ({ created, realized }: { created: number; realized: number }) =>
+          `${countOf(created, 'opération')} ${plural(created, 'importée')}${realized ? `, ${countOf(realized, 'prévision')} ${plural(realized, 'réalisée')}` : ''}.`,
+        onDone,
+      ),
     );
   };
 

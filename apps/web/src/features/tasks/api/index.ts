@@ -723,8 +723,8 @@ const MoveTaskViewDocument = graphql(`
 `);
 
 const BulkUpdateTasksDocument = graphql(`
-  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {
-    bulkUpdateTasks(ids: $ids, changes: $changes)
+  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {
+    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)
   }
 `);
 
@@ -863,7 +863,8 @@ export interface BulkChanges {
 export function useBulkTaskMutations() {
   return {
     update: useTasksMutation(
-      async (variables: { ids: string[]; changes: BulkChanges }) =>
+      // `restoring`: an undo, the archived values given back accepted.
+      async (variables: { ids: string[]; changes: BulkChanges; restoring?: boolean }) =>
         (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
     ),
     transfer: useTasksMutation(

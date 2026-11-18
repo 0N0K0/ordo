@@ -178,9 +178,11 @@ const ACTIVE_REFS: { [K in keyof ActiveRefs]-?: [ArchivableModel, string] } = {
  * valid.
  * @param {ActiveRefs} refs Values given.
  * @param {CurrentRefs} [current] Values the tasks already have (several tasks: all of theirs). Optional. Default = none (a new task).
+ * @param {boolean} [restoring] Undo giving back values the tasks had: archived ones accepted. Optional. Default = false.
  * @returns {Promise<void>}
  */
-async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}): Promise<void> {
+async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, restoring = false): Promise<void> {
+  if (restoring) return;
   const ids = (value: string | readonly string[] | null | undefined): string[] => (typeof value === 'string' ? [value] : [...(value ?? [])]);
   for (const key of Object.keys(ACTIVE_REFS) as (keyof ActiveRefs)[]) {
     const kept = new Set(ids(current[key]));
@@ -753,9 +755,10 @@ async function assertTasks(ids: string[]): Promise<void> {
  * Applies the same changes to several tasks. Undefined fields are left unchanged, null clears them.
  * @param {string[]} ids Task ids.
  * @param {BulkTaskChanges} changes Changes.
+ * @param {boolean} [restoring] Undo of a former change: archived values given back are accepted (only that check is skipped). Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): Promise<void> {
+export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, restoring = false): Promise<void> {
   await assertTasks(ids);
   await assertReferences({
     ...changes,
@@ -805,10 +808,11 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
       assigneeIds: all((task) => task.assignees.map((assignee) => assignee.id)),
       tagIds: all((task) => task.tags.map((tag) => tag.id)),
     },
+    restoring,
   );
   for (const task of tasks) {
     // Of a project: its contributors only (those already assigned stay).
-    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds');
+    if (changes.addAssigneeIds?.length) await assertProjectContributors(task.projectId, changes.addAssigneeIds, task.assignees.map((assignee) => assignee.id), 'assigneeIds', restoring);
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.

@@ -6,8 +6,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useWorkspace } from '../../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
@@ -169,13 +168,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
   const handleSubmit = form.onSubmit((input) => {
     const payload = entryPayload(input);
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.', onDone);
     if (entry && !copy) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
     else createEntry.mutate(payload, callbacks);
   });

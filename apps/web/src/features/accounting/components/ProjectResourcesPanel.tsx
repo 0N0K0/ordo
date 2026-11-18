@@ -9,6 +9,7 @@ import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } f
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -36,13 +37,7 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
   const [url, setUrl] = useState(resource?.kind === 'LINK' ? resource.url : '');
   const [note, setNote] = useState(resource?.note ?? '');
   const isLink = !resource || resource.kind === 'LINK';
-  const callbacks = {
-    onSuccess: () => {
-      notifySuccess(resource ? 'Ressource modifiée.' : 'Lien ajouté.');
-      onDone();
-    },
-    onError: onMutationError,
-  };
+  const callbacks = formCallbacks(null, resource ? 'Ressource modifiée.' : 'Lien ajouté.', onDone);
   return (
     <form
       onSubmit={(event) => {

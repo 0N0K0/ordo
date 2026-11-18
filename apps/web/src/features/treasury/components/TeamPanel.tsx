@@ -18,7 +18,7 @@ import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
 import { useState } from 'react';
-import { showFormError, useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
@@ -173,13 +173,7 @@ export function ContextForm({ context, onDone }: { context?: TreasuryContext; on
       onSubmit={form.onSubmit((input) =>
         saveContext.mutate(
           { id: context?.id ?? null, input },
-          {
-            onSuccess: (id) => {
-              notifySuccess(context ? 'Contexte modifié.' : 'Contexte créé.');
-              onDone(context ? undefined : id);
-            },
-            onError: (error) => showFormError(form, error),
-          },
+          formCallbacks(form, context ? 'Contexte modifié.' : 'Contexte créé.', (id: string) => onDone(context ? undefined : id)),
         ),
       )}
     >
@@ -385,13 +379,7 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
       onSubmit={form.onSubmit((input) =>
         saveRelation.mutate(
           { id: relation?.id ?? null, input: { name: input.name, note: input.note || null, contributorId: input.contributorId ?? null } },
-          {
-            onSuccess: (id) => {
-              notifySuccess(relation ? 'Relation modifiée.' : 'Relation ajoutée.');
-              onDone(relation ? undefined : id);
-            },
-            onError: (error) => showFormError(form, error),
-          },
+          formCallbacks(form, relation ? 'Relation modifiée.' : 'Relation ajoutée.', (id: string) => onDone(relation ? undefined : id)),
         ),
       )}
     >

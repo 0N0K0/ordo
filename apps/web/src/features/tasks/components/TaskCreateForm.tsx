@@ -4,8 +4,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from '../hooks/use-task-link';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useCreateTask } from '../api';
 import { linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
@@ -70,14 +69,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
     const parsed = taskFormSchema.parse(values);
     createTask.mutate(
       { ...parsed, description: parsed.description || null },
-      {
-        onSuccess: (task) => {
-          notifySuccess(`Tâche ${taskName(task)} créée.`);
-          onDone();
-          link.open(task.id);
-        },
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, (task: Parameters<typeof taskName>[0] & { id: string }) => `Tâche ${taskName(task)} créée.`, onDone, { then: (task) => link.open(task.id) }),
     );
   });
 

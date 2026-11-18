@@ -7,7 +7,7 @@ import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
 import { useMemo } from 'react';
 
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../../auth/api';
 import { NewPasswordFields } from '../../auth/components/NewPasswordFields';
@@ -27,14 +27,13 @@ function UsernameForm({ user }: { user: AccountUser }) {
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    changeUsername.mutate(values, {
-      onSuccess: (updated) => {
+    changeUsername.mutate(
+      values,
+      formCallbacks(form, 'Identifiant modifié.', (updated: { username: string }) => {
         form.setInitialValues({ username: updated.username, currentPassword: '' });
         form.reset();
-        notifySuccess('Identifiant modifié.');
-      },
-      onError: (error) => showFormError(form, error),
-    });
+      }),
+    );
   });
 
   return (
@@ -74,13 +73,7 @@ function EmailForm({ user }: { user: AccountUser }) {
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    requestEmailChange.mutate(values, {
-      onSuccess: () => {
-        form.reset();
-        notifySuccess('Un lien de confirmation a été envoyé à la nouvelle adresse.');
-      },
-      onError: (error) => showFormError(form, error),
-    });
+    requestEmailChange.mutate(values, formCallbacks(form, 'Un lien de confirmation a été envoyé à la nouvelle adresse.', () => form.reset()));
   });
 
   /**
@@ -145,13 +138,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
   const handleSubmit = form.onSubmit(({ currentPassword, password }) => {
     changePassword.mutate(
       { currentPassword, password },
-      {
-        onSuccess: () => {
-          form.reset();
-          notifySuccess('Mot de passe modifié. Vos autres sessions ont été fermées.');
-        },
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, 'Mot de passe modifié. Vos autres sessions ont été fermées.', () => form.reset()),
     );
   });
 

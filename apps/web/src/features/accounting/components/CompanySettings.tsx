@@ -5,7 +5,7 @@ import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_
 import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
@@ -70,10 +70,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
   const handleSubmit = form.onSubmit((values) =>
     update.mutate(
       { ...values, address: values.address } as CompanyProfileInput as never,
-      {
-        onSuccess: () => notifySuccess('Profil de la société enregistré.'),
-        onError: (error) => showFormError(form, error),
-      },
+      formCallbacks(form, 'Profil de la société enregistré.'),
     ),
   );
 

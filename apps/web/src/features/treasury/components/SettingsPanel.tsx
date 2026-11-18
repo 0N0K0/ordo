@@ -1,9 +1,9 @@
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { formCallbacks } from '../../../lib/form';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Select, SimpleGrid, Stack } from '@mantine/core';
 import type { TreasuryDirection } from '@ordo/shared';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { TeamPanel } from './TeamPanel';
@@ -121,7 +121,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
    * @returns {void}
    */
   const save = (changes: Partial<typeof current>) =>
-    setInvoiceCategories.mutate({ ...current, ...changes }, { onSuccess: () => notifySuccess('Catégorie enregistrée.'), onError: onMutationError });
+    setInvoiceCategories.mutate({ ...current, ...changes }, formCallbacks(null, 'Catégorie enregistrée.'));
   return (
     <SettingsSection title="Factures et avoirs" description="Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.">
       {/* Side by side when the sidebar is wide enough (its width, not the window's). */}

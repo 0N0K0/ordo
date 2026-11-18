@@ -1,9 +1,9 @@
 import { listSelectProps } from '../../../components/items/item-look';
 import { BackLink } from '../../../components/page/BackLink';
-import { Button, Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/page/PageHeader';
@@ -29,14 +29,16 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
 import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { sheetInput, sheetItemInput } from '../lib/sheet-format';
+import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
+import { AddRowField } from '../../../components/data-table/cells/AddRowField';
+import type { RowGroup } from '../../../components/data-table/table/table-engine';
 import { SheetsSettings } from '../components/SheetsSettings';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { usePeople } from '../../shopping/lib/shopping-format';
-import { shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
+import { sheetItemSchema, shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
 import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -158,7 +160,6 @@ export function SheetPage() {
   const { data: shopping } = useShoppingData();
   const mutations = useSheetMutations();
   const setArchived = useSetArchived('SHEET', [sheetsKey]);
-  const [label, setLabel] = useState('');
   const products = shopping?.shoppingProducts ?? [];
   // The archived references are not offered (but the current one).
   const offeredProducts = unarchived(products);
@@ -234,6 +235,40 @@ export function SheetPage() {
         risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
         onConfirm: () => mutations.remove.mutate(sheet.id, { onSuccess: () => (notifySuccess('Fiche supprimée.'), navigate('/sheets')), ...onError }),
       }),
+  };
+
+  /**
+   * Row adding an item by its label, at the end of the table or of a group (the item takes the value of its group); a
+   * label that is a reference becomes it (its category and unit with it). None while archived.
+   * @param {RowGroup<SheetDetailItem> | null} group Group it adds to (null: the table).
+   * @returns {ReactNode} Add row, or nothing.
+   */
+  const addRow = (group: RowGroup<SheetDetailItem> | null): ReactNode => {
+    const fields = group && view.groupColumn ? itemGroupFields(view.groupColumn.id, group.key) : {};
+    if (locked || !fields) return null;
+    return (
+      <AddRowField
+        label="Ajouter un élément"
+        where={`dans ${group?.label ?? 'la fiche'}`}
+        schema={sheetItemSchema.shape.label}
+        onCreate={(text) => {
+          const product = offeredProducts.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
+          return mutations.addItem.mutateAsync({
+            sheetId: sheet.id,
+            input: {
+              productId: product?.id ?? null,
+              label: product?.name ?? text,
+              categoryId: product?.categoryId ?? null,
+              quantity: null,
+              unit: product?.unit ?? null,
+              note: null,
+              consumable: product?.consumable ?? true,
+              ...fields,
+            },
+          });
+        }}
+      />
+    );
   };
 
   return (
@@ -320,7 +355,14 @@ export function SheetPage() {
             </ActionButton>
           ),
         }}
-        empty={<EmptyState icon={<ClipboardTextIcon aria-hidden />} message="Aucun élément : tapez-en un ci-dessous, ou ajoutez des produits des références." />}
+        empty={
+          <EmptyState
+            icon={<ClipboardTextIcon aria-hidden />}
+            message={locked ? 'Aucun élément.' : 'Aucun élément : tapez-en un ci-dessous, ou ajoutez des produits des références.'}
+            action={addRow(null)}
+          />
+        }
+        addRow={locked ? undefined : addRow}
         getKey={(item) => item.id}
         cells={(item) => ({
           label: <EditableText value={item.label} readOnly={locked} label={`Libellé de ${item.label}`} strong onSave={(next) => next && bulk('label')(item, { label: next })} />,
@@ -415,39 +457,6 @@ export function SheetPage() {
           />
         )}
       />
-      {!locked && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const text = label.trim();
-            if (!text) return;
-            // A label that is a reference becomes it (its category and unit with it).
-            const product = offeredProducts.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
-            mutations.addItem.mutate(
-              {
-                sheetId: sheet.id,
-                input: {
-                  productId: product?.id ?? null,
-                  label: product?.name ?? text,
-                  categoryId: product?.categoryId ?? null,
-                  quantity: null,
-                  unit: product?.unit ?? null,
-                  note: null,
-                  consumable: product?.consumable ?? true,
-                },
-              },
-              { onSuccess: () => setLabel(''), ...onError },
-            );
-          }}
-        >
-          <Group gap="xs" wrap="nowrap">
-            <TextInput style={{ flex: 1 }} aria-label="Ajouter un élément" placeholder="Ajouter un élément (Entrée)" value={label} onChange={(event) => setLabel(event.currentTarget.value)} />
-            <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!label.trim()} loading={mutations.addItem.isPending}>
-              Ajouter
-            </Button>
-          </Group>
-        </form>
-      )}
       <SheetsSettings />
     </Stack>
   );

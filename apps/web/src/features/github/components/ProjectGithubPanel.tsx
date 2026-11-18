@@ -11,6 +11,7 @@ import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, M
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
 import * as fmt from '../../../lib/format';
@@ -265,13 +266,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       <FormActions onCancel={onDone} loading={saveLink.isPending} onSubmit={() =>
             saveLink.mutate(
               { projectId, input: values },
-              {
-                onSuccess: () => {
-                  notifySuccess('Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.');
-                  onDone();
-                },
-                onError: onMutationError,
-              },
+              formCallbacks(null, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone),
             )
           } />
     </Stack>

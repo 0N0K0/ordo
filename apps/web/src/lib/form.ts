@@ -58,20 +58,33 @@ export function showFormError<Values>(form: UseFormReturnType<Values>, error: un
   notifyFailure(error);
 }
 
+/** What follows the toast of `formCallbacks`, besides closing the form. */
+interface FormCallbackOptions<T> {
+  /** Called after `onDone` with what the mutation returned (opens the item created…). Optional. */
+  then?: (result: T) => void;
+}
+
 /**
  * Callbacks of the mutation of a form: once saved, a toast tells it and the form closes; an error goes to its fields
- * (or a toast).
- * @param {UseFormReturnType<Values>} form Form.
- * @param {string} message Message once saved (« Jalon créé. »).
- * @param {() => void} [onDone] Closes the form. Optional.
- * @returns {{ onSuccess: () => void, onError: (error: Error) => void }} Callbacks.
+ * (or a toast; without form, always a toast).
+ * @param {UseFormReturnType<Values> | null} form Form (null: a panel without fields of its own, its errors in a toast).
+ * @param {string | ((result: T) => string)} message Message once saved (« Jalon créé. »), or made from what the mutation returned.
+ * @param {(result: T) => void} [onDone] Closes the form, given what the mutation returned (the id created…). Optional.
+ * @param {FormCallbackOptions<T>} [options] What follows. Optional.
+ * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
  */
-export function formCallbacks<Values>(form: UseFormReturnType<Values>, message: string, onDone?: () => void): { onSuccess: () => void; onError: (error: Error) => void } {
+export function formCallbacks<Values, T = unknown>(
+  form: UseFormReturnType<Values> | null,
+  message: string | ((result: T) => string),
+  onDone?: (result: T) => void,
+  options: FormCallbackOptions<T> = {},
+): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
   return {
-    onSuccess: () => {
-      notifySuccess(message);
-      onDone?.();
+    onSuccess: (result) => {
+      notifySuccess(typeof message === 'string' ? message : message(result));
+      onDone?.(result);
+      options.then?.(result);
     },
-    onError: (error) => showFormError(form, error),
+    onError: (error) => (form ? showFormError(form, error) : notifyFailure(error)),
   };
 }

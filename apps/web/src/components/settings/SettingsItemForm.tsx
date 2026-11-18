@@ -4,8 +4,7 @@ import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
 import { IconField, type IconValue } from '../../features/workspace/components/IconField';
 import { useColorSwatches } from '../../lib/use-color-swatches';
-import { showFormError, useAppForm } from '../../lib/form';
-import { notifySuccess } from '../../lib/notify';
+import { useAppForm, formCallbacks } from '../../lib/form';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
 import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
@@ -109,6 +108,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
     schema,
   });
 
+  const callbacks = formCallbacks(form, item ? 'Modifications enregistrées.' : 'Ajout enregistré.', (id: string) => onDone(item ? undefined : id));
   const handleSubmit = form.onSubmit(async (values) => {
     setPending(true);
     try {
@@ -117,10 +117,9 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
       if (icon.file || icon.remove || withColor) {
         await look.mutateAsync({ kind, id, input: { ...(withColor && { color: values.color || null }), ...(icon.file ? { icon: icon.file } : icon.remove ? { removeIcon: true } : {}) } });
       }
-      notifySuccess(item ? 'Modifications enregistrées.' : 'Ajout enregistré.');
-      onDone(item ? undefined : id);
+      callbacks.onSuccess(id);
     } catch (error) {
-      showFormError(form, error);
+      callbacks.onError(error as Error);
     } finally {
       setPending(false);
     }

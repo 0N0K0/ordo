@@ -1,4 +1,5 @@
 import { Group, Select, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { useState } from 'react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -51,10 +52,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
         <MultiplierInput label="Fois" w={100} step={1} value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} />
       </Group>
       {present.length > 0 && onRemove && (
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Fiches de la liste
-          </Text>
+        <LabeledField label="Fiches de la liste">
           {present.map((sheet) => (
             <Group key={sheet.sheetId} gap="xs" justify="space-between" wrap="nowrap">
               <Text size="sm">{sheet.name}</Text>
@@ -74,7 +72,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
               />
             </Group>
           ))}
-        </Stack>
+        </LabeledField>
       )}
       <FormActions onCancel={onDone} submitLabel="Ajouter" disabled={!sheetId} loading={pending} onSubmit={() => void add()} />
     </Stack>

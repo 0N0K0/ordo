@@ -1,4 +1,5 @@
 import type { SheetInput, SheetItemInput } from '@ordo/shared';
+import { idsOfKind } from '../../../components/people/people-keys';
 
 /**
  * Input of a sheet as it is, with some fields changed.
@@ -55,3 +56,38 @@ export const sheetItemInput = (
   optional: item.optional ?? false,
   ...change,
 });
+
+/**
+ * Fields of an item added in a group of a sheet or checklist table: the value of the group (its category, unit, store…),
+ * none for the group without value; null when an item cannot be given it (a reference, done, a quantity…), so no add
+ * row in it.
+ * @param {string} columnId Column the table is grouped by.
+ * @param {string} key Key of the group ('' for the one without value).
+ * @returns {Partial<SheetItemInput> | null} Fields, null when nothing can be added in it.
+ */
+export function itemGroupFields(columnId: string, key: string): Partial<SheetItemInput> | null {
+  const yes = key === 'yes';
+  switch (columnId) {
+    case 'category':
+      return { categoryId: key || null };
+    case 'unit':
+      return { unit: key || null };
+    case 'store':
+      return { storeId: key || null };
+    case 'consumable':
+      return { consumable: yes };
+    case 'optional':
+      return { optional: yes };
+    case 'conservation':
+      if (key === 'no') return { perishable: false, storageId: null };
+      return key === 'yes' ? { perishable: true, storageId: null } : { perishable: true, storageId: key };
+    case 'people':
+      return { memberIds: idsOfKind(key ? [key] : [], 'member'), relationIds: idsOfKind(key ? [key] : [], 'relation') };
+    // A new item has no reference, is not done, has no source sheet.
+    case 'product':
+    case 'done':
+      return yes ? null : {};
+    default:
+      return key ? null : {};
+  }
+}

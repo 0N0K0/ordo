@@ -1,8 +1,7 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural, countOf } from '../../../lib/text';
-import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -24,6 +23,9 @@ import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetPicker } from './SheetPicker';
+import { AddRowField } from '../../../components/data-table/cells/AddRowField';
+import { itemGroupFields } from '../lib/sheet-format';
+import { checklistItemSchema } from '@ordo/shared';
 
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 
@@ -39,7 +41,6 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
   const { data: list, isPending } = useChecklist({ ...owner, occurrenceDate });
   const { data: shopping } = useShoppingData();
   const mutations = useSheetMutations();
-  const [label, setLabel] = useState('');
   const categories = shopping?.shoppingCategories ?? [];
   const columns: DataColumn<ChecklistItem>[] = [
     {
@@ -191,25 +192,26 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         actions={(item) => (
           <RowActions name={item.label} items={[{ label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => mutations.removeChecklistItem.mutate(item.id, onError) }]} />
         )}
-      />
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          const name = label.trim();
-          if (!name) return;
-          mutations.addChecklistItem.mutate(
-            { listId: list.id, input: { productId: null, label: name, categoryId: null, quantity: null, unit: null, note: null, consumable: false } },
-            { onSuccess: () => setLabel(''), ...onError },
+        addRow={(group) => {
+          // In a group, the item takes its value (its category, unit…); none where it cannot be given.
+          const fields = group && view.groupColumn ? itemGroupFields(view.groupColumn.id, group.key) : {};
+          return (
+            fields && (
+              <AddRowField
+                label="Ajouter un élément"
+                where={`dans ${group?.label ?? 'la liste'}`}
+                schema={checklistItemSchema.shape.label}
+                onCreate={(name) =>
+                  mutations.addChecklistItem.mutateAsync({
+                    listId: list.id,
+                    input: { productId: null, label: name, categoryId: null, quantity: null, unit: null, note: null, consumable: false, ...fields },
+                  })
+                }
+              />
+            )
           );
         }}
-      >
-        <Group gap="xs" wrap="nowrap">
-          <TextInput size="xs" style={{ flex: 1 }} aria-label="Ajouter un élément" placeholder="Ajouter un élément (Entrée)" value={label} onChange={(event) => setLabel(event.currentTarget.value)} />
-          <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!label.trim()}>
-            Ajouter
-          </Button>
-        </Group>
-      </form>
+      />
       <SheetLinksField owner={owner} />
     </Stack>
   );

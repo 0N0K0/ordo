@@ -3,8 +3,7 @@ import { Divider, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput }
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -31,26 +30,16 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
     <form
       noValidate
       onSubmit={form.onSubmit((input) => {
-        const callbacks = { onError: (error: Error) => showFormError(form, error) };
         if (search) {
           update.mutate(
             { id: search.id, input: input as MailSearchInput },
-            {
-              ...callbacks,
-              onSuccess: () => {
-                notifySuccess('Dossier de recherche modifié.');
-                onDone();
-              },
-            },
+            formCallbacks(form, 'Dossier de recherche modifié.', () => onDone()),
           );
         } else {
-          create.mutate(input as MailSearchInput, {
-            ...callbacks,
-            onSuccess: (id) => {
-              notifySuccess('Dossier de recherche créé.');
-              onDone(id);
-            },
-          });
+          create.mutate(
+            input as MailSearchInput,
+            formCallbacks(form, 'Dossier de recherche créé.', (id: string) => onDone(id)),
+          );
         }
       })}
     >

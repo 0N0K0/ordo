@@ -1,4 +1,5 @@
 import * as fmt from '../../../lib/format';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { unarchived } from '../../../lib/archive';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
@@ -184,10 +185,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                 onChange={(sprintId) => change({ sprintId })}
                 error={!config.sprintId ? 'Choisissez le sprint.' : undefined}
               />
-              <Stack gap={4}>
-                <Text size="sm" fw={500}>
-                  Reste à faire
-                </Text>
+              <LabeledField label="Reste à faire">
                 <SegmentedControl
                   data={[
                     { value: 'count', label: 'Tâches' },
@@ -196,7 +194,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                   value={config.measure === 'effort' ? 'effort' : 'count'}
                   onChange={(measure) => change({ measure: measure as ChartConfig['measure'] })}
                 />
-              </Stack>
+              </LabeledField>
             </>
           ) : (
             <>

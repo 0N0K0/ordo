@@ -475,8 +475,8 @@ builder.mutationFields((t) => ({
     resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
   updateRoutine: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: (_root, { id, input }) => done(routines.updateRoutine(id, routineInput(input))),
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutineInputType, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    resolve: (_root, { id, input, restoring }) => done(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
   }),
   patchRoutine: t.boolean({
     description: 'Changes some fields of a routine (inline edits).',

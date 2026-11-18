@@ -3,8 +3,7 @@ import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { byPosition, projectFormSchema, type ProjectFormValues } from '@ordo/shared';
 import { useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess } from '../../../lib/notify';
+import { useAppForm, formCallbacks } from '../../../lib/form';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { descendantIds, useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
 import { IconField, type IconValue } from './IconField';
@@ -85,13 +84,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
       color: values.color || null,
       icon: icon.file,
     };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(project ? 'Projet modifié.' : 'Projet créé.');
-        onDone?.();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
+    const callbacks = formCallbacks(form, project ? 'Projet modifié.' : 'Projet créé.', onDone && (() => onDone()));
 
     if (project) {
       updateProject.mutate({ id: project.id, input: { ...input, removeIcon: icon.remove } }, callbacks);

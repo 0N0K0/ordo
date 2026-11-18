@@ -187,11 +187,12 @@ export async function attachAssignees(assignments: { projectId: string; contribu
  * @param {string[]} ids Contributors chosen.
  * @param {string[]} keep Contributors already chosen on the item.
  * @param {string} field Field of the error.
+ * @param {boolean} [restoring] Undo giving back former contributors: archived ones accepted. Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function assertProjectContributors(projectId: string | null, ids: string[], keep: string[], field: string): Promise<void> {
+export async function assertProjectContributors(projectId: string | null, ids: string[], keep: string[], field: string, restoring = false): Promise<void> {
   const added = ids.filter((id) => !keep.includes(id));
-  await assertActiveContributors(added, [], field);
+  if (!restoring) await assertActiveContributors(added, [], field);
   if (!projectId || added.length === 0) return;
   const scope = await lineageIds('project', projectId);
   const allowed = await prisma.contributor.count({ where: { id: { in: added }, OR: [{ userId: { not: null } }, { projects: { some: { id: { in: scope } } } }] } });

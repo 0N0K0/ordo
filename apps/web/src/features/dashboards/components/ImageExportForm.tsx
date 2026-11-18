@@ -1,4 +1,5 @@
 import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { FileImageIcon } from '@phosphor-icons/react';
 import { useLocalStorage } from '@mantine/hooks';
 
@@ -51,10 +52,7 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
 
   return (
     <Stack gap="md">
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Thème
-        </Text>
+      <LabeledField label="Thème">
         <SegmentedControl
           data={[
             { value: 'light', label: 'Clair' },
@@ -63,11 +61,8 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
           value={stored.scheme}
           onChange={(scheme) => set({ scheme: scheme as ImageExportSettings['scheme'] })}
         />
-      </Stack>
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Orientation
-        </Text>
+      </LabeledField>
+      <LabeledField label="Orientation">
         <SegmentedControl
           data={[
             { value: 'landscape', label: 'Paysage' },
@@ -77,7 +72,7 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
           disabled={ratio.ratio === 1}
           onChange={(orientation) => set({ orientation })}
         />
-      </Stack>
+      </LabeledField>
       <Select label="Format" allowDeselect={false} data={RATIOS.map(({ value, label }) => ({ value, label }))} value={ratio.value} onChange={(value) => value && set({ ratio: value })} />
       <Select label="Taille (grand côté)" allowDeselect={false} data={SIZES.map(({ value, label }) => ({ value, label }))} value={String(long)} onChange={(value) => value && set({ size: value })} />
       <Text size="sm" c="dimmed">

@@ -1,4 +1,5 @@
-import { Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import { Checkbox, Group, Select, Stack } from '@mantine/core';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { DatePickerInput } from '@mantine/dates';
 import { linkKey, type LineLink, type LineValues } from '../lib/lines';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
@@ -76,13 +77,10 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
           })
         }
       />
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Liens
-        </Text>
-        <Text size="xs" c="dimmed">
-          Une ligne d’un autre mouvement, ou un mouvement entier s’il n’est pas décomposé. Liés sur une même période, une entrée et une sortie se compensent dans les graphiques.
-        </Text>
+      <LabeledField
+        label="Liens"
+        description="Une ligne d’un autre mouvement, ou un mouvement entier s’il n’est pas décomposé. Liés sur une même période, une entrée et une sortie se compensent dans les graphiques."
+      >
         {line.links.length > 0 && (
           <Group gap={6}>
             {line.links.map((link) => (
@@ -91,7 +89,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
           </Group>
         )}
         <EntryLinkSelect aria-label="Lier une ligne ou un mouvement" entryId={entryId} links={line.links} onLink={(link) => setLinks([...line.links, link])} />
-      </Stack>
+      </LabeledField>
       <FormActions submitLabel="Terminé" onSubmit={onClose} />
     </Stack>
   );

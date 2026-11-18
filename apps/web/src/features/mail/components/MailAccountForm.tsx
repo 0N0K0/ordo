@@ -4,9 +4,8 @@ import { Button, Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, 
 import { mailAccountFormSchema, type MailAccountFormValues } from '@ordo/shared';
 
 import { useEffect, useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { showFormError, useAppForm, formCallbacks } from '../../../lib/form';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
-import { notifySuccess } from '../../../lib/notify';
 import { useMailAccountMutations, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -88,13 +87,8 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
 
   const handleSubmit = form.onSubmit((values) => {
     const input = toInput(values);
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(account ? 'Boîte mail modifiée.' : 'Boîte mail ajoutée.');
-        onDone();
-      },
-      onError: showError,
-    };
+    // The errors of the hidden sending fields go to the receiving ones.
+    const callbacks = { ...formCallbacks(form, account ? 'Boîte mail modifiée.' : 'Boîte mail ajoutée.', onDone), onError: showError };
     if (account) update.mutate({ id: account.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });

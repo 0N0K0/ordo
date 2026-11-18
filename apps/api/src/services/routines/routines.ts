@@ -492,9 +492,10 @@ export function deleteCategory(id: string): Promise<void> {
  * assignees and required routines (no cycle).
  * @param {RoutineInput} input Routine.
  * @param {string} [id] Routine edited. Optional.
+ * @param {boolean} [restoring] Undo giving back former values: archived ones accepted (only that check is skipped). Optional. Default = false.
  * @returns {Promise<ReturnType<typeof routineSchema.parse>>} Routine.
  */
-async function parseRoutine(input: RoutineInput, id?: string) {
+async function parseRoutine(input: RoutineInput, id?: string, restoring = false) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
   data.beneficiaryIds = [...new Set(data.beneficiaryIds)];
@@ -524,12 +525,17 @@ async function parseRoutine(input: RoutineInput, id?: string) {
         },
       })
     : null;
-  const keptCategoryIds = current?.categories.map((category) => category.id) ?? [];
+  // Undo: everything counts as kept.
+  const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived(
     'routineCategory',
     data.categoryIds.filter((categoryId) => !keptCategoryIds.includes(categoryId)),
   );
-  const keptScheduleIds = current ? [...conditionScheduleIds(storedCondition(current)), ...storedCases(current.cases).flatMap((item) => conditionScheduleIds(item.condition))] : [];
+  const keptScheduleIds = restoring
+    ? scheduleIds
+    : current
+      ? [...conditionScheduleIds(storedCondition(current)), ...storedCases(current.cases).flatMap((item) => conditionScheduleIds(item.condition))]
+      : [];
   await assertNoneArchived(
     'workSchedule',
     scheduleIds.filter((scheduleId) => !keptScheduleIds.includes(scheduleId)),
@@ -552,17 +558,17 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   await assertAllExist(prisma.contributor, data.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, data.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   // Archived beneficiaries, parent and required routines: no longer chosen, those already there stay.
-  await assertActiveContributors(data.beneficiaryIds, current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], 'beneficiaryIds');
-  await assertActiveRelations(data.beneficiaryRelationIds, current?.beneficiaryRelations.map((relation) => relation.id) ?? [], 'beneficiaryIds');
-  if ((data.parentId ?? null) !== (current?.parentId ?? null)) await assertNotArchived('routine', data.parentId).catch(() => Promise.reject(fieldError('parentId', ARCHIVED_MESSAGE)));
-  const keptRequiredIds = current?.requires.map((dependency) => dependency.requiredId) ?? [];
+  if (!restoring) await assertActiveContributors(data.beneficiaryIds, current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], 'beneficiaryIds');
+  if (!restoring) await assertActiveRelations(data.beneficiaryRelationIds, current?.beneficiaryRelations.map((relation) => relation.id) ?? [], 'beneficiaryIds');
+  if (!restoring && (data.parentId ?? null) !== (current?.parentId ?? null)) await assertNotArchived('routine', data.parentId).catch(() => Promise.reject(fieldError('parentId', ARCHIVED_MESSAGE)));
+  const keptRequiredIds = restoring ? data.requiredIds : (current?.requires.map((dependency) => dependency.requiredId) ?? []);
   await assertNoneArchived(
     'routine',
     data.requiredIds.filter((requiredId) => !keptRequiredIds.includes(requiredId)),
   ).catch(() => Promise.reject(fieldError('requiredIds', ARCHIVED_MESSAGE)));
   // Of a project: its contributors only (those already assigned stay).
   const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
-  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds');
+  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds', restoring);
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
@@ -682,12 +688,13 @@ async function findRoutine(id: string): Promise<Routine> {
  * Updates a routine (its ticked occurrences stay).
  * @param {string} id Routine id.
  * @param {RoutineInput} input Routine.
+ * @param {boolean} [restoring] Undo putting it back as it was: archived values given back are accepted. Optional. Default = false.
  * @returns {Promise<Routine>} Routine.
  */
-export async function updateRoutine(id: string, input: RoutineInput): Promise<Routine> {
+export async function updateRoutine(id: string, input: RoutineInput, restoring = false): Promise<Routine> {
   await findRoutine(id);
   await assertNotArchived('routine', id);
-  const data = await parseRoutine(input, id);
+  const data = await parseRoutine(input, id, restoring);
   return prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });

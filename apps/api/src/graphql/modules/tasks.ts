@@ -488,8 +488,8 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, closed }) => done(tasks.setTasksClosed(ids, closed)),
   }),
   bulkUpdateTasks: t.boolean({
-    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: BulkTaskInput, required: true }) },
-    resolve: (_root, { ids, changes }) => done(tasks.bulkUpdateTasks(ids, changes)),
+    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: BulkTaskInput, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
     type: TransferResult,
