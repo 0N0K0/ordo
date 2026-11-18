@@ -17,14 +17,14 @@ interface RecurringFormProps {
 }
 
 /**
- * Schedule of a recurring invoice: name, first issue date, repetition, drafts or final invoices, active.
+ * Schedule of a recurring invoice: label, first issue date, repetition, drafts or final invoices, active.
  * @param {RecurringFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function RecurringForm({ documentId, recurring, onDone }: RecurringFormProps) {
   const { create, update } = useRecurringMutations();
   const stored = recurring ? recurrenceSchema.safeParse(recurring.recurrence) : null;
-  const [name, setName] = useState(recurring?.name ?? '');
+  const [name, setName] = useState(recurring?.label ?? '');
   const [startDate, setStartDate] = useState<string>(recurring ? recurring.startDate : localToday());
   const [rule, setRule] = useState<Recurrence | null>(stored?.success ? stored.data : { ...DEFAULT_RECURRENCE, frequency: 'MONTHLY' });
   const [autoFinalize, setAutoFinalize] = useState(recurring?.autoFinalize ?? false);
@@ -36,7 +36,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
    */
   const submit = () => {
     if (!rule || !name.trim()) return;
-    const input = { name, startDate, recurrence: rule, autoFinalize, active };
+    const input = { label: name, startDate, recurrence: rule, autoFinalize, active };
     const callbacks = formCallbacks(null, recurring ? 'Facture récurrente modifiée.' : 'Facture récurrente créée : la facture a été copiée comme modèle.', onDone);
     if (recurring) update.mutate({ id: recurring.id, input }, callbacks);
     else if (documentId) create.mutate({ documentId, input }, callbacks);

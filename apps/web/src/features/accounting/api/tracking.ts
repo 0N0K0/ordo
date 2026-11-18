@@ -16,7 +16,7 @@ const DocumentStatusesDocument = graphql(`
       id
       archived
       scope
-      name
+      label
       color
       iconUrl
       category
@@ -63,13 +63,13 @@ const SendReminders = graphql(`
 `);
 
 const CreateStatus = graphql(`
-  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {
-    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)
+  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $label: String!, $color: String!, $category: DocumentStatusCategory!) {
+    createDocumentStatus(scope: $scope, label: $label, color: $color, category: $category)
   }
 `);
 const UpdateStatus = graphql(`
-  mutation UpdateDocumentStatus($id: ID!, $name: String, $color: String, $category: DocumentStatusCategory) {
-    updateDocumentStatus(id: $id, name: $name, color: $color, category: $category)
+  mutation UpdateDocumentStatus($id: ID!, $label: String, $color: String, $category: DocumentStatusCategory) {
+    updateDocumentStatus(id: $id, label: $label, color: $color, category: $category)
   }
 `);
 const DeleteStatus = graphql(`
@@ -151,11 +151,11 @@ function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVar
 export function useDocumentStatusMutations(scope: DocumentStatusScope) {
   return {
     create: useAccountingMutation(
-      async (input: { name: string; color: string; category?: DocumentStatusCategory }) =>
-        (await execute(CreateStatus, { scope, name: input.name, color: input.color, category: input.category ?? 'SENT' })).createDocumentStatus,
+      async (input: { label: string; color: string; category?: DocumentStatusCategory }) =>
+        (await execute(CreateStatus, { scope, label: input.label, color: input.color, category: input.category ?? 'SENT' })).createDocumentStatus,
     ),
     update: useAccountingMutation(
-      async ({ id, input }: { id: string; input: { name?: string; color?: string; category?: DocumentStatusCategory } }) => (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
+      async ({ id, input }: { id: string; input: { label?: string; color?: string; category?: DocumentStatusCategory } }) => (await execute(UpdateStatus, { id, ...input })).updateDocumentStatus,
     ),
     remove: useAccountingMutation(async ({ id }: { id: string }) => (await execute(DeleteStatus, { id })).deleteDocumentStatus),
   };

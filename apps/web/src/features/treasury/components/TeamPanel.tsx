@@ -157,14 +157,14 @@ export function TeamMembers() {
 }
 
 /**
- * Context form: name and color.
- * @param {{ context?: TreasuryContext, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the context created.
+ * Context form: label and color.
+ * @param {{ context?: TreasuryContext, label?: string, onDone: (createdId?: string) => void }} props Component props (the label typed in a select, for a new one); the form closes with the id of the context created.
  * @returns {JSX.Element} Form.
  */
-export function ContextForm({ context, name = '', onDone }: { context?: TreasuryContext; name?: string; onDone: (createdId?: string) => void }) {
+export function ContextForm({ context, label = '', onDone }: { context?: TreasuryContext; label?: string; onDone: (createdId?: string) => void }) {
   const { saveContext } = useTreasuryTeamMutations();
   const swatches = useColorSwatches();
-  const form = useAppForm<{ name: string; color: string }>({ initialValues: { name: context?.name ?? name, color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
+  const form = useAppForm<{ label: string; color: string }>({ initialValues: { label: context?.label ?? label, color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
   return (
     <form
       noValidate
@@ -176,7 +176,7 @@ export function ContextForm({ context, name = '', onDone }: { context?: Treasury
       )}
     >
       <Stack gap="sm">
-        <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
+        <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
         <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
@@ -251,12 +251,12 @@ function Contexts() {
         noun="le contexte"
         items={contexts}
         schema={treasuryContextSchema}
-        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { name: values.name, color: values.color } }))}
-        update={(id, values) => saveContext.mutateAsync({ id, input: { name: values.name, color: values.color } })}
+        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { label: values.label, color: values.color } }))}
+        update={(id, values) => saveContext.mutateAsync({ id, input: { label: values.label, color: values.color } })}
         remove={(id) => deleteContext.mutateAsync(id)}
         deleteMessage={(item) => (
           <>
-            « {item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ».
+            « {item.label} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ».
           </>
         )}
       />
@@ -284,8 +284,8 @@ function Contexts() {
                   <Table.Tr key={period.id}>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
-                        {item && <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} />}
-                        <Text size="sm">{item?.name}</Text>
+                        {item && <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} />}
+                        <Text size="sm">{item?.label}</Text>
                         {item?.archived && <ArchivedBadge size="xs" />}
                       </Group>
                       {period.note && (
@@ -303,7 +303,7 @@ function Contexts() {
                       {/* A period is part of its context: read only while it is archived. */}
                       {!item?.archived && (
                         <InlineActions
-                          name={`${item?.name ?? ''} du ${fmt.day(period.startDate)}`}
+                          name={`${item?.label ?? ''} du ${fmt.day(period.startDate)}`}
                           items={[
                             { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openPeriod(period) },
                             {
@@ -313,7 +313,7 @@ function Contexts() {
                               onClick: () =>
                                 confirmDestructive({
                                   title: 'Supprimer la période',
-                                  risks: `La période « ${item?.name ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                                  risks: `La période « ${item?.label ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
                                   run: () => deleteContextPeriod.mutateAsync(period.id),
                                   done: 'Période supprimée.',
                                 }),

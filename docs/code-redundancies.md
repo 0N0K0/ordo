@@ -177,7 +177,7 @@ _Créés par nos propres lots (à ne plus jamais reproduire) : l'état « Affich
 
 ## Plan proposé
 
-**Avancement (18 novembre 2026) :** lots 1 à 4 faits (bugs, briques contournées, doublons avec Q, R, S, libellés et styles avec T, U, V, rangement) ; copier-coller : 65 copies (639 lignes) au début du round, 4 (35 lignes) à la fin. **Le renommage `label` (décision O) est reporté à une session dédiée**, après les tests dans le navigateur et le déploiement du reste.
+**Avancement (18 novembre 2026) :** lots 1 à 4 faits (bugs, briques contournées, doublons avec Q, R, S, libellés et styles avec T, U, V, rangement) ; copier-coller : 65 copies (639 lignes) au début du round, 4 (35 lignes) à la fin. Renommage `label` (décision O) fait : 51 modèles passent de `name` / `title` à `label` (migration `label_names`), `Attachment.name` devient `filename` ; gardent `name` les personnes et entités (clients, contributeurs, relations, tiers, utilisateurs, contacts, profil de l'entreprise) ; la bibliothèque n'est pas touchée ; les identifiants de colonnes des vues enregistrées restent `title` / `name` (aucune donnée réécrite).
 
 **Garde-fous de chaque lot** (pour ne plus créer de doublons) :
 

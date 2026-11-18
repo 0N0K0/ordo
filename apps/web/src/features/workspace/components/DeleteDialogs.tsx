@@ -70,14 +70,14 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
   const handleConfirm = () => {
     deleteProject.mutate(
       { id: project.id },
-      formCallbacks(null, `Projet « ${project.title} » supprimé.`, () => onDone(true)),
+      formCallbacks(null, `Projet « ${project.label} » supprimé.`, () => onDone(true)),
     );
   };
 
   return (
     <Stack gap="md">
       <DestructiveRisks>
-        Le projet <strong>{project.title}</strong>
+        Le projet <strong>{project.label}</strong>
         {subProjectCount > 0 && ` et ses ${countOf(subProjectCount, 'sous-projet')}`} {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement. Pour{' '}
         {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
       </DestructiveRisks>

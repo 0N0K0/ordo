@@ -18,8 +18,8 @@ import { projectPath, taskPath } from '../../../app/pages';
  * @returns {object} Alarm input.
  */
 function toAlarmInput(alarm: Alarm, changes: Partial<Alarm>) {
-  const { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
-  return { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence: recurrence ?? null, minutes, projectId, taskId, enabled };
+  const { label, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
+  return { label, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence: recurrence ?? null, minutes, projectId, taskId, enabled };
 }
 
 interface AlarmListProps {
@@ -51,7 +51,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
   const confirmDelete = (alarm: Alarm) => {
     confirmDestructive({
       title: 'Supprimer l’alarme',
-      risks: `L’alarme « ${alarm.title} » sera supprimée définitivement et ne sonnera plus.`,
+      risks: `L’alarme « ${alarm.label} » sera supprimée définitivement et ne sonnera plus.`,
       run: () => remove.mutateAsync(alarm.id),
       done: 'Alarme supprimée.',
     });
@@ -68,7 +68,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
             <Group justify="space-between" wrap="nowrap" align="flex-start">
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Group gap="xs">
-                  <Text fw={600}>{alarm.title}</Text>
+                  <Text fw={600}>{alarm.label}</Text>
                   {alarm.enabled && alarm.type !== 'TRACKING_DURATION' && !next && (
                     <Badge size="sm" color="gray" variant="light">
                       Terminée
@@ -83,7 +83,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 )}
                 {(task ?? project) && (
                   <Anchor component={Link} to={task ? taskPath(task) : projectPath(project!.id)} size="xs">
-                    {task ? context.taskLabel(task) : project!.title}
+                    {task ? context.taskLabel(task) : project!.label}
                   </Anchor>
                 )}
                 {alarm.note && (
@@ -94,12 +94,12 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
               </Stack>
               <Group gap="xs" wrap="nowrap">
                 <Switch
-                  aria-label={alarm.enabled ? `Désactiver ${alarm.title}` : `Activer ${alarm.title}`}
+                  aria-label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
                   checked={alarm.enabled}
                   onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, ON_ERROR)}
                 />
                 <InlineActions
-                  name={alarm.title}
+                  name={alarm.label}
                   items={[
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(alarm) },
                     { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openForm(alarm, { copy: true }) },

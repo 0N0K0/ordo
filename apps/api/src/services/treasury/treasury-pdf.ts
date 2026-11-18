@@ -80,16 +80,16 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   const entries = await prisma.treasuryEntry.findMany({
     where: { status: 'ACTUAL', accountId: { in: accounts.map((account) => account.id) }, date: { gte: parseDay(from), lte: parseDay(to) } },
     include: {
-      account: { select: { name: true } },
+      account: { select: { label: true } },
       category: { select: { id: true } },
-      method: { select: { name: true } },
+      method: { select: { label: true } },
       client: { select: { name: true } },
       counterparty: { select: { name: true } },
       allocations: { select: { document: { select: { number: true } }, importedDocument: { select: { number: true } } } },
       links: { select: { id: true, label: true } },
       linkedBy: { select: { id: true, label: true } },
       libraryDocuments: { select: { title: true } },
-      projectResources: { select: { title: true } },
+      projectResources: { select: { label: true } },
       lines: {
         orderBy: { position: 'asc' },
         select: {
@@ -101,8 +101,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
           date: true,
           member: { select: { name: true } },
           relation: { select: { name: true } },
-          context: { select: { name: true } },
-          project: { select: { title: true } },
+          context: { select: { label: true } },
+          project: { select: { label: true } },
         },
       },
     },
@@ -110,14 +110,14 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   });
 
   // Category paths ("Parent › Enfant").
-  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, parentId: true } });
+  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, parentId: true } });
   const categoryById = mapById(categories);
   /**
    * Full path of a category.
    * @param {string | null} id Category id.
    * @returns {string} Path, empty without category.
    */
-  const categoryPath = (id: string | null) => pathOf(categoryById, id, (category) => category.name);
+  const categoryPath = (id: string | null) => pathOf(categoryById, id, (category) => category.label);
 
   const openingDates = new Map(accounts.map((account) => [account.id, formatDay(account.openingDate)]));
   const counted = (entry: (typeof entries)[number]) => formatDay(entry.date) >= (openingDates.get(entry.accountId) ?? '');
@@ -126,7 +126,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened during the period: their opening balance, that day.
   const openings = accounts
     .filter((account) => formatDay(account.openingDate) >= from && formatDay(account.openingDate) <= to)
-    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: decimalCents(account.openingBalance) }));
+    .map((account) => ({ day: formatDay(account.openingDate), label: account.label, amount: decimalCents(account.openingBalance) }));
 
   const amounts = entries.map((entry) => decimalCents(entry.amount));
   const incoming = amounts.filter((amount) => amount > 0).reduce((sum, amount) => sum + amount, 0);
@@ -160,7 +160,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   let y = top;
 
   // Title and summary.
-  const scope = several ? 'Tous les comptes' : accounts[0].name;
+  const scope = several ? 'Tous les comptes' : accounts[0].label;
   y =
     writeHeading(doc, { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') }, { x: MARGIN, y, width: pageWidth }) +
     8;
@@ -259,13 +259,13 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     // Accounts opened by then.
     for (const account of pendingOpenings.filter((item) => item.day <= day)) {
       running += account.amount;
-      band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+      band(`${printedDay(account.day)} — Ouverture du compte ${account.label}`, `Solde ${money(running)}`, COLORS.fill);
     }
     pendingOpenings = pendingOpenings.filter((item) => item.day > day);
     if (counted(entry)) running += amounts[index];
 
     const linked = [...entry.links, ...entry.linkedBy].map((item) => item.label);
-    const supports = [...entry.libraryDocuments, ...entry.projectResources].map((item) => item.title);
+    const supports = [...entry.libraryDocuments.map((item) => item.title), ...entry.projectResources.map((item) => item.label)];
     const documents = entry.allocations.map((allocation) => allocation.document?.number ?? (allocation.importedDocument ? `${allocation.importedDocument.number} (importé)` : '')).filter(Boolean);
     const details = [
       documents.length ? `Règle ${documents.join(', ')}` : '',
@@ -281,8 +281,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       entry.label,
       entry.client?.name ?? entry.counterparty?.name ?? '',
       categoryPath(entry.category?.id ?? null),
-      entry.method?.name ?? '',
-      ...(several ? [entry.account.name] : []),
+      entry.method?.label ?? '',
+      ...(several ? [entry.account.label] : []),
       amounts[index] < 0 ? money(-amounts[index]) : '',
       amounts[index] > 0 ? money(amounts[index]) : '',
       money(running),
@@ -331,8 +331,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
             [
               line.label ?? '',
               line.relation ? `pour ${line.relation.name}` : line.member ? `pour ${line.member.name}` : '',
-              line.context?.name ?? '',
-              line.project ? `projet ${line.project.title}` : '',
+              line.context?.label ?? '',
+              line.project ? `projet ${line.project.label}` : '',
               line.loan ? 'prêt' : '',
               line.date ? `le ${printedDay(line.date)}` : '',
             ]
@@ -378,11 +378,11 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened after the last entry.
   for (const account of pendingOpenings) {
     running += account.amount;
-    band(`${printedDay(account.day)} — Ouverture du compte ${account.name}`, `Solde ${money(running)}`, COLORS.fill);
+    band(`${printedDay(account.day)} — Ouverture du compte ${account.label}`, `Solde ${money(running)}`, COLORS.fill);
   }
   y += 4;
   band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printedDay(to)} : ${money(closing)}`, COLORS.month);
 
   const content = await finish();
-  return { name: fileName(`Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}`, 'pdf'), content };
+  return { name: fileName(`Relevé ${several ? 'trésorerie' : accounts[0].label} du ${from} au ${to}`, 'pdf'), content };
 }

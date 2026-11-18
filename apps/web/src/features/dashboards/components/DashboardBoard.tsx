@@ -12,7 +12,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 
-import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
+import { chartConfigSchema, dashboardLabelSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowsHorizontalIcon,
@@ -139,31 +139,31 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   useEffect(() => {
     const registry = captures.current;
     registry.set(chart.id, async ({ scheme, render, frame }) => {
-      if (!view.current || !data) throw new Error(`« ${chart.title} » n’est pas encore affiché.`);
+      if (!view.current || !data) throw new Error(`« ${chart.label} » n’est pas encore affiché.`);
       const legend = data.series.length > 1 ? data.series : [];
-      if (!render) return { title: chart.title, description, image: await chartPng(view.current, chart.title, legend, { scheme, frame }) };
-      if (data.empty) throw new Error(`« ${chart.title} » est vide.`);
+      if (!render) return { title: chart.label, description, image: await chartPng(view.current, chart.label, legend, { scheme, frame }) };
+      if (data.empty) throw new Error(`« ${chart.label} » est vide.`);
       setPrintSize(render);
       try {
         const element = await drawnChart(() => printView.current);
-        return { title: chart.title, description, image: await chartPng(element, chart.title, legend, { scheme, frame }) };
+        return { title: chart.label, description, image: await chartPng(element, chart.label, legend, { scheme, frame }) };
       } finally {
         setPrintSize(null);
       }
     });
     return () => void registry.delete(chart.id);
-  }, [captures, chart.id, chart.title, data, description]);
+  }, [captures, chart.id, chart.label, data, description]);
 
   // The chart as a PDF (light colors, page format).
   const { run: exportPdf, loading: exportingPdf } = useAsyncAction(async () => {
     const capture = captures.current.get(chart.id);
     if (!capture) return;
     const image = await capture({ scheme: 'light', render: PRINT_SIZE });
-    await downloadChartsPdf({ title: chart.title, subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`, charts: [image] });
+    await downloadChartsPdf({ title: chart.label, subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`, charts: [image] });
   });
   // The data of the chart as a PDF table.
   const { run: exportTablePdf, loading: exportingTable } = useAsyncAction(async () => {
-    if (data) await downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`);
+    if (data) await downloadChartTablePdf(chartTable(data, config), chart.label, `${dashboardName} · ${description}`);
   });
   const exporting = exportingPdf || exportingTable;
 
@@ -178,14 +178,14 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     if (!capture) return;
     if (format === 'png') {
       openFormPanel(
-        `Exporter « ${chart.title} » en image`,
+        `Exporter « ${chart.label} » en image`,
         (close) => (
           <ImageExportForm
             onDone={close}
             onExport={(settings) => {
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
-                .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.title}`, 'png')))
+                .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.label}`, 'png')))
                 .catch(onMutationError);
             }}
           />
@@ -204,7 +204,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const confirmDelete = () => {
     confirmDestructive({
       title: 'Supprimer le diagramme',
-      risks: `Le diagramme « ${chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.`,
+      risks: `Le diagramme « ${chart.label} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.`,
       run: () => removeChart.mutateAsync(chart.id),
       done: 'Diagramme supprimé.',
     });
@@ -225,10 +225,10 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          {!readOnly && <DragHandle label={`Déplacer ${chart.title}`} {...handle} />}
+          {!readOnly && <DragHandle label={`Déplacer ${chart.label}`} {...handle} />}
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
-              {chart.title}
+              {chart.label}
             </Text>
             <Text size="xs" c="dimmed" truncate>
               {description}
@@ -236,7 +236,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             </Text>
           </Stack>
           <ActionsMenu
-            name={chart.title}
+            name={chart.label}
             loading={exporting}
             items={[
               // An archived dashboard: its charts are read only.
@@ -248,14 +248,14 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                     {
                       label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
                       icon: <ArrowsHorizontalIcon aria-hidden />,
-                      onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, ON_ERROR),
+                      onClick: () => updateChart.mutate({ id: chart.id, input: { label: chart.label, config, wide: !chart.wide } }, ON_ERROR),
                     },
                     ...moveEntries(index, count, (to) => moveChart.mutate({ id: chart.id, index: to }, ON_ERROR)),
                     {
                       label: 'Déplacer vers…',
                       icon: <ArrowBendUpRightIcon aria-hidden />,
                       onClick: () =>
-                        openFormPanel(`Déplacer « ${chart.title} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
+                        openFormPanel(`Déplacer « ${chart.label} »`, (close) => <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={close} />, {
                           panelId: `transfer-chart-${chart.id}`,
                         }),
                     },
@@ -267,7 +267,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 label: 'Exporter les données (CSV)',
                 icon: <TableIcon aria-hidden />,
                 disabled: !data || data.empty,
-                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`),
+                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.label}`),
               },
               {
                 label: 'Exporter les données (PDF)',
@@ -296,7 +296,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
 interface DashboardBoardProps {
   /** Project whose tasks (sub-projects included) are charted, or null for every task. */
   projectId: string | null;
-  /** What is charted ("Tous les projets", project title), for the exports. */
+  /** What is charted ("Tous les projets", project label), for the exports. */
   title: string;
 }
 
@@ -342,12 +342,12 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
    */
   const askName = (dashboard?: Dashboard) =>
     openNameForm(dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord', {
-      initial: dashboard?.name ?? (dashboards?.length ? '' : 'KPI'),
-      schema: dashboardNameSchema,
+      initial: dashboard?.label ?? (dashboards?.length ? '' : 'KPI'),
+      schema: dashboardLabelSchema,
       placeholder: 'KPI, Sprint, Mensuel…',
       submitLabel: dashboard ? 'Renommer' : 'Créer',
-      onSubmit: (name) =>
-        dashboard ? mutations.rename.mutate({ id: dashboard.id, name }, ON_ERROR) : mutations.create.mutate({ name, projectId }, { onSuccess: (id) => select(id), onError: onMutationError }),
+      onSubmit: (label) =>
+        dashboard ? mutations.rename.mutate({ id: dashboard.id, label }, ON_ERROR) : mutations.create.mutate({ label, projectId }, { onSuccess: (id) => select(id), onError: onMutationError }),
     });
 
   /**
@@ -358,7 +358,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const confirmDelete = (dashboard: Dashboard) => {
     confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      risks: `« ${dashboard.name} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées.`,
+      risks: `« ${dashboard.label} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées.`,
       run: () => mutations.remove.mutateAsync(dashboard.id),
       done: 'Tableau de bord supprimé.',
     });
@@ -381,12 +381,12 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           initial={
             chart
               ? {
-                  title: chart.title,
+                  label: chart.label,
                   config: parseConfig(chart.config),
                   wide: chart.wide,
                 }
               : {
-                  title: NEW_CHART_TITLES[source],
+                  label: NEW_CHART_TITLES[source],
                   config: defaultChartConfig(source),
                   wide: false,
                 }
@@ -409,7 +409,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         .filter((capture) => capture !== undefined)
         .map((capture) => capture({ scheme: 'light', render: PRINT_SIZE })),
     );
-    await downloadChartsPdf({ title: `${title} — ${current.name}`, subtitle: `${countOf(charts.length, 'diagramme')} · exporté le ${fmt.exportDateTime(new Date())}`, charts });
+    await downloadChartsPdf({ title: `${title} — ${current.label}`, subtitle: `${countOf(charts.length, 'diagramme')} · exporté le ${fmt.exportDateTime(new Date())}`, charts });
   });
 
   if (error) {
@@ -442,17 +442,17 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           value={current.id}
           onChange={select}
           onMove={moveTab}
-          name={(dashboard) => dashboard.name}
+          name={(dashboard) => dashboard.label}
           label={(dashboard) => (
             <Group gap={6} wrap="nowrap">
-              {dashboard.name}
+              {dashboard.label}
               {dashboard.archived && <ArchivedBadge size="xs" />}
             </Group>
           )}
           actions={(dashboard) => [
             // Archived: read only.
             ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]),
-            archiveEntry({ archived: dashboard.archived, type: 'Tableau de bord', name: dashboard.name }, setArchived, dashboard.id),
+            archiveEntry({ archived: dashboard.archived, type: 'Tableau de bord', name: dashboard.label }, setArchived, dashboard.id),
           ]}
           onDelete={confirmDelete}
           add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}
@@ -492,7 +492,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                 count={current.charts.length}
                 scope={scope}
                 context={context}
-                dashboardName={`${title} — ${current.name}`}
+                dashboardName={`${title} — ${current.label}`}
                 captures={captures}
                 onEdit={() => openEditor(chart)}
                 readOnly={current.archived}

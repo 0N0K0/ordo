@@ -1,4 +1,4 @@
-import { dateSchema, markdownSchema, milestoneTitleSchema, parseOptionalDay } from '@ordo/shared';
+import { dateSchema, markdownSchema, milestoneLabelSchema, parseOptionalDay } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
@@ -29,7 +29,7 @@ async function findEditableMilestone(id: string): Promise<Milestone> {
 }
 
 const fieldsSchema = z.object({
-  title: milestoneTitleSchema.optional(),
+  label: milestoneLabelSchema.optional(),
   description: markdownSchema.optional(),
   dueDate: dateSchema.optional(),
 });
@@ -38,16 +38,16 @@ const fieldsSchema = z.object({
  * Creates a milestone at the end of its project's list.
  * @param {object} input Milestone input.
  * @param {string} input.projectId Project.
- * @param {string} input.title Title.
+ * @param {string} input.label Label.
  * @param {string | null} [input.description] Markdown description. Optional.
  * @param {string | null} [input.dueDate] Due date, YYYY-MM-DD. Optional.
  * @returns {Promise<Milestone>} Created milestone.
  */
-export async function createMilestone(input: { projectId: string; title: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
+export async function createMilestone(input: { projectId: string; label: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
   const project = await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { archivedAt: true } }), 'Projet');
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
-  const fields = parseInput(fieldsSchema.required({ title: true }), {
-    title: input.title,
+  const fields = parseInput(fieldsSchema.required({ label: true }), {
+    label: input.label,
     description: input.description ?? null,
     dueDate: input.dueDate ?? null,
   });
@@ -55,7 +55,7 @@ export async function createMilestone(input: { projectId: string; title: string;
   return prisma.milestone.create({
     data: {
       projectId: input.projectId,
-      title: fields.title,
+      label: fields.label,
       description: fields.description,
       dueDate: parseOptionalDay(fields.dueDate),
       position,
@@ -67,21 +67,21 @@ export async function createMilestone(input: { projectId: string; title: string;
  * Updates a milestone; undefined leaves a field unchanged, null clears it.
  * @param {string} id Milestone id.
  * @param {object} input Changes.
- * @param {string | null} [input.title] New title. Optional.
+ * @param {string | null} [input.label] New label. Optional.
  * @param {string | null} [input.description] New description. Optional.
  * @param {string | null} [input.dueDate] New due date. Optional.
  * @returns {Promise<Milestone>} Updated milestone.
  */
-export async function updateMilestone(id: string, input: { title?: string | null; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
+export async function updateMilestone(id: string, input: { label?: string | null; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
   await findEditableMilestone(id);
   const fields = parseInput(fieldsSchema, {
-    title: input.title ?? undefined,
+    label: input.label ?? undefined,
     description: input.description,
     dueDate: input.dueDate,
   });
   return prisma.milestone.update({
     where: { id },
-    data: { title: fields.title, description: fields.description, dueDate: parseOptionalDay(fields.dueDate) },
+    data: { label: fields.label, description: fields.description, dueDate: parseOptionalDay(fields.dueDate) },
   });
 }
 

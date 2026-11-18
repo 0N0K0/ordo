@@ -12,7 +12,7 @@ import { assertNotArchived } from '../core/archive';
 import { assertExists } from '../core/lookup';
 
 const settingsSchema = z.object({
-  name: requiredText(200),
+  label: requiredText(200),
   recurrence: recurrenceSchema,
   startDate: startDaySchema,
   autoFinalize: z.boolean(),
@@ -47,7 +47,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
   const template = await createDocument('INVOICE', await editableFields(source), { status: 'TEMPLATE' });
   return prisma.recurringInvoice.create({
     data: {
-      name: settings.name,
+      label: settings.label,
       templateId: template.id,
       recurrence: settings.recurrence,
       startDate: parseDay(settings.startDate),

@@ -41,8 +41,8 @@ import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
-  { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
-  { name: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
+  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'state', operator: 'in', value: ['OPEN'] }] } } },
+  { label: 'Clôturées', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'closed', field: 'state', operator: 'in', value: ['CLOSED'] }] } } },
 ];
 
 /** What the columns of the lists need: the tasks, the categories and the stores. */
@@ -69,11 +69,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   const { context } = env;
   const taskLabel = (id: string) => {
     const task = context?.taskById.get(id);
-    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.title}`) : '';
+    return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`) : '';
   };
   const stateOf = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
-    { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.name, text: (list) => list.name },
+    { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
     {
       id: 'tasks',
       label: 'Tâches',
@@ -177,7 +177,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Catégories',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [env.categories.find((category) => category.id === item.categoryId)?.name ?? ''] : [])))].join(', '),
+      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [env.categories.find((category) => category.id === item.categoryId)?.label ?? ''] : [])))].join(', '),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
@@ -189,11 +189,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Magasins',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.name ?? ''] : [])))].join(', '),
+      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.label ?? ''] : [])))].join(', '),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
-        options: env.stores.map((store) => ({ value: store.id, label: store.name, archived: store.archived })),
+        options: env.stores.map((store) => ({ value: store.id, label: store.label, archived: store.archived })),
       },
     },
     {
@@ -202,7 +202,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       size: 220,
       hiddenByDefault: true,
       groupable: false,
-      text: (list) => list.items.map((item) => item.name).join(', '),
+      text: (list) => list.items.map((item) => item.label).join(', '),
     },
   ];
 }
@@ -248,14 +248,14 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
    * @param {(list: ShoppingList) => { name?: string, taskIds?: string[] }} changeFor Change of each.
    * @returns {void}
    */
-  const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { name?: string; taskIds?: string[] }) => {
+  const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { label?: string; taskIds?: string[] }) => {
     for (const list of targets) {
       if (lockedOf(list)) continue;
       const change = changeFor(list);
-      updateList.mutate({ id: list.id, name: change.name ?? list.name, taskIds: change.taskIds ?? list.taskIds }, ON_ERROR);
+      updateList.mutate({ id: list.id, label: change.label ?? list.label, taskIds: change.taskIds ?? list.taskIds }, ON_ERROR);
     }
   };
-  const bulk = bulkSaver<ShoppingList, { name?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);
+  const bulk = bulkSaver<ShoppingList, { label?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);
 
   return (
     <DataTable
@@ -284,8 +284,8 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
           name: (
             <Group gap="xs" wrap="nowrap">
-              <EditableText value={list.name} label={`Nom de la liste ${list.name}`} strong readOnly={lockedOf(list)} onSave={(name) => name && bulk('name')(list, { name })} />
-              <IconAction label="Ouvrir la liste" component={Link} to={`/shopping/${list.id}`} size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
+              <EditableText value={list.label} label={`Nom de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
+              <IconAction label="Ouvrir la liste" component={Link} to={`/shopping/${list.id}`} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
                 <ArrowSquareInIcon aria-hidden />
               </IconAction>
               {list.archived && <ArchivedBadge feminine size="sm" />}
@@ -298,9 +298,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ),
           tasks: (
             <TasksCell
-              label={`Tâches de la liste ${list.name}`}
+              label={`Tâches de la liste ${list.label}`}
               readOnly={lockedOf(list) || !context}
-              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.title}` }))}
+              items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `${taskRef(task)}${task.label}` }))}
               options={taskOptions(context, list.taskIds)}
               value={list.taskIds}
               onSave={(taskIds) => bulk('tasks')(list, (target) => ({ taskIds: applyDiff(target.taskIds, list.taskIds, taskIds) }))}

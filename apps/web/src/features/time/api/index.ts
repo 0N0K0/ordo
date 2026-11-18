@@ -17,7 +17,7 @@ graphql(`
     id
     projectId
     routineId
-    routineTitle
+    routineLabel
     description
     startedAt
     endedAt
@@ -29,7 +29,7 @@ graphql(`
     documentNumber
     calendarEventId
     calendarOccurrenceDate
-    calendarEventTitle
+    calendarEventLabel
   }
 `);
 
@@ -181,15 +181,15 @@ function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: {
   const routine = input.routineId ? queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.find((item) => item.id === input.routineId) : undefined;
   const tasks = queryClient.getQueryData<TasksDataQuery>(tasksQueryKey)?.tasks.filter((task) => input.taskIds.includes(task.id)) ?? [];
   const items = [
-    ...(routine ? [{ title: routine.title, slotRule: null, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
-    ...tasks.map((task) => ({ title: task.title, slotRule: task.slotRule, assigneeIds: task.assigneeIds, taskId: task.id })),
+    ...(routine ? [{ label: routine.label, slotRule: null, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
+    ...tasks.map((task) => ({ label: task.label, slotRule: task.slotRule, assigneeIds: task.assigneeIds, taskId: task.id })),
   ];
   const lines = items.flatMap((item) => {
     const busy = slotRules.blocking(item);
     // The event the timer is on keeps nobody from it.
     const event = busy && (busy as { eventId?: string }).eventId !== input.event?.eventId ? busy : undefined;
-    if (event) return [`${item.title} : pendant « ${event.title} »`];
-    return slotRules.inSlots(item.slotRule) ? [] : [`${item.title} : ${(slotRules.describe(slotRules.ruleOf(item.slotRule)) ?? '').toLowerCase()}`];
+    if (event) return [`${item.label} : pendant « ${event.label} »`];
+    return slotRules.inSlots(item.slotRule) ? [] : [`${item.label} : ${(slotRules.describe(slotRules.ruleOf(item.slotRule)) ?? '').toLowerCase()}`];
   });
   if (!lines.length) return;
   notifyWarning('Hors des moments prévus', `Le chrono tourne quand même. ${lines.join(' · ')}.`);

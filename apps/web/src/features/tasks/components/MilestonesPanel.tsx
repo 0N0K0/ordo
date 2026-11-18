@@ -47,7 +47,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   const { create, update } = useMilestoneMutations();
   const form = useAppForm<MilestoneFormValues>({
     initialValues: {
-      title: milestone?.title ?? '',
+      label: milestone?.label ?? '',
       dueDate: milestone?.dueDate ?? null,
       description: milestone?.description ?? '',
     },
@@ -55,7 +55,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    const input = { title: values.title, dueDate: values.dueDate, description: values.description || null };
+    const input = { label: values.label, dueDate: values.dueDate, description: values.description || null };
     const callbacks = formCallbacks(form, milestone ? 'Jalon modifié.' : 'Jalon créé.', onDone);
     if (milestone) update.mutate({ id: milestone.id, input }, callbacks);
     else create.mutate({ ...input, projectId }, callbacks);
@@ -64,7 +64,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+        <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
         <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
         <MarkdownEditor
           label="Description"
@@ -97,7 +97,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
   return (
     <Paper ref={ref} withBorder radius="md" p="md" shadow={dragging ? 'md' : undefined} style={style}>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        {sortable && <DragHandle label={`Déplacer le jalon ${milestone.title}`} {...handle} />}
+        {sortable && <DragHandle label={`Déplacer le jalon ${milestone.label}`} {...handle} />}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
     </Paper>
@@ -142,7 +142,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (milestone: Milestone, count: number) => {
     confirmPlanDelete({
       title: 'Supprimer le jalon',
-      what: `Le jalon « ${milestone.title} »`,
+      what: `Le jalon « ${milestone.label} »`,
       count,
       link: 'qui l’utilisent',
       done: 'Jalon supprimé.',
@@ -177,17 +177,17 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
               <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
                 <PlanCard
                   icon={<FlagIcon aria-hidden />}
-                  title={milestone.title}
+                  title={milestone.label}
                   badges={milestone.archived && <ArchivedBadge size="sm" />}
                   dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
                   datesColor={late ? 'red' : undefined}
                   actions={[
                     // Archived (or of an archived project): read only.
                     !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                    archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.title }, setArchived, milestone.id),
+                    archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.label }, setArchived, milestone.id),
                     { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
                   ]}
-                  progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
+                  progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.label}`} />}
                   description={milestone.description}
                   targets={context.targetsFor(milestone.projectId)}
                   onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, ON_ERROR)}

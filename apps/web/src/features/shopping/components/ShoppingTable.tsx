@@ -106,7 +106,7 @@ export function ShoppingTable<T extends ShoppingFields>({
   const groupTree = useMemo((): GroupTree<T> => {
     const labels = { categories: allCategories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], people: people.byKey };
     const groups = shoppingRows([], grouping, labels, true).flatMap((row) =>
-      row.kind === 'group' && row.id !== null ? [{ key: row.id, label: row.name, color: row.color, parentKey: row.parents.at(-1) ?? null }] : [],
+      row.kind === 'group' && row.id !== null ? [{ key: row.id, label: row.label, color: row.color, parentKey: row.parents.at(-1) ?? null }] : [],
     );
     return { groups, groupOf: (row) => groupsOfRow(row, grouping), noneLabel: NO_GROUP_NAME[grouping], showEmpty };
   }, [allCategories, data, people.byKey, grouping, showEmpty]);
@@ -147,14 +147,14 @@ export function ShoppingTable<T extends ShoppingFields>({
      * @returns {void}
      */
     const save = (column: string, patch: BulkChange<T, Partial<ShoppingItemInput>>) => saveCell(column)(item, patch);
-    const name = item.name;
+    const name = item.label;
     return {
       // Columns without an editor of their own: their text.
       ...Object.fromEntries(view.columns.filter((column) => column.text).map((column) => [column.id, column.text!(item)])),
       name: (
         <>
           <Group gap={4} wrap="nowrap">
-            <EditableText value={name} label={`Label de ${name}`} schema={shoppingItemSchema.shape.name} strong readOnly={readOnly} onSave={(value) => value && save('name', { name: value })} />
+            <EditableText value={name} label={`Label de ${name}`} schema={shoppingItemSchema.shape.label} strong readOnly={readOnly} onSave={(value) => value && save('name', { label: value })} />
             {badge?.(item)}
           </Group>
           {item.note && (

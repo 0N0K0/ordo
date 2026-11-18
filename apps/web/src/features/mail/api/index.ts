@@ -25,7 +25,7 @@ graphql(`
   fragment MailAccountFields on MailAccount {
     id
     archived
-    name
+    label
     email
     displayName
     imapHost
@@ -109,7 +109,7 @@ graphql(`
     sent
     attachments {
       id
-      name
+      filename
       size
       inline
       url
@@ -326,7 +326,7 @@ const MailLabelsDocument = graphql(`
     mailLabels {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -385,7 +385,7 @@ const DeleteMailFolderDocument = graphql(`
 `);
 
 const CreateMailLabelDocument = graphql(`
-  mutation CreateMailLabel($input: NameColorInput!) {
+  mutation CreateMailLabel($input: LabelColorInput!) {
     createMailLabel(input: $input) {
       id
     }
@@ -393,7 +393,7 @@ const CreateMailLabelDocument = graphql(`
 `);
 
 const UpdateMailLabelDocument = graphql(`
-  mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateMailLabel($id: ID!, $input: LabelColorPatch!) {
     updateMailLabel(id: $id, input: $input) {
       id
     }
@@ -428,7 +428,7 @@ const MailSearchesDocument = graphql(`
   query MailSearches {
     mailSearches {
       id
-      name
+      label
       criteria
       position
     }
@@ -799,8 +799,8 @@ export function useMailFolderMutations() {
  */
 export function useMailLabelMutations() {
   return {
-    create: useMailMutation(async (input: { name: string; color: string }) => (await execute(CreateMailLabelDocument, { input })).createMailLabel),
-    update: useMailMutation(async (variables: { id: string; input: { name: string; color: string } }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
+    create: useMailMutation(async (input: { label: string; color: string }) => (await execute(CreateMailLabelDocument, { input })).createMailLabel),
+    update: useMailMutation(async (variables: { id: string; input: { label: string; color: string } }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
     remove: useMailMutation(async (id: string) => (await execute(DeleteMailLabelDocument, { id })).deleteMailLabel),
   };
 }

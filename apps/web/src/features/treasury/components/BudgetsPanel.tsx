@@ -327,7 +327,7 @@ export function BudgetsPanel() {
   const directionOf = new Map(categories.map((category) => [category.id, category.direction]));
   const memberName = new Map((settings?.treasuryMembers ?? []).map((member) => [member.id, personName(member)]));
   const me = settings?.treasuryMembers.find((member) => member.isMe);
-  const contextName = new Map((settings?.treasuryContexts ?? []).map((item) => [item.id, item.name]));
+  const contextName = new Map((settings?.treasuryContexts ?? []).map((item) => [item.id, item.label]));
   const relationName = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
   const rows = data?.treasuryBudgetReport ?? [];
   const budgeted = rows.filter((row) => row.budgeted);
@@ -764,7 +764,7 @@ export function BudgetsPanel() {
                         value={budget.contextId ?? null}
                         label="Contexte du budget"
                         nullable
-                        data={unarchived(settings?.treasuryContexts ?? [], budget.contextId).map((item) => ({ value: item.id, label: item.name }))}
+                        data={unarchived(settings?.treasuryContexts ?? [], budget.contextId).map((item) => ({ value: item.id, label: item.label }))}
                         onSave={(contextId) => bulk('context')(budget, { contextId })}
                       />
                     ),

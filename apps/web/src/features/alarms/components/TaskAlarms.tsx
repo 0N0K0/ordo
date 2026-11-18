@@ -21,7 +21,7 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
   const { data, isPending } = useAlarms();
   const openForm = useAlarmForm(context);
   const alarms = (data ?? []).filter((alarm) => alarm.taskId === task.id);
-  const create = () => openForm(undefined, { defaults: { title: task.title.slice(0, 120), projectId: task.projectId, taskId: task.id } });
+  const create = () => openForm(undefined, { defaults: { label: task.label.slice(0, 120), projectId: task.projectId, taskId: task.id } });
 
   return (
     <SubSection

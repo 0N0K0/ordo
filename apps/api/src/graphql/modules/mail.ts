@@ -10,16 +10,16 @@ import * as searches from '../../services/mail/searches';
 import { sendMail } from '../../services/mail/sender';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type BuilderTypes, type InputFields } from '../builder';
-import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
-labelObject('MailLabel', { description: 'Flag of mails (name, color).' });
+labelObject('MailLabel', { description: 'Flag of mails (label, color).' });
 
 builder.prismaObject('MailSearch', {
   description: 'Search folder, kept in Ordo (not on the mail server).',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     criteria: t.field({ type: 'JSON', description: 'accountIds, scope, state, labelIds, unread, text.', resolve: (search) => searches.searchCriteria(search) }),
     position: t.exposeInt('position'),
   }),
@@ -42,7 +42,7 @@ builder.prismaObject('MailAccount', {
   description: 'Mailbox settings (passwords are never returned).',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     email: t.exposeString('email'),
     displayName: t.exposeString('displayName', { nullable: true }),
     imapHost: t.exposeString('imapHost'),
@@ -139,13 +139,13 @@ const MailView = builder.objectRef<reader.MailView>('MailView').implement({
   }),
 });
 
-const LinkedMailAttachment = builder.objectRef<{ id: string; name: string; size: number; contentId: string | null }>('LinkedMailAttachment').implement({
+const LinkedMailAttachment = builder.objectRef<{ id: string; filename: string; size: number; contentId: string | null }>('LinkedMailAttachment').implement({
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    filename: t.exposeString('filename'),
     size: t.exposeInt('size'),
     inline: t.boolean({ resolve: (attachment) => attachment.contentId !== null }),
-    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
+    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.filename)}` }),
   }),
 });
 
@@ -179,7 +179,7 @@ builder.prismaObject('MailMessage', {
     sent: t.exposeBoolean('sent'),
     attachments: t.field({
       type: [LinkedMailAttachment],
-      select: { attachments: { select: { id: true, name: true, size: true, contentId: true } } },
+      select: { attachments: { select: { id: true, filename: true, size: true, contentId: true } } },
       resolve: (mail) => mail.attachments,
     }),
   }),
@@ -188,7 +188,7 @@ builder.prismaObject('MailMessage', {
 const MailAccountInput = builder.inputType('MailAccountInput', {
   description: 'Empty passwords keep the saved ones on edition.',
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     email: t.string({ required: true }),
     displayName: t.string({ required: true }),
     imapHost: t.string({ required: true }),
@@ -305,7 +305,7 @@ const MailSearchPage = builder.objectRef<{ messages: searches.MailSearchHit[]; t
 
 const MailSearchInput = builder.inputType('MailSearchInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     accountIds: t.idList({ required: true }),
     scope: t.string({ required: true, description: 'inbox, all or folder.' }),
     folder: t.string({ description: 'Folder path, with the folder scope.' }),
@@ -556,4 +556,4 @@ builder.mutationFields((t) => {
 });
 
 // Deleting a flag also takes it off the marks kept in Ordo.
-labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel }, { create: NameColorInput, update: NameColorPatch });
+labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel }, { create: LabelColorInput, update: LabelColorPatch });

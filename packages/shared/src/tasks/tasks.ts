@@ -5,10 +5,10 @@ import { dateSchema } from '../core/workspace';
 import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
-/** Longest title of a task. */
-export const TASK_TITLE_MAX = 256;
+/** Longest label of a task. */
+export const TASK_LABEL_MAX = 256;
 
-export const taskTitleSchema = requiredText(TASK_TITLE_MAX, 'Le titre est requis.');
+export const taskLabelSchema = requiredText(TASK_LABEL_MAX, 'Le titre est requis.');
 
 /** Markdown text (description, comment); empty becomes null. */
 export const markdownSchema = z
@@ -55,7 +55,7 @@ export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 
 export const taskFormSchema = z
   .object({
-    title: taskTitleSchema,
+    label: taskLabelSchema,
     /** Empty: a task of no project. */
     projectId: z.string().transform((value) => value || null),
     description: z.string(),
@@ -86,27 +86,27 @@ export const taskFormSchema = z
   .refine(...endAfter('minDate', 'deadline'));
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-/** Longest title of a milestone. */
-export const MILESTONE_TITLE_MAX = 120;
+/** Longest label of a milestone. */
+export const MILESTONE_LABEL_MAX = 120;
 
-export const milestoneTitleSchema = requiredText(MILESTONE_TITLE_MAX, 'Le titre est requis.');
+export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX, 'Le titre est requis.');
 
 export const milestoneFormSchema = z.object({
-  title: milestoneTitleSchema,
+  label: milestoneLabelSchema,
   dueDate: dateSchema,
   description: z.string(),
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-export const sprintNameSchema = requiredText(120);
+export const sprintLabelSchema = requiredText(120);
 
 /**
- * Schema of a sprint: its name, its days (the end not before the start) and its goal.
+ * Schema of a sprint: its label, its days (the end not before the start) and its goal.
  * @param {G} goal Schema of the goal (plain text in the form, markdown for the API).
  * @returns {z.ZodObject} Schema.
  */
 export function sprintSchema<G extends z.ZodType>(goal: G) {
-  return z.object({ name: sprintNameSchema, startDate: startDaySchema, endDate: endDaySchema, goal }).refine(...endAfter('startDate', 'endDate'));
+  return z.object({ label: sprintLabelSchema, startDate: startDaySchema, endDate: endDaySchema, goal }).refine(...endAfter('startDate', 'endDate'));
 }
 
 export const sprintFormSchema = sprintSchema(z.string());
@@ -114,7 +114,7 @@ export type SprintFormValues = z.input<typeof sprintFormSchema>;
 
 /** Fields of a task sent to create or change it: undefined leaves a field unchanged, null clears it. */
 export interface TaskInput {
-  title?: string | null;
+  label?: string | null;
   description?: string | null;
   projectId?: string | null;
   statusId?: string | null;

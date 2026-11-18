@@ -33,7 +33,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const scheduleName = new Map((env.slotKinds ?? []).map((kind) => [kind.value, kind.label]));
   const beneficiaryName = new Map((env.beneficiaries ?? []).map((person) => [person.value, person.label]));
   const comments = env.comments ?? new Map<string, number>();
-  const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.title ?? '').filter(Boolean);
+  const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.label ?? '').filter(Boolean);
   const slotIds = (routine: Routine) => [
     ...conditionScheduleIds(readSlotCondition(routine.slotCondition)),
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),
@@ -42,7 +42,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const state = (routine: Routine) => stateOf(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   return [
-    { id: 'title', label: 'Label', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.title, text: (routine) => routine.title },
+    { id: 'title', label: 'Label', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
     {
       id: 'currentDate',
       label: 'Échéance',
@@ -210,7 +210,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? Infinity)) : null),
       text: (routine) => routine.categoryIds.map((id) => categoryName.get(id) ?? '').join(', '),
       filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: withArchived(categoryOptions(categories), categories) },
-      groupTree: categories.map((category) => ({ key: category.id, label: category.name, color: category.color, parentKey: category.parentId })),
+      groupTree: categories.map((category) => ({ key: category.id, label: category.label, color: category.color, parentKey: category.parentId })),
     },
     {
       id: 'requires',
@@ -235,7 +235,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 200,
       hiddenByDefault: true,
       bulk: true,
-      text: (routine) => (routine.parentId ? (byId.get(routine.parentId)?.title ?? '') : ''),
+      text: (routine) => (routine.parentId ? (byId.get(routine.parentId)?.label ?? '') : ''),
       filter: { kind: 'choice', value: (routine) => routine.parentId ?? null, options: routineOptions },
     },
     {

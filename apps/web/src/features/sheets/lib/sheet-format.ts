@@ -3,12 +3,12 @@ import { idsOfKind } from '../../../components/people/people-keys';
 
 /**
  * Input of a sheet as it is, with some fields changed.
- * @param {{ name: string, note?: string | null, projectId?: string | null, categoryIds: string[] }} sheet Sheet.
+ * @param {{ label: string, note?: string | null, projectId?: string | null, categoryIds: string[] }} sheet Sheet.
  * @param {Partial<SheetInput>} change Changed fields.
  * @returns {SheetInput} Input.
  */
-export const sheetInput = (sheet: { name: string; note?: string | null; projectId?: string | null; categoryIds: string[] }, change: Partial<SheetInput>): SheetInput => ({
-  name: sheet.name,
+export const sheetInput = (sheet: { label: string; note?: string | null; projectId?: string | null; categoryIds: string[] }, change: Partial<SheetInput>): SheetInput => ({
+  label: sheet.label,
   note: sheet.note ?? null,
   projectId: sheet.projectId ?? null,
   categoryIds: sheet.categoryIds,

@@ -25,7 +25,7 @@ graphql(`
     eventId
     occurrenceDate
     modified
-    title
+    label
     description
     location
     links {
@@ -62,11 +62,11 @@ graphql(`
     postponedFrom {
       eventId
       date
-      title
+      label
     }
     postponedTo {
       eventId
-      title
+      label
       startDate
       startTime
     }
@@ -79,7 +79,7 @@ const WorkSchedulesDocument = graphql(`
     workSchedules {
       id
       archived
-      name
+      label
       startDate
       endDate
       typeId
@@ -89,7 +89,7 @@ const WorkSchedulesDocument = graphql(`
     scheduleTypes {
       id
       archived
-      name
+      label
       color
       iconUrl
       dayDisplay
@@ -111,9 +111,9 @@ const ForeignScheduleKindsDocument = graphql(`
   query ForeignScheduleKinds {
     foreignScheduleKinds {
       workspaceId
-      workspaceName
+      workspaceLabel
       typeId
-      name
+      label
       color
       sourceColor
       dayDisplay
@@ -130,19 +130,19 @@ const SubscribedSchedulesDocument = graphql(`
   query SubscribedWorkSchedules {
     subscribedWorkSchedules {
       id
-      name
+      label
       startDate
       endDate
       cases
       exceptions
-      typeName
+      typeLabel
       typeId
       color
       dayDisplay
       dayBar
       monthDisplay
       workspaceId
-      workspaceName
+      workspaceLabel
     }
   }
 `);
@@ -230,7 +230,7 @@ const CalendarCategoriesDocument = graphql(`
     calendarCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       parentId
@@ -256,7 +256,7 @@ const CalendarsDocument = graphql(`
     calendars {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -264,11 +264,11 @@ const CalendarsDocument = graphql(`
     calendarSubscriptions {
       id
       calendarId
-      name
+      label
       color
       workspace {
         id
-        name
+        label
         kind
       }
     }
@@ -279,12 +279,12 @@ const SubscribableCalendarsDocument = graphql(`
   query SubscribableCalendars {
     subscribableCalendars {
       id
-      name
+      label
       color
       subscribed
       workspace {
         id
-        name
+        label
         kind
       }
     }
@@ -300,7 +300,7 @@ const SubscribedCalendarEventsDocument = graphql(`
 `);
 
 const CreateCalendarDocument = graphql(`
-  mutation CreateCalendar($input: NameColorInput!) {
+  mutation CreateCalendar($input: LabelColorInput!) {
     createCalendar(input: $input) {
       id
     }
@@ -308,7 +308,7 @@ const CreateCalendarDocument = graphql(`
 `);
 
 const UpdateCalendarDocument = graphql(`
-  mutation UpdateCalendar($id: ID!, $input: NameColorInput!) {
+  mutation UpdateCalendar($id: ID!, $input: LabelColorInput!) {
     updateCalendar(id: $id, input: $input) {
       id
     }
@@ -497,7 +497,7 @@ function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVaria
  * @returns {object} Mutations.
  */
 export function useCalendarMutations() {
-  type Input = { name: string; color: string };
+  type Input = { label: string; color: string };
   return {
     create: useCalendarMutation(async (input: Input) => (await execute(CreateCalendarDocument, { input })).createCalendar),
     update: useCalendarMutation(async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarDocument, variables)).updateCalendar),
@@ -512,7 +512,7 @@ export function useCalendarMutations() {
  * @returns {object} Mutations.
  */
 export function useCalendarCategoryMutations() {
-  type Input = { name: string; color: string; parentId: string | null };
+  type Input = { label: string; color: string; parentId: string | null };
   return {
     create: useCalendarMutation(async (input: Input) => (await execute(CreateCalendarCategoryDocument, { input })).createCalendarCategory),
     update: useCalendarMutation(async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarCategoryDocument, variables)).updateCalendarCategory),
@@ -604,9 +604,9 @@ export function useWorkScheduleMutations() {
     create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
-    createType: useCalendarMutation(async (input: { name: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
+    createType: useCalendarMutation(async (input: { label: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
     updateType: useCalendarMutation(
-      async (variables: { id: string; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
+      async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
     ),
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
@@ -627,11 +627,11 @@ export function useWorkScheduleMutations() {
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
 export function scheduleRules(
-  schedules: readonly { id: string; name: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null }[],
 ): WorkScheduleRule[] {
   return schedules.map((schedule) => ({
     id: schedule.id,
-    name: schedule.name,
+    label: schedule.label,
     startDate: schedule.startDate,
     endDate: schedule.endDate || null,
     cases: readScheduleCases(schedule.cases, schedule.startDate),

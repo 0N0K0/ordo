@@ -77,8 +77,8 @@ const listSheets = (items: ShoppingItem[]) => [
 
 /** Views made the first time a list is shown: every item (opened first), what is left to buy. */
 const LIST_VIEWS: FirstTableView[] = [
-  { name: 'Tout' },
-  { name: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
+  { label: 'Tout' },
+  { label: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
 ];
 
 /**
@@ -178,7 +178,7 @@ export function ShoppingListPage() {
     getKey: (item) => item.id,
     columns,
     rows: [...(list?.items ?? [])].sort(byPosition),
-    title: list?.name ?? 'Liste d’achats',
+    title: list?.label ?? 'Liste d’achats',
     first: LIST_VIEWS,
     bulkColumns: [{ id: 'bought', label: 'Acheté' }],
   });
@@ -225,7 +225,7 @@ export function ShoppingListPage() {
       <DetailHeader
         back={{ to: '/shopping?tab=lists', label: 'Listes d’achats' }}
         page={<PageHeader title={PAGES.shopping.title} />}
-        title={list.name}
+        title={list.label}
         badges={
           list.archived ? (
             <ArchivedBadge feminine />
@@ -328,7 +328,7 @@ export function ShoppingListPage() {
           ]}
           items={[...list.items].sort(byPosition)}
           grouping={grouping}
-          label={`Éléments de ${list.name}`}
+          label={`Éléments de ${list.label}`}
           readOnly={closed}
           showEmpty={showEmpty}
           add={
@@ -350,7 +350,7 @@ export function ShoppingListPage() {
             delivery: list.remote && (
               <EditableSelect
                 value={item.deliveryId ?? null}
-                label={`Livraison de ${item.name}`}
+                label={`Livraison de ${item.label}`}
                 nullable
                 data={deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) }))}
                 onSave={(deliveryId) => bulkDelivery(item, deliveryId)}
@@ -362,7 +362,7 @@ export function ShoppingListPage() {
             id: 'bought',
             name: 'Acheté',
             value: (item) => Boolean(item.purchasedAt),
-            label: (item) => `${item.name} acheté`,
+            label: (item) => `${item.label} acheté`,
             hint: (item) => (item.purchasedAt ? 'Acheté (cliquer : pas encore acheté)' : 'À acheter (cliquer : acheté)'),
             icon: <CheckIcon aria-hidden />,
             color: 'green',
@@ -384,14 +384,14 @@ export function ShoppingListPage() {
           summary={(items) => `${items.filter((item) => item.purchasedAt).length} / ${items.length}`}
           actions={(item) => (
             <RowActions
-              name={item.name}
+              name={item.label}
               primary={!closed && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }}
               items={[
                 ...(!item.productId && !closed
                   ? baseLists.map((baseList) => ({
-                      label: `Ajouter à « ${baseList.name} »`,
+                      label: `Ajouter à « ${baseList.label} »`,
                       icon: <ListPlusIcon aria-hidden />,
-                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, toastCallbacks(`Ajouté à « ${baseList.name} ».`)),
+                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, toastCallbacks(`Ajouté à « ${baseList.label} ».`)),
                     }))
                   : []),
                 item.perishable && {
@@ -414,7 +414,7 @@ export function ShoppingListPage() {
                     else
                       confirmDestructive({
                         title: 'Retirer l’élément',
-                        risks: `« ${item.name} » n’est dans aucune référence : il sera supprimé définitivement.`,
+                        risks: `« ${item.label} » n’est dans aucune référence : il sera supprimé définitivement.`,
                         confirmLabel: 'Retirer',
                         onConfirm: remove,
                       });

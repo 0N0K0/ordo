@@ -182,7 +182,7 @@ export function ProjectPage() {
             )}
             {ancestors.map((ancestor) => (
               <Anchor key={ancestor.id} component={Link} to={projectPath(ancestor.id)} size="sm">
-                {ancestor.title}
+                {ancestor.label}
               </Anchor>
             ))}
           </Breadcrumbs>
@@ -276,7 +276,7 @@ export function ProjectPage() {
               </MarkdownView>
             </SubSection>
 
-            <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
+            <DashboardBoard key={project.id} projectId={project.id} title={project.label} />
           </Stack>
         </PageTabs.Panel>
         <PageTabs.Panel value="tasks">
@@ -284,7 +284,7 @@ export function ProjectPage() {
             key={project.id}
             projectId={project.id}
             projectIds={tree}
-            title={project.title}
+            title={project.label}
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />

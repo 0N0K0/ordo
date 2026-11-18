@@ -55,7 +55,7 @@ const LinkDocument = graphql(`
       id
       projectId
       url
-      title
+      label
       statusFieldId
       priorityFieldId
       iterationFieldId

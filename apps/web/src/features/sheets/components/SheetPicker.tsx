@@ -43,7 +43,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           label="Fiche"
           placeholder={sheets?.length ? 'Choisir une fiche' : 'Aucune fiche'}
           searchable
-          data={(sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.name }))}
+          data={(sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.label }))}
           value={sheetId}
           onChange={setSheetId}
           style={{ flex: 1 }}

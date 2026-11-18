@@ -71,9 +71,9 @@ function guessSettings(board: GithubBoard, context: TaskContext): LinkValues {
   const statusFieldId = guessField(board, 'SINGLE_SELECT', /^status$|statut/i);
   const priorityFieldId = guessField(board, 'SINGLE_SELECT', /priorit/i);
   const typeFieldId = board.issueTypes.length ? null : guessField(board, 'SINGLE_SELECT', /^type$|type/i);
-  const guessAll = (choices: { id: string; name: string }[], labels: { id: string; name: string }[]) =>
-    Object.fromEntries(labels.map((label) => [label.id, guessOption(label.name, choices)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
-  const options = (fieldId: string | null, labels: { id: string; name: string }[]) => guessAll(board.fields.find((item) => item.id === fieldId)?.options ?? [], labels);
+  const guessAll = (choices: { id: string; name: string }[], labels: { id: string; label: string }[]) =>
+    Object.fromEntries(labels.map((label) => [label.id, guessOption(label.label, choices)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  const options = (fieldId: string | null, labels: { id: string; label: string }[]) => guessAll(board.fields.find((item) => item.id === fieldId)?.options ?? [], labels);
   return {
     url: board.url,
     statusFieldId,
@@ -132,20 +132,20 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
    * @param {'statusOptions' | 'priorityOptions' | 'typeOptions'} key Mapping.
    * @returns {JSX.Element} Table.
    */
-  const mappingTable = (labels: { id: string; name: string }[], choices: { value: string; label: string }[], key: 'statusOptions' | 'priorityOptions' | 'typeOptions') => (
+  const mappingTable = (labels: { id: string; label: string }[], choices: { value: string; label: string }[], key: 'statusOptions' | 'priorityOptions' | 'typeOptions') => (
     <Table verticalSpacing={4} withRowBorders={false}>
       <Table.Tbody>
         {labels.map((label) => (
           <Table.Tr key={label.id}>
             <Table.Td w="40%">
-              <Text size="sm">{label.name}</Text>
+              <Text size="sm">{label.label}</Text>
             </Table.Td>
             <Table.Td>
               <Select
                 size="xs"
                 placeholder="Non synchronisé"
                 clearable
-                aria-label={`Option GitHub de ${label.name}`}
+                aria-label={`Option GitHub de ${label.label}`}
                 data={choices}
                 value={values[key][label.id] ?? null}
                 onChange={(optionId) => {
@@ -405,7 +405,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   <GithubLogoIcon aria-hidden />
                 </ThemeIcon>
                 <Anchor href={link.url} target="_blank" rel="noopener" fw={600}>
-                  {link.title}
+                  {link.label}
                 </Anchor>
                 <Badge variant="light" color={link.enabled ? 'green' : 'gray'}>
                   {link.enabled ? 'Synchronisation automatique' : 'Synchronisation manuelle'}

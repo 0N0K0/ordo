@@ -60,10 +60,10 @@ export function ParentRoutineCell({ routine, routines, readOnly = false }: { rou
 export function SubRoutinesCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
   return (
-    <ChildrenCell add={!readOnly && { label: 'Ajouter une sous-routine', name: routine.title, onClick: () => openRoutineForm({ parent: routine }) }}>
+    <ChildrenCell add={!readOnly && { label: 'Ajouter une sous-routine', name: routine.label, onClick: () => openRoutineForm({ parent: routine }) }}>
       {children.map((child) => (
         <Text key={child.id} size="sm" truncate>
-          {child.title}
+          {child.label}
         </Text>
       ))}
     </ChildrenCell>

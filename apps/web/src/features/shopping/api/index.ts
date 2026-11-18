@@ -26,7 +26,7 @@ const ShoppingDataDocument = graphql(`
     shoppingCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       parentId
@@ -36,7 +36,7 @@ const ShoppingDataDocument = graphql(`
     shoppingStorages {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -44,7 +44,7 @@ const ShoppingDataDocument = graphql(`
     shoppingUnits {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -52,7 +52,7 @@ const ShoppingDataDocument = graphql(`
     shoppingStores {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -60,7 +60,7 @@ const ShoppingDataDocument = graphql(`
     shoppingBaseLists {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -69,7 +69,7 @@ const ShoppingDataDocument = graphql(`
       id
       archived
       baseListId
-      name
+      label
       categoryId
       storeId
       url
@@ -98,7 +98,7 @@ const ShoppingListsDocument = graphql(`
     shoppingLists(taskId: $taskId) {
       id
       archived
-      name
+      label
       taskIds
       entryId
       entry {
@@ -131,7 +131,7 @@ const ShoppingListsDocument = graphql(`
         id
         listId
         productId
-        name
+        label
         categoryId
         storeId
         url
@@ -179,14 +179,14 @@ const MoveCategory = graphql(`
   }
 `);
 const CreateUnit = graphql(`
-  mutation CreateShoppingUnit($input: NameColorInput!) {
+  mutation CreateShoppingUnit($input: LabelColorInput!) {
     createShoppingUnit(input: $input) {
       id
     }
   }
 `);
 const UpdateUnit = graphql(`
-  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateShoppingUnit($id: ID!, $input: LabelColorPatch!) {
     updateShoppingUnit(id: $id, input: $input) {
       id
     }
@@ -204,14 +204,14 @@ const MoveProducts = graphql(`
 `);
 
 const CreateStorage = graphql(`
-  mutation CreateShoppingStorage($input: NameColorInput!) {
+  mutation CreateShoppingStorage($input: LabelColorInput!) {
     createShoppingStorage(input: $input) {
       id
     }
   }
 `);
 const UpdateStorage = graphql(`
-  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateShoppingStorage($id: ID!, $input: LabelColorPatch!) {
     updateShoppingStorage(id: $id, input: $input) {
       id
     }
@@ -228,14 +228,14 @@ const DuplicateItem = graphql(`
   }
 `);
 const CreateStore = graphql(`
-  mutation CreateShoppingStore($input: NameColorInput!) {
+  mutation CreateShoppingStore($input: LabelColorInput!) {
     createShoppingStore(input: $input) {
       id
     }
   }
 `);
 const UpdateStore = graphql(`
-  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateShoppingStore($id: ID!, $input: LabelColorPatch!) {
     updateShoppingStore(id: $id, input: $input) {
       id
     }
@@ -247,13 +247,13 @@ const DeleteStore = graphql(`
   }
 `);
 const CreateBaseList = graphql(`
-  mutation CreateShoppingBaseList($name: String!) {
-    createShoppingBaseList(name: $name)
+  mutation CreateShoppingBaseList($label: String!) {
+    createShoppingBaseList(label: $label)
   }
 `);
 const RenameBaseList = graphql(`
-  mutation RenameShoppingBaseList($id: ID!, $name: String!) {
-    renameShoppingBaseList(id: $id, name: $name)
+  mutation RenameShoppingBaseList($id: ID!, $label: String!) {
+    renameShoppingBaseList(id: $id, label: $label)
   }
 `);
 const DeleteBaseList = graphql(`
@@ -282,13 +282,13 @@ const DeleteProduct = graphql(`
   }
 `);
 const CreateList = graphql(`
-  mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {
-    createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)
+  mutation CreateShoppingList($label: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {
+    createShoppingList(label: $label, taskIds: $taskIds, baseListIds: $baseListIds)
   }
 `);
 const UpdateList = graphql(`
-  mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {
-    updateShoppingList(id: $id, name: $name, taskIds: $taskIds)
+  mutation UpdateShoppingList($id: ID!, $label: String!, $taskIds: [ID!]!) {
+    updateShoppingList(id: $id, label: $label, taskIds: $taskIds)
   }
 `);
 const SetListClosed = graphql(`
@@ -407,7 +407,7 @@ function patchProducts(queryClient: QueryClient, change: (product: ShoppingProdu
  * @returns {object} Fields.
  */
 const cached = (input: ShoppingItemInput) => ({
-  name: input.name,
+  label: input.label,
   categoryId: input.categoryId,
   storeId: input.storeId,
   url: input.url || null,
@@ -447,8 +447,8 @@ export function useShoppingMutations() {
     createStore: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStore, { input })).createShoppingStore),
     updateStore: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStore, variables)).updateShoppingStore),
     deleteStore: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteStore, { id })).deleteShoppingStore),
-    createBaseList: useShoppingMutation(async ({ name }: { name: string }) => (await execute(CreateBaseList, { name })).createShoppingBaseList),
-    renameBaseList: useShoppingMutation(async (variables: { id: string; name: string }) => (await execute(RenameBaseList, variables)).renameShoppingBaseList),
+    createBaseList: useShoppingMutation(async ({ label }: { label: string }) => (await execute(CreateBaseList, { label })).createShoppingBaseList),
+    renameBaseList: useShoppingMutation(async (variables: { id: string; label: string }) => (await execute(RenameBaseList, variables)).renameShoppingBaseList),
     deleteBaseList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteBaseList, { id })).deleteShoppingBaseList),
     moveBaseList: useOptimisticMutation(
       // The new order of all the base lists (the list moved at its index), saved as the settings lists are.
@@ -470,8 +470,8 @@ export function useShoppingMutations() {
       (client, { ids, missing }) => patchProducts(client, (product) => (ids.includes(product.id) ? { ...product, missing } : null)),
     ),
     deleteProduct: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteProduct, { id })).deleteShoppingProduct),
-    createList: useShoppingMutation(async (variables: { name: string; taskIds: string[]; baseListIds: string[] }) => (await execute(CreateList, variables)).createShoppingList),
-    updateList: useShoppingMutation(async (variables: { id: string; name: string; taskIds: string[] }) => (await execute(UpdateList, variables)).updateShoppingList),
+    createList: useShoppingMutation(async (variables: { label: string; taskIds: string[]; baseListIds: string[] }) => (await execute(CreateList, variables)).createShoppingList),
+    updateList: useShoppingMutation(async (variables: { id: string; label: string; taskIds: string[] }) => (await execute(UpdateList, variables)).updateShoppingList),
     setClosed: useShoppingMutation(async (variables: { id: string; closed: boolean }) => (await execute(SetListClosed, variables)).setShoppingListClosed),
     duplicateList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DuplicateList, { id })).duplicateShoppingList),
     deleteList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteList, { id })).deleteShoppingList),

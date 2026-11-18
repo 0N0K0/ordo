@@ -10,7 +10,7 @@ const TaskViewsDocument = graphql(`
   query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
     taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
       id
-      name
+      label
       config
       isDefault
       position
@@ -35,8 +35,8 @@ const UpdateTaskViewDocument = graphql(`
 `);
 
 const DuplicateTaskViewDocument = graphql(`
-  mutation DuplicateTaskView($id: ID!, $name: String!) {
-    duplicateTaskView(id: $id, name: $name) {
+  mutation DuplicateTaskView($id: ID!, $label: String!) {
+    duplicateTaskView(id: $id, label: $label) {
       id
     }
   }
@@ -62,7 +62,7 @@ const MoveTaskViewDocument = graphql(`
 
 export interface TaskViewRecord {
   id: string;
-  name: string;
+  label: string;
   /** Raw configuration (of a table view: parsed with tableViewConfigSchema). */
   config: unknown;
   isDefault: boolean;
@@ -101,10 +101,10 @@ function useViewMutation<TVariables, TResult>(mutationFn: (variables: TVariables
 export function useTaskViewMutations() {
   return {
     create: useViewMutation(
-      async (input: { name: string; config: unknown; projectId: string | null; kind?: ViewKind; tableKey?: string | null }) => (await execute(CreateTaskViewDocument, { input })).createTaskView,
+      async (input: { label: string; config: unknown; projectId: string | null; kind?: ViewKind; tableKey?: string | null }) => (await execute(CreateTaskViewDocument, { input })).createTaskView,
     ),
-    update: useViewMutation(async (variables: { id: string; input: { name?: string; config?: unknown } }) => (await execute(UpdateTaskViewDocument, variables)).updateTaskView),
-    duplicate: useViewMutation(async (variables: { id: string; name: string }) => (await execute(DuplicateTaskViewDocument, variables)).duplicateTaskView),
+    update: useViewMutation(async (variables: { id: string; input: { label?: string; config?: unknown } }) => (await execute(UpdateTaskViewDocument, variables)).updateTaskView),
+    duplicate: useViewMutation(async (variables: { id: string; label: string }) => (await execute(DuplicateTaskViewDocument, variables)).duplicateTaskView),
     remove: useViewMutation(async (variables: { id: string }) => (await execute(DeleteTaskViewDocument, variables)).deleteTaskView),
     setDefault: useViewMutation(async (variables: { id: string }) => (await execute(SetDefaultTaskViewDocument, variables)).setDefaultTaskView),
     move: useInvalidatingMutation(async (variables: { id: string; index: number }) => (await execute(MoveTaskViewDocument, variables)).moveTaskView, {

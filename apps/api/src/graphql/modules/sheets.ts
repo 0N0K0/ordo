@@ -6,7 +6,7 @@ import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
 import { builder, type BuilderTypes } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { fromDecimal } from '../../services/core/decimal';
 import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
 import { reloaded } from '../reload';
@@ -68,7 +68,7 @@ builder.prismaObject('Sheet', {
   description: 'Sheet: products and items used together (a recipe, a suitcase…), added to shopping lists or made a checklist of.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     note: t.exposeString('note', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true }),
     categoryIds: t.idList(relationIds('categories')),
@@ -131,7 +131,7 @@ const SheetItemInputRef = builder.inputType('SheetItemInput', {
 });
 
 const SheetInputRef = builder.inputType('SheetInput', {
-  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), projectId: t.id(), categoryIds: t.idList({ required: true }) }),
+  fields: (t) => ({ label: t.string({ required: true }), note: t.string(), projectId: t.id(), categoryIds: t.idList({ required: true }) }),
 });
 
 /**
@@ -140,7 +140,7 @@ const SheetInputRef = builder.inputType('SheetInput', {
  * @returns {import('@ordo/shared').SheetInput} Sheet.
  */
 const sheetInput = (input: typeof SheetInputRef.$inferInput) => ({
-  name: input.name,
+  label: input.label,
   note: input.note ?? null,
   projectId: input.projectId || null,
   categoryIds: input.categoryIds,
@@ -193,7 +193,7 @@ builder.queryFields((t) => ({
   sheetCategories: t.prismaField({
     type: ['SheetCategory'],
     description: 'Categories of the sheets, in their order.',
-    resolve: (query) => prisma.sheetCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.sheetCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   sheet: t.prismaField({
     type: 'Sheet',
@@ -205,7 +205,7 @@ builder.queryFields((t) => ({
     type: ['Sheet'],
     description: 'Sheets, in their order: all, or those of a project.',
     args: { projectId: t.arg.id() },
-    resolve: (query, _root, { projectId }) => prisma.sheet.findMany({ ...query, where: projectId ? { projectId: projectId } : {}, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query, _root, { projectId }) => prisma.sheet.findMany({ ...query, where: projectId ? { projectId: projectId } : {}, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   sheetLinks: t.prismaField({
     type: ['SheetLink'],
@@ -309,4 +309,4 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-labelMutations('SheetCategory', sheets.sheetCategories, { create: NameColorInput, update: NameColorPatch });
+labelMutations('SheetCategory', sheets.sheetCategories, { create: LabelColorInput, update: LabelColorPatch });

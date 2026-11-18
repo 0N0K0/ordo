@@ -21,19 +21,19 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     ids
       .map((id) => context.taskById.get(id))
       .filter((other) => other !== undefined)
-      .map((other) => (other.number === null ? other.title : other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
+      .map((other) => (other.number === null ? other.label : other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
       .join(', ');
   switch (column) {
     case 'title':
-      return `${taskRef(task)}${task.title}`;
+      return `${taskRef(task)}${task.label}`;
     case 'project':
       return context.projectLabel(task.projectId);
     case 'status':
-      return (task.statusId && context.statusById.get(task.statusId)?.name) || '';
+      return (task.statusId && context.statusById.get(task.statusId)?.label) || '';
     case 'priority':
-      return (task.priorityId && context.priorityById.get(task.priorityId)?.name) || '';
+      return (task.priorityId && context.priorityById.get(task.priorityId)?.label) || '';
     case 'type':
-      return (task.typeId && context.typeById.get(task.typeId)?.name) || '';
+      return (task.typeId && context.typeById.get(task.typeId)?.label) || '';
     case 'beneficiaries':
       return beneficiaryNames(task, context).join(', ');
     case 'assignees':
@@ -44,7 +44,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
         .join(', ');
     case 'tags':
       return task.tagIds
-        .map((id) => context.tagById.get(id)?.name)
+        .map((id) => context.tagById.get(id)?.label)
         .filter(Boolean)
         .join(', ');
     case 'effort':
@@ -66,7 +66,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'subtasks':
       return context
         .childrenOf(task.id)
-        .map((child) => `${taskRef(child)}${child.title}`)
+        .map((child) => `${taskRef(child)}${child.label}`)
         .join(', ');
     case 'progress': {
       const children = context.childrenOf(task.id);
@@ -119,7 +119,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
 export function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext): string {
   switch (column) {
     case 'title':
-      return event.location ? `${event.title} (${event.location})` : event.title;
+      return event.location ? `${event.label} (${event.location})` : event.label;
     case 'project':
       return event.projectId ? context.projectLabel(event.projectId) : '';
     case 'beneficiaries':

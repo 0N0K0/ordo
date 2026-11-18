@@ -51,7 +51,7 @@ import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleLayerName, scheduleSources } from '../lib/calendar-events';
+import { archivedCalendarIds, isArchivedOccurrence, kindLabel, occurrenceSpan, scheduleLayerName, scheduleSources } from '../lib/calendar-events';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -206,7 +206,7 @@ export function CalendarPage() {
       const color = category?.color ?? (occurrence.projectId ? context.projectById.get(occurrence.projectId)?.color : null) ?? ofCalendar;
       result.push({
         id: occurrence.key,
-        title: occurrence.title,
+        title: occurrence.label,
         ...occurrenceSpan(occurrence),
         backgroundColor: color,
         borderColor: striped ? ofCalendar : color,
@@ -264,7 +264,7 @@ export function CalendarPage() {
       if (!subscription || hidden.has(occurrence.calendarId)) continue;
       result.push({
         id: `subscribed:${occurrence.key}`,
-        title: occurrence.title,
+        title: occurrence.label,
         ...occurrenceSpan(occurrence),
         editable: false,
         backgroundColor: subscription.color,
@@ -302,7 +302,7 @@ export function CalendarPage() {
         parts.forEach(([partStart, partEnd], index) =>
           result.push({
             id: `time:${entry.id}:${index}`,
-            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.title} » · ` : ''}${project?.title ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.label} » · ` : ''}${project?.label ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
             start: partStart,
             end: partEnd,
             editable: false,
@@ -329,7 +329,7 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { schedule, rule, color, name, foreign, display } of sources) {
+      for (const { schedule, rule, color, label: name, foreign, display } of sources) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
@@ -542,7 +542,7 @@ export function CalendarPage() {
               : null,
             event: {
               id: key,
-              title: `${routine.title}${slot.optional ? ' (facultatif)' : ''}`,
+              title: `${routine.label}${slot.optional ? ' (facultatif)' : ''}`,
               allDay: !timed,
               start: day,
               end: addDays(day, 1),
@@ -723,12 +723,12 @@ export function CalendarPage() {
   const calendarChoices = [
     ...ownCalendars.map((calendar) => ({
       id: calendar.id,
-      label: calendar.name,
+      label: calendar.label,
       color: calendar.color,
     })),
     ...subscriptions.map((subscription) => ({
       id: subscription.calendarId,
-      label: `${subscription.name} · ${subscription.workspace.name}`,
+      label: `${subscription.label} · ${subscription.workspace.label}`,
       color: subscription.color,
     })),
   ];
@@ -737,10 +737,10 @@ export function CalendarPage() {
   const scheduleChoices = [
     ...(schedules ?? []).map((schedule) => ({
       id: schedule.id,
-      label: scheduleLayerName(schedule.name, ((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)?.name),
+      label: scheduleLayerName(schedule.label, kindLabel((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)),
       color: (schedule.typeId ? typeById.get(schedule.typeId)?.color : undefined) ?? defaultKind?.color ?? 'green',
     })),
-    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerName(schedule.name, schedule.typeName, schedule.workspaceName), color: schedule.color ?? 'green' })),
+    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerName(schedule.label, schedule.typeLabel, schedule.workspaceLabel), color: schedule.color ?? 'green' })),
   ];
   const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
@@ -976,7 +976,7 @@ export function CalendarPage() {
               edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')
-              openFormPanel(info.event.extendedProps.occurrence.title, (close) => (
+              openFormPanel(info.event.extendedProps.occurrence.label, (close) => (
                 <SubscribedEvent occurrence={info.event.extendedProps.occurrence} subscription={info.event.extendedProps.subscription} onClose={close} />
               ));
             else openEvent({ occurrence: info.event.extendedProps.occurrence });

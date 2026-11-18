@@ -68,7 +68,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
       date: localToday(),
       amount: document.balance ?? 0,
       // The first method named in the payment terms of the document.
-      methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.name.toLowerCase()))?.id ?? null,
+      methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.label.toLowerCase()))?.id ?? null,
     },
     schema: documentPaymentSchema,
   });

@@ -35,7 +35,7 @@ const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCat
       if (parent.direction !== data.direction) throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
       return data;
     },
-    moveInput: (category, parentId) => ({ name: category.name, color: category.color, direction: category.direction, parentId }),
+    moveInput: (category, parentId) => ({ label: category.label, color: category.color, direction: category.direction, parentId }),
     siblings: (category) => ({ direction: category.direction }),
     async save(id, data, current, parsed) {
       if (parsed.direction === current.direction) return prisma.treasuryCategory.update({ where: { id }, data });

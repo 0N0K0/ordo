@@ -283,7 +283,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const category = chosen
     ? { id: chosen }
     : await prisma.treasuryCategory.findFirst({
-        where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
+        where: { label: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
         orderBy: { createdAt: 'asc' },
         select: { id: true },
       });

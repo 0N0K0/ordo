@@ -36,7 +36,7 @@ export function RoutinesCard({ today }: { today: string }) {
       (a, b) =>
         (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
         (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
-        collator.compare(a.title, b.title),
+        collator.compare(a.label, b.label),
     );
 
   return (
@@ -53,12 +53,12 @@ export function RoutinesCard({ today }: { today: string }) {
                 <Group gap="xs" wrap="nowrap" miw={0}>
                   <RoutineDoneToggles routine={routine} />
                   <Text size="sm" truncate>
-                    {routine.title}
+                    {routine.label}
                   </Text>
                 </Group>
                 <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
                   {waiting.length > 0 && (
-                    <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
+                    <Tooltip label={`En attente de : ${waiting.map((item) => item.label).join(', ')}`}>
                       <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
                     </Tooltip>
                   )}
@@ -77,7 +77,7 @@ export function RoutinesCard({ today }: { today: string }) {
                       {routine.estimate} min
                     </Text>
                   )}
-                  <IconAction label="Reporter au lendemain" size="sm" aria-label={`Reporter « ${routine.title} » au lendemain`} onClick={() => postpone(routine)}>
+                  <IconAction label="Reporter au lendemain" size="sm" aria-label={`Reporter « ${routine.label} » au lendemain`} onClick={() => postpone(routine)}>
                     <ArrowBendUpRightIcon aria-hidden />
                   </IconAction>
                 </Group>
@@ -119,7 +119,7 @@ export function ShoppingCard() {
             <HomeRow
               key={list.id}
               to={`/shopping/${list.id}`}
-              title={list.name}
+              title={list.label}
               value={
                 <Badge variant="light" color={left ? undefined : 'green'}>
                   {left ? `${left} à acheter` : 'Tout acheté'}

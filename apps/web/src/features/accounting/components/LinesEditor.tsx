@@ -29,7 +29,7 @@ const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: '
 function newLine(kind: LineKind, vatRate: number): AccountingLineInput {
   return {
     kind,
-    title: '',
+    label: '',
     description: null,
     quantity: 1,
     unit: kind === 'DISBURSEMENT' ? 'FLAT' : 'UNIT',
@@ -55,7 +55,7 @@ interface LineRowProps {
 }
 
 /**
- * One line: title, quantity, unit, price, VAT and discount, total, and a markdown description.
+ * One line: label, quantity, unit, price, VAT and discount, total, and a markdown description.
  * @param {LineRowProps} props Component props.
  * @returns {JSX.Element} Line.
  */
@@ -80,10 +80,10 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
           <TextInput
             aria-label={`Libellé de la ligne ${index + 1}`}
             placeholder={line.kind === 'TEXT' ? 'Titre de section, note…' : 'Libellé'}
-            value={line.title}
+            value={line.label}
             readOnly={readOnly}
-            error={errors.title}
-            onChange={(event) => update({ title: event.currentTarget.value })}
+            error={errors.label}
+            onChange={(event) => update({ label: event.currentTarget.value })}
             style={{ flex: 1 }}
           />
           {!readOnly && (
@@ -198,7 +198,7 @@ interface LinesEditorProps {
   readOnly: boolean;
   vatApplicable: boolean;
   currency: string;
-  /** Errors by path ("lines.2.title"). */
+  /** Errors by path ("lines.2.label"). */
   errors: Record<string, unknown>;
   /** Other ways to add lines (tracked time…). Optional. */
   extraActions?: ReactNode;
@@ -228,7 +228,7 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
           readOnly={readOnly}
           vatApplicable={vatApplicable}
           currency={currency}
-          errors={{ title: errors[`lines.${index}.title`] as string | undefined, discountValue: errors[`lines.${index}.discountValue`] as string | undefined }}
+          errors={{ label: errors[`lines.${index}.label`] as string | undefined, discountValue: errors[`lines.${index}.discountValue`] as string | undefined }}
           onChange={(next) => onChange(lines.map((item, position) => (position === index ? next : item)))}
           onMove={(offset) => {
             setKeys(arrayMove(keys, index, index + offset));
@@ -253,13 +253,13 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
               placeholder="Depuis le catalogue…"
               searchable
               leftSection={<PackageIcon aria-hidden />}
-              data={offered.map((item) => ({ value: item.id, label: item.title }))}
+              data={offered.map((item) => ({ value: item.id, label: item.label }))}
               value={null}
               onChange={(id) => {
                 const item = offered.find((entry) => entry.id === id);
                 if (!item) return;
                 const kind = item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM';
-                onChange([...lines, { ...newLine(kind, item.vatRate), title: item.title, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
+                onChange([...lines, { ...newLine(kind, item.vatRate), label: item.label, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
               }}
             />
           )}

@@ -40,12 +40,12 @@ export function archivedCalendarIds(calendars: readonly { id: string; archived: 
   return new Set((calendars ?? []).filter((calendar) => calendar.archived).map((calendar) => calendar.id));
 }
 
-/** Schedule shown as slots: its rule, the color of its kind, its name, whether of another workspace, and its display. */
+/** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
 export interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
   color: string | null;
-  name: string;
+  label: string;
   foreign: boolean;
   display: ScheduleDisplay;
 }
@@ -53,13 +53,22 @@ export interface ScheduleSource {
 /**
  * Name of a layer of slots, the same everywhere (the agenda, its layers, the day of a routine): « Nom (Type) », and
  * « · Espace » after it for a schedule of another workspace.
- * @param {string} name Name of the schedule.
- * @param {string | null | undefined} type Name of its kind (none, or the same: left out).
+ * @param {string} name Label of the schedule.
+ * @param {string | null | undefined} type Label of its kind (none, or the same: left out).
  * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
  * @returns {string} Name.
  */
 export function scheduleLayerName(name: string, type: string | null | undefined, workspace?: string): string {
   return `${name}${type && type !== name ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
+}
+
+/**
+ * Label of a kind of slots: a kind of the workspace (its label) or its default kind (its name, kept by the workspace).
+ * @param {{ label: string } | { name: string } | null | undefined} kind Kind (none while loading).
+ * @returns {string | undefined} Label.
+ */
+export function kindLabel(kind: { label: string } | { name: string } | null | undefined): string | undefined {
+  return kind ? ('label' in kind ? kind.label : kind.name) : undefined;
 }
 
 /**
@@ -81,7 +90,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
         schedule,
         rule: scheduleRules([schedule])[0],
         color: kind?.color ?? null,
-        name: scheduleLayerName(schedule.name, kind?.name),
+        label: scheduleLayerName(schedule.label, kindLabel(kind)),
         foreign: false,
         display: readScheduleDisplay(kind),
       };
@@ -90,7 +99,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
       schedule,
       rule: scheduleRules([schedule])[0],
       color: schedule.color ?? null,
-      name: scheduleLayerName(schedule.name, schedule.typeName, schedule.workspaceName),
+      label: scheduleLayerName(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
       foreign: true,
       display: readScheduleDisplay(schedule),
     })),

@@ -28,7 +28,7 @@ graphql(`
   fragment LabelFields on ProjectCategory {
     id
     archived
-    name
+    label
     color
     position
     iconUrl
@@ -39,7 +39,7 @@ graphql(`
   fragment ProjectStatusFields on ProjectStatus {
     id
     archived
-    name
+    label
     color
     iconUrl
     position
@@ -49,7 +49,7 @@ graphql(`
 graphql(`
   fragment ProjectFields on Project {
     id
-    title
+    label
     clientId
     parentId
     iconUrl
@@ -173,7 +173,7 @@ const MoveProjectDocument = graphql(`
 `);
 
 const CreateProjectCategoryDocument = graphql(`
-  mutation CreateProjectCategory($input: NameColorInput!) {
+  mutation CreateProjectCategory($input: LabelColorInput!) {
     createProjectCategory(input: $input) {
       ...LabelFields
     }
@@ -181,7 +181,7 @@ const CreateProjectCategoryDocument = graphql(`
 `);
 
 const UpdateProjectCategoryDocument = graphql(`
-  mutation UpdateProjectCategory($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateProjectCategory($id: ID!, $input: LabelColorPatch!) {
     updateProjectCategory(id: $id, input: $input) {
       ...LabelFields
     }
@@ -195,7 +195,7 @@ const DeleteProjectCategoryDocument = graphql(`
 `);
 
 const CreateProjectStatusDocument = graphql(`
-  mutation CreateProjectStatus($input: NameColorInput!) {
+  mutation CreateProjectStatus($input: LabelColorInput!) {
     createProjectStatus(input: $input) {
       ...ProjectStatusFields
     }
@@ -203,7 +203,7 @@ const CreateProjectStatusDocument = graphql(`
 `);
 
 const UpdateProjectStatusDocument = graphql(`
-  mutation UpdateProjectStatus($id: ID!, $input: NameColorPatch!) {
+  mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {
     updateProjectStatus(id: $id, input: $input) {
       ...ProjectStatusFields
     }
@@ -381,7 +381,7 @@ export function useMoveClient() {
 }
 
 interface ProjectInputValues {
-  title: string;
+  label: string;
   clientId?: string | null;
   parentId?: string | null;
   categoryIds?: string[];
@@ -415,7 +415,7 @@ export function useUpdateProject() {
       ...workspace,
       projects: patch(workspace.projects, id, (project) => ({
         ...project,
-        ...(input.title !== undefined && { title: input.title }),
+        ...(input.label !== undefined && { label: input.label }),
       })),
     }),
   });
@@ -495,7 +495,7 @@ export function useMoveProject() {
  */
 export function useCreateProjectCategory() {
   return useWorkspaceMutation({
-    mutationFn: async (input: { name: string; color: string }) => (await execute(CreateProjectCategoryDocument, { input })).createProjectCategory,
+    mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectCategoryDocument, { input })).createProjectCategory,
   });
 }
 
@@ -505,7 +505,7 @@ export function useCreateProjectCategory() {
  */
 export function useUpdateProjectCategory() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; input: { name?: string; color?: string } }) => (await execute(UpdateProjectCategoryDocument, variables)).updateProjectCategory,
+    mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectCategoryDocument, variables)).updateProjectCategory,
   });
 }
 
@@ -525,7 +525,7 @@ export function useDeleteProjectCategory() {
  */
 export function useCreateProjectStatus() {
   return useWorkspaceMutation({
-    mutationFn: async (input: { name: string; color: string }) => (await execute(CreateProjectStatusDocument, { input })).createProjectStatus,
+    mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectStatusDocument, { input })).createProjectStatus,
   });
 }
 
@@ -535,7 +535,7 @@ export function useCreateProjectStatus() {
  */
 export function useUpdateProjectStatus() {
   return useWorkspaceMutation({
-    mutationFn: async (variables: { id: string; input: { name?: string; color?: string } }) => (await execute(UpdateProjectStatusDocument, variables)).updateProjectStatus,
+    mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectStatusDocument, variables)).updateProjectStatus,
   });
 }
 

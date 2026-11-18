@@ -67,12 +67,12 @@ builder.prismaObject('StockMovement', {
     source: t.string({
       nullable: true,
       description: 'What it comes from: the shopping list, the sheet, the checklist, the inventory.',
-      select: { shoppingItem: { select: { list: { select: { name: true } } } }, sheet: { select: { name: true } }, checklistItem: { select: { label: true } }, count: { select: { date: true } } },
+      select: { shoppingItem: { select: { list: { select: { label: true } } } }, sheet: { select: { label: true } }, checklistItem: { select: { label: true } }, count: { select: { date: true } } },
       resolve: (movement) =>
         movement.shoppingItem
-          ? `Liste « ${movement.shoppingItem.list.name} »`
+          ? `Liste « ${movement.shoppingItem.list.label} »`
           : movement.sheet
-            ? `Fiche « ${movement.sheet.name} »`
+            ? `Fiche « ${movement.sheet.label} »`
             : movement.checklistItem
               ? 'Liste à cocher'
               : movement.count
@@ -119,7 +119,7 @@ const ProductStockRef = builder.objectRef<{ productId: string; quantity: number 
   fields: (t) => ({ productId: t.exposeID('productId'), quantity: t.exposeFloat('quantity') }),
 });
 
-const LocationInput = builder.inputType('StockLocationInput', { fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }) });
+const LocationInput = builder.inputType('StockLocationInput', { fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }) });
 const ItemInput = builder.inputType('StockItemInput', {
   fields: (t) => ({
     productId: t.id(),
@@ -200,7 +200,7 @@ const deliveryInput = (input: typeof DeliveryInput.$inferInput) => ({
 builder.queryFields((t) => ({
   stockLocations: t.prismaField({
     type: ['StockLocation'],
-    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   stockItems: t.prismaField({
     type: ['StockItem'],
@@ -228,11 +228,11 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createStockLocation: t.id({
     args: { input: t.arg({ type: LocationInput, required: true }) },
-    resolve: async (_root, { input }) => (await stock.createLocation({ name: input.name, color: input.color ?? null, parentId: input.parentId || null })).id,
+    resolve: async (_root, { input }) => (await stock.createLocation({ label: input.label, color: input.color ?? null, parentId: input.parentId || null })).id,
   }),
   updateStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: LocationInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.updateLocation(id, { name: input.name, color: input.color ?? null, parentId: input.parentId || null })),
+    resolve: (_root, { id, input }) => done(stock.updateLocation(id, { label: input.label, color: input.color ?? null, parentId: input.parentId || null })),
   }),
   moveStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },

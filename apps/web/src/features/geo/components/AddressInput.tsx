@@ -12,11 +12,11 @@ import { placesInTree, rootPlace, useAddressSearch, usePlaces, zonesOfText, zone
 const LIST_HEIGHT = 320;
 
 /**
- * Text of a location on a place: its name and its address.
- * @param {{ name: string, address: string }} place Place.
+ * Text of a location on a place: its label and its address.
+ * @param {{ label: string, address: string }} place Place.
  * @returns {string} Text.
  */
-const placeText = (place: { name: string; address: string }) => (place.address ? `${place.name}, ${place.address}` : place.name);
+const placeText = (place: { label: string; address: string }) => (place.address ? `${place.label}, ${place.address}` : place.label);
 
 /** Address typed or chosen: its text, and its point when chosen from a place or a search. */
 export interface AddressValue {
@@ -77,7 +77,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
   };
 
   /**
-   * Chooses a saved place (its name and address, and its point), or ticks or unticks one of its zones: the zones
+   * Chooses a saved place (its label and address, and its point), or ticks or unticks one of its zones: the zones
    * ticked of a same place, with its point.
    * @param {string} id Place or zone.
    * @returns {void}
@@ -150,7 +150,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                       {tree.map((place) => (
                         <Menu.Item
                           key={place.id}
-                          leftSection={<ItemAvatar name={place.name} iconUrl={place.iconUrl} color={place.color} />}
+                          leftSection={<ItemAvatar name={place.label} iconUrl={place.iconUrl} color={place.color} />}
                           rightSection={place.parentId && ticked(place.id) ? <CheckIcon aria-label="Zone choisie" /> : undefined}
                           // A zone ticked: the menu stays open to tick others.
                           closeMenuOnClick={!place.parentId}
@@ -158,7 +158,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                           onClick={() => choosePlace(place.id)}
                           style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${place.depth} * var(--mantine-spacing-md))` }}
                         >
-                          <Text size="sm">{place.name}</Text>
+                          <Text size="sm">{place.label}</Text>
                           {place.address && !place.parentId && (
                             <Text size="xs" c="dimmed">
                               {place.address}
@@ -196,10 +196,10 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                       style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
                     >
                       <Group gap="xs" wrap="nowrap">
-                        <ItemAvatar name={place.name} iconUrl={place.iconUrl} color={place.color} />
+                        <ItemAvatar name={place.label} iconUrl={place.iconUrl} color={place.color} />
                         <div>
-                          {/* Searched: the full name of a zone; listed: its name under its place. */}
-                          <Text size="sm">{needle && !value.point ? place.path : place.name}</Text>
+                          {/* Searched: the full label of a zone; listed: its label under its place. */}
+                          <Text size="sm">{needle && !value.point ? place.path : place.label}</Text>
                           {place.address && !place.parentId && (
                             <Text size="xs" c="dimmed">
                               {place.address}
@@ -230,7 +230,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
       </Combobox>
       {/* A place with zones: its zones ticked here, several at once (« Maison › Cuisine, Salle de bain »). */}
       {withPlaces && placeZones.length > 0 && chosenPlace && (
-        <Checkbox.Group label={`Zones de ${chosenPlace.name}`} description="Facultatif : une ou plusieurs ; aucune, le lieu entier." value={chosen?.zoneIds ?? []} onChange={setZones}>
+        <Checkbox.Group label={`Zones de ${chosenPlace.label}`} description="Facultatif : une ou plusieurs ; aucune, le lieu entier." value={chosen?.zoneIds ?? []} onChange={setZones}>
           {/* One under the other, 5 at most (else 4 and « X de plus »), each by its full path. */}
           <Stack mt={4} gap={0}>
             <StackedValues gap={4}>
@@ -241,7 +241,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                   value={zone.id}
                   label={
                     <Group gap={6} wrap="nowrap" component="span">
-                      <ItemAvatar name={zone.name} iconUrl={zone.iconUrl} color={zone.color} size={14} />
+                      <ItemAvatar name={zone.label} iconUrl={zone.iconUrl} color={zone.color} size={14} />
                       {zone.path}
                     </Group>
                   }

@@ -15,7 +15,7 @@ export interface ReferenceTask {
   projectId: string | null;
   /** Number within its project; none without project (it is only referenced by its id). */
   number: number | null;
-  title: string;
+  label: string;
   /** Client and project path of its project ("Client › Projet › Sous-projet"). */
   place: string;
 }
@@ -39,14 +39,14 @@ export const NO_SUGGESTIONS: MarkdownSuggestions = { projectId: null, tasks: [],
 
 /**
  * Label of a task reference seen from the project of a text: "#12" in the same project, "Client › Projet #12"
- * otherwise, its title for a task of no project.
+ * otherwise, its label for a task of no project.
  * @param {ReferenceTask} task Task.
  * @param {string | null} projectId Project of the text.
  * @returns {string} Label.
  */
 export function referenceLabel(task: ReferenceTask, projectId: string | null): string {
-  // A task of no project has no number: its title.
-  if (task.number === null) return task.title;
+  // A task of no project has no number: its label.
+  if (task.number === null) return task.label;
   return task.projectId === projectId ? `#${task.number}` : `${task.place} #${task.number}`;
 }
 

@@ -59,7 +59,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
   const { data: dayEvents } = useCalendarEvents(form.values.date ? { from: form.values.date, to: form.values.date } : null);
   const eventOptions = dayEventOptions(dayEvents ?? [], form.values.date);
   // The event of the entry stays listed while its day is shown, even when it moved.
-  if (eventKey && !eventOptions.some((option) => option.value === eventKey) && entry?.calendarEventTitle) eventOptions.push({ value: eventKey, label: entry.calendarEventTitle });
+  if (eventKey && !eventOptions.some((option) => option.value === eventKey) && entry?.calendarEventLabel) eventOptions.push({ value: eventKey, label: entry.calendarEventLabel });
 
   const handleSubmit = form.onSubmit((values) => {
     const input = {

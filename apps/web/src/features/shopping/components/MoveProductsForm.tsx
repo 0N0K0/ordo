@@ -28,9 +28,9 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
   const [target, setTarget] = useState<string | null>(null);
   const products = unarchived(data?.shoppingProducts ?? [])
     .filter((product) => product.baseListId === baseList.id)
-    .sort((a, b) => collator.compare(a.name, b.name));
+    .sort((a, b) => collator.compare(a.label, b.label));
   const targets = unarchived(data?.shoppingBaseLists ?? []).filter((list) => list.id !== baseList.id);
-  const targetName = targets.find((list) => list.id === target)?.name;
+  const targetName = targets.find((list) => list.id === target)?.label;
 
   /**
    * Moves the chosen products.
@@ -51,8 +51,8 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
       <Stack gap="md">
         <BatchMultiSelect
           label="Produits"
-          description={`De « ${baseList.name} ».`}
-          data={products.map((product) => ({ value: product.id, label: product.name }))}
+          description={`De « ${baseList.label} ».`}
+          data={products.map((product) => ({ value: product.id, label: product.label }))}
           value={ids}
           onChange={setIds}
           searchable
@@ -63,7 +63,7 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
           label="Vers la référence"
           description="Ils y passent après ses produits ; une catégorie qu’elle ne propose pas leur est retirée."
           placeholder={targets.length ? 'Choisir' : 'Aucune autre référence'}
-          data={targets.map((list) => ({ value: list.id, label: list.name }))}
+          data={targets.map((list) => ({ value: list.id, label: list.label }))}
           value={target}
           onChange={setTarget}
           required

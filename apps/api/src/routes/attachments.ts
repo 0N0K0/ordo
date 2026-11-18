@@ -18,7 +18,7 @@ attachmentsRouter.get(
     return {
       content: Buffer.from(attachment.data),
       type: attachment.mimeType,
-      filename: attachment.name,
+      filename: attachment.filename,
       inline,
       cache: 'private, max-age=31536000, immutable',
       securityPolicy: fileSecurityPolicy(inline && pdf),

@@ -9,7 +9,7 @@ export interface ShoppingRefs {
   storageId?: string | null;
   locationId?: string | null;
   productId?: string | null;
-  /** Unit, by its name. */
+  /** Unit, by its label. */
   unit?: string | null;
 }
 
@@ -35,5 +35,5 @@ export async function assertActiveRefs(next: ShoppingRefs, current?: ShoppingRef
   await assertNotArchived('STOCK_LOCATION', added('locationId'));
   await assertNotArchived('SHOPPING_PRODUCT', added('productId'));
   const unit = added('unit');
-  if (unit && (await prisma.shoppingUnit.count({ where: { name: unit, archivedAt: { not: null } } }))) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  if (unit && (await prisma.shoppingUnit.count({ where: { label: unit, archivedAt: { not: null } } }))) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
 }

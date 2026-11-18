@@ -173,7 +173,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
   const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, name } of slotSources) {
+  for (const { schedule, rule, color, label: name } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
@@ -206,7 +206,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const color = calendarColor.get(occurrence.calendarId) ?? subscriptionColor.get(occurrence.calendarId) ?? 'var(--mantine-primary-color-filled)';
     events.push({
       id: `event:${occurrence.key}`,
-      title: occurrence.title,
+      title: occurrence.label,
       ...occurrenceSpan(occurrence),
       backgroundColor: color,
       borderColor: color,
@@ -235,7 +235,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: `routine:${item.key}`,
-      title: `${routine?.title ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
+      title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,
       end: timed ? `${day}T${end}:00` : addDays(day, 1),
@@ -257,7 +257,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const item: HistoryItem | undefined = event.extendedProps.item;
     if (!item) return;
     const routine = byId.get(item.routineId);
-    openFormPanel(routine?.title ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
+    openFormPanel(routine?.label ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
   };
 
   return (

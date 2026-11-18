@@ -211,7 +211,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
 
   return (
     <NavLink
-      label={account.name}
+      label={account.label}
       description={account.email}
       defaultOpened
       leftSection={<EnvelopeSimpleIcon aria-hidden />}

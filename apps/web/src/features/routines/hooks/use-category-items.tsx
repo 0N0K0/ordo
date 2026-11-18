@@ -5,13 +5,13 @@ import { useRoutineMutations, type RoutineCategory } from '../api';
 
 /**
  * Input of a category from the form values.
- * @param {{ name: string, color: string, parentId: string | null }} values Values.
- * @returns {{ name: string, color: string | null, parentId: string | null }} Input.
+ * @param {{ label: string, color: string, parentId: string | null }} values Values.
+ * @returns {{ label: string, color: string | null, parentId: string | null }} Input.
  */
-const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, parentId: values.parentId });
+const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color || null, parentId: values.parentId });
 
 /**
- * Categories of the routines, for their settings list and their form (a creation from a select too): name, color (the
+ * Categories of the routines, for their settings list and their form (a creation from a select too): label, color (the
  * one of its parent by default), image and parent.
  * @returns {SettingsItemKind<RoutineCategory>} List and form.
  */

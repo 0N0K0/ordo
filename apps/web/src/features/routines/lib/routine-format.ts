@@ -58,7 +58,7 @@ export const stateOf = (routine: Routine, today: string, doable = true): Routine
  * @param {(routine: Routine) => string} [label] Name of a routine. Optional. Default = its title.
  * @returns {TreeOption[]} Options.
  */
-export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.title): TreeOption[] {
+export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.label): TreeOption[] {
   const byId = mapById(routines);
   return treeOptions(
     [...routines].sort(byPosition).map((routine) => ({ id: routine.id, parentId: routine.parentId ?? null, label: label(routine) })),
@@ -76,7 +76,7 @@ export function routineTreeOptions(routines: readonly Routine[], offered: (routi
  * @returns {string} Path.
  */
 export function routinePath(routine: Routine, byId: ReadonlyMap<string, Routine>): string {
-  return pathOf(new Map([...byId, [routine.id, routine]]), routine.id, (item) => item.title);
+  return pathOf(new Map([...byId, [routine.id, routine]]), routine.id, (item) => item.label);
 }
 
 /**

@@ -132,10 +132,10 @@ export async function travelTime(from: GeoPoint, to: GeoPoint, mode: TravelMode)
   return result;
 }
 
-/** Saved place with what its zones take from the place they are in: its point, and its full name. */
+/** Saved place with what its zones take from the place they are in: its point, and its full label. */
 export interface PlaceView {
   id: string;
-  name: string;
+  label: string;
   address: string;
   parentId: string | null;
   /** Point of the place, or of the place a zone is in. */
@@ -154,12 +154,12 @@ export interface PlaceView {
 }
 
 /**
- * Saved places of the workspace, in their manual order (then by name): each zone with the point and the address of the
+ * Saved places of the workspace, in their manual order (then by label): each zone with the point and the address of the
  * place it is in.
  * @returns {Promise<PlaceView[]>} Places.
  */
 export async function places(): Promise<PlaceView[]> {
-  const rows = await prisma.place.findMany({ orderBy: [{ position: 'asc' }, { name: 'asc' }] });
+  const rows = await prisma.place.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] });
   const byId = mapById(rows);
   return rows.flatMap((row) => {
     // From the place at the top down to this one.
@@ -169,12 +169,12 @@ export async function places(): Promise<PlaceView[]> {
     return [
       {
         id: row.id,
-        name: row.name,
+        label: row.label,
         address: row.address || located.address,
         parentId: row.parentId,
         lat: located.lat!,
         lon: located.lon!,
-        path: chain.map((item) => item.name).join(' › '),
+        path: chain.map((item) => item.label).join(' › '),
         color: row.color,
         iconId: row.iconId,
         position: row.position,
@@ -184,7 +184,7 @@ export async function places(): Promise<PlaceView[]> {
   });
 }
 
-/** Conflicts of a place name: among the places at the top, among the zones of a place (the database checks these). */
+/** Conflicts of a place label: among the places at the top, among the zones of a place (the database checks these). */
 const PLACE_TAKEN = 'Un lieu porte déjà ce nom.';
 const ZONE_TAKEN = 'Une zone de ce lieu porte déjà ce nom.';
 
@@ -197,13 +197,13 @@ const placeTree = treeListService<Place, ReturnType<typeof placeSchema.parse>>(
       const data = parseInput(placeSchema, input);
       // A zone has no address of its own.
       if (data.parentId) Object.assign(data, { address: '', lat: null, lon: null });
-      // A name is unique among the places at the top (the database checks the zones).
-      if (!data.parentId && (await prisma.place.count({ where: { parentId: null, name: data.name, ...(current && { id: { not: current.id } }) } }))) {
-        throw fieldError('name', PLACE_TAKEN);
+      // A label is unique among the places at the top (the database checks the zones).
+      if (!data.parentId && (await prisma.place.count({ where: { parentId: null, label: data.label, ...(current && { id: { not: current.id } }) } }))) {
+        throw fieldError('label', PLACE_TAKEN);
       }
       return data;
     },
-    moveInput: (current, parentId) => ({ name: current.name, address: current.address, lat: current.lat, lon: current.lon, parentId }),
+    moveInput: (current, parentId) => ({ label: current.label, address: current.address, lat: current.lat, lon: current.lon, parentId }),
     save: (id, data) => prisma.place.update({ where: { id }, data }).catch((error: unknown) => rethrowUnique(error, ZONE_TAKEN)),
   },
 );
@@ -211,7 +211,7 @@ const placeTree = treeListService<Place, ReturnType<typeof placeSchema.parse>>(
 /**
  * Saves a place (refused when archived, or under a new parent archived); under another parent, it goes last.
  * @param {string | null} id Place to change, or null to create one.
- * @param {PlaceInput} input Name, address and point.
+ * @param {PlaceInput} input Label, address and point.
  * @returns {Promise<Place>} Place.
  */
 export async function savePlace(id: string | null, input: PlaceInput): Promise<Place> {

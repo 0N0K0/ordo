@@ -41,7 +41,7 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
   const current = cases.length ? { cases, exceptions: readScheduleExceptions(schedule.exceptions) } : null;
   return {
     id: schedule.id,
-    name: schedule.name,
+    label: schedule.label,
     startDate,
     endDate: formatOptionalDay(schedule.endDate),
     ...(current ??
@@ -68,7 +68,7 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
   if (schedule.typeId !== currentTypeId) await assertNotArchived('scheduleType', schedule.typeId);
   return {
     typeId: schedule.typeId ?? null,
-    name: schedule.name,
+    label: schedule.label,
     startDate: parseDay(schedule.startDate),
     endDate: parseOptionalDay(schedule.endDate),
     cases: schedule.cases as Prisma.InputJsonValue,
@@ -110,13 +110,13 @@ export async function deleteWorkSchedule(id: string): Promise<void> {
   await deleteOrNotFound(prisma.workSchedule, id, 'Plage de travail');
 }
 
-/** Kinds of time slots (name, color and display, checked here); the schedules of a deleted one stay, without kind. */
+/** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
 export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce nom.' }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
  * @param {string | null} id Kind to change, or null to create one.
- * @param {ScheduleTypeInput} input Name, color and display.
+ * @param {ScheduleTypeInput} input Label, color and display.
  * @returns {Promise<ScheduleType>} Kind.
  */
 export function saveScheduleType(id: string | null, input: ScheduleTypeInput): Promise<ScheduleType> {
@@ -126,18 +126,18 @@ export function saveScheduleType(id: string | null, input: ScheduleTypeInput): P
 /** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */
 export interface ForeignSchedule {
   rule: WorkScheduleRule;
-  typeName: string | null;
+  typeLabel: string | null;
   color: string | null;
   display: ScheduleDisplay;
-  workspace: { id: string; name: string };
+  workspace: { id: string; label: string };
 }
 
 /** Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it. */
 export interface ForeignScheduleKind {
-  workspace: { id: string; name: string };
+  workspace: { id: string; label: string };
   /** None: the schedules without kind (working hours). */
   typeId: string | null;
-  name: string;
+  label: string;
   /** Color in this workspace: the subscription's, or the kind's. */
   color: string | null;
   /** Color of the kind in its workspace. */
@@ -286,13 +286,13 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
     orderBy: BY_POSITION,
     select: {
       id: true,
-      name: true,
+      label: true,
       ...defaultKindSelect,
       scheduleTypes: {
         orderBy: BY_POSITION,
         select: {
           id: true,
-          name: true,
+          label: true,
           color: true,
           dayDisplay: true,
           dayBar: true,
@@ -309,9 +309,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
       ...(workspace.workSchedules.length
         ? [
             {
-              workspace: { id: workspace.id, name: workspace.name },
+              workspace: { id: workspace.id, label: workspace.label },
               typeId: null,
-              name: untyped.name,
+              label: untyped.name,
               sourceColor: untyped.color,
               ...lookOf(subscribed.get(`${workspace.id}|`), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
@@ -320,9 +320,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
           ]
         : []),
       ...workspace.scheduleTypes.map((type) => ({
-        workspace: { id: workspace.id, name: workspace.name },
+        workspace: { id: workspace.id, label: workspace.label },
         typeId: type.id,
-        name: type.name,
+        label: type.label,
         sourceColor: type.color,
         ...lookOf(subscribed.get(`${workspace.id}|${type.id}`), type),
         scheduleCount: type._count.schedules,
@@ -352,14 +352,14 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     include: {
       type: {
         select: {
-          name: true,
+          label: true,
           color: true,
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
         },
       },
-      workspace: { select: { id: true, name: true, ...defaultKindSelect } },
+      workspace: { select: { id: true, label: true, ...defaultKindSelect } },
     },
   });
   return schedules.map((schedule) => {
@@ -367,10 +367,10 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     const { color, display } = lookOf(lookByKind.get(`${schedule.workspaceId}|${schedule.typeId ?? ''}`), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
-      typeName: schedule.type?.name ?? untyped.name,
+      typeLabel: schedule.type?.label ?? untyped.name,
       color,
       display,
-      workspace: { id: schedule.workspace.id, name: schedule.workspace.name },
+      workspace: { id: schedule.workspace.id, label: schedule.workspace.label },
     };
   });
 }

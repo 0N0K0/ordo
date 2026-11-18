@@ -48,7 +48,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
               <HomeRow
                 key={task.id}
                 to={link.to(task.id)}
-                title={task.title}
+                title={task.label}
                 subtitle={`${context.projectLabel(task.projectId)}${task.number === null ? '' : ` · #${task.number}`}`}
                 value={
                   late && task.deadline ? (
@@ -93,13 +93,13 @@ export function AgendaCard({ today }: { today: string }) {
     for (const event of events.data) {
       if (!event.allDay && event.end && Date.parse(event.end) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(event.start);
-      list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
+      list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, title: event.label, alarm: false });
     }
     for (const alarm of alarms.data) {
       const next = nextRing(alarm, now);
       if (!next) continue;
       const day = localDay(next);
-      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.title, alarm: true });
+      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.label, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events.data, alarms.data, today]);
@@ -182,10 +182,10 @@ export function TimeCard({ context, time }: TimeCardProps) {
  */
 function ProjectName({ context, projectId }: { context: TaskContext; projectId: string }) {
   const project = context.projectById.get(projectId);
-  const parent = project?.parentId ? context.projectById.get(project.parentId)?.title : null;
+  const parent = project?.parentId ? context.projectById.get(project.parentId)?.label : null;
   return (
     <Text size="sm" truncate>
-      {project?.title ?? 'Projet inconnu'}
+      {project?.label ?? 'Projet inconnu'}
       {parent && (
         <Text span size="xs" c="dimmed">
           {' '}

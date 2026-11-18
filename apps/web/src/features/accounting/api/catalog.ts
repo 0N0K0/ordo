@@ -13,7 +13,7 @@ const CatalogItemsDocument = graphql(`
     catalogItems {
       id
       kind
-      title
+      label
       description
       unit
       unitPrice

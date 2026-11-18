@@ -44,7 +44,7 @@ const MAX_MAIL_TOASTS = 3;
 
 interface MailWatcherProps {
   /** Another workspace than the one open (its mails open there); none: the workspace open. */
-  workspace?: { id: string; name: string };
+  workspace?: { id: string; label: string };
 }
 
 /**
@@ -61,7 +61,7 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
     latest.current = navigate;
   });
   const workspaceId = workspace?.id ?? null;
-  const name = workspace?.name ?? null;
+  const name = workspace?.label ?? null;
 
   useEffect(() => {
     // Unread mails already seen per account.

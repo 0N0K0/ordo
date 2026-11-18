@@ -46,7 +46,7 @@ export async function documentsZip(input: { from: string; to: string; types: str
     });
     for (const document of imported) {
       if (!document.attachment) continue;
-      const extension = /\.[^.]{1,8}$/.exec(document.attachment.name)?.[0] ?? '';
+      const extension = /\.[^.]{1,8}$/.exec(document.attachment.filename)?.[0] ?? '';
       files.push({ name: `${FOLDERS[document.type]}/${safeFilename(`${document.number} (importé)`)}${extension}`, data: document.attachment.data, date: document.issueDate });
     }
   }

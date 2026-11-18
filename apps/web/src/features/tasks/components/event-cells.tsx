@@ -48,7 +48,7 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
       <Tooltip label={reason} disabled={!struck}>
         <UnstyledButton onClick={() => openEvent({ occurrence: event })} style={{ minWidth: 0 }}>
           <Text size="sm" fw={500} truncate td={struck ? 'line-through' : undefined} c={struck ? 'dimmed' : undefined}>
-            {event.title}
+            {event.label}
           </Text>
         </UnstyledButton>
       </Tooltip>
@@ -106,7 +106,7 @@ export function EventPeopleCell({ event, context }: { event: EventOccurrence; co
       value={event.contributorIds}
       projectId={event.projectId}
       context={context}
-      label={`Personnes de l’évènement ${event.title}`}
+      label={`Personnes de l’évènement ${event.label}`}
       onSave={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
     />
   );
@@ -185,7 +185,7 @@ const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.en
  */
 export function EventWhenCell({ event, side }: { event: EventOccurrence; side: 'start' | 'end' }) {
   const save = useEventSave(event, side === 'start' ? 'startDate' : 'endDate');
-  const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.title}`;
+  const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.label}`;
   const startDate = event.startDate;
   const endDate = event.endDate;
 
@@ -245,7 +245,7 @@ export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
   const save = useEventSave(event, 'beneficiaries');
   return (
     <BeneficiariesCell
-      label={`Bénéficiaires de ${event.title}`}
+      label={`Bénéficiaires de ${event.label}`}
       value={event}
       onSave={(beneficiaries) =>
         void save((target) => ({

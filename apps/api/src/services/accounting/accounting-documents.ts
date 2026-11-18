@@ -42,7 +42,7 @@ export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] }
 export function lineInput(line: AccountingLine): AccountingLineInput {
   return {
     kind: line.kind,
-    title: line.title,
+    label: line.label,
     description: line.description,
     quantity: fromDecimal(line.quantity),
     unit: line.unit,
@@ -251,7 +251,7 @@ export async function defaultFields(type: AccountingDocumentType, clientId: stri
     dueDate: isCreditNote ? null : isQuote ? addDays(issueDate, company.quoteValidityDays) : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
     serviceStart: null,
     serviceEnd: null,
-    title: null,
+    label: null,
     introduction: null,
     referenceLabel: company.referenceLabel,
     referenceValue: null,
@@ -386,7 +386,7 @@ export async function buyerSnapshot(document: AccountingDocument) {
     siren: client.siren,
     siret: client.siret,
     activityCode: client.activityCode,
-    service: service ? { name: service.name, email: service.email, phones: service.phones } : null,
+    service: service ? { name: service.label, email: service.email, phones: service.phones } : null,
     contact: contact ? { firstName: contact.firstName, lastName: contact.lastName, email: contact.email, jobTitle: contact.jobTitle } : null,
   };
 }
@@ -493,7 +493,7 @@ export async function createFromDocument(sourceId: string, type: AccountingDocum
   const defaults = await defaultFields(type, source.clientId, options.issueDate);
   const sourceLines = source.lines.map(lineInput);
   let lines: AccountingLineInput[];
-  let title = source.title;
+  let label = source.label;
 
   if (type === 'INVOICE') {
     const deductions: AccountingLineInput[] = (await invoicedOnQuote(source.id)).flatMap(({ id, type: invoicedType, number, rates }) =>
@@ -501,7 +501,7 @@ export async function createFromDocument(sourceId: string, type: AccountingDocum
         .filter(([, base]) => base !== 0)
         .map(([rate, base]) => ({
           kind: 'DEDUCTION' as const,
-          title: `Déjà facturé : ${number}`,
+          label: `Déjà facturé : ${number}`,
           description: null,
           quantity: 1,
           unit: 'FLAT' as const,
@@ -516,7 +516,7 @@ export async function createFromDocument(sourceId: string, type: AccountingDocum
     lines = [...sourceLines.filter((line) => line.kind !== 'DEDUCTION'), ...deductions];
   } else {
     lines = sourceLines;
-    title = `Avoir sur la facture ${source.number}`;
+    label = `Avoir sur la facture ${source.number}`;
   }
 
   // An invoice keeps the terms agreed on its quote.
@@ -537,7 +537,7 @@ export async function createFromDocument(sourceId: string, type: AccountingDocum
       projectId: source.projectId,
       serviceStart: formatOptionalDay(source.serviceStart),
       serviceEnd: formatOptionalDay(source.serviceEnd),
-      title,
+      label,
       referenceLabel: source.referenceLabel,
       referenceValue: source.referenceValue,
       vatApplicable: source.vatApplicable,
@@ -561,7 +561,7 @@ function depositLine(percent: number, quote: { number: string | null; totalNet: 
   const day = printedDay(quote.issueDate);
   return {
     kind: 'ITEM',
-    title: `Acompte de ${formatPercent(percent)} pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
+    label: `Acompte de ${formatPercent(percent)} pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
     description: null,
     quantity: 1,
     unit: 'DEPOSIT',
@@ -616,7 +616,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
         serviceId: quote.serviceId,
         contactId: quote.contactId,
         projectId: quote.projectId,
-        title: quote.title ?? `Acompte — devis ${quote.number}`,
+        label: quote.label ?? `Acompte — devis ${quote.number}`,
         referenceLabel: quote.referenceLabel,
         referenceValue: quote.referenceValue,
         vatApplicable: quote.vatApplicable,
@@ -642,7 +642,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
     {
       ...defaults,
       projectId: imported.projectId,
-      title: imported.title ?? `Acompte — devis ${imported.number}`,
+      label: imported.label ?? `Acompte — devis ${imported.number}`,
       vatApplicable: totalVat > 0,
       lines: [depositLine(percent, { number: imported.number, totalNet, currency: imported.currency, issueDate: imported.issueDate }, percentOf(totalNet, percent), totalVat > 0 ? vatRate : 0)],
     },
@@ -683,7 +683,7 @@ export async function editableFields(document: DocumentWithLines): Promise<Accou
     dueDate: formatOptionalDay(document.dueDate),
     serviceStart: formatOptionalDay(document.serviceStart),
     serviceEnd: formatOptionalDay(document.serviceEnd),
-    title: document.title,
+    label: document.label,
     introduction: document.introduction,
     referenceLabel: document.referenceLabel,
     referenceValue: document.referenceValue,

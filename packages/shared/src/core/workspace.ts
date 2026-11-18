@@ -12,14 +12,14 @@ export const ICON_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/
 /** Name of a client (not unique). */
 export const entityNameSchema = requiredText(120);
 
-/** Title of a project (not unique). */
-export const projectTitleSchema = requiredText(120, 'Le titre est requis.');
+/** Label of a project (not unique). */
+export const projectLabelSchema = requiredText(120, 'Le titre est requis.');
 
-/** Longest name of a configurable label. */
-export const LABEL_NAME_MAX = 50;
+/** Longest label of a configurable label item. */
+export const LABEL_MAX = 50;
 
-/** Name of a configurable label (category, status…). */
-export const labelNameSchema = requiredText(LABEL_NAME_MAX);
+/** Label of a configurable label item (category, status…). */
+export const labelTextSchema = requiredText(LABEL_MAX);
 
 /** Colour of a label made without one (a GitHub label, a default status): Mantine's gray. */
 export const DEFAULT_LABEL_COLOR = '#868e96';
@@ -50,7 +50,7 @@ export type ClientFormValues = z.input<typeof clientFormSchema>;
 
 export const projectFormSchema = z
   .object({
-    title: projectTitleSchema,
+    label: projectLabelSchema,
     clientId: z.string().nullable(),
     /** Parent project; the client is then inherited from it. */
     parentId: z.string().nullable(),
@@ -64,9 +64,9 @@ export const projectFormSchema = z
   .refine(...endAfter('startDate', 'endDate'));
 export type ProjectFormValues = z.input<typeof projectFormSchema>;
 
-/** Configurable label (project category, project status…): unique name and color. */
+/** Configurable label (project category, project status…): unique label and color. */
 export const labelFormSchema = z.object({
-  name: labelNameSchema,
+  label: labelTextSchema,
   color: colorSchema,
 });
 export type LabelFormValues = z.input<typeof labelFormSchema>;

@@ -122,7 +122,7 @@ async function seedClientBilling(clients: Client[]): Promise<void> {
     const services = await Promise.all(
       faker.helpers.arrayElements(SERVICES, { min: 0, max: 2 }).map((name, position) =>
         prisma.clientService.create({
-          data: { clientId: client.id, name, position, email: `${faker.helpers.slugify(name).toLowerCase()}@${domain}`, address: maybe(0.4, address) ?? undefined, phones: phones(1) },
+          data: { clientId: client.id, label: name, position, email: `${faker.helpers.slugify(name).toLowerCase()}@${domain}`, address: maybe(0.4, address) ?? undefined, phones: phones(1) },
         }),
       ),
     );
@@ -146,28 +146,28 @@ async function seedClientBilling(clients: Client[]): Promise<void> {
 
 /**
  * Catalogue of products and services (one archived offer).
- * @returns {Promise<Map<string, CatalogItem>>} Items by title.
+ * @returns {Promise<Map<string, CatalogItem>>} Items by label.
  */
 async function seedCatalog(): Promise<Map<string, CatalogItem>> {
   const items = [
-    { title: 'Développement', unit: 'HOUR', unitPrice: 75, description: 'Développement, intégration et tests.' },
-    { title: 'Journée de développement', unit: 'DAY', unitPrice: 550, description: null },
-    { title: 'Journée de conseil', unit: 'DAY', unitPrice: 650, description: 'Atelier, audit ou accompagnement, sur site ou à distance.' },
-    { title: 'Maquettes', unit: 'FLAT', unitPrice: 1800, description: '- Maquettes desktop et mobile\n- Deux allers-retours de corrections' },
-    { title: 'Formation', unit: 'DAY', unitPrice: 900, description: 'Formation des équipes à l’outil livré (8 personnes maximum).' },
-    { title: 'Maintenance mensuelle', unit: 'MONTH', unitPrice: 150, description: 'Mises à jour de sécurité, sauvegardes et support (2 h incluses).' },
-    { title: 'Hébergement', unit: 'MONTH', unitPrice: 25, description: null },
-    { title: 'Nom de domaine', unit: 'UNIT', unitPrice: 15, description: 'Renouvellement annuel.' },
-    { title: 'Audit SEO (ancienne offre)', unit: 'FLAT', unitPrice: 1200, description: null, archived: true },
+    { label: 'Développement', unit: 'HOUR', unitPrice: 75, description: 'Développement, intégration et tests.' },
+    { label: 'Journée de développement', unit: 'DAY', unitPrice: 550, description: null },
+    { label: 'Journée de conseil', unit: 'DAY', unitPrice: 650, description: 'Atelier, audit ou accompagnement, sur site ou à distance.' },
+    { label: 'Maquettes', unit: 'FLAT', unitPrice: 1800, description: '- Maquettes desktop et mobile\n- Deux allers-retours de corrections' },
+    { label: 'Formation', unit: 'DAY', unitPrice: 900, description: 'Formation des équipes à l’outil livré (8 personnes maximum).' },
+    { label: 'Maintenance mensuelle', unit: 'MONTH', unitPrice: 150, description: 'Mises à jour de sécurité, sauvegardes et support (2 h incluses).' },
+    { label: 'Hébergement', unit: 'MONTH', unitPrice: 25, description: null },
+    { label: 'Nom de domaine', unit: 'UNIT', unitPrice: 15, description: 'Renouvellement annuel.' },
+    { label: 'Audit SEO (ancienne offre)', unit: 'FLAT', unitPrice: 1200, description: null, archived: true },
   ] as const;
   const created = new Map<string, CatalogItem>();
   for (const { archived, ...item } of items.map((item) => ({ archived: false as boolean, ...item }))) {
     const saved = await createCatalogItem({ kind: 'ITEM', vatRate: 20, ...item });
     if (archived) await setArchived('CATALOG_ITEM', [saved.id], true);
-    created.set(item.title, saved);
+    created.set(item.label, saved);
   }
-  const travel = await createCatalogItem({ kind: 'DISBURSEMENT', title: 'Frais de déplacement', description: 'Billets de train, sur justificatifs.', unit: 'FLAT', unitPrice: 0, vatRate: 0 });
-  created.set(travel.title, travel);
+  const travel = await createCatalogItem({ kind: 'DISBURSEMENT', label: 'Frais de déplacement', description: 'Billets de train, sur justificatifs.', unit: 'FLAT', unitPrice: 0, vatRate: 0 });
+  created.set(travel.label, travel);
   return created;
 }
 
@@ -181,7 +181,7 @@ async function seedCatalog(): Promise<Map<string, CatalogItem>> {
 function line(item: CatalogItem, quantity: number, changes: Partial<AccountingLineInput> = {}): AccountingLineInput {
   return {
     kind: item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM',
-    title: item.title,
+    label: item.label,
     description: item.description,
     quantity,
     unit: item.unit,
@@ -199,7 +199,7 @@ function line(item: CatalogItem, quantity: number, changes: Partial<AccountingLi
  * @returns {AccountingLineInput} Line.
  */
 function section(title: string): AccountingLineInput {
-  return { kind: 'TEXT', title, description: null, quantity: 1, unit: 'UNIT', unitPrice: 0, vatRate: 0, discountType: null, discountValue: null };
+  return { kind: 'TEXT', label: title, description: null, quantity: 1, unit: 'UNIT', unitPrice: 0, vatRate: 0, discountType: null, discountValue: null };
 }
 
 /**
@@ -236,12 +236,12 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const rootOf = (client: Client) => projects.find((project) => project.clientId === client.id && project.parentId === null) ?? null;
 
   // --- Treasury accounts ---------------------------------------------------------------------------
-  const bank = await createAccount({ name: 'Compte courant pro', openingBalance: 6200, openingDate: day(-180) });
+  const bank = await createAccount({ label: 'Compte courant pro', openingBalance: 6200, openingDate: day(-180) });
 
   // --- Treasury settings: categories (with sub-categories), payment methods, counterparties -------------
   const categoryIds = new Map<string, string>();
   const category = async (name: string, direction: 'IN' | 'OUT', parent?: string) => {
-    const created = await createCategory({ name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
+    const created = await createCategory({ label: name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
     categoryIds.set(`${direction}:${name}`, created.id);
   };
   for (const name of ['Ventes', 'Subventions', 'Remboursements de frais', 'Divers']) await category(name, 'IN');
@@ -254,13 +254,13 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const categoryOf = (name: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${name}`) ?? null;
   const methodIds = new Map<string, string>();
   for (const method of [
-    { name: 'Virement', incoming: true, outgoing: true },
-    { name: 'Chèque', incoming: true, outgoing: true },
-    { name: 'Prélèvement', incoming: false, outgoing: true },
-    { name: 'Carte', incoming: false, outgoing: true },
-    { name: 'Espèces', incoming: true, outgoing: true },
+    { label: 'Virement', incoming: true, outgoing: true },
+    { label: 'Chèque', incoming: true, outgoing: true },
+    { label: 'Prélèvement', incoming: false, outgoing: true },
+    { label: 'Carte', incoming: false, outgoing: true },
+    { label: 'Espèces', incoming: true, outgoing: true },
   ]) {
-    methodIds.set(method.name, (await createPaymentMethod(method)).id);
+    methodIds.set(method.label, (await createPaymentMethod(method)).id);
   }
   const methodOf = (name: string) => methodIds.get(name) ?? null;
   const counterpartyIds = new Map<string, string>();
@@ -280,7 +280,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     libraryDocumentIds: [],
     projectResourceIds: [],
   };
-  await createAccount({ name: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
+  await createAccount({ label: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
 
   /**
    * Fields of a new document of a client, on a date.
@@ -316,7 +316,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       async () => {
         const draft = await createDocument(
           'INVOICE',
-          await fields('INVOICE', archived, day(-170), { title: 'Site vitrine — solde', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 4)] }),
+          await fields('INVOICE', archived, day(-170), { label: 'Site vitrine — solde', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 4)] }),
         );
         ids.archived = await finalize(draft.id, day(-170));
       },
@@ -327,7 +327,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const draft = await createDocument(
           'QUOTE',
           await fields('QUOTE', clientA, day(-160), {
-            title: 'Refonte du site et de l’espace client',
+            label: 'Refonte du site et de l’espace client',
             introduction: 'Suite à notre rendez-vous, voici notre proposition pour la refonte de votre site.',
             referenceValue: 'BC-2026-0142',
             conclusion: 'Nous restons à votre disposition pour ajuster cette proposition. Le planning détaillé sera validé ensemble au lancement.',
@@ -361,11 +361,11 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       async () => {
         const draft = await createDocument(
           'INVOICE',
-          await fields('INVOICE', clientB, day(-125), { title: 'Maintenance et hébergement', lines: [line(item('Maintenance mensuelle'), 1), line(item('Hébergement'), 1)] }),
+          await fields('INVOICE', clientB, day(-125), { label: 'Maintenance et hébergement', lines: [line(item('Maintenance mensuelle'), 1), line(item('Hébergement'), 1)] }),
         );
         ids.maintenanceB = await finalize(draft.id, day(-125));
         await createRecurringInvoice(ids.maintenanceB, {
-          name: `Maintenance — ${clientB.name}`,
+          label: `Maintenance — ${clientB.name}`,
           recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }),
           startDate: day(-95),
           autoFinalize: true,
@@ -378,7 +378,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       async () => {
         const draft = await createDocument(
           'QUOTE',
-          await fields('QUOTE', clientB, day(-120), { title: 'Atelier de cadrage', billingSchedule: 'En une fois, à la livraison', lines: [line(item('Journée de conseil'), 3)] }),
+          await fields('QUOTE', clientB, day(-120), { label: 'Atelier de cadrage', billingSchedule: 'En une fois, à la livraison', lines: [line(item('Journée de conseil'), 3)] }),
         );
         ids.quoteB = await finalize(draft.id, day(-120));
       },
@@ -389,7 +389,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const draft = await createDocument(
           'INVOICE',
           await fields('INVOICE', clientB, day(-100), {
-            title: 'Accompagnement',
+            label: 'Accompagnement',
             lines: [line(item('Journée de conseil'), 2), line(item('Frais de déplacement'), 1, { unitPrice: 128.4, description: 'Aller-retour Lyon – Paris' })],
           }),
         );
@@ -408,7 +408,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       async () => {
         const draft = await createDocument(
           'QUOTE',
-          await fields('QUOTE', clientC, day(-90), { title: 'Site personnel', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 3)] }),
+          await fields('QUOTE', clientC, day(-90), { label: 'Site personnel', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 3)] }),
         );
         ids.refusedC = await finalize(draft.id, day(-90));
       },
@@ -416,7 +416,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     [
       day(-75),
       async () => {
-        const draft = await createDocument('QUOTE', await fields('QUOTE', clientD, day(-75), { title: 'Audit de performance', dueDate: day(-45), lines: [line(item('Journée de conseil'), 2)] }));
+        const draft = await createDocument('QUOTE', await fields('QUOTE', clientD, day(-75), { label: 'Audit de performance', dueDate: day(-45), lines: [line(item('Journée de conseil'), 2)] }));
         ids.expiredD = await finalize(draft.id, day(-75));
       },
     ],
@@ -435,7 +435,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const current = await editableFields(await findDocument(credit.id));
         await updateDocument(credit.id, {
           ...current,
-          title: 'Avoir — journée annulée',
+          label: 'Avoir — journée annulée',
           lines: current.lines.filter((item) => item.kind === 'ITEM').map((item) => ({ ...item, quantity: 1 })),
         });
         ids.creditB = await finalize(credit.id, day(-55));
@@ -447,7 +447,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const draft = await createDocument(
           'INVOICE',
           await fields('INVOICE', clientD, day(-45), {
-            title: 'Formation et accompagnement',
+            label: 'Formation et accompagnement',
             globalDiscountType: 'PERCENT',
             globalDiscountValue: 5,
             lines: [line(item('Formation'), 2), line(item('Journée de conseil'), 1), line(item('Frais de déplacement'), 1, { unitPrice: 86.2, description: 'Train et repas' })],
@@ -462,7 +462,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const draft = await createDocument(
           'QUOTE',
           await fields('QUOTE', clientC, day(-28), {
-            title: 'Boutique en ligne',
+            label: 'Boutique en ligne',
             dueDate: day(15),
             billingSchedule: 'Au mois, en fin de mois',
             depositType: 'AMOUNT',
@@ -494,7 +494,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         const draft = await createDocument(
           'INVOICE',
           await fields('INVOICE', best.client, day(-20), {
-            title: 'Temps passé',
+            label: 'Temps passé',
             paymentTerms: 'À réception',
             dueDate: day(-20),
             projectId: projects.find((project) => project.id === best.entries[0].projectId)?.id ?? null,
@@ -523,14 +523,14 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await createDocument(
     'INVOICE',
     await fields('INVOICE', clientD, day(-2), {
-      title: 'Développement — brouillon',
+      label: 'Développement — brouillon',
       lines: draftSeconds ? [line(item('Développement'), round2(draftSeconds / 3600))] : [line(item('Journée de développement'), 2)],
       timeEntryIds: draftSeconds ? unbilled.slice(0, 4).map((entry) => entry.id) : [],
     }),
   );
   await createDocument(
     'QUOTE',
-    await fields('QUOTE', clientD, day(-1), { title: 'Application mobile — première version', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 20)] }),
+    await fields('QUOTE', clientD, day(-1), { label: 'Application mobile — première version', lines: [line(item('Maquettes'), 1), line(item('Journée de développement'), 20)] }),
   );
 
   // --- Tracking: sending, acceptance, refusal ----------------------------------------------------------
@@ -589,7 +589,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       dueDate: day(-180),
       clientId: clientA.id,
       clientName: null,
-      title: 'Audit du site',
+      label: 'Audit du site',
       totalNet: 1500,
       totalVat: 300,
       totalGross: 1800,
@@ -606,7 +606,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       dueDate: day(-165),
       clientId: clientD.id,
       clientName: null,
-      title: 'Développement',
+      label: 'Développement',
       totalNet: 2400,
       totalVat: 480,
       totalGross: 2880,
@@ -622,7 +622,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       issueDate: day(-220),
       clientId: clientB.id,
       clientName: null,
-      title: 'Refonte (première version)',
+      label: 'Refonte (première version)',
       totalNet: 6000,
       totalVat: 1200,
       totalGross: 7200,
@@ -638,7 +638,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       issueDate: day(-240),
       clientId: null,
       clientName: 'Association Les Amis du Vélo',
-      title: 'Affiche',
+      label: 'Affiche',
       totalNet: 350,
       totalVat: 0,
       totalGross: 350,

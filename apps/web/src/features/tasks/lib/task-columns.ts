@@ -276,7 +276,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     filter: filterOf(id),
     formatTotal: id === 'trackedTime' ? (seconds) => formatDuration(Math.round(seconds)) : undefined,
     groupable: ['slots', 'timer', 'subtasks', 'progress', 'alarms', 'shopping', 'comments'].includes(id) ? false : undefined,
-    groupTree: id === 'project' ? context.projects.map((project) => ({ key: project.id, label: project.title, color: project.color ?? null, parentKey: project.parentId ?? null })) : undefined,
+    groupTree: id === 'project' ? context.projects.map((project) => ({ key: project.id, label: project.label, color: project.color ?? null, parentKey: project.parentId ?? null })) : undefined,
     groupValue: GROUP_VALUES[id],
   }));
   // Filters of their own, out of the columns (hidden until shown).

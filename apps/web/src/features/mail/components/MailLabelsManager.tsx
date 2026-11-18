@@ -4,7 +4,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { useMailLabelMutations, useMailLabels } from '../api';
 
 /**
- * Flags of mails, as every settings list: added, edited (name, color, image), deleted, reordered by drag and drop.
+ * Flags of mails, as every settings list: added, edited (label, color, image), deleted, reordered by drag and drop.
  * They are set on the mails as IMAP keywords (or kept in Ordo for servers without keywords).
  * @returns {JSX.Element} Manager.
  */
@@ -19,10 +19,10 @@ export function MailLabelsManager() {
       noun="le drapeau"
       items={labels ?? []}
       schema={labelFormSchema}
-      create={async (values) => createdId(await create.mutateAsync({ name: values.name, color: values.color }))}
-      update={(id, values) => update.mutateAsync({ id, input: { name: values.name, color: values.color } })}
+      create={async (values) => createdId(await create.mutateAsync({ label: values.label, color: values.color }))}
+      update={(id, values) => update.mutateAsync({ id, input: { label: values.label, color: values.color } })}
       remove={(id) => remove.mutateAsync(id)}
-      deleteMessage={(label) => <>Le drapeau « {label.name} » sera supprimé définitivement et retiré des mails qui l’ont.</>}
+      deleteMessage={(label) => <>Le drapeau « {label.label} » sera supprimé définitivement et retiré des mails qui l’ont.</>}
     />
   );
 }

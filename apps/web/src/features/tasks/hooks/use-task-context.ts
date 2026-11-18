@@ -39,9 +39,9 @@ export interface TaskContext {
    */
   taskLabel: (task: Task, fromProjectId?: string | null) => string;
   /** Full path of a milestone: "Client › Projet › Jalon". */
-  milestoneLabel: (milestone: { projectId: string; title: string }) => string;
+  milestoneLabel: (milestone: { projectId: string; label: string }) => string;
   /** Full path of a sprint: "Client › Projet › Sprint". */
-  sprintLabel: (sprint: { projectId: string; name: string }) => string;
+  sprintLabel: (sprint: { projectId: string; label: string }) => string;
   statusById: Map<string, TaskStatus>;
   priorityById: Map<string, TaskLabel>;
   typeById: Map<string, TaskLabel>;
@@ -104,7 +104,7 @@ export const taskRef = (task: { number: number | null }) => (task.number === nul
  * @param {{ number: number | null, title: string }} task Task.
  * @returns {string} Name.
  */
-export const taskName = (task: { number: number | null; title: string }) => (task.number === null ? `« ${task.title} »` : `#${task.number}`);
+export const taskName = (task: { number: number | null; label: string }) => (task.number === null ? `« ${task.label} »` : `#${task.number}`);
 
 /**
  * Task data with the lookups shared by the task screens.
@@ -160,11 +160,11 @@ export function useTaskContext() {
     const taskPath = (task: Task, fromProjectId: string | null = null) => {
       const names = lineageOf(new Map([...taskIndex, [task.id, task]]), task.id)
         .reverse()
-        .map((item) => `${taskRef(item)}${item.title}`);
+        .map((item) => `${taskRef(item)}${item.label}`);
       return [...(task.projectId && task.projectId !== fromProjectId ? [placeOf(task.projectId)] : []), ...names].join(LEVEL);
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
-    const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, title: task.title, place: placeOf(task.projectId) }));
+    const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, label: task.label, place: placeOf(task.projectId) }));
     const referenceById = mapById(referenceTasks);
     // "#12" only names a task of a project.
     const referenceByNumber = new Map(referenceTasks.filter((task) => task.number !== null).map((task) => [`${task.projectId}:${task.number}`, task]));
@@ -196,8 +196,8 @@ export function useTaskContext() {
       contributorName: personName,
       taskById: mapById(tasks),
       taskLabel: taskPath,
-      milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.title}`,
-      sprintLabel: (sprint) => `${placeOf(sprint.projectId)}${LEVEL}${sprint.name}`,
+      milestoneLabel: (milestone) => `${placeOf(milestone.projectId)}${LEVEL}${milestone.label}`,
+      sprintLabel: (sprint) => `${placeOf(sprint.projectId)}${LEVEL}${sprint.label}`,
       statusById,
       priorityById: mapById(data.taskPriorities),
       typeById: mapById(data.taskTypes),
@@ -211,7 +211,7 @@ export function useTaskContext() {
         const ids = new Set(offered.map((task) => task.id));
         const taskNodes = [...mapById([...tasks, ...offered]).values()]
           .sort(byPosition)
-          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.title}` }));
+          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.label}` }));
         const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL, pathless: true }] : [];
         return treeOptions([...projectNodes(workspace), ...withoutProject, ...taskNodes], (id) => ids.has(id));
       },

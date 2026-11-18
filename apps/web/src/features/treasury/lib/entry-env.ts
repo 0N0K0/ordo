@@ -70,12 +70,12 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       payers,
       payerNames: new Map(payers.flatMap((group) => group.items.map((item) => [item.value, item.label] as const))),
       projects: projectOptions(workspace, workspace?.projects ?? []),
-      projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.title])),
+      projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.label])),
       documents: documentGroups(documentOptions ?? []),
       names: new Map([
         ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), personName(member)] as const),
         ...(settings?.treasuryRelations ?? []).map((relation) => [personKey('relation', relation.id), relation.name] as const),
-        ...(settings?.treasuryContexts ?? []).map((context) => [`context:${context.id}`, context.name] as const),
+        ...(settings?.treasuryContexts ?? []).map((context) => [`context:${context.id}`, context.label] as const),
       ]),
     };
   }, [settings, workspace, documentOptions, accounts]);
@@ -105,7 +105,7 @@ export function payerGroups(clients: readonly PayerSource[], counterparties: rea
 interface DocumentSource {
   source: string;
   id: string;
-  title: string;
+  label: string;
   place: string;
   projectId?: string | null;
 }
@@ -124,7 +124,7 @@ export function documentGroups(documents: readonly DocumentSource[], projectId?:
     const group = document.source === 'LIBRARY' ? 'Bibliothèque' : `Projet ${document.place}`;
     const items = groups.get(group) ?? [];
     if (!items.some((item) => item.value === documentKey(document))) {
-      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.title} (${document.place})` : document.title });
+      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.label} (${document.place})` : document.label });
     }
     groups.set(group, items);
   }

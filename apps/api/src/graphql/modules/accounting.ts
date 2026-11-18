@@ -47,7 +47,7 @@ builder.prismaObject('ClientService', {
   fields: (t) => ({
     id: t.exposeID('id'),
     clientId: t.exposeID('clientId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     address: t.field({
       type: 'JSON',
       nullable: true,
@@ -143,7 +143,7 @@ const ClientDetailsInput = builder.inputType('ClientDetailsInput', {
 
 const ClientServiceInput = builder.inputType('ClientServiceInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     address: t.field({ type: 'JSON' }),
     email: t.string({ required: true }),
     phones: t.field({ type: 'JSON', required: true }),

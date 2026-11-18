@@ -39,7 +39,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
 
 interface ScheduleValues extends Record<string, unknown> {
-  name: string;
+  label: string;
   startDate: string;
   endDate: string | null;
   cases: ScheduleCase[];
@@ -48,7 +48,7 @@ interface ScheduleValues extends Record<string, unknown> {
 }
 
 /**
- * Schedule form: name, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
+ * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
  * A copy starts with the cases and the kind of its schedule, without dates nor exceptions, saved as a new one.
  * @param {{ schedule?: WorkSchedule, copyOf?: WorkSchedule, onDone: () => void }} props Component props.
@@ -61,7 +61,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      name: schedule?.name ?? (copyOf ? copyName(copyOf.name) : 'Semaine type'),
+      label: schedule?.label ?? (copyOf ? copyName(copyOf.label) : 'Semaine type'),
       // A copy has no dates: to choose.
       startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? schedule.endDate : null,
@@ -92,11 +92,11 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
         <Stack gap="md">
           {copyOf && (
             <Text size="sm" c="dimmed">
-              Copie de « {copyOf.name} », sans ses dates ni ses exceptions : choisissez ses dates.
+              Copie de « {copyOf.label} », sans ses dates ni ses exceptions : choisissez ses dates.
             </Text>
           )}
           <Group grow align="flex-start">
-            <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+            <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
             <CreatableSelect
               label="Type"
               placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
@@ -183,7 +183,7 @@ export function WorkSchedulesManager() {
     // Archived: read only (a bulk change skips it).
     if (schedule.archived) return;
     const input = {
-      name: schedule.name,
+      label: schedule.label,
       startDate: schedule.startDate,
       endDate: schedule.endDate ? schedule.endDate : null,
       cases: readScheduleCases(schedule.cases, schedule.startDate),
@@ -206,7 +206,7 @@ export function WorkSchedulesManager() {
    */
   const openForm = ({ schedule, copyOf }: { schedule?: WorkSchedule; copyOf?: WorkSchedule } = {}) => {
     openFormPanel(
-      schedule ? `Modifier « ${schedule.name} »` : copyOf ? `Dupliquer « ${copyOf.name} »` : 'Nouvelles plages',
+      schedule ? `Modifier « ${schedule.label} »` : copyOf ? `Dupliquer « ${copyOf.label} »` : 'Nouvelles plages',
       (close) => <ScheduleForm schedule={schedule} copyOf={copyOf} onDone={close} />,
       'lg',
     );
@@ -222,7 +222,7 @@ export function WorkSchedulesManager() {
       noun: 'plage',
       feminine: true,
       the: 'la plage',
-      name: ({ schedule }) => schedule.name,
+      name: ({ schedule }) => schedule.label,
       risks: (subject, one) =>
         `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimées définitivement${perso ? '' : ` : ${one ? 'elle ne comptera' : 'elles ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'la' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
@@ -231,13 +231,13 @@ export function WorkSchedulesManager() {
   const typeById = mapById(types ?? []);
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
-  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultName);
   const scheduleComments = useCommentCounts(
     'SCHEDULE',
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'name', label: 'Nom', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
+    { id: 'name', label: 'Nom', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
       bulk: true,
@@ -298,7 +298,7 @@ export function WorkSchedulesManager() {
     rows,
     archived: ({ schedule }) => schedule.archived,
     title: schedulesTitle(perso),
-    first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
+    first: [{ label: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
   const bulk = bulkSaver<ScheduleRow, Partial<WorkScheduleInput>>(view, (row, change) => Object.keys(change).length > 0 && saveSchedule(row.schedule, change));
 
@@ -343,14 +343,14 @@ export function WorkSchedulesManager() {
             const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
-            const kindName = type?.name ?? defaultName;
+            const kindName = type?.label ?? defaultName;
             // Archived: read only.
             if (schedule.archived) {
               return {
                 name: (
                   <Group gap="xs" wrap="nowrap">
                     <Text size="sm" fw={600}>
-                      {schedule.name}
+                      {schedule.label}
                     </Text>
                     <ArchivedBadge feminine size="xs" />
                   </Group>
@@ -372,20 +372,20 @@ export function WorkSchedulesManager() {
               };
             }
             return {
-              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && bulk('name')(row, { name })} />,
+              name: <EditableText value={schedule.label} label={`Nom de ${schedule.label}`} strong onSave={(label) => label && bulk('name')(row, { label })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
-                  label={`Type de ${schedule.name}`}
+                  label={`Type de ${schedule.label}`}
                   leftSection={<ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />}
-                  {...listSelectProps([{ id: NO_KIND, name: defaultName, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
+                  {...listSelectProps([{ id: NO_KIND, label: defaultName, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
               start: (
                 <EditableDate
                   value={schedule.startDate}
-                  label={`Début de ${schedule.name}`}
+                  label={`Début de ${schedule.label}`}
                   // A start set after the end moves the end to it (decision Q).
                   onSave={(startDate) =>
                     startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))
@@ -395,7 +395,7 @@ export function WorkSchedulesManager() {
               end: (
                 <EditableDate
                   value={schedule.endDate ? schedule.endDate : null}
-                  label={`Fin de ${schedule.name}`}
+                  label={`Fin de ${schedule.label}`}
                   nullable
                   minDate={schedule.startDate}
                   onSave={(endDate) =>
@@ -439,11 +439,11 @@ export function WorkSchedulesManager() {
             const { schedule } = row;
             return (
               <RowActions
-                name={schedule.name}
+                name={schedule.label}
                 primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
                 items={[
                   !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                  archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.name, feminine: true }, setArchived, schedule.id),
+                  archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.label, feminine: true }, setArchived, schedule.id),
                   rowMenuEntry(deleteSchedules([row])),
                 ]}
               />

@@ -45,15 +45,15 @@ const finishedSeconds = (entries: readonly TimeEntry[]) => entries.filter((entry
  */
 function events(entries: readonly TimeEntry[]): { value: string; label: string }[] {
   const byId = new Map<string, string>();
-  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventTitle ?? 'Évènement');
+  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventLabel ?? 'Évènement');
   return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => collator.compare(a.label, b.label));
 }
 
 /** Views made the first time the times are shown, by day: this week (opened first), this month, every time. */
 const TIME_VIEWS: FirstTableView[] = [
-  { name: 'Cette semaine', config: { filter: withinFilter('day', 'thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
-  { name: 'Ce mois-ci', config: { filter: withinFilter('day', 'thisMonth'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
-  { name: 'Tous', config: { groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Cette semaine', config: { filter: withinFilter('day', 'thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Ce mois-ci', config: { filter: withinFilter('day', 'thisMonth'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
+  { label: 'Tous', config: { groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
 ];
 
 /**
@@ -119,8 +119,8 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       bulk: true,
       label: 'Routine',
       size: 180,
-      sortValue: (entry) => entry.routineTitle ?? null,
-      text: (entry) => entry.routineTitle ?? '',
+      sortValue: (entry) => entry.routineLabel ?? null,
+      text: (entry) => entry.routineLabel ?? '',
       filter: { kind: 'choice', value: (entry) => entry.routineId ?? null, options: routines },
       groupable: true,
     },
@@ -135,15 +135,15 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
           .filter((task) => task !== undefined)
           .map((task) => context?.taskLabel(task) ?? '')
           .join(', '),
-      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.title })) },
+      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.label })) },
     },
     {
       id: 'event',
       bulk: true,
       label: 'Évènement',
       size: 200,
-      sortValue: (entry) => entry.calendarEventTitle ?? null,
-      text: (entry) => entry.calendarEventTitle ?? '',
+      sortValue: (entry) => entry.calendarEventLabel ?? null,
+      text: (entry) => entry.calendarEventLabel ?? '',
       filter: { kind: 'choice', value: (entry) => entry.calendarEventId ?? null, options: events(entries) },
       groupable: true,
     },
@@ -287,7 +287,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                   onSave={(next) => (next || entry.routineId) && bulk('project')(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
-                context?.projectById.get(entry.projectId)?.title
+                context?.projectById.get(entry.projectId)?.label
               ) : null}
             </>
           ),

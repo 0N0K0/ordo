@@ -16,8 +16,8 @@ import {
 import { createEntry } from '../../src/services/treasury/treasury';
 import type { SeededTeam } from './team';
 
-/** Fields of a product or an item, from its name. */
-type Article = Partial<ShoppingItemInput> & { name: string };
+/** Fields of a product or an item, from its label. */
+type Article = Partial<ShoppingItemInput> & { label: string };
 
 /**
  * Shopping: stores, storage modes, categories (with sub-categories, some tied to base lists), base lists with their
@@ -38,7 +38,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     ['Bureau Vallée', '#fd7e14'],
     ['En ligne', '#7950f2'],
   ] as const) {
-    stores.set(name, (await shoppingStores.create({ name, color })).id);
+    stores.set(name, (await shoppingStores.create({ label: name, color })).id);
   }
   const storages = new Map<string, string>();
   for (const [name, color] of [
@@ -46,7 +46,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     ['Congélateur', '#4c6ef5'],
     ['Placard', '#fab005'],
   ] as const) {
-    storages.set(name, (await shoppingStorages.create({ name, color })).id);
+    storages.set(name, (await shoppingStorages.create({ label: name, color })).id);
   }
 
   // --- Base lists and categories ----------------------------------------------------------------------
@@ -55,7 +55,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   const upkeep = await createBaseList('Entretien');
   const categories = new Map<string, string>();
   const category = async (name: string, color: string | null, baseListIds: string[], parent?: string) => {
-    categories.set(name, (await createCategory({ name, color, parentId: parent ? (categories.get(parent) ?? null) : null, baseListIds })).id);
+    categories.set(name, (await createCategory({ label: name, color, parentId: parent ? (categories.get(parent) ?? null) : null, baseListIds })).id);
   };
   await category('Alimentation', '#40c057', [kitchen.id]);
   await category('Boissons', '#15aabf', [kitchen.id], 'Alimentation');
@@ -66,8 +66,8 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   await category('Ménage', '#e64980', [upkeep.id]);
 
   const [alex, sam] = team.memberIds;
-  const article = ({ name, ...changes }: Article, categoryName: string, storeName: string | null): ShoppingItemInput => ({
-    name,
+  const article = ({ label, ...changes }: Article, categoryName: string, storeName: string | null): ShoppingItemInput => ({
+    label,
     categoryId: categories.get(categoryName) ?? null,
     storeId: storeName ? (stores.get(storeName) ?? null) : null,
     url: null,
@@ -81,20 +81,20 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
 
   // --- Products of the base lists ---------------------------------------------------------------------
   const products: [string, Article, string, string | null, boolean][] = [
-    [kitchen.id, { name: 'Café en grains', quantity: 1, unit: 'kg', unitPrice: 18.9 }, 'Boissons', 'Biocoop', true],
-    [kitchen.id, { name: 'Thé vert', quantity: 2, unit: 'boîtes', unitPrice: 6.5, memberIds: sam ? [sam] : [] }, 'Boissons', 'Biocoop', false],
-    [kitchen.id, { name: 'Lait d’avoine', quantity: 6, unit: 'L', unitPrice: 1.95, ...perishable('Placard', 60) }, 'Boissons', 'Carrefour', true],
-    [kitchen.id, { name: 'Yaourts nature', quantity: 8, unitPrice: 0.45, ...perishable('Réfrigérateur', 4) }, 'Produits frais', 'Carrefour', false],
-    [kitchen.id, { name: 'Beurre doux', quantity: 1, unit: 'plaquette', unitPrice: 2.8, ...perishable('Réfrigérateur', -2) }, 'Produits frais', 'Biocoop', false],
-    [kitchen.id, { name: 'Pain de mie', quantity: 1, unitPrice: 2.2, ...perishable('Congélateur', 30) }, 'Épicerie', 'Carrefour', false],
-    [kitchen.id, { name: 'Biscuits', quantity: 3, unit: 'paquets', unitPrice: 2.4, note: 'Sans huile de palme.' }, 'Épicerie', 'Biocoop', true],
-    [supplies.id, { name: 'Ramettes A4', quantity: 5, unit: 'ramettes', unitPrice: 5.9 }, 'Papeterie', 'Bureau Vallée', true],
-    [supplies.id, { name: 'Post-it', quantity: 4, unit: 'blocs', unitPrice: 3.2, memberIds: alex ? [alex] : [] }, 'Papeterie', 'Bureau Vallée', false],
-    [supplies.id, { name: 'Cartouches d’encre', quantity: 2, unitPrice: 24.9, url: 'https://www.example.com/cartouches' }, 'Informatique', 'En ligne', true],
-    [supplies.id, { name: 'Câble USB-C', quantity: 2, unitPrice: 12, relationIds: team.relationIds.slice(1, 2) }, 'Informatique', 'En ligne', false],
-    [upkeep.id, { name: 'Liquide vaisselle', quantity: 1, unitPrice: 2.9 }, 'Ménage', 'Biocoop', true],
-    [upkeep.id, { name: 'Éponges', quantity: 1, unit: 'lot', unitPrice: 3.5 }, 'Ménage', 'Carrefour', false],
-    [upkeep.id, { name: 'Sacs poubelle', quantity: 1, unit: 'rouleau', unitPrice: 4.2 }, 'Ménage', 'Carrefour', true],
+    [kitchen.id, { label: 'Café en grains', quantity: 1, unit: 'kg', unitPrice: 18.9 }, 'Boissons', 'Biocoop', true],
+    [kitchen.id, { label: 'Thé vert', quantity: 2, unit: 'boîtes', unitPrice: 6.5, memberIds: sam ? [sam] : [] }, 'Boissons', 'Biocoop', false],
+    [kitchen.id, { label: 'Lait d’avoine', quantity: 6, unit: 'L', unitPrice: 1.95, ...perishable('Placard', 60) }, 'Boissons', 'Carrefour', true],
+    [kitchen.id, { label: 'Yaourts nature', quantity: 8, unitPrice: 0.45, ...perishable('Réfrigérateur', 4) }, 'Produits frais', 'Carrefour', false],
+    [kitchen.id, { label: 'Beurre doux', quantity: 1, unit: 'plaquette', unitPrice: 2.8, ...perishable('Réfrigérateur', -2) }, 'Produits frais', 'Biocoop', false],
+    [kitchen.id, { label: 'Pain de mie', quantity: 1, unitPrice: 2.2, ...perishable('Congélateur', 30) }, 'Épicerie', 'Carrefour', false],
+    [kitchen.id, { label: 'Biscuits', quantity: 3, unit: 'paquets', unitPrice: 2.4, note: 'Sans huile de palme.' }, 'Épicerie', 'Biocoop', true],
+    [supplies.id, { label: 'Ramettes A4', quantity: 5, unit: 'ramettes', unitPrice: 5.9 }, 'Papeterie', 'Bureau Vallée', true],
+    [supplies.id, { label: 'Post-it', quantity: 4, unit: 'blocs', unitPrice: 3.2, memberIds: alex ? [alex] : [] }, 'Papeterie', 'Bureau Vallée', false],
+    [supplies.id, { label: 'Cartouches d’encre', quantity: 2, unitPrice: 24.9, url: 'https://www.example.com/cartouches' }, 'Informatique', 'En ligne', true],
+    [supplies.id, { label: 'Câble USB-C', quantity: 2, unitPrice: 12, relationIds: team.relationIds.slice(1, 2) }, 'Informatique', 'En ligne', false],
+    [upkeep.id, { label: 'Liquide vaisselle', quantity: 1, unitPrice: 2.9 }, 'Ménage', 'Biocoop', true],
+    [upkeep.id, { label: 'Éponges', quantity: 1, unit: 'lot', unitPrice: 3.5 }, 'Ménage', 'Carrefour', false],
+    [upkeep.id, { label: 'Sacs poubelle', quantity: 1, unit: 'rouleau', unitPrice: 4.2 }, 'Ménage', 'Carrefour', true],
   ];
   for (const [baseListId, item, categoryName, storeName, missing] of products) {
     await createProduct({ ...article(item, categoryName, storeName), baseListId, missing });
@@ -103,13 +103,13 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   // --- Lists ----------------------------------------------------------------------------------------
   const tasks = await prisma.task.findMany({ where: { closedAt: null, archivedAt: null, parentId: null }, select: { id: true }, orderBy: { createdAt: 'asc' }, take: 2 });
   // Open: the missing products of two base lists, a few of them bought, plus an item of this list only.
-  const open = await createList({ name: 'Courses de la semaine', taskIds: tasks.map(({ id }) => id), baseListIds: [kitchen.id, upkeep.id] });
-  await addItem(open.id, article({ name: 'Fleurs pour l’accueil', quantity: 1, unit: 'bouquet', unitPrice: 15, note: 'Pour la visite du client jeudi.' }, 'Alimentation', null));
+  const open = await createList({ label: 'Courses de la semaine', taskIds: tasks.map(({ id }) => id), baseListIds: [kitchen.id, upkeep.id] });
+  await addItem(open.id, article({ label: 'Fleurs pour l’accueil', quantity: 1, unit: 'bouquet', unitPrice: 15, note: 'Pour la visite du client jeudi.' }, 'Alimentation', null));
   const openItems = await prisma.shoppingItem.findMany({ where: { listId: open.id }, orderBy: { position: 'asc' } });
   for (const item of openItems.slice(0, 2)) await setItemPurchased(item.id, true);
 
   // Done last month: bought, and paid with a movement of the treasury.
-  const done = await createList({ name: 'Rentrée — fournitures', taskIds: tasks.slice(0, 1).map(({ id }) => id), baseListIds: [] });
+  const done = await createList({ label: 'Rentrée — fournitures', taskIds: tasks.slice(0, 1).map(({ id }) => id), baseListIds: [] });
   const supplyProducts = await prisma.shoppingProduct.findMany({ where: { baseListId: supplies.id }, select: { id: true } });
   await addProducts(
     done.id,
@@ -117,8 +117,8 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   );
   for (const item of await prisma.shoppingItem.findMany({ where: { listId: done.id } })) await setItemPurchased(item.id, true);
   await setListClosed(done.id, true);
-  const account = await prisma.treasuryAccount.findFirst({ where: { name: 'Compte courant pro' } });
-  const categoryId = (await prisma.treasuryCategory.findFirst({ where: { name: 'Matériel', direction: 'OUT' } }))?.id ?? null;
+  const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
+  const categoryId = (await prisma.treasuryCategory.findFirst({ where: { label: 'Matériel', direction: 'OUT' } }))?.id ?? null;
   if (account) {
     const entry = await createEntry({
       accountId: account.id,
@@ -128,7 +128,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
       label: 'Bureau Vallée — fournitures de rentrée',
       amount: -110.1,
       categoryId,
-      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { name: 'Carte' } }))?.id ?? null,
+      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Carte' } }))?.id ?? null,
       clientId: null,
       counterpartyId: null,
       projectId: null,
@@ -143,5 +143,5 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   }
 
   // An empty list, not attached.
-  await createList({ name: 'Pot de départ de Camille', taskIds: [], baseListIds: [] });
+  await createList({ label: 'Pot de départ de Camille', taskIds: [], baseListIds: [] });
 }

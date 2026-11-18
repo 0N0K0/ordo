@@ -24,7 +24,7 @@ interface FormValues extends Record<string, unknown> {
   clientId: string | null;
   clientName: string;
   projectId: string | null;
-  title: string;
+  label: string;
   totalNet: number;
   totalVat: number;
   totalGross: number;
@@ -52,7 +52,7 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
       clientId: document?.clientId ?? null,
       clientName: document && !document.clientId ? document.clientName : '',
       projectId: document?.projectId ?? null,
-      title: document?.title ?? '',
+      label: document?.label ?? '',
       totalNet: document?.totalNet ?? 0,
       totalVat: document?.totalVat ?? 0,
       totalGross: document?.totalGross ?? 0,
@@ -92,7 +92,7 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
             {...form.getInputProps('type')}
           />
           <TextInput label="Numéro" required data-autofocus {...form.getInputProps('number')} />
-          <TextInput label="Objet" {...form.getInputProps('title')} />
+          <TextInput label="Objet" {...form.getInputProps('label')} />
           <DatePickerInput label="Date" required {...form.getInputProps('issueDate')} />
           <DatePickerInput label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'} clearable {...form.getInputProps('dueDate')} />
           <Select label="Devise" data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']} allowDeselect={false} {...form.getInputProps('currency')} />

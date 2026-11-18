@@ -20,7 +20,7 @@ import {
   sheetMultiplierSchema,
   sheetSchema,
   type SheetSource,
-  SHOPPING_NAME_MAX,
+  SHOPPING_LABEL_MAX,
   shoppingItemSchema,
   timesSheet,
   UNIT_MAX,
@@ -47,7 +47,7 @@ export type SheetOwner = { routineId: string; occurrenceDate: string } | { event
 /** Item of a sheet, as it is summed into a list. */
 interface SheetPart {
   sheetId: string;
-  sheetName: string;
+  sheetLabel: string;
   productId: string | null;
   label: string;
   categoryId: string | null;
@@ -169,7 +169,7 @@ export async function createSheet(input: SheetInput): Promise<Sheet> {
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
-    data: { name: data.name, note: data.note || null, projectId: data.projectId, position, categories: { connect: connectIds(categories) } },
+    data: { label: data.label, note: data.note || null, projectId: data.projectId, position, categories: { connect: connectIds(categories) } },
   });
 }
 
@@ -189,7 +189,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
     data.categoryIds,
     sheet.categories.map((category) => category.id),
   );
-  return prisma.sheet.update({ where: { id }, data: { name: data.name, note: data.note || null, projectId: data.projectId, categories: { set: connectIds(categories) } } });
+  return prisma.sheet.update({ where: { id }, data: { label: data.label, note: data.note || null, projectId: data.projectId, categories: { set: connectIds(categories) } } });
 }
 
 /**
@@ -200,7 +200,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   await assertNotArchived('SHEET', id);
-  const copy = await createSheet({ name: copyName(sheet.name, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  const copy = await createSheet({ label: copyName(sheet.label, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({
@@ -261,7 +261,7 @@ export async function addSheetItem(sheetId: string, input: SheetItemInput): Prom
 export async function addSheetProducts(sheetId: string, productIds: string[]): Promise<number> {
   await findOpenSheet(sheetId);
   await assertNoneArchived('SHOPPING_PRODUCT', productIds);
-  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { name: 'asc' }, include: withPeople });
+  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { label: 'asc' }, include: withPeople });
   const position = await nextPositionIn('sheetItem', { sheetId });
   const start = position;
   // Each with its people (many-to-many: created one by one).
@@ -271,7 +271,7 @@ export async function addSheetProducts(sheetId: string, productIds: string[]): P
         data: {
           sheetId,
           productId: product.id,
-          label: product.name,
+          label: product.label,
           categoryId: product.categoryId,
           quantity: product.quantity,
           unit: product.unit,
@@ -332,7 +332,7 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
     if (!sheet) throw notFound('Fiche');
     return sheet.items.map((item) => ({
       sheetId: sheet.id,
-      sheetName: sheet.name,
+      sheetLabel: sheet.label,
       productId: item.productId,
       label: item.label,
       categoryId: item.categoryId,
@@ -369,7 +369,7 @@ function fitForShopping(part: SheetPart): SheetPart {
   const cut = (text: string | null, max: number): string | null => (text === null ? null : clipText(text, max));
   return {
     ...part,
-    label: parseInput(shoppingItemSchema.shape.name, cut(part.label, SHOPPING_NAME_MAX)),
+    label: parseInput(shoppingItemSchema.shape.label, cut(part.label, SHOPPING_LABEL_MAX)),
     note: parseInput(itemNoteSchema, cut(part.note, ITEM_NOTE_MAX)),
     unit: parseInput(unitSchema, cut(part.unit, UNIT_MAX)),
     quantity: part.quantity === null ? null : parseInput(quantitySchema, Math.min(part.quantity, QUANTITY_MAX)),
@@ -386,7 +386,7 @@ function withSource(sources: SheetSource[], part: SheetPart): SheetSource[] {
   const own = sources.find((source) => source.sheetId === part.sheetId);
   return own
     ? sources.map((source) => (source === own ? { ...source, quantity: addQuantities(source.quantity, part.quantity) } : source))
-    : [...sources, { sheetId: part.sheetId, name: part.sheetName, quantity: part.quantity }];
+    : [...sources, { sheetId: part.sheetId, name: part.sheetLabel, quantity: part.quantity }];
 }
 
 // Shopping lists ----------------------------------------------------------------------------------------------------
@@ -409,7 +409,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   const productById = mapById(products);
   return prisma.$transaction(async (tx) => {
     const items = await tx.shoppingItem.findMany({ where: { listId, purchasedAt: null } });
-    const byKey = new Map(items.map((item) => [productKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
+    const byKey = new Map(items.map((item) => [productKey({ productId: item.productId, label: item.label, unit: item.unit }), item]));
     let position = await nextPositionIn('shoppingItem', { listId }, tx);
     for (const part of parts) {
       const key = productKey(part);
@@ -451,7 +451,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
         : await tx.shoppingItem.create({
             data: {
               listId,
-              name: part.label,
+              label: part.label,
               categoryId: part.categoryId,
               note: part.note,
               quantity: toDecimal(part.quantity),

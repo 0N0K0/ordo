@@ -209,7 +209,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 ))}
               {mail.linkedProjectIds.map((projectId) => (
                 <Badge key={projectId} size="sm" variant="light" component={Link} to={projectPath(projectId, 'mail')} style={{ cursor: 'pointer' }}>
-                  {workspace?.projects.find((project) => project.id === projectId)?.title ?? 'Projet'}
+                  {workspace?.projects.find((project) => project.id === projectId)?.label ?? 'Projet'}
                 </Badge>
               ))}
             </Group>

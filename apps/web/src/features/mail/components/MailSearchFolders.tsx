@@ -34,7 +34,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
   const askDelete = (search: MailSearch) => {
     confirmDestructive({
       title: 'Supprimer le dossier de recherche',
-      risks: <>Le dossier de recherche « {search.name} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
+      risks: <>Le dossier de recherche « {search.label} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
       onConfirm: () => {
         remove.mutate(
           search.id,
@@ -54,7 +54,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
           component="div"
           role="button"
           tabIndex={0}
-          label={search.name}
+          label={search.label}
           leftSection={<FunnelIcon aria-hidden />}
           active={selectedId === search.id}
           onClick={() => onSelect(search.id)}
@@ -66,7 +66,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
           }}
           rightSection={
             <ActionsMenu
-              name={search.name}
+              name={search.label}
               size="xs"
               inRow
               items={[
@@ -185,7 +185,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
             footer={
               <Box>
                 <Badge size="xs" variant="light" color="gray">
-                  {several ? `${accounts?.find((account) => account.id === message.accountId)?.name ?? ''} · ` : ''}
+                  {several ? `${accounts?.find((account) => account.id === message.accountId)?.label ?? ''} · ` : ''}
                   {message.folderName}
                 </Badge>
               </Box>

@@ -31,7 +31,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
   const people = usePeople();
   // The archived references, places and categories are not offered.
   const products = unarchived(data?.shoppingProducts ?? []);
-  const byName = new Map(products.map((product) => [product.name, product]));
+  const byName = new Map(products.map((product) => [product.label, product]));
   const form = useAppForm<Values>({
     initialValues: { productId: null, label: '', categoryId: null, unit: null, locationId, note: null, perishable: false, memberIds: [], relationIds: [], quantity: null, expiresAt: null },
     schema: newStockItemSchema,

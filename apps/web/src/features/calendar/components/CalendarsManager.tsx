@@ -16,7 +16,7 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { SubscriptionRow } from './SubscriptionRow';
 
 /**
- * Calendars of the workspace, as every settings list: added, edited (name, color, image), reordered by drag and drop,
+ * Calendars of the workspace, as every settings list: added, edited (label, color, image), reordered by drag and drop,
  * exported as iCalendar (one, or all), deleted (with their events; the last one stays).
  * @returns {JSX.Element} Section.
  */
@@ -36,14 +36,14 @@ function OwnCalendars() {
       {...listMutations({ create, update, remove: { mutateAsync: ({ id }: { id: string }) => remove.mutateAsync(id) } })}
       headerActions={<CalendarsIcsButton disabled={!calendars.length} />}
       renderActions={(calendar) => (
-        <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download aria-label={`Exporter ${calendar.name} (.ics)`}>
+        <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download aria-label={`Exporter ${calendar.label} (.ics)`}>
           <DownloadSimpleIcon aria-hidden />
         </IconAction>
       )}
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>
-          Le calendrier « {calendar.name} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
+          Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
           espaces abonnés ne le verront plus.
         </>
       )}
@@ -74,9 +74,9 @@ function OtherCalendars() {
             <SubscriptionRow
               key={calendar.id}
               pl="lg"
-              name={calendar.name}
+              label={calendar.label}
               color={calendar.color}
-              workspaceName={calendar.workspace.name}
+              workspaceLabel={calendar.workspace.label}
               subscribed={calendar.subscribed}
               onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(calendar.id, ON_ERROR)}
             />

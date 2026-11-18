@@ -42,7 +42,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
                 Prochaine alarme
               </Text>
               <Text size="sm" truncate>
-                {next ? `${next.alarm.title} · ${fmt.dateTimeShort(next.at)}` : 'Aucune'}
+                {next ? `${next.alarm.label} · ${fmt.dateTimeShort(next.at)}` : 'Aucune'}
               </Text>
             </Stack>
             <Anchor component={Link} to="/alarms" size="sm" style={{ flexShrink: 0 }}>

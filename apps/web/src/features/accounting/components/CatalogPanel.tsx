@@ -23,14 +23,14 @@ import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
-import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'title', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.title, text: (item) => item.title },
+  { id: 'title', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   {
     id: 'kind',
     bulk: true,
@@ -77,22 +77,22 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
 /** Views made the first time the catalogue is shown: the items offered, the archived ones. */
 const CATALOG_VIEWS = [
   {
-    name: 'Actifs',
+    label: 'Actifs',
     config: {
       filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isFalse', value: null }] },
     },
   },
   {
-    name: 'Archivés',
+    label: 'Archivés',
     config: {
       filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
     },
   },
-  { name: 'Tous' },
+  { label: 'Tous' },
 ];
 
 /**
- * Catalogue item form: kind, title, description, unit, price, VAT.
+ * Catalogue item form: kind, label, description, unit, price, VAT.
  * @param {{ item?: CatalogItem, onDone: () => void }} props Item to edit (none: new item) and close callback.
  * @returns {JSX.Element} Form.
  */
@@ -102,7 +102,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
   const form = useAppForm<CatalogItemInput & Record<string, unknown>>({
     initialValues: {
       kind: (item?.kind as CatalogItemInput['kind']) ?? 'ITEM',
-      title: item?.title ?? '',
+      label: item?.label ?? '',
       description: item?.description ?? '',
       unit: item?.unit ?? 'HOUR',
       unitPrice: item?.unitPrice ?? 0,
@@ -131,7 +131,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
             {...form.getInputProps('kind')}
             onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
           />
-          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('title')} />
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
           <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
           <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
             <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
@@ -156,7 +156,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
 }
 
 /**
- * Catalogue of products and services: default title, unit, price and VAT of the lines, added, edited,
+ * Catalogue of products and services: default label, unit, price and VAT of the lines, added, edited,
  * archived (not offered any more, read only; its views « Actifs » / « Archivés ») or restored, or deleted.
  * @returns {JSX.Element} Panel.
  */
@@ -177,7 +177,7 @@ export function CatalogPanel() {
         id: item.id,
         input: {
           kind: item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM',
-          title: item.title,
+          label: item.label,
           description: item.description ?? null,
           unit: item.unit,
           unitPrice: item.unitPrice,
@@ -221,7 +221,7 @@ export function CatalogPanel() {
     deleteItemsAction(rows, {
       noun: 'article',
       the: 'l’article',
-      name: (item) => item.title,
+      name: rowLabel,
       risks: (subject, one) =>
         `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} du catalogue. Les documents qui ${one ? 'l’utilisent' : 'les utilisent'} gardent leurs lignes. Pour seulement ne plus ${one ? 'le' : 'les'} proposer, ${one ? 'archivez-le' : 'archivez-les'}.`,
       remove: (item) => remove.mutateAsync(item.id),
@@ -257,7 +257,7 @@ export function CatalogPanel() {
         title: (
           <>
             <Group gap={6} wrap="nowrap">
-              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong readOnly={item.archived} onSave={(title) => title && bulk('title')(item, { title })} />
+              <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={item.archived} onSave={(title) => title && bulk('title')(item, { label: title })} />
               {item.archived && <ArchivedBadge size="xs" />}
               {item.kind === 'DISBURSEMENT' && (
                 <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
@@ -275,7 +275,7 @@ export function CatalogPanel() {
         kind: (
           <EditableSelect
             value={item.kind}
-            label={`Nature de ${item.title}`}
+            label={`Nature de ${item.label}`}
             readOnly={item.archived}
             data={[
               { value: 'ITEM', label: 'Prestation' },
@@ -287,7 +287,7 @@ export function CatalogPanel() {
         unit: (
           <EditableSelect
             value={item.unit}
-            label={`Unité de ${item.title}`}
+            label={`Unité de ${item.label}`}
             readOnly={item.archived}
             data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
             onSave={(unit) => unit && bulk('unit')(item, { unit: unit as CatalogItemInput['unit'] })}
@@ -297,7 +297,7 @@ export function CatalogPanel() {
           <EditableNumber
             amount
             value={item.unitPrice}
-            label={`Prix HT de ${item.title}`}
+            label={`Prix HT de ${item.label}`}
             readOnly={item.archived}
             signed={item.kind === 'DISBURSEMENT'}
             onSave={(unitPrice) => unitPrice !== null && bulk('price')(item, { unitPrice })}
@@ -309,7 +309,7 @@ export function CatalogPanel() {
           ) : (
             <EditableSelect
               value={String(item.vatRate)}
-              label={`TVA de ${item.title}`}
+              label={`TVA de ${item.label}`}
               readOnly={item.archived}
               data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
@@ -324,9 +324,9 @@ export function CatalogPanel() {
       })}
       actions={(item) => (
         <RowActions
-          name={item.title}
+          name={item.label}
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
-          items={[archiveEntry({ archived: item.archived, type: 'Article', name: item.title }, setArchived, item.id), rowMenuEntry(deleteItems([item]))]}
+          items={[archiveEntry({ archived: item.archived, type: 'Article', name: item.label }, setArchived, item.id), rowMenuEntry(deleteItems([item]))]}
         />
       )}
     />

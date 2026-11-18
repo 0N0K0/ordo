@@ -96,7 +96,7 @@ builder.prismaObject('Routine', {
   description: 'Task repeating on a calendar rule, ticked once done for its current occurrence.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     categoryIds: t.idList(relationIds('categories', 'Categories it is shown in.')),
     parentId: t.exposeID('parentId', { nullable: true }),
@@ -224,12 +224,12 @@ builder.prismaObject('Routine', {
 const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: ['BEFORE', 'AFTER', 'INSIDE'] as const, description: 'Where a routine is dropped, relative to another one.' });
 
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }),
+  fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }),
 });
 
 const RoutineInputType = builder.inputType('RoutineInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     categoryIds: t.idList({ required: true }),
     parentId: t.id(),
@@ -274,7 +274,7 @@ const repetitionChangeFields = (t: InputFields) => ({
 const RoutinePatch = builder.inputType('RoutinePatch', {
   description: 'Changes of a routine (omitted fields unchanged).',
   fields: (t) => ({
-    title: t.string(),
+    label: t.string(),
     categoryIds: t.idList(),
     parentId: t.id({ description: 'Null: top level.' }),
     estimate: t.int(),
@@ -323,7 +323,7 @@ const idOrNull = (id: string | null | undefined) => id ?? null;
  * @returns {RoutineInput} Service input.
  */
 const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput => ({
-  title: input.title,
+  label: input.label,
   description: input.description ?? null,
   categoryIds: input.categoryIds,
   parentId: idOrNull(input.parentId),
@@ -406,7 +406,7 @@ builder.prismaObject('RoutineCheck', {
 builder.queryFields((t) => ({
   routineCategories: t.prismaField({
     type: ['RoutineCategory'],
-    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   routines: t.prismaField({
     type: ['Routine'],
@@ -456,11 +456,11 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createRoutineCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { input }) => (await routines.createCategory({ name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) })).id,
+    resolve: async (_root, { input }) => (await routines.createCategory({ label: input.label, color: input.color ?? null, parentId: idOrNull(input.parentId) })).id,
   }),
   updateRoutineCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(routines.updateCategory(id, { name: input.name, color: input.color ?? null, parentId: idOrNull(input.parentId) })),
+    resolve: (_root, { id, input }) => done(routines.updateCategory(id, { label: input.label, color: input.color ?? null, parentId: idOrNull(input.parentId) })),
   }),
   moveRoutineCategory: t.boolean({
     description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
@@ -493,7 +493,7 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutinePatch, required: true }) },
     resolve: async (_root, { id, input }) => {
       const changes: Partial<RoutineInput> = {};
-      if (input.title !== undefined && input.title !== null) changes.title = input.title;
+      if (input.label !== undefined && input.label !== null) changes.label = input.label;
       if (input.categoryIds) changes.categoryIds = input.categoryIds;
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;

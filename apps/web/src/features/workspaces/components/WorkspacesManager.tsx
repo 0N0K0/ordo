@@ -45,20 +45,20 @@ interface WorkspaceRowProps {
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
   const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
   const week = readWeek(workspace);
-  const [name, setName] = useState(workspace.name);
+  const [name, setName] = useState(workspace.label);
 
   /**
    * Saves the name or the kind when they changed.
    * @param {{ name?: string, kind?: WorkspaceKind }} changes Changes.
    * @returns {void}
    */
-  const save = (changes: { name?: string; kind?: WorkspaceKind }) => {
-    const input = { name: (changes.name ?? name).trim(), kind: changes.kind ?? workspace.kind };
-    if (!input.name) {
-      setName(workspace.name);
+  const save = (changes: { label?: string; kind?: WorkspaceKind }) => {
+    const input = { label: (changes.label ?? name).trim(), kind: changes.kind ?? workspace.kind };
+    if (!input.label) {
+      setName(workspace.label);
       return;
     }
-    if (input.name === workspace.name && input.kind === workspace.kind) return;
+    if (input.label === workspace.label && input.kind === workspace.kind) return;
     update.mutate(
       { id: workspace.id, input },
       {
@@ -78,7 +78,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           value={name}
           maxLength={60}
           onChange={(event) => setName(event.currentTarget.value)}
-          onBlur={() => save({ name })}
+          onBlur={() => save({ label: name })}
           rightSection={
             current ? (
               <Badge size="xs" variant="light">
@@ -90,7 +90,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         />
         <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
         <InlineActions
-          name={workspace.name}
+          name={workspace.label}
           items={[
             ...moveEntries(index, count, (to) => move.mutate({ id: workspace.id, index: to }, ON_ERROR)),
             { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
@@ -98,12 +98,12 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         />
         <RemoveButton
           label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}
-          aria-label={`Supprimer ${workspace.name}`}
+          aria-label={`Supprimer ${workspace.label}`}
           disabled={count === 1}
           onClick={() =>
             confirmDestructive({
               title: 'Supprimer l’espace',
-              risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur.`,
+              risks: `L’espace « ${workspace.label} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur.`,
               onConfirm: () =>
                 remove.mutate(
                   workspace.id,
@@ -179,7 +179,7 @@ export function WorkspacesManager() {
   const add = () => {
     if (!name.trim()) return;
     create.mutate(
-      { name: name.trim(), kind },
+      { label: name.trim(), kind },
       formCallbacks(null, 'Espace créé.', () => setName('')),
     );
   };

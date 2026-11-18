@@ -1,4 +1,4 @@
-import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_NAME_MAX, mapById, MILESTONE_TITLE_MAX, normalize, parseDay, round2, TASK_TITLE_MAX } from '@ordo/shared';
+import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_MAX, mapById, MILESTONE_LABEL_MAX, normalize, parseDay, round2, TASK_LABEL_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -55,10 +55,10 @@ interface SyncSummary {
 const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true } } as const;
 const include = {
   assignees: { select: { id: true, githubLogin: true } },
-  tags: { select: { id: true, name: true } },
+  tags: { select: { id: true, label: true } },
   sprints: { select: { id: true, startDate: true, githubIterationId: true } },
   parent: { select: { githubContentId: true, githubContentType: true } },
-  milestone: { select: { title: true } },
+  milestone: { select: { label: true } },
   blockedBy: { select: { blocker: linkedTask } },
   relationsA: { select: { taskB: linkedTask } },
   relationsB: { select: { taskA: linkedTask } },
@@ -71,10 +71,10 @@ interface LinkedTask {
 }
 type SyncedTask = Task & {
   assignees: { id: string; githubLogin: string | null }[];
-  tags: { id: string; name: string }[];
+  tags: { id: string; label: string }[];
   sprints: { id: string; startDate: Date; githubIterationId: string | null }[];
   parent: { githubContentId: string | null; githubContentType: string | null } | null;
-  milestone: { title: string } | null;
+  milestone: { label: string } | null;
   blockedBy: { blocker: LinkedTask }[];
   relationsA: { taskB: LinkedTask }[];
   relationsB: { taskA: LinkedTask }[];
@@ -167,14 +167,14 @@ const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): f
  * @returns {SyncFields} Values.
  */
 function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type'], currentIteration: string | null = null): SyncFields {
-  const fields: SyncFields = { title: task.title, body: task.description ?? '' };
+  const fields: SyncFields = { title: task.label, body: task.description ?? '' };
   if (link.syncAssignees) fields.assignees = task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login));
   if (type === 'ISSUE') {
     fields.closed = task.closedAt !== null;
-    if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.name));
+    if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.label));
     // The parent is an issue of the board, or has no counterpart.
     fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
-    fields.milestone = task.milestone?.title ?? null;
+    fields.milestone = task.milestone?.label ?? null;
     fields.blockedBy = issuesOf(task.blockedBy.map((block) => block.blocker));
     fields.relatesTo = issuesOf(relatedOf(task));
   }
@@ -260,7 +260,7 @@ async function subtree(taskId: string): Promise<Set<string>> {
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
   const day = (value: unknown) => (value ? parseDay(String(value)) : null);
-  if ('title' in values) data.title = clipText(String(values.title), TASK_TITLE_MAX) || task.title;
+  if ('title' in values) data.label = clipText(String(values.title), TASK_LABEL_MAX) || task.label;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
@@ -301,11 +301,11 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     const ids: string[] = [];
     for (const key of values.labels as string[]) {
       // Names cut to the rule of the tags: a long label is found again by its cut name.
-      let tag = tags.find((item) => item.name.toLowerCase() === clipText(key, LABEL_NAME_MAX));
+      let tag = tags.find((item) => item.label.toLowerCase() === clipText(key, LABEL_MAX));
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
         const position = await nextPositionIn('taskTag');
-        tag = await prisma.taskTag.create({ data: { name: clipText(label?.name ?? key, LABEL_NAME_MAX), color: DEFAULT_LABEL_COLOR, position } });
+        tag = await prisma.taskTag.create({ data: { label: clipText(label?.name ?? key, LABEL_MAX), color: DEFAULT_LABEL_COLOR, position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -321,18 +321,18 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
 }
 
 /**
- * Milestone of a project with this title, created when there is none.
+ * Milestone of a project with this label, created when there is none.
  * @param {string} projectId Project of the task.
  * @param {string} title Milestone title on GitHub.
  * @returns {Promise<string>} Milestone id.
  */
 async function milestoneOf(projectId: string, title: string): Promise<string> {
   // Cut to the rule of the milestones: a long title is found again by its cut one.
-  const cut = clipText(title, MILESTONE_TITLE_MAX);
-  const found = await prisma.milestone.findFirst({ where: { projectId, title: cut }, select: { id: true } });
+  const cut = clipText(title, MILESTONE_LABEL_MAX);
+  const found = await prisma.milestone.findFirst({ where: { projectId, label: cut }, select: { id: true } });
   if (found) return found.id;
   const position = await nextPositionIn('milestone', { projectId });
-  return (await prisma.milestone.create({ data: { projectId, title: cut, position }, select: { id: true } })).id;
+  return (await prisma.milestone.create({ data: { projectId, label: cut, position }, select: { id: true } })).id;
 }
 
 /**
@@ -373,7 +373,7 @@ type SentRelations = Set<string>;
  * @param {SyncFields} values Values pushed from the task.
  * @param {object} context Known logins before the change, tags of the task, repository labels.
  * @param {string[]} context.knownBefore Synchronized logins on GitHub before the change.
- * @param {{ name: string }[]} context.tags Tags of the task (names as written in Ordo).
+ * @param {{ label: string }[]} context.tags Tags of the task (labels as written in Ordo).
  * @param {LabelCache} context.labels Labels of the repositories.
  * @param {MilestoneCache} context.milestones Milestones of the repositories.
  * @param {SentRelations} context.sent Relationships already sent in this sync.
@@ -396,7 +396,7 @@ async function pushValues(
     issueFields,
   }: {
     knownBefore: string[];
-    tags: { name: string; color?: string }[];
+    tags: { label: string; color?: string }[];
     labels: LabelCache;
     milestones: MilestoneCache;
     sent: SentRelations;
@@ -427,9 +427,9 @@ async function pushValues(
       if (item.labels.some((label) => label.name.toLowerCase() === key)) continue;
       let id = repository.get(key);
       if (!id) {
-        // A tag without label in the repository: created with the tag's name and color.
-        const tag = tags.find((entry) => entry.name.toLowerCase() === key);
-        id = (await createLabel(token, item.repositoryId, tag?.name ?? key, (tag?.color ?? DEFAULT_LABEL_COLOR).replace('#', ''))).id;
+        // A tag without label in the repository: created with the tag's label and color.
+        const tag = tags.find((entry) => entry.label.toLowerCase() === key);
+        id = (await createLabel(token, item.repositoryId, tag?.label ?? key, (tag?.color ?? DEFAULT_LABEL_COLOR).replace('#', ''))).id;
         repository.set(key, id);
       }
       add.push(id);
@@ -452,7 +452,7 @@ async function pushValues(
       }
       milestoneId = repository.milestones.get(title) ?? null;
       if (!milestoneId) {
-        // An Ordo milestone without counterpart in the repository: created with its title.
+        // An Ordo milestone without counterpart in the repository: created with its label.
         milestoneId = (await createMilestone(token, repository.nameWithOwner, title)).id;
         repository.milestones.set(title, milestoneId);
       }
@@ -565,19 +565,19 @@ function projectTree(projectId: string): Promise<string[]> {
 }
 
 /**
- * Sprint name compared without case or accents.
- * @param {string} name Name.
- * @returns {string} Folded name.
+ * Sprint label compared without case or accents.
+ * @param {string} label Label.
+ * @returns {string} Folded label.
  */
-const foldName = (name: string) => normalize(name).trim();
+const foldLabel = (label: string) => normalize(label).trim();
 
 /**
  * Pairs the iterations of the board with the sprints of the project tree, without losing anything. An iteration
- * without sprint takes the Ordo sprint of the same name (a sprint created from it by an earlier sync gives that
- * sprint its tasks and is deleted), or becomes a new sprint with its dates. Ordo is the reference for the name and
+ * without sprint takes the Ordo sprint of the same label (a sprint created from it by an earlier sync gives that
+ * sprint its tasks and is deleted), or becomes a new sprint with its dates. Ordo is the reference for the label and
  * dates of a paired sprint. Iterations are never written: the API lays the iterations of a field end to end, one
  * period of the field's duration each, whatever dates are asked, so the sprints without iteration are only
- * counted (to be created on GitHub, where they will be paired by name). A sprint whose iteration is gone is
+ * counted (to be created on GitHub, where they will be paired by label). A sprint whose iteration is gone is
  * unpaired.
  * @param {Board} board Board.
  * @param {GithubProjectLink} link Board link.
@@ -599,7 +599,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
 
   for (const iteration of field.iterations) {
     let sprint = sprints.find((item) => item.githubIterationId === iteration.id);
-    const twin = sprints.find((item) => !item.githubIterationId && item !== sprint && foldName(item.name) === foldName(iteration.title));
+    const twin = sprints.find((item) => !item.githubIterationId && item !== sprint && foldLabel(item.label) === foldLabel(iteration.title));
     if (twin) {
       if (sprint) {
         // A sprint created from the iteration by an earlier sync: its tasks join the Ordo sprint, which replaces it.
@@ -616,7 +616,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
     if (!sprint) {
       const startDate = parseDay(iteration.startDate);
       const endDate = parseDay(addDays(iteration.startDate, iteration.duration - 1));
-      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
+      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, label: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
     }
   }
@@ -701,7 +701,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const known = new Set((await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, select: { githubItemId: true } })).map((task) => task.githubItemId));
     const created = new Set(items.filter((entry) => !known.has(entry.itemId)).map((entry) => entry.itemId));
     for (const item of items.filter((entry) => created.has(entry.itemId))) {
-      const task = await createTask({ title: clipText(item.title, TASK_TITLE_MAX) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
+      const task = await createTask({ label: clipText(item.title, TASK_LABEL_MAX) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
       // Empty snapshot except the title: every GitHub value is new, so it is pulled.
       await prisma.task.update({
         where: { id: task.id },
@@ -711,7 +711,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           githubContentType: item.type,
           githubUrl: item.url,
           githubNumber: item.number,
-          githubSnapshot: { title: task.title, body: '', assignees: [], labels: [], parent: null, closed: false, status: null, priority: null, iteration: null, start: null, end: null, effort: null },
+          githubSnapshot: { title: task.label, body: '', assignees: [], labels: [], parent: null, closed: false, status: null, priority: null, iteration: null, start: null, end: null, effort: null },
         },
       });
       summary.pulledNew += 1;
@@ -751,7 +751,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const labels: LabelCache = new Map();
     const milestones: MilestoneCache = new Map();
     const sent: SentRelations = new Set();
-    const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [tag.name.toLowerCase(), tag.color]));
+    const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [tag.label.toLowerCase(), tag.color]));
     /**
      * What a push of the values of a task needs besides them: its tags, the caches of this sync.
      * @param {SyncedTask} task Task.
@@ -760,7 +760,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
      */
     const pushContext = (task: SyncedTask, knownBefore: string[]): Parameters<typeof pushValues>[4] => ({
       knownBefore,
-      tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
+      tags: task.tags.map((tag) => ({ label: tag.label, color: tagColors.get(tag.label.toLowerCase()) })),
       labels,
       milestones,
       sent,
@@ -812,7 +812,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       const created = await createItem(token, {
         projectId: link.githubProjectId,
         repositoryId: link.repositoryId,
-        title: task.title,
+        title: task.label,
         body: task.description ?? '',
         assignees: link.syncAssignees ? task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login)) : [],
       });
@@ -822,7 +822,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       const local = localFields({ ...task, parent }, link, maps, type);
       const item: RemoteItem = {
         ...created,
-        title: task.title,
+        title: task.label,
         body: task.description ?? '',
         closed: type === 'ISSUE' ? false : null,
         assignees: (local.assignees as string[]) ?? [],
@@ -862,7 +862,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
 
     await prisma.githubProjectLink.update({
       where: { id: link.id },
-      data: { lastSyncAt: new Date(), lastSyncError: null, lastSyncSummary: summary as unknown as Prisma.InputJsonValue, title: board.title, url: board.url },
+      data: { lastSyncAt: new Date(), lastSyncError: null, lastSyncSummary: summary as unknown as Prisma.InputJsonValue, label: board.title, url: board.url },
     });
     return summary;
   } catch (error) {

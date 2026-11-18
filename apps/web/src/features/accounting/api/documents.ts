@@ -32,7 +32,7 @@ graphql(`
     clientId
     clientName
     projectId
-    title
+    label
     totalNet
     totalGross
     currency
@@ -42,7 +42,7 @@ graphql(`
     trackingStatus {
       id
       archived
-      name
+      label
       color
       category
     }
@@ -57,7 +57,7 @@ graphql(`
     depositValue
     attachments {
       id
-      name
+      filename
       url
     }
   }
@@ -126,14 +126,14 @@ graphql(`
       entry {
         id
         date
-        accountName
-        methodName
+        accountLabel
+        methodLabel
       }
     }
     lines {
       id
       kind
-      title
+      label
       description
       quantity
       unit
@@ -145,7 +145,7 @@ graphql(`
     }
     attachments {
       id
-      name
+      filename
       size
       url
     }
@@ -179,7 +179,7 @@ const RecurringInvoicesDocument = graphql(`
     recurringInvoices {
       id
       archived
-      name
+      label
       templateId
       recurrence
       startDate
@@ -201,7 +201,7 @@ const ProjectResourcesDocument = graphql(`
     projectResources(projectId: $projectId) {
       id
       kind
-      title
+      label
       note
       url
       size
@@ -302,8 +302,8 @@ const DeleteRecurring = graphql(`
   }
 `);
 const AddProjectLink = graphql(`
-  mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {
-    addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)
+  mutation AddProjectLink($projectId: ID!, $label: String!, $url: String!, $note: String) {
+    addProjectLink(projectId: $projectId, label: $label, url: $url, note: $note)
   }
 `);
 const AddProjectFiles = graphql(`
@@ -312,8 +312,8 @@ const AddProjectFiles = graphql(`
   }
 `);
 const UpdateProjectResource = graphql(`
-  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {
-    updateProjectResource(id: $id, title: $title, url: $url, note: $note)
+  mutation UpdateProjectResource($id: ID!, $label: String!, $url: String, $note: String) {
+    updateProjectResource(id: $id, label: $label, url: $url, note: $note)
   }
 `);
 const DeleteProjectResource = graphql(`
@@ -450,7 +450,7 @@ export function useDocumentMutations() {
 }
 
 export interface RecurringSettings {
-  name: string;
+  label: string;
   recurrence: unknown;
   startDate: string;
   autoFinalize: boolean;
@@ -475,10 +475,10 @@ export function useRecurringMutations() {
  */
 export function useProjectResourceMutations() {
   return {
-    addLink: useAccountingMutation(async (variables: { projectId: string; title: string; url: string; note?: string | null }) => (await execute(AddProjectLink, variables)).addProjectLink),
+    addLink: useAccountingMutation(async (variables: { projectId: string; label: string; url: string; note?: string | null }) => (await execute(AddProjectLink, variables)).addProjectLink),
     addFiles: useAccountingMutation(async (variables: { projectId: string; files: File[] }) => (await execute(AddProjectFiles, variables)).addProjectFiles),
     update: useAccountingMutation(
-      async (variables: { id: string; title: string; url?: string | null; note?: string | null }) => (await execute(UpdateProjectResource, variables)).updateProjectResource,
+      async (variables: { id: string; label: string; url?: string | null; note?: string | null }) => (await execute(UpdateProjectResource, variables)).updateProjectResource,
     ),
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteProjectResource, { id })).deleteProjectResource),
     move: useAccountingMutation(async (variables: { id: string; index: number }) => (await execute(MoveProjectResource, variables)).moveProjectResource),
@@ -496,7 +496,7 @@ graphql(`
     clientId
     clientName
     projectId
-    title
+    label
     totalNet
     totalVat
     totalGross
@@ -510,7 +510,7 @@ graphql(`
     trackingStatus {
       id
       archived
-      name
+      label
       color
       category
     }

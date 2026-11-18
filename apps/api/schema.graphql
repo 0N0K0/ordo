@@ -1,6 +1,6 @@
 type AccountingAttachment {
+  filename: String!
   id: ID!
-  name: String!
   size: Int!
   url: String!
 }
@@ -50,6 +50,7 @@ type AccountingDocument {
   """
   invoicedNet: Float
   issueDate: Date!
+  label: String
   lastReminderAt: DateTime
   lateInterest: String
   lines: [AccountingLine!]!
@@ -89,7 +90,6 @@ type AccountingDocument {
 
   """Tracked time billed on the document."""
   timeEntries: [TimeEntry!]!
-  title: String
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
@@ -112,6 +112,7 @@ input AccountingDocumentInput {
   globalDiscountValue: Float
   introduction: String
   issueDate: Date!
+  label: String
   lateInterest: String
   lines: [AccountingLineInput!]!
   otherMentions: String
@@ -129,7 +130,6 @@ input AccountingDocumentInput {
   Tracked time billed on the document (replaces the previous ones); unchanged when omitted.
   """
   timeEntryIds: [ID!]
-  title: String
   vatApplicable: Boolean!
 }
 
@@ -154,9 +154,9 @@ type AccountingLine {
   discountValue: Float
   id: ID!
   kind: AccountingLineKind!
+  label: String!
   position: Int!
   quantity: Float!
-  title: String!
   unit: AccountingUnit!
   unitPrice: Float!
   vatRate: Float!
@@ -169,8 +169,8 @@ input AccountingLineInput {
   discountType: DiscountType
   discountValue: Float
   kind: AccountingLineKind!
+  label: String!
   quantity: Float!
-  title: String!
   unit: AccountingUnit!
   unitPrice: Float!
   vatRate: Float!
@@ -209,6 +209,7 @@ type Alarm {
   frequency: AlarmFrequency!
   id: ID!
   interval: Int!
+  label: String!
   lastFiredAt: DateTime
   minutes: Int
   note: String
@@ -223,7 +224,6 @@ type Alarm {
   task: Task
   taskId: ID
   time: String
-  title: String!
   type: AlarmType!
   weekdays: [Int!]!
 }
@@ -240,6 +240,7 @@ input AlarmInput {
   endDate: Date
   frequency: AlarmFrequency!
   interval: Int!
+  label: String!
   minutes: Int
   note: String
   projectId: ID
@@ -251,7 +252,6 @@ input AlarmInput {
 
   """HH:MM, local time."""
   time: String
-  title: String!
   type: AlarmType!
 
   """1 (Monday) to 7 (Sunday)."""
@@ -314,11 +314,11 @@ enum ArchivableKind {
 }
 
 type Attachment {
+  filename: String!
   id: ID!
 
   """Shown in place in markdown."""
   isImage: Boolean!
-  name: String!
   size: Int!
   url: String!
 }
@@ -351,7 +351,7 @@ type Calendar {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -363,14 +363,14 @@ type CalendarCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   parentId: ID
   position: Int!
 }
 
 input CalendarCategoryInput {
   color: String!
-  name: String!
+  label: String!
   parentId: ID
 }
 
@@ -391,6 +391,7 @@ input CalendarEventInput {
   description: String
   endDate: Date!
   endTime: String
+  label: String!
   links: [CalendarLinkInput!]!
   location: String
 
@@ -416,7 +417,6 @@ input CalendarEventInput {
   """Tasks the event is about (none when omitted)."""
   taskIds: [ID!]
   timeZone: String!
-  title: String!
 
   """Travel time back from the event, in minutes; none: 0."""
   travelAfter: Int
@@ -449,6 +449,7 @@ type CalendarEventOccurrence {
   endTime: String
   eventId: ID!
   key: String!
+  label: String!
   links: [CalendarLink!]!
   location: String
   locationLat: Float
@@ -472,7 +473,6 @@ type CalendarEventOccurrence {
   startTime: String
   taskIds: [ID!]!
   timeZone: String!
-  title: String!
 
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
@@ -506,15 +506,15 @@ type CalendarPostponedFrom {
   """Occurrence of a recurring event."""
   date: String
   eventId: ID!
-  title: String!
+  label: String!
 }
 
 """Event postponing an occurrence."""
 type CalendarPostponedTo {
   eventId: ID!
+  label: String!
   startDate: String!
   startTime: String
-  title: String!
 }
 
 """Calendar of another workspace shown, read only, in this one."""
@@ -522,7 +522,7 @@ type CalendarSubscription {
   calendarId: ID!
   color: String!
   id: ID!
-  name: String!
+  label: String!
   workspace: CalendarWorkspace!
 }
 
@@ -530,7 +530,7 @@ type CalendarSubscription {
 type CalendarWorkspace {
   id: ID!
   kind: String!
-  name: String!
+  label: String!
 }
 
 """
@@ -542,7 +542,7 @@ type CatalogItem {
   description: String
   id: ID!
   kind: AccountingLineKind!
-  title: String!
+  label: String!
   unit: AccountingUnit!
   unitPrice: Float!
   vatRate: Float!
@@ -553,7 +553,7 @@ input CatalogItemInput {
 
   """ITEM or DISBURSEMENT."""
   kind: AccountingLineKind!
-  title: String!
+  label: String!
   unit: AccountingUnit!
   unitPrice: Float!
   vatRate: Float!
@@ -669,14 +669,14 @@ type ClientService {
   clientId: ID!
   email: String
   id: ID!
-  name: String!
+  label: String!
   phones: JSON!
 }
 
 input ClientServiceInput {
   address: JSON
   email: String!
-  name: String!
+  label: String!
   phones: JSON!
 }
 
@@ -830,7 +830,7 @@ type Dashboard {
   archived: Boolean!
   charts: [DashboardChart!]!
   id: ID!
-  name: String!
+  label: String!
   position: Int!
   projectId: ID
 }
@@ -840,14 +840,14 @@ type DashboardChart {
   config: JSON!
   dashboardId: ID!
   id: ID!
+  label: String!
   position: Int!
-  title: String!
   wide: Boolean!
 }
 
 input DashboardChartInput {
   config: JSON!
-  title: String!
+  label: String!
   wide: Boolean!
 }
 
@@ -941,7 +941,7 @@ type DocumentStatus {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
   scope: DocumentStatusScope!
 }
@@ -987,8 +987,8 @@ type ForeignScheduleKind {
   customized: Boolean!
   dayBar: Boolean!
   dayDisplay: String!
+  label: String!
   monthDisplay: String!
-  name: String!
   scheduleCount: Int!
 
   """Of the kind, in its workspace."""
@@ -998,7 +998,7 @@ type ForeignScheduleKind {
   """None: the schedules without kind (working hours)."""
   typeId: ID
   workspaceId: ID!
-  workspaceName: String!
+  workspaceLabel: String!
 }
 
 """
@@ -1014,15 +1014,15 @@ type ForeignWorkSchedule {
   endDate: String
   exceptions: JSON!
   id: ID!
+  label: String!
   monthDisplay: String!
-  name: String!
   startDate: String!
 
   """Kind in its workspace; none: its working hours."""
   typeId: ID
-  typeName: String
+  typeLabel: String
   workspaceId: ID!
-  workspaceName: String!
+  workspaceLabel: String!
 }
 
 input GeoPointInput {
@@ -1109,6 +1109,7 @@ type GithubProjectLink {
   endFieldId: String
   id: ID!
   iterationFieldId: String
+  label: String!
   lastSyncAt: DateTime
   lastSyncError: String
   lastSyncSummary: JSON
@@ -1124,7 +1125,6 @@ type GithubProjectLink {
   syncAssignees: Boolean!
   syncLabels: Boolean!
   timeSpentFieldId: String
-  title: String!
   typeFieldId: String
   typeOptions: JSON!
 
@@ -1165,6 +1165,7 @@ type ImportedDocument {
   fileUrl: String
   id: ID!
   issueDate: Date!
+  label: String
   note: String
   number: String!
   paid: Float
@@ -1175,7 +1176,6 @@ type ImportedDocument {
   """How it was sent: MAIL, CHORUS, POST, HAND or OTHER."""
   sentVia: String
   settled: Boolean!
-  title: String
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
@@ -1191,11 +1191,11 @@ input ImportedDocumentInput {
   currency: String!
   dueDate: Date
   issueDate: Date!
+  label: String
   note: String
   number: String!
   projectId: ID
   settled: Boolean!
-  title: String
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
@@ -1212,6 +1212,18 @@ type InvoiceTreasuryCategories {
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
+
+"""Label and color of an item of a simple list."""
+input LabelColorInput {
+  color: String!
+  label: String!
+}
+
+"""Changes of an item of a simple list (omitted fields unchanged)."""
+input LabelColorPatch {
+  color: String
+  label: String
+}
 
 """Document of the library: a file, or a link."""
 type LibraryDocument {
@@ -1252,9 +1264,9 @@ type LinkedMail {
 }
 
 type LinkedMailAttachment {
+  filename: String!
   id: ID!
   inline: Boolean!
-  name: String!
   size: Int!
   url: String!
 }
@@ -1270,7 +1282,7 @@ type MailAccount {
   imapPort: Int!
   imapSecure: Boolean!
   imapUser: String!
-  name: String!
+  label: String!
   saveSent: Boolean!
   signature: String
   smtpHost: String!
@@ -1288,7 +1300,7 @@ input MailAccountInput {
   imapPort: Int!
   imapSecure: Boolean!
   imapUser: String!
-  name: String!
+  label: String!
   saveSent: Boolean!
   smtpHost: String!
   smtpPassword: String!
@@ -1352,7 +1364,7 @@ type MailFolder {
   unseen: Int!
 }
 
-"""Flag of mails (name, color)."""
+"""Flag of mails (label, color)."""
 type MailLabel {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -1361,7 +1373,7 @@ type MailLabel {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -1382,7 +1394,7 @@ type MailSearch {
   """accountIds, scope, state, labelIds, unread, text."""
   criteria: JSON!
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -1415,8 +1427,8 @@ input MailSearchInput {
   """Folder path, with the folder scope."""
   folder: String
   from: String
+  label: String!
   labelIds: [ID!]!
-  name: String!
 
   """inbox, all or folder."""
   scope: String!
@@ -1484,23 +1496,23 @@ type Milestone {
   description: String
   dueDate: Date
   id: ID!
+  label: String!
   position: Int!
   projectId: ID!
-  title: String!
 }
 
 input MilestoneInput {
   description: String
   dueDate: Date
+  label: String!
   projectId: ID!
-  title: String!
 }
 
 """Omitted fields are left unchanged; null clears a field."""
 input MilestoneUpdateInput {
   description: String
   dueDate: Date
-  title: String
+  label: String
 }
 
 type Mutation {
@@ -1512,7 +1524,7 @@ type Mutation {
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
-  addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
+  addProjectLink(label: String!, note: String, projectId: ID!, url: String!): Boolean!
   addSheetItem(input: SheetItemInput!, sheetId: ID!): ID!
 
   """Adds products of the references to a sheet; returns the number added."""
@@ -1609,7 +1621,7 @@ type Mutation {
   copySubRoutines(fromId: ID!, toId: ID!): Int!
   createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
-  createCalendar(input: NameColorInput!): Calendar!
+  createCalendar(input: LabelColorInput!): Calendar!
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
   createCatalogItem(input: CatalogItemInput!): ID!
@@ -1617,7 +1629,7 @@ type Mutation {
   createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(input: ContributorInput!): Contributor!
-  createDashboard(name: String!, projectId: ID): ID!
+  createDashboard(label: String!, projectId: ID): ID!
   createDashboardChart(dashboardId: ID!, input: DashboardChartInput!): ID!
 
   """
@@ -1628,33 +1640,33 @@ type Mutation {
 
   """Invoice or deposit invoice from a quote, credit note from an invoice."""
   createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
-  createDocumentStatus(category: DocumentStatusCategory!, color: String!, name: String!, scope: DocumentStatusScope!): ID!
+  createDocumentStatus(category: DocumentStatusCategory!, color: String!, label: String!, scope: DocumentStatusScope!): ID!
   createMailAccount(input: MailAccountInput!): MailAccount!
 
   """Creates a folder (under another one, or at the top); returns its path."""
   createMailFolder(accountId: ID!, name: String!, parent: String): String!
-  createMailLabel(input: NameColorInput!): MailLabel!
+  createMailLabel(input: LabelColorInput!): MailLabel!
   createMailSearch(input: MailSearchInput!): ID!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
-  createProjectCategory(input: NameColorInput!): ProjectCategory!
-  createProjectStatus(input: NameColorInput!): ProjectStatus!
+  createProjectCategory(input: LabelColorInput!): ProjectCategory!
+  createProjectStatus(input: LabelColorInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
   createRoutine(input: RoutineInput!): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
   createScheduleType(input: ScheduleTypeInput!): ScheduleType!
   createSheet(input: SheetInput!): ID!
-  createSheetCategory(input: NameColorInput!): SheetCategory!
-  createShoppingBaseList(name: String!): ID!
+  createSheetCategory(input: LabelColorInput!): SheetCategory!
+  createShoppingBaseList(label: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
   createShoppingDelivery(input: ShoppingDeliveryInput!, listId: ID!): ID!
 
   """Creates a list, empty or with the missing products of some base lists."""
-  createShoppingList(baseListIds: [ID!]!, name: String!, taskIds: [ID!]!): ID!
+  createShoppingList(baseListIds: [ID!]!, label: String!, taskIds: [ID!]!): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
-  createShoppingStorage(input: NameColorInput!): ShoppingStorage!
-  createShoppingStore(input: NameColorInput!): ShoppingStore!
-  createShoppingUnit(input: NameColorInput!): ShoppingUnit!
+  createShoppingStorage(input: LabelColorInput!): ShoppingStorage!
+  createShoppingStore(input: LabelColorInput!): ShoppingStore!
+  createShoppingUnit(input: LabelColorInput!): ShoppingUnit!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createStockItem(input: StockItemInput!): ID!
   createStockLocation(input: StockLocationInput!): ID!
@@ -1791,7 +1803,7 @@ type Mutation {
   """
   duplicateShoppingItem(id: ID!): ID!
   duplicateShoppingList(id: ID!): ID!
-  duplicateTaskView(id: ID!, name: String!): TaskView!
+  duplicateTaskView(id: ID!, label: String!): TaskView!
 
   """Makes a draft final; returns its number."""
   finalizeAccountingDocument(id: ID!): String!
@@ -1939,12 +1951,12 @@ type Mutation {
 
   """Removes a member from the team or household (they stay a contributor)."""
   removeTreasuryMember(contributorId: ID!): Boolean!
-  renameDashboard(id: ID!, name: String!): Boolean!
+  renameDashboard(id: ID!, label: String!): Boolean!
   renameDocumentFolder(id: ID!, name: String!): Boolean!
 
   """Renames a folder; returns its new path."""
   renameMailFolder(accountId: ID!, name: String!, path: String!): String!
-  renameShoppingBaseList(id: ID!, name: String!): Boolean!
+  renameShoppingBaseList(id: ID!, label: String!): Boolean!
 
   """
   Moves a folder among the folders of a parent (into that parent first when it is another one).
@@ -1995,7 +2007,7 @@ type Mutation {
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
 
   """Creates a context (without id) or changes one."""
-  saveTreasuryContext(id: ID, input: NameColorInput!): ID!
+  saveTreasuryContext(id: ID, input: LabelColorInput!): ID!
 
   """
   Plans a context between two days (without id), or changes a period. Lines already saved keep their context.
@@ -2170,7 +2182,7 @@ type Mutation {
   unsubscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
-  updateCalendar(id: ID!, input: NameColorInput!): Calendar!
+  updateCalendar(id: ID!, input: LabelColorInput!): Calendar!
   updateCalendarCategory(id: ID!, input: CalendarCategoryInput!): CalendarCategory!
 
   """
@@ -2187,17 +2199,17 @@ type Mutation {
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
-  updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, name: String): Boolean!
+  updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, label: String): Boolean!
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateLibraryDocument(file: File, id: ID!, note: String, title: String!, url: String): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
-  updateMailLabel(id: ID!, input: NameColorPatch!): MailLabel!
+  updateMailLabel(id: ID!, input: LabelColorPatch!): MailLabel!
   updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
-  updateProjectCategory(id: ID!, input: NameColorPatch!): ProjectCategory!
-  updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
-  updateProjectStatus(id: ID!, input: NameColorPatch!): ProjectStatus!
+  updateProjectCategory(id: ID!, input: LabelColorPatch!): ProjectCategory!
+  updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
+  updateProjectStatus(id: ID!, input: LabelColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
   updateRoutine(
     id: ID!
@@ -2211,18 +2223,18 @@ type Mutation {
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
-  updateSheetCategory(id: ID!, input: NameColorPatch!): SheetCategory!
+  updateSheetCategory(id: ID!, input: LabelColorPatch!): SheetCategory!
   updateSheetItem(id: ID!, input: SheetItemInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingDelivery(id: ID!, input: ShoppingDeliveryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
-  updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
+  updateShoppingList(id: ID!, label: String!, taskIds: [ID!]!): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
-  updateShoppingStorage(id: ID!, input: NameColorPatch!): ShoppingStorage!
-  updateShoppingStore(id: ID!, input: NameColorPatch!): ShoppingStore!
+  updateShoppingStorage(id: ID!, input: LabelColorPatch!): ShoppingStorage!
+  updateShoppingStore(id: ID!, input: LabelColorPatch!): ShoppingStore!
 
   """Renames a unit; the products and items in it follow."""
-  updateShoppingUnit(id: ID!, input: NameColorPatch!): ShoppingUnit!
+  updateShoppingUnit(id: ID!, input: LabelColorPatch!): ShoppingUnit!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
@@ -2255,18 +2267,6 @@ type Mutation {
   useSheet(id: ID!, multiplier: Float!): SheetUse!
 }
 
-"""Name and color of an item of a simple list."""
-input NameColorInput {
-  color: String!
-  name: String!
-}
-
-"""Changes of an item of a simple list (omitted fields unchanged)."""
-input NameColorPatch {
-  color: String
-  name: String
-}
-
 """Kind of notification a workspace can give while another one is open."""
 enum NotificationSource {
   ALARMS
@@ -2286,27 +2286,27 @@ type Place {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
+  label: String!
   lat: Float!
   lon: Float!
-  name: String!
 
   """Place a zone is in; null: a place with its own address."""
   parentId: ID
 
-  """Full name (« Maison › Cuisine »)."""
+  """Full label (« Maison › Cuisine »)."""
   path: String!
   position: Int!
 }
 
 input PlaceInput {
   address: String
+  label: String!
 
   """None for a zone."""
   lat: Float
 
   """None for a zone."""
   lon: Float
-  name: String!
 
   """Place a zone is in."""
   parentId: ID
@@ -2335,11 +2335,11 @@ type Project {
   favorite: Boolean!
   iconUrl: String
   id: ID!
+  label: String!
   parentId: ID
   position: Int!
   startDate: Date
   statusId: ID
-  title: String!
 }
 
 type ProjectCategory {
@@ -2350,7 +2350,7 @@ type ProjectCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -2365,20 +2365,20 @@ input ProjectInput {
   description: String
   endDate: Date
   icon: File
+  label: String!
   parentId: ID
   startDate: Date
   statusId: ID
-  title: String!
 }
 
 type ProjectResource {
   createdAt: DateTime!
   id: ID!
   kind: ProjectResourceKind!
+  label: String!
   note: String
   projectId: ID!
   size: Int
-  title: String!
   url: String!
 }
 
@@ -2395,7 +2395,7 @@ type ProjectStatus {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -2412,13 +2412,13 @@ input ProjectUpdateInput {
 
   """Replaces the current icon."""
   icon: File
+  label: String
 
   """null makes it a root project; omitted leaves it unchanged."""
   parentId: ID
   removeIcon: Boolean
   startDate: Date
   statusId: ID
-  title: String
 }
 
 type Query {
@@ -2440,7 +2440,7 @@ type Query {
   """Calendars of the workspace, in their order."""
   calendars: [Calendar!]!
 
-  """Catalogue, by title."""
+  """Catalogue, by label."""
   catalogItems: [CatalogItem!]!
 
   """
@@ -2771,7 +2771,7 @@ type RecurringInvoice {
   autoFinalize: Boolean!
   id: ID!
   issuedCount: Int!
-  name: String!
+  label: String!
   nextDate: Date
   recurrence: JSON!
   startDate: Date!
@@ -2782,7 +2782,7 @@ type RecurringInvoice {
 input RecurringInvoiceInput {
   active: Boolean!
   autoFinalize: Boolean!
-  name: String!
+  label: String!
   recurrence: JSON!
   startDate: Date!
 }
@@ -2839,6 +2839,7 @@ type Routine {
   """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
   id: ID!
+  label: String!
   lastDoneAt: DateTime
   location: String
   locationLat: Float
@@ -2893,7 +2894,6 @@ type Routine {
   """
   slots: [RoutineSlot!]!
   startDate: Date!
-  title: String!
 
   """Time tracked on it, finished entries only."""
   trackedSeconds: Int!
@@ -2960,7 +2960,7 @@ type RoutineCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   parentId: ID
 
   """Manual order among its siblings."""
@@ -2969,7 +2969,7 @@ type RoutineCategory {
 
 input RoutineCategoryInput {
   color: String
-  name: String!
+  label: String!
   parentId: ID
 }
 
@@ -3014,6 +3014,7 @@ input RoutineInput {
 
   """HH:MM."""
   fromTime: String
+  label: String!
   location: String
   locationLat: Float
   locationLon: Float
@@ -3036,7 +3037,6 @@ input RoutineInput {
   """
   slotCondition: JSON
   startDate: Date!
-  title: String!
   travelAfter: Int
   travelBefore: Int
 }
@@ -3076,6 +3076,7 @@ input RoutinePatch {
 
   """HH:MM; null: no limit."""
   fromTime: String
+  label: String
 
   """Null: none (its point too)."""
   location: String
@@ -3104,7 +3105,6 @@ input RoutinePatch {
   """On or out of calendar schedules, following its rule; null: any time."""
   slotCondition: JSON
   startDate: Date
-  title: String
 
   """Minutes to come back."""
   travelAfter: Int
@@ -3187,10 +3187,10 @@ type ScheduleType {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
+  label: String!
 
   """Its days in the month: BACKGROUND, BORDER or NONE."""
   monthDisplay: String!
-  name: String!
   position: Int!
 }
 
@@ -3198,8 +3198,8 @@ input ScheduleTypeInput {
   color: String!
   dayBar: Boolean!
   dayDisplay: String!
+  label: String!
   monthDisplay: String!
-  name: String!
 }
 
 """Mail waiting to be sent at its time (or failed)."""
@@ -3246,7 +3246,7 @@ input SettingsItemLookInput {
 }
 
 """
-Settings list sharing the same look (color, image, name) and manual order.
+Settings list sharing the same look (color, image, label) and manual order.
 """
 enum SettingsListKind {
   CALENDAR
@@ -3286,7 +3286,7 @@ type Sheet {
   createdAt: DateTime!
   id: ID!
   items: [SheetItem!]!
-  name: String!
+  label: String!
   note: String
   position: Int!
   projectId: ID
@@ -3305,13 +3305,13 @@ type SheetCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
 input SheetInput {
   categoryIds: [ID!]!
-  name: String!
+  label: String!
   note: String
   projectId: ID
 }
@@ -3398,7 +3398,7 @@ type ShoppingBaseList {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -3416,7 +3416,7 @@ type ShoppingCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   parentId: ID
 
   """Manual order among its siblings."""
@@ -3426,7 +3426,7 @@ type ShoppingCategory {
 input ShoppingCategoryInput {
   baseListIds: [ID!]
   color: String
-  name: String!
+  label: String!
   parentId: ID
 }
 
@@ -3470,9 +3470,9 @@ type ShoppingItem {
   deliveryId: ID
   expiresAt: Date
   id: ID!
+  label: String!
   listId: ID!
   memberIds: [ID!]!
-  name: String!
   note: String
 
   """Not needed: bought if possible (the list is done without it)."""
@@ -3498,8 +3498,8 @@ type ShoppingItem {
 input ShoppingItemInput {
   categoryId: ID
   expiresAt: Date
+  label: String!
   memberIds: [ID!]!
-  name: String!
   note: String
 
   """Not needed: bought if possible."""
@@ -3535,7 +3535,7 @@ type ShoppingList {
   entryId: ID
   id: ID!
   items: [ShoppingItem!]!
-  name: String!
+  label: String!
 
   """Ordered remotely: followed by its deliveries."""
   remote: Boolean!
@@ -3565,11 +3565,11 @@ type ShoppingProduct {
   """Date of the last purchase: once past, the product is marked missing."""
   expiresAt: Date
   id: ID!
+  label: String!
   lastPrice: Float
   lastPurchasedAt: DateTime
   memberIds: [ID!]!
   missing: Boolean!
-  name: String!
   note: String
   perishable: Boolean!
   quantity: Float
@@ -3591,9 +3591,9 @@ input ShoppingProductInput {
   baseListId: ID!
   categoryId: ID
   expiresAt: Date
+  label: String!
   memberIds: [ID!]!
   missing: Boolean!
-  name: String!
   note: String
   perishable: Boolean
   quantity: Float
@@ -3614,7 +3614,7 @@ type ShoppingStorage {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -3627,7 +3627,7 @@ type ShoppingStore {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -3644,7 +3644,7 @@ type ShoppingUnit {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -3655,7 +3655,7 @@ type Sprint {
   endDate: Date!
   goal: String
   id: ID!
-  name: String!
+  label: String!
   projectId: ID!
   startDate: Date!
 }
@@ -3663,7 +3663,7 @@ type Sprint {
 input SprintInput {
   endDate: Date!
   goal: String
-  name: String!
+  label: String!
   startDate: Date!
 }
 
@@ -3750,14 +3750,14 @@ type StockLocation {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   parentId: ID
   position: Int!
 }
 
 input StockLocationInput {
   color: String
-  name: String!
+  label: String!
   parentId: ID
 }
 
@@ -3819,7 +3819,7 @@ input StockPurchaseInput {
 type SubscribableCalendar {
   color: String!
   id: ID!
-  name: String!
+  label: String!
   subscribed: Boolean!
   workspace: CalendarWorkspace!
 }
@@ -3861,6 +3861,7 @@ type Task {
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String
   id: ID!
+  label: String!
   milestoneId: ID
 
   """Earliest acceptable date ("Date min"): not to be done before."""
@@ -3895,7 +3896,6 @@ type Task {
   startDate: Date
   statusId: ID
   tagIds: [ID!]!
-  title: String!
 
   """
   Tracked time in seconds: each finished time entry is shared equally between its tasks.
@@ -3928,6 +3928,7 @@ input TaskInput {
   description: String
   effort: Float
   endDate: Date
+  label: String!
   milestoneId: ID
   minDate: Date
   parentId: ID
@@ -3946,7 +3947,6 @@ input TaskInput {
   startDate: Date
   statusId: ID
   tagIds: [ID!]
-  title: String!
   typeId: ID
 }
 
@@ -3954,14 +3954,14 @@ input TaskLabelInput {
   """Statuses only; defaults to TODO."""
   category: TaskStatusCategory
   color: String!
-  name: String!
+  label: String!
 }
 
 input TaskLabelUpdateInput {
   """Statuses only."""
   category: TaskStatusCategory
   color: String
-  name: String
+  label: String
 }
 
 type TaskPriority {
@@ -3972,7 +3972,7 @@ type TaskPriority {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -3985,7 +3985,7 @@ type TaskStatus {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -4007,7 +4007,7 @@ type TaskTag {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -4024,7 +4024,7 @@ type TaskType {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -4039,6 +4039,7 @@ input TaskUpdateInput {
   description: String
   effort: Float
   endDate: Date
+  label: String
   milestoneId: ID
   minDate: Date
   parentId: ID
@@ -4052,7 +4053,6 @@ input TaskUpdateInput {
   startDate: Date
   statusId: ID
   tagIds: [ID!]
-  title: String
   typeId: ID
 }
 
@@ -4062,7 +4062,7 @@ type TaskView {
   id: ID!
   isDefault: Boolean!
   kind: ViewKind!
-  name: String!
+  label: String!
   position: Int!
 
   """Table of a view of kind TABLE."""
@@ -4074,7 +4074,7 @@ input TaskViewInput {
 
   """Tasks (default), routines, shopping lists or another table."""
   kind: ViewKind
-  name: String!
+  label: String!
 
   """Project of the view; omitted or null for the home page."""
   projectId: ID
@@ -4085,13 +4085,13 @@ input TaskViewInput {
 
 input TaskViewUpdateInput {
   config: JSON
-  name: String
+  label: String
 }
 
 type TimeEntry {
   """Calendar event the time was spent on."""
   calendarEventId: ID
-  calendarEventTitle: String
+  calendarEventLabel: String
 
   """Its occurrence, for a recurring event."""
   calendarOccurrenceDate: Date
@@ -4113,7 +4113,7 @@ type TimeEntry {
 
   """Routine the time is spent on."""
   routineId: ID
-  routineTitle: String
+  routineLabel: String
   startedAt: DateTime!
   taskIds: [ID!]!
 }
@@ -4193,13 +4193,13 @@ type TreasuryAccount {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   openingBalance: Float!
   openingDate: Date!
 }
 
 input TreasuryAccountInput {
-  name: String!
+  label: String!
   openingBalance: Float!
   openingDate: Date!
 }
@@ -4298,7 +4298,7 @@ type TreasuryCategory {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   parentId: ID
 
   """Manual order among its siblings."""
@@ -4309,7 +4309,7 @@ input TreasuryCategoryInput {
   """Hex color; empty clears it, omitted leaves it."""
   color: String
   direction: TreasuryDirection!
-  name: String!
+  label: String!
   parentId: ID
 }
 
@@ -4324,7 +4324,7 @@ type TreasuryContext {
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
-  name: String!
+  label: String!
   position: Int!
 }
 
@@ -4372,7 +4372,7 @@ enum TreasuryDirection {
 
 type TreasuryEntry {
   accountId: ID!
-  accountName: String!
+  accountLabel: String!
   allocations: [TreasuryAllocation!]!
   amount: Float!
 
@@ -4397,7 +4397,7 @@ type TreasuryEntry {
   linkedByLines: [TreasuryLinkedLine!]!
   linkedEntries: [TreasuryLinkedEntry!]!
   methodId: ID
-  methodName: String
+  methodLabel: String
   note: String
 
   """Payer or payee: the client or the counterparty."""
@@ -4419,12 +4419,12 @@ type TreasuryEntryDocument {
 
   """FILE or LINK."""
   kind: String!
+  label: String!
   place: String!
   projectId: ID
 
   """LIBRARY or PROJECT."""
   source: String!
-  title: String!
   url: String!
 }
 
@@ -4567,14 +4567,14 @@ type TreasuryPaymentMethod {
   iconUrl: String
   id: ID!
   incoming: Boolean!
-  name: String!
+  label: String!
   outgoing: Boolean!
   position: Int!
 }
 
 input TreasuryPaymentMethodInput {
   incoming: Boolean!
-  name: String!
+  label: String!
   outgoing: Boolean!
 }
 
@@ -4683,7 +4683,7 @@ type WorkSchedule {
   """Exceptions: { from, to, label, cases }."""
   exceptions: JSON!
   id: ID!
-  name: String!
+  label: String!
   startDate: Date!
 
   """Kind of time it plans; none: working hours."""
@@ -4697,7 +4697,7 @@ input WorkScheduleInput {
 
   """Exceptions: { from, to, label, cases }."""
   exceptions: JSON!
-  name: String!
+  label: String!
   startDate: Date!
 
   """Kind of time it plans; none: working hours."""
@@ -4707,7 +4707,7 @@ input WorkScheduleInput {
 type Workspace {
   id: ID!
   kind: WorkspaceKind!
-  name: String!
+  label: String!
 
   """Notifications it still gives while another workspace is open."""
   notifyElsewhere: [NotificationSource!]!
@@ -4724,7 +4724,7 @@ type Workspace {
 
 input WorkspaceInput {
   kind: WorkspaceKind!
-  name: String!
+  label: String!
 }
 
 """Professional (invoicing, clients, company) or personal workspace."""

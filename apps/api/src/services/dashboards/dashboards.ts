@@ -1,4 +1,4 @@
-import { chartConfigSchema, chartTitleSchema, copyName, dashboardNameSchema } from '@ordo/shared';
+import { chartConfigSchema, chartLabelSchema, copyName, dashboardLabelSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
@@ -50,25 +50,25 @@ async function findChart(id: string): Promise<DashboardChart> {
 
 /**
  * Creates a dashboard, global or of a project, at the end of its list.
- * @param {string} name Name.
+ * @param {string} label Label.
  * @param {string | null} projectId Project, or null for a global dashboard.
  * @returns {Promise<Dashboard>} Dashboard.
  */
-export async function createDashboard(name: string, projectId: string | null): Promise<Dashboard> {
+export async function createDashboard(label: string, projectId: string | null): Promise<Dashboard> {
   await assertExists(prisma.project, projectId, 'Projet');
   const position = await nextPositionIn('dashboard', { projectId });
-  return prisma.dashboard.create({ data: { name: parseInput(dashboardNameSchema, name), projectId, position } });
+  return prisma.dashboard.create({ data: { label: parseInput(dashboardLabelSchema, label), projectId, position } });
 }
 
 /**
  * Renames a dashboard.
  * @param {string} id Dashboard id.
- * @param {string} name Name.
+ * @param {string} label Label.
  * @returns {Promise<Dashboard>} Dashboard.
  */
-export async function renameDashboard(id: string, name: string): Promise<Dashboard> {
+export async function renameDashboard(id: string, label: string): Promise<Dashboard> {
   await findWritableDashboard(id);
-  return prisma.dashboard.update({ where: { id }, data: { name: parseInput(dashboardNameSchema, name) } });
+  return prisma.dashboard.update({ where: { id }, data: { label: parseInput(dashboardLabelSchema, label) } });
 }
 
 /**
@@ -93,7 +93,7 @@ export async function moveDashboard(id: string, index: number): Promise<void> {
 }
 
 export interface ChartInput {
-  title: string;
+  label: string;
   /** Validated against the shared chart schema. */
   config?: unknown;
   wide: boolean;
@@ -105,7 +105,7 @@ export interface ChartInput {
  * @returns {object} Prisma data.
  */
 function chartData(input: ChartInput) {
-  return { title: parseInput(chartTitleSchema, input.title), config: parseInput(chartConfigSchema, input.config) as unknown as Prisma.InputJsonValue, wide: input.wide };
+  return { label: parseInput(chartLabelSchema, input.label), config: parseInput(chartConfigSchema, input.config) as unknown as Prisma.InputJsonValue, wide: input.wide };
 }
 
 /**
@@ -138,7 +138,7 @@ export async function updateChart(id: string, input: ChartInput): Promise<Dashbo
  */
 export async function duplicateChart(id: string): Promise<DashboardChart> {
   const chart = await findWritableChart(id);
-  const copy = await createChart(chart.dashboardId, { title: copyName(chart.title, 120), config: chart.config, wide: chart.wide });
+  const copy = await createChart(chart.dashboardId, { label: copyName(chart.label, 120), config: chart.config, wide: chart.wide });
   const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
   await moveChart(copy.id, siblings.findIndex((item) => item.id === id) + 1);
   return copy;

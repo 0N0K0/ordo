@@ -7,7 +7,8 @@ import type { SettingsItemKind } from '../../../components/settings/SettingsItem
 import { localToday } from '../../../lib/dates';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { unarchived } from '../../../lib/archive';
-import { useTreasuryMutations, type TreasuryAccount, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
+import { useTreasuryMutations, type TreasuryAccount, type TreasuryCategory, type TreasuryCounterpartyItem, type TreasuryPaymentMethod } from '../api';
+import { z } from 'zod';
 
 /** Fields of an account of its own: its opening balance and date. */
 type AccountExtra = { openingBalance: number; openingDate: string };
@@ -15,11 +16,13 @@ type AccountExtra = { openingBalance: number; openingDate: string };
 type CategoryExtra = { direction: TreasuryDirection };
 /** Fields of a payment method of its own: the directions it serves. */
 type MethodExtra = { incoming: boolean; outgoing: boolean };
+/** Form of a counterparty: its name in the label field of the settings form. */
+const COUNTERPARTY_FORM_SCHEMA = z.object({ label: treasuryCounterpartySchema.shape.name, note: treasuryCounterpartySchema.shape.note });
 /** Fields of a counterparty of its own: its note. */
 type CounterpartyExtra = { note: string };
 
 /**
- * Bank accounts, for their settings list and their form (a first account from the treasury page): name, color,
+ * Bank accounts, for their settings list and their form (a first account from the treasury page): label, color,
  * image, opening balance and date (archived by its row action).
  * @returns {SettingsItemKind<TreasuryAccount, AccountExtra>} List and form.
  */
@@ -27,10 +30,10 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
   const { createAccount, updateAccount } = useTreasuryMutations();
   /**
    * Input of an account from the form values.
-   * @param {AccountExtra & { name: string }} values Values.
+   * @param {AccountExtra & { label: string }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: AccountExtra & { name: string }) => ({ name: values.name, openingBalance: values.openingBalance, openingDate: values.openingDate });
+  const input = (values: AccountExtra & { label: string }) => ({ label: values.label, openingBalance: values.openingBalance, openingDate: values.openingDate });
   return {
     kind: 'TREASURY_ACCOUNT',
     colorRequired: false,
@@ -58,7 +61,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
 }
 
 /**
- * Categories of one direction, for their settings list and their form (a quick creation from an entry): name,
+ * Categories of one direction, for their settings list and their form (a quick creation from an entry): label,
  * color, image and parent of the same direction.
  * @param {TreasuryDirection} direction Direction of the categories.
  * @returns {SettingsItemKind<TreasuryCategory, CategoryExtra>} List and form.
@@ -67,10 +70,10 @@ export function useCategoryItems(direction: TreasuryDirection): SettingsItemKind
   const { createCategory, updateCategory } = useTreasuryMutations();
   /**
    * Input of a category from the form values.
-   * @param {{ name: string, color: string, parentId: string | null }} values Values.
+   * @param {{ label: string, color: string, parentId: string | null }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, direction, parentId: values.parentId });
+  const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color || null, direction, parentId: values.parentId });
   return {
     kind: 'TREASURY_CATEGORY',
     schema: treasuryCategorySchema,
@@ -80,7 +83,7 @@ export function useCategoryItems(direction: TreasuryDirection): SettingsItemKind
 }
 
 /**
- * Payment methods, for their settings list and their form (a quick creation from an entry): name, color, image and
+ * Payment methods, for their settings list and their form (a quick creation from an entry): label, color, image and
  * the directions each one serves.
  * @returns {SettingsItemKind<TreasuryPaymentMethod, MethodExtra>} List and form.
  */
@@ -88,10 +91,10 @@ export function useMethodItems(): SettingsItemKind<TreasuryPaymentMethod, Method
   const { createMethod, updateMethod } = useTreasuryMutations();
   /**
    * Input of a method from the form values.
-   * @param {MethodExtra & { name: string }} values Values.
+   * @param {MethodExtra & { label: string }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: MethodExtra & { name: string }) => ({ name: values.name, incoming: values.incoming, outgoing: values.outgoing });
+  const input = (values: MethodExtra & { label: string }) => ({ label: values.label, incoming: values.incoming, outgoing: values.outgoing });
   return {
     kind: 'TREASURY_PAYMENT_METHOD',
     colorRequired: false,
@@ -113,21 +116,21 @@ export function useMethodItems(): SettingsItemKind<TreasuryPaymentMethod, Method
 /**
  * Counterparties that are not clients, for their settings list and their form (a quick creation from an entry):
  * name, color, image and note (archived by its row action).
- * @returns {SettingsItemKind<TreasuryCounterparty, CounterpartyExtra>} List and form.
+ * @returns {SettingsItemKind<TreasuryCounterpartyItem, CounterpartyExtra>} List and form.
  */
-export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterparty, CounterpartyExtra> {
+export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterpartyItem, CounterpartyExtra> {
   const { createCounterparty, updateCounterparty } = useTreasuryMutations();
   /**
    * Input of a counterparty from the form values.
-   * @param {CounterpartyExtra & { name: string }} values Values.
+   * @param {CounterpartyExtra & { label: string }} values Values (the label typed is its name).
    * @returns {object} Input.
    */
-  const input = (values: CounterpartyExtra & { name: string }) => ({ name: values.name, note: values.note || null });
+  const input = (values: CounterpartyExtra & { label: string }) => ({ name: values.label, note: values.note || null });
   return {
     kind: 'TREASURY_COUNTERPARTY',
     colorRequired: false,
     namePlaceholder: 'Fournisseur, administration, banque…',
-    schema: treasuryCounterpartySchema,
+    schema: COUNTERPARTY_FORM_SCHEMA,
     extra: {
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),
       render: (form) => <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />,
@@ -137,7 +140,7 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterparty, C
 }
 
 /** Creator of an item from a select (`onCreate` of `CreatableSelect`): its settings form, then the id created. */
-type Creator = (name: string) => Promise<string | null>;
+type Creator = (label: string) => Promise<string | null>;
 
 /**
  * Creators of a category from a select, for each direction: its settings form, its parent among the categories of

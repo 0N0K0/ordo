@@ -64,9 +64,9 @@ const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
 
 /** Views made the first time: the open tasks, mine, all. */
 const TASK_VIEWS: FirstTableView[] = [
-  { name: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
+  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
   {
-    name: 'Mes tâches',
+    label: 'Mes tâches',
     config: {
       filter: {
         type: 'group',
@@ -79,7 +79,7 @@ const TASK_VIEWS: FirstTableView[] = [
       },
     },
   },
-  { name: 'Toutes' },
+  { label: 'Toutes' },
 ];
 
 /**

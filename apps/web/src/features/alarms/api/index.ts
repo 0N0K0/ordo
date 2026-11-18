@@ -12,7 +12,7 @@ export type { AlarmInput };
 graphql(`
   fragment AlarmFields on Alarm {
     id
-    title
+    label
     note
     type
     startDate

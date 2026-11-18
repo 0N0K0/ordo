@@ -130,11 +130,11 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
             {paused ? 'Chrono en pause' : TIMER_RUNNING} — depuis {fmt.time(entry.startedAt)} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={projectPath(entry.projectId, 'time')} size="xs">
-                {context.projectById.get(entry.projectId)?.title ?? 'Projet'}
+                {context.projectById.get(entry.projectId)?.label ?? 'Projet'}
               </Anchor>
             ) : (
               <Anchor component={Link} to="/routines" size="xs">
-                {entry.routineTitle ?? 'Routine'}
+                {entry.routineLabel ?? 'Routine'}
               </Anchor>
             )}
           </Text>

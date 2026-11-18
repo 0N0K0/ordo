@@ -40,7 +40,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
 
   // Places with an address (their zones share their point), the archived ones left out.
   const addressed = (places ?? []).filter((place) => !place.parentId && !place.archived);
-  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.name }));
+  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.label }));
   /**
    * Point of a choice.
    * @param {string | null} choice Place id, OTHER or SAME.

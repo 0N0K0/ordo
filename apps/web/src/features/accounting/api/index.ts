@@ -87,7 +87,7 @@ const ClientBillingDocument = graphql(`
       activityCode
       services {
         id
-        name
+        label
         address
         email
         phones

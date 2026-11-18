@@ -154,7 +154,7 @@ function alarms(reminders: number[], summary: string): string[] {
   return reminders.flatMap((minutes) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(summary)}`, `TRIGGER:-PT${minutes}M`, 'END:VALARM']);
 }
 
-type ExportedEvent = Omit<EventWithRelations, 'categories'> & { categories: { id: string; name: string }[] };
+type ExportedEvent = Omit<EventWithRelations, 'categories'> & { categories: { id: string; label: string }[] };
 
 /**
  * VEVENT blocks of an event: the series (with its repetition and the dates that do not occur) and its occurrences
@@ -174,7 +174,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
    * @returns {string[]} Content lines.
    */
   const body = (fields: {
-    title: string;
+    label: string;
     links: CalendarLink[];
     description: string | null;
     location: string | null;
@@ -185,7 +185,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     endTime: string | null;
     calledOff: boolean;
   }) => [
-    `SUMMARY:${text(fields.title)}`,
+    `SUMMARY:${text(fields.label)}`,
     ...(fields.description || fields.links.length
       ? [`DESCRIPTION:${text([...(fields.description ? [fields.description] : []), ...fields.links.map((link) => `${link.label}: ${link.url}`)].join('\n'))}`]
       : []),
@@ -203,7 +203,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     `DTSTAMP:${icsStamp(stamp)}`,
     `LAST-MODIFIED:${icsStamp(event.updatedAt)}`,
     ...body({
-      title: event.title,
+      label: event.label,
       links: (event.links as unknown as CalendarLink[] | null) ?? [],
       description: event.description,
       location: event.location,
@@ -214,7 +214,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
       endTime: event.endTime,
       calledOff: event.calledOff,
     }),
-    ...(event.categories.length ? [`CATEGORIES:${event.categories.map((category) => text(category.name)).join(',')}`] : []),
+    ...(event.categories.length ? [`CATEGORIES:${event.categories.map((category) => text(category.label)).join(',')}`] : []),
   ];
   if (rule) {
     const time = event.allDay ? null : event.startTime;
@@ -226,7 +226,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     );
     for (const date of excluded) series.push(moment('EXDATE', date, time, event.timeZone));
   }
-  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.title), 'END:VEVENT');
+  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label), 'END:VEVENT');
 
   // Occurrences changed on their own: the same event at its original date (RECURRENCE-ID), as the app shows them.
   const changed = rule
@@ -242,7 +242,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
             moment('RECURRENCE-ID', date, event.allDay ? null : event.startTime, event.timeZone),
             ...body(occurrence),
             ...travel(occurrence.allDay ? 0 : occurrence.travelBefore),
-            ...alarms(event.reminders, occurrence.title),
+            ...alarms(event.reminders, occurrence.label),
             'END:VEVENT',
           ];
         })
@@ -257,15 +257,15 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
  * @returns {Promise<{ name: string, content: string }>} File name (without extension) and content.
  */
 export async function calendarIcs(calendarId: string | null): Promise<{ name: string; content: string }> {
-  const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { name: true } }) : null;
+  const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }) : null;
   if (calendarId && !calendar) throw notFound('Calendrier');
   const events = await prisma.calendarEvent.findMany({
     // Archived events left out, and the archived calendars from the file of all of them.
     where: calendarId ? { calendarId, archivedAt: null } : { archivedAt: null, calendar: { archivedAt: null } },
-    include: { ...occurrenceInclude, categories: { select: { id: true, name: true } } },
+    include: { ...occurrenceInclude, categories: { select: { id: true, label: true } } },
     orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
   });
-  const name = calendar?.name ?? 'Agenda';
+  const name = calendar?.label ?? 'Agenda';
   const stamp = new Date();
   const lines = [
     'BEGIN:VCALENDAR',

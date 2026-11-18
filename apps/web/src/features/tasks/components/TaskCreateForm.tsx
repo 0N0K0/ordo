@@ -38,7 +38,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
 
   const form = useAppForm<TaskFormValues>({
     initialValues: {
-      title: '',
+      label: '',
       projectId: parent?.projectId ?? defaults?.projectId ?? '',
       description: '',
       statusId: defaultStatusId(context),
@@ -78,7 +78,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+        <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <ProjectSelect
             context={context}

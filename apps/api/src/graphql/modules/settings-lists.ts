@@ -5,7 +5,7 @@ import { builder } from '../builder';
 import { done } from '../errors';
 
 const SettingsListKindEnum = builder.enumType('SettingsListKind', {
-  description: 'Settings list sharing the same look (color, image, name) and manual order.',
+  description: 'Settings list sharing the same look (color, image, label) and manual order.',
   values: Object.keys(lists.SETTINGS_LISTS) as lists.SettingsListKind[],
 });
 

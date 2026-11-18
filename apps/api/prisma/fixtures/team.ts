@@ -19,7 +19,7 @@ export interface SeededTeam {
   memberIds: string[];
   /** Relations out of the team. */
   relationIds: string[];
-  /** Contexts of spending, by name. */
+  /** Contexts of spending, by label. */
   contextIds: Map<string, string>;
 }
 
@@ -55,16 +55,16 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     ['Salon', '#be4bdb'],
     ['Séminaire', '#fd7e14'],
   ] as const) {
-    contextIds.set(name, (await saveContext(null, { name, color })).id);
+    contextIds.set(name, (await saveContext(null, { label: name, color })).id);
   }
   await saveContextPeriod(null, { contextId: contextIds.get('Salon')!, startDate: addDays(monday, 10), endDate: addDays(monday, 12), note: 'Salon professionnel' });
   await saveContextPeriod(null, { contextId: contextIds.get('Séminaire')!, startDate: addDays(monday, -9), endDate: addDays(monday, -8), note: 'Séminaire d’équipe' });
   await saveContextPeriod(null, { contextId: contextIds.get('Déplacement')!, startDate: day(-96), endDate: day(-95), note: 'Rendez-vous client à Paris' });
 
   // --- Budgets ---------------------------------------------------------------------------------------
-  const account = await prisma.treasuryAccount.findFirst({ where: { name: 'Compte courant pro' } });
-  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, direction: true } });
-  const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.name === name && item.direction === direction)?.id ?? null;
+  const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
+  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
+  const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === name && item.direction === direction)?.id ?? null;
   const budget = (
     categoryName: string,
     amount: number,
@@ -87,7 +87,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
 
   // --- An event with a relation (not a contributor), at an address with travel times ---------------------
   await createCalendarEvent({
-    title: 'Déjeuner avec Julien',
+    label: 'Déjeuner avec Julien',
     description: null,
     location: 'Les Halles Paul Bocuse, 102 cours Lafayette, 69003 Lyon',
     locationLat: 45.7629,
@@ -124,7 +124,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
       linkedEntryIds: [],
       libraryDocumentIds: [],
       projectResourceIds: [],
-      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { name: 'Carte' } }))?.id ?? null,
+      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Carte' } }))?.id ?? null,
     };
     const line = (
       value: number,
@@ -192,7 +192,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     });
     await createEntry({
       ...base,
-      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { name: 'Virement' } }))?.id ?? null,
+      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Virement' } }))?.id ?? null,
       status: 'ACTUAL',
       date: day(-30),
       label: 'Julien rembourse la moitié du prêt',

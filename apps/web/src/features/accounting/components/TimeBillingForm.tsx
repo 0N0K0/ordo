@@ -96,11 +96,11 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
       day: localDay(entry.startedAt),
       seconds: entry.duration ?? 0,
       description: entry.description ?? null,
-      tasks: entry.taskIds.map((id) => context?.taskById.get(id)?.title).filter((task): task is string => Boolean(task)),
+      tasks: entry.taskIds.map((id) => context?.taskById.get(id)?.label).filter((task): task is string => Boolean(task)),
     }))
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
-  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, title: title.trim() || 'Prestation', roundQuarter });
+  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, label: title.trim() || 'Prestation', roundQuarter });
   const total = lines.reduce((sum, line) => sum + toCents(line.quantity * line.unitPrice), 0);
   const days = selected.map((entry) => entry.day).sort();
   const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
@@ -170,14 +170,14 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           label="Tarif du catalogue"
           placeholder="Aucun"
           clearable
-          data={rates.map((item) => ({ value: item.id, label: `${item.title} — ${fmt.money(item.unitPrice)} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
+          data={rates.map((item) => ({ value: item.id, label: `${item.label} — ${fmt.money(item.unitPrice)} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
           onChange={(id) => {
             const item = rates.find((rate) => rate.id === id);
             if (!item) return;
             setUnit(item.unit as 'HOUR' | 'DAY');
             setUnitPrice(item.unitPrice);
             setVatRate(item.vatRate);
-            setTitle(item.title);
+            setTitle(item.label);
           }}
         />
       )}

@@ -29,13 +29,13 @@ function linkIcon(url: string): ReactNode {
 }
 
 /**
- * Link form: title, address (links only) and note.
+ * Link form: label, address (links only) and note.
  * @param {{ projectId: string, resource?: ProjectResource, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 function ResourceForm({ projectId, resource, onDone }: { projectId: string; resource?: ProjectResource; onDone: () => void }) {
   const { addLink, update } = useProjectResourceMutations();
-  const [title, setTitle] = useState(resource?.title ?? '');
+  const [title, setTitle] = useState(resource?.label ?? '');
   const [url, setUrl] = useState(resource?.kind === 'LINK' ? resource.url : '');
   const [note, setNote] = useState(resource?.note ?? '');
   const isLink = !resource || resource.kind === 'LINK';
@@ -44,8 +44,8 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (resource) update.mutate({ id: resource.id, title, url: isLink ? url : null, note }, callbacks);
-        else addLink.mutate({ projectId, title, url, note }, callbacks);
+        if (resource) update.mutate({ id: resource.id, label: title, url: isLink ? url : null, note }, callbacks);
+        else addLink.mutate({ projectId, label: title, url, note }, callbacks);
       }}
     >
       <Stack gap="md">
@@ -84,7 +84,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (resource: ProjectResource) => {
     confirmDestructive({
       title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien',
-      risks: <>{resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`}</>,
+      risks: <>{resource.kind === 'FILE' ? `Le fichier « ${resource.label} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.label} » sera retiré du projet.`}</>,
       run: () => remove.mutateAsync(resource.id),
       done: 'Ressource supprimée.',
     });
@@ -124,12 +124,12 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                   </ThemeIcon>
                   <Stack gap={0} style={{ minWidth: 0 }}>
                     {resource.kind === 'FILE' ? (
-                      <FileLink url={resource.url} name={resource.title} fw={600} size="sm" truncate>
-                        {resource.title}
+                      <FileLink url={resource.url} name={resource.label} fw={600} size="sm" truncate>
+                        {resource.label}
                       </FileLink>
                     ) : (
                       <Anchor href={resource.url} target="_blank" rel="noopener noreferrer" fw={600} size="sm" truncate>
-                        {resource.title}
+                        {resource.label}
                       </Anchor>
                     )}
                     <Text size="xs" c="dimmed" truncate>
@@ -138,7 +138,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                   </Stack>
                 </Group>
                 <InlineActions
-                  name={resource.title}
+                  name={resource.label}
                   items={[
                     ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to }, ON_ERROR)),
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(resource) },

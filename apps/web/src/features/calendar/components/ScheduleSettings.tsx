@@ -67,7 +67,7 @@ function DefaultScheduleKind() {
 }
 
 /**
- * Kinds of time slots ("Travail", "Garde des enfants"…), as every settings list: name, color, image and display in the
+ * Kinds of time slots ("Travail", "Garde des enfants"…), as every settings list: label, color, image and display in the
  * calendar, reordered by drag and drop.
  * @returns {JSX.Element} Section.
  */
@@ -83,7 +83,7 @@ function ScheduleTypes() {
       noun="le type"
       items={types ?? []}
       remove={(id) => removeType.mutateAsync(id)}
-      deleteMessage={(type) => <>Le type « {type.name} » sera supprimé ; ses plages restent, sans type.</>}
+      deleteMessage={(type) => <>Le type « {type.label} » sera supprimé ; ses plages restent, sans type.</>}
     />
   );
 }
@@ -104,7 +104,7 @@ function ForeignSchedules() {
       title="Plages des autres espaces"
       description="Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici."
     >
-      <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, name: kind.workspaceName })}>
+      <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, label: kind.workspaceLabel })}>
         {(kind) => {
           const key = `${kind.workspaceId}|${kind.typeId ?? ''}`;
           const target = { workspaceId: kind.workspaceId, typeId: kind.typeId ?? null };
@@ -112,9 +112,9 @@ function ForeignSchedules() {
           return (
             <Stack key={key} gap={6} pl="md">
               <SubscriptionRow
-                name={kind.name}
+                label={kind.label}
                 color={kind.color ?? 'green'}
-                workspaceName={kind.workspaceName}
+                workspaceLabel={kind.workspaceLabel}
                 hint={`${kind.scheduleCount} ${plural(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
                 subscribed={kind.subscribed}
                 onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
@@ -122,7 +122,7 @@ function ForeignSchedules() {
                   kind.subscribed && (
                     <LookToggle
                       label="Couleur et affichage dans cet agenda"
-                      ariaLabel={`Affichage de ${kind.name} (${kind.workspaceName})`}
+                      ariaLabel={`Affichage de ${kind.label} (${kind.workspaceLabel})`}
                       opened={opened === key}
                       onToggle={() => setOpened(opened === key ? null : key)}
                     />
@@ -140,12 +140,12 @@ function ForeignSchedules() {
                       size="xs"
                       w={140}
                       placeholder="Vert"
-                      aria-label={`Couleur de ${kind.name} dans cet agenda`}
+                      aria-label={`Couleur de ${kind.label} dans cet agenda`}
                       defaultValue={kind.color ?? ''}
                       onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
                     />
                   </Group>
-                  <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />
+                  <ScheduleLookEditor name={kind.label} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />
                   {kind.customized && (
                     <div>
                       <Button

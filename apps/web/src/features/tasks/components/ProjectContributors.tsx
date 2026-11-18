@@ -109,7 +109,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                           <Badge size="xs" variant="light" color="gray">
                             Via{' '}
                             <Anchor component={Link} to={settingsPath(projectPath(inheritedFrom.id), 'contributors')} size="xs" inherit>
-                              {inheritedFrom.title}
+                              {inheritedFrom.label}
                             </Anchor>
                           </Badge>
                         )}

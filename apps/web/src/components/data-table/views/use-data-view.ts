@@ -8,9 +8,9 @@ import { useSavedViews, type SavedViewsState } from './use-saved-views';
 import { shownColumns, sortRows, type DataColumn, type ShownColumn } from '../table/data-table';
 import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from '../table/table-engine';
 
-/** First view of a table: its name and what it starts with. */
+/** First view of a table: its label and what it starts with. */
 export interface FirstTableView {
-  name: string;
+  label: string;
   config?: Partial<TableViewConfig>;
 }
 
@@ -140,8 +140,8 @@ export function useTableViews({
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
     () =>
-      ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ name: 'Toutes' }]).map((view) => ({
-        name: view.name,
+      ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ label: 'Toutes' }]).map((view) => ({
+        label: view.label,
         config: tableViewConfig({ ...(JSON.parse(defaultsKey) as Partial<TableViewConfig>), ...view.config }),
       })),
     [firstKey, defaultsKey],

@@ -13,17 +13,17 @@ const DEFAULT_COLOR = '#228be6';
 export interface CalendarSubscriptionView {
   id: string;
   calendarId: string;
-  name: string;
+  label: string;
   color: string;
-  workspace: { id: string; name: string; kind: WorkspaceKind };
+  workspace: { id: string; label: string; kind: WorkspaceKind };
 }
 
 /** Calendar of another workspace this one can subscribe to. */
 export interface SubscribableCalendar {
   id: string;
-  name: string;
+  label: string;
   color: string;
-  workspace: { id: string; name: string; kind: WorkspaceKind };
+  workspace: { id: string; label: string; kind: WorkspaceKind };
   subscribed: boolean;
 }
 
@@ -48,8 +48,8 @@ export async function resolveCalendarId(id?: string | null): Promise<string> {
   // An archived calendar takes no new event: the first one that is not, else the first one (refused then).
   const first = await firstActive(prisma.calendar);
   if (first) return first.id;
-  const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { name: true } });
-  return (await prisma.calendar.create({ data: { name: workspace.name, color: DEFAULT_COLOR } })).id;
+  const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { label: true } });
+  return (await prisma.calendar.create({ data: { label: workspace.label, color: DEFAULT_COLOR } })).id;
 }
 
 /**
@@ -94,9 +94,9 @@ export async function deleteCalendar(id: string): Promise<void> {
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
     orderBy: BY_POSITION,
-    include: { calendar: { include: { workspace: { select: { id: true, name: true, kind: true } } } } },
+    include: { calendar: { include: { workspace: { select: { id: true, label: true, kind: true } } } } },
   });
-  return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, name: calendar.name, color: calendar.color, workspace: calendar.workspace }));
+  return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, label: calendar.label, color: calendar.color, workspace: calendar.workspace }));
 }
 
 /**
@@ -107,14 +107,14 @@ export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
   const subscribed = new Set((await prisma.calendarSubscription.findMany({ select: { calendarId: true } })).map((item) => item.calendarId));
   const calendars = await unscopedPrisma.calendar.findMany({
     where: { workspaceId: { not: currentWorkspaceId() } },
-    include: { workspace: { select: { id: true, name: true, kind: true, position: true, createdAt: true } } },
+    include: { workspace: { select: { id: true, label: true, kind: true, position: true, createdAt: true } } },
   });
   return calendars
     .sort(
       (a, b) =>
         a.workspace.position - b.workspace.position || a.workspace.createdAt.getTime() - b.workspace.createdAt.getTime() || a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime(),
     )
-    .map(({ id, name, color, workspace }) => ({ id, name, color, workspace: { id: workspace.id, name: workspace.name, kind: workspace.kind }, subscribed: subscribed.has(id) }));
+    .map(({ id, label, color, workspace }) => ({ id, label, color, workspace: { id: workspace.id, label: workspace.label, kind: workspace.kind }, subscribed: subscribed.has(id) }));
 }
 
 /**

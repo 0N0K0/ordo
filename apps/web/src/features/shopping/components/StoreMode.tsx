@@ -82,8 +82,8 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
   const inStores = toBuy.filter((item) => !item.deliveryId || !delivered.has(item.deliveryId));
   const deliverySections = deliveries.map((delivery) => ({ delivery, items: toBuy.filter((item) => item.deliveryId === delivery.id) })).filter((section) => section.items.length > 0);
   const sections = [
-    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, iconUrl: store.iconUrl, items: inStores.filter((item) => item.storeId === store.id) })),
-    { key: NO_GROUP, name: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
+    ...stores.map((store) => ({ key: store.id, label: store.label, color: store.color as string | null, iconUrl: store.iconUrl, items: inStores.filter((item) => item.storeId === store.id) })),
+    { key: NO_GROUP, label: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
   ].filter((section) => section.items.length > 0);
 
   /**
@@ -117,7 +117,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       style={{ marginLeft: `calc(${depth} * var(--mantine-spacing-md))` }}
     >
       <Checkbox.Indicator size="lg" />
-      <Text className={classes.storeName}>{item.name}</Text>
+      <Text className={classes.storeName}>{item.label}</Text>
       {fmt.quantity(item) && (
         <Text size="md" fw={600} className={classes.nowrap}>
           {fmt.quantity(item)}
@@ -140,7 +140,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       entry.kind === 'group' ? (
         <Heading
           key={`${prefix}${entry.id ?? NO_GROUP}`}
-          name={entry.name}
+          name={entry.label}
           color={entry.color}
           iconUrl={data?.shoppingCategories.find((category) => category.id === entry.id)?.iconUrl}
           count={entry.items.length}
@@ -160,7 +160,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         <Group justify="space-between" wrap="nowrap">
           <Stack gap={0}>
             <Title order={2} size="h3">
-              {list.name}
+              {list.label}
             </Title>
             <Text size="sm" c="dimmed">
               {toBuy.length} à acheter · {bought.length} sur {list.items.length} {plural(bought.length, 'acheté')}
@@ -211,7 +211,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
             <Heading
-              name={section.name}
+              name={section.label}
               color={section.color}
               iconUrl={'iconUrl' in section ? section.iconUrl : null}
               count={section.items.length}

@@ -4,7 +4,7 @@ import { ItemAvatar } from './ItemAvatar';
 
 interface ItemBadgeProps extends Omit<BadgeProps, 'color' | 'children'> {
   /** Item of a settings list (a status, a category, a flag…); none: nothing shown. */
-  item: { name: string; color?: string | null; iconUrl?: string | null } | null | undefined;
+  item: { label: string; color?: string | null; iconUrl?: string | null } | null | undefined;
   /** Shown without an item. Optional. Default = nothing. */
   empty?: ReactNode;
   onClick?: () => void;
@@ -25,9 +25,9 @@ export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBad
       {...props}
       color={item.color ?? 'gray'}
       style={{ textTransform: 'none', ...(typeof style === 'object' ? style : {}) }}
-      leftSection={item.iconUrl ? <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
+      leftSection={item.iconUrl ? <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
     >
-      {item.name}
+      {item.label}
     </Badge>
   );
 }

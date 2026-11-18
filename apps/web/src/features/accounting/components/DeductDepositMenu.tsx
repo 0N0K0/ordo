@@ -56,7 +56,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
               onAdd(
                 deposit.remaining.map((item) => ({
                   kind: 'DEDUCTION' as const,
-                  title: `Acompte ${deposit.number} du ${date}`,
+                  label: `Acompte ${deposit.number} du ${date}`,
                   description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
                   quantity: 1,
                   unit: 'FLAT' as const,

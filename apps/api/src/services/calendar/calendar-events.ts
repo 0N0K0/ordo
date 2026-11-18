@@ -41,7 +41,7 @@ export interface EventOccurrence {
   occurrenceDate: string | null;
   /** Changed on its own. */
   modified: boolean;
-  title: string;
+  label: string;
   description: string | null;
   location: string | null;
   /** Point of the location, when known. */
@@ -83,9 +83,9 @@ export interface EventOccurrence {
   /** Cancelled but kept in the calendar. */
   calledOff: boolean;
   /** Event (and occurrence) this one postpones. */
-  postponedFrom: { eventId: string; date: string | null; title: string } | null;
+  postponedFrom: { eventId: string; date: string | null; label: string } | null;
   /** Events postponing this occurrence. */
-  postponedTo: { eventId: string; title: string; startDate: string; startTime: string | null }[];
+  postponedTo: { eventId: string; label: string; startDate: string; startTime: string | null }[];
   /** Time tracked on this occurrence, in seconds (running timers until now). */
   trackedSeconds: number;
 }
@@ -100,8 +100,8 @@ export type EventWithRelations = CalendarEvent & {
   categories: { id: string }[];
   tasks: { id: string }[];
   routineLinks: { routineId: string; date: Date }[];
-  postponedFrom: { title: string } | null;
-  postponements: { id: string; title: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
+  postponedFrom: { label: string } | null;
+  postponements: { id: string; label: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
   timeEntries: { calendarOccurrenceDate: Date | null; startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null }[];
 };
 
@@ -115,8 +115,8 @@ export const occurrenceInclude = {
   categories: { select: { id: true } },
   tasks: { select: { id: true } },
   routineLinks: { select: { routineId: true, date: true } },
-  postponedFrom: { select: { title: true } },
-  postponements: { select: { id: true, title: true, startDate: true, startTime: true, postponedFromDate: true } },
+  postponedFrom: { select: { label: true } },
+  postponements: { select: { id: true, label: true, startDate: true, startTime: true, postponedFromDate: true } },
   timeEntries: { select: { calendarOccurrenceDate: true, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } },
 } as const;
 
@@ -218,7 +218,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
     'calendarCategory',
     event.categoryIds.filter((id) => !keepCategories.includes(id)),
   );
-  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });
+  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
   const apart = tasks.filter(
@@ -234,7 +234,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
     throw fieldError('routineLinks', message);
   }
   const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
-  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { title: true, assignees: { select: { id: true } } } });
+  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { label: true, assignees: { select: { id: true } } } });
   if (routines.length !== routineIds.length) throw notFound('Routine');
   apart.push(
     ...routines.filter(
@@ -246,7 +246,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
     ),
   );
   if (apart.length) {
-    const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.title} »`).join(', ')}.`;
+    const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.label} »`).join(', ')}.`;
     throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);
   }
   // A point goes with a location, both coordinates or none.
@@ -301,7 +301,7 @@ function relationIdsOf(event: EventWithRelations): Record<'contributorIds' | 're
  */
 function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
   return {
-    title: event.title,
+    label: event.label,
     description: event.description,
     location: event.location,
     locationLat: event.locationLat,
@@ -418,7 +418,7 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
   if (scope === 'THIS') {
     const override = {
       cancelled: false,
-      title: fields.title,
+      label: fields.label,
       description: fields.description,
       location: fields.location,
       locationLat: fields.locationLat,
@@ -525,7 +525,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     eventId: event.id,
     occurrenceDate: date,
     modified: change !== undefined,
-    title: change?.title ?? event.title,
+    label: change?.label ?? event.label,
     description: change ? change.description : event.description,
     location: change ? change.location : event.location,
     locationLat: change ? change.locationLat : event.locationLat,
@@ -550,10 +550,10 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     ...relationIdsOf(event),
     routineLinks: linksWithin(event.routineLinks, startDate, endDate),
     calledOff: event.calledOff || (change?.calledOff ?? false),
-    postponedFrom: event.postponedFromId ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), title: event.postponedFrom?.title ?? '' } : null,
+    postponedFrom: event.postponedFromId ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), label: event.postponedFrom?.label ?? '' } : null,
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
-      .map((postponement) => ({ eventId: postponement.id, title: postponement.title, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
+      .map((postponement) => ({ eventId: postponement.id, label: postponement.label, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
     trackedSeconds: event.timeEntries
       .filter((entry) => formatOptionalDay(entry.calendarOccurrenceDate) === date)
       .reduce(
@@ -635,7 +635,7 @@ export async function subscribedOccurrences(from: string, to: string): Promise<E
 function seriesInput(event: EventWithRelations, date: string): CalendarEventInput {
   const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
   return {
-    title: event.title,
+    label: event.label,
     description: event.description,
     location: event.location,
     locationLat: event.locationLat,
@@ -703,7 +703,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
         eventId: id,
         date: parseDay(occurrence.date),
         calledOff,
-        title: current.title,
+        label: current.label,
         description: current.description,
         location: current.location,
         locationLat: current.locationLat,
@@ -730,7 +730,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
  * one-off event, linked to it, takes the new date.
  * @param {string} id Event id.
  * @param {string | null | undefined} occurrenceDate Occurrence. Optional for a one-off event.
- * @param {CalendarEventInput} input New event (its dates, title…).
+ * @param {CalendarEventInput} input New event (its dates, label…).
  * @returns {Promise<CalendarEvent>} New event.
  */
 export async function postponeCalendarEvent(id: string, occurrenceDate: string | null | undefined, input: CalendarEventInput): Promise<CalendarEvent> {

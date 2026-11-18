@@ -50,7 +50,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
    * @returns {string} Label.
    */
   const projectsLabel = (contributor: Contributor) => {
-    const titles = contributor.projectIds.map((id) => workspace?.projects.find((project) => project.id === id)?.title).filter((title): title is string => Boolean(title));
+    const titles = contributor.projectIds.map((id) => workspace?.projects.find((project) => project.id === id)?.label).filter((title): title is string => Boolean(title));
     return titles.length ? `Projets : ${titles.join(', ')}` : 'Aucun projet';
   };
 

@@ -53,7 +53,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
         data-autofocus
       />
       {choices.length > 0 ? (
-        <Select label="Tableau de bord" allowDeselect={false} data={choices.map((dashboard) => ({ value: dashboard.id, label: dashboard.name }))} value={chosen} onChange={setDashboardId} />
+        <Select label="Tableau de bord" allowDeselect={false} data={choices.map((dashboard) => ({ value: dashboard.id, label: dashboard.label }))} value={chosen} onChange={setDashboardId} />
       ) : (
         dashboards && (
           <Text size="sm" c="dimmed">

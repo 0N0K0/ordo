@@ -84,7 +84,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           value={address}
           onChange={(next) => form.setValues({ address: next.text || null, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
         />
-        <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.name }))} searchable clearable {...form.getInputProps('itemIds')} />
+        <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.label }))} searchable clearable {...form.getInputProps('itemIds')} />
         <FormActions onCancel={onDone} submitLabel={delivery ? 'Enregistrer' : 'Ajouter'} loading={createDelivery.isPending || updateDelivery.isPending} />
       </Stack>
     </form>

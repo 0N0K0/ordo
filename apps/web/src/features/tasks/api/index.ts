@@ -44,7 +44,7 @@ graphql(`
     id
     archived
     projectId
-    name
+    label
     goal
     startDate
     endDate
@@ -56,7 +56,7 @@ graphql(`
     id
     archived
     projectId
-    title
+    label
     description
     dueDate
     position
@@ -67,7 +67,7 @@ graphql(`
   fragment TaskLabelFields on TaskStatus {
     id
     archived
-    name
+    label
     color
     iconUrl
     position
@@ -78,7 +78,7 @@ graphql(`
   fragment TaskFields on Task {
     id
     number
-    title
+    label
     description
     projectId
     statusId
@@ -141,7 +141,7 @@ const TasksDataDocument = graphql(`
     taskPriorities {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -149,7 +149,7 @@ const TasksDataDocument = graphql(`
     taskTypes {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -157,7 +157,7 @@ const TasksDataDocument = graphql(`
     taskTags {
       id
       archived
-      name
+      label
       color
       iconUrl
       position
@@ -476,7 +476,7 @@ export type TaskInputValues = TaskInput;
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateTask() {
-  return useTasksMutation(async (input: TaskInputValues & { title: string }) => (await execute(CreateTaskDocument, { input })).createTask);
+  return useTasksMutation(async (input: TaskInputValues & { label: string }) => (await execute(CreateTaskDocument, { input })).createTask);
 }
 
 /**
@@ -590,7 +590,7 @@ export type TaskLabelKind = keyof typeof LabelDocuments;
 
 /** Label fields; the category only applies to statuses. */
 interface LabelInput {
-  name: string;
+  label: string;
   color: string;
   category?: TaskStatusCategory;
 }
@@ -725,7 +725,7 @@ const MoveMilestoneDocument = graphql(`
 `);
 
 interface MilestoneInputValues {
-  title: string;
+  label: string;
   description: string | null;
   dueDate: string | null;
 }
@@ -780,7 +780,7 @@ const DeleteSprintDocument = graphql(`
 `);
 
 interface SprintInputValues {
-  name: string;
+  label: string;
   goal: string | null;
   startDate: string;
   endDate: string;

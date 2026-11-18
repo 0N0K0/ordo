@@ -122,7 +122,7 @@ function toValues(document: AccountingDocument): FormValues {
     dueDate: document.dueDate ? document.dueDate : null,
     serviceStart: document.serviceStart ? document.serviceStart : null,
     serviceEnd: document.serviceEnd ? document.serviceEnd : null,
-    title: document.title ?? '',
+    label: document.label ?? '',
     introduction: document.introduction ?? '',
     referenceLabel: document.referenceLabel ?? '',
     referenceValue: document.referenceValue ?? '',
@@ -140,7 +140,7 @@ function toValues(document: AccountingDocument): FormValues {
     globalDiscountValue: document.globalDiscountValue ?? null,
     lines: document.lines.map((line) => ({
       kind: line.kind,
-      title: line.title,
+      label: line.label,
       description: line.description ?? null,
       quantity: line.quantity,
       unit: line.unit,
@@ -357,7 +357,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   };
 
   const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
-  const documentName = `« ${document.number ?? document.title ?? 'Brouillon'} »`;
+  const documentName = `« ${document.number ?? document.label ?? 'Brouillon'} »`;
 
   return (
     <Stack gap="md">
@@ -398,7 +398,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 name: documentName,
                 items: [
                   archiveEntry(
-                    { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+                    { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
                     setArchived,
                     document.id,
                   ),
@@ -545,7 +545,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                     clearable
                     readOnly={locked}
                     placeholder="Aucun"
-                    data={(client?.services ?? []).map((service) => ({ value: service.id, label: service.name }))}
+                    data={(client?.services ?? []).map((service) => ({ value: service.id, label: service.label }))}
                     {...form.getInputProps('serviceId')}
                   />
                   <Select
@@ -574,7 +574,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               </SettingsSection>
 
               <SettingsSection title="Contenu">
-                <TextInput label="Objet" readOnly={locked} {...form.getInputProps('title')} />
+                <TextInput label="Objet" readOnly={locked} {...form.getInputProps('label')} />
                 <Group gap="sm" align="flex-end" grow>
                   <TextInput label="Libellé de la référence" readOnly={locked} {...form.getInputProps('referenceLabel')} />
                   <TextInput label="Référence du client" readOnly={locked} {...form.getInputProps('referenceValue')} />
@@ -798,16 +798,16 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
-            <FileLink url={attachment.url} name={attachment.name} size="sm" truncate>
+            <FileLink url={attachment.url} name={attachment.filename} size="sm" truncate>
               <Group gap={4} wrap="nowrap">
-                <PaperclipIcon aria-hidden /> {attachment.name}
+                <PaperclipIcon aria-hidden /> {attachment.filename}
               </Group>
             </FileLink>
             {!readOnly && (
               <RemoveButton
                 variant="field"
                 label="Retirer"
-                aria-label={`Retirer ${attachment.name}`}
+                aria-label={`Retirer ${attachment.filename}`}
                 onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))}
               />
             )}

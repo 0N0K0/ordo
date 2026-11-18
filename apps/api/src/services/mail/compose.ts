@@ -57,7 +57,7 @@ async function embedLocalImages(html: string): Promise<{ html: string; images: I
     try {
       if (stored) {
         const attachment = await prisma.attachment.findUnique({ where: { id: stored[1] } });
-        if (attachment) images.set(source, { filename: attachment.name, content: Buffer.from(attachment.data), cid: `${attachment.id}@ordo` });
+        if (attachment) images.set(source, { filename: attachment.filename, content: Buffer.from(attachment.data), cid: `${attachment.id}@ordo` });
       } else if (live) {
         const folder = url.searchParams.get('folder') ?? '';
         const uid = Number(url.searchParams.get('uid'));

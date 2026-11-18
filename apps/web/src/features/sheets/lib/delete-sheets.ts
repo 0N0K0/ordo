@@ -1,10 +1,10 @@
-import { deleteItemsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { countOf, plural } from '../../../lib/text';
 
 /** What the texts of a deletion say of a sheet. */
 interface DeletedSheet {
-  name: string;
+  label: string;
   items: readonly unknown[];
   usedBy?: number | null;
 }
@@ -21,7 +21,7 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
     noun: 'fiche',
     feminine: true,
     the: 'la fiche',
-    name: (sheet) => sheet.name,
+    name: rowLabel,
     risks: (subject, one, sheets) => {
       const usedBy = sheets.reduce((sum, sheet) => sum + (sheet.usedBy ?? 0), 0);
       const items = one ? `ses ${countOf(sheets[0].items.length, 'élément')}` : 'leurs éléments';

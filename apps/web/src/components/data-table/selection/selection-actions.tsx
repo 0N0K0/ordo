@@ -83,6 +83,13 @@ export function deleteRowsAction<R>(
 }
 
 /**
+ * Label of a row, as `deleteItemsAction` names it (inside the quotes).
+ * @param {{ label: string }} row Row.
+ * @returns {string} Its label.
+ */
+export const rowLabel = (row: { label: string }): string => row.label;
+
+/**
  * « Supprimer » of rows of a kind, the same texts on one row (its menu: `rowMenuEntry(deleteItemsAction([row], …))`)
  * and on a selection: « Supprimer l’article » / « Supprimer les articles », « Article supprimé. » / « 3 articles
  * supprimés. ».

@@ -35,11 +35,11 @@ const listSchema = shoppingListFormSchema;
 function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) {
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
-  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { name: list.name, taskIds: list.taskIds }, schema: listSchema });
+  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { label: list.label, taskIds: list.taskIds }, schema: listSchema });
   return (
-    <form noValidate onSubmit={form.onSubmit((values) => updateList.mutate({ id: list.id, name: values.name, taskIds: values.taskIds }, formCallbacks(form, 'Liste modifiée.', onDone)))}>
+    <form noValidate onSubmit={form.onSubmit((values) => updateList.mutate({ id: list.id, label: values.label, taskIds: values.taskIds }, formCallbacks(form, 'Liste modifiée.', onDone)))}>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
         {/* The tasks of the list stay offered, even closed. */}
         <BatchMultiSelect
           label="Tâches"
@@ -86,7 +86,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
             <Stack gap={0} style={{ flex: 1 }}>
               <Text size="sm">{entry.label}</Text>
               <Text size="xs" c="dimmed">
-                {fmt.day(entry.date)} · {entry.accountName}
+                {fmt.day(entry.date)} · {entry.accountLabel}
                 {entry.status === 'FORECAST' ? ' · prévision' : ''}
               </Text>
             </Stack>
@@ -130,7 +130,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       people: people.byKey,
     });
 
-  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', name: list.name, feminine: true }, setArchived, list.id);
+  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', name: list.label, feminine: true }, setArchived, list.id);
   const exports: RowMenuEntry[] = [
     {
       label: 'Copier en texte',
@@ -150,7 +150,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     onClick: () =>
       confirmDestructive({
         title: 'Supprimer la liste',
-        risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
+        risks: `« ${list.label} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
         onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },
@@ -216,5 +216,5 @@ interface ListActionsMenuProps {
  * @returns {JSX.Element | null} Menu.
  */
 export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
-  return <ActionsMenu name={`la liste ${list.name}`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
+  return <ActionsMenu name={`la liste ${list.label}`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
 }

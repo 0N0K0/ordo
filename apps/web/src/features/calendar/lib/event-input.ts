@@ -11,7 +11,7 @@ export const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
  */
 export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput {
   return {
-    title: occurrence.title,
+    label: occurrence.label,
     description: occurrence.description ?? '',
     location: occurrence.location ?? '',
     links: occurrence.links.map(({ url, label }) => ({ url, label })),

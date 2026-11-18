@@ -97,4 +97,4 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
  * @param {number} count Routines changed by an edit.
  * @returns {string} Label.
  */
-export const routineCellLabel = (field: string, routine: Routine, count: number): string => cellLabel(field, `de ${routine.title}`, count);
+export const routineCellLabel = (field: string, routine: Routine, count: number): string => cellLabel(field, `de ${routine.label}`, count);

@@ -56,7 +56,7 @@ function TableExportButtons<R>({ view, subtitle }: { view: DataView<R>; subtitle
   return (
     <ExportButtons
       disabled={view.rows.length === 0}
-      table={() => ({ title: view.title, subtitle: subtitle ?? view.views.current?.name ?? '', columns: view.shown, groups: view.groups, grouped: Boolean(view.groupColumn) })}
+      table={() => ({ title: view.title, subtitle: subtitle ?? view.views.current?.label ?? '', columns: view.shown, groups: view.groups, grouped: Boolean(view.groupColumn) })}
     />
   );
 }

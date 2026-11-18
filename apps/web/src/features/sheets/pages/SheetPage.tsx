@@ -59,12 +59,12 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
   const { data } = useShoppingData();
   const { addProducts } = useSheetMutations();
   const [ids, setIds] = useState<string[]>([]);
-  const baseNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
+  const baseNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.label]));
   // The archived references are not offered.
   const products = unarchived(data?.shoppingProducts ?? []);
   const groups = [...new Set(products.map((product) => product.baseListId))].map((baseListId) => ({
     group: baseNames.get(baseListId) ?? '',
-    items: products.filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.name })),
+    items: products.filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.label })),
   }));
   return (
     <Stack gap="md">
@@ -104,7 +104,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
   const { update } = useSheetMutations();
   const { data: categories } = useSheetCategories();
   const { context } = useTaskContext();
-  const [name, setName] = useState(sheet.name);
+  const [name, setName] = useState(sheet.label);
   const [note, setNote] = useState(sheet.note ?? '');
   const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR);
   return (
@@ -117,7 +117,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
             readOnly={sheet.archived}
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
-            onBlur={() => (name.trim() && name.trim() !== sheet.name ? save({ name: name.trim() }) : setName(sheet.name))}
+            onBlur={() => (name.trim() && name.trim() !== sheet.label ? save({ label: name.trim() }) : setName(sheet.label))}
           />
           {context && (
             <ProjectSelect
@@ -171,7 +171,7 @@ export function SheetPage() {
   const products = shopping?.shoppingProducts ?? [];
   // The archived references are not offered (but the current one).
   const offeredProducts = unarchived(products);
-  const productName = new Map(products.map((product) => [product.id, product.name]));
+  const productName = new Map(products.map((product) => [product.id, product.label]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
   const people = usePeople();
   const comments = useCommentCounts(
@@ -211,7 +211,7 @@ export function SheetPage() {
       (item) => item.note,
     ),
   ];
-  const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.name ?? 'Fiche' });
+  const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.label ?? 'Fiche' });
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
     (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, ON_ERROR),
@@ -238,12 +238,12 @@ export function SheetPage() {
         where={`dans ${group?.label ?? 'la fiche'}`}
         schema={sheetItemSchema.shape.label}
         onCreate={(text) => {
-          const product = offeredProducts.find((other) => sameName(other.name, text));
+          const product = offeredProducts.find((other) => sameName(other.label, text));
           return mutations.addItem.mutateAsync({
             sheetId: sheet.id,
             input: {
               productId: product?.id ?? null,
-              label: product?.name ?? text,
+              label: product?.label ?? text,
               categoryId: product?.categoryId ?? null,
               quantity: null,
               unit: product?.unit ?? null,
@@ -262,7 +262,7 @@ export function SheetPage() {
       <DetailHeader
         back={{ to: '/sheets', label: 'Fiches' }}
         page={<PageHeader title={PAGES.sheets.title} />}
-        title={sheet.name}
+        title={sheet.label}
         badges={sheet.archived && <ArchivedBadge feminine />}
         subtitle={
           <Text size="sm" c="dimmed">
@@ -274,14 +274,14 @@ export function SheetPage() {
             <ActionButton
               priority="secondary"
               icon={<CookingPotIcon aria-hidden />}
-              onClick={() => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />)}
+              onClick={() => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.label} onDone={close} />)}
             >
               Utiliser cette fiche
             </ActionButton>
           )
         }
         menu={{
-          name: `la fiche « ${sheet.name} »`,
+          name: `la fiche « ${sheet.label} »`,
           items: [
             !sheet.archived && {
               label: 'Dupliquer',
@@ -292,7 +292,7 @@ export function SheetPage() {
                   formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
                 ),
             },
-            archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.name, feminine: true }, setArchived, sheet.id),
+            archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.label, feminine: true }, setArchived, sheet.id),
             remove,
           ],
         }}
@@ -349,7 +349,7 @@ export function SheetPage() {
               readOnly={locked}
               label={`Référence de ${item.label}`}
               nullable
-              data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.name }))}
+              data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.label }))}
               onSave={(productId) => bulk('product')(item, { productId })}
             />
           ),

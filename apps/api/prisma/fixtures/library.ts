@@ -57,18 +57,18 @@ export async function seedLibrary({ projects }: { projects: Project[] }): Promis
   // --- Documents of the projects ------------------------------------------------------------------------
   const roots = projects.filter((project) => project.parentId === null && !project.archivedAt);
   for (const [index, project] of roots.slice(0, 4).entries()) {
-    const slug = project.title
+    const slug = project.label
       .normalize('NFD')
       .replace(/[^\w\s-]/g, '')
       .trim()
       .toLowerCase()
       .replace(/\s+/g, '-');
-    await addProjectLink(project.id, { title: 'Maquettes', url: `https://www.figma.com/file/${slug}`, note: index === 0 ? 'Version validée par le client le mois dernier.' : null });
-    await addProjectLink(project.id, { title: 'Dépôt de code', url: `https://github.com/atelier-demo/${slug}`, note: null });
-    if (index % 2 === 0) await addProjectLink(project.id, { title: 'Recette', url: `https://recette.example.com/${slug}`, note: 'Accès : demo / demo' });
+    await addProjectLink(project.id, { label: 'Maquettes', url: `https://www.figma.com/file/${slug}`, note: index === 0 ? 'Version validée par le client le mois dernier.' : null });
+    await addProjectLink(project.id, { label: 'Dépôt de code', url: `https://github.com/atelier-demo/${slug}`, note: null });
+    if (index % 2 === 0) await addProjectLink(project.id, { label: 'Recette', url: `https://recette.example.com/${slug}`, note: 'Accès : demo / demo' });
     await addProjectFiles(project.id, [
       pdf('Cahier des charges.pdf', 'Cahier des charges'),
-      file('Notes de lancement.md', `# ${project.title}\n\n- Objectifs\n- Planning\n- Contacts\n`, 'text/markdown'),
+      file('Notes de lancement.md', `# ${project.label}\n\n- Objectifs\n- Planning\n- Contacts\n`, 'text/markdown'),
     ]);
   }
 }

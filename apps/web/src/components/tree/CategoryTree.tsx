@@ -57,9 +57,9 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
           ) : (
             <span className={treeRow.caretSpace} />
           )}
-          <ItemAvatar name={category.name} iconUrl={category.iconUrl} color={color} size={22} />
+          <ItemAvatar name={category.label} iconUrl={category.iconUrl} color={color} size={22} />
           <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>
-            {category.name}
+            {category.label}
           </Text>
           {badges}
         </Group>
@@ -79,9 +79,9 @@ interface CategoryTreeProps<C extends TreeCategory> {
   categories: readonly C[];
   /** Key remembering the folded categories in this browser. Optional. */
   storageKey?: string;
-  /** Cell after the name (number of uses…). Optional. */
+  /** Cell after the label (number of uses…). Optional. */
   renderMeta?: (placed: PlacedCategory<C>) => ReactNode;
-  /** Badges after the name. Optional. */
+  /** Badges after the label. Optional. */
   renderBadges?: (category: C) => ReactNode;
   /** Buttons at the end of a row. */
   renderActions: (placed: PlacedCategory<C>) => ReactNode;
@@ -131,7 +131,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
     fallback: nested ? 'INSIDE' : 'AFTER',
     destination: allowed,
     onDrop: (id, destination) => onMove(id, destination.parentId, destination.index),
-    taken: (id) => `${tree.find((item) => item.category.id === id)?.category.name ?? 'Catégorie'} saisie.`,
+    taken: (id) => `${tree.find((item) => item.category.id === id)?.category.label ?? 'Catégorie'} saisie.`,
     moved: 'Catégorie déplacée.',
   });
 
@@ -166,7 +166,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
             <Group gap="xs" wrap="nowrap">
               <DotsSixVerticalIcon weight="bold" aria-hidden />
               <Text size="sm" fw={500}>
-                {active.category.name}
+                {active.category.label}
               </Text>
             </Group>
           </Paper>

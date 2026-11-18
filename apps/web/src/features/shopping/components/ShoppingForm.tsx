@@ -56,7 +56,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const people = usePeople();
   const form = useAppForm<FormValues>({
     initialValues: {
-      name: current?.name ?? '',
+      label: current?.label ?? '',
       categoryId: current?.categoryId ?? null,
       storeId: current?.storeId ?? null,
       url: current?.url ?? '',
@@ -95,7 +95,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
     <Stack gap="lg">
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
-          <TextInput label="Label" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Label" required data-autofocus {...form.getInputProps('label')} />
           {target.kind === 'item' && target.item && target.item.sheetSources.length > 0 && (
             <Text size="xs" c="dimmed">
               Vient {target.item.sheetSources.length > 1 ? 'des fiches' : 'de la fiche'}{' '}

@@ -11,7 +11,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotRule, taskTitleSchema } from '@ordo/shared';
+import { readSlotRule, taskLabelSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -134,13 +134,13 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {void}
    */
   const saveTitle = () => {
-    const result = taskTitleSchema.safeParse(titleDraft ?? '');
+    const result = taskLabelSchema.safeParse(titleDraft ?? '');
     if (!result.success) {
       setTitleError(result.error.issues[0]?.message ?? 'Titre invalide.');
       return;
     }
-    if (result.data === task.title) setTitleDraft(null);
-    else save({ title: result.data }, () => setTitleDraft(null));
+    if (result.data === task.label) setTitleDraft(null);
+    else save({ label: result.data }, () => setTitleDraft(null));
   };
 
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
@@ -191,7 +191,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             compact
             title={
               <>
-                {task.title}{' '}
+                {task.label}{' '}
                 <Text span c="dimmed" inherit fw={400}>
                   {taskRef(task).trim()}
                 </Text>
@@ -225,7 +225,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   >
                     {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
                   </Button>
-                  <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
+                  <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.label)}>
                     Modifier
                   </Button>
                 </>
@@ -418,7 +418,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <Divider />
               <TaskShopping task={task} />
               <Divider />
-              <SheetsSection owner={{ taskId: task.id }} name={task.title} />
+              <SheetsSection owner={{ taskId: task.id }} name={task.label} />
             </Stack>
           </Fieldset>
         </Grid.Col>

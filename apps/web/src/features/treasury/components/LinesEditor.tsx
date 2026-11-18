@@ -63,7 +63,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     return id && memberOrRelationKey({ relationId: id });
   };
   const createCategory = useCategoryCreators(categories);
-  const createContext = (name: string) => createInPanel('Nouveau contexte', (done) => <ContextForm name={name} onDone={done} />);
+  const createContext = (name: string) => createInPanel('Nouveau contexte', (done) => <ContextForm label={name} onDone={done} />);
   // An archived context is not proposed any more.
   const archivedContexts = new Set(contexts.filter((context) => context.archived).map((context) => context.id));
   const periods = (settings?.treasuryContextPeriods ?? [])

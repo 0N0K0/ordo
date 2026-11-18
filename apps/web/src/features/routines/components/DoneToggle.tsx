@@ -65,7 +65,7 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
   if (routine.slots.length <= 1) {
     return (
       <DoneToggle
-        label={`${routine.title} faite`}
+        label={`${routine.label} faite`}
         hint={!started ? 'Pas encore commencée' : dateLabel ? `Marquer comme faite (${dateLabel})` : 'Marquer comme faite'}
         done={routine.done}
         disabled={disabled || !started}
@@ -81,7 +81,7 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
           <DoneToggle
             key={slot.index}
             size="xs"
-            label={`${routine.title}, ${when}, faite`}
+            label={`${routine.label}, ${when}, faite`}
             hint={!started ? 'Pas encore commencée' : `${when}${slot.optional ? ' (facultatif)' : ''}`}
             done={started && slot.done}
             optional={slot.optional}

@@ -7,13 +7,13 @@ import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, labelMutations, labelObject } from '../label-inputs';
+import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     parentId: t.exposeID('parentId', { nullable: true }),
     position: t.exposeInt('position'),
@@ -24,7 +24,7 @@ labelObject('Calendar', { description: 'Calendar of the workspace: every event b
 
 const CalendarWorkspace = builder.objectRef<calendars.CalendarSubscriptionView['workspace']>('CalendarWorkspace').implement({
   description: 'Workspace a calendar belongs to.',
-  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), kind: t.exposeString('kind') }),
+  fields: (t) => ({ id: t.exposeID('id'), label: t.exposeString('label'), kind: t.exposeString('kind') }),
 });
 
 const CalendarSubscription = builder.objectRef<calendars.CalendarSubscriptionView>('CalendarSubscription').implement({
@@ -32,7 +32,7 @@ const CalendarSubscription = builder.objectRef<calendars.CalendarSubscriptionVie
   fields: (t) => ({
     id: t.exposeID('id'),
     calendarId: t.exposeID('calendarId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     workspace: t.field({ type: CalendarWorkspace, resolve: (subscription) => subscription.workspace }),
   }),
@@ -42,7 +42,7 @@ const SubscribableCalendar = builder.objectRef<calendars.SubscribableCalendar>('
   description: 'Calendar of another workspace, with whether this one shows it.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     workspace: t.field({ type: CalendarWorkspace, resolve: (calendar) => calendar.workspace }),
     subscribed: t.exposeBoolean('subscribed'),
@@ -63,7 +63,7 @@ const PostponedFrom = builder.objectRef<NonNullable<events.EventOccurrence['post
   fields: (t) => ({
     eventId: t.exposeID('eventId'),
     date: t.exposeString('date', { nullable: true, description: 'Occurrence of a recurring event.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
   }),
 });
 
@@ -71,7 +71,7 @@ const PostponedTo = builder.objectRef<events.EventOccurrence['postponedTo'][numb
   description: 'Event postponing an occurrence.',
   fields: (t) => ({
     eventId: t.exposeID('eventId'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     startDate: t.exposeString('startDate'),
     startTime: t.exposeString('startTime', { nullable: true }),
   }),
@@ -85,7 +85,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     occurrenceDate: t.exposeString('occurrenceDate', { nullable: true }),
     modified: t.exposeBoolean('modified'),
     archived: t.exposeBoolean('archived', { description: 'The event (its series) is archived: hidden by default, read only.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
@@ -124,7 +124,7 @@ builder.prismaObject('WorkSchedule', {
   description: 'Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     startDate: t.expose('startDate', { type: 'Date' }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     cases: t.field({ type: 'JSON', description: 'Cases (shared schedule case shape).', resolve: (schedule) => schedules.scheduleRule(schedule).cases }),
@@ -137,7 +137,7 @@ builder.prismaObject('ScheduleType', {
   description: 'Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     dayDisplay: t.exposeString('dayDisplay', { description: 'Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.' }),
     dayBar: t.exposeBoolean('dayBar', { description: 'A bar at the top of the week and the day on each day with slots.' }),
@@ -148,7 +148,7 @@ builder.prismaObject('ScheduleType', {
 
 const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     color: t.string({ required: true }),
     dayDisplay: t.string({ required: true }),
     dayBar: t.boolean({ required: true }),
@@ -195,19 +195,19 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
   description: 'Schedule of a kind of another workspace this one subscribes to, shown read only.',
   fields: (t) => ({
     id: t.id({ resolve: (item) => item.rule.id }),
-    name: t.string({ resolve: (item) => item.rule.name }),
+    label: t.string({ resolve: (item) => item.rule.label }),
     startDate: t.string({ resolve: (item) => item.rule.startDate }),
     endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
     cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
     exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
-    typeName: t.exposeString('typeName', { nullable: true }),
+    typeLabel: t.exposeString('typeLabel', { nullable: true }),
     typeId: t.id({ nullable: true, description: 'Kind in its workspace; none: its working hours.', resolve: (item) => item.rule.typeId ?? null }),
     color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
     dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
     monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
     workspaceId: t.id({ resolve: (item) => item.workspace.id }),
-    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+    workspaceLabel: t.string({ resolve: (item) => item.workspace.label }),
   }),
 });
 
@@ -215,9 +215,9 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
   description: 'Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.',
   fields: (t) => ({
     workspaceId: t.id({ resolve: (item) => item.workspace.id }),
-    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+    workspaceLabel: t.string({ resolve: (item) => item.workspace.label }),
     typeId: t.exposeID('typeId', { nullable: true, description: 'None: the schedules without kind (working hours).' }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color', { nullable: true, description: 'In this workspace: the subscription’s, or the kind’s.' }),
     sourceColor: t.exposeString('sourceColor', { nullable: true, description: 'Of the kind, in its workspace.' }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
@@ -231,7 +231,7 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
 
 const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     endDate: t.field({ type: 'Date' }),
     cases: t.field({ type: 'JSON', required: true, description: 'Cases (shared schedule case shape).' }),
@@ -261,7 +261,7 @@ const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
 const CalendarEventInput = builder.inputType('CalendarEventInput', {
   description: 'Times are local to timeZone; all-day events have none.',
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     location: t.string(),
     locationLat: t.float({ description: 'Point of the location; none: unknown.' }),
@@ -290,7 +290,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
 });
 
 const CalendarCategoryInput = builder.inputType('CalendarCategoryInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }), parentId: t.id() }),
+  fields: (t) => ({ label: t.string({ required: true }), color: t.string({ required: true }), parentId: t.id() }),
 });
 
 /**
@@ -378,12 +378,12 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createCalendar: t.prismaField({
     type: 'Calendar',
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
+    args: { input: t.arg({ type: LabelColorInput, required: true }) },
     resolve: async (query, _root, { input }) => reloaded(prisma.calendar, query, calendars.createCalendar(input)),
   }),
   updateCalendar: t.prismaField({
     type: 'Calendar',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorInput, required: true }) },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelColorInput, required: true }) },
     resolve: async (query, _root, { id, input }) => reloaded(prisma.calendar, query, calendars.updateCalendar(id, input)),
   }),
   deleteCalendar: t.boolean({

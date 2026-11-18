@@ -53,7 +53,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
       <DestructiveRisks>
         {single ? (
           <>
-            La tâche <strong>{`${taskRef(single).trim()} ${single.title}`}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la
+            La tâche <strong>{`${taskRef(single).trim()} ${single.label}`}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la
             plutôt.
           </>
         ) : (

@@ -28,7 +28,7 @@ const RoutinesDataDocument = graphql(`
     routineCategories {
       id
       archived
-      name
+      label
       color
       iconUrl
       parentId
@@ -36,7 +36,7 @@ const RoutinesDataDocument = graphql(`
     }
     routines {
       id
-      title
+      label
       description
       categoryIds
       parentId
@@ -308,7 +308,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
   const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
   return {
     id: `${DRAFT}${(draftCount += 1)}`,
-    title: input.title,
+    label: input.label,
     description: input.description ?? null,
     categoryIds: input.categoryIds ?? [],
     parentId: input.parentId ?? null,
@@ -411,7 +411,7 @@ function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds
 
 /** Inline changes of a routine. */
 export interface RoutinePatchValues {
-  title?: string;
+  label?: string;
   categoryIds?: string[];
   parentId?: string | null;
   estimate?: number | null;
@@ -446,7 +446,7 @@ export type { RoutineBulkChanges };
  */
 export function routineInputOf(routine: Routine): RoutineInput {
   return {
-    title: routine.title,
+    label: routine.label,
     description: routine.description,
     categoryIds: routine.categoryIds,
     parentId: routine.parentId,

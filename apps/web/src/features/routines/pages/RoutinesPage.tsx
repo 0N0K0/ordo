@@ -46,12 +46,12 @@ import { plural } from '../../../lib/text';
 /** Views made the first time: those to do, all, the archived ones; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
   {
-    name: 'À faire',
+    label: 'À faire',
     config: { groupBy: 'categories', filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'todo', field: 'state', operator: 'in', value: ['late', 'due'] }] } },
   },
-  { name: 'Toutes', config: { groupBy: 'categories' } },
+  { label: 'Toutes', config: { groupBy: 'categories' } },
   {
-    name: 'Archivées',
+    label: 'Archivées',
     config: {
       groupBy: 'categories',
       includeArchived: true,
@@ -186,7 +186,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             <RepetitionText routine={routine} />
           </Stack>
           {waiting.length > 0 && !done && (
-            <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
+            <Tooltip label={`En attente de : ${waiting.map((item) => item.label).join(', ')}`}>
               <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
             </Tooltip>
           )}
@@ -239,7 +239,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     const rowActions = rowActionsOf([routine]);
     return (
       <RowActions
-        name={routine.title}
+        name={routine.label}
         primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
         items={[
           !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },

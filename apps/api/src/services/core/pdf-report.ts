@@ -116,7 +116,7 @@ async function issuer(): Promise<{ name: string; logo: Buffer | null }> {
  */
 export async function issuerName(): Promise<string> {
   const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
-  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name || 'Ordo';
+  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { label: true } }))?.label || 'Ordo';
 }
 
 /**

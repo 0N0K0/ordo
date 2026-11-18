@@ -5,12 +5,12 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { AddRowButton, AddRowField } from '../../../components/data-table/cells/AddRowField';
 
 /** Fields of a row added in a group (its category, store, way of keeping or person). */
-type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'name'>>;
+type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'label'>>;
 
 export interface ShoppingAdd {
   /** Placeholder of the name field ("Ajouter un produit"). */
   label: string;
-  /** Creates a row from its name, in a category (or store); resolves once created. */
+  /** Creates a row from its label, in a category (or store); resolves once created. */
   onCreate: (name: string, place: ShoppingPlace) => Promise<unknown>;
   /** Picks products of the base lists instead (offered in a menu with the typed row). Optional. */
   onPick?: () => void;
@@ -35,7 +35,7 @@ export function AddShoppingRow({ label, onCreate, onPick, place, groupName }: Ad
       <AddRowField
         label={label}
         where={`dans ${groupName}`}
-        schema={shoppingItemSchema.shape.name}
+        schema={shoppingItemSchema.shape.label}
         autoFocus={Boolean(onPick)}
         onCreate={(name) => onCreate(name, place)}
         onCancel={onPick ? () => setTyping(false) : undefined}

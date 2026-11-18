@@ -56,7 +56,7 @@ const locations = treeListService<StockLocation, StockLocationInput>(
   { notFound: 'Emplacement', missingParent: 'Emplacement parent', loop: 'Un emplacement ne peut pas être rangé sous lui-même.' },
   {
     parse: (input) => parseInput(stockLocationSchema, input),
-    moveInput: (place, parentId) => ({ name: place.name, color: place.color, parentId }),
+    moveInput: (place, parentId) => ({ label: place.label, color: place.color, parentId }),
   },
 );
 
@@ -395,7 +395,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
     tx,
     {
       productId: bought.productId,
-      label: bought.name,
+      label: bought.label,
       unit: bought.unit,
       categoryId: bought.categoryId,
       perishable: bought.perishable,

@@ -129,7 +129,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         readOnly={locked}
         leftSection={
           document.trackingStatus ? (
-            <ItemAvatar name={document.trackingStatus.name} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} />
+            <ItemAvatar name={document.trackingStatus.label} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} />
           ) : undefined
         }
         onChange={(statusId) => {
@@ -202,8 +202,8 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           {document.payments.map((payment) => (
             <Group key={payment.id} justify="space-between" wrap="nowrap">
               <Text size="xs" c="dimmed" truncate>
-                {fmt.day(payment.entry.date)} · {payment.entry.accountName}
-                {payment.entry.methodName ? ` · ${payment.entry.methodName}` : ''}
+                {fmt.day(payment.entry.date)} · {payment.entry.accountLabel}
+                {payment.entry.methodLabel ? ` · ${payment.entry.methodLabel}` : ''}
               </Text>
               <Text size="xs" ff="monospace">
                 {money(payment.amount)}

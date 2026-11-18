@@ -14,7 +14,7 @@ type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'archived' | 'stat
 
 interface StatusMenuProps {
   type: AccountingDocumentType;
-  current: { id: string; name: string; color: string } | null | undefined;
+  current: { id: string; label: string; color: string } | null | undefined;
   /** Shown only, not changed (an archived document). Optional. */
   readOnly?: boolean;
   /** A status chosen (its category tells a "sent" one). */
@@ -36,22 +36,22 @@ export function StatusMenu({ type, current, onSelect, pending, readOnly = false 
     current?.id,
   );
   // Nothing to choose (no status yet): the badge alone.
-  if (readOnly || scoped.length === 0) return <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" />;
+  if (readOnly || scoped.length === 0) return <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" />;
   return (
     <ActionsMenu
       name="statut"
       inRow
       position="bottom-start"
       target={
-        <UnstyledButton aria-label={`Statut : ${current?.name ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
-          <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }} />
+        <UnstyledButton aria-label={`Statut : ${current?.label ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
+          <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }} />
         </UnstyledButton>
       }
       items={[
         { section: 'Statut' },
         ...scoped.map((status) => ({
-          label: status.name,
-          icon: <ItemAvatar name={status.name} iconUrl={status.iconUrl} color={status.color} />,
+          label: status.label,
+          icon: <ItemAvatar name={status.label} iconUrl={status.iconUrl} color={status.color} />,
           checked: status.id === current?.id,
           disabled: pending,
           onClick: () => status.id !== current?.id && onSelect(status),
@@ -100,7 +100,7 @@ export function TrackingBadge({ document, editable = false, onSelect }: { docume
       ) : (
         document.trackingStatus && (
           <Badge size="sm" variant="light" color={document.trackingStatus.color}>
-            {document.trackingStatus.name}
+            {document.trackingStatus.label}
           </Badge>
         )
       )}

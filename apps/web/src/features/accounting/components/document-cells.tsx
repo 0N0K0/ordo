@@ -59,8 +59,8 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
         {document.attachments.map((attachment) => (
           <FileBadge
             key={attachment.id}
-            name={attachment.name}
-            onClick={() => openFile({ url: attachment.url, name: attachment.name })}
+            name={attachment.filename}
+            onClick={() => openFile({ url: attachment.url, name: attachment.filename })}
             removeLabel="Retirer la pièce jointe"
             onRemove={
               document.archived

@@ -53,7 +53,7 @@ const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
  * @param {Row} row Row.
  * @returns {string} Text.
  */
-const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
+const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.label ?? ''));
 
 /**
  * Columns of the documents (type and client only where they vary).
@@ -114,7 +114,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: projects },
       groupable: true,
     },
-    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
+    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.label ?? null, text: (row) => row.document.label ?? '' },
     {
       id: 'tracking',
       bulk: true,
@@ -179,7 +179,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       label: 'Pièces jointes',
       size: 220,
       hiddenByDefault: true,
-      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.name).join(', ') : (row.document.fileName ?? '')),
+      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.filename).join(', ') : (row.document.fileName ?? '')),
       filter: { kind: 'boolean', value: (row) => (row.kind === 'ordo' ? row.document.attachments.length > 0 : Boolean(row.document.fileUrl)) },
     },
   ];
@@ -187,9 +187,9 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
 
 /** Views made the first time a table of documents is shown: this year (opened first), last year, all, latest first. */
 const DOCUMENT_VIEWS: FirstTableView[] = [
-  { name: 'Cette année', config: { filter: withinFilter('date', 'thisYear') } },
-  { name: 'L’année dernière', config: { filter: withinFilter('date', 'lastYear') } },
-  { name: 'Tous' },
+  { label: 'Cette année', config: { filter: withinFilter('date', 'thisYear') } },
+  { label: 'L’année dernière', config: { filter: withinFilter('date', 'lastYear') } },
+  { label: 'Tous' },
 ];
 
 /** Status chosen in a cell, with the scope of its statuses (quotes, or invoices). */
@@ -260,7 +260,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
         archiveEntry(
-          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.title ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
           setArchived,
           document.id,
         ),
@@ -422,7 +422,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     title: (
       <Stack gap={0}>
         <Text size="sm" truncate>
-          {document.title ?? '—'}
+          {document.label ?? '—'}
         </Text>
         {document.type === 'QUOTE' && document.invoicedNet != null && document.totalNet > 0 && (
           <Text size="xs" c="dimmed">
@@ -476,7 +476,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     ),
     title: (
       <Text size="sm" truncate>
-        {document.title ?? '—'}
+        {document.label ?? '—'}
       </Text>
     ),
     tracking: <ImportedTracking document={document} onSelect={(status) => bulkTracking({ kind: 'imported', document }, { status, scope: scopeOf(document.type) })} />,

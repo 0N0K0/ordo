@@ -41,13 +41,13 @@ export function TitleCell({ routine, readOnly = false }: CellProps) {
   const { apply } = useRoutineCellEdit(routine, 'title');
   return (
     <EditableTitle
-      value={routine.title}
-      label={`Titre de ${routine.title}`}
-      schema={routineSchema.shape.title}
+      value={routine.label}
+      label={`Titre de ${routine.label}`}
+      schema={routineSchema.shape.label}
       // Not opened when read only (archived or being created): the form would change it.
       onOpen={readOnly ? undefined : () => openRoutineForm({ routine })}
       readOnly={readOnly}
-      onSave={(title) => apply({ title })}
+      onSave={(label) => apply({ label })}
     />
   );
 }
@@ -91,7 +91,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
-        .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.name} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
+        .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.label} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
       {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, routine.categoryIds)))}
       value={routine.categoryIds}
       onSave={(categoryIds) => {

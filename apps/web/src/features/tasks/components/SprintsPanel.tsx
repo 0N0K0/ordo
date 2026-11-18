@@ -47,13 +47,13 @@ interface SprintFormProps {
 function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintFormProps) {
   const { create, update } = useSprintMutations();
   const form = useAppForm<SprintFormValues>({
-    initialValues: sprint ? { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal: sprint.goal ?? '' } : defaults,
+    initialValues: sprint ? { label: sprint.label, startDate: sprint.startDate, endDate: sprint.endDate, goal: sprint.goal ?? '' } : defaults,
     schema: sprintFormSchema,
   });
   const period = dateRangeProps(formRange(form, 'startDate', 'endDate'));
 
   const handleSubmit = form.onSubmit((values) => {
-    const input = { name: values.name, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null };
+    const input = { label: values.label, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null };
     const callbacks = formCallbacks(form, sprint ? 'Sprint modifié.' : 'Sprint créé.', onDone);
     if (sprint) update.mutate({ id: sprint.id, input }, callbacks);
     else create.mutate({ projectId, input }, callbacks);
@@ -62,7 +62,7 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
         {/* By the width of the settings sidebar, not the window's. */}
         <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
           <DatePickerInput label="Début" required {...period.start} />
@@ -109,7 +109,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     const last = sprints[sprints.length - 1];
     const length = last ? daysBetween(last.startDate, last.endDate) : 13;
     const start = last && last.endDate >= today ? addDays(last.endDate, 1) : today;
-    const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
+    const defaults = { label: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
   };
 
@@ -122,7 +122,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (sprint: Sprint, count: number) => {
     confirmPlanDelete({
       title: 'Supprimer le sprint',
-      what: `Le sprint « ${sprint.name} »`,
+      what: `Le sprint « ${sprint.label} »`,
       count,
       link: 'qui y sont planifiées',
       done: 'Sprint supprimé.',
@@ -161,7 +161,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
             <Paper key={sprint.id} withBorder radius="md" p="md">
               <PlanCard
                 icon={<TimerIcon aria-hidden />}
-                title={sprint.name}
+                title={sprint.label}
                 badges={
                   <>
                     {sprint.archived && <ArchivedBadge size="sm" />}
@@ -179,14 +179,14 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 actions={[
                   // Archived (or of an archived project): read only.
                   !sprint.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
-                  archiveEntry({ archived: sprint.archived, type: 'Sprint', name: sprint.name }, setArchived, sprint.id),
+                  archiveEntry({ archived: sprint.archived, type: 'Sprint', name: sprint.label }, setArchived, sprint.id),
                   { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
                 ]}
                 progress={
                   <TaskProgress
                     done={done.length}
                     total={tasks.length}
-                    label={`Avancement du sprint ${sprint.name}`}
+                    label={`Avancement du sprint ${sprint.label}`}
                     extra={effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
                   />
                 }
@@ -195,7 +195,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 onDescription={
                   sprint.archived || project?.archived
                     ? undefined
-                    : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: sprint.startDate, endDate: sprint.endDate, goal } }, ON_ERROR)
+                    : (goal) => update.mutate({ id: sprint.id, input: { label: sprint.label, startDate: sprint.startDate, endDate: sprint.endDate, goal } }, ON_ERROR)
                 }
               />
             </Paper>

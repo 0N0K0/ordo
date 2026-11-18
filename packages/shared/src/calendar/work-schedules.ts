@@ -101,10 +101,10 @@ const exceptionFields = {
 const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
-/** Planned time slots: a name, a kind, a period, its cases, and exceptions (periods with cases of their own). */
+/** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    name: requiredText(100),
+    label: requiredText(100),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
@@ -120,7 +120,7 @@ export type WorkScheduleInput = z.input<typeof workScheduleSchema>;
 /** Stored schedule, as the functions below read it. */
 export interface WorkScheduleRule {
   id: string;
-  name: string;
+  label: string;
   startDate: string;
   endDate: string | null;
   cases: readonly ScheduleCase[];
@@ -315,7 +315,7 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
   return schedules.flatMap((schedule) =>
     schedule.exceptions
       .filter((exception) => !exception.cases.length && exception.from <= to && exception.to >= from)
-      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleName: schedule.name })),
+      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleName: schedule.label })),
   );
 }
 
@@ -453,7 +453,7 @@ const scheduleDisplayFields = {
 
 /** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
   ...scheduleDisplayFields,
 });

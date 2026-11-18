@@ -1,9 +1,9 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 // Imports banned everywhere: Mantine pieces wrapped by a shared brick.
 const RESTRICTED_PATHS = [
@@ -53,19 +53,14 @@ const RESTRICTED_PATHS_ACTIONS_MENU = RESTRICTED_PATHS_BUT_MENU.filter((path) =>
 // The shared bricks (components/, lib/) never depend on a feature.
 const NO_FEATURES = {
   group: ['**/features/**'],
-  message: 'Une brique commune (components/, lib/) ne dépend pas d\'une feature : déplacer le code dans la feature, ou la brique dans components/ ou lib/.',
+  message: "Une brique commune (components/, lib/) ne dépend pas d'une feature : déplacer le code dans la feature, ou la brique dans components/ ou lib/.",
 };
 
 export default defineConfig([
   globalIgnores(['dist', 'src/graphql']),
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [
-      js.configs.recommended,
-      tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
+    extends: [js.configs.recommended, tseslint.configs.recommended, reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: {
       globals: globals.browser,
     },
@@ -80,7 +75,7 @@ export default defineConfig([
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.money, fmt.fromNow…) : un format par rôle.',
         },
         {
-          selector: "CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]",
+          selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
         },
         // Rows set back: the states of DataTable (decision U), not an opacity of their own.
@@ -100,7 +95,7 @@ export default defineConfig([
         },
         // Names of months, weekdays and positions: one list each, in @ordo/shared (decision V).
         {
-          selector: "Literal[value=/^(janvier|premier|deuxième|1er)$/]",
+          selector: 'Literal[value=/^(janvier|premier|deuxième|1er)$/]',
           message: 'Utiliser MONTH_LABELS / monthOptions, WEEKDAY_LABELS / weekdayOptions, POSITION_LABELS / positionOptions ou ordinal (@ordo/shared) : « 1er / 2e / dernier » partout.',
         },
         // Toasts: errors stay, the others close on their own, one style.
@@ -112,6 +107,11 @@ export default defineConfig([
           selector:
             "Property[key.name='onSuccess'] > ArrowFunctionExpression[body.type='CallExpression'][body.callee.name='notifySuccess'], Property[key.name='onSuccess'] > ArrowFunctionExpression > BlockStatement > ExpressionStatement:first-child > CallExpression[callee.name='notifySuccess']",
           message: 'Utiliser toastCallbacks(message) (lib/notify) ou formCallbacks(form, message, onDone) (lib/form).',
+        },
+        {
+          selector:
+            "CallExpression[callee.name='deleteItemsAction'] Property[key.name='name'] > ArrowFunctionExpression[params.length=1][params.0.type='Identifier'] > MemberExpression.body[object.type='Identifier'][property.name='label']",
+          message: 'Utiliser name: rowLabel (components/data-table/selection/selection-actions).',
         },
         {
           selector: "ObjectExpression[properties.length=1] > Property[key.name='onError'][value.name='onMutationError']",
@@ -128,7 +128,8 @@ export default defineConfig([
           message: 'Utiliser useArchivedToggle(items) (lib/archive) : <ShowArchivedSwitch {...toggle} />.',
         },
         {
-          selector: "CallExpression[callee.property.name='slice'][arguments.0.value=0][arguments.1.value=4]:matches([callee.object.name=/(date|day|Date|Day|today)$/], [callee.object.property.name=/(date|day|Date|Day)$/])",
+          selector:
+            "CallExpression[callee.property.name='slice'][arguments.0.value=0][arguments.1.value=4]:matches([callee.object.name=/(date|day|Date|Day|today)$/], [callee.object.property.name=/(date|day|Date|Day)$/])",
           message: 'Utiliser yearOfDay(day) (@ordo/shared).',
         },
         // Shared constants: one value.
@@ -137,7 +138,7 @@ export default defineConfig([
           message: 'Utiliser NO_SUBJECT (@ordo/shared).',
         },
         {
-          selector: "Literal[value=/^#868e96$/i]",
+          selector: 'Literal[value=/^#868e96$/i]',
           message: 'Utiliser DEFAULT_LABEL_COLOR (@ordo/shared).',
         },
         {
@@ -151,7 +152,7 @@ export default defineConfig([
           message: 'Utiliser dateRangeProps(binding) / formRange(form, début, fin) (components/inputs/date-range) : la fin suit le début, END_AFTER_START, les jours impossibles grisés.',
         },
         {
-          selector: "Literal[value=/^(Avant la date de début|La fin ne peut pas être avant le début|L’heure maximale doit suivre l’heure de début)/]",
+          selector: 'Literal[value=/^(Avant la date de début|La fin ne peut pas être avant le début|L’heure maximale doit suivre l’heure de début)/]',
           message: 'Utiliser END_AFTER_START (@ordo/shared), via rangeProps / dateRangeProps (components/inputs/date-range).',
         },
         {
@@ -161,7 +162,7 @@ export default defineConfig([
         // « Archiver » is never a button: always in the « … » menu (decision R).
         {
           selector:
-            "JSXText[value=/^\\s*(Archiver|Restaurer)\\s*$/], JSXOpeningElement[name.name=/^(IconAction|Tooltip|Button|ActionButton|ActionIcon)$/] JSXAttribute Literal[value=/^(Archiver|Restaurer)$/]",
+            'JSXText[value=/^\\s*(Archiver|Restaurer)\\s*$/], JSXOpeningElement[name.name=/^(IconAction|Tooltip|Button|ActionButton|ActionIcon)$/] JSXAttribute Literal[value=/^(Archiver|Restaurer)$/]',
           message: 'Utiliser archiveEntry(élément, mutation, id) (lib/archive) dans le menu « … » (ActionsMenu, RowActions, DetailHeader menu) : « Archiver » n’est jamais un bouton.',
         },
         // Destructive confirmations: confirmDestructive adds the sentence.
@@ -180,7 +181,7 @@ export default defineConfig([
         },
         {
           selector: 'Literal[value=/^\\/mail\\?/], TemplateElement[value.raw=/^\\/mail\\?/]',
-          message: 'Utiliser mailPath(account, folder, uid) (app/pages), ou settingsPath(\'/mail\') (app/layout/page-settings).',
+          message: "Utiliser mailPath(account, folder, uid) (app/pages), ou settingsPath('/mail') (app/layout/page-settings).",
         },
         {
           selector: 'Literal[value=/[?&]settings=1/], TemplateElement[value.raw=/[?&]settings=1/]',
@@ -194,7 +195,7 @@ export default defineConfig([
         {
           selector:
             "CallExpression[callee.property.name='substring'][arguments.length=2][arguments.0.value=0]:matches([arguments.1.value=7], [arguments.1.value=10]), MemberExpression[computed=true][property.value=0] > CallExpression.object[callee.property.name='split'][arguments.0.value='T']",
-          message: 'Pas de .substring(0, 10) / .split(\'T\')[0] : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.',
+          message: "Pas de .substring(0, 10) / .split('T')[0] : localDay(instant) (lib/dates) pour un instant, le scalaire Date tel quel pour un jour.",
         },
         {
           selector: "NewExpression[callee.name='Date'] TemplateElement[value.raw=/^T00:00/]",
@@ -216,12 +217,12 @@ export default defineConfig([
         },
         // Same name: case and accents aside, as the search.
         {
-          selector: "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]",
+          selector: 'BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]',
           message: 'Utiliser sameName(a, b) (lib/text) : casse et accents ignorés, comme la recherche.',
         },
         // People and schedules: one name per kind of workspace.
         {
-          selector: "ConditionalExpression:matches([consequent.value=/^Proches?$/], [alternate.value=/^Relations?$/])",
+          selector: 'ConditionalExpression:matches([consequent.value=/^Proches?$/], [alternate.value=/^Relations?$/])',
           message: 'Utiliser relationNoun(perso, many) (components/people/people-options) : « Relations » en pro, « Proches » en perso.',
         },
         {
@@ -232,7 +233,7 @@ export default defineConfig([
         {
           // A cross closing a panel or clearing a selection is not a removal.
           selector:
-            "JSXElement[openingElement.name.name=/^(ActionIcon|IconAction)$/]:has(JSXOpeningElement[name.name=/^(TrashIcon|XIcon)$/]):not(:has(JSXAttribute[name.name=/^(aria-label|label)$/][value.value=/^(Fermer|Désélectionner)/]))",
+            'JSXElement[openingElement.name.name=/^(ActionIcon|IconAction)$/]:has(JSXOpeningElement[name.name=/^(TrashIcon|XIcon)$/]):not(:has(JSXAttribute[name.name=/^(aria-label|label)$/][value.value=/^(Fermer|Désélectionner)/]))',
           message: 'Utiliser RemoveButton (components/actions/RemoveButton) pour retirer ou supprimer.',
         },
         {
@@ -284,4 +285,4 @@ export default defineConfig([
     files: ['src/features/library/**'],
     rules: { 'no-restricted-syntax': 'off' },
   },
-])
+]);

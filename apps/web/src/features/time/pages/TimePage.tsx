@@ -39,7 +39,7 @@ export function TimePage() {
       {taskId && (
         <Group gap="xs">
           <Badge size="lg" variant="light" tt="none" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
-            Tâche : {task ? `${taskRef(task)}${task.title}` : 'introuvable'}
+            Tâche : {task ? `${taskRef(task)}${task.label}` : 'introuvable'}
           </Badge>
         </Group>
       )}

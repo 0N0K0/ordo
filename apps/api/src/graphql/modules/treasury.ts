@@ -14,7 +14,7 @@ import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, labelObject } from '../label-inputs';
+import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
 
@@ -171,7 +171,7 @@ builder.prismaObject('TreasuryContextPeriod', {
 builder.prismaObject('TreasuryCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color', { nullable: true }),
     direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
     parentId: t.exposeID('parentId', { nullable: true }),
@@ -183,7 +183,7 @@ builder.prismaObject('TreasuryCategory', {
 builder.prismaObject('TreasuryPaymentMethod', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     incoming: t.exposeBoolean('incoming'),
     outgoing: t.exposeBoolean('outgoing'),
     entryCount: t.relationCount('entries'),
@@ -223,7 +223,7 @@ interface EntryDocument {
   id: string;
   source: 'LIBRARY' | 'PROJECT';
   kind: string;
-  title: string;
+  label: string;
   url: string;
   projectId: string | null;
   /** Library folder, or project, it belongs to. */
@@ -236,7 +236,7 @@ const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument
     id: t.exposeID('id'),
     source: t.exposeString('source', { description: 'LIBRARY or PROJECT.' }),
     kind: t.exposeString('kind', { description: 'FILE or LINK.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     url: t.exposeString('url'),
     projectId: t.exposeID('projectId', { nullable: true }),
     place: t.exposeString('place'),
@@ -244,16 +244,16 @@ const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument
 });
 
 const documentSelect = {
-  select: { id: true, kind: true, title: true, url: true, attachment: { select: { id: true, name: true } } },
+  select: { id: true, kind: true, url: true, attachment: { select: { id: true, filename: true } } },
 } as const;
 
 /**
  * Address of a file or link document.
- * @param {{ kind: string, url: string | null, attachment: { id: string, name: string } | null }} document Document.
+ * @param {{ kind: string, url: string | null, attachment: { id: string, filename: string } | null }} document Document.
  * @returns {string} URL.
  */
-const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; name: string } | null }) =>
-  document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`;
+const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; filename: string } | null }) =>
+  document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.filename ?? 'fichier')}`;
 
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
@@ -304,8 +304,8 @@ function linkedLine(line: {
 
 /** Selections of the supporting documents of an entry or a line: of the library (its folder), of projects (its project). */
 const SUPPORTING_DOCUMENTS = {
-  library: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
-  project: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+  library: { select: { ...documentSelect.select, title: true, folder: { select: { name: true } } } },
+  project: { select: { ...documentSelect.select, label: true, project: { select: { id: true, label: true } } } },
 };
 
 /**
@@ -315,14 +315,14 @@ const SUPPORTING_DOCUMENTS = {
  */
 function supportingDocuments(owner: {
   libraryDocuments: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
-  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; project: { id: string; title: string } })[];
+  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; label: string; project: { id: string; label: string } })[];
 }): EntryDocument[] {
   return [
     ...owner.libraryDocuments.map((document) => ({
       id: document.id,
       source: 'LIBRARY' as const,
       kind: document.kind,
-      title: document.title,
+      label: document.title,
       url: documentUrl(document),
       projectId: null,
       place: document.folder?.name ?? 'Documents',
@@ -331,10 +331,10 @@ function supportingDocuments(owner: {
       id: resource.id,
       source: 'PROJECT' as const,
       kind: resource.kind,
-      title: resource.title,
+      label: resource.label,
       url: documentUrl(resource),
       projectId: resource.project.id,
-      place: resource.project.title,
+      place: resource.project.label,
     })),
   ];
 }
@@ -343,7 +343,7 @@ builder.prismaObject('DocumentStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
     scope: t.field({ type: ScopeEnum, resolve: (status) => status.scope }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     category: t.field({ type: CategoryEnum, resolve: (status) => status.category }),
     position: t.exposeInt('position'),
@@ -377,7 +377,7 @@ builder.prismaObject('TreasuryEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
     accountId: t.exposeID('accountId'),
-    accountName: t.string({ select: { account: { select: { name: true } } }, resolve: (entry) => entry.account.name }),
+    accountLabel: t.string({ select: { account: { select: { label: true } } }, resolve: (entry) => entry.account.label }),
     status: t.field({ type: EntryStatusEnum, resolve: (entry) => entry.status }),
     date: t.expose('date', { type: 'Date', description: 'Execution date.' }),
     valueDate: t.expose('valueDate', { type: 'Date' }),
@@ -385,7 +385,7 @@ builder.prismaObject('TreasuryEntry', {
     amount: t.float({ resolve: (entry) => fromDecimal(entry.amount) }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     methodId: t.exposeID('methodId', { nullable: true }),
-    methodName: t.string({ nullable: true, select: { method: { select: { name: true } } }, resolve: (entry) => entry.method?.name ?? null }),
+    methodLabel: t.string({ nullable: true, select: { method: { select: { label: true } } }, resolve: (entry) => entry.method?.label ?? null }),
     clientId: t.exposeID('clientId', { nullable: true }),
     counterpartyId: t.exposeID('counterpartyId', { nullable: true }),
     payerName: t.string({
@@ -451,7 +451,7 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
 builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     openingBalance: t.float({ resolve: (account) => fromDecimal(account.openingBalance) }),
     openingDate: t.expose('openingDate', { type: 'Date' }),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
@@ -467,10 +467,10 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
   acceptedAt: t.expose('acceptedAt', { type: 'Date', nullable: true }),
   signedFileUrl: t.string({
     nullable: true,
-    select: { signedAttachment: { select: { id: true, name: true } } },
-    resolve: (document) => (document.signedAttachment ? `/api/attachments/${document.signedAttachment.id}/${encodeURIComponent(document.signedAttachment.name)}` : null),
+    select: { signedAttachment: { select: { id: true, filename: true } } },
+    resolve: (document) => (document.signedAttachment ? `/api/attachments/${document.signedAttachment.id}/${encodeURIComponent(document.signedAttachment.filename)}` : null),
   }),
-  signedFileName: t.string({ nullable: true, select: { signedAttachment: { select: { name: true } } }, resolve: (document) => document.signedAttachment?.name ?? null }),
+  signedFileName: t.string({ nullable: true, select: { signedAttachment: { select: { filename: true } } }, resolve: (document) => document.signedAttachment?.filename ?? null }),
   paid: t.float({
     nullable: true,
     description: 'Final invoices: paid by the client; credit notes: refunded.',
@@ -587,7 +587,7 @@ const Projection = builder.objectRef<treasury.Projection>('TreasuryProjection').
 
 const AccountInput = builder.inputType('TreasuryAccountInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     openingBalance: t.float({ required: true }),
     openingDate: t.field({ type: 'Date', required: true }),
   }),
@@ -656,7 +656,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
 
 const CategoryInput = builder.inputType('TreasuryCategoryInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     color: t.string({ description: 'Hex color; empty clears it, omitted leaves it.' }),
     direction: t.field({ type: DirectionEnum, required: true }),
     parentId: t.id(),
@@ -665,7 +665,7 @@ const CategoryInput = builder.inputType('TreasuryCategoryInput', {
 
 const PaymentMethodInput = builder.inputType('TreasuryPaymentMethodInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     incoming: t.boolean({ required: true }),
     outgoing: t.boolean({ required: true }),
   }),
@@ -824,11 +824,11 @@ builder.queryFields((t) => ({
   }),
   treasuryCategories: t.prismaField({
     type: ['TreasuryCategory'],
-    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { label: 'asc' }] }),
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
-    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
@@ -842,7 +842,7 @@ builder.queryFields((t) => ({
         prisma.libraryDocument.findMany({ ...SUPPORTING_DOCUMENTS.library, orderBy: { title: 'asc' } }),
         prisma.projectResource.findMany({
           ...SUPPORTING_DOCUMENTS.project,
-          orderBy: [{ project: { title: 'asc' } }, { position: 'asc' }],
+          orderBy: [{ project: { label: 'asc' } }, { position: 'asc' }],
         }),
       ]);
       return supportingDocuments({ libraryDocuments: documents, projectResources: resources });
@@ -931,7 +931,7 @@ builder.mutationFields((t) => ({
   }),
   saveTreasuryContext: t.id({
     description: 'Creates a context (without id) or changes one.',
-    args: { id: t.arg.id(), input: t.arg({ type: NameColorInput, required: true }) },
+    args: { id: t.arg.id(), input: t.arg({ type: LabelColorInput, required: true }) },
     resolve: async (_root, { id, input }) => (await team.saveContext(id ?? null, input)).id,
   }),
   deleteTreasuryContext: t.boolean({
@@ -951,14 +951,14 @@ builder.mutationFields((t) => ({
   createDocumentStatus: t.id({
     args: {
       scope: t.arg({ type: ScopeEnum, required: true }),
-      name: t.arg.string({ required: true }),
+      label: t.arg.string({ required: true }),
       color: t.arg.string({ required: true }),
       category: t.arg({ type: CategoryEnum, required: true }),
     },
     resolve: async (_root, args) => (await statuses.createDocumentStatus(args)).id,
   }),
   updateDocumentStatus: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string(), color: t.arg.string(), category: t.arg({ type: CategoryEnum }) },
+    args: { id: t.arg.id({ required: true }), label: t.arg.string(), color: t.arg.string(), category: t.arg({ type: CategoryEnum }) },
     resolve: (_root, { id, ...input }) => done(statuses.updateDocumentStatus(id, input)),
   }),
   deleteDocumentStatus: t.boolean({

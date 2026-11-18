@@ -29,7 +29,7 @@ import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
 import { StockMoveForm } from './StockMoveForm';
-import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
 import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
@@ -135,8 +135,8 @@ export function StockTable() {
       label: 'Référence',
       size: 160,
       hiddenByDefault: true,
-      sortValue: (item) => (item.productId ? (products.get(item.productId)?.name ?? '') : null),
-      text: (item) => (item.productId ? (products.get(item.productId)?.name ?? '') : ''),
+      sortValue: (item) => (item.productId ? (products.get(item.productId)?.label ?? '') : null),
+      text: (item) => (item.productId ? (products.get(item.productId)?.label ?? '') : ''),
       filter: { kind: 'boolean', value: (item) => Boolean(item.productId) },
       groupable: true,
     },
@@ -190,7 +190,7 @@ export function StockTable() {
     deleteItemsAction(rows, {
       noun: 'article',
       the: 'l’article',
-      name: (item) => item.label,
+      name: rowLabel,
       risks: (subject, one) => `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} définitivement du stock, avec ${one ? 'ses' : 'leurs'} lots et ${one ? 'son' : 'leur'} historique.`,
       remove: (item) => mutations.deleteItem.mutateAsync(item.id),
       clear,

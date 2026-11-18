@@ -16,7 +16,7 @@ const WORKSPACE_COOKIE = 'ordo_workspace';
 const WORKSPACE_HEADER = 'x-ordo-workspace';
 
 const workspaceInputSchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   kind: z.enum(['PRO', 'PERSO']),
 });
 
@@ -39,7 +39,7 @@ async function requestedWorkspace(req: Request): Promise<Workspace> {
   const found = wanted ? await unscopedPrisma.workspace.findUnique({ where: { id: wanted } }) : null;
   if (found) return found;
   const first = await unscopedPrisma.workspace.findFirst({ orderBy: BY_POSITION });
-  return first ?? unscopedPrisma.workspace.create({ data: { name: 'Pro', kind: 'PRO' } });
+  return first ?? unscopedPrisma.workspace.create({ data: { label: 'Pro', kind: 'PRO' } });
 }
 
 /**
@@ -66,7 +66,7 @@ export async function forEachWorkspace(job: (workspace: Workspace) => Promise<un
     try {
       await runInWorkspace(workspace, () => job(workspace));
     } catch (error) {
-      console.error(`Workspace « ${workspace.name} »:`, error);
+      console.error(`Workspace « ${workspace.label} »:`, error);
     }
   }
 }
@@ -130,16 +130,16 @@ async function setUpWorkspace(workspace: Workspace): Promise<void> {
     // Every category of the tracking gets a status, those already there kept.
     if (workspace.kind === 'PRO') await ensureDocumentStatuses();
     // The usual units of quantity of the shopping products.
-    if (!(await prisma.shoppingUnit.count())) await prisma.shoppingUnit.createMany({ data: DEFAULT_SHOPPING_UNITS.map((name, position) => ({ name, position })) });
+    if (!(await prisma.shoppingUnit.count())) await prisma.shoppingUnit.createMany({ data: DEFAULT_SHOPPING_UNITS.map((label, position) => ({ label, position })) });
   });
 }
 
 /**
  * Creates a workspace, last of the switcher.
- * @param {{ name: string, kind: WorkspaceKind }} input Name and kind.
+ * @param {{ label: string, kind: WorkspaceKind }} input Label and kind.
  * @returns {Promise<Workspace>} Workspace.
  */
-export async function createWorkspace(input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
+export async function createWorkspace(input: { label: string; kind: WorkspaceKind }): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
   const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: await nextPositionIn('workspace', {}, unscopedPrisma) } });
   await setUpWorkspace(workspace);
@@ -149,10 +149,10 @@ export async function createWorkspace(input: { name: string; kind: WorkspaceKind
 /**
  * Renames a workspace or changes its kind. It only becomes personal without clients nor invoicing documents.
  * @param {string} id Workspace.
- * @param {{ name: string, kind: WorkspaceKind }} input Name and kind.
+ * @param {{ label: string, kind: WorkspaceKind }} input Label and kind.
  * @returns {Promise<Workspace>} Workspace.
  */
-export async function updateWorkspace(id: string, input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
+export async function updateWorkspace(id: string, input: { label: string; kind: WorkspaceKind }): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
   const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id } }), 'Espace');
   if (workspace.kind === 'PRO' && data.kind === 'PERSO') {

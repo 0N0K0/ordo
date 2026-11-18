@@ -50,7 +50,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
       <Group gap="xs">
         <ColorSwatch color={subscription.color} size={12} />
         <Text size="sm">
-          {subscription.name} · espace « {subscription.workspace.name} »
+          {subscription.label} · espace « {subscription.workspace.label} »
         </Text>
         <Badge size="xs" variant="light" color="gray">
           Lecture seule
@@ -74,7 +74,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
         onCancel={onClose}
         cancelLabel="Fermer"
         submitIcon={<ArrowSquareOutIcon aria-hidden />}
-        submitLabel={`Ouvrir dans « ${subscription.workspace.name} »`}
+        submitLabel={`Ouvrir dans « ${subscription.workspace.label} »`}
         onSubmit={() => switchWorkspace(subscription.workspace.id, calendarPath(occurrence.startDate))}
       />
     </Stack>

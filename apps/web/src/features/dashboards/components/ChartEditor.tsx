@@ -9,7 +9,7 @@ import {
   CHART_BUCKETS,
   CHART_PERIODS,
   chartConfigSchema,
-  chartTitleSchema,
+  chartLabelSchema,
   defaultChartConfig,
   isTimeDimension,
   SCALE_LABELS,
@@ -45,7 +45,7 @@ const TYPE_LABELS: Record<ChartConfig['type'], string> = {
 interface ChartEditorProps {
   dashboardId: string;
   chart?: DashboardChart;
-  initial: { title: string; config: ChartConfig; wide: boolean };
+  initial: { label: string; config: ChartConfig; wide: boolean };
   /** Scope of the dashboard. */
   scope: ChartScope;
   context: TaskContext;
@@ -60,7 +60,7 @@ interface ChartEditorProps {
  * @returns {JSX.Element} Editor.
  */
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
-  const [title, setTitle] = useState(initial.title);
+  const [title, setTitle] = useState(initial.label);
   // No invoicing in a personal workspace.
   const { perso } = useActiveWorkspace();
   const [wide, setWide] = useState(initial.wide);
@@ -88,10 +88,10 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
    * @returns {void}
    */
   const save = () => {
-    const titleResult = chartTitleSchema.safeParse(title);
+    const titleResult = chartLabelSchema.safeParse(title);
     setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Titre invalide.'));
     if (!titleResult.success || !validation.success) return;
-    const input = { title: titleResult.data, config: validation.data, wide };
+    const input = { label: titleResult.data, config: validation.data, wide };
     const callbacks = formCallbacks(null, chart ? 'Diagramme modifié.' : 'Diagramme ajouté.', onDone);
     if (chart) updateChart.mutate({ id: chart.id, input }, callbacks);
     else createChart.mutate({ dashboardId, input }, callbacks);
@@ -168,7 +168,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                 placeholder={sprints.length ? 'Choisissez le sprint' : 'Aucun sprint : créez-en dans l’onglet Sprints d’un projet'}
                 data={sprints.map((sprint) => ({
                   value: sprint.id,
-                  label: `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}`,
+                  label: `${sprint.label} — ${context.projectById.get(sprint.projectId)?.label ?? ''}`,
                 }))}
                 value={config.sprintId}
                 onChange={(sprintId) => change({ sprintId })}

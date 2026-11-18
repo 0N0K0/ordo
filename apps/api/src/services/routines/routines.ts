@@ -444,7 +444,7 @@ const categories = treeListService<RoutineCategory, RoutineCategoryInput, Routin
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
   {
     parse: (input) => parseInput(routineCategorySchema, input),
-    moveInput: (category, parentId) => ({ name: category.name, color: category.color, parentId }),
+    moveInput: (category, parentId) => ({ label: category.label, color: category.color, parentId }),
   },
 );
 
@@ -563,7 +563,7 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
  * @returns {object} Scalar fields.
  */
 const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
-  title: data.title,
+  label: data.label,
   description: data.description,
   parentId: data.parentId,
   startDate: parseDay(data.startDate),
@@ -700,7 +700,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     'Routine',
   );
   return {
-    title: routine.title,
+    label: routine.label,
     description: routine.description,
     categoryIds: routine.categories.map((category) => category.id),
     parentId: routine.parentId,

@@ -48,7 +48,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
         return {
           key: sprint.id,
           label: context.sprintLabel(sprint),
-          order: `${sprint.startDate} ${sprint.name}`,
+          order: `${sprint.startDate} ${sprint.label}`,
         };
       });
     }
@@ -60,7 +60,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
         {
           key: milestone.id,
           label,
-          order: `${milestone.dueDate ?? '9999'} ${milestone.title}`,
+          order: `${milestone.dueDate ?? '9999'} ${milestone.label}`,
         },
       ];
     }
@@ -98,7 +98,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
       return [
         {
           key: label.id,
-          label: label.name,
+          label: label.label,
           order: label.position,
           color: label.color ?? undefined,
         },
@@ -130,7 +130,7 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
       return tags.length
         ? tags.map((tag) => ({
             key: tag.id,
-            label: tag.name,
+            label: tag.label,
             order: tag.position,
             color: tag.color,
           }))

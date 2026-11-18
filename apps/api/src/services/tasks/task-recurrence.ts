@@ -50,7 +50,7 @@ export async function setTaskRecurrence(id: string, recurrence: unknown): Promis
 /**
  * Creates the occurrences of the recurring tasks falling in a period (the one displayed by the calendar),
  * and only them: a series without end never creates more than what is looked at. An occurrence copies its
- * series' first task (title, description, project, priority, type, assignees, tags, effort, parent), opens with
+ * series' first task (label, description, project, priority, type, assignees, tags, effort, parent), opens with
  * the first "to do" status, and its dates move with its occurrence date.
  * @param {string} from First date.
  * @param {string} to Last date.
@@ -79,7 +79,7 @@ export async function materializeTaskOccurrences(from: string, to: string): Prom
       // The unique (series, date) pair is not enforced by the schema: concurrent calls are serialized by the check above.
       await prisma.task.create({
         data: {
-          title: task.title,
+          label: task.label,
           description: task.description,
           projectId: task.projectId,
           statusId: status?.id ?? null,

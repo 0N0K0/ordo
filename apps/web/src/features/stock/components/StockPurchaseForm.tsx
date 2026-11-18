@@ -65,7 +65,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
         <Paper key={line.item.id} withBorder radius="sm" p="xs">
           <Stack gap={6}>
             <Text size="sm" fw={600}>
-              {line.item.name}
+              {line.item.label}
             </Text>
             <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
               <QuantityInput

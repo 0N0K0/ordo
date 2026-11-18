@@ -82,10 +82,10 @@ export function AlarmCenter() {
       const { tasksData: data, workspace: space } = latest.current;
       const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
       // Its number is only unique in its project: the project comes with it.
-      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
-      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.title}`, taskPath(task))];
+      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.label : undefined;
+      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.label}`, taskPath(task))];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
-      return project ? [link(project.title, projectPath(project.id))] : [];
+      return project ? [link(project.label, projectPath(project.id))] : [];
     };
 
     /**

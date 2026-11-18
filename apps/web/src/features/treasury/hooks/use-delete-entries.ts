@@ -1,4 +1,4 @@
-import { deleteItemsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { useTreasuryMutations, type TreasuryEntry } from '../api';
 
@@ -20,7 +20,7 @@ export function useDeleteEntries() {
       deleteItemsAction(rows, {
         noun: 'mouvement',
         the: 'le mouvement',
-        name: (entry) => entry.label,
+        name: rowLabel,
         risks: (subject, one, entries) =>
           [
             `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} définitivement.`,
@@ -37,7 +37,7 @@ export function useDeleteEntries() {
         noun: 'prévision',
         feminine: true,
         the: 'la prévision',
-        name: (entry) => entry.label,
+        name: rowLabel,
         risks: (subject, one) => `${subject} et toutes ${one ? 'ses' : 'leurs'} répétitions seront supprimées${note}.`,
         remove,
         clear,

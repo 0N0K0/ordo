@@ -58,7 +58,7 @@ interface ChartDocument {
   clientId: string | null;
   clientName: string;
   projectId: string | null;
-  status: { id: string; name: string; color: string } | null;
+  status: { id: string; label: string; color: string } | null;
   totalNet: number;
   totalGross: number;
   paid: number;
@@ -205,8 +205,8 @@ export function documentChartData(
               ? [
                   {
                     key: document.status.id,
-                    label: document.status.name,
-                    order: document.status.name,
+                    label: document.status.label,
+                    order: document.status.label,
                     color: document.status.color,
                   },
                 ]
@@ -224,7 +224,7 @@ export function documentChartData(
               ? [
                   {
                     key: document.projectId,
-                    label: context.projectById.get(document.projectId)?.title ?? '',
+                    label: context.projectById.get(document.projectId)?.label ?? '',
                     order: context.projectLabel(document.projectId),
                   },
                 ]
@@ -476,7 +476,7 @@ export function treasuryChartData({
             : none('Sans catégorie');
         case 'account': {
           const account = movement.accountId ? accountById.get(movement.accountId) : undefined;
-          return account ? [{ key: account.id, label: account.name, order: account.name }] : none('Sans compte');
+          return account ? [{ key: account.id, label: account.label, order: account.label }] : none('Sans compte');
         }
         case 'direction':
           return movement.amount >= 0 ? [{ key: 'in', label: 'Entrées', order: 0, color: 'green.6' }] : [{ key: 'out', label: 'Sorties', order: 1, color: 'red.6' }];
@@ -485,7 +485,7 @@ export function treasuryChartData({
             ? [
                 {
                   key: movement.projectId,
-                  label: context.projectById.get(movement.projectId)?.title ?? '',
+                  label: context.projectById.get(movement.projectId)?.label ?? '',
                   order: context.projectLabel(movement.projectId),
                 },
               ]
@@ -499,7 +499,7 @@ export function treasuryChartData({
         case 'context': {
           const item = movement.contextId ? contextById.get(movement.contextId) : undefined;
           return item
-            ? [{ key: item.id, label: item.name, order: String(item.position).padStart(6, '0'), color: item.color }]
+            ? [{ key: item.id, label: item.label, order: String(item.position).padStart(6, '0'), color: item.color }]
             : [{ key: 'everyday', label: EVERYDAY_CONTEXT, order: '', color: 'gray.5' }];
         }
         case 'entryStatus':

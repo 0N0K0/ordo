@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openNameForm } from '../../dialogs/open-name-form';
 
 import { Indicator } from '@mantine/core';
-import { taskViewNameSchema } from '@ordo/shared';
+import { taskViewLabelSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from './published-height';
@@ -18,7 +18,7 @@ import { usePublishedHeight } from './published-height';
  * @returns {void}
  */
 function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
-  openNameForm(title, { initial, label: 'Nom de la vue', schema: taskViewNameSchema, submitLabel, onSubmit });
+  openNameForm(title, { initial, label: 'Nom de la vue', schema: taskViewLabelSchema, submitLabel, onSubmit });
 }
 
 /**
@@ -39,7 +39,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const confirmDelete = (view: SavedView<C>) => {
     confirmDestructive({
       title: 'Supprimer la vue',
-      risks: <>La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées.</>,
+      risks: <>La vue « {view.label} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées.</>,
       onConfirm: () => {
         state.remove(view);
       },
@@ -53,11 +53,11 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
       value={current?.id ?? null}
       onChange={state.select}
       onMove={state.move}
-      name={(view) => `la vue ${view.name}`}
+      name={(view) => `la vue ${view.label}`}
       leftSection={(view) => (view.isDefault ? <StarIcon weight="fill" aria-label="Vue par défaut" /> : undefined)}
       label={(view) => (
         <Indicator disabled={!(view.id === current?.id && dirty)} size={7} offset={-4} position="top-end" color="orange">
-          {view.name}
+          {view.label}
         </Indicator>
       )}
       actions={(view) => [
@@ -65,7 +65,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         dirty && { label: 'Enregistrer les modifications', icon: <FloppyDiskIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.save },
         dirty && { label: 'Annuler les modifications', icon: <ArrowCounterClockwiseIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.revert },
         dirty && 'divider',
-        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name)) },
+        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptName('Renommer la vue', view.label, 'Renommer', (name) => state.rename(view.id, name)) },
         { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => state.duplicate(view) },
         !view.isDefault && { label: 'Définir par défaut', icon: <StarIcon aria-hidden />, onClick: () => state.setDefault(view) },
       ]}
@@ -75,7 +75,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         label: 'Nouvelle vue',
         menu: [
           { label: 'Vue vierge', onClick: () => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
-          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.name ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true)) },
+          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.label ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true)) },
         ],
       }}
     />

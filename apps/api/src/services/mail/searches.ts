@@ -41,13 +41,13 @@ export function searchCriteria(search: MailSearch): MailSearchCriteria {
 }
 
 /**
- * Name and criteria of a search folder, validated.
+ * Label and criteria of a search folder, validated.
  * @param {MailSearchInput} input Search.
- * @returns {{ name: string, criteria: MailSearchCriteria }} Name and criteria.
+ * @returns {{ label: string, criteria: MailSearchCriteria }} Label and criteria.
  */
-function parseSearch(input: MailSearchInput): { name: string; criteria: MailSearchCriteria } {
-  const { name, ...criteria } = parseInput(mailSearchSchema, input) as MailSearchCriteria & { name: string };
-  return { name, criteria };
+function parseSearch(input: MailSearchInput): { label: string; criteria: MailSearchCriteria } {
+  const { label, ...criteria } = parseInput(mailSearchSchema, input) as MailSearchCriteria & { label: string };
+  return { label, criteria };
 }
 
 /**
@@ -56,9 +56,9 @@ function parseSearch(input: MailSearchInput): { name: string; criteria: MailSear
  * @returns {Promise<MailSearch>} Search.
  */
 export async function createSearch(input: MailSearchInput): Promise<MailSearch> {
-  const { name, criteria } = parseSearch(input);
+  const { label, criteria } = parseSearch(input);
   const position = await nextPositionIn('mailSearch');
-  return prisma.mailSearch.create({ data: { name, criteria, position } });
+  return prisma.mailSearch.create({ data: { label, criteria, position } });
 }
 
 /**
@@ -68,9 +68,9 @@ export async function createSearch(input: MailSearchInput): Promise<MailSearch> 
  * @returns {Promise<MailSearch>} Search.
  */
 export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
-  const { name, criteria } = parseSearch(input);
+  const { label, criteria } = parseSearch(input);
   await assertExists(prisma.mailSearch, id, 'Dossier de recherche');
-  return prisma.mailSearch.update({ where: { id }, data: { name, criteria } });
+  return prisma.mailSearch.update({ where: { id }, data: { label, criteria } });
 }
 
 /**

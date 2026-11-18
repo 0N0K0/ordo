@@ -41,7 +41,7 @@ function historyItems(occurrences: RoutineOccurrence[], checks: RoutineCheck[], 
     })),
   );
   const timeOf = (item: HistoryItem) => item.fromTime ?? item.dueTime ?? '99:99';
-  return items.sort((a, b) => timeOf(a).localeCompare(timeOf(b)) || collator.compare(byId.get(a.routineId)?.title ?? '', byId.get(b.routineId)?.title ?? ''));
+  return items.sort((a, b) => timeOf(a).localeCompare(timeOf(b)) || collator.compare(byId.get(a.routineId)?.label ?? '', byId.get(b.routineId)?.label ?? ''));
 }
 
 /**
@@ -95,7 +95,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
         <Select
           aria-label="Routine"
           placeholder="Toutes les routines"
-          {...treeSelectProps(routineTreeOptions(routines, undefined, (routine) => (routine.archived ? `${routine.title} (archivée)` : routine.title)))}
+          {...treeSelectProps(routineTreeOptions(routines, undefined, (routine) => (routine.archived ? `${routine.label} (archivée)` : routine.label)))}
           value={routineId}
           onChange={onRoutine}
           searchable
@@ -134,7 +134,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
           <Text size="sm" c="dimmed">
             {items.length === 0
               ? routineId
-                ? `Rien de prévu pour « ${byId.get(routineId)?.title ?? 'cette routine'} » ${label}.`
+                ? `Rien de prévu pour « ${byId.get(routineId)?.label ?? 'cette routine'} » ${label}.`
                 : `Aucune routine prévue ${label}.`
               : `${countOf(doneCount, 'faite')} sur ${countOf(items.length, 'prévue')}. Cliquez sur une routine pour la cocher (à l’heure prévue par défaut) ou la décocher.`}
           </Text>

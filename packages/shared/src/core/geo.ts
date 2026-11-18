@@ -29,10 +29,10 @@ export const TRAVEL_MODES = ['CAR', 'BIKE', 'FOOT'] as const;
 export type TravelMode = (typeof TRAVEL_MODES)[number];
 export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = { CAR: 'Voiture', BIKE: 'Vélo', FOOT: 'À pied' };
 
-/** Saved place ("Maison", "Bureau"…): a name, an address and its point. */
+/** Saved place ("Maison", "Bureau"…): a label, an address and its point. */
 export const placeSchema = z
   .object({
-    name: requiredText(60),
+    label: requiredText(60),
     address: z.string().trim().max(300, '300 caractères maximum.').default(''),
     /** Its point; none for a zone (that of the place it is in). */
     lat: geoPointSchema.shape.lat.nullable().default(null),

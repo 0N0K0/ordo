@@ -71,7 +71,7 @@ export function useRoutineRowsActions() {
           ),
           {
             duplicate: async (routine) => {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: copyName(routine.title) });
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label) });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
             },
             done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,
@@ -92,7 +92,7 @@ export function useRoutineRowsActions() {
       remove: deleteRowsAction(routines, {
         title: single ? 'Supprimer la routine' : 'Supprimer les routines',
         risks: single
-          ? `« ${single.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt.`
+          ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt.`
           : `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour les retirer sans perdre leurs données, archivez-les plutôt.`,
         removeAll: () => bulkRemove.mutateAsync(ids),
         done: `${label} ${plural(ids.length, 'supprimée')}.`,

@@ -42,7 +42,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const [icon, setIcon] = useState<IconValue>({ file: null, remove: false });
   const form = useAppForm<ProjectFormValues>({
     initialValues: {
-      title: project?.title ?? '',
+      label: project?.label ?? '',
       clientId: project ? project.clientId : (defaults?.clientId ?? null),
       parentId: project ? project.parentId : (defaults?.parentId ?? null),
       categoryIds: project?.categories.map((category) => category.id) ?? [],
@@ -74,7 +74,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
 
   const handleSubmit = form.onSubmit((values) => {
     const input = {
-      title: values.title,
+      label: values.label,
       parentId: values.parentId,
       // A sub-project inherits the client of its parent.
       clientId: values.parentId ? (parent?.clientId ?? null) : values.clientId,
@@ -98,7 +98,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('title')} />
+        <TextInput label="Titre" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('label')} />
         <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
           <Select label="Projet parent" placeholder="Aucun (projet racine)" {...treeSelectProps(parentOptions)} searchable clearable {...form.getInputProps('parentId')} />
           {!perso && (
@@ -135,7 +135,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           <DatePickerInput label="Fin" placeholder="—" clearable {...period.end} />
         </SimpleGrid>
         <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
-        <IconField value={icon} onChange={setIcon} currentUrl={project?.iconUrl ?? null} name={form.values.title} color={form.values.color || null} error={form.errors.icon as string | undefined} />
+        <IconField value={icon} onChange={setIcon} currentUrl={project?.iconUrl ?? null} name={form.values.label} color={form.values.color || null} error={form.errors.icon as string | undefined} />
         <FormActions onCancel={onDone} submitLabel={project ? 'Enregistrer' : 'Créer le projet'} loading={pending} />
       </Stack>
     </form>

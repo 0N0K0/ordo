@@ -44,7 +44,7 @@ export function ShoppingSettings() {
           noun="l’unité"
           usageNoun="produits"
           items={data?.shoppingUnits ?? []}
-          usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.name).length]))}
+          usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.label).length]))}
         />
         <SettingsList
           {...storages}

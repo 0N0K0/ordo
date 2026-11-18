@@ -30,7 +30,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
   const createStatus = useCreateProjectStatus();
   const mutation = kind === 'category' ? createCategory : createStatus;
   const form = useAppForm<LabelFormValues>({
-    initialValues: { name: '', color: swatches[0] },
+    initialValues: { label: '', color: swatches[0] },
     schema: labelFormSchema,
   });
   const label = kind === 'category' ? 'Nouvelle catégorie' : 'Nouveau statut';
@@ -56,7 +56,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
       <Popover.Dropdown>
         {/* Not a nested <form>: the popover renders inside the project form. */}
         <Stack gap="sm" w={240}>
-          <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
           <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
             <Button size="xs" leftSection={<PlusIcon aria-hidden />} loading={mutation.isPending} onClick={() => handleSubmit()}>
@@ -120,7 +120,7 @@ export function StatusInput({ statuses, value, onChange, error }: StatusInputPro
         label="Statut"
         placeholder="Aucun"
         {...listSelectProps([...statuses].sort(byPosition), undefined, value)}
-        leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+        leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
         value={value}
         onChange={onChange}
         error={error}

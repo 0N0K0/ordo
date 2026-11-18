@@ -31,7 +31,7 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
 
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
 export const treasuryAccountSchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   openingBalance: amount,
   openingDate: daySchema(),
 });
@@ -50,10 +50,11 @@ const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 
 const name = requiredText(100);
+const label = name;
 
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({
-  name,
+  label,
   color: optionalColorSchema.optional(),
   direction: z.enum(TREASURY_DIRECTIONS),
   parentId: z.string().nullable(),
@@ -62,7 +63,7 @@ export type TreasuryCategoryInput = z.input<typeof treasuryCategorySchema>;
 
 /** Payment method, usable for money in, out or both. */
 export const treasuryPaymentMethodSchema = z
-  .object({ name, incoming: z.boolean(), outgoing: z.boolean() })
+  .object({ label, incoming: z.boolean(), outgoing: z.boolean() })
   .refine((method) => method.incoming || method.outgoing, { path: ['incoming'], message: 'Choisissez au moins un sens.' });
 export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSchema>;
 
@@ -142,7 +143,7 @@ export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 
 /** Context of spending, not in a tree; a line without context is everyday spending. */
 export const treasuryContextSchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
 });
 

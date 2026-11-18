@@ -61,12 +61,12 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
 export async function saveGithubLink(projectId: string, input: GithubLinkInput): Promise<GithubProjectLink> {
   await assertExists(prisma.project, projectId, 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
-  const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { title: true } } } });
-  if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.title} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
+  const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { label: true } } } });
+  if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.label} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
   const token = await githubToken();
   const board = await resolveBoard(token, input.url);
-  const other = await prisma.githubProjectLink.findFirst({ where: { githubProjectId: board.id, projectId: { not: projectId } }, include: { project: { select: { title: true } } } });
-  if (other) throw clientError('BAD_USER_INPUT', `Ce tableau est déjà lié au projet « ${other.project.title} ».`);
+  const other = await prisma.githubProjectLink.findFirst({ where: { githubProjectId: board.id, projectId: { not: projectId } }, include: { project: { select: { label: true } } } });
+  if (other) throw clientError('BAD_USER_INPUT', `Ce tableau est déjà lié au projet « ${other.project.label} ».`);
 
   const check = (fieldId: string | null, types: string[], label: string) => {
     if (!fieldId) return null;
@@ -95,7 +95,7 @@ export async function saveGithubLink(projectId: string, input: GithubLinkInput):
   const data = {
     githubProjectId: board.id,
     url: board.url,
-    title: board.title,
+    label: board.title,
     statusFieldId: input.statusFieldId,
     priorityFieldId: input.priorityFieldId,
     iterationFieldId: input.iterationFieldId,

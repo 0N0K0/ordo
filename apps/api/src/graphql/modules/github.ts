@@ -38,7 +38,7 @@ builder.prismaObject('GithubProjectLink', {
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
     url: t.exposeString('url'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     statusFieldId: t.exposeString('statusFieldId', { nullable: true }),
     priorityFieldId: t.exposeString('priorityFieldId', { nullable: true }),
     iterationFieldId: t.exposeString('iterationFieldId', { nullable: true }),

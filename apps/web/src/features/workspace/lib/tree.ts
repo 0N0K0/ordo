@@ -31,12 +31,12 @@ export interface TreeSection {
 }
 
 /**
- * Label used for sorting and search: name of a client, title of a project.
+ * Label used for sorting and search: name of a client, label of a project.
  * @param {Client | Project} item Client or project.
  * @returns {string} Label.
  */
 function labelOf(item: Client | Project): string {
-  return 'title' in item ? item.title : item.name;
+  return 'name' in item ? item.name : item.label;
 }
 
 /**
@@ -75,7 +75,7 @@ function buildForest(roots: Project[], projects: Project[], sort: SortMode): Pro
  */
 function filterForest(nodes: ProjectNode[], matches: (label: string) => boolean): ProjectNode[] {
   return nodes.flatMap((node) => {
-    if (matches(node.project.title)) return [node];
+    if (matches(node.project.label)) return [node];
     const children = filterForest(node.children, matches);
     return children.length > 0 ? [{ ...node, children }] : [];
   });
@@ -111,7 +111,7 @@ function filterSection(section: TreeSection, search: string): TreeSection {
 function projectPath(workspace: Workspace, project: Project): string {
   const names = lineageOf(mapById(workspace.projects), project.parentId)
     .reverse()
-    .map((parent) => parent.title);
+    .map((parent) => parent.label);
   const client = workspace.clients.find((item) => item.id === project.clientId);
   return [...(client ? [client.name] : []), ...names].join(LEVEL);
 }
@@ -123,7 +123,7 @@ function projectPath(workspace: Workspace, project: Project): string {
  * @returns {string} "Client › Projet › Sous-projet" (without client: "Projet › Sous-projet").
  */
 export function projectFullPath(workspace: Workspace, project: Project): string {
-  return [projectPath(workspace, project), project.title].filter(Boolean).join(LEVEL);
+  return [projectPath(workspace, project), project.label].filter(Boolean).join(LEVEL);
 }
 
 /**
@@ -135,7 +135,7 @@ export function projectFullPath(workspace: Workspace, project: Project): string 
  */
 export function projectOptions(workspace: Workspace | undefined, projects: Project[]): TreeOption[] {
   const offered = new Set(projects.map((project) => project.id));
-  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.title })));
+  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.label })));
   return treeOptions(projectNodes(workspace), (id) => offered.has(id));
 }
 
@@ -173,7 +173,7 @@ export function projectNodes(workspace: Workspace): TreeNode[] {
     { id: 'client:none', parentId: null, label: 'Sans client', pathless: true },
     ...[...workspace.projects]
       .sort(byOrder)
-      .map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.title, color: project.color, iconUrl: project.iconUrl })),
+      .map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.label, color: project.color, iconUrl: project.iconUrl })),
   ];
 }
 

@@ -24,7 +24,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const options = unarchived(
     sheets ?? [],
     current.map((link) => link.sheetId),
-  ).map((sheet) => ({ value: sheet.id, label: sheet.name }));
+  ).map((sheet) => ({ value: sheet.id, label: sheet.label }));
   const archivedIds = new Set((sheets ?? []).filter((sheet) => sheet.archived).map((sheet) => sheet.id));
   const free = options.filter((option) => !archivedIds.has(option.value) && !current.some((link) => link.sheetId === option.value));
   return (

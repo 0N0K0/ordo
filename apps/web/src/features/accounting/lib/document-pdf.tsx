@@ -57,7 +57,7 @@ interface DocumentMail {
   /** Payment terms ("À réception": no date to pay before). */
   paymentTerms: string | null;
   projectId: string | null;
-  attachments: { name: string; url: string }[];
+  attachments: { filename: string; url: string }[];
   companyName: string;
   recipient: { email: string | null; firstName: string | null };
   /** Reminder of an unpaid invoice: what is still due, in cents. */
@@ -110,7 +110,7 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
   }
   const files = await Promise.all([
     fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`),
-    ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.name)),
+    ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.filename)),
   ]);
   return {
     to: document.recipient.email ? [document.recipient.email] : [],

@@ -76,8 +76,8 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
           ...labels.map((label) => {
             const on = labelIds.includes(label.id);
             return {
-              label: label.name,
-              icon: <ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} />,
+              label: label.label,
+              icon: <ItemAvatar name={label.label} iconUrl={label.iconUrl} color={label.color} />,
               checked: on,
               onClick: () => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onMutationError),
             };

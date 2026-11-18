@@ -237,11 +237,11 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
 }
 
 const labelSchema = z.object({
-  name: requiredText(40),
+  label: requiredText(40),
   color: colorSchema,
 });
 
-/** Flags of the mails (no two with the same name is not enforced by the database). */
+/** Flags of the mails (no two with the same label is not enforced by the database). */
 export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce nom.' }, { schema: labelSchema });
 
 /**

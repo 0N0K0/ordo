@@ -26,11 +26,11 @@ function useCrumbs(): Crumb[] {
   if (projectId) {
     const project = workspace?.projects.find((item) => item.id === projectId);
     if (!project || !workspace) return [];
-    const crumbs: Crumb[] = [{ label: project.title }];
+    const crumbs: Crumb[] = [{ label: project.label }];
     for (let parentId = project.parentId; parentId;) {
       const parent = workspace.projects.find((item) => item.id === parentId);
       if (!parent) break;
-      crumbs.unshift({ label: parent.title, to: projectPath(parent.id) });
+      crumbs.unshift({ label: parent.label, to: projectPath(parent.id) });
       parentId = parent.parentId;
     }
     const client = workspace.clients.find((item) => item.id === project.clientId);

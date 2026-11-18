@@ -10,10 +10,10 @@ import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
 import { FormActions } from '../dialogs/FormActions';
 
-/** Item of a settings list: a name, a color, an image, whether it is archived and, in a tree, a parent. */
+/** Item of a settings list: a label, a color, an image, whether it is archived and, in a tree, a parent. */
 export interface SettingsItem {
   id: string;
-  name: string;
+  label: string;
   color?: string | null;
   iconUrl?: string | null;
   parentId?: string | null;
@@ -22,8 +22,8 @@ export interface SettingsItem {
   archived: boolean;
 }
 
-/** Values of the form of an item: its name, color and parent, and those of its list (`E`). */
-export type SettingsItemValues<E extends object = Record<string, never>> = { name: string; color: string; parentId: string | null } & E;
+/** Values of the form of an item: its label, color and parent, and those of its list (`E`). */
+export type SettingsItemValues<E extends object = Record<string, never>> = { label: string; color: string; parentId: string | null } & E;
 
 /** Fields of a list of its own (a status category, base lists…), after the common ones. */
 interface SettingsItemExtra<C extends SettingsItem, E extends object> {
@@ -99,7 +99,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   const parentColor = tree && parentId ? categoryTree(tree).find((placed) => placed.category.id === parentId)?.color : null;
   const form = useAppForm<SettingsItemValues<E>>({
     initialValues: {
-      name: item?.name ?? '',
+      label: item?.label ?? '',
       color: item ? (item.color ?? '') : withColor && (colorRequired || !parentColor) ? (parentColor ?? swatches[0]) : '',
       parentId: item ? (item.parentId ?? null) : parentId,
       ...(extra?.initial(item) ?? ({} as E)),
@@ -129,9 +129,9 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required placeholder={namePlaceholder} data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Nom" required placeholder={namePlaceholder} data-autofocus {...form.getInputProps('label')} />
         {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
-        <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.name} color={withColor ? values.color || parentColor : null} />
+        <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (
           <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
         )}

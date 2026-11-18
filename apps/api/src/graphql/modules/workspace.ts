@@ -7,13 +7,13 @@ import * as projects from '../../services/workspace/projects';
 import { projectStatuses } from '../../services/tasks/statuses';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
-import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
 builder.prismaObject('ProjectCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
   }),
 });
@@ -34,7 +34,7 @@ builder.prismaObject('Client', {
 builder.prismaObject('Project', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     clientId: t.exposeID('clientId', { nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
     iconUrl: t.string({ nullable: true, resolve: (project) => iconUrl(project.iconId) }),
@@ -45,7 +45,7 @@ builder.prismaObject('Project', {
     color: t.exposeString('color', { nullable: true }),
     position: t.exposeInt('position'),
     favorite: t.exposeBoolean('favorite'),
-    categories: t.relation('categories', { query: { orderBy: { name: 'asc' } } }),
+    categories: t.relation('categories', { query: { orderBy: { label: 'asc' } } }),
   }),
 });
 
@@ -67,7 +67,7 @@ const ClientUpdateInput = builder.inputType('ClientUpdateInput', {
 });
 
 /**
- * Fields of a project a creation and an update both take (its title, client, parent and icon aside).
+ * Fields of a project a creation and an update both take (its label, client, parent and icon aside).
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.
  */
@@ -82,7 +82,7 @@ const projectFields = (t: InputFields) => ({
 
 const ProjectInput = builder.inputType('ProjectInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     clientId: t.id({ description: 'Client of a root project; a sub-project inherits the client of its parent.' }),
     parentId: t.id(),
     ...projectFields(t),
@@ -92,7 +92,7 @@ const ProjectInput = builder.inputType('ProjectInput', {
 
 const ProjectUpdateInput = builder.inputType('ProjectUpdateInput', {
   fields: (t) => ({
-    title: t.string(),
+    label: t.string(),
     clientId: t.id({ description: 'null detaches the project from its client; omitted leaves it unchanged.' }),
     parentId: t.id({ description: 'null makes it a root project; omitted leaves it unchanged.' }),
     ...projectFields(t),
@@ -114,7 +114,7 @@ builder.queryFields((t) => ({
   }),
   projectCategories: t.prismaField({
     type: ['ProjectCategory'],
-    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   projectStatuses: t.prismaField({
     type: ['ProjectStatus'],
@@ -197,5 +197,5 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-labelMutations('ProjectCategory', projectCategories, { create: NameColorInput, update: NameColorPatch });
-labelMutations('ProjectStatus', projectStatuses, { create: NameColorInput, update: NameColorPatch });
+labelMutations('ProjectCategory', projectCategories, { create: LabelColorInput, update: LabelColorPatch });
+labelMutations('ProjectStatus', projectStatuses, { create: LabelColorInput, update: LabelColorPatch });

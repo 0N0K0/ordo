@@ -54,7 +54,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       .filter((document) => !document.archived && document.type === 'QUOTE' && document.status === 'FINAL')
       .map((document) => ({
         value: `ordo:${document.id}`,
-        label: `${document.number} — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,
+        label: `${document.number} — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number ?? '',
         issueDate: document.issueDate,
@@ -66,7 +66,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       .filter((document) => !document.archived && document.type === 'QUOTE' && document.clientId)
       .map((document) => ({
         value: `imported:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,
+        label: `${document.number} (importé) — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number,
         issueDate: document.issueDate,

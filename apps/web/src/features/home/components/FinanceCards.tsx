@@ -77,7 +77,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
               <HomeRow
                 key={quote.id}
                 to={`/accounting/${quote.id}`}
-                title={`${quote.clientName ?? 'Client inconnu'}${quote.title ? ` · ${quote.title}` : ''}`}
+                title={`${quote.clientName ?? 'Client inconnu'}${quote.label ? ` · ${quote.label}` : ''}`}
                 subtitle={`${quote.number} · envoyé ${fmt.daysAgo(daysBetween(sent, today))}`}
                 value={
                   <Text size="sm" fw={600}>

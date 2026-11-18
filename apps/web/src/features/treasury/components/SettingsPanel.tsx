@@ -4,7 +4,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Select, SimpleGrid, Stack } from '@mantine/core';
 import type { TreasuryDirection } from '@ordo/shared';
-import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
+import { counterpartyItems, useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { TeamPanel } from './TeamPanel';
 import { DirectionBadge } from './DirectionBadge';
@@ -91,7 +91,7 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       title="Tiers"
       description="Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office."
       noun="le tiers"
-      items={counterparties}
+      items={counterpartyItems(counterparties)}
       usage={new Map(counterparties.map((counterparty) => [counterparty.id, counterparty.entryCount]))}
       usageNoun="mouvements"
       remove={(id) => deleteCounterparty.mutateAsync(id)}

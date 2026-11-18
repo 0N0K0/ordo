@@ -99,7 +99,7 @@ export function ClientDetailsForm({ client, onDone }: { client: ClientBilling; o
 }
 
 interface ServiceValues extends Record<string, unknown> {
-  name: string;
+  label: string;
   address: Address | null;
   email: string;
   phones: Phone[];
@@ -114,7 +114,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
   const { createService, updateService } = useClientPartyMutations();
   const form = useAppForm<ServiceValues>({
     initialValues: {
-      name: service?.name ?? '',
+      label: service?.label ?? '',
       address: (service?.address as Address | null) ?? null,
       email: service?.email ?? '',
       phones: (service?.phones as Phone[]) ?? [],
@@ -125,7 +125,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
   return (
     <form noValidate onSubmit={form.onSubmit((input) => (service ? updateService.mutate({ id: service.id, input }, callbacks) : createService.mutate({ clientId, input }, callbacks)))}>
       <Stack gap="md">
-        <TextInput label="Nom du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('name')} />
+        <TextInput label="Nom du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
         <AddressFields legend="Adresse" value={form.values.address} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors(form.errors)} />
         <TextInput label="Email" {...form.getInputProps('email')} />
         <PhonesField value={form.values.phones} onChange={(phones) => form.setFieldValue('phones', phones)} />
@@ -173,7 +173,7 @@ export function ClientContactForm({ client, contact, serviceId, onDone }: { clie
           <Select
             label="Service"
             placeholder={client.services.length ? 'Aucun (client)' : 'Aucun service'}
-            data={client.services.map((service) => ({ value: service.id, label: service.name }))}
+            data={client.services.map((service) => ({ value: service.id, label: service.label }))}
             clearable
             disabled={client.services.length === 0}
             {...form.getInputProps('serviceId')}

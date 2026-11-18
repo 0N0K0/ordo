@@ -305,7 +305,7 @@ class Flow {
 
 /** Columns of the lines table. */
 interface Column {
-  key: 'title' | 'quantity' | 'unit' | 'price' | 'discount' | 'vat' | 'total';
+  key: 'label' | 'quantity' | 'unit' | 'price' | 'discount' | 'vat' | 'total';
   label: string;
   width: number;
   align: 'left' | 'right';
@@ -343,7 +343,7 @@ function tableColumns(width: number, vatApplicable: boolean, discounts: boolean)
   ];
   const columns: Column[] = [
     {
-      key: 'title',
+      key: 'label',
       label: 'Désignation',
       width: width - fixed.reduce((sum, column) => sum + column.width, 0),
       align: 'left',
@@ -399,7 +399,7 @@ function writeLines(doc: Doc, flow: Flow, document: DocumentWithLines, totals: D
 
     const measure = () => {
       doc.font(line.kind === 'TEXT' ? 'bold' : 'regular').fontSize(line.kind === 'TEXT' ? 10 : 9);
-      let height = line.title ? doc.heightOfString(line.title, { width: textWidth, lineGap: 1.5 }) : 0;
+      let height = line.label ? doc.heightOfString(line.label, { width: textWidth, lineGap: 1.5 }) : 0;
       if (line.description) height += 3 + writeBlocks(doc, markdownBlocks(line.description), { x: 0, y: 0, width: textWidth, size: 8, color: COLORS.muted }, true);
       doc.font('regular').fontSize(7.5);
       for (const note of notes) height += 2 + doc.heightOfString(note, { width: textWidth });
@@ -410,13 +410,13 @@ function writeLines(doc: Doc, flow: Flow, document: DocumentWithLines, totals: D
 
     let y = flow.y + pad + 1;
     const x = titleColumn.x + pad;
-    if (line.title) {
+    if (line.label) {
       doc
         .font(line.kind === 'TEXT' ? 'bold' : 'regular')
         .fontSize(line.kind === 'TEXT' ? 10 : 9)
         .fillColor(COLORS.text);
-      doc.text(line.title, x, y, { width: textWidth, lineGap: 1.5 });
-      y += doc.heightOfString(line.title, { width: textWidth, lineGap: 1.5 });
+      doc.text(line.label, x, y, { width: textWidth, lineGap: 1.5 });
+      y += doc.heightOfString(line.label, { width: textWidth, lineGap: 1.5 });
     }
     if (line.description)
       y +=
@@ -436,7 +436,7 @@ function writeLines(doc: Doc, flow: Flow, document: DocumentWithLines, totals: D
 
     if (line.kind !== 'TEXT') {
       const values: Record<Column['key'], string> = {
-        title: '',
+        label: '',
         quantity: formatNumber(line.quantity, 3),
         unit: line.kind === 'DEDUCTION' ? '' : UNIT_LABELS[line.unit].short,
         price: money(toCents(line.unitPrice)),
@@ -979,13 +979,13 @@ async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date:
     where: { documentId: document.id },
     select: {
       amount: true,
-      entry: { select: { date: true, method: { select: { name: true } } } },
+      entry: { select: { date: true, method: { select: { label: true } } } },
     },
     orderBy: { entry: { date: 'asc' } },
   });
   return allocations.map((allocation) => ({
     date: allocation.entry.date,
-    method: allocation.entry.method?.name ?? null,
+    method: allocation.entry.method?.label ?? null,
     amount: decimalCents(allocation.amount),
   }));
 }
@@ -1049,13 +1049,13 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
     logo: logo ? Buffer.from(logo.data) : null,
     sourceNumber: source?.number ?? importedSource?.number ?? null,
   });
-  if (document.title) {
+  if (document.label) {
     flow.ensure(20);
     doc
       .font('bold')
       .fontSize(11)
       .fillColor(COLORS.text)
-      .text(document.title, PAGE.margin, flow.y, {
+      .text(document.label, PAGE.margin, flow.y, {
         width: doc.page.width - 2 * PAGE.margin,
       });
     flow.y = doc.y + 8;

@@ -42,7 +42,7 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
         label="Compte"
         placeholder="Tous les comptes"
         clearable
-        data={accounts.map((account) => ({ value: account.id, label: account.archived ? `${account.name} (archivé)` : account.name }))}
+        data={accounts.map((account) => ({ value: account.id, label: account.archived ? `${account.label} (archivé)` : account.label }))}
         value={accountId}
         onChange={setAccountId}
       />

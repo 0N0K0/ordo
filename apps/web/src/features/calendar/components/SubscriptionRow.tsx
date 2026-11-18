@@ -4,11 +4,11 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 
 interface SubscriptionRowProps {
   /** What is subscribed to (a calendar, a kind of slots). */
-  name: string;
+  label: string;
   color: string | null;
   /** Workspace it comes from, for the screen readers. */
-  workspaceName: string;
-  /** Detail after the name, dimmed. Optional. */
+  workspaceLabel: string;
+  /** Detail after the label, dimmed. Optional. */
   hint?: ReactNode;
   subscribed: boolean;
   onChange: (subscribed: boolean) => void;
@@ -19,17 +19,17 @@ interface SubscriptionRowProps {
 }
 
 /**
- * Row of something of another workspace this one can subscribe to (a calendar, a kind of slots): its avatar, its name,
+ * Row of something of another workspace this one can subscribe to (a calendar, a kind of slots): its avatar, its label,
  * and the « Abonné » switch.
  * @param {SubscriptionRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function SubscriptionRow({ name, color, workspaceName, hint, subscribed, onChange, actions, pl }: SubscriptionRowProps) {
+export function SubscriptionRow({ label, color, workspaceLabel, hint, subscribed, onChange, actions, pl }: SubscriptionRowProps) {
   return (
     <Group gap="sm" wrap="nowrap" pl={pl}>
-      <ItemAvatar name={name} color={color} />
+      <ItemAvatar name={label} color={color} />
       <Text size="sm" style={{ flex: 1 }} truncate>
-        {name}
+        {label}
         {hint && (
           <Text span size="xs" c="dimmed">
             {' '}
@@ -38,7 +38,7 @@ export function SubscriptionRow({ name, color, workspaceName, hint, subscribed, 
         )}
       </Text>
       {actions}
-      <Switch label="Abonné" aria-label={`Abonnement à ${name} (${workspaceName})`} checked={subscribed} onChange={(event) => onChange(event.currentTarget.checked)} />
+      <Switch label="Abonné" aria-label={`Abonnement à ${label} (${workspaceLabel})`} checked={subscribed} onChange={(event) => onChange(event.currentTarget.checked)} />
     </Group>
   );
 }

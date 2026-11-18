@@ -36,7 +36,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
   const [tested, setTested] = useState(false);
   const form = useAppForm<MailAccountFormValues>({
     initialValues: {
-      name: account?.name ?? '',
+      label: account?.label ?? '',
       email: account?.email ?? '',
       displayName: account?.displayName ?? '',
       imapHost: account?.imapHost ?? '',
@@ -115,7 +115,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          <TextInput label="Nom dans Ordo" placeholder="Pro, Perso…" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Nom dans Ordo" placeholder="Pro, Perso…" required data-autofocus {...form.getInputProps('label')} />
           <Select
             label="Hébergeur"
             placeholder="Remplir les serveurs…"

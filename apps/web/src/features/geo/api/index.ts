@@ -16,7 +16,7 @@ const PlacesDocument = graphql(`
     places {
       id
       archived
-      name
+      label
       address
       parentId
       lat
@@ -122,8 +122,8 @@ export function rootPlace(place: Place, byId: ReadonlyMap<string, Place>): Place
  * @returns {string} Text.
  */
 export function zonesText(root: Place, zones: readonly Place[]): string {
-  const prefix = `${root.name}${LEVEL}`;
-  return `${prefix}${zones.map((zone) => (zone.path.startsWith(prefix) ? zone.path.slice(prefix.length) : zone.name)).join(ZONE_SEPARATOR)}`;
+  const prefix = `${root.label}${LEVEL}`;
+  return `${prefix}${zones.map((zone) => (zone.path.startsWith(prefix) ? zone.path.slice(prefix.length) : zone.label)).join(ZONE_SEPARATOR)}`;
 }
 
 /**
@@ -135,7 +135,7 @@ export function zonesText(root: Place, zones: readonly Place[]): string {
 export function zonesOfText(text: string, places: readonly Place[]): { root: Place; zoneIds: string[] } | null {
   const byId = mapById(places);
   for (const root of places.filter((place) => !place.parentId)) {
-    const prefix = `${root.name}${LEVEL}`;
+    const prefix = `${root.label}${LEVEL}`;
     if (!text.startsWith(prefix)) continue;
     const zones = places.filter((place) => place.parentId && rootPlace(place, byId).id === root.id);
     const ids = text

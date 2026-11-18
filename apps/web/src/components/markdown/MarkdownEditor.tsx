@@ -126,12 +126,12 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
     if (token.trigger === '#') {
       // Tasks of the project of the text first; a reference is a link to the task by its id.
       return suggestions.tasks
-        .filter((task) => String(task.number).startsWith(query) || normalize(task.title).includes(query))
+        .filter((task) => String(task.number).startsWith(query) || normalize(task.label).includes(query))
         .sort((a, b) => Number(b.projectId === suggestions.projectId) - Number(a.projectId === suggestions.projectId))
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
           key: `t${task.id}`,
-          reference: `[${task.number === null ? task.title : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
+          reference: `[${task.number === null ? task.label : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
               {task.number !== null && (
@@ -142,7 +142,7 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
                 </>
               )}
               <Text span size="sm">
-                {task.title}
+                {task.label}
               </Text>
             </>
           ),

@@ -32,7 +32,7 @@ function ScopeStatuses({ scope, statuses }: { scope: DocumentStatusScope; status
         initial: (status) => ({ category: status?.category ?? 'SENT' }),
         render: (form) => <Select label="Catégorie" data={STATUS_CATEGORIES_BY_SCOPE[scope]} allowDeselect={false} {...form.getInputProps('category')} />,
       }}
-      {...listMutations(mutations, (values: { name: string; color: string; category: DocumentStatusCategory }) => ({ name: values.name, color: values.color, category: values.category }))}
+      {...listMutations(mutations, (values: { label: string; color: string; category: DocumentStatusCategory }) => ({ label: values.label, color: values.color, category: values.category }))}
       renderBadges={(status) => STATUS_CATEGORIES_BY_SCOPE[scope].find((option) => option.value === status.category)?.label}
     />
   );

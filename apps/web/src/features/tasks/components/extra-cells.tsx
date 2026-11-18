@@ -56,7 +56,7 @@ export function SlotsCell({ task }: { task: Task }) {
 export function TimerCell({ task }: { task: Task }) {
   const running = useRunningTimer();
   const mine = running.data?.taskIds.includes(task.id) ? running.data : null;
-  return <TimerToggle name={task.title} mine={mine} othersRunning={Boolean(running.data) && !mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
+  return <TimerToggle name={task.label} mine={mine} othersRunning={Boolean(running.data) && !mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
 }
 
 /**
@@ -81,7 +81,7 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', name: task.title, onClick: onAdd }}>
+    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', name: task.label, onClick: onAdd }}>
       {children.map((child) => (
         <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
       ))}
@@ -125,8 +125,8 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         <IconAction
           label="Nouvelle alarme"
           size="sm"
-          aria-label={`Nouvelle alarme pour ${task.title}`}
-          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
+          aria-label={`Nouvelle alarme pour ${task.label}`}
+          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, label: task.label } })}
         >
           <PlusIcon aria-hidden />
         </IconAction>
@@ -151,15 +151,15 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
       <StackedValues>
         {own.map((list) => (
           <Anchor key={list.id} component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
-            <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.name}
+            <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.label}
           </Anchor>
         ))}
       </StackedValues>
       {!task.archived && (
         <ActionsMenu
-          name={task.title}
+          name={task.label}
           target={
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.label}`} style={{ flex: 'none' }}>
               <PlusIcon aria-hidden />
             </ActionIcon>
           }
@@ -167,11 +167,11 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
             { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
             { section: 'Rattacher une liste' },
             ...free.map((list) => ({
-              label: list.name,
+              label: list.label,
               icon: <BasketIcon aria-hidden />,
               onClick: () =>
                 updateList.mutate(
-                  { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
+                  { id: list.id, label: list.label, taskIds: [...new Set([...list.taskIds, ...targets])] },
                   toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
                 ),
             })),

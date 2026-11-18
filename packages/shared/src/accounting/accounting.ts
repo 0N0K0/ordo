@@ -121,7 +121,7 @@ export const clientDetailsSchema = z.object({
 export type ClientDetailsInput = z.input<typeof clientDetailsSchema>;
 
 export const clientServiceSchema = z.object({
-  name: requiredText(120),
+  label: requiredText(120),
   address: addressSchema.nullable(),
   email: emailSchema,
   phones: phonesSchema,

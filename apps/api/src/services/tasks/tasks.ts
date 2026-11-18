@@ -10,7 +10,7 @@ import {
   reaches,
   slotRuleSchema,
   type TaskInput as SharedTaskInput,
-  taskTitleSchema,
+  taskLabelSchema,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode } from '../core/trees';
@@ -210,7 +210,7 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
 export type TaskInput = Omit<SharedTaskInput, 'slotRule'> & { slotRule?: unknown };
 
 const detailsSchema = z.object({
-  title: taskTitleSchema.optional(),
+  label: taskLabelSchema.optional(),
   description: markdownSchema.optional(),
   effort: effortSchema.optional(),
   startDate: dateSchema.optional(),
@@ -228,7 +228,7 @@ const detailsSchema = z.object({
  */
 function parseDetails(input: TaskInput, current?: { startDate: Date | null; endDate: Date | null }) {
   const details = parseInput(detailsSchema, {
-    title: input.title ?? undefined,
+    label: input.label ?? undefined,
     description: input.description,
     effort: input.effort,
     startDate: input.startDate,
@@ -239,7 +239,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
   });
   assertDateRange(details, current);
   return {
-    title: details.title,
+    label: details.label,
     description: details.description,
     effort: details.effort,
     startDate: parseOptionalDay(details.startDate),
@@ -252,11 +252,11 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
 
 /**
  * Creates a task at the end of the list.
- * @param {TaskInput & { title: string }} input Task input (no project: a task of none, without number).
+ * @param {TaskInput & { label: string }} input Task input (no project: a task of none, without number).
  * @returns {Promise<Task>} Created task.
  */
-export async function createTask(input: TaskInput & { title: string }): Promise<Task> {
-  if (!input.title?.trim()) throw fieldError('title', 'Le titre est requis.');
+export async function createTask(input: TaskInput & { label: string }): Promise<Task> {
+  if (!input.label?.trim()) throw fieldError('label', 'Le titre est requis.');
   const details = parseDetails(input);
   const projectId = input.projectId ?? null;
   if (projectId) await assertProject(projectId);
@@ -270,7 +270,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
   const task = await prisma.task.create({
     data: {
       ...details,
-      title: details.title!,
+      label: details.label!,
       projectId,
       statusId: input.statusId ?? null,
       priorityId: input.priorityId ?? null,
@@ -521,7 +521,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
     ) =>
       tx.task.create({
         data: {
-          title: task.title,
+          label: task.label,
           description: task.description,
           projectId: task.projectId,
           statusId: task.statusId,

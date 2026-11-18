@@ -38,7 +38,7 @@ export const SOURCE_LABELS: Record<ChartConfig['source'], string> = {
 export function describeChart(config: ChartConfig, context: TaskContext): string {
   if (config.type === 'burndown') {
     const sprint = config.sprintId ? context.sprintById.get(config.sprintId) : undefined;
-    return `Burndown ${config.measure === 'effort' ? 'de l’effort' : 'des tâches'}${sprint ? ` — ${sprint.name}` : ''}`;
+    return `Burndown ${config.measure === 'effort' ? 'de l’effort' : 'des tâches'}${sprint ? ` — ${sprint.label}` : ''}`;
   }
   const parts = [SOURCE_LABELS[config.source], measureLabel(config.source, config.measure), `par ${DIMENSION_LABELS[config.dimension].toLowerCase()}`];
   if (isTimeDimension(config.dimension)) parts.push(`${BUCKET_LABELS[config.bucket]}, ${periodLabel(config.period).toLowerCase()}`);

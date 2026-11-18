@@ -34,7 +34,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
         <Text span c="dimmed" size="sm">
           {taskRef(task).trim()}
         </Text>{' '}
-        {task.title}
+        {task.label}
       </Anchor>
     </Group>
   );
@@ -72,7 +72,7 @@ export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSe
     <CreatableSelect
       onCreate={kind ? create : undefined}
       {...listSelectProps(labels, undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={onChange}
       clearable
@@ -173,7 +173,7 @@ interface TaskSelectProps extends Omit<SelectProps, 'data'> {
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.title}`, context, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.label}`, context, ...props }: TaskSelectProps) {
   return (
     <Select
       {...(context ? treeSelectProps(context.taskOptions(tasks)) : { data: tasks.map((task) => ({ value: task.id, label: labelOf(task) })) })}

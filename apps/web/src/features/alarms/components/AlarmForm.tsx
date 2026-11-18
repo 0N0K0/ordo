@@ -27,7 +27,7 @@ const TYPE_HELP: Record<AlarmType, string> = {
 };
 
 interface AlarmFormValues extends Record<string, unknown> {
-  title: string;
+  label: string;
   note: string;
   type: AlarmType;
   startDate: string | null;
@@ -41,7 +41,7 @@ interface AlarmFormValues extends Record<string, unknown> {
 
 /** Values a new alarm starts with (e.g. the task it is created from). */
 export interface AlarmDefaults {
-  title?: string;
+  label?: string;
   projectId?: string | null;
   taskId?: string | null;
 }
@@ -57,7 +57,7 @@ interface AlarmFormProps {
 }
 
 /**
- * Alarm creation / edition: title, type, schedule (date, time, repetition, weekdays, end) or tracking
+ * Alarm creation / edition: label, type, schedule (date, time, repetition, weekdays, end) or tracking
  * duration, optional project or task, note.
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
@@ -66,7 +66,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      title: alarm ? (copy ? copyName(alarm.title) : alarm.title) : (defaults?.title ?? ''),
+      label: alarm ? (copy ? copyName(alarm.label) : alarm.label) : (defaults?.label ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -92,7 +92,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('title')} />
+        <TextInput label="Titre" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
         <Stack gap={4}>
           <SegmentedControl fullWidth data={TYPES} value={type} onChange={(value) => form.setFieldValue('type', value as AlarmType)} aria-label="Type d’alarme" />
           <Text size="xs" c="dimmed">

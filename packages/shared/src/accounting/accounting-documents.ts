@@ -19,7 +19,7 @@ const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant
 
 const accountingLineSchema = z.object({
   kind: z.enum(LINE_KINDS),
-  title: z.string().trim().max(300, '300 caractères maximum.'),
+  label: z.string().trim().max(300, '300 caractères maximum.'),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')
@@ -47,7 +47,7 @@ export const accountingDocumentInputSchema = z
     dueDate: daySchema().nullable(),
     serviceStart: daySchema().nullable(),
     serviceEnd: daySchema().nullable(),
-    title: optionalText(300),
+    label: optionalText(300),
     introduction: optionalText(20_000),
     referenceLabel: optionalText(60),
     referenceValue: optionalText(200),
@@ -79,8 +79,8 @@ export const accountingDocumentInputSchema = z
       context.addIssue({ code: 'custom', path: ['globalDiscountValue'], message: '100 % maximum.' });
     }
     document.lines.forEach((line, index) => {
-      if (line.kind !== 'TEXT' && !line.title.trim()) {
-        context.addIssue({ code: 'custom', path: ['lines', index, 'title'], message: 'Le libellé est requis.' });
+      if (line.kind !== 'TEXT' && !line.label.trim()) {
+        context.addIssue({ code: 'custom', path: ['lines', index, 'label'], message: 'Le libellé est requis.' });
       }
       if (line.discountType === 'PERCENT' && (line.discountValue ?? 0) > 100) {
         context.addIssue({ code: 'custom', path: ['lines', index, 'discountValue'], message: '100 % maximum.' });
@@ -339,7 +339,7 @@ export const importedDocumentSchema = z
       .transform((value) => value || null)
       .nullable(),
     projectId: z.string().nullable(),
-    title: z
+    label: z
       .string()
       .trim()
       .max(300)
@@ -369,7 +369,7 @@ export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
 /** Product or service of the catalogue: default fields of a line. */
 export const catalogItemSchema = z.object({
   kind: z.enum(['ITEM', 'DISBURSEMENT']),
-  title: requiredText(300, 'Le libellé est requis.'),
+  label: requiredText(300, 'Le libellé est requis.'),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')

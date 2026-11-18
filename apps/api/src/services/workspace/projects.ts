@@ -1,4 +1,4 @@
-import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColorSchema, parseOptionalDay, projectTitleSchema } from '@ordo/shared';
+import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColorSchema, parseOptionalDay, projectLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
@@ -221,7 +221,7 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
 /**
  * Creates a project at the end of its sibling list. A sub-project inherits the client of its parent.
  * @param {object} input Project input.
- * @param {string} input.title Title.
+ * @param {string} input.label Label.
  * @param {string | null} [input.clientId] Client of a root project. Optional.
  * @param {string | null} [input.parentId] Parent project. Optional.
  * @param {string[] | null} [input.categoryIds] Categories. Optional.
@@ -230,14 +230,14 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
  */
 export async function createProject(
   input: ProjectDetailsInput & {
-    title: string;
+    label: string;
     clientId?: string | null;
     parentId?: string | null;
     categoryIds?: string[] | null;
     icon?: File | null;
   },
 ): Promise<Project> {
-  const { title } = parseInput(z.object({ title: projectTitleSchema }), input);
+  const { label } = parseInput(z.object({ label: projectLabelSchema }), input);
   const parentId = input.parentId ?? null;
   const clientId = parentId ? assertParent(await ProjectTree.load(), parentId, null) : (input.clientId ?? null);
   if (!parentId) await assertAttachableClient(clientId);
@@ -249,7 +249,7 @@ export async function createProject(
   return prisma.project.create({
     data: {
       ...details,
-      title,
+      label,
       clientId,
       parentId,
       iconId,
@@ -300,7 +300,7 @@ async function placeProject(tree: ProjectTree, project: Project, parentId: strin
  * Updates a project (not an archived one: restore it first). Changing its parent or client moves it, with its sub-projects, to the end of the new list.
  * @param {string} id Project id.
  * @param {object} input Changes; undefined leaves a field unchanged, null clears it.
- * @param {string | null} [input.title] New title. Optional.
+ * @param {string | null} [input.label] New label. Optional.
  * @param {string | null} [input.clientId] New client of a root project, null for no client. Optional.
  * @param {string | null} [input.parentId] New parent, null to make it a root project. Optional.
  * @param {string[] | null} [input.categoryIds] New categories. Optional.
@@ -311,7 +311,7 @@ async function placeProject(tree: ProjectTree, project: Project, parentId: strin
 export async function updateProject(
   id: string,
   input: ProjectDetailsInput & {
-    title?: string | null;
+    label?: string | null;
     clientId?: string | null;
     parentId?: string | null;
     categoryIds?: string[] | null;
@@ -321,7 +321,7 @@ export async function updateProject(
 ): Promise<Project> {
   const project = await findProject(id);
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
-  const { title } = parseInput(z.object({ title: projectTitleSchema.optional() }), { title: input.title ?? undefined });
+  const { label } = parseInput(z.object({ label: projectLabelSchema.optional() }), { label: input.label ?? undefined });
 
   const parentId = input.parentId === undefined ? project.parentId : input.parentId;
   const clientId = parentId ? project.clientId : input.clientId === undefined ? project.clientId : input.clientId;
@@ -337,7 +337,7 @@ export async function updateProject(
     where: { id },
     data: {
       ...details,
-      title,
+      label,
       iconId,
       ...(input.categoryIds && { categories: { set: connectIds(input.categoryIds) } }),
     },

@@ -104,7 +104,7 @@ export function categoryForDirection(categories: readonly { id: string; directio
 }
 
 /** Line or whole entry found to link, with the account of its entry. */
-export type LinkCandidate = LineLink & { accountName: string };
+export type LinkCandidate = LineLink & { accountLabel: string };
 
 /**
  * Key of a link, unique among lines and entries.

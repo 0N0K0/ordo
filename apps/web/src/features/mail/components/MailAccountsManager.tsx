@@ -85,7 +85,7 @@ export function MailAccountsManager() {
               <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" wrap="nowrap">
                   <Text size="sm" fw={500} truncate>
-                    {account.name}
+                    {account.label}
                   </Text>
                   {account.archived && <ArchivedBadge feminine size="xs" />}
                 </Group>
@@ -95,20 +95,20 @@ export function MailAccountsManager() {
                 </Text>
               </Stack>
               <InlineActions
-                name={account.name}
+                name={account.label}
                 items={[
                   // Archived: read only.
                   !account.archived && {
                     label: 'Signature',
                     icon: <SignatureIcon aria-hidden />,
-                    onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />),
+                    onClick: () => open(`Signature — ${account.label}`, (close) => <SignatureForm account={account} onDone={close} />),
                   },
                   !account.archived && {
                     label: 'Modifier',
                     icon: <PencilSimpleIcon aria-hidden />,
-                    onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />),
+                    onClick: () => open(`Modifier — ${account.label}`, (close) => <MailAccountForm account={account} onDone={close} />),
                   },
-                  archiveEntry({ archived: account.archived, type: 'Boîte', name: account.name, feminine: true }, setArchived, account.id),
+                  archiveEntry({ archived: account.archived, type: 'Boîte', name: account.label, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />

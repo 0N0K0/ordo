@@ -29,18 +29,18 @@ export const shoppingTotal = (items: ShoppingItem[]) => items.reduce((sum, item)
  * @returns {string} Text.
  */
 export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): string {
-  const lines = [list.name];
+  const lines = [list.label];
   for (const row of rows) {
     const indent = '  '.repeat(row.depth);
     if (row.kind === 'group') {
       if (row.depth === 0) lines.push('');
-      lines.push(`${indent}${row.name} :`);
+      lines.push(`${indent}${row.label} :`);
       continue;
     }
     const { item } = row;
     const cost = shoppingCost(item);
     const details = [fmt.quantity(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? fmt.money(cost) : ''].filter(Boolean).join(' · ');
-    lines.push(`${indent}${item.purchasedAt ? '☑' : '☐'} ${item.name}${details ? ` (${details})` : ''}`);
+    lines.push(`${indent}${item.purchasedAt ? '☑' : '☐'} ${item.label}${details ? ` (${details})` : ''}`);
     if (item.note) lines.push(`${indent}    ${item.note}`);
     if (item.url) lines.push(`${indent}    ${item.url}`);
   }
@@ -60,17 +60,17 @@ export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>
 export async function downloadShoppingPdf(list: ShoppingList, tableRows: ShoppingRow<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): Promise<void> {
   const total = shoppingTotal(list.items);
   const rows = tableRows.map((row): PdfTableRow => {
-    if (row.kind === 'group') return { kind: 'group', depth: row.depth, cells: [row.name] };
+    if (row.kind === 'group') return { kind: 'group', depth: row.depth, cells: [row.label] };
     const { item } = row;
     const cost = shoppingCost(item);
     return {
       kind: 'row',
       depth: row.depth,
-      cells: [item.purchasedAt ? 'Oui' : '', item.name, fmt.quantity(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
+      cells: [item.purchasedAt ? 'Oui' : '', item.label, fmt.quantity(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
     };
   });
   await postTablePdf({
-    title: list.name,
+    title: list.label,
     subtitle: total ? `Total estimé : ${fmt.money(total)}` : '',
     columns: ['Acheté', 'Produit', 'Quantité', 'Pour', 'Note', 'Prix estimé'],
     rows,

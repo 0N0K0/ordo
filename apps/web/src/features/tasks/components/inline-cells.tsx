@@ -5,7 +5,7 @@ import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
-import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
+import { taskLabelSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
@@ -55,9 +55,9 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
   const children = context.childrenOf(task.id);
   return (
     <EditableTitle
-      value={task.title}
+      value={task.label}
       label={`Titre de la tâche ${taskName(task)}`}
-      schema={taskTitleSchema}
+      schema={taskLabelSchema}
       to={link.to(task.id)}
       before={
         <>
@@ -75,7 +75,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
         )
       }
       readOnly={task.archived}
-      onSave={(title) => apply({ title })}
+      onSave={(label) => apply({ label })}
     />
   );
 }
@@ -181,7 +181,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       label={fieldLabel('Étiquettes', task, count)}
       items={task.tagIds.flatMap((id) => {
         const tag = context.tagById.get(id);
-        return tag ? [{ id, label: tag.name, icon: <ItemAvatar name={tag.name} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
+        return tag ? [{ id, label: tag.label, icon: <ItemAvatar name={tag.label} iconUrl={tag.iconUrl} color={tag.color} size={14} /> }] : [];
       })}
       {...listSelectProps(context.tags, undefined, task.tagIds)}
       value={task.tagIds}

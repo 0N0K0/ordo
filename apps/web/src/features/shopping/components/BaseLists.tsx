@@ -14,7 +14,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 
 import { Badge, Group, Stack } from '@mantine/core';
-import { shoppingBaseListNameSchema } from '@ordo/shared';
+import { shoppingBaseListLabelSchema } from '@ordo/shared';
 import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 
 import { z } from 'zod';
@@ -25,7 +25,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { BaseList } from './BaseList';
 
-const schema = z.object({ name: shoppingBaseListNameSchema });
+const schema = z.object({ label: shoppingBaseListLabelSchema });
 
 /**
  * Base lists ("références": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
@@ -70,11 +70,11 @@ export function BaseLists() {
           item={baseList}
           colorRequired={false}
           schema={schema}
-          create={async ({ name }) => {
-            created = createdId(await mutations.createBaseList.mutateAsync({ name }));
+          create={async ({ label }) => {
+            created = createdId(await mutations.createBaseList.mutateAsync({ label }));
             return created;
           }}
-          update={(id, { name }) => mutations.renameBaseList.mutateAsync({ id, name })}
+          update={(id, { label }) => mutations.renameBaseList.mutateAsync({ id, label })}
           onDone={() => {
             close();
             if (created) select(created);
@@ -96,7 +96,7 @@ export function BaseLists() {
       title: 'Supprimer la référence',
       risks: (
         <>
-          « {baseList.name} » sera supprimée définitivement{count ? `, avec ses ${countOf(count, 'produit')} et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments.
+          « {baseList.label} » sera supprimée définitivement{count ? `, avec ses ${countOf(count, 'produit')} et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments.
         </>
       ),
       onConfirm: () => {
@@ -134,13 +134,13 @@ export function BaseLists() {
         value={current.id}
         onChange={select}
         onMove={move}
-        name={(baseList) => `la référence ${baseList.name}`}
-        leftSection={(baseList) => <ItemAvatar name={baseList.name} iconUrl={baseList.iconUrl} color={baseList.color} />}
+        name={(baseList) => `la référence ${baseList.label}`}
+        leftSection={(baseList) => <ItemAvatar name={baseList.label} iconUrl={baseList.iconUrl} color={baseList.color} />}
         label={(baseList) => {
           const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
           return (
             <Group gap={6} wrap="nowrap">
-              {baseList.name}
+              {baseList.label}
               {baseList.archived && <ArchivedBadge feminine size="xs" />}
               {missing > 0 && (
                 <Badge size="xs" variant="light" color="orange" aria-label={`${countOf(missing, 'manquant')}`}>
@@ -153,7 +153,7 @@ export function BaseLists() {
         actions={(baseList) => [
           // Archived: read only.
           ...(baseList.archived ? [] : [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]),
-          archiveEntry({ archived: baseList.archived, type: 'Référence', name: baseList.name, feminine: true }, setArchived, baseList.id),
+          archiveEntry({ archived: baseList.archived, type: 'Référence', name: baseList.label, feminine: true }, setArchived, baseList.id),
         ]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}

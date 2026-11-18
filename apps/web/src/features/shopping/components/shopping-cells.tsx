@@ -64,7 +64,7 @@ export function StoreCell({ value, stores, label, readOnly = false, onSave }: St
       clearable={!readOnly}
       searchable
       {...listSelectProps(stores, undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       nothingFoundMessage="Aucun magasin (ajoutez-en dans les paramètres)"
       value={value}
       onChange={(storeId) => storeId !== value && onSave(storeId)}
@@ -135,7 +135,7 @@ export function ConservationCell({ perishable, storageId, storages, label, readO
         ...(storageLook.data.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : []),
       ]}
       renderOption={storageLook.renderOption}
-      leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       onChange={(next) => {
         if (!next || next === value) return;
@@ -205,7 +205,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       clearable={!readOnly}
       searchable
       {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, value)))}
-      leftSection={placed ? <ItemAvatar name={placed.category.name} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
+      leftSection={placed ? <ItemAvatar name={placed.category.label} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}
       onChange={(categoryId) => categoryId !== value && onSave(categoryId)}

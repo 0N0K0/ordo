@@ -107,9 +107,9 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
 
 /** Views made the first time the entries are shown: this month (opened first), this year by month, all by month. */
 const ENTRY_VIEWS: FirstTableView[] = [
-  { name: 'Ce mois-ci', config: { filter: withinFilter('date', 'thisMonth') } },
-  { name: 'Cette année', config: { filter: withinFilter('date', 'thisYear'), groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
-  { name: 'Tous', config: { groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
+  { label: 'Ce mois-ci', config: { filter: withinFilter('date', 'thisMonth') } },
+  { label: 'Cette année', config: { filter: withinFilter('date', 'thisYear'), groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
+  { label: 'Tous', config: { groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
 ];
 
 /**

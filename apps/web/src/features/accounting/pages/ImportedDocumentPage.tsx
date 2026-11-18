@@ -66,7 +66,7 @@ export function ImportedDocumentPage() {
             {document.archived && <ArchivedBadge />}
           </>
         }
-        subtitle={document.title && <Text c="dimmed">{document.title}</Text>}
+        subtitle={document.label && <Text c="dimmed">{document.label}</Text>}
         actions={
           <>
             {document.fileUrl && (

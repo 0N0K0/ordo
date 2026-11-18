@@ -46,6 +46,6 @@ export function dayEventOptions(events: readonly EventOccurrence[], day: string)
     .filter((occurrence) => !occurrence.allDay || occurrence.startDate <= day)
     .map((occurrence) => ({
       value: eventKey(occurrence.eventId, occurrence.occurrenceDate),
-      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.title}${occurrence.calledOff ? ' (annulé)' : ''}`,
+      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.label}${occurrence.calledOff ? ' (annulé)' : ''}`,
     }));
 }

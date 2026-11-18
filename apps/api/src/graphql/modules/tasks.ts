@@ -40,15 +40,15 @@ builder.prismaObject('Contributor', {
 
 builder.prismaObject('Attachment', {
   // Never loads the file content.
-  select: { id: true, name: true, size: true, mimeType: true },
+  select: { id: true, filename: true, size: true, mimeType: true },
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    filename: t.exposeString('filename'),
     size: t.exposeInt('size'),
     isImage: t.boolean({ description: 'Shown in place in markdown.', resolve: (attachment) => attachment.mimeType.startsWith('image/') }),
     url: t.string({
       // Parentheses are escaped too: the URL goes inside a markdown link.
-      resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
+      resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.filename).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
     }),
   }),
 });
@@ -57,7 +57,7 @@ builder.prismaObject('Milestone', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     dueDate: t.expose('dueDate', { type: 'Date', nullable: true }),
     position: t.exposeInt('position'),
@@ -67,7 +67,7 @@ builder.prismaObject('Milestone', {
 const MilestoneInput = builder.inputType('MilestoneInput', {
   fields: (t) => ({
     projectId: t.id({ required: true }),
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
@@ -76,7 +76,7 @@ const MilestoneInput = builder.inputType('MilestoneInput', {
 const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
   description: 'Omitted fields are left unchanged; null clears a field.',
   fields: (t) => ({
-    title: t.string(),
+    label: t.string(),
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
@@ -97,7 +97,7 @@ builder.prismaObject('Sprint', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     goal: t.exposeString('goal', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
     endDate: t.expose('endDate', { type: 'Date' }),
@@ -106,7 +106,7 @@ builder.prismaObject('Sprint', {
 
 const SprintInput = builder.inputType('SprintInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     goal: t.string(),
     startDate: t.field({ type: 'Date', required: true }),
     endDate: t.field({ type: 'Date', required: true }),
@@ -121,7 +121,7 @@ const TaskStatusCategory = builder.enumType('TaskStatusCategory', {
 builder.prismaObject('TaskStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     category: t.expose('category', { type: TaskStatusCategory }),
     position: t.exposeInt('position'),
@@ -141,7 +141,7 @@ builder.prismaObject('TaskView', {
     id: t.exposeID('id'),
     kind: t.field({ type: ViewKindEnum, resolve: (view) => view.kind }),
     tableKey: t.exposeString('tableKey', { nullable: true, description: 'Table of a view of kind TABLE.' }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     config: t.expose('config', { type: 'JSON' }),
     isDefault: t.exposeBoolean('isDefault'),
     position: t.exposeInt('position'),
@@ -161,7 +161,7 @@ builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
     number: t.exposeInt('number', { nullable: true, description: 'Number within its project (#12); none without project. Links use the id.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true, description: 'None: a task of no project.' }),
     statusId: t.exposeID('statusId', { nullable: true }),
@@ -234,7 +234,7 @@ const planningFields = (t: InputFields) => ({
 });
 
 /**
- * Fields of a task a creation and an update both take (its title and project aside).
+ * Fields of a task a creation and an update both take (its label and project aside).
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.
  */
@@ -256,7 +256,7 @@ const taskFields = (t: InputFields) => ({
 
 const TaskInput = builder.inputType('TaskInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     projectId: t.id({ description: 'None: a task of no project (no number, sprint, milestone nor GitHub item).' }),
     ...taskFields(t),
   }),
@@ -264,7 +264,7 @@ const TaskInput = builder.inputType('TaskInput', {
 
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
   description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
-  fields: (t) => ({ title: t.string(), ...taskFields(t) }),
+  fields: (t) => ({ label: t.string(), ...taskFields(t) }),
 });
 
 const ContributorInput = builder.inputType('ContributorInput', {
@@ -288,7 +288,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
 
 const LabelInput = builder.inputType('TaskLabelInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     color: t.string({ required: true }),
     category: t.field({ type: TaskStatusCategory, description: 'Statuses only; defaults to TODO.' }),
   }),
@@ -296,7 +296,7 @@ const LabelInput = builder.inputType('TaskLabelInput', {
 
 const LabelUpdateInput = builder.inputType('TaskLabelUpdateInput', {
   fields: (t) => ({
-    name: t.string(),
+    label: t.string(),
     color: t.string(),
     category: t.field({ type: TaskStatusCategory, description: 'Statuses only.' }),
   }),
@@ -321,7 +321,7 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
 
 const TaskViewInput = builder.inputType('TaskViewInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     projectId: t.id({ description: 'Project of the view; omitted or null for the home page.' }),
     kind: t.field({ type: ViewKindEnum, description: 'Tasks (default), routines, shopping lists or another table.' }),
     tableKey: t.string({ description: 'Table of a view of kind TABLE (required for it).' }),
@@ -331,7 +331,7 @@ const TaskViewInput = builder.inputType('TaskViewInput', {
 
 const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
   fields: (t) => ({
-    name: t.string(),
+    label: t.string(),
     config: t.field({ type: 'JSON' }),
   }),
 });
@@ -498,7 +498,7 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) =>
       prisma.taskView.findUniqueOrThrow({
         ...query,
-        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
+        where: { id: (await taskViews.createView({ label: input.label, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
       }),
   }),
   updateTaskView: t.prismaField({
@@ -508,8 +508,8 @@ builder.mutationFields((t) => ({
   }),
   duplicateTaskView: t.prismaField({
     type: 'TaskView',
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, name }) => reloaded(prisma.taskView, query, taskViews.duplicateView(id, name)),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }) },
+    resolve: async (query, _root, { id, label }) => reloaded(prisma.taskView, query, taskViews.duplicateView(id, label)),
   }),
   deleteTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }) },

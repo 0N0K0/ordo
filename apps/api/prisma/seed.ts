@@ -58,11 +58,10 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_FIXTURES !== 'sta
 /**
  * First workspace of a kind, created when there is none.
  * @param {'PRO' | 'PERSO'} kind Kind.
- * @param {string} name Name of the one created.
- * @returns {Promise<{ id: string, name: string, kind: 'PRO' | 'PERSO' }>} Workspace.
+ * @param {string} label Label of the one created.
+ * @returns {Promise<{ id: string, label: string, kind: 'PRO' | 'PERSO' }>} Workspace.
  */
-const workspaceOf = async (kind: 'PRO' | 'PERSO', name: string) =>
-  (await unscopedPrisma.workspace.findFirst({ where: { kind }, orderBy: BY_POSITION })) ?? (await createWorkspace({ name, kind }));
+const workspaceOf = async (kind: 'PRO' | 'PERSO', label: string) => (await unscopedPrisma.workspace.findFirst({ where: { kind }, orderBy: BY_POSITION })) ?? (await createWorkspace({ label, kind }));
 
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
@@ -99,7 +98,7 @@ const statuses = await Promise.all(
       ['Terminé', '#40c057', 'DONE'],
       ['Annulé', '#fa5252', 'CANCELLED'],
     ] as [string, string, TaskStatusCategory][]
-  ).map(([name, color, category], position) => prisma.taskStatus.create({ data: { name, color, category, position } })),
+  ).map(([name, color, category], position) => prisma.taskStatus.create({ data: { label: name, color, category, position } })),
 );
 const priorities = await Promise.all(
   [
@@ -107,7 +106,7 @@ const priorities = await Promise.all(
     ['Moyenne', '#fab005'],
     ['Haute', '#fd7e14'],
     ['Urgente', '#fa5252'],
-  ].map(([name, color], position) => prisma.taskPriority.create({ data: { name, color, position } })),
+  ].map(([name, color], position) => prisma.taskPriority.create({ data: { label: name, color, position } })),
 );
 const tags = await Promise.all(
   [
@@ -116,7 +115,7 @@ const tags = await Promise.all(
     ['design', '#e64980'],
     ['client', '#fd7e14'],
     ['dette technique', '#868e96'],
-  ].map(([name, color], position) => prisma.taskTag.create({ data: { name, color, position } })),
+  ].map(([name, color], position) => prisma.taskTag.create({ data: { label: name, color, position } })),
 );
 const types = await Promise.all(
   [
@@ -124,7 +123,7 @@ const types = await Promise.all(
     ['Bug', '#fa5252'],
     ['Amélioration', '#12b886'],
     ['Documentation', '#82c91e'],
-  ].map(([name, color], position) => prisma.taskType.create({ data: { name, color, position } })),
+  ].map(([name, color], position) => prisma.taskType.create({ data: { label: name, color, position } })),
 );
 const projectStatuses = await Promise.all(
   [
@@ -132,12 +131,10 @@ const projectStatuses = await Promise.all(
     ['En cours', '#228be6'],
     ['En pause', '#fd7e14'],
     ['Terminé', '#40c057'],
-  ].map(([name, color], position) => prisma.projectStatus.create({ data: { name, color, position } })),
+  ].map(([name, color], position) => prisma.projectStatus.create({ data: { label: name, color, position } })),
 );
 const categories = await Promise.all(
-  ['Web', 'Mobile', 'Conseil', 'Design', 'Maintenance'].map((name, index) =>
-    prisma.projectCategory.create({ data: { name, color: COLORS[(index * 3) % COLORS.length] } }),
-  ),
+  ['Web', 'Mobile', 'Conseil', 'Design', 'Maintenance'].map((name, index) => prisma.projectCategory.create({ data: { label: name, color: COLORS[(index * 3) % COLORS.length] } })),
 );
 
 // --- Contributors, clients and project trees -----------------------------------------------------
@@ -153,9 +150,7 @@ const projectExtras = (root: boolean) => ({
   categories: { connect: faker.helpers.arrayElements(categories, { min: 0, max: 2 }).map(({ id }) => ({ id })) },
   // Sub-projects inherit the contributors of their parents; a few get their own on top.
   contributors: {
-    connect: (root || faker.datatype.boolean(0.2) ? faker.helpers.arrayElements(contributors, { min: 1, max: root ? 4 : 1 }) : []).map(
-      ({ id }) => ({ id }),
-    ),
+    connect: (root || faker.datatype.boolean(0.2) ? faker.helpers.arrayElements(contributors, { min: 1, max: root ? 4 : 1 }) : []).map(({ id }) => ({ id })),
   },
 });
 
@@ -174,7 +169,7 @@ async function createProjectTree(clientId: string | null, parentId: string | nul
     parentId,
     ...projectExtras(level === 1),
     // Sub-projects are phases of their parent.
-    ...(parentId && { title: faker.helpers.arrayElement(PHASES) }),
+    ...(parentId && { label: faker.helpers.arrayElement(PHASES) }),
   });
   projects.push(project);
   const children = level === 1 ? faker.number.int({ min: 0, max: 3 }) : level === 2 ? faker.number.int({ min: 0, max: 1 }) : 0;
@@ -211,8 +206,11 @@ for (const project of projects) if (archivedIds.has(project.id)) project.archive
 for (const [index, client] of clients.slice(0, 3).entries()) {
   await prisma.client.update({ where: { id: client.id }, data: { iconId: await initialsIcon(client.name, COLORS[(index * 5) % COLORS.length]) } });
 }
-for (const [index, project] of projects.filter((item) => item.parentId === null).slice(0, 3).entries()) {
-  await prisma.project.update({ where: { id: project.id }, data: { iconId: await initialsIcon(project.title, COLORS[(index * 7 + 2) % COLORS.length]) } });
+for (const [index, project] of projects
+  .filter((item) => item.parentId === null)
+  .slice(0, 3)
+  .entries()) {
+  await prisma.project.update({ where: { id: project.id }, data: { iconId: await initialsIcon(project.label, COLORS[(index * 7 + 2) % COLORS.length]) } });
 }
 for (const [index, contributor] of contributors.slice(0, 4).entries()) {
   await prisma.contributor.update({ where: { id: contributor.id }, data: { iconId: await initialsIcon(contributor.name, COLORS[(index * 3 + 1) % COLORS.length]) } });
@@ -235,7 +233,10 @@ const rootOf = (projectId: string): string => {
 const milestonesByRoot = new Map<string, string[]>();
 for (const project of projects.filter((item) => item.parentId === null)) {
   const milestones = await milestoneFactory.createList(faker.number.int({ min: 0, max: 3 }), { projectId: project.id });
-  milestonesByRoot.set(project.id, milestones.map((milestone) => milestone.id));
+  milestonesByRoot.set(
+    project.id,
+    milestones.map((milestone) => milestone.id),
+  );
 }
 
 // --- Tasks ----------------------------------------------------------------------------------------
@@ -284,11 +285,14 @@ async function createTask(projectId: string, parentId: string | null): Promise<s
     assignees: { connect: assignees.map((id) => ({ id })) },
     tags: { connect: faker.helpers.arrayElements(tags, { min: 0, max: 2 }).map(({ id }) => ({ id })) },
   });
-  await commentFactory.createList(faker.helpers.weightedArrayElement([
-    { value: 0, weight: 6 },
-    { value: 1, weight: 2 },
-    { value: 3, weight: 1 },
-  ]), { taskId: task.id });
+  await commentFactory.createList(
+    faker.helpers.weightedArrayElement([
+      { value: 0, weight: 6 },
+      { value: 1, weight: 2 },
+      { value: 3, weight: 1 },
+    ]),
+    { taskId: task.id },
+  );
   return task.id;
 }
 
@@ -351,14 +355,13 @@ for (const project of projects) {
 // --- Calendar -----------------------------------------------------------------------------------------
 /**
  * Creates a calendar category.
- * @param {string} name Name.
+ * @param {string} label Label.
  * @param {string} color Color.
  * @param {string | null} parentId Parent.
  * @param {number} position Position among its siblings.
  * @returns {Promise<string>} Category id.
  */
-const category = async (name: string, color: string, parentId: string | null, position: number) =>
-  (await prisma.calendarCategory.create({ data: { name, color, parentId, position } })).id;
+const category = async (label: string, color: string, parentId: string | null, position: number) => (await prisma.calendarCategory.create({ data: { label, color, parentId, position } })).id;
 const pro = await category('Pro', '#228be6', null, 0);
 const meetings = await category('Réunions', '#4c6ef5', pro, 0);
 const clientsCategory = await category('Clients', '#15aabf', pro, 1);
@@ -370,8 +373,8 @@ const health = await category('Santé', '#fa5252', personal, 1);
 const admin = await category('Administratif', '#fab005', null, 2);
 
 // Two calendars: work, and personal life (the personal categories).
-const workCalendar = (await prisma.calendar.create({ data: { name: 'Travail', color: '#228be6', position: 0 } })).id;
-const personalCalendar = (await prisma.calendar.create({ data: { name: 'Personnel', color: '#e64980', position: 1 } })).id;
+const workCalendar = (await prisma.calendar.create({ data: { label: 'Travail', color: '#228be6', position: 0 } })).id;
+const personalCalendar = (await prisma.calendar.create({ data: { label: 'Personnel', color: '#e64980', position: 1 } })).id;
 /**
  * Calendar of an event, from its categories.
  * @param {readonly string[]} categoryIds Categories.
@@ -396,7 +399,7 @@ const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRE
  * @returns {Promise<string>} Event id.
  */
 const recurring = async (event: {
-  title: string;
+  label: string;
   start: string;
   from: number;
   to: number;
@@ -410,7 +413,7 @@ const recurring = async (event: {
   (
     await prisma.calendarEvent.create({
       data: {
-        title: event.title,
+        label: event.label,
         location: event.location ?? null,
         links: [],
         allDay: event.allDay ?? false,
@@ -431,7 +434,7 @@ const recurring = async (event: {
 
 // Weekly team meeting, paused two weeks for the holidays, one occurrence moved and one cancelled.
 const teamMeeting = await recurring({
-  title: 'Point équipe',
+  label: 'Point équipe',
   start: addDays(monday, -28),
   from: 9 * 60 + 30,
   to: 10 * 60,
@@ -443,7 +446,7 @@ await prisma.calendarEventException.create({
   data: {
     eventId: teamMeeting,
     date: parseDay(addDays(monday, 7)),
-    title: 'Point équipe (décalé au mardi)',
+    label: 'Point équipe (décalé au mardi)',
     startDate: parseDay(addDays(monday, 8)),
     startTime: '11:00',
     endDate: parseDay(addDays(monday, 8)),
@@ -455,7 +458,7 @@ await prisma.calendarEventException.create({
 await prisma.calendarEventException.create({ data: { eventId: teamMeeting, date: parseDay(addDays(monday, 21)), cancelled: true } });
 
 const standUp = await recurring({
-  title: 'Stand-up',
+  label: 'Stand-up',
   start: addDays(monday, -14),
   from: 9 * 60,
   to: 9 * 60 + 15,
@@ -466,7 +469,7 @@ const standUp = await recurring({
   reminders: [],
 });
 await recurring({
-  title: 'Revue mensuelle',
+  label: 'Revue mensuelle',
   start: addDays(monday, 1),
   from: 14 * 60,
   to: 15 * 60 + 30,
@@ -476,7 +479,7 @@ await recurring({
   reminders: [30, 1440],
 });
 const sportEvent = await recurring({
-  title: 'Sport',
+  label: 'Sport',
   start: addDays(monday, -21),
   from: 18 * 60 + 30,
   to: 19 * 60 + 30,
@@ -486,7 +489,7 @@ const sportEvent = await recurring({
   reminders: [60],
 });
 await recurring({
-  title: 'Déclaration de TVA',
+  label: 'Déclaration de TVA',
   start: addDays(monday, 4),
   from: 0,
   to: 0,
@@ -496,7 +499,7 @@ await recurring({
   reminders: [1440],
 });
 await recurring({
-  title: 'Cours d’anglais',
+  label: 'Cours d’anglais',
   start: addDays(monday, 2),
   from: 12 * 60 + 15,
   to: 13 * 60 + 15,
@@ -531,7 +534,7 @@ for (const [title, offset, days, categoryId] of [
   const start = addDays(monday, offset);
   await prisma.calendarEvent.create({
     data: {
-      title,
+      label: title,
       links: [],
       allDay: true,
       startDate: parseDay(start),
@@ -547,7 +550,7 @@ for (const [title, offset, days, categoryId] of [
 // A cancelled meeting (kept struck through) and a postponed appointment.
 await prisma.calendarEvent.create({
   data: {
-    title: 'Atelier de cadrage (annulé par le client)',
+    label: 'Atelier de cadrage (annulé par le client)',
     links: [],
     startDate: parseDay(addDays(monday, 3)),
     startTime: '14:00',
@@ -562,7 +565,7 @@ await prisma.calendarEvent.create({
 });
 const postponed = await prisma.calendarEvent.create({
   data: {
-    title: 'Rendez-vous comptable',
+    label: 'Rendez-vous comptable',
     links: [],
     startDate: parseDay(addDays(monday, 1)),
     startTime: '10:00',
@@ -577,7 +580,7 @@ const postponed = await prisma.calendarEvent.create({
 });
 await prisma.calendarEvent.create({
   data: {
-    title: 'Report de l’évènement « Rendez-vous comptable »',
+    label: 'Report de l’évènement « Rendez-vous comptable »',
     links: [],
     startDate: parseDay(addDays(monday, 9)),
     startTime: '10:00',
@@ -597,7 +600,7 @@ const range = (start: string, end: string) => ({ start, end });
 const weekly = (weekdays: number[], ranges: { start: string; end: string }[], every = 1) => ({ pattern: 'WEEKLY', weekdays, every, from: null, allDay: false, ranges });
 const workWeek = await prisma.workSchedule.create({
   data: {
-    name: 'Semaine type',
+    label: 'Semaine type',
     startDate: parseDay(addDays(monday, -56)),
     cases: [weekly([1, 2, 3, 4], [range('09:00', '12:30'), range('14:00', '18:00')]), weekly([5], [range('09:00', '12:30')])],
     exceptions: [
@@ -609,7 +612,7 @@ const workWeek = await prisma.workSchedule.create({
 // Every other week, Saturday morning.
 await prisma.workSchedule.create({
   data: {
-    name: 'Samedis matin',
+    label: 'Samedis matin',
     startDate: parseDay(addDays(monday, -14)),
     cases: [weekly([6], [range('09:00', '12:00')], 2)],
     exceptions: [],
@@ -625,16 +628,14 @@ const repeatable = await prisma.task.findMany({
 for (const [index, task] of repeatable.entries()) {
   const anchor = formatDay(task.startDate!);
   const weekday = new Date(`${anchor}T12:00:00Z`).getUTCDay() || 7;
-  await setTaskRecurrence(
-    task.id,
-    [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index],
-  );
+  await setTaskRecurrence(task.id, [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index]);
 }
 await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
 // Past occurrences are mostly done.
 const doneStatus = statuses.find((status) => status.category === 'DONE')!;
 for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: parseDay(today) } } })) {
-  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T17:00:00`) } });
+  if (faker.datatype.boolean(0.8))
+    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T17:00:00`) } });
 }
 
 // --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
@@ -654,7 +655,7 @@ const firstRoot = activeRoots[0] ?? null;
 const rootTasks = firstRoot ? await prisma.task.findMany({ where: { projectId: firstRoot.id, closedAt: null }, select: { id: true }, take: 2 }) : [];
 await createCalendarEvent({
   ...eventBase,
-  title: 'Atelier chez le client',
+  label: 'Atelier chez le client',
   description: 'Recette des maquettes **sur place**, avec l’équipe du client.',
   location: '20 cours Émile Zola, 69100 Villeurbanne',
   locationLat: 45.7699,
@@ -672,7 +673,7 @@ await createCalendarEvent({
 });
 await createCalendarEvent({
   ...eventBase,
-  title: 'Revue de code',
+  label: 'Revue de code',
   location: 'Visio',
   startDate: addDays(monday, -3),
   startTime: '15:00',
@@ -693,7 +694,7 @@ if (firstRoot) {
 const sportDay = [1, 3, 8, 10].map((offset) => addDays(monday, offset)).find((date) => date > today)!;
 await postponeCalendarEvent(sportEvent, sportDay, {
   ...eventBase,
-  title: 'Sport',
+  label: 'Sport',
   location: 'Salle de sport',
   startDate: addDays(sportDay, 1),
   startTime: '19:00',
@@ -706,10 +707,10 @@ await postponeCalendarEvent(sportEvent, sportDay, {
 });
 
 // On-call duty: a kind of its own (color, display), every fourth Saturday.
-const onCall = await saveScheduleType(null, { name: 'Astreinte', color: '#fd7e14', dayDisplay: 'SLOT_BORDER', dayBar: true, monthDisplay: 'BORDER' });
+const onCall = await saveScheduleType(null, { label: 'Astreinte', color: '#fd7e14', dayDisplay: 'SLOT_BORDER', dayBar: true, monthDisplay: 'BORDER' });
 await prisma.workSchedule.create({
   data: {
-    name: 'Astreintes',
+    label: 'Astreintes',
     typeId: onCall.id,
     startDate: parseDay(addDays(monday, 5)),
     cases: [weekly([6], [range('10:00', '18:00')], 4)],
@@ -721,16 +722,58 @@ await prisma.workSchedule.create({
 const alarmBase = { note: null, time: '09:00', interval: 1, weekdays: [], endDate: null, minutes: null, projectId: null, taskId: null, enabled: true };
 const alerted = await prisma.task.findFirst({ where: { closedAt: null, deadline: { gte: parseDay(today) } }, orderBy: { deadline: 'asc' } });
 if (alerted) {
-  await createAlarm({ ...alarmBase, title: `Échéance : ${alerted.title}`, type: 'REMINDER', frequency: 'ONCE', startDate: addDays(formatDay(alerted.deadline!), -1), time: '10:00', projectId: alerted.projectId, taskId: alerted.id });
+  await createAlarm({
+    ...alarmBase,
+    label: `Échéance : ${alerted.label}`,
+    type: 'REMINDER',
+    frequency: 'ONCE',
+    startDate: addDays(formatDay(alerted.deadline!), -1),
+    time: '10:00',
+    projectId: alerted.projectId,
+    taskId: alerted.id,
+  });
 }
-await createAlarm({ ...alarmBase, title: 'Relancer les devis en attente', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [1], startDate: monday, note: 'Voir l’onglet « Devis » de la facturation.' });
-await createAlarm({ ...alarmBase, title: 'Préparer la déclaration de TVA', type: 'REMINDER', frequency: 'MONTHLY', startDate: addDays(monday, 2), time: '14:00' });
-await createAlarm({ ...alarmBase, title: 'Pense à lancer un chrono', type: 'NOT_TRACKING', frequency: 'DAILY', startDate: addDays(monday, -7), time: '10:00', weekdays: [1, 2, 3, 4, 5] });
-await createAlarm({ ...alarmBase, title: 'Chrono lancé depuis 2 h', type: 'TRACKING_DURATION', frequency: 'ONCE', startDate: null, time: null, minutes: 120 });
-await createAlarm({ ...alarmBase, title: 'Sauvegarde mensuelle', type: 'REMINDER', frequency: 'MONTHLY', interval: 2, startDate: addDays(monday, -30), time: '17:00', enabled: false });
+await createAlarm({
+  ...alarmBase,
+  label: 'Relancer les devis en attente',
+  type: 'REMINDER',
+  frequency: 'WEEKLY',
+  weekdays: [1],
+  startDate: monday,
+  note: 'Voir l’onglet « Devis » de la facturation.',
+});
+await createAlarm({ ...alarmBase, label: 'Préparer la déclaration de TVA', type: 'REMINDER', frequency: 'MONTHLY', startDate: addDays(monday, 2), time: '14:00' });
+await createAlarm({ ...alarmBase, label: 'Pense à lancer un chrono', type: 'NOT_TRACKING', frequency: 'DAILY', startDate: addDays(monday, -7), time: '10:00', weekdays: [1, 2, 3, 4, 5] });
+await createAlarm({ ...alarmBase, label: 'Chrono lancé depuis 2 h', type: 'TRACKING_DURATION', frequency: 'ONCE', startDate: null, time: null, minutes: 120 });
+await createAlarm({ ...alarmBase, label: 'Sauvegarde mensuelle', type: 'REMINDER', frequency: 'MONTHLY', interval: 2, startDate: addDays(monday, -30), time: '17:00', enabled: false });
 
 // --- Workspace settings: columns of new task views, notifications given while another workspace is open -------
-await setTaskColumnDefaults({ columnOrder: ['title', 'status', 'priority', 'assignees', 'deadline', 'project', 'effort', 'trackedTime', 'tags', 'type', 'startDate', 'endDate', 'parent', 'milestone', 'sprint', 'blockedBy', 'blocking', 'related', 'comments', 'createdAt', 'updatedAt'], hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt', 'type'] });
+await setTaskColumnDefaults({
+  columnOrder: [
+    'title',
+    'status',
+    'priority',
+    'assignees',
+    'deadline',
+    'project',
+    'effort',
+    'trackedTime',
+    'tags',
+    'type',
+    'startDate',
+    'endDate',
+    'parent',
+    'milestone',
+    'sprint',
+    'blockedBy',
+    'blocking',
+    'related',
+    'comments',
+    'createdAt',
+    'updatedAt',
+  ],
+  hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt', 'type'],
+});
 await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
 
 // --- Task views (home page and a project) ------------------------------------------------------------------
@@ -738,13 +781,18 @@ const condition = (id: string, field: string, operator: string, value: string | 
 const filter = (...children: ReturnType<typeof condition>[]) => ({ ...emptyTableFilter(), children });
 // Views of the task table (as the app makes them).
 const tasksView = { kind: 'TABLE' as const, tableKey: 'tasks' };
-await createView({ ...tasksView, name: 'Toutes les tâches', config: { filter: emptyTableFilter() } });
-if (meId) await createView({ ...tasksView, name: 'Mes tâches', config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] } });
-await createView({ ...tasksView, name: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
-await createView({ ...tasksView, name: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', options: { events: true, eventPeriod: 'next:30' } } });
+await createView({ ...tasksView, label: 'Toutes les tâches', config: { filter: emptyTableFilter() } });
+if (meId)
+  await createView({
+    ...tasksView,
+    label: 'Mes tâches',
+    config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] },
+  });
+await createView({ ...tasksView, label: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
+await createView({ ...tasksView, label: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', options: { events: true, eventPeriod: 'next:30' } } });
 if (activeRoots[0]) {
-  await createView({ ...tasksView, name: 'Tableau', projectId: activeRoots[0].id, config: { filter: emptyTableFilter(), groupBy: 'status' } });
-  await createView({ ...tasksView, name: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'anyOf', ['current'])), groupBy: 'assignees' } });
+  await createView({ ...tasksView, label: 'Tableau', projectId: activeRoots[0].id, config: { filter: emptyTableFilter(), groupBy: 'status' } });
+  await createView({ ...tasksView, label: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'anyOf', ['current'])), groupBy: 'assignees' } });
 }
 
 // --- Accounting -------------------------------------------------------------------------------------------
@@ -781,7 +829,7 @@ const counts = {
   temps: await prisma.timeEntry.count(),
   calendriers: await prisma.calendar.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
-  'évènements': await prisma.calendarEvent.count(),
+  évènements: await prisma.calendarEvent.count(),
   'plages de travail': await prisma.workSchedule.count(),
   'vues de tâches': await prisma.taskView.count(),
   'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
@@ -790,8 +838,8 @@ const counts = {
   'mouvements de trésorerie': await prisma.treasuryEntry.count(),
   'mails liés aux projets': await prisma.mailMessage.count(),
   sprints: await prisma.sprint.count(),
-  'diagrammes': await prisma.dashboardChart.count(),
-  'budgets': await prisma.treasuryBudget.count(),
+  diagrammes: await prisma.dashboardChart.count(),
+  budgets: await prisma.treasuryBudget.count(),
   'documents de la bibliothèque': await prisma.libraryDocument.count(),
   'documents de projets': await prisma.projectResource.count(),
   lieux: await prisma.place.count(),
@@ -801,7 +849,6 @@ const counts = {
   'routines cochées': await prisma.routineCheck.count(),
   alarmes: await prisma.alarm.count(),
 };
-console.log(`Fixtures de l’espace professionnel « ${workspace.name} » :`, counts);
-console.log(`Espace personnel : « ${personalWorkspace.name} ».`);
+console.log(`Fixtures de l’espace professionnel « ${workspace.label} » :`, counts);
+console.log(`Espace personnel : « ${personalWorkspace.label} ».`);
 await prisma.$disconnect();
-

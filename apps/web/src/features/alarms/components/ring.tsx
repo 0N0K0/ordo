@@ -55,11 +55,11 @@ export function systemNotification(title: string, body: string | undefined, tag:
  * @param {string} [workspaceName] Workspace, when not the one open. Optional.
  * @returns {void}
  */
-export function ringAlarm(alarm: Pick<Alarm, 'title' | 'note'>, key: string, links: RingLink[], workspaceName?: string): void {
+export function ringAlarm(alarm: Pick<Alarm, 'label' | 'note'>, key: string, links: RingLink[], workspaceName?: string): void {
   if (!claim(`ordo.alarm.${key}`)) return;
   playChime();
-  systemNotification(alarm.title, [workspaceName, alarm.note].filter(Boolean).join(' · ') || undefined, key);
-  notifyInfo({ icon: <AlarmIcon />, title: alarm.title, lines: [workspaceName && `Espace « ${workspaceName} »`, alarm.note], actions: links });
+  systemNotification(alarm.label, [workspaceName, alarm.note].filter(Boolean).join(' · ') || undefined, key);
+  notifyInfo({ icon: <AlarmIcon />, title: alarm.label, lines: [workspaceName && `Espace « ${workspaceName} »`, alarm.note], actions: links });
 }
 
 /**
@@ -90,8 +90,8 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
       playChime();
       const when = occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start);
       const body = [when, occurrence.location].filter(Boolean).join(' · ');
-      systemNotification(occurrence.title, [workspaceName, body].filter(Boolean).join(' · '), key);
-      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.title, lines: [workspaceName && `Espace « ${workspaceName} »`, body], actions: links });
+      systemNotification(occurrence.label, [workspaceName, body].filter(Boolean).join(' · '), key);
+      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [workspaceName && `Espace « ${workspaceName} »`, body], actions: links });
     }
   }
 }

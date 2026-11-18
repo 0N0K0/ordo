@@ -12,18 +12,18 @@ export function useAgendaLayerOptions() {
   const { data: foreign } = useSubscribedSchedules();
   const { data: types } = useScheduleTypes();
   const { data: calendars } = useCalendars();
-  const typeName = new Map((types ?? []).map((type) => [type.id, type.name]));
+  const typeName = new Map((types ?? []).map((type) => [type.id, type.label]));
   return {
     schedules: [
       ...unarchived(schedules ?? []).map((schedule) => ({
         value: schedule.id,
-        label: schedule.typeId && typeName.get(schedule.typeId) ? `${schedule.name} (${typeName.get(schedule.typeId)})` : schedule.name,
+        label: schedule.typeId && typeName.get(schedule.typeId) ? `${schedule.label} (${typeName.get(schedule.typeId)})` : schedule.label,
       })),
-      ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}` })),
+      ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeLabel ?? schedule.label} · ${schedule.workspaceLabel}` })),
     ],
     calendars: [
       ...itemOptions(calendars?.calendars ?? []),
-      ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.name} · ${subscription.workspace.name}` })),
+      ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.label} · ${subscription.workspace.label}` })),
     ],
   };
 }

@@ -39,7 +39,7 @@ import { deleteSheetsAction } from '../lib/delete-sheets';
  */
 function sheetColumns(context: TaskContext | null, categories: SheetCategory[], inProject: boolean): DataColumn<Sheet>[] {
   const projectName = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
-  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryName = new Map(categories.map((category) => [category.id, category.label]));
   const categoryText = (sheet: Sheet) =>
     sheet.categoryIds
       .map((id) => categoryName.get(id) ?? '')
@@ -47,7 +47,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.name, text: (sheet) => sheet.name },
+    { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -73,7 +73,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       filter: {
         kind: 'choice',
         value: (sheet) => sheet.projectId ?? null,
-        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.title })),
+        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.label })),
       },
       groupable: true,
     },
@@ -133,7 +133,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
    * Creates a sheet and opens its page.
    * @returns {void}
    */
-  const createSheet = () => create.mutate({ name: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...ON_ERROR });
+  const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...ON_ERROR });
 
   return (
     <DataTable
@@ -175,7 +175,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         name: (
           <Group gap="xs" wrap="nowrap">
             <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
-              {sheet.name}
+              {sheet.label}
             </Anchor>
             {sheet.archived && <ArchivedBadge feminine size="xs" />}
           </Group>
@@ -184,7 +184,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableMultiSelect
               value={sheet.categoryIds}
-              label={`Catégories de ${sheet.name}`}
+              label={`Catégories de ${sheet.label}`}
               readOnly={sheet.archived}
               {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
               onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
@@ -195,7 +195,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableSelect
               value={sheet.projectId ?? null}
-              label={`Projet de ${sheet.name}`}
+              label={`Projet de ${sheet.label}`}
               nullable
               readOnly={sheet.archived}
               {...treeSelectProps(context.projectOptions(unarchived(context.projects, sheet.projectId)))}
@@ -222,7 +222,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       actions={(sheet) => (
         <div onClick={(event) => event.stopPropagation()}>
           <RowActions
-            name={sheet.name}
+            name={sheet.label}
             primary={
               sheet.archived
                 ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
@@ -233,10 +233,10 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
               !sheet.archived && {
                 label: 'Utiliser cette fiche…',
                 icon: <CookingPotIcon aria-hidden />,
-                onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
+                onClick: () => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.label} onDone={close} />),
               },
               !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
-              archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.name, feminine: true }, setArchived, sheet.id),
+              archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.label, feminine: true }, setArchived, sheet.id),
               rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}
           />

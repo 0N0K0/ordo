@@ -5,7 +5,7 @@ const UploadAttachmentDocument = graphql(`
   mutation UploadAttachment($file: File!) {
     uploadAttachment(file: $file) {
       id
-      name
+      filename
       url
       isImage
     }
@@ -23,10 +23,10 @@ export async function uploadAttachment(file: File) {
 
 /**
  * Markdown of an attachment: an image shown in place, or a download link.
- * @param {{ name: string, url: string, isImage: boolean }} attachment Attachment.
+ * @param {{ filename: string, url: string, isImage: boolean }} attachment Attachment.
  * @returns {string} Markdown.
  */
-export function attachmentMarkdown(attachment: { name: string; url: string; isImage: boolean }): string {
-  const label = attachment.name.replace(/([[\]\\])/g, '\\$1');
+export function attachmentMarkdown(attachment: { filename: string; url: string; isImage: boolean }): string {
+  const label = attachment.filename.replace(/([[\]\\])/g, '\\$1');
   return `${attachment.isImage ? '!' : ''}[${label}](${attachment.url})`;
 }

@@ -46,7 +46,7 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
   const data = parseInput(treasuryAccountSchema, input);
   const position = await nextPositionIn('treasuryAccount');
   return prisma.treasuryAccount.create({
-    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
+    data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
   });
 }
 
@@ -62,7 +62,7 @@ export async function updateAccount(id: string, input: TreasuryAccountInput): Pr
   await assertNotArchived('TREASURY_ACCOUNT', id);
   return prisma.treasuryAccount.update({
     where: { id },
-    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
+    data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
   });
 }
 
@@ -627,7 +627,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         ...base,
         date: expected(paidOn),
         dueDate: paidOn,
-        label: `${schedule.name} — ${schedule.template.client.name}`,
+        label: `${schedule.label} — ${schedule.template.client.name}`,
         payerName: schedule.template.client.name,
         amount: decimalCents(schedule.template.totalGross),
         kind: 'RECURRING_INVOICE',

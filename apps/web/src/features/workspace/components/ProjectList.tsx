@@ -74,10 +74,10 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       {project.archived ? (
         <span className={classes.space} />
       ) : (
-        <DragHandle label={`Déplacer ${project.title}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
+        <DragHandle label={`Déplacer ${project.label}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       )}
       {folded !== undefined ? (
-        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.title}`} aria-expanded={!folded} onClick={onToggle}>
+        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.label}`} aria-expanded={!folded} onClick={onToggle}>
           {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
         </ActionIcon>
       ) : (
@@ -85,9 +85,9 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       )}
       <UnstyledButton component={Link} to={projectPath(project.id)} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="sm" wrap="nowrap">
-          <ItemAvatar name={project.title} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />
+          <ItemAvatar name={project.label} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />
           <Text size="sm" style={{ flex: 1, opacity: project.archived ? 'var(--onoko-muted-opacity)' : undefined }} truncate>
-            {project.title}
+            {project.label}
           </Text>
           <ItemBadge item={status} />
           {project.archived && <ArchivedBadge />}
@@ -158,7 +158,7 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
     fallback: 'INSIDE',
     destination,
     onDrop: (id, target) => moveProject.mutate({ id, parentId: target.parentId, clientId: target.parentId ? null : clientId, index: target.index }, ON_ERROR),
-    taken: (id) => `${byId.get(id)?.title ?? 'Projet'} saisi.`,
+    taken: (id) => `${byId.get(id)?.label ?? 'Projet'} saisi.`,
     moved: 'Projet déplacé.',
   });
 

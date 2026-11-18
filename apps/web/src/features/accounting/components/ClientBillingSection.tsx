@@ -106,10 +106,10 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
   const contacts = client.contacts.filter((contact) => contact.serviceId === service.id);
   return (
     <SettingsSection
-      title={service.name}
+      title={service.label}
       actions={
         <InlineActions
-          name={service.name}
+          name={service.label}
           items={[
             {
               label: 'Ajouter un contact',
@@ -128,7 +128,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
               onClick: () =>
                 confirmDestructive({
                   title: 'Supprimer le service',
-                  risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client.`,
+                  risks: `Le service « ${service.label} » sera supprimé définitivement ; ses contacts restent rattachés au client.`,
                   run: () => deleteService.mutateAsync(service.id),
                   done: 'Service supprimé.',
                 }),

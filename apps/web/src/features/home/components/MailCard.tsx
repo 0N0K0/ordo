@@ -48,7 +48,7 @@ export function MailCard({ today }: { today: string }) {
                     {account && (
                       <Text span size="xs" c="dimmed">
                         {' '}
-                        · {account.name}
+                        · {account.label}
                       </Text>
                     )}
                   </>

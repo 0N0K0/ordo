@@ -13,7 +13,7 @@ import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -113,7 +113,7 @@ export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    title: requiredText(200, 'Le titre est requis.'),
+    label: requiredText(200, 'Le titre est requis.'),
     description: z
       .string()
       .max(4000, '4 000 caractères maximum.')

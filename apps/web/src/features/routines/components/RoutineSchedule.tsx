@@ -296,7 +296,7 @@ export function RoutineRepetitionModal({
     <RepetitionModal<RoutineRepetitionValue>
       opened={opened}
       onClose={onClose}
-      title={`Répétition et moments de « ${routine.title} »`}
+      title={`Répétition et moments de « ${routine.label} »`}
       header={header}
       draft={draft}
       setDraft={setDraft}

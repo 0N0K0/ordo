@@ -58,18 +58,18 @@ export function DocumentsCell({
   const data = [...env.documents];
   const known = new Set(data.flatMap((group) => group.items.map((item) => item.value)));
   const missing = documents.filter((document) => !known.has(documentKey(document)));
-  if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.title })) });
+  if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.label })) });
   return (
     <Group gap={4} wrap="nowrap" align="flex-start">
       <StackedValues>
         {documents.map((document) => (
           <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
             <FileBadge
-              name={document.title}
+              name={document.label}
               href={document.url}
               target="_blank"
               // A file of the app (PDF, image) opens in its viewer.
-              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
+              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.label })}
             />
           </Tooltip>
         ))}

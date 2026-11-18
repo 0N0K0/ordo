@@ -135,10 +135,10 @@ export function useSlotRules(): SlotRules {
 
     const kinds: SlotKindOption[] = [
       { value: DEFAULT_SLOT_KIND, label: defaultKind?.name ?? 'Travail', group: 'Cet espace' },
-      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.name, group: 'Cet espace', archived: type.archived })),
+      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.label, group: 'Cet espace', archived: type.archived })),
       ...(foreignKinds ?? [])
         .filter((kind) => kind.subscribed)
-        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.name} (${kind.workspaceName})`, group: kind.workspaceName })),
+        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.label} (${kind.workspaceLabel})`, group: kind.workspaceLabel })),
     ];
     const labelOf = new Map(kinds.map((kind) => [kind.value, kind.label]));
     /**

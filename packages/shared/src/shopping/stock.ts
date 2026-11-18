@@ -6,7 +6,7 @@ import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shoppi
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
 export const stockLocationSchema = z.object({
-  name: requiredText(80),
+  label: requiredText(80),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });

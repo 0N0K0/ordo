@@ -47,7 +47,7 @@ export function TaskShopping({ task }: { task: Task }) {
           return (
             <Group key={list.id} gap="xs" wrap="nowrap">
               <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate style={{ flex: 1 }}>
-                {list.name}
+                {list.label}
               </Anchor>
               <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
                 {bought} / {required}
@@ -66,11 +66,11 @@ export function TaskShopping({ task }: { task: Task }) {
           size="xs"
           placeholder="Rattacher une liste existante"
           searchable
-          data={free.map((list) => ({ value: list.id, label: list.name }))}
+          data={free.map((list) => ({ value: list.id, label: list.label }))}
           value={null}
           onChange={(id) => {
             const list = free.find((item) => item.id === id);
-            if (list) updateList.mutate({ id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] }, toastCallbacks('Liste rattachée à la tâche.'));
+            if (list) updateList.mutate({ id: list.id, label: list.label, taskIds: [...list.taskIds, task.id] }, toastCallbacks('Liste rattachée à la tâche.'));
           }}
           aria-label="Rattacher une liste d’achats existante"
         />

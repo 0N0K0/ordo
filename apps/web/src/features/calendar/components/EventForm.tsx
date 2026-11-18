@@ -57,32 +57,32 @@ type FormValues = CalendarEventInput & Record<string, unknown>;
 interface PostponeFormProps {
   /** Fields of the event postponed (with the changes of the form). */
   fields: CalendarEventInput;
-  /** Original title, for the title of the postponement. */
-  title: string;
+  /** Original label, for the label of the postponement. */
+  label: string;
   loading: boolean;
   onCancel: () => void;
   onConfirm: (input: CalendarEventInput) => void;
 }
 
 /**
- * New date (and title) of a postponement: the event keeps its duration, from the next day by default.
+ * New date (and label) of a postponement: the event keeps its duration, from the next day by default.
  * @param {PostponeFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeFormProps) {
+function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeFormProps) {
   const span = Math.max(0, daysBetween(fields.startDate, fields.endDate));
   const [values, setValues] = useState({
-    title: `Report de l’évènement « ${title} »`,
+    label: `Report de l’évènement « ${label} »`,
     startDate: addDays(fields.startDate, 1),
     startTime: fields.startTime ?? null,
     endTime: fields.endTime ?? null,
   });
   const endDate = addDays(values.startDate, span);
-  const valid = Boolean(values.title.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (span > 0 || values.endTime > values.startTime))));
+  const valid = Boolean(values.label.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (span > 0 || values.endTime > values.startTime))));
   return (
     <Stack gap="sm">
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
-      <TextInput label="Titre" required value={values.title} onChange={(event) => setValues({ ...values, title: event.currentTarget.value })} />
+      <TextInput label="Titre" required value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
         <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
         {!fields.allDay && <TimePicker label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
@@ -95,7 +95,7 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
         submitIcon={<ArrowArcRightIcon aria-hidden />}
         loading={loading}
         disabled={!valid}
-        onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
+        onSubmit={() => onConfirm({ ...fields, label: values.label.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
       />
     </Stack>
   );
@@ -111,7 +111,7 @@ function PostponePanel({ fields, occurrence, onCancel, onDone }: { fields: Postp
   return (
     <PostponeForm
       fields={fields}
-      title={occurrence.title}
+      label={occurrence.label}
       loading={postpone.isPending}
       onCancel={onCancel}
       onConfirm={(input) => postpone.mutate({ id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input }, formCallbacks(null, 'Évènement reporté.', onDone))}
@@ -131,7 +131,7 @@ interface EventFormProps {
 }
 
 /**
- * Calendar event form: title, dates and times (or all day), repetition with pauses, place, links,
+ * Calendar event form: label, dates and times (or all day), repetition with pauses, place, links,
  * project, contributors, categories, tasks, reminders, description; a timer can be started on it. An event can be cancelled (kept struck through)
  * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
  * when it falls outside the working hours. For an occurrence of a recurring event, saving, deleting,
@@ -153,7 +153,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     occurrence && openFormPanel('Reporter l’évènement', (close) => <PostponePanel fields={values} occurrence={occurrence} onCancel={close} onDone={() => (close(), onDone())} />);
 
   /**
-   * Starts a timer on this occurrence (its project, tasks and title).
+   * Starts a timer on this occurrence (its project, tasks and label).
    * @returns {void}
    */
   const handleTimer = () => {
@@ -165,7 +165,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         const task = context.taskById.get(id);
         return task !== undefined && context.rootOf(task.projectId) === context.rootOf(values.projectId!);
       }),
-      description: values.title,
+      description: values.label,
       event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
     });
   };
@@ -184,7 +184,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const initial: CalendarEventInput = occurrence
     ? occurrenceInput(occurrence)
     : {
-        title: '',
+        label: '',
         description: '',
         location: '',
         locationLat: null,
@@ -232,13 +232,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     const routine = routineById.get(link.routineId);
     const key = `${link.routineId}|${link.date}`;
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
-    return [{ value: key, label: multiDay ? `${routine.title} (${fmt.weekday(link.date)})` : routine.title }];
+    return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
   });
   const recurring = occurrence?.occurrenceDate != null;
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
   const archiveMenu = occurrence && (
-    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.title }, setArchived, occurrence.eventId, onDone)]} />
+    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
   );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -275,7 +275,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     }
     confirmDestructive({
       title: 'Supprimer l’évènement',
-      risks: `L’évènement « ${occurrence?.title ?? ''} » sera supprimé définitivement.`,
+      risks: `L’évènement « ${occurrence?.label ?? ''} » sera supprimé définitivement.`,
       onConfirm: () => run('ALL'),
     });
   };
@@ -324,7 +324,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         {occurrence?.postponedFrom && (
           <Text size="sm" c="dimmed">
-            Report de l’évènement « {occurrence.postponedFrom.title} »
+            Report de l’évènement « {occurrence.postponedFrom.label} »
             {occurrence.postponedFrom.date && (
               <>
                 {' '}
@@ -339,7 +339,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="md">
-            <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+            <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
             <EventRepetition
               ruleStart={ruleStart}
               error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
@@ -411,7 +411,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 allowDeselect={false}
                 leftSection={(() => {
                   const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
-                  return current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined;
+                  return current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined;
                 })()}
               />
               <ProjectSelect
@@ -535,7 +535,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             />
           </Stack>
         </Fieldset>
-        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} name={values.title || 'l’évènement'} />}
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} name={values.label || 'l’évènement'} />}
         {occurrence && (
           <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />
         )}
@@ -571,7 +571,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                         leftSection={<CopyIcon aria-hidden />}
                         onClick={() =>
                           // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                          onDuplicate({ ...values, title: copyName(values.title), recurrence: recurring ? null : (values.recurrence ?? null) })
+                          onDuplicate({ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) })
                         }
                       >
                         Dupliquer

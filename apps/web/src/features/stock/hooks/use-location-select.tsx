@@ -16,10 +16,10 @@ export function useLocationItems(): SettingsItemKind<StockLocation> {
   const { createLocation, updateLocation } = useStockMutations();
   /**
    * Input of a place from the form values.
-   * @param {{ name: string, color: string, parentId: string | null }} values Values.
+   * @param {{ label: string, color: string, parentId: string | null }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, parentId: values.parentId });
+  const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color || null, parentId: values.parentId });
   return {
     kind: 'STOCK_LOCATION',
     schema: stockLocationSchema,

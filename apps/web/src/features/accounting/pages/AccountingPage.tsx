@@ -38,7 +38,7 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
-import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
@@ -71,7 +71,7 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Nom', size: 280, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
+  { id: 'name', label: 'Nom', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
@@ -127,7 +127,7 @@ function RecurringList() {
    * @returns {void}
    */
   const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
-    update.mutate({ id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } }, ON_ERROR);
+    update.mutate({ id: item.id, input: { label: item.label, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } }, ON_ERROR);
   const view = useDataView({
     tableKey: 'recurring-invoices',
     getKey: (item) => item.id,
@@ -152,7 +152,7 @@ function RecurringList() {
       many: 'factures récurrentes',
       feminine: true,
       the: 'la facture récurrente',
-      name: (item) => item.name,
+      name: rowLabel,
       risks: (subject, one) => `${subject} et ${one ? 'son modèle' : 'leurs modèles'} seront supprimés définitivement ; les factures déjà émises sont conservées.`,
       remove: (item) => remove.mutateAsync(item.id),
       clear,
@@ -173,7 +173,7 @@ function RecurringList() {
           name: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.name} label={`Nom de ${item.name}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { name })} />
+                <EditableText value={item.label} label={`Nom de ${item.label}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { label: name })} />
                 {item.archived && <ArchivedBadge feminine size="xs" />}
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
@@ -197,7 +197,7 @@ function RecurringList() {
           state: (
             <EditableSelect
               value={item.active ? 'active' : 'paused'}
-              label={`État de ${item.name}`}
+              label={`État de ${item.label}`}
               readOnly={item.archived}
               data={[
                 { value: 'active', label: 'Active' },
@@ -212,11 +212,11 @@ function RecurringList() {
       }}
       actions={(item) => (
         <RowActions
-          name={item.name}
+          name={item.label}
           primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
             { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
-            archiveEntry({ archived: item.archived, type: 'Facture récurrente', name: item.name, feminine: true }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Facture récurrente', name: item.label, feminine: true }, setArchived, item.id),
             rowMenuEntry(deleteRecurring([item])),
           ]}
         />
@@ -313,7 +313,7 @@ export function AccountingPage() {
             <DocumentsTable
               tableKey="documents-to-send"
               title="Documents à envoyer"
-              first={[{ name: 'À envoyer' }]}
+              first={[{ label: 'À envoyer' }]}
               documents={toSend}
               imported={importedToSend}
               showType

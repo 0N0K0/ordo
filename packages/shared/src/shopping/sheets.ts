@@ -30,9 +30,9 @@ export const sheetItemSchema = z.object({
 });
 export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
-/** Sheet: a name, a note, its project and categories (its items are changed one by one). */
+/** Sheet: a label, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   note: z.string().max(20_000, 'Note trop longue.').nullable(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),
@@ -40,9 +40,9 @@ export const sheetSchema = z.object({
 });
 export type SheetInput = z.infer<typeof sheetSchema>;
 
-/** Category of the sheets: a name and a color. */
+/** Category of the sheets: a label and a color. */
 export const sheetCategorySchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
 });
 export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;

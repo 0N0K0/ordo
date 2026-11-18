@@ -15,7 +15,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
   const { deleteCategory, moveCategory } = useShoppingMutations();
   const kind = useShoppingCategoryItems();
   const { data } = useShoppingData();
-  const baseListNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
+  const baseListNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.label]));
   return (
     <SettingsList
       {...kind}

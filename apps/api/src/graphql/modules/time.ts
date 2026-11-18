@@ -13,7 +13,7 @@ builder.prismaObject('TimeEntry', {
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId', { nullable: true }),
     routineId: t.exposeID('routineId', { nullable: true, description: 'Routine the time is spent on.' }),
-    routineTitle: t.string({ nullable: true, select: { routine: { select: { title: true } } }, resolve: (entry) => entry.routine?.title ?? null }),
+    routineLabel: t.string({ nullable: true, select: { routine: { select: { label: true } } }, resolve: (entry) => entry.routine?.label ?? null }),
     description: t.exposeString('description', { nullable: true }),
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
@@ -24,7 +24,7 @@ builder.prismaObject('TimeEntry', {
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
     calendarEventId: t.exposeID('calendarEventId', { nullable: true, description: 'Calendar event the time was spent on.' }),
     calendarOccurrenceDate: t.expose('calendarOccurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
-    calendarEventTitle: t.string({ nullable: true, select: { calendarEvent: { select: { title: true } } }, resolve: (entry) => entry.calendarEvent?.title ?? null }),
+    calendarEventLabel: t.string({ nullable: true, select: { calendarEvent: { select: { label: true } } }, resolve: (entry) => entry.calendarEvent?.label ?? null }),
     documentNumber: t.string({
       nullable: true,
       description: 'Number of that invoice, null while it is a draft.',
@@ -40,7 +40,7 @@ const AlarmFrequencyEnum = builder.enumType('AlarmFrequency', { values: ALARM_FR
 builder.prismaObject('Alarm', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     note: t.exposeString('note', { nullable: true }),
     type: t.field({ type: AlarmTypeEnum, resolve: (alarm) => alarm.type }),
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
@@ -117,7 +117,7 @@ const TimeEntryUpdateInput = builder.inputType('TimeEntryUpdateInput', {
 
 const AlarmInput = builder.inputType('AlarmInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     note: t.string(),
     type: t.field({ type: AlarmTypeEnum, required: true }),
     startDate: t.field({ type: 'Date' }),

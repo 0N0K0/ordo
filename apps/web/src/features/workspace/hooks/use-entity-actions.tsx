@@ -31,7 +31,7 @@ export type EntityRef = { type: 'client'; item: Client } | { type: 'project'; it
  * @returns {string} Label.
  */
 export function entityLabel(entity: EntityRef): string {
-  return entity.type === 'client' ? entity.item.name : entity.item.title;
+  return entity.type === 'client' ? entity.item.name : entity.item.label;
 }
 
 /**
@@ -98,7 +98,7 @@ export function useEntityActions() {
   const rename = (entity: EntityRef, label: string): void => {
     if (label === entityLabel(entity)) return;
     if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, ON_ERROR);
-    else updateProject.mutate({ id: entity.item.id, input: { title: label } }, ON_ERROR);
+    else updateProject.mutate({ id: entity.item.id, input: { label } }, ON_ERROR);
   };
 
   return {

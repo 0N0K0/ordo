@@ -64,9 +64,9 @@ export async function copyToProject(parsed: ParsedMail, { projectId, accountId, 
           mailMessageId: message.id,
           contentId: attachment.contentId?.replace(/^<|>$/g, '') ?? null,
         },
-        select: { id: true, name: true },
+        select: { id: true, filename: true },
       });
-      urls.push(`/api/attachments/${stored.id}/${encodeURIComponent(stored.name)}`);
+      urls.push(`/api/attachments/${stored.id}/${encodeURIComponent(stored.filename)}`);
     }
     // Inline images point to the stored copies.
     const html = messageHtml(parsed, (index) => urls[index]);

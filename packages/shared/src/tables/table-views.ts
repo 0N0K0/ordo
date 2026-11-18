@@ -74,5 +74,5 @@ export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableVie
   return tableViewConfigSchema.parse({ filter: emptyTableFilter(), ...config });
 }
 
-/** Name of a saved view of a table. */
-export const taskViewNameSchema = requiredText(60);
+/** Label of a saved view of a table. */
+export const taskViewLabelSchema = requiredText(60);

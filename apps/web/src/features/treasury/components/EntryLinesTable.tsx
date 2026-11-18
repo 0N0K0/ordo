@@ -146,7 +146,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       bulk: true,
       label: 'Pièces justificatives',
       size: 220,
-      text: (row) => row.documents.map((document) => document.title).join(', '),
+      text: (row) => row.documents.map((document) => document.label).join(', '),
       filter: { kind: 'boolean', value: (row) => row.documents.length > 0 },
     },
     {

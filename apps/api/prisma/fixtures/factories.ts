@@ -80,7 +80,7 @@ export const projectFactory = Factory.define<Prisma.ProjectUncheckedCreateInput,
   onCreate((data) => prisma.project.create({ data }));
   const start = faker.date.between({ from: faker.date.recent({ days: 120 }), to: faker.date.soon({ days: 30 }) });
   return {
-    title: `${faker.helpers.arrayElement(PROJECT_KINDS)} ${faker.location.city()}`,
+    label: `${faker.helpers.arrayElement(PROJECT_KINDS)} ${faker.location.city()}`,
     description: maybe(0.6, () => faker.lorem.paragraph()),
     color: maybe(0.5, () => faker.helpers.arrayElement(COLORS)),
     startDate: maybe(0.7, () => day(start)),
@@ -105,7 +105,7 @@ export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateIn
   onCreate((data) => prisma.milestone.create({ data }));
   return {
     projectId: '',
-    title: faker.helpers.arrayElement(MILESTONES),
+    label: faker.helpers.arrayElement(MILESTONES),
     description: maybe(0.5, () => faker.lorem.sentence()),
     dueDate: maybe(0.8, () => day(faker.date.soon({ days: 90 }))),
     position: sequence,
@@ -118,7 +118,7 @@ export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, objec
   const endDate = start ? maybe(0.8, () => day(faker.date.soon({ days: 20, refDate: start }))) : maybe(0.3, () => day(faker.date.soon({ days: 30 })));
   return {
     projectId: '',
-    title: `${faker.helpers.arrayElement(TASK_VERBS)} ${faker.helpers.arrayElement(TASK_OBJECTS)}`,
+    label: `${faker.helpers.arrayElement(TASK_VERBS)} ${faker.helpers.arrayElement(TASK_OBJECTS)}`,
     description: maybe(0.6, markdown),
     effort: maybe(0.7, () => faker.helpers.arrayElement([0.5, 1, 2, 3, 5, 8, 13])),
     startDate: start && day(start),
@@ -225,7 +225,7 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
   const date = parseDay(localDate(day));
   const place = faker.helpers.arrayElement(PLACES);
   return {
-    title: faker.helpers.arrayElement(EVENT_TITLES),
+    label: faker.helpers.arrayElement(EVENT_TITLES),
     description: maybe(0.4, () => faker.lorem.sentences({ min: 1, max: 2 })),
     location: maybe(0.7, () => (place === 'Chez le client' ? faker.location.streetAddress({ useFullAddress: true }) : place)),
     links: place === 'Visio' || faker.datatype.boolean(0.2) ? [{ url: `https://meet.example.com/${faker.string.alphanumeric(10).toLowerCase()}`, label: 'Visio' }] : [],
