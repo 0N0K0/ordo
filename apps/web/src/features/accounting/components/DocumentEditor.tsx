@@ -19,6 +19,7 @@ import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
 import { useWorkspace } from '../../workspace/api';
@@ -764,7 +765,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               </Group>
             </FileLink>
             {!readOnly && (
-              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })} />
+              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', (callbacks) => removeAttachment.mutate(attachment.id, callbacks))} />
             )}
           </Group>
         ))

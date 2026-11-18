@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { calendarStart, shiftCalendar } from '../dates/periods';
 import { addDays } from '../dates/recurrence';
-import { DAY_PATTERN } from '../dates/times';
+import { isRealDay } from '../dates/times';
 import { DEFAULT_WEEK, weekRange, type WeekSpan } from '../dates/weeks';
 
 /** Kind of value a filter field holds; it decides the available operators. */
@@ -40,7 +40,7 @@ const relativeDay = /^today([+-]\d{1,4})?$/;
 const rollingPeriod = /^(past|next):\d{1,4}$/;
 
 /** A day of a date condition: a calendar date, today, or N days before or after it. */
-const filterDaySchema = z.string().refine((value) => DAY_PATTERN.test(value) || relativeDay.test(value), 'Date invalide.');
+const filterDaySchema = z.string().refine((value) => isRealDay(value) || relativeDay.test(value), 'Date invalide.');
 
 /** A period, for the `within` operator. */
 const filterPeriodSchema = z.string().refine((value) => (DATE_PERIODS as readonly string[]).includes(value) || rollingPeriod.test(value), 'Période invalide.');

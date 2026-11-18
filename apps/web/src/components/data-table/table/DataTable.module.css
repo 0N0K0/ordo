@@ -204,6 +204,11 @@
       /* Effets */
       opacity: 1;
     }
+
+    /* Touch screens: no hover, always shown. */
+    @media (hover: none) {
+      opacity: 1;
+    }
   }
 
   .row {

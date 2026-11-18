@@ -50,18 +50,18 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
 }
 
 /**
- * Updates an account (name, opening balance and date) or archives it; an archived one is only changed when restored by it.
+ * Updates an account (name, opening balance and date); not an archived one (restore it first).
  * @param {string} id Account id.
- * @param {TreasuryAccountInput & { archived: boolean }} input Account.
+ * @param {TreasuryAccountInput} input Account.
  * @returns {Promise<TreasuryAccount>} Account.
  */
-export async function updateAccount(id: string, input: TreasuryAccountInput & { archived: boolean }): Promise<TreasuryAccount> {
+export async function updateAccount(id: string, input: TreasuryAccountInput): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  const current = await orNotFound(prisma.treasuryAccount.findUnique({ where: { id }, select: { archived: true } }), 'Compte');
-  if (current.archived && input.archived) await assertNotArchived('TREASURY_ACCOUNT', id);
+  await assertExists(prisma.treasuryAccount, id, 'Compte');
+  await assertNotArchived('TREASURY_ACCOUNT', id);
   return prisma.treasuryAccount.update({
     where: { id },
-    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), archived: input.archived },
+    data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
   });
 }
 
@@ -502,7 +502,7 @@ export interface Projection {
  * @returns {Promise<Projection>} Forecast.
  */
 export async function treasuryProjection(today: string, from: string, until: string): Promise<Projection> {
-  const accounts = await prisma.treasuryAccount.findMany({ where: { archived: false } });
+  const accounts = await prisma.treasuryAccount.findMany({ where: { archivedAt: null } });
   const accountIds = accounts.map((account) => account.id);
   const expected = (date: string) => (date < today ? today : date);
   const items: ProjectionItem[] = [];

@@ -1,6 +1,13 @@
 import {
   addQuantities,
   checklistItemSchema,
+  ITEM_NOTE_MAX,
+  itemNoteSchema,
+  quantitySchema,
+  SHOPPING_NAME_MAX,
+  shoppingItemSchema,
+  UNIT_MAX,
+  unitSchema,
   mapById,
   parseDay,
   readSheetSources,
@@ -341,6 +348,32 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
   });
 }
 
+/** Largest quantity of a shopping item. */
+const QUANTITY_MAX = 999_999;
+
+/**
+ * Part as a shopping item takes it: its label, note and unit cut to the limits of the shopping items (sheets saved
+ * before the shared limits may hold longer texts), its quantity capped, then checked by the shopping item schemas.
+ * @param {SheetPart} part Part.
+ * @returns {SheetPart} Part that fits a shopping item.
+ */
+function fitForShopping(part: SheetPart): SheetPart {
+  /**
+   * Text cut to a length.
+   * @param {string | null} text Text.
+   * @param {number} max Most characters.
+   * @returns {string | null} Cut text.
+   */
+  const cut = (text: string | null, max: number): string | null => (text === null ? null : text.trim().slice(0, max));
+  return {
+    ...part,
+    label: parseInput(shoppingItemSchema.shape.name, cut(part.label, SHOPPING_NAME_MAX)),
+    note: parseInput(itemNoteSchema, cut(part.note, ITEM_NOTE_MAX)),
+    unit: parseInput(unitSchema, cut(part.unit, UNIT_MAX)),
+    quantity: part.quantity === null ? null : parseInput(quantitySchema, Math.min(part.quantity, QUANTITY_MAX)),
+  };
+}
+
 /**
  * Sources of an item once a part is added: its sheet's share grows (or appears).
  * @param {SheetSource[]} sources Sources.
@@ -369,7 +402,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   await findOpenList(listId);
   await assertSheetsUsable([sheetId]);
   const times = parseInput(sheetMultiplierSchema, multiplier);
-  const parts = await partsOf([{ sheetId, multiplier: times }]);
+  const parts = (await partsOf([{ sheetId, multiplier: times }])).map(fitForShopping);
   const products = await prisma.shoppingProduct.findMany({ where: { id: { in: parts.flatMap((part) => (part.productId ? [part.productId] : [])) } }, include: withPeople });
   const productById = mapById(products);
   return prisma.$transaction(async (tx) => {

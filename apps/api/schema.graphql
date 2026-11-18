@@ -537,6 +537,7 @@ type CalendarWorkspace {
 Product or service of the catalogue: default fields of a document line.
 """
 type CatalogItem {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   description: String
   id: ID!
@@ -548,7 +549,6 @@ type CatalogItem {
 }
 
 input CatalogItemInput {
-  archived: Boolean!
   description: String
 
   """ITEM or DISBURSEMENT."""
@@ -4169,6 +4169,7 @@ type TravelTime {
 }
 
 type TreasuryAccount {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
 
   """Balance today."""
@@ -4188,7 +4189,6 @@ type TreasuryAccount {
 }
 
 input TreasuryAccountInput {
-  archived: Boolean!
   name: String!
   openingBalance: Float!
   openingDate: Date!
@@ -4337,6 +4337,7 @@ input TreasuryContextPeriodInput {
 }
 
 type TreasuryCounterparty {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   color: String
   entryCount: Int!
@@ -4350,7 +4351,6 @@ type TreasuryCounterparty {
 }
 
 input TreasuryCounterpartyInput {
-  archived: Boolean!
   name: String!
   note: String
 }

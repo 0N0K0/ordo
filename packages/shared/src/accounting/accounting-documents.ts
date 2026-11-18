@@ -1,4 +1,4 @@
-import { lastDayOfMonth } from '@ordo/shared';
+import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
 import { addDays } from '../dates/recurrence';
@@ -43,9 +43,9 @@ export const accountingDocumentInputSchema = z
     contactId: z.string().nullable(),
     projectId: z.string().nullable(),
     issueDate: daySchema('La date est requise.'),
-    dueDate: z.iso.date().nullable(),
-    serviceStart: z.iso.date().nullable(),
-    serviceEnd: z.iso.date().nullable(),
+    dueDate: daySchema().nullable(),
+    serviceStart: daySchema().nullable(),
+    serviceEnd: daySchema().nullable(),
     title: optionalText(300),
     introduction: optionalText(20_000),
     referenceLabel: optionalText(60),
@@ -337,7 +337,7 @@ export const importedDocumentSchema = z
     type: z.enum(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE']),
     number: requiredText(60, 'Le numéro est requis.'),
     issueDate: daySchema('La date est requise.'),
-    dueDate: z.iso.date().nullable(),
+    dueDate: daySchema().nullable(),
     clientId: z.string().nullable(),
     clientName: z
       .string()
@@ -385,7 +385,6 @@ export const catalogItemSchema = z.object({
   unit: z.enum(ACCOUNTING_UNITS),
   unitPrice: amount,
   vatRate: z.number().min(0, 'Taux invalide.').max(100, 'Taux invalide.'),
-  archived: z.boolean(),
 });
 export type CatalogItemInput = z.input<typeof catalogItemSchema>;
 

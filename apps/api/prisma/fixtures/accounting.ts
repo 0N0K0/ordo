@@ -4,6 +4,7 @@ import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
 import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
 import { createCatalogItem } from '../../src/services/accounting/catalog';
+import { setArchived } from '../../src/services/core/archive';
 import { statusOf } from '../../src/services/accounting/document-statuses';
 import { acceptQuote, documentBalances, markSent, recordPayment, setTrackingStatus } from '../../src/services/accounting/document-tracking';
 import { importDocument } from '../../src/services/accounting/imported-documents';
@@ -160,11 +161,12 @@ async function seedCatalog(): Promise<Map<string, CatalogItem>> {
     { title: 'Audit SEO (ancienne offre)', unit: 'FLAT', unitPrice: 1200, description: null, archived: true },
   ] as const;
   const created = new Map<string, CatalogItem>();
-  for (const item of items) {
-    const saved = await createCatalogItem({ kind: 'ITEM', vatRate: 20, archived: false, ...item });
+  for (const { archived, ...item } of items.map((item) => ({ archived: false as boolean, ...item }))) {
+    const saved = await createCatalogItem({ kind: 'ITEM', vatRate: 20, ...item });
+    if (archived) await setArchived('CATALOG_ITEM', [saved.id], true);
     created.set(item.title, saved);
   }
-  const travel = await createCatalogItem({ kind: 'DISBURSEMENT', title: 'Frais de déplacement', description: 'Billets de train, sur justificatifs.', unit: 'FLAT', unitPrice: 0, vatRate: 0, archived: false });
+  const travel = await createCatalogItem({ kind: 'DISBURSEMENT', title: 'Frais de déplacement', description: 'Billets de train, sur justificatifs.', unit: 'FLAT', unitPrice: 0, vatRate: 0 });
   created.set(travel.title, travel);
   return created;
 }
@@ -263,7 +265,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const methodOf = (name: string) => methodIds.get(name) ?? null;
   const counterpartyIds = new Map<string, string>();
   for (const name of ['Agence immobilière du Centre', 'URSSAF', 'DGFiP', 'Banque Populaire', 'Région', 'SNCF', 'Boulanger']) {
-    counterpartyIds.set(name, (await createCounterparty({ name, note: null, archived: false })).id);
+    counterpartyIds.set(name, (await createCounterparty({ name, note: null })).id);
   }
   const counterpartyOf = (name: string | undefined) => (name ? (counterpartyIds.get(name) ?? null) : null);
   const entryBase = { valueDate: null, clientId: null, counterpartyId: null, projectId: null, note: null, recurrence: null, allocations: [], linkedEntryIds: [], libraryDocumentIds: [], projectResourceIds: [] };

@@ -226,7 +226,6 @@ export type CalendarLinkInput = {
 };
 
 export type CatalogItemInput = {
-  archived: boolean;
   description?: string | null | undefined;
   /** ITEM or DISBURSEMENT. */
   kind: AccountingLineKind;
@@ -1079,7 +1078,6 @@ export type TravelMode =
   | 'FOOT';
 
 export type TreasuryAccountInput = {
-  archived: boolean;
   name: string;
   openingBalance: number;
   openingDate: string;
@@ -1120,7 +1118,6 @@ export type TreasuryContextPeriodInput = {
 };
 
 export type TreasuryCounterpartyInput = {
-  archived: boolean;
   name: string;
   note?: string | null | undefined;
 };

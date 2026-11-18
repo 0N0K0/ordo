@@ -38,7 +38,7 @@ import { archiveRowsAction, deleteRowsAction } from '../../../components/data-ta
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { personName } from '../../../components/people/people-options';
+import { meName, personName } from '../../../components/people/people-options';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -201,7 +201,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <Select
               label="Bénéficiaire"
-              placeholder={me ? `${me.name} (moi)` : 'Moi'}
+              placeholder={meName(me)}
               clearable
               searchable
               data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { perso, withMe: false })}
@@ -335,7 +335,7 @@ export function BudgetsPanel() {
   const ME_KEY = 'none';
   const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => memberOrRelationKey({ relationId: row.relationId, memberId: row.memberId !== me?.id ? row.memberId : null });
   const whoChoices = [
-    { value: ME_KEY, label: `${me?.name ?? 'Moi'} (moi)` },
+    { value: ME_KEY, label: meName(me) },
     ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })),
     ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
   ];
@@ -376,7 +376,7 @@ export function BudgetsPanel() {
         ) : row.memberId ? (
           (memberName.get(row.memberId) ?? 'Ancien membre')
         ) : (
-          `${me?.name ?? 'Moi'} (moi)`
+          meName(me)
         )}
       </>
     ),
@@ -406,7 +406,7 @@ export function BudgetsPanel() {
       label: 'Bénéficiaire',
       size: 180,
       sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
-      text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : `${me?.name ?? 'Moi'} (moi)`),
+      text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : meName(me)),
       filter: { kind: 'choice', value: (row) => whoKey(row) ?? ME_KEY, options: whoChoices },
       groupable: true,
     },

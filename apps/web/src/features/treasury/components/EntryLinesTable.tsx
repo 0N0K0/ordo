@@ -17,7 +17,7 @@ import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-
 import { entryValues } from '../lib/entry-values';
 import { categoryForDirection, valueInMode, type LineLink, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
-import { personName } from '../../../components/people/people-options';
+import { meName, personName } from '../../../components/people/people-options';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -53,7 +53,7 @@ const whomKey = (line: LineValues) => memberOrRelationKey(line) ?? ME;
  */
 function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const me = env.settings?.treasuryMembers.find((member) => member.isMe);
-  const whomName = (row: LineRow) => (whomKey(row.line) === ME ? (me ? `${me.name} (moi)` : 'Moi') : (env.names.get(whomKey(row.line)) ?? ''));
+  const whomName = (row: LineRow) => (whomKey(row.line) === ME ? meName(me) : (env.names.get(whomKey(row.line)) ?? ''));
   const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(`context:${row.line.contextId}`) ?? '') : EVERYDAY_CONTEXT);
   const categoryName = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
   const projectName = (row: LineRow) => (row.line.projectId ? (env.projectNames.get(row.line.projectId) ?? '') : '');

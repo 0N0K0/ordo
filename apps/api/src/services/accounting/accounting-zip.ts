@@ -1,4 +1,4 @@
-import { DAY_PATTERN, parseDay, safeFilename, type AccountingDocumentType } from '@ordo/shared';
+import { isRealDay, parseDay, safeFilename, type AccountingDocumentType } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -27,10 +27,10 @@ const safe = (name: string) => safeFilename(name).trim() || 'sans-nom';
  * @returns {Promise<{ name: string, content: Buffer }>} Archive and its name.
  */
 export async function documentsZip(input: { from: string; to: string; types: string[]; imported: boolean }): Promise<{ name: string; content: Buffer }> {
-  if (![input.from, input.to].every((day) => DAY_PATTERN.test(day))) throw clientError('BAD_USER_INPUT', 'Période invalide.');
+  if (![input.from, input.to].every(isRealDay)) throw clientError('BAD_USER_INPUT', 'Période invalide.');
   const from = parseDay(input.from);
   const to = parseDay(input.to);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw clientError('BAD_USER_INPUT', 'Période invalide.');
+  if (from > to) throw clientError('BAD_USER_INPUT', 'Période invalide.');
   const types = TYPES.filter((type) => input.types.includes(type));
   if (types.length === 0) throw clientError('BAD_USER_INPUT', 'Choisissez au moins un type de document.');
 

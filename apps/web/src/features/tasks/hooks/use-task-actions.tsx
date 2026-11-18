@@ -16,13 +16,13 @@ export function useTaskActions(context: TaskContext | null) {
   return {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
-     * task alone: clone, transfer, archive, delete.
+     * task alone: clone, transfer, archive, delete (an archived task, read only: restore, delete).
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */
     menu: (task: Task): RowMenuEntry[] => {
       const { clone, transfer, archive, remove } = actionsOf([task]);
-      return [clone, transfer, archive, remove].map(rowMenuEntry);
+      return (task.archived ? [archive, remove] : [clone, transfer, archive, remove]).map(rowMenuEntry);
     },
 
     /**

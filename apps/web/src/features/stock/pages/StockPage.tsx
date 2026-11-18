@@ -17,6 +17,7 @@ import { useStockCounts, useStockItems, useStockLocations, type StockCount } fro
 import { MovementsTable } from '../components/MovementsTable';
 import { StockLocations } from '../components/StockLocations';
 import { StockTable } from '../components/StockTable';
+import { localDay } from '../../../lib/dates';
 
 /**
  * Inventories recorded, latest first.
@@ -34,7 +35,7 @@ function CountsTable() {
       locked: true,
       sortValue: (count) => count.date,
       text: (count) => fmt.dateTime(count.date),
-      filter: { kind: 'date', value: (count) => count.date.slice(0, 10) },
+      filter: { kind: 'date', value: (count) => localDay(count.date) },
     },
     {
       id: 'location',

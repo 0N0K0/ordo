@@ -194,7 +194,6 @@ builder.prismaObject('TreasuryCounterparty', {
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
-    archived: t.exposeBoolean('archived'),
     entryCount: t.relationCount('entries'),
   }),
 });
@@ -451,7 +450,6 @@ builder.prismaObject('TreasuryAccount', {
     name: t.exposeString('name'),
     openingBalance: t.float({ resolve: (account) => Number(account.openingBalance) }),
     openingDate: t.expose('openingDate', { type: 'Date' }),
-    archived: t.exposeBoolean('archived'),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
     balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, parisToday())) }),
@@ -588,7 +586,6 @@ const AccountInput = builder.inputType('TreasuryAccountInput', {
     name: t.string({ required: true }),
     openingBalance: t.float({ required: true }),
     openingDate: t.field({ type: 'Date', required: true }),
-    archived: t.boolean({ required: true }),
   }),
 });
 
@@ -675,7 +672,6 @@ const CounterpartyInput = builder.inputType('TreasuryCounterpartyInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     note: t.string(),
-    archived: t.boolean({ required: true }),
   }),
 });
 
@@ -810,7 +806,7 @@ builder.queryFields((t) => ({
   }),
   treasuryAccounts: t.prismaField({
     type: ['TreasuryAccount'],
-    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archived: 'asc' }, ...BY_POSITION] }),
+    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, ...BY_POSITION] }),
   }),
   treasuryEntries: t.prismaField({
     type: ['TreasuryEntry'],
@@ -833,7 +829,7 @@ builder.queryFields((t) => ({
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
-    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, { position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryDocumentOptions: t.field({
     type: [EntryDocumentRef],

@@ -33,6 +33,7 @@ export function SlotsCell({ task }: { task: Task }) {
     <EditablePopoverCell
       width={420}
       empty={!own}
+      readOnly={task.archived}
       target={
         <>
           {describe(ruleOf(task.slotRule)) ?? 'Partout'}
@@ -71,7 +72,7 @@ export function TrackedCell({ task }: { task: Task }) {
 }
 
 /**
- * « Sous-tâches » cell: the sub-tasks, and a button adding one.
+ * « Sous-tâches » cell: the sub-tasks, and a button adding one (not to an archived task).
  * @param {{ task: Task, context: TaskContext, onAdd: () => void }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -84,11 +85,13 @@ export function SubtasksCell({ task, context, onAdd }: { task: Task; context: Ta
           <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
         ))}
       </StackedValues>
-      <Tooltip label="Ajouter une sous-tâche">
-        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-tâche à ${task.title}`} onClick={onAdd} style={{ flex: 'none' }}>
-          <PlusIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      {!task.archived && (
+        <Tooltip label="Ajouter une sous-tâche">
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-tâche à ${task.title}`} onClick={onAdd} style={{ flex: 'none' }}>
+            <PlusIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 }
@@ -112,7 +115,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
 }
 
 /**
- * « Alertes » cell: the active alerts of the task (a bell), and a button adding one.
+ * « Alertes » cell: the active alerts of the task (a bell), and a button adding one (not to an archived task).
  * @param {{ task: Task, context: TaskContext, count: number }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -125,23 +128,25 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
           {count}
         </Badge>
       )}
-      <Tooltip label="Nouvelle alerte">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={`Nouvelle alerte pour ${task.title}`}
-          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
-        >
-          <PlusIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      {!task.archived && (
+        <Tooltip label="Nouvelle alerte">
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            aria-label={`Nouvelle alerte pour ${task.title}`}
+            onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
+          >
+            <PlusIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 }
 
 /**
- * « Achats » cell: the shopping lists of the task, linked to one more or a new one from its menu.
+ * « Achats » cell: the shopping lists of the task, linked to one more or a new one from its menu (not for an archived task).
  * @param {{ task: Task, lists: ShoppingList[] }} props Task and every list.
  * @returns {JSX.Element} Cell.
  */
@@ -160,6 +165,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
           </Anchor>
         ))}
       </StackedValues>
+      {!task.archived && (
       <ActionsMenu
         name={task.title}
         target={
@@ -184,6 +190,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
           })),
         ]}
       />
+      )}
     </Group>
   );
 }

@@ -89,8 +89,6 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @returns {TaskStatusCategory | null} Category.
    */
   const categoryOf = (task: Task): TaskStatusCategory | null => (task.statusId ? ((context.statusById.get(task.statusId)?.category as TaskStatusCategory | undefined) ?? null) : null);
-  // Day of an instant of an event (its ISO text).
-  const day = (value: string) => value.slice(0, 10);
   // Relative sprints, from today.
   const sprints = context.sprints;
   const past = sprints.filter((sprint) => sprint.endDate < today);
@@ -212,7 +210,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.commentCount + (row.task.description?.trim() ? 1 : 0) : null) };
       case 'startDate':
       case 'endDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : day(id === 'startDate' ? row.event.start : row.event.end)) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : (id === 'startDate' ? row.event.startDate : row.event.endDate)) };
       case 'deadline':
       case 'minDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? row.task[id] : null) };

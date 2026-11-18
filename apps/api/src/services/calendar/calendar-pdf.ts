@@ -1,4 +1,4 @@
-import { addDays, colorSchema, daysBetween, parseDay, timeToMinutes } from '@ordo/shared';
+import { addDays, colorSchema, daySchema, daysBetween, parseDay, timeToMinutes } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
@@ -6,7 +6,7 @@ import { PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../cor
 
 type Doc = InstanceType<typeof PDFDocument>;
 
-const isoDate = z.iso.date();
+const isoDate = daySchema();
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/);
 const hexColor = colorSchema;

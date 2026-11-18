@@ -35,7 +35,7 @@ import {
 } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertAllExist, assertExists } from '../core/lookup';
+import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { connectIds } from '../core/relations';
@@ -278,8 +278,7 @@ export async function setProductsMissing(ids: string[], missing: boolean): Promi
  * @returns {Promise<void>}
  */
 export async function deleteProduct(id: string): Promise<void> {
-  await assertExists(prisma.shoppingProduct, id, 'Produit');
-  await prisma.shoppingProduct.delete({ where: { id } });
+  await deleteOrNotFound(prisma.shoppingProduct, id, 'Produit');
 }
 
 /**

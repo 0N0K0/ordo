@@ -1,4 +1,4 @@
-import { dayInMonth, daysInMonth } from '@ordo/shared';
+import { dayInMonth, daysInMonth } from './months';
 import { z } from 'zod';
 import { isoWeekday, parseDay, weekdayOfDate } from './days';
 import { daySchema } from './times';

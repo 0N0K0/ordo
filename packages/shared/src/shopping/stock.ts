@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
-
-const quantity = z.number().min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
+import { optionalColorSchema } from '../core/workspace';
+import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
 export const stockLocationSchema = z.object({
   name: requiredText(80),
-  color: z.string().nullable(),
+  color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
 export type StockLocationInput = z.infer<typeof stockLocationSchema>;
@@ -17,9 +17,9 @@ export const stockItemSchema = z.object({
   productId: z.string().nullable(),
   label: requiredText(200, 'Le libellé est requis.'),
   categoryId: z.string().nullable(),
-  unit: z.string().trim().max(40, '40 caractères maximum.').nullable(),
+  unit: unitSchema,
   locationId: z.string().nullable(),
-  note: z.string().max(20_000, 'Description trop longue.').nullable(),
+  note: itemNoteSchema,
   perishable: z.boolean(),
   memberIds: z.array(z.string()).max(100),
   relationIds: z.array(z.string()).max(100),

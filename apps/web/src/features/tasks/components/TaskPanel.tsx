@@ -6,7 +6,7 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
@@ -102,7 +102,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side.
+ * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side. An archived
+ * task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
  */
@@ -116,6 +117,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
+  const locked = task.archived;
 
   /**
    * Saves a change right away.
@@ -206,6 +208,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               )}
             </Title>
             <Group gap="xs" wrap="nowrap">
+              {!locked && (
               <Button
                 variant="default"
                 size="xs"
@@ -221,9 +224,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               >
                 {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
               </Button>
-              <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
-                Modifier
-              </Button>
+              )}
+              {!locked && (
+                <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
+                  Modifier
+                </Button>
+              )}
               <ActionsMenu
                 name="la tâche"
                 items={actions.menu(task)}
@@ -276,7 +282,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               title="Description"
               gap="xs"
               action={
-                description === null && (
+                description === null && !locked && (
                   <Tooltip label="Modifier la description">
                     <ActionIcon
                       variant="subtle"
@@ -292,7 +298,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               }
             >
               {description === null ? (
-                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={(next) => save({ description: next })}>
+                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={locked ? undefined : (next) => save({ description: next })}>
                   {task.description}
                 </MarkdownView>
               ) : (
@@ -359,6 +365,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 4 }}>
+          {/* An archived task: every field and action of the side disabled. */}
+          <Fieldset variant="unstyled" disabled={locked}>
           <Stack gap="md">
             <ProjectSelect
               context={context}
@@ -503,6 +511,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Divider />
             <SheetsSection owner={{ taskId: task.id }} name={task.title} />
           </Stack>
+          </Fieldset>
         </Grid.Col>
       </Grid>
     </Stack>

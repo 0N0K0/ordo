@@ -13,6 +13,7 @@ import { formCallbacks } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import * as fmt from '../../../lib/format';
 
 /**
  * Icon of a link, from its site.
@@ -134,7 +135,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                       </Anchor>
                     )}
                     <Text size="xs" c="dimmed" truncate>
-                      {resource.note ?? (resource.kind === 'LINK' ? resource.url : resource.size ? `${Math.max(1, Math.round(resource.size / 1024))} Ko` : '')}
+                      {resource.note ?? (resource.kind === 'LINK' ? resource.url : resource.size ? fmt.fileSize(resource.size) : '')}
                     </Text>
                   </Stack>
                 </Group>

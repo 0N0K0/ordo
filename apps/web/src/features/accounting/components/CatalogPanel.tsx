@@ -4,7 +4,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
@@ -108,7 +108,6 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
       unit: item?.unit ?? 'HOUR',
       unitPrice: item?.unitPrice ?? 0,
       vatRate: item?.vatRate ?? (company?.vatApplicable === false ? 0 : 20),
-      archived: item?.archived ?? false,
     },
     schema: catalogItemSchema,
   });
@@ -149,7 +148,6 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
               />
             )}
           </SimpleGrid>
-          {item && <Checkbox label="Archivé (n’est plus proposé dans les documents)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
           <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
@@ -185,7 +183,6 @@ export function CatalogPanel() {
           unit: item.unit,
           unitPrice: item.unitPrice,
           vatRate: item.vatRate,
-          archived: item.archived,
           ...change,
         },
       },
@@ -204,7 +201,7 @@ export function CatalogPanel() {
     first: CATALOG_VIEWS,
   });
   // An archived item is read only (restored by « Restaurer » or its « Archivé » cell).
-  const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => (!item.archived || 'archived' in change) && saveItem(item, change));
+  const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => !item.archived && saveItem(item, change));
 
   /**
    * Opens the item form.
@@ -336,7 +333,7 @@ export function CatalogPanel() {
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
           ),
-        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => bulk('archived')(item, { archived })} />,
+        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => void archiveWithUndo(setArchived, { ids: [item.id], archived, label: `« ${item.title} »` })} />,
       })}
       actions={(item) => (
         <RowActions

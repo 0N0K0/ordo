@@ -12,7 +12,7 @@ import { taskName, type TaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { unarchived } from '../../../lib/archive';
+import { defaultStatusId } from '../lib/new-task-defaults';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -33,15 +33,13 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
   const createTask = useCreateTask();
   const link = useTaskLink();
   const parent = defaults?.parentId ? context.taskById.get(defaults.parentId) : undefined;
-  const statuses = unarchived(context.statuses);
-  const firstStatus = statuses.find((status) => status.category === 'TODO') ?? statuses[0];
 
   const form = useAppForm<TaskFormValues>({
     initialValues: {
       title: '',
       projectId: parent?.projectId ?? defaults?.projectId ?? '',
       description: '',
-      statusId: firstStatus?.id ?? null,
+      statusId: defaultStatusId(context),
       priorityId: null,
       typeId: null,
       assigneeIds: [],

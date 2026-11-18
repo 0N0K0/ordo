@@ -3,8 +3,8 @@ import { mapById } from '../core/collections';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
-import { parseDay, printedDay, recurrenceSchema } from '../dates/recurrence';
-import { DAY_PATTERN, daySchema } from '../dates/times';
+import { printedDay, recurrenceSchema } from '../dates/recurrence';
+import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
 const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -66,7 +66,7 @@ export const treasuryPaymentMethodSchema = z
 export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSchema>;
 
 /** Payer or payee that is not a client. */
-export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000), archived: z.boolean() });
+export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000) });
 export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchema>;
 
 const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
@@ -482,7 +482,7 @@ function statementDate(value: string | undefined, format: StatementMapping['date
   let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
   if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
   const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  return DAY_PATTERN.test(date) && !Number.isNaN(parseDay(date).getTime()) ? date : null;
+  return isRealDay(date) ? date : null;
 }
 
 /**

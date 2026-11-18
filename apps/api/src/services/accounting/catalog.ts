@@ -1,10 +1,10 @@
 import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CatalogItem } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { requirePro } from '../workspace/workspaces';
 import { assertNotArchived } from '../core/archive';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /**
  * Prisma data of a validated catalogue item.
@@ -32,15 +32,14 @@ export function createCatalogItem(input: CatalogItemInput): Promise<CatalogItem>
 }
 
 /**
- * Updates (or archives) a catalogue item; the documents already written keep their lines. An archived one is only
- * changed when restored by it.
+ * Updates a catalogue item (not an archived one: restore it first); the documents already written keep their lines.
  * @param {string} id Item id.
  * @param {CatalogItemInput} input Item.
  * @returns {Promise<CatalogItem>} Item.
  */
 export async function updateCatalogItem(id: string, input: CatalogItemInput): Promise<CatalogItem> {
-  const current = await orNotFound(prisma.catalogItem.findUnique({ where: { id }, select: { archived: true } }), 'Article');
-  if (current.archived && input.archived) await assertNotArchived('CATALOG_ITEM', id);
+  await assertExists(prisma.catalogItem, id, 'Article');
+  await assertNotArchived('CATALOG_ITEM', id);
   return prisma.catalogItem.update({ where: { id }, data: itemData(input) });
 }
 
@@ -50,6 +49,5 @@ export async function updateCatalogItem(id: string, input: CatalogItemInput): Pr
  * @returns {Promise<void>}
  */
 export async function deleteCatalogItem(id: string): Promise<void> {
-  await assertExists(prisma.catalogItem, id, 'Article');
-  await prisma.catalogItem.delete({ where: { id } });
+  await deleteOrNotFound(prisma.catalogItem, id, 'Article');
 }

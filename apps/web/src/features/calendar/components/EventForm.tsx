@@ -30,6 +30,7 @@ import { useStartTimer } from '../../time/hooks/use-start-timer';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
@@ -213,9 +214,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
   const values = form.values;
-  // Relations with a contributor take part as that contributor; one already chosen stays offered.
+  const { perso } = useActiveWorkspace();
+  // Relations with a contributor take part as that contributor, archived ones are not offered; one already chosen stays.
   const relationOptions = (treasury?.treasuryRelations ?? [])
-    .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
+    .filter((relation) => (!relation.contributorId && !relation.archived) || (values.relationIds ?? []).includes(relation.id))
     .map((relation) => ({ value: relation.id, label: relation.name }));
   // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
@@ -464,13 +466,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
           />
           <BatchMultiSelect
-            label="Relations"
-            description="Personnes hors de l’équipe, sans contributeur"
+            label={perso ? 'Proches' : 'Relations'}
+            description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
             placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
             data={relationOptions}
             searchable
             clearable
-            nothingFoundMessage="Ajoutez des relations dans Paramètres › Équipe (ou Foyer) et contributeurs"
+            nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
             {...form.getInputProps('relationIds')}
           />
           <BatchMultiSelect

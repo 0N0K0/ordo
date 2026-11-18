@@ -1,11 +1,10 @@
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { ActionIcon, Badge, FileButton, Group, Tooltip } from '@mantine/core';
 import { PaperclipIcon, PlusIcon } from '@phosphor-icons/react';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { openFile } from '../../files/lib/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -82,11 +81,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
                   aria-label={`Retirer ${attachment.name}`}
                   onClick={(event) => {
                     stopClick(event);
-                    confirmDestructive({
-                      title: 'Retirer la pièce jointe',
-                      risks: `« ${attachment.name} » sera supprimée définitivement de ${name}.`,
-                      onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: onMutationError }),
-                    });
+                    confirmRemoveAttachment(attachment, name, (callbacks) => removeAttachment.mutate(attachment.id, callbacks));
                   }}
                 />
               )

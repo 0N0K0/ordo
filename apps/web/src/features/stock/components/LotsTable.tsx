@@ -6,6 +6,7 @@ import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import * as fmt from '../../../lib/format';
 import { onMutationError } from '../../../lib/notify';
 import { useStockMutations, type StockItem, type StockLot } from '../api';
+import { localDay } from '../../../lib/dates';
 
 /**
  * Lots of an item of the stock, unfolded under it, in a table like every other: their quantity corrected and their
@@ -42,7 +43,7 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
       size: 130,
       sortValue: (lot) => lot.createdAt,
       text: (lot) => fmt.day(lot.createdAt),
-      filter: { kind: 'date', value: (lot) => lot.createdAt.slice(0, 10) },
+      filter: { kind: 'date', value: (lot) => localDay(lot.createdAt) },
     },
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });

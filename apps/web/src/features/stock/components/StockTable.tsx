@@ -16,7 +16,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import { localToday } from '../../../lib/dates';
+import { localDay, localToday } from '../../../lib/dates';
 import { addDays, mapById, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -160,7 +160,7 @@ export function StockTable() {
       hiddenByDefault: true,
       sortValue: (item) => item.updatedAt,
       text: (item) => fmt.day(item.updatedAt),
-      filter: { kind: 'date', value: (item) => item.updatedAt.slice(0, 10) },
+      filter: { kind: 'date', value: (item) => localDay(item.updatedAt) },
     },
     commentColumn<StockItem>(
       comments,

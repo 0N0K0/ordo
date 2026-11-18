@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type Client, type ClientContact, type ClientService } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /**
  * Updates the billing details of a client (kind, address, identifiers, contact information).
@@ -71,8 +71,7 @@ export async function updateClientService(id: string, input: ClientServiceInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientService(id: string): Promise<void> {
-  await assertExists(prisma.clientService, id, 'Service');
-  await prisma.clientService.delete({ where: { id } });
+  await deleteOrNotFound(prisma.clientService, id, 'Service');
 }
 
 /**
@@ -107,6 +106,5 @@ export async function updateClientContact(id: string, input: ClientContactInput)
  * @returns {Promise<void>}
  */
 export async function deleteClientContact(id: string): Promise<void> {
-  await assertExists(prisma.clientContact, id, 'Contact');
-  await prisma.clientContact.delete({ where: { id } });
+  await deleteOrNotFound(prisma.clientContact, id, 'Contact');
 }

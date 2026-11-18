@@ -46,7 +46,8 @@ function fieldLabel(name: string, task: Task, count: number): string {
 }
 
 /**
- * Title cell: clicking "#12 Title" opens the task; double-clicking elsewhere in the cell renames it in place.
+ * Title cell: clicking "#12 Title" opens the task; double-clicking elsewhere in the cell renames it in place (not an
+ * archived task: every cell of an archived task is read only).
  * @param {{ task: Task, context: TaskContext, prefix?: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -75,6 +76,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
           </Text>
         )
       }
+      readOnly={task.archived}
       onSave={(title) => apply({ title })}
     />
   );
@@ -114,6 +116,8 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
     combobox.closeDropdown();
   };
 
+  // An archived task is read only: its chip only.
+  if (task.archived) return current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>;
   return (
     <Combobox store={combobox} onOptionSubmit={choose} withinPortal position="bottom-start" width="max-content">
       <Combobox.Target>
@@ -159,7 +163,8 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
       data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
       onChange={(milestoneId) => apply({ milestoneId }, { milestoneId })}
-      placeholder="—"
+      placeholder={task.archived ? undefined : '—'}
+      readOnly={task.archived}
       nothingFoundMessage="Aucun jalon dans ce projet"
     />
   );
@@ -182,6 +187,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       })}
       {...listSelectProps(context.tags, undefined, task.tagIds)}
       value={task.tagIds}
+      readOnly={task.archived}
       onSave={(tagIds) => {
         const { added, removed } = listDiff(task.tagIds, tagIds);
         apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
@@ -209,6 +215,7 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
       })}
       data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
       value={task.sprintIds}
+      readOnly={task.archived}
       onSave={(sprintIds) => {
         const { added, removed } = listDiff(task.sprintIds, sprintIds);
         apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
@@ -234,6 +241,7 @@ export function AssigneesCell({ task, context }: { task: Task; context: TaskCont
       projectIds={targets.length > 1 ? targets.map((id) => context.taskById.get(id)?.projectId ?? null) : undefined}
       context={context}
       label={fieldLabel('Assignés', task, count)}
+      readOnly={task.archived}
       onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}
     />
   );
@@ -274,6 +282,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
       })}
       data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
       value={task.blockedByIds}
+      readOnly={task.archived}
       onSave={(ids) => {
         // On a selection, each selected task gets (or loses) the same blockers.
         for (const target of targets) {
@@ -297,7 +306,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
  */
 export function EffortCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'effort');
-  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} onSave={(effort) => apply({ effort }, { effort })} />;
+  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} readOnly={task.archived} onSave={(effort) => apply({ effort }, { effort })} />;
 }
 
 interface DateCellProps {
@@ -328,8 +337,9 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       minDate={column === 'endDate' && count < 2 ? (task.startDate ?? undefined) : undefined}
       maxDate={column === 'startDate' && count < 2 ? (task.endDate ?? undefined) : undefined}
       onChange={(date) => apply({ [column]: date }, { [column]: date })}
-      clearable
-      placeholder="—"
+      readOnly={task.archived}
+      clearable={!task.archived}
+      placeholder={task.archived ? undefined : '—'}
       popoverProps={{ withinPortal: true }}
       c={alert ? 'red' : undefined}
       fw={alert ? 600 : undefined}
@@ -349,6 +359,7 @@ export function TaskBeneficiariesCell({ task }: { task: Task }) {
     <BeneficiariesCell
       label={fieldLabel('Bénéficiaires', task, count)}
       value={task}
+      readOnly={task.archived}
       onSave={(beneficiaries) =>
         apply((target) => ({
           beneficiaryIds: applyDiff(target.beneficiaryIds, task.beneficiaryIds, beneficiaries.beneficiaryIds),
@@ -399,6 +410,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
       })}
       data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
       value={ids}
+      readOnly={task.archived}
       onSave={(next) => {
         for (const id of next.filter((item) => !ids.includes(item))) link(id, true);
         for (const id of ids.filter((item) => !next.includes(item))) link(id, false);
@@ -424,7 +436,9 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
       variant="unstyled"
       size="xs"
       aria-label={fieldLabel('Tâche parente', task, count)}
-      placeholder="—"
+      placeholder={task.archived ? undefined : '—'}
+      readOnly={task.archived}
+      clearable={!task.archived}
       value={task.parentId}
       // A task is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
@@ -471,6 +485,6 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     });
   };
   return (
-    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" onSave={move} />
+    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />
   );
 }

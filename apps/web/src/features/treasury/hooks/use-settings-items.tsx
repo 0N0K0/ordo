@@ -7,18 +7,18 @@ import type { SettingsItemKind } from '../../../components/settings/SettingsItem
 import { localToday } from '../../../lib/dates';
 import { useTreasuryMutations, type TreasuryAccount, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
 
-/** Fields of an account of its own: its opening balance and date, archived. */
-type AccountExtra = { openingBalance: number; openingDate: string; archived: boolean };
+/** Fields of an account of its own: its opening balance and date. */
+type AccountExtra = { openingBalance: number; openingDate: string };
 /** Fields of a category of its own: its direction (the one of its list). */
 type CategoryExtra = { direction: TreasuryDirection };
 /** Fields of a payment method of its own: the directions it serves. */
 type MethodExtra = { incoming: boolean; outgoing: boolean };
-/** Fields of a counterparty of its own: its note, archived. */
-type CounterpartyExtra = { note: string; archived: boolean };
+/** Fields of a counterparty of its own: its note. */
+type CounterpartyExtra = { note: string };
 
 /**
  * Bank accounts, for their settings list and their form (a first account from the treasury page): name, color,
- * image, opening balance and date, archived.
+ * image, opening balance and date (archived by its row action).
  * @returns {SettingsItemKind<TreasuryAccount, AccountExtra>} List and form.
  */
 export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtra> {
@@ -28,7 +28,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
    * @param {AccountExtra & { name: string }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: AccountExtra & { name: string }) => ({ name: values.name, openingBalance: values.openingBalance, openingDate: values.openingDate, archived: values.archived });
+  const input = (values: AccountExtra & { name: string }) => ({ name: values.name, openingBalance: values.openingBalance, openingDate: values.openingDate });
   return {
     kind: 'TREASURY_ACCOUNT',
     colorRequired: false,
@@ -38,9 +38,8 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
       initial: (account) => ({
         openingBalance: account?.openingBalance ?? 0,
         openingDate: account ? account.openingDate : localToday(),
-        archived: account?.archived ?? false,
       }),
-      render: (form, account) => (
+      render: (form) => (
         <>
           <SimpleGrid cols={2} spacing="sm">
             <AmountInput label="Solde d’ouverture" {...form.getInputProps('openingBalance')} />
@@ -49,7 +48,6 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
           <Text size="xs" c="dimmed">
             Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.
           </Text>
-          {account && <Checkbox label="Archivé (n’est plus compté dans le solde)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
         </>
       ),
     },
@@ -115,7 +113,7 @@ export function useMethodItems(): SettingsItemKind<TreasuryPaymentMethod, Method
 
 /**
  * Counterparties that are not clients, for their settings list and their form (a quick creation from an entry):
- * name, color, image, note and archived.
+ * name, color, image and note (archived by its row action).
  * @returns {SettingsItemKind<TreasuryCounterparty, CounterpartyExtra>} List and form.
  */
 export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterparty, CounterpartyExtra> {
@@ -125,20 +123,15 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterparty, C
    * @param {CounterpartyExtra & { name: string }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: CounterpartyExtra & { name: string }) => ({ name: values.name, note: values.note || null, archived: values.archived });
+  const input = (values: CounterpartyExtra & { name: string }) => ({ name: values.name, note: values.note || null });
   return {
     kind: 'TREASURY_COUNTERPARTY',
     colorRequired: false,
     namePlaceholder: 'Fournisseur, administration, banque…',
     schema: treasuryCounterpartySchema,
     extra: {
-      initial: (counterparty) => ({ note: counterparty?.note ?? '', archived: counterparty?.archived ?? false }),
-      render: (form, counterparty) => (
-        <>
-          <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
-          {counterparty && <Checkbox label="Archivé (n’est plus proposé)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-        </>
-      ),
+      initial: (counterparty) => ({ note: counterparty?.note ?? '' }),
+      render: (form) => <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />,
     },
     create: async (values) => createdId(await createCounterparty.mutateAsync(input(values))),
     update: (id, values) => updateCounterparty.mutateAsync({ id, input: input(values) }),

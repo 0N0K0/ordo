@@ -18,6 +18,15 @@ export function daySchema(message = 'Date invalide.') {
   return z.iso.date({ error: message });
 }
 
+/**
+ * Whether a text is a day written YYYY-MM-DD that exists (not the 31st of February).
+ * @param {string} date Text.
+ * @returns {boolean} A real day.
+ */
+export function isRealDay(date: string): boolean {
+  return daySchema().safeParse(date).success;
+}
+
 /** Required start day field. */
 export const startDaySchema = daySchema('La date de début est requise.');
 

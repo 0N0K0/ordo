@@ -305,13 +305,14 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
 }
 
 /**
- * Updates a task. The project is changed with `bulkTransferTasks`.
+ * Updates a task (not an archived one: restore it first). The project is changed with `bulkTransferTasks`.
  * @param {string} id Task id.
  * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
  * @returns {Promise<Task>} Updated task.
  */
 export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const task = await findTask(id);
+  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   const details = parseDetails(input, task);
   await assertReferences(input);
   const links = await prisma.task.findUnique({
@@ -752,14 +753,16 @@ async function assertTasks(ids: string[]): Promise<void> {
 }
 
 /**
- * Applies the same changes to several tasks. Undefined fields are left unchanged, null clears them.
+ * Applies the same changes to several tasks (none archived, except for an undo). Undefined fields are left unchanged,
+ * null clears them.
  * @param {string[]} ids Task ids.
  * @param {BulkTaskChanges} changes Changes.
- * @param {boolean} [restoring] Undo of a former change: archived values given back are accepted (only that check is skipped). Optional. Default = false.
+ * @param {boolean} [restoring] Undo of a former change: archived values given back, and tasks archived since, are accepted (only those checks are skipped). Optional. Default = false.
  * @returns {Promise<void>}
  */
 export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, restoring = false): Promise<void> {
   await assertTasks(ids);
+  if (!restoring) await assertNoneArchived('task', ids);
   await assertReferences({
     ...changes,
     assigneeIds: [...(changes.addAssigneeIds ?? []), ...(changes.removeAssigneeIds ?? [])],

@@ -180,7 +180,8 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
    */
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const task = context?.taskById.get(key);
-    if (!task) return;
+    // An archived task is read only: not moved.
+    if (!task || task.archived) return;
     const onError = onMutationError;
     const column = view.groupColumn?.id;
     if (groupKey !== undefined && column) {
@@ -359,8 +360,10 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
               name={`la tâche ${taskName(row.task)}`}
               primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
               items={[
-                { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
-                'divider',
+                // An archived task is read only: no sub-task added under it.
+                ...(row.task.archived
+                  ? []
+                  : [{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) }, 'divider' as const]),
                 ...taskActions.menu(row.task),
               ]}
             />

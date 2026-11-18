@@ -15,7 +15,6 @@ builder.prismaObject('CatalogItem', {
     unit: t.field({ type: UnitEnum, resolve: (item) => item.unit }),
     unitPrice: t.float({ resolve: (item) => Number(item.unitPrice) }),
     vatRate: t.float({ resolve: (item) => Number(item.vatRate) }),
-    archived: t.exposeBoolean('archived'),
   }),
 });
 
@@ -27,7 +26,6 @@ const CatalogItemInput = builder.inputType('CatalogItemInput', {
     unit: t.field({ type: UnitEnum, required: true }),
     unitPrice: t.float({ required: true }),
     vatRate: t.float({ required: true }),
-    archived: t.boolean({ required: true }),
   }),
 });
 

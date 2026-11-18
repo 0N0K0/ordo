@@ -5,7 +5,7 @@ import { prisma } from '../../db';
 import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
-import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport } from '../core/pdf-report';
+import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport, writeHeading } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -143,15 +143,13 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   let y = top;
 
   // Title and summary.
-  doc.font('bold').fontSize(14).fillColor(COLORS.text).text('Relevé des mouvements', MARGIN, y, { width: pageWidth });
-  y = doc.y + 2;
   const scope = several ? 'Tous les comptes' : accounts[0].name;
-  doc
-    .font('regular')
-    .fontSize(8.5)
-    .fillColor(COLORS.muted)
-    .text([owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · '), MARGIN, y, { width: pageWidth });
-  y = doc.y + 8;
+  y =
+    writeHeading(
+      doc,
+      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · ') },
+      { x: MARGIN, y, width: pageWidth },
+    ) + 8;
   const figures = [
     { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },
