@@ -1,5 +1,5 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
-import { usePeopleOptions } from '../../../components/people/people-options';
+import { personName, usePeopleOptions } from '../../../components/people/people-options';
 import { unarchived } from '../../../lib/archive';
 import { queryClient } from '../../../lib/query-client';
 import { treasurySettingsKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
@@ -73,14 +73,14 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
 }
 
 /**
- * Names of beneficiaries out of a component (sort, export, search): contributors from the task context, relations
- * from the loaded treasury settings.
+ * Names of beneficiaries out of a component (sort, export, search): contributors from the task context (« Prénom (moi) »
+ * for the user), relations from the loaded treasury settings.
  * @param {Beneficiaries} value Beneficiaries.
- * @param {{ contributorById: Map<string, { name: string }> } | null} context Task context.
+ * @param {{ contributorById: Map<string, { name: string, isMe: boolean }> } | null} context Task context.
  * @returns {string[]} Names, contributors first.
  */
-export function beneficiaryNames(value: Beneficiaries, context: { contributorById: Map<string, { name: string }> } | null): string[] {
+export function beneficiaryNames(value: Beneficiaries, context: { contributorById: Map<string, { name: string; isMe: boolean }> } | null): string[] {
   const relations = queryClient.getQueryData<TreasurySettings>(treasurySettingsKey)?.treasuryRelations ?? [];
-  const contributorName = new Map([...(context?.contributorById ?? new Map<string, { name: string }>())].map(([id, contributor]) => [id, contributor.name]));
+  const contributorName = new Map([...(context?.contributorById ?? new Map<string, { name: string; isMe: boolean }>())].map(([id, contributor]) => [id, personName(contributor)]));
   return namesOf(value, contributorName, new Map(relations.map((relation) => [relation.id, relation.name])));
 }

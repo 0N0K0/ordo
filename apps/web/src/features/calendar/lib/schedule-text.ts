@@ -3,6 +3,14 @@ import { describeCase } from '../../../components/recurrence/describe-recurrence
 import * as fmt from '../../../lib/format';
 
 /**
+ * Name of the work schedules, everywhere: « Plages de travail » in a pro workspace, « Plages » in a personal one.
+ * @param {boolean} perso A personal workspace.
+ * @returns {string} Name.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the brick the rule points to.
+export const schedulesTitle = (perso: boolean): string => (perso ? 'Plages' : 'Plages de travail');
+
+/**
  * Hours of a case in words: "toute la journée", "09:00–12:30, 14:00–18:00".
  * @param {ScheduleTimes} times Hours.
  * @returns {string} Text.

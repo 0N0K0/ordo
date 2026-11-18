@@ -76,17 +76,6 @@ export function readSheetSources(value: unknown): SheetSource[] {
 }
 
 /**
- * Key items are summed by: their product, or else their label and unit (case and spaces aside).
- * @param {{ productId?: string | null, label: string, unit?: string | null }} item Item.
- * @returns {string} Key.
- */
-export function sheetItemKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
-  if (item.productId) return `p:${item.productId}`;
-  const clean = (text: string | null | undefined) => (text ?? '').trim().toLocaleLowerCase('fr').replace(/\s+/g, ' ');
-  return `l:${clean(item.label)}|${clean(item.unit)}`;
-}
-
-/**
  * Quantity rounded to the thousandth (the precision of the quantities stored).
  * @param {number} value Quantity.
  * @returns {number} Rounded quantity.

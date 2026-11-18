@@ -151,7 +151,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
           <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
-      {item && <Comments target="CATALOG_ITEM" id={item.id} />}
+      {item && <Comments target="CATALOG_ITEM" id={item.id} readOnly={item.archived} />}
     </Stack>
   );
 }

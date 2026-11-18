@@ -2,7 +2,8 @@ import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
-import { fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { assertAllExist, assertExists } from '../core/lookup';
@@ -305,7 +306,7 @@ async function placeProject(
 }
 
 /**
- * Updates a project. Changing its parent or client moves it, with its sub-projects, to the end of the new list.
+ * Updates a project (not an archived one: restore it first). Changing its parent or client moves it, with its sub-projects, to the end of the new list.
  * @param {string} id Project id.
  * @param {object} input Changes; undefined leaves a field unchanged, null clears it.
  * @param {string | null} [input.title] New title. Optional.
@@ -328,6 +329,7 @@ export async function updateProject(
   },
 ): Promise<Project> {
   const project = await findProject(id);
+  if (project.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   const { title } = parseInput(z.object({ title: projectTitleSchema.optional() }), { title: input.title ?? undefined });
 
   const parentId = input.parentId === undefined ? project.parentId : input.parentId;

@@ -14,6 +14,7 @@ import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
 import { LinesEditor } from './LinesEditor';
 import type { LineLink } from '../lib/lines';
+import { documentGroups, payerGroups } from '../lib/entry-env';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
 import { CategoryItemForm, CounterpartyItemForm, MethodItemForm } from './TreasuryItemForms';
@@ -108,33 +109,12 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const payer = values.clientId ? `client:${values.clientId}` : values.counterpartyId ? `tiers:${values.counterpartyId}` : null;
   const categories = settings?.treasuryCategories ?? [];
   const methods = (settings?.treasuryPaymentMethods ?? []).filter((method) => (incoming ? method.incoming : method.outgoing) || method.id === values.methodId);
-  const payers = [
-    {
-      group: 'Clients',
-      items: (workspace?.clients ?? []).filter((client) => !client.archived || `client:${client.id}` === payer).map((client) => ({ value: `client:${client.id}`, label: client.name })),
-    },
-    {
-      group: 'Tiers',
-      items: (settings?.treasuryCounterparties ?? [])
-        .filter((counterparty) => !counterparty.archived || `tiers:${counterparty.id}` === payer)
-        .map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name })),
-    },
-  ].filter((group) => group.items.length);
+  const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? [])
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.archived || item.value === payer) }))
+    .filter((group) => group.items.length);
   // Supporting documents, grouped by place: the library, then each project (the entry's project first).
-  const documentGroups = new Map<string, { value: string; label: string }[]>();
-  const documentKey = (document: { source: string; id: string }) => `${document.source === 'LIBRARY' ? 'lib' : 'res'}:${document.id}`;
-  for (const document of [...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)].sort(
-    (a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY') || Number(b.projectId === values.projectId) - Number(a.projectId === values.projectId),
-  )) {
-    const group = document.source === 'LIBRARY' ? `Bibliothèque` : `Projet ${document.place}`;
-    const items = documentGroups.get(group) ?? [];
-    if (!items.some((item) => item.value === documentKey(document))) {
-      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.title} (${document.place})` : document.title });
-    }
-    documentGroups.set(group, items);
-  }
+  const documentData = documentGroups([...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)], values.projectId);
   const selectedDocuments = [...values.libraryDocumentIds.map((id) => `lib:${id}`), ...values.projectResourceIds.map((id) => `res:${id}`)];
-  const documentData = [...documentGroups].map(([group, items]) => ({ group, items }));
   // Projects of the entry or of its lines, archived ones only when chosen already.
   const chosenProjects = new Set([values.projectId, ...values.lines.map((line) => line.projectId)]);
   // Each project with its full path: client › project › sub-project.
@@ -514,7 +494,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </div>
         </SidePanel>
       </form>
-      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} />}
+      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
     </Stack>
   );
 }

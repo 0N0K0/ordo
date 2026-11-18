@@ -89,7 +89,8 @@ export interface EventOccurrence {
   trackedSeconds: number;
 }
 
-type EventWithRelations = CalendarEvent & {
+/** Event with what its occurrences are built from (`occurrenceInclude`). */
+export type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
   relations: { id: string }[];
@@ -103,7 +104,8 @@ type EventWithRelations = CalendarEvent & {
   timeEntries: { calendarOccurrenceDate: Date | null; startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null }[];
 };
 
-const occurrenceInclude = {
+/** Prisma `include` of an event for its occurrences (toOccurrence). */
+export const occurrenceInclude = {
   exceptions: true,
   contributors: { select: { id: true } },
   relations: { select: { id: true } },
@@ -481,13 +483,13 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
 }
 
 /**
- * Occurrence of an event on a date, with its own changes.
+ * Occurrence of an event on a date, with its own changes: the same in the app and in its exports (ICS).
  * @param {EventWithRelations} event Event.
  * @param {string | null} date Occurrence date (null for a one-off event).
  * @param {CalendarEventException | undefined} change Own changes.
  * @returns {EventOccurrence} Occurrence.
  */
-function toOccurrence(event: EventWithRelations, date: string | null, change: CalendarEventException | undefined): EventOccurrence {
+export function toOccurrence(event: EventWithRelations, date: string | null, change: CalendarEventException | undefined): EventOccurrence {
   const seriesStart = formatDay(event.startDate);
   const span = daysBetween(seriesStart, formatDay(event.endDate));
   const allDay = change?.allDay ?? event.allDay;

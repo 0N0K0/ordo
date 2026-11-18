@@ -59,7 +59,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Routes :** pièces jointes, icônes et mail refont la session et les statuts à la main ; `mail.ts` n'utilise pas `queryText` ni `INLINE_TYPES` ; `core/attachments.ts:50` teste `%PDF-` au lieu d'`isPdf`.
 - **Nombres :** `toLocaleString('fr-FR')` 7 fois (PDF et documents) ; voir point 11.
 
-### 6. Nouveaux doublons
+### 6. Doublons pas encore traités
 
 - **Champs produit en GraphQL :** la liste des champs et leur passage à `null` copiés 3 fois (`graphql/modules/sheets.ts:105-166`, `shopping.ts:128-170`, `stock.ts:130-200`), avec des écarts (`memberIds` et `perishable` obligatoires ou non, `label` ou `name`). Proposition : `productInputFields` et `productInput` dans `graphql/product-inputs.ts`. Voir décision O.
 - **Recharger l'objet enregistré :** `findUniqueOrThrow({ ...query, where: { id } })` ~26 fois, plus 5 aides locales. Proposition : `reloaded(model, query, saved)`.
@@ -104,7 +104,9 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - `QuantityInput` lu de deux façons ;
   - `PersonOption.tsx` écrit deux `<Avatar>` au lieu de son `PersonAvatar`.
 
-## Web : nouveaux doublons
+## Web : doublons pas encore traités
+
+_Créés par nos propres lots (à ne plus jamais reproduire) : l'état « Afficher les archivés » ×16 (point 7), les paramètres d'`archiveRowsAction` ×8 (point 9), `documentKey` et `payerKey` recopiés (point 8). Le reste existait avant._
 
 ### 9. Actions de tableau
 
@@ -175,9 +177,16 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ## Plan proposé
 
+**Garde-fous de chaque lot** (pour ne plus créer de doublons) :
+- factoriser dès la deuxième copie, avant de rendre le lot ;
+- chaque nouvelle brique arrive avec la règle eslint qui interdit son ancien motif ;
+- chaque agent lit d'abord la liste des briques existantes ;
+- un détecteur de copier-coller (`jscpd`) vérifie que le lot n'en ajoute pas ;
+- pas d'agents en parallèle sur une même brique.
+
 1. **Bugs (1 à 4).**
 2. **Briques contournées (5, 7, 8)**, puis les règles eslint qui les verrouillent (14).
-3. **Nouveaux doublons (6, 9, 10, 13)**, avec les décisions.
+3. **Doublons pas encore traités (6, 9, 10, 13)**, avec les décisions.
 4. **Libellés et styles (11)**, avec les décisions.
 5. **Rangement (12)**, puis un passage Prettier sur tout le dépôt, en commit séparé.
 

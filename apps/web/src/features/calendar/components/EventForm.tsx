@@ -1,3 +1,4 @@
+import { relationNoun } from '../../../components/people/people-options';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { copyName } from '../../../lib/text';
@@ -431,7 +432,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
           />
           <BatchMultiSelect
-            label={perso ? 'Proches' : 'Relations'}
+            label={relationNoun(perso, true)}
             description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
             placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
             data={relationOptions}
@@ -517,7 +518,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         </Stack>
         </Fieldset>
         {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
-        {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
+        {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />}
 
         {readOnly ? (
           <Group justify="space-between" gap="sm">

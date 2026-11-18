@@ -1,4 +1,3 @@
-import { categorySubtree } from '../../../components/tree/category-tree';
 import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { useCalendarCategories, useCalendarCategoryMutations } from '../api';
@@ -6,7 +5,7 @@ import { countOf } from '../../../lib/text';
 
 /**
  * Settings of the calendar categories, as every settings list, in a tree: added (also as a sub-category), edited
- * (name, color, image, parent), reordered and put under another by drag and drop, deleted with their sub-categories.
+ * (name, color, image, parent), reordered and put under another by drag and drop, deleted (their sub-categories go up a level).
  * @returns {JSX.Element} Manager.
  */
 export function CalendarCategoriesManager() {
@@ -27,11 +26,11 @@ export function CalendarCategoriesManager() {
       remove={(id) => remove.mutateAsync(id)}
       move={(id, parentId, index) => move.mutateAsync({ id, parentId, index })}
       deleteMessage={(category, path) => {
-        const subCount = categorySubtree(items, category.id).size - 1;
+        const childCount = items.filter((c) => c.parentId === category.id).length;
         return (
           <>
-            La catégorie « {path} »{subCount > 0 ? ` et ses ${countOf(subCount, 'sous-catégorie')}` : ''} seront supprimées définitivement et retirées des évènements (qui sont conservés). Cette action
-            est irréversible.
+            La catégorie « {path} » sera supprimée définitivement et retirée des évènements (qui sont conservés).
+            {childCount > 0 ? ` ${childCount > 1 ? `Ses ${countOf(childCount, 'sous-catégorie')} remontent` : 'Sa sous-catégorie remonte'} d’un niveau.` : ''} Cette action est irréversible.
           </>
         );
       }}

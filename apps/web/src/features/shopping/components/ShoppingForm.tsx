@@ -184,7 +184,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           <FormActions onCancel={onDone} submitLabel={current ? 'Enregistrer' : 'Ajouter'} loading={pending} />
         </Stack>
       </form>
-      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} />}
+      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} readOnly={target.product.archived} />}
       {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} />}
     </Stack>
   );

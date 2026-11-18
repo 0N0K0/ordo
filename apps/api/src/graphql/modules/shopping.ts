@@ -148,14 +148,14 @@ const ProductInput = builder.inputType('ShoppingProductInput', {
 const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => ({ ...shoppingFields(t), optional: t.boolean({ description: 'Not needed: bought if possible.' }) }) });
 
 /**
- * Item input with omitted optional fields as null.
+ * Item input with omitted optional fields as null (an empty id too, as in the sheets and the stock).
  * @param {typeof ItemInput.$inferInput} input GraphQL input.
  * @returns {object} Service input.
  */
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
   ...input,
-  categoryId: input.categoryId ?? null,
-  storeId: input.storeId ?? null,
+  categoryId: input.categoryId || null,
+  storeId: input.storeId || null,
   url: input.url ?? null,
   note: input.note ?? null,
   quantity: input.quantity ?? null,

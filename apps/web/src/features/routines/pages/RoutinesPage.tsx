@@ -1,4 +1,5 @@
 import { PAGES } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
@@ -289,6 +290,9 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   );
 }
 
+/** Tabs of the routines page. */
+const ROUTINE_TABS = ['routines', 'history'] as const;
+
 /**
  * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence, and the history of
  * what was ticked on which day; the settings hold the categories.
@@ -297,13 +301,13 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
 export function RoutinesPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
-  const tab = params.get('tab') === 'history' ? 'history' : 'routines';
+  const [tab, setTab] = usePageTab(ROUTINE_TABS);
 
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.routines.title} />
       <RoutineSettings />
-      <PageTabs value={tab} onChange={(value) => setParams({ routine: null, tab: value === 'history' ? 'history' : null })} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines

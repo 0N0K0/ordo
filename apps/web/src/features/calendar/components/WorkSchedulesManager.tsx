@@ -35,7 +35,7 @@ import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkSche
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
-import { describeScheduleCase, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
+import { describeScheduleCase, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -124,7 +124,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
           <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
-      {schedule && <Comments target="SCHEDULE" id={schedule.id} />}
+      {schedule && <Comments target="SCHEDULE" id={schedule.id} readOnly={schedule.archived} />}
     </Stack>
   );
 }
@@ -287,7 +287,7 @@ export function WorkSchedulesManager() {
     columns,
     rows,
     archived: ({ schedule }) => schedule.archived,
-    title: perso ? 'Plages' : 'Horaires de travail',
+    title: schedulesTitle(perso),
     first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
   const bulk = bulkSaver<ScheduleRow, Partial<WorkScheduleInput>>(view, (row, change) => Object.keys(change).length > 0 && saveSchedule(row.schedule, change));
@@ -298,7 +298,7 @@ export function WorkSchedulesManager() {
         description={
           perso
             ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
-            : 'Vos horaires de travail prévus : affichés dans l’agenda, comparés au temps chronométré, et signalés quand un évènement tombe en dehors.'
+            : 'Vos plages de travail prévues : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
         }
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>

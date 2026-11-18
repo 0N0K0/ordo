@@ -1,4 +1,4 @@
-export { collator, copyName, normalize } from '@ordo/shared';
+export { collator, copyName, normalize, sameName } from '@ordo/shared';
 
 /**
  * A word in the plural beyond one (« tâches »), in the singular for one or none (« tâche »), as French counts.

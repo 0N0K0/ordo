@@ -1,18 +1,19 @@
 import {
   addQuantities,
   checklistItemSchema,
+  clipText,
   copyName,
   ITEM_NOTE_MAX,
   itemNoteSchema,
   mapById,
   parseDay,
+  productKey,
   quantitySchema,
   readSheetSources,
   roundQuantity,
   sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
-  sheetItemKey,
   sheetItemSchema,
   type SheetLinkInput,
   sheetLinkSchema,
@@ -360,12 +361,12 @@ const QUANTITY_MAX = 999_999;
  */
 function fitForShopping(part: SheetPart): SheetPart {
   /**
-   * Text cut to a length.
+   * Text cut to a length (clipText), none kept as none.
    * @param {string | null} text Text.
    * @param {number} max Most characters.
    * @returns {string | null} Cut text.
    */
-  const cut = (text: string | null, max: number): string | null => (text === null ? null : text.trim().slice(0, max));
+  const cut = (text: string | null, max: number): string | null => (text === null ? null : clipText(text, max));
   return {
     ...part,
     label: parseInput(shoppingItemSchema.shape.name, cut(part.label, SHOPPING_NAME_MAX)),
@@ -408,10 +409,10 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   const productById = mapById(products);
   return prisma.$transaction(async (tx) => {
     const items = await tx.shoppingItem.findMany({ where: { listId, purchasedAt: null } });
-    const byKey = new Map(items.map((item) => [sheetItemKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
+    const byKey = new Map(items.map((item) => [productKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
     let position = await nextPosition(listId);
     for (const part of parts) {
-      const key = sheetItemKey(part);
+      const key = productKey(part);
       const item = byKey.get(key);
       if (item) {
         const updated = await tx.shoppingItem.update({
@@ -581,7 +582,7 @@ function summedRows(parts: SheetPart[]) {
     { productId: string | null; label: string; categoryId: string | null; quantity: number | null; unit: string | null; note: string | null; consumable: boolean; sources: SheetSource[] }
   >();
   for (const part of parts) {
-    const key = sheetItemKey(part);
+    const key = productKey(part);
     const row = rows.get(key);
     if (row) {
       row.quantity = addQuantities(row.quantity, part.quantity);
@@ -663,10 +664,10 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
   const parts = await partsOf([{ sheetId, multiplier: parseInput(sheetMultiplierSchema, multiplier) }]);
   await prisma.$transaction(async (tx) => {
     const items = await tx.checklistItem.findMany({ where: { listId: id } });
-    const byKey = new Map(items.map((item) => [sheetItemKey(item), item]));
+    const byKey = new Map(items.map((item) => [productKey(item), item]));
     let position = items.reduce((max, item) => Math.max(max, item.position), -1) + 1;
     for (const part of parts) {
-      const key = sheetItemKey(part);
+      const key = productKey(part);
       const item = byKey.get(key);
       if (item) {
         byKey.set(

@@ -2,7 +2,8 @@ import { entityNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from './workspaces';
@@ -44,7 +45,7 @@ export async function createClient(input: { name: string; color?: string | null;
 }
 
 /**
- * Updates the name and/or icon of a client.
+ * Updates the name and/or icon of a client (not an archived one: restore it first).
  * @param {string} id Client id.
  * @param {object} input Changes.
  * @param {string | null} [input.name] New name. Optional.
@@ -58,6 +59,7 @@ export async function updateClient(
   input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null },
 ): Promise<Client> {
   const client = await findClient(id);
+  if (client.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   const { name, color } = parseInput(
     z.object({ name: entityNameSchema.optional(), color: optionalColorSchema.optional() }),
     { name: input.name ?? undefined, color: input.color },

@@ -866,24 +866,17 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
 }
 
 /**
- * Archives or restores a routine (an archived one is no longer due).
- * @param {string} id Routine id.
- * @param {boolean} archived Target state.
- * @returns {Promise<Routine>} Routine.
- */
-export async function setRoutineArchived(id: string, archived: boolean): Promise<Routine> {
-  await findRoutine(id);
-  return prisma.routine.update({ where: { id }, data: { archivedAt: archived ? new Date() : null } });
-}
-
-/**
- * Archives or restores several routines.
+ * Archives or restores routines (an archived one is no longer due), all at once: each must exist (an id given twice
+ * counts once); archiving keeps the date of those archived already.
  * @param {string[]} ids Routine ids.
  * @param {boolean} archived Target state.
  * @returns {Promise<number>} Number of routines changed.
  */
 export async function bulkSetRoutinesArchived(ids: string[], archived: boolean): Promise<number> {
-  return (await prisma.routine.updateMany({ where: { id: { in: ids } }, data: { archivedAt: archived ? new Date() : null } })).count;
+  const unique = [...new Set(ids)];
+  await assertAllExist(prisma.routine, unique, 'Routine');
+  if (!unique.length) return 0;
+  return (await prisma.routine.updateMany({ where: { id: { in: unique }, archivedAt: archived ? null : { not: null } }, data: { archivedAt: archived ? new Date() : null } })).count;
 }
 
 /**

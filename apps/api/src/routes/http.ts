@@ -23,6 +23,15 @@ export function queryText(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * Flag of a query parameter: on for « 1 » or « true » only (« ?paid=0 », a missing or repeated one: off).
+ * @param {unknown} value Value of `req.query.<name>`.
+ * @returns {boolean} The flag.
+ */
+export function queryFlag(value: unknown): boolean {
+  return value === '1' || value === 'true';
+}
+
 /** How a file is sent by `sendDownload`. */
 type DownloadOptions = {
   /** Content-Type. */

@@ -92,6 +92,25 @@ export default defineConfig([
           selector: "ConditionalExpression[test.operator=/^(>|!==|!=)$/][test.right.value=1][consequent.value='s']",
           message: 'Utiliser plural(count, mot) ou countOf(count, mot) (lib/text).',
         },
+        // Tab of a page: unknown tabs fall back (usePageTab).
+        {
+          selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",
+          message: 'Utiliser usePageTab(tabs, fallback) (components/tabs/use-page-tab) : un onglet inconnu ne donne pas de page vide.',
+        },
+        // Same name: case and accents aside, as the search.
+        {
+          selector: "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]",
+          message: 'Utiliser sameName(a, b) (lib/text) : casse et accents ignorés, comme la recherche.',
+        },
+        // People and schedules: one name per kind of workspace.
+        {
+          selector: "ConditionalExpression:matches([consequent.value=/^Proches?$/], [alternate.value=/^Relations?$/])",
+          message: 'Utiliser relationNoun(perso, many) (components/people/people-options) : « Relations » en pro, « Proches » en perso.',
+        },
+        {
+          selector: "ConditionalExpression[consequent.value='Plages'][alternate.value=/^(Plages|Horaires) de travail$/]",
+          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text).',
+        },
         // Shared buttons and messages.
         {
           // A cross closing a panel or clearing a selection is not a removal.

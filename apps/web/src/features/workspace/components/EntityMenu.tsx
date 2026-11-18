@@ -64,7 +64,8 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
         canAddSubProject && { label: 'Ajouter un sous-projet', icon: <FolderPlusIcon aria-hidden />, onClick: () => actions.openProjectForm(undefined, { parentId: item.id }) },
         ...(foldable ? foldEntries((expanded) => expansion!.setSubtreeExpanded(entity, expanded)) : []),
         'divider',
-        {
+        // An archived client or project is read only: restore it first.
+        !item.archived && {
           label: 'Modifier',
           icon: <PencilSimpleIcon aria-hidden />,
           onClick: () => (entity.type === 'client' ? actions.openClientForm(entity.item) : actions.openProjectForm(entity.item)),

@@ -107,6 +107,8 @@ const COLUMNS: DataColumn<LoanRow>[] = [
 export function LoansPanel() {
   const { data: loans, isPending } = useTreasuryLoans();
   const { data: settings } = useTreasurySettings();
+  // Comments of an archived relation are read only.
+  const archivedRelations = new Set((settings?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => relation.id));
   const rows = useMemo((): LoanRow[] => {
     const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
     return (loans ?? []).flatMap((item) => {
@@ -184,7 +186,7 @@ export function LoansPanel() {
               primary={{
                 label: 'Commentaires',
                 icon: <ChatCircleIcon aria-hidden />,
-                onClick: () => openFormPanel(`Commentaires · ${row.name}`, () => <Comments target="RELATION" id={row.relationId} />),
+                onClick: () => openFormPanel(`Commentaires · ${row.name}`, () => <Comments target="RELATION" id={row.relationId} readOnly={archivedRelations.has(row.relationId)} />),
               }}
               items={[]}
             />

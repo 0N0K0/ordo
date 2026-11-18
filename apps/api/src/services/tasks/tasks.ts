@@ -355,8 +355,8 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
 }
 
 /**
- * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along
- * (and its archived ancestors, alone).
+ * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along (and its archived
+ * ancestors, alone: their other sub-tasks archived along with them then stay archived on their own).
  * @param {string} id Task id.
  * @param {boolean} archived Target state.
  * @returns {Promise<Task>} Updated task.
@@ -385,12 +385,17 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<Ta
     if (parent.archivedAt) ancestorIds.push(parent.id);
     parentId = parent.parentId;
   }
-  const [, , updated] = await prisma.$transaction([
+  const [, , , updated] = await prisma.$transaction([
     prisma.task.updateMany({
       where: { id: { in: descendants }, archivedByCascade: true },
       data: { archivedAt: null, archivedByCascade: false },
     }),
     prisma.task.updateMany({ where: { id: { in: ancestorIds } }, data: { archivedAt: null, archivedByCascade: false } }),
+    // Sub-tasks archived by the cascade of a restored ancestor now stay archived on their own.
+    prisma.task.updateMany({
+      where: { archivedByCascade: true, id: { notIn: [id, ...descendants] }, parentId: { in: ancestorIds } },
+      data: { archivedByCascade: false },
+    }),
     prisma.task.update({ where: { id }, data: { archivedAt: null, archivedByCascade: false } }),
   ]);
   return updated;
@@ -641,35 +646,47 @@ export async function removeTaskRelation(taskId: string, otherId: string): Promi
 }
 
 /**
- * Adds a comment to a task.
+ * Checks that a comment exists and that its task can still take changes (not archived).
+ * @param {string} id Comment id.
+ * @returns {Promise<void>}
+ */
+async function assertCommentTask(id: string): Promise<void> {
+  const comment = await orNotFound(prisma.taskComment.findUnique({ where: { id }, select: { task: { select: { archivedAt: true } } } }), 'Commentaire');
+  if (comment.task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+}
+
+/**
+ * Adds a comment to a task (not an archived one: its comments are read only too).
  * @param {string} taskId Task id.
  * @param {string} body Markdown body.
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function addComment(taskId: string, body: string): Promise<TaskComment> {
-  await findTask(taskId);
+  const task = await findTask(taskId);
+  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
   return prisma.taskComment.create({ data: { taskId, body: parsed.body } });
 }
 
 /**
- * Edits a comment.
+ * Edits a comment (not one of an archived task).
  * @param {string} id Comment id.
  * @param {string} body New markdown body.
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function updateComment(id: string, body: string): Promise<TaskComment> {
-  await assertExists(prisma.taskComment, id, 'Commentaire');
+  await assertCommentTask(id);
   const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
   return prisma.taskComment.update({ where: { id }, data: { body: parsed.body } });
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (not one of an archived task).
  * @param {string} id Comment id.
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
+  await assertCommentTask(id);
   await forgetGithubComment(id);
   await deleteOrNotFound(prisma.taskComment, id, 'Commentaire');
 }

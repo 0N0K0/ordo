@@ -15,8 +15,11 @@ export const entityNameSchema = requiredText(120);
 /** Title of a project (not unique). */
 export const projectTitleSchema = requiredText(120, 'Le titre est requis.');
 
+/** Longest name of a configurable label. */
+export const LABEL_NAME_MAX = 50;
+
 /** Name of a configurable label (category, status…). */
-export const labelNameSchema = requiredText(50);
+export const labelNameSchema = requiredText(LABEL_NAME_MAX);
 
 export const colorSchema = z
   .string()

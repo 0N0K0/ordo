@@ -1,6 +1,6 @@
 import { formatDay, reminderMail, sendRemindersSchema } from '@ordo/shared';
 import { prisma } from '../../db';
-import { parseInput } from '../../graphql/errors';
+import { parseInput, userErrorMessage } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
 import { getCompanyProfile } from './company';
 import { documentBalances } from './document-tracking';
@@ -83,7 +83,7 @@ export async function sendReminders(input: { accountId: string; documentIds: str
         projectId: document.projectId,
       });
     } catch (error) {
-      result.error = error instanceof Error ? error.message : 'Envoi impossible.';
+      result.error = userErrorMessage(error, 'Envoi impossible.', 'Relance groupée');
       continue;
     }
     await prisma.documentReminder.create({ data: { documentId: document.id, note: 'Relance par mail (groupée)' } });

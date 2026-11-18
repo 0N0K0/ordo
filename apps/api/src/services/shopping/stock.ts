@@ -4,6 +4,7 @@ import {
   type NewStockItemInput,
   newStockItemSchema,
   parseDay,
+  productKey,
   type ProductStockInput,
   productStockSchema,
   sheetMultiplierSchema,
@@ -355,10 +356,7 @@ async function itemFor(
 ): Promise<StockItem> {
   const same = source.productId
     ? await tx.stockItem.findMany({ where: { productId: source.productId, archivedAt: null }, orderBy: { position: 'asc' } })
-    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter(
-        (item) =>
-          item.label.trim().toLocaleLowerCase('fr') === source.label.trim().toLocaleLowerCase('fr') && (item.unit ?? '').toLocaleLowerCase('fr') === (source.unit ?? '').toLocaleLowerCase('fr'),
-      );
+    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter((item) => productKey(item) === productKey(source));
   const found = same.find((item) => item.locationId === locationId) ?? (locationId ? undefined : same[0]);
   if (found) return found;
   const { _max } = await tx.stockItem.aggregate({ _max: { position: true } });

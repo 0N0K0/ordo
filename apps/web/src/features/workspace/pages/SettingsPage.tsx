@@ -1,10 +1,10 @@
 import { PAGES } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { countBy } from '@ordo/shared';
-import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
-import { Navigate, useSearchParams } from "react-router";
+import { Navigate } from "react-router";
 import { labelFormSchema } from "@ordo/shared";
 import { listMutations } from "../../../components/settings/settings-api";
 import { SettingsList } from "../../../components/settings/SettingsList";
@@ -27,6 +27,9 @@ import {
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
 import { PageTabs } from '../../../components/tabs/PageTabs';
 
+/** Tabs of the settings page. */
+const SETTINGS_PAGE_TABS = ['projects', 'contributors', 'places', 'github', 'workspaces'] as const;
+
 /**
  * Settings of the whole workspace, in tabs: projects (statuses, categories), team or household, contributors and
  * relations, places (of the events, routines, travel times…), GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of the tasks (in every view of
@@ -44,11 +47,8 @@ export function SettingsPage() {
   const deleteStatus = useDeleteProjectStatus();
 
   const { data: taskData } = useTasksData();
-  const [params] = useSearchParams();
-  const setParams = useSetParams();
   const { perso } = useActiveWorkspace();
-  const asked = params.get("tab") ?? "projects";
-  const tab = asked;
+  const [tab, setTab, asked] = usePageTab(SETTINGS_PAGE_TABS);
   const assigneeUsage = countBy(taskData?.tasks ?? [], (task) => task.assigneeIds);
 
   const projects = data?.projects ?? [];
@@ -64,7 +64,7 @@ export function SettingsPage() {
     // In every view of tasks.
     tasks: "/tasks?settings=1",
   };
-  if (moved[asked]) return <Navigate to={moved[asked]} replace />;
+  if (asked && moved[asked]) return <Navigate to={moved[asked]} replace />;
 
   return (
     <Stack gap="lg">
@@ -72,7 +72,7 @@ export function SettingsPage() {
       <PageTabs
         value={tab}
         onChange={(value) =>
-          setParams({ tab: value && value !== "projects" ? value : null }, { only: true })
+          setTab(value, {}, { only: true })
         }
         keepMounted={false}
       >

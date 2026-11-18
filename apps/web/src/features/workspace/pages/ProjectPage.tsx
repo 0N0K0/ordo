@@ -1,4 +1,5 @@
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { SubSection } from '../../../components/page/SubSection';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
@@ -49,6 +50,9 @@ import * as fmt from '../../../lib/format';
 function formatDate(date: string | null): string {
   return date ? fmt.day(date) : '—';
 }
+
+/** Tabs of a project page. */
+const PROJECT_TABS = ['overview', 'tasks', 'routines', 'shopping', 'sheets', 'time', 'billing', 'mail', 'resources'] as const;
 
 /** Sections of the settings tab of a project. */
 const SETTINGS_SECTIONS = ['taskSettings', 'milestones', 'sprints', 'contributors', 'github', 'project'] as const;
@@ -114,10 +118,10 @@ export function ProjectPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
   // The former tabs of the settings (links, bookmarks) open their section.
-  const requested = params.get('tab') ?? 'overview';
+  // The dashboards are in the overview; no billing in a personal workspace.
+  const [tab, setTab, asked] = usePageTab(perso ? PROJECT_TABS.filter((item) => item !== 'billing') : PROJECT_TABS);
+  const requested = asked ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
-  // The dashboards are in the overview.
-  const tab = legacy || requested === 'settings' || requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   // From the tasks tab, the settings open on those of the tasks.
   const [askedSection, setSection] = useSettingsTab(SETTINGS_SECTIONS, tab === 'tasks' ? 'taskSettings' : 'milestones');
   const section: SettingsSection = legacy ? (requested as SettingsSection) : askedSection;
@@ -180,7 +184,7 @@ export function ProjectPage() {
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
           const settings = params.get(SETTINGS_PARAM);
-          setParams({ [SETTINGS_PARAM]: settings, [SETTINGS_TAB_PARAM]: settings ? section : null, tab: value && value !== 'overview' ? value : null }, { only: true });
+          setTab(value, { [SETTINGS_PARAM]: settings, [SETTINGS_TAB_PARAM]: settings ? section : null }, { only: true });
         }}
         keepMounted={false}
       >

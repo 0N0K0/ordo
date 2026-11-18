@@ -1,4 +1,5 @@
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { PAGES } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
@@ -54,6 +55,9 @@ const TABS = [
   { value: 'DEPOSIT_INVOICE', label: 'Acomptes' },
   { value: 'CREDIT_NOTE', label: 'Avoirs' },
 ] as const;
+
+/** Tabs of the page: the documents by type, then the others. */
+const PAGE_TABS = [...TABS.map((item) => item.value), 'toSend', 'overdue', 'recurring', 'catalog'] as const;
 
 /**
  * Repetition of a recurring invoice, as a sentence.
@@ -246,12 +250,12 @@ function RecurringList() {
 export function AccountingPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
-  // Imported documents are now listed with their type.
-  const tab = params.get('tab') && params.get('tab') !== 'imported' ? params.get('tab')! : 'QUOTE';
+  // Imported documents are now listed with their type (the former tab shows the quotes).
+  const [tab, setTab, askedTab] = usePageTab(PAGE_TABS, 'QUOTE');
   // The old tab of the tracking statuses: its settings, in the sidebar.
   useEffect(() => {
-    if (params.get('tab') === 'tracking') setParams({ tab: null, [SETTINGS_PARAM]: '1' });
-  }, [params, setParams]);
+    if (askedTab === 'tracking') setParams({ tab: null, [SETTINGS_PARAM]: '1' });
+  }, [askedTab, setParams]);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -272,13 +276,6 @@ export function AccountingPage() {
   const toSend = (documents ?? []).filter((document) => !document.archived && document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
   const importedToSend = (imported.data ?? []).filter((document) => !document.archived && document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
-  /**
-   * Changes a parameter of the address, the others kept.
-   * @param {string} key Parameter.
-   * @param {string | null} value Value; none removes it.
-   * @returns {void}
-   */
-  const setParam = (key: string, value: string | null) => setParams({ [key]: value });
 
   return (
     <Stack gap="lg">
@@ -290,7 +287,7 @@ export function AccountingPage() {
           </ActionButton>
         }
       />
-      <PageTabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           {TABS.map((item) => (
             <PageTabs.Tab key={item.value} value={item.value}>

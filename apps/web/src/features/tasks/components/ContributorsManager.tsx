@@ -14,6 +14,8 @@ import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';
+import { useActiveWorkspace } from '../../workspaces/api';
+import { relationNoun } from '../../../components/people/people-options';
 
 
 import { countOf } from '../../../lib/text';
@@ -42,6 +44,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   const shown = visibleItems(contributors, showArchived);
   const openForm = useContributorForm();
   const { data: workspace } = useWorkspace();
+  const { perso } = useActiveWorkspace();
 
   /**
    * Titles of the projects a contributor is attached to.
@@ -116,9 +119,9 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                     </Badge>
                   )}
                   {relationOf.has(contributor.id) && (
-                    <Tooltip label={`Relation « ${relationOf.get(contributor.id)} »`}>
+                    <Tooltip label={`${relationNoun(perso)} « ${relationOf.get(contributor.id)} »`}>
                       <Badge size="xs" variant="light" color="grape">
-                        Relation
+                        {relationNoun(perso)}
                       </Badge>
                     </Tooltip>
                   )}

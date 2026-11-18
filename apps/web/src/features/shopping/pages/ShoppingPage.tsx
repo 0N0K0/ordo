@@ -1,5 +1,5 @@
 import { PAGES } from '../../../app/pages';
-import { useSetParams } from '../../../lib/search-params';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -8,7 +8,7 @@ import { ActionIcon, Badge, Group, Stack, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, CheckCircleIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { onMutationError } from '../../../lib/notify';
 import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
@@ -369,21 +369,22 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   );
 }
 
+/** Tabs of the shopping page. */
+const SHOPPING_TABS = ['base', 'lists'] as const;
+
 /**
  * Shopping page (consumables in a professional workspace): the base lists ("références"), where what is missing is
  * marked, and the lists made from them; the settings hold the categories (a tree) and the stores.
  * @returns {JSX.Element} Page.
  */
 export function ShoppingPage() {
-  const [params] = useSearchParams();
-  const setParams = useSetParams();
-  const tab = params.get('tab') === 'lists' ? 'lists' : 'base';
+  const [tab, setTab] = usePageTab(SHOPPING_TABS);
 
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.shopping.title} />
       <ShoppingSettings />
-      <PageTabs value={tab} onChange={(value) => setParams({ tab: value === 'lists' ? 'lists' : null })} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
             Références

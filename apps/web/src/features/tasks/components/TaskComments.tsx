@@ -9,7 +9,7 @@ interface TaskCommentsProps {
 }
 
 /**
- * Comment thread of a task (the shared thread, on the task comments).
+ * Comment thread of a task (the shared thread, on the task comments), read only on an archived task.
  * @param {TaskCommentsProps} props Component props.
  * @returns {JSX.Element} Thread.
  */
@@ -23,6 +23,7 @@ export function TaskComments({ task, context }: TaskCommentsProps) {
       suggestions={context.suggestionsFor(task.projectId)}
       targets={context.targetsFor(task.projectId)}
       actions={threadActions(mutations, { add: (body) => ({ taskId: task.id, body }), remove: (id) => ({ id }) })}
+      readOnly={task.archived}
     />
   );
 }

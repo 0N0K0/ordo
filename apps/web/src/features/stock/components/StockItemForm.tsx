@@ -69,7 +69,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
             placeholder="Aucun"
             clearable
             searchable
-            {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [])))}
+            {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], values.locationId)))}
             {...form.getInputProps('locationId')}
           />
           <ShoppingCategoryField {...form.getInputProps('categoryId')} value={values.categoryId ?? null} onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)} />

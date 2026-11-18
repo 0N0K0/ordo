@@ -2,7 +2,8 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
 import { BackLink } from '../../../components/page/BackLink';
-import { Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { PAGES } from '../../../app/pages';
+import { Group, Paper, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -42,7 +43,7 @@ import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from 
 import { usePeople } from '../../shopping/lib/shopping-format';
 import { sheetItemSchema, shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
-import { countOf, plural } from '../../../lib/text';
+import { countOf, plural, sameName } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
@@ -250,7 +251,7 @@ export function SheetPage() {
         where={`dans ${group?.label ?? 'la fiche'}`}
         schema={sheetItemSchema.shape.label}
         onCreate={(text) => {
-          const product = offeredProducts.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
+          const product = offeredProducts.find((other) => sameName(other.name, text));
           return mutations.addItem.mutateAsync({
             sheetId: sheet.id,
             input: {
@@ -272,20 +273,21 @@ export function SheetPage() {
   return (
     <Stack gap="lg">
       <BackLink to="/sheets">Fiches</BackLink>
-      <PageHeader
-        title={
-          sheet.archived ? (
-            <Group gap="xs" component="span">
+      <PageHeader title={PAGES.sheets.title} />
+      <Group justify="space-between" gap="sm" wrap="wrap" align="flex-end">
+        <Stack gap={2}>
+          <Group gap="xs">
+            <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {sheet.name}
-              <ArchivedBadge feminine />
-            </Group>
-          ) : (
-            sheet.name
-          )
-        }
-        description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
-        actions={
-          sheet.archived ? (
+            </Title>
+            {sheet.archived && <ArchivedBadge feminine />}
+          </Group>
+          <Text size="sm" c="dimmed">
+            {`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
+          </Text>
+        </Stack>
+        <Group gap="sm" ml="auto" wrap="wrap">
+          {sheet.archived ? (
             <ActionButton
               priority="secondary"
               icon={<ArrowCounterClockwiseIcon aria-hidden />}
@@ -319,9 +321,9 @@ export function SheetPage() {
             >
               Utiliser cette fiche
             </ActionButton>
-          )
-        }
-      />
+          )}
+        </Group>
+      </Group>
       {/* Made again once saved (its texts are those of the sheet). */}
       <SheetFields key={`${sheet.id}:${sheet.updatedAt}`} sheet={sheet} />
       <DataTable
@@ -442,7 +444,7 @@ export function SheetPage() {
         actions={(item) => (
           <RowActions
             name={item.label}
-            primary={{ label: 'Commentaires', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} />) }}
+            primary={{ label: 'Commentaires', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} readOnly={sheet.archived} />) }}
             items={[
               !locked && {
                 label: 'Retirer',

@@ -1,4 +1,5 @@
 import { useSearchParam } from '../../lib/search-params';
+import { knownTab } from './use-page-tab';
 
 /** Parameter of the address keeping the tab of the settings shown (?section=…), so that a link or a reload opens it. */
 export const SETTINGS_TAB_PARAM = 'section';
@@ -11,6 +12,5 @@ export const SETTINGS_TAB_PARAM = 'section';
  */
 export function useSettingsTab<T extends string>(tabs: readonly T[], fallback: T = tabs[0]): [T, (tab: T) => void] {
   const [asked, setAsked] = useSearchParam(SETTINGS_TAB_PARAM);
-  const tab = asked !== null && (tabs as readonly string[]).includes(asked) ? (asked as T) : fallback;
-  return [tab, setAsked];
+  return [knownTab(asked, tabs, fallback), setAsked];
 }

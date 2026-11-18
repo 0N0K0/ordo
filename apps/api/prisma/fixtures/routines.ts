@@ -5,7 +5,7 @@ import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/core/geo';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
-import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, setRoutineArchived, slotsOf } from '../../src/services/routines/routines';
+import { changeRoutineOccurrence, createCategory, createRoutine, deleteRoutineOccurrence, moveRoutineOccurrence, occurrencesBetween, bulkSetRoutinesArchived, slotsOf } from '../../src/services/routines/routines';
 
 /**
  * Rule from the default one.
@@ -189,5 +189,5 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   if (gymRoutine && skipped) await deleteRoutineOccurrence(gymRoutine.id, skipped, 'THIS');
 
   // An archived routine (with its history).
-  await setRoutineArchived(watch.id, true);
+  await bulkSetRoutinesArchived([watch.id], true);
 }

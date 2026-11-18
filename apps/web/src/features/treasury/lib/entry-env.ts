@@ -62,15 +62,7 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
   const { data: workspace } = useWorkspace();
   const { data: documentOptions } = useTreasuryDocumentOptions();
   return useMemo(() => {
-    const payers = [
-      { group: 'Clients', items: (workspace?.clients ?? []).map((client) => ({ value: `client:${client.id}`, label: client.name, archived: client.archived })) },
-      { group: 'Tiers', items: (settings?.treasuryCounterparties ?? []).map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name, archived: counterparty.archived })) },
-    ].filter((group) => group.items.length);
-    const groups = new Map<string, Choice[]>();
-    for (const document of [...(documentOptions ?? [])].sort((a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY'))) {
-      const group = document.source === 'LIBRARY' ? 'Bibliothèque' : `Projet ${document.place}`;
-      groups.set(group, [...(groups.get(group) ?? []), { value: documentKey(document), label: document.title }]);
-    }
+    const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? []);
     return {
       settings,
       accounts,
@@ -79,7 +71,7 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       payerNames: new Map(payers.flatMap((group) => group.items.map((item) => [item.value, item.label] as const))),
       projects: projectOptions(workspace, workspace?.projects ?? []),
       projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.title])),
-      documents: [...groups].map(([group, items]) => ({ group, items })),
+      documents: documentGroups(documentOptions ?? []),
       names: new Map([
         ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), personName(member)] as const),
         ...(settings?.treasuryRelations ?? []).map((relation) => [personKey('relation', relation.id), relation.name] as const),
@@ -87,6 +79,56 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       ]),
     };
   }, [settings, workspace, documentOptions, accounts]);
+}
+
+/** Payer or payee offered: a client or a counterparty. */
+interface PayerSource {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+/**
+ * Payers and payees of an entry, by group (clients, then counterparties), the archived ones flagged; empty groups left out.
+ * @param {readonly PayerSource[]} clients Clients.
+ * @param {readonly PayerSource[]} counterparties Counterparties.
+ * @returns {{ group: string, items: Choice[] }[]} Groups.
+ */
+export function payerGroups(clients: readonly PayerSource[], counterparties: readonly PayerSource[]): { group: string; items: Choice[] }[] {
+  return [
+    { group: 'Clients', items: clients.map((client) => ({ value: `client:${client.id}`, label: client.name, archived: client.archived })) },
+    { group: 'Tiers', items: counterparties.map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name, archived: counterparty.archived })) },
+  ].filter((group) => group.items.length);
+}
+
+/** Supporting document offered: in the library (`place`: its folder) or in a project (`place`: the project). */
+interface DocumentSource {
+  source: string;
+  id: string;
+  title: string;
+  place: string;
+  projectId?: string | null;
+}
+
+/**
+ * Supporting documents of an entry, grouped by place: the library, then each project (the given one first); a library
+ * document outside « Documents » named with its folder, each document once.
+ * @param {readonly DocumentSource[]} documents Documents.
+ * @param {string | null} [projectId] Project of the entry, its documents first. Optional.
+ * @returns {{ group: string, items: Choice[] }[]} Groups.
+ */
+export function documentGroups(documents: readonly DocumentSource[], projectId?: string | null): { group: string; items: Choice[] }[] {
+  const groups = new Map<string, Choice[]>();
+  const sorted = [...documents].sort((a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY') || Number(b.projectId === projectId) - Number(a.projectId === projectId));
+  for (const document of sorted) {
+    const group = document.source === 'LIBRARY' ? 'Bibliothèque' : `Projet ${document.place}`;
+    const items = groups.get(group) ?? [];
+    if (!items.some((item) => item.value === documentKey(document))) {
+      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.title} (${document.place})` : document.title });
+    }
+    groups.set(group, items);
+  }
+  return [...groups].map(([group, items]) => ({ group, items }));
 }
 
 /**

@@ -130,3 +130,17 @@ export async function done(work: Promise<unknown>): Promise<true> {
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+/**
+ * Message of a caught error that the user may read: that of an error of a service (a GraphQLError, written for them),
+ * else the fallback, the error itself logged (a bug, a crash: its raw text is not for the user).
+ * @param {unknown} error Caught error.
+ * @param {string} fallback Message shown for any other error.
+ * @param {string} context What failed, for the log.
+ * @returns {string} Message.
+ */
+export function userErrorMessage(error: unknown, fallback: string, context: string): string {
+  if (error instanceof GraphQLError) return error.message;
+  console.error(context, error);
+  return fallback;
+}

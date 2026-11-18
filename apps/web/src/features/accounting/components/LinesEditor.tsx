@@ -1,3 +1,4 @@
+import { arrayMove } from '@dnd-kit/sortable';
 import { moveEntries } from '../../../components/actions/move-entries';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
@@ -174,6 +175,21 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
   );
 }
 
+/**
+ * Stable keys of the lines (they have no id): kept through moves and removals, so that each row keeps its own state
+ * (open description); lines added or dropped elsewhere get new keys, or lose theirs, at the end.
+ * @param {number} count Number of lines.
+ * @returns {{ keys: number[], setKeys: (keys: number[]) => void }} Keys, by line position, and their setter.
+ */
+function useLineKeys(count: number): { keys: number[]; setKeys: (keys: number[]) => void } {
+  const [keys, setKeys] = useState<number[]>(() => Array.from({ length: count }, (_, index) => index));
+  if (keys.length === count) return { keys, setKeys };
+  const next = Math.max(-1, ...keys) + 1;
+  const synced = count < keys.length ? keys.slice(0, count) : [...keys, ...Array.from({ length: count - keys.length }, (_, index) => next + index)];
+  setKeys(synced);
+  return { keys: synced, setKeys };
+}
+
 interface LinesEditorProps {
   lines: AccountingLineInput[];
   totals: LineTotal[];
@@ -197,12 +213,13 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
   const defaultRate = vatApplicable ? 20 : 0;
   const { data: catalog } = useCatalogItems();
   const offered = (catalog ?? []).filter((item) => !item.archived);
+  const { keys, setKeys } = useLineKeys(lines.length);
   return (
     <Stack gap="xs">
       {lines.length === 0 && <EmptyState compact message="Aucune ligne." />}
       {lines.map((line, index) => (
         <LineRow
-          key={index}
+          key={keys[index]}
           line={line}
           total={totals[index] ?? { gross: 0, discount: 0, net: 0 }}
           index={index}
@@ -213,12 +230,13 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
           errors={{ title: errors[`lines.${index}.title`] as string | undefined, discountValue: errors[`lines.${index}.discountValue`] as string | undefined }}
           onChange={(next) => onChange(lines.map((item, position) => (position === index ? next : item)))}
           onMove={(offset) => {
-            const next = [...lines];
-            const [moved] = next.splice(index, 1);
-            next.splice(index + offset, 0, moved);
-            onChange(next);
+            setKeys(arrayMove(keys, index, index + offset));
+            onChange(arrayMove(lines, index, index + offset));
           }}
-          onRemove={() => onChange(lines.filter((_, position) => position !== index))}
+          onRemove={() => {
+            setKeys(keys.filter((_, position) => position !== index));
+            onChange(lines.filter((_, position) => position !== index));
+          }}
         />
       ))}
       {!readOnly && (

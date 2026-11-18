@@ -13,14 +13,16 @@ interface CommentsProps {
   projectId?: string | null;
   /** Heading above the thread. Optional. Default = « Commentaires ». */
   title?: string | null;
+  /** An archived item: its comments shown only (the API refuses changes). Optional. Default = false. */
+  readOnly?: boolean;
 }
 
 /**
- * Comments of an item (routine, event, document, mail…): the shared thread, under its heading.
+ * Comments of an item (routine, event, document, mail…): the shared thread, under its heading (read only on an archived item).
  * @param {CommentsProps} props Component props.
  * @returns {JSX.Element} Comments.
  */
-export function Comments({ target, id, projectId = null, title = 'Commentaires' }: CommentsProps) {
+export function Comments({ target, id, projectId = null, title = 'Commentaires', readOnly = false }: CommentsProps) {
   const { context } = useTaskContext();
   const comments = useComments(target, id);
   const mutations = useCommentMutations();
@@ -31,6 +33,7 @@ export function Comments({ target, id, projectId = null, title = 'Commentaires' 
       suggestions={context?.suggestionsFor(projectId) ?? { ...NO_SUGGESTIONS, projectId }}
       targets={context?.targetsFor(projectId) ?? { ...NO_TARGETS, projectId }}
       actions={threadActions(mutations, { add: (body) => ({ target, id, body }), remove: (commentId) => commentId })}
+      readOnly={readOnly}
     />
   );
   return title ? (

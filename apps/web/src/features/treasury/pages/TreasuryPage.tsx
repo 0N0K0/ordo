@@ -1,4 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
@@ -181,6 +182,9 @@ function Figure({ label, value, hint, color }: { label: string; value: number; h
 
 type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
 
+/** Tabs of the treasury page. */
+const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
+
 /**
  * Treasury: balance of the accounts, balance curve (actual, then forecast) over a month, a quarter or a
  * calendar year moved with arrows, expected movements (forecasts, invoices due, coming recurring invoices), actual movements of a
@@ -192,9 +196,8 @@ export function TreasuryPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
   // The old settings and accounts tabs: in the settings sidebar.
-  const asked = params.get('tab') ?? 'forecast';
+  const [tab, setTab, asked] = usePageTab(TREASURY_TABS);
   const moved = asked === 'settings' || asked === 'accounts';
-  const tab = moved ? 'forecast' : asked;
   useEffect(() => {
     if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { only: true });
   }, [moved, setParams]);
@@ -437,7 +440,7 @@ export function TreasuryPage() {
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
-          setParams({ [SETTINGS_PARAM]: params.get(SETTINGS_PARAM), tab: value && value !== 'forecast' ? value : null }, { only: true })
+          setTab(value, { [SETTINGS_PARAM]: params.get(SETTINGS_PARAM) }, { only: true })
         }
         keepMounted={false}
       >

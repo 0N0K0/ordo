@@ -5,7 +5,10 @@ import { dateSchema } from '../core/workspace';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
-export const taskTitleSchema = requiredText(256, 'Le titre est requis.');
+/** Longest title of a task. */
+export const TASK_TITLE_MAX = 256;
+
+export const taskTitleSchema = requiredText(TASK_TITLE_MAX, 'Le titre est requis.');
 
 /** Markdown text (description, comment); empty becomes null. */
 export const markdownSchema = z
@@ -86,7 +89,10 @@ export const taskFormSchema = z
   });
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-export const milestoneTitleSchema = requiredText(120, 'Le titre est requis.');
+/** Longest title of a milestone. */
+export const MILESTONE_TITLE_MAX = 120;
+
+export const milestoneTitleSchema = requiredText(MILESTONE_TITLE_MAX, 'Le titre est requis.');
 
 export const milestoneFormSchema = z.object({
   title: milestoneTitleSchema,

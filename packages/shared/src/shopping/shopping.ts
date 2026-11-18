@@ -117,3 +117,15 @@ export function shoppingShares(items: readonly { quantity: number | null; unitPr
 
 /** Units of quantity a new workspace starts with (then set in the shopping settings). */
 export const DEFAULT_SHOPPING_UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'] as const;
+
+/**
+ * Key of what a product line holds, the same in the sheets, the shopping lists and the stock: its product, or else its
+ * label and unit (case and spaces aside). Two lines of the same key are the same product (summed, stored together).
+ * @param {{ productId?: string | null, label: string, unit?: string | null }} item Item.
+ * @returns {string} Key.
+ */
+export function productKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
+  if (item.productId) return `p:${item.productId}`;
+  const clean = (text: string | null | undefined) => (text ?? '').trim().toLocaleLowerCase('fr').replace(/\s+/g, ' ');
+  return `l:${clean(item.label)}|${clean(item.unit)}`;
+}

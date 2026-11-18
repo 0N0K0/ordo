@@ -33,7 +33,7 @@ export const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'j
  * @returns {string} Label.
  */
 export function formatLongDate(date: string): string {
-  return fmt.day(parseDay(date));
+  return fmt.dayInWords(date);
 }
 
 /**

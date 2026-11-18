@@ -1,4 +1,4 @@
-import { addDays, formatDay, mapById, normalize, parseDay, round2 } from '@ordo/shared';
+import { addDays, clipText, formatDay, LABEL_NAME_MAX, mapById, MILESTONE_TITLE_MAX, normalize, parseDay, round2, TASK_TITLE_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -263,7 +263,7 @@ async function subtree(taskId: string): Promise<Set<string>> {
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
   const day = (value: unknown) => (value ? parseDay(String(value)) : null);
-  if ('title' in values) data.title = String(values.title).trim().slice(0, 300) || task.title;
+  if ('title' in values) data.title = clipText(String(values.title), TASK_TITLE_MAX) || task.title;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
@@ -302,11 +302,12 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     const tags = await prisma.taskTag.findMany();
     const ids: string[] = [];
     for (const key of values.labels as string[]) {
-      let tag = tags.find((item) => item.name.toLowerCase() === key);
+      // Names cut to the rule of the tags: a long label is found again by its cut name.
+      let tag = tags.find((item) => item.name.toLowerCase() === clipText(key, LABEL_NAME_MAX));
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
         const position = await nextPositionIn('taskTag');
-        tag = await prisma.taskTag.create({ data: { name: (label?.name ?? key).slice(0, 60), color: '#868e96', position } });
+        tag = await prisma.taskTag.create({ data: { name: clipText(label?.name ?? key, LABEL_NAME_MAX), color: '#868e96', position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -328,10 +329,12 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
  * @returns {Promise<string>} Milestone id.
  */
 async function milestoneOf(projectId: string, title: string): Promise<string> {
-  const found = await prisma.milestone.findFirst({ where: { projectId, title }, select: { id: true } });
+  // Cut to the rule of the milestones: a long title is found again by its cut one.
+  const cut = clipText(title, MILESTONE_TITLE_MAX);
+  const found = await prisma.milestone.findFirst({ where: { projectId, title: cut }, select: { id: true } });
   if (found) return found.id;
   const position = await nextPositionIn('milestone', { projectId });
-  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position }, select: { id: true } })).id;
+  return (await prisma.milestone.create({ data: { projectId, title: cut, position }, select: { id: true } })).id;
 }
 
 /**
@@ -700,7 +703,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const known = new Set((await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, select: { githubItemId: true } })).map((task) => task.githubItemId));
     const created = new Set(items.filter((entry) => !known.has(entry.itemId)).map((entry) => entry.itemId));
     for (const item of items.filter((entry) => created.has(entry.itemId))) {
-      const task = await createTask({ title: item.title.trim().slice(0, 300) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
+      const task = await createTask({ title: clipText(item.title, TASK_TITLE_MAX) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
       // Empty snapshot except the title: every GitHub value is new, so it is pulled.
       await prisma.task.update({
         where: { id: task.id },

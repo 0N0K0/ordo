@@ -265,7 +265,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           <FormActions onCancel={onDone} loading={save.isPending} />
         </Stack>
       </form>
-      {budget && <Comments target="BUDGET" id={budget.id} />}
+      {budget && <Comments target="BUDGET" id={budget.id} readOnly={budget.archived} />}
     </Stack>
   );
 }

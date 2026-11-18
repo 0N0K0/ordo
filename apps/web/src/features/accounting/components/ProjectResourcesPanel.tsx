@@ -9,7 +9,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
@@ -141,7 +141,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                 <InlineActions
                   name={resource.title}
                   items={[
-                    ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to })),
+                    ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to }, ON_ERROR)),
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(resource) },
                     { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(resource) },
                   ]}

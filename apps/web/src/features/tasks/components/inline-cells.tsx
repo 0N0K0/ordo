@@ -261,7 +261,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((id) => !candidates.some((candidate) => candidate.id === id))
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
-  const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
+  const label = cellLabel('Tâches dont dépend', `la tâche ${taskName(task)}`, count);
   return (
     <EditableMultiSelect
       label={label}
@@ -381,12 +381,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
   const ON_ERROR = { onError: onMutationError };
-  const label =
-    count > 1
-      ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
-      : kind === 'blocking'
-        ? `Tâches que bloque la tâche ${taskName(task)}`
-        : `Tâches relatives à la tâche ${taskName(task)}`;
+  const label = kind === 'blocking' ? cellLabel('Tâches que bloque', `la tâche ${taskName(task)}`, count) : cellLabel('Tâches relatives', `à la tâche ${taskName(task)}`, count);
   /**
    * Adds or removes a link, on the edited task or each task of the selection.
    * @param {string} id Other task.

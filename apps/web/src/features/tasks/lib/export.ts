@@ -40,7 +40,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       return task.assigneeIds
         .map((id) => context.contributorById.get(id))
         .filter((contributor) => contributor !== undefined)
-        .map((contributor) => contributor.name)
+        .map(context.contributorName)
         .join(', ');
     case 'tags':
       return task.tagIds
@@ -126,8 +126,9 @@ export function eventCell(event: EventOccurrence, column: TaskColumn, context: T
       return beneficiaryNames(event, context).join(', ');
     case 'assignees':
       return event.contributorIds
-        .map((id) => context.contributorById.get(id)?.name)
-        .filter(Boolean)
+        .map((id) => context.contributorById.get(id))
+        .filter((contributor) => contributor !== undefined)
+        .map(context.contributorName)
         .join(', ');
     case 'status':
       return EVENT_STATES[eventState(event, Date.now())].label;

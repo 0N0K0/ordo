@@ -14,12 +14,32 @@ export function normalize(text: string): string {
 }
 
 /**
+ * Whether two names are the same, as a search sees them: spaces around, case and accents aside (« eleve » is « Élève »).
+ * @param {string} a Name.
+ * @param {string} b Other name.
+ * @returns {boolean} Same name.
+ */
+export function sameName(a: string, b: string): boolean {
+  return normalize(a.trim()) === normalize(b.trim());
+}
+
+/**
  * File name without the characters file systems refuse (each replaced by a dash).
  * @param {string} name Name to clean.
  * @returns {string} The cleaned name.
  */
 export function safeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|\0]/g, '-');
+}
+
+/**
+ * Text cut to a length, so that it passes its rule (a title from elsewhere: GitHub, an old sheet…): trimmed, then cut.
+ * @param {string} text Text.
+ * @param {number} max Most characters.
+ * @returns {string} Cut text.
+ */
+export function clipText(text: string, max: number): string {
+  return text.trim().slice(0, max).trimEnd();
 }
 
 /** Suffix of the name of a copy. */

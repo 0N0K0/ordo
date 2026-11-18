@@ -2,8 +2,9 @@ import { commentBodySchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
-import { notFound, parseInput } from '../../graphql/errors';
-import { assertExists, deleteOrNotFound } from './lookup';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE } from './archive';
+import { deleteOrNotFound } from './lookup';
 
 /** Items that take comments (tasks have their own), and their column on a comment. */
 export const COMMENT_TARGETS = {
@@ -28,22 +29,24 @@ export const COMMENT_TARGETS = {
 export type CommentTarget = keyof typeof COMMENT_TARGETS;
 
 /**
- * Checks that the item a comment goes on exists (a mail is named by its Message-ID, kept on its server).
+ * Checks that the item a comment goes on exists and is not archived, nor in an archived element (an item of a sheet or
+ * of a shopping list): an archived element is read only, its comments too (a mail is named by its Message-ID, kept on
+ * its server).
  * @param {CommentTarget} target Kind of item.
  * @param {string} id Item id (Message-ID for a mail).
  * @returns {Promise<void>}
  */
 async function assertTarget(target: CommentTarget, id: string): Promise<void> {
-  const where = { where: { id }, select: { id: true } };
-  const found = {
+  const where = { where: { id }, select: { archivedAt: true } };
+  const found: () => Promise<{ archivedAt: Date | null } | null> = {
     ROUTINE: () => prisma.routine.findUnique(where),
     EVENT: () => prisma.calendarEvent.findUnique(where),
     SCHEDULE: () => prisma.workSchedule.findUnique(where),
-    TIME_ENTRY: () => prisma.timeEntry.findUnique(where),
+    TIME_ENTRY: async () => (await prisma.timeEntry.findUnique({ where: { id }, select: { id: true } })) && { archivedAt: null },
     SHOPPING_LIST: () => prisma.shoppingList.findUnique(where),
     SHOPPING_PRODUCT: () => prisma.shoppingProduct.findUnique(where),
-    SHOPPING_ITEM: () => prisma.shoppingItem.findUnique(where),
-    SHEET_ITEM: () => prisma.sheetItem.findUnique(where),
+    SHOPPING_ITEM: async () => (await prisma.shoppingItem.findUnique({ where: { id }, select: { list: { select: { archivedAt: true } } } }))?.list ?? null,
+    SHEET_ITEM: async () => (await prisma.sheetItem.findUnique({ where: { id }, select: { sheet: { select: { archivedAt: true } } } }))?.sheet ?? null,
     STOCK_ITEM: () => prisma.stockItem.findUnique(where),
     DOCUMENT: () => prisma.accountingDocument.findUnique(where),
     IMPORTED_DOCUMENT: () => prisma.importedDocument.findUnique(where),
@@ -51,10 +54,23 @@ async function assertTarget(target: CommentTarget, id: string): Promise<void> {
     TREASURY_ENTRY: () => prisma.treasuryEntry.findUnique(where),
     BUDGET: () => prisma.treasuryBudget.findUnique(where),
     RELATION: () => prisma.treasuryRelation.findUnique(where),
-    LIBRARY_DOCUMENT: () => prisma.libraryDocument.findUnique(where),
-    MAIL: async () => (id.trim() ? { id } : null),
+    LIBRARY_DOCUMENT: async () => (await prisma.libraryDocument.findUnique({ where: { id }, select: { id: true } })) && { archivedAt: null },
+    MAIL: async () => (id.trim() ? { archivedAt: null } : null),
   }[target];
-  if (!(await found())) throw notFound('Élément');
+  const item = await found();
+  if (!item) throw notFound('Élément');
+  if (item.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+}
+
+/**
+ * Checks that the item of a comment can still take changes (assertTarget).
+ * @param {string} id Comment id.
+ * @returns {Promise<void>}
+ */
+async function assertCommentTarget(id: string): Promise<void> {
+  const comment = await orNotFound(prisma.comment.findUnique({ where: { id } }), 'Commentaire');
+  const target = (Object.keys(COMMENT_TARGETS) as CommentTarget[]).find((kind) => comment[COMMENT_TARGETS[kind]]);
+  if (target) await assertTarget(target, comment[COMMENT_TARGETS[target]]!);
 }
 
 /**
@@ -71,7 +87,7 @@ export async function commentCounts(target: CommentTarget, ids: string[]): Promi
 }
 
 /**
- * Comments an item.
+ * Comments an item (not an archived one).
  * @param {CommentTarget} target Kind of item.
  * @param {string} id Item id (Message-ID for a mail).
  * @param {string} body Markdown.
@@ -84,22 +100,23 @@ export async function addComment(target: CommentTarget, id: string, body: string
 }
 
 /**
- * Changes a comment.
+ * Changes a comment (not one of an archived item).
  * @param {string} id Comment id.
  * @param {string} body Markdown.
  * @returns {Promise<Comment>} Comment.
  */
 export async function updateComment(id: string, body: string): Promise<Comment> {
   const data = parseInput(z.object({ body: commentBodySchema }), { body });
-  await assertExists(prisma.comment, id, 'Commentaire');
+  await assertCommentTarget(id);
   return prisma.comment.update({ where: { id }, data: { body: data.body } });
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (not one of an archived item).
  * @param {string} id Comment id.
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
+  await assertCommentTarget(id);
   await deleteOrNotFound(prisma.comment, id, 'Commentaire');
 }

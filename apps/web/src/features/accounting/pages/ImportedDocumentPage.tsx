@@ -164,7 +164,7 @@ export function ImportedDocumentPage() {
                 {document.note && <MarkdownView targets={NO_TARGETS}>{document.note}</MarkdownView>}
               </Stack>
             </SettingsSection>
-            <Comments target="IMPORTED_DOCUMENT" id={document.id} />
+            <Comments target="IMPORTED_DOCUMENT" id={document.id} readOnly={document.archived} />
           </Stack>
         </Grid.Col>
       </Grid>

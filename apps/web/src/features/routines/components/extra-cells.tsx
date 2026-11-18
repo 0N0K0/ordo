@@ -7,7 +7,7 @@ import { treeSelectProps } from '../../../components/tree/tree-select';
 import { onMutationError } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
 import { useRoutineMutations, type Routine } from '../api';
-import { useRoutineCellEdit } from '../lib/routine-cell-edit';
+import { routineCellLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { EditableMultiSelect, EditableNumber, EditablePopoverCell, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -32,7 +32,7 @@ const hasOwnTimes = (routine: Routine) => !routine.slotCondition && !(routine.ca
  * @returns {JSX.Element} Cell.
  */
 export function ParentRoutineCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'parent');
+  const { apply, count } = useRoutineCellEdit(routine, 'parent');
   // Neither the routine nor its sub-routines can be its parent.
   const below = subtreeOf(routines, routine.id);
   const options = routineTreeOptions(routines, (other) => !below.has(other.id));
@@ -40,7 +40,7 @@ export function ParentRoutineCell({ routine, routines, readOnly = false }: { rou
     <Select
       variant="unstyled"
       size="xs"
-      aria-label={`Routine parente de ${routine.title}`}
+      aria-label={routineCellLabel('Routine parente', routine, count)}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
       clearable={!readOnly}
@@ -89,7 +89,7 @@ export function SubRoutinesCell({ routine, routines, readOnly = false }: { routi
  * @returns {JSX.Element} Cell.
  */
 export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: Routine; field: 'fromTime' | 'dueTime'; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, field);
+  const { apply, count } = useRoutineCellEdit(routine, field);
   const ownTimes = hasOwnTimes(routine);
   if (!ownTimes) {
     return (
@@ -100,7 +100,7 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
   }
   return (
     <EditableTime
-      label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
+      label={routineCellLabel(field === 'fromTime' ? 'À partir de' : 'Avant', routine, count)}
       value={routine[field] ?? ''}
       readOnly={readOnly}
       onSave={(value) => apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
@@ -115,13 +115,13 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
  * @returns {JSX.Element} Cell.
  */
 export function LocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'location');
+  const { apply, count } = useRoutineCellEdit(routine, 'location');
   const [draft, setDraft] = useState<AddressValue | null>(null);
   const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
   return (
     <EditablePopoverCell width={360} empty={!routine.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={routine.location || '—'}>
       <AddressInput
-        aria-label={`Lieu de ${routine.title}`}
+        aria-label={routineCellLabel('Lieu', routine, count)}
         placeholder="Adresse ou lieu enregistré"
         withinPortal={false}
         value={draft ?? current}
@@ -141,10 +141,10 @@ export function LocationCell({ routine, readOnly = false }: { routine: Routine; 
  * @returns {JSX.Element} Cell.
  */
 export function TravelCell({ routine, field, readOnly = false }: { routine: Routine; field: 'travelBefore' | 'travelAfter'; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, field);
+  const { apply, count } = useRoutineCellEdit(routine, field);
   return (
     <EditableNumber
-      label={`${field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour'} (${routine.title})`}
+      label={routineCellLabel(field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour', routine, count)}
       min={0}
       max={24 * 60}
       decimals={0}
@@ -163,12 +163,12 @@ export function TravelCell({ routine, field, readOnly = false }: { routine: Rout
  * @returns {JSX.Element} Cell.
  */
 export function RemindersCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'alarms');
+  const { apply, count } = useRoutineCellEdit(routine, 'alarms');
   const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <EditablePopoverCell
       width={280}
-      label={`Alertes de ${routine.title}`}
+      label={routineCellLabel('Alertes', routine, count)}
       readOnly={readOnly}
       target={
         <>
@@ -243,11 +243,11 @@ export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; r
  */
 export function BlocksCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const { patch } = useRoutineMutations();
-  const { targets } = useRoutineCellEdit(routine, 'blocks');
+  const { targets, count } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   return (
     <EditableMultiSelect
-      label={`Routines qu’attend ${routine.title}`}
+      label={routineCellLabel('Routines en attente', routine, count)}
       {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
       value={waiting}
       readOnly={readOnly}

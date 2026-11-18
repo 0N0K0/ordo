@@ -15,9 +15,7 @@ import { Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
-  ArrowDownIcon,
   ArrowsHorizontalIcon,
-  ArrowUpIcon,
   BankIcon,
   ChartBarIcon,
   CheckSquareOffsetIcon,
@@ -35,7 +33,8 @@ import { useSortableItem } from '../../../components/actions/use-sortable-item';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-import { notifyError, onMutationError } from '../../../lib/notify';
+import { notifyError, ON_ERROR, onMutationError } from '../../../lib/notify';
+import { moveEntries } from '../../../components/actions/move-entries';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
 import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
@@ -251,8 +250,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                       icon: <ArrowsHorizontalIcon aria-hidden />,
                       onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
                     },
-                    { label: 'Avancer', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => moveChart.mutate({ id: chart.id, index: index - 1 }) },
-                    { label: 'Reculer', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => moveChart.mutate({ id: chart.id, index: index + 1 }) },
+                    ...moveEntries(index, count, (to) => moveChart.mutate({ id: chart.id, index: to }, ON_ERROR)),
                     {
                       label: 'Déplacer vers…',
                       icon: <ArrowBendUpRightIcon aria-hidden />,

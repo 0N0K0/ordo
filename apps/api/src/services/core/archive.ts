@@ -111,12 +111,3 @@ export async function assertNoneArchived(target: ArchivableKind | ArchivableMode
   const model = modelOf(target);
   if ((await delegate(model).count({ where: { id: { in: [...new Set(ids)] }, ...archivedWhere(true) } })) > 0) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
 }
-
-/**
- * Prisma `where` of a list showing the archived elements or not (`archivedAt` models).
- * @param {boolean | null | undefined} showArchived Archived ones shown too. Optional. Default = hidden.
- * @returns {{ archivedAt?: null }} Condition to spread in a `where`.
- */
-export function archivedFilter(showArchived?: boolean | null): { archivedAt?: null } {
-  return showArchived ? {} : { archivedAt: null };
-}

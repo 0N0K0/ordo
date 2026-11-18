@@ -13,6 +13,9 @@ const LOCALE = 'fr-FR';
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
 
+/** « 13 novembre 2026 »: a date in a sentence, its weekday left out (the end of a repetition…). */
+export const dayInWords = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
+
 /** « 13 nov. »: a date of the year around, a chart axis. */
 export const dayShort = dateStyle({ day: 'numeric', month: 'short' });
 

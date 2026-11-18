@@ -150,7 +150,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
               {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? routine.currentDate : null} name={routine.title} />}
-              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
+              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} readOnly={routine.archived} />}
             </Stack>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>

@@ -48,6 +48,7 @@ import {
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { slotColumns } from '../lib/slot-columns';
+import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
@@ -781,8 +782,8 @@ export function CalendarPage() {
           </PeriodNav>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(perso ? 'Plages' : 'Plages de travail', () => <WorkSchedulesManager />, 'lg')}>
-            {perso ? 'Plages' : 'Plages de travail'}
+          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(schedulesTitle(perso), () => <WorkSchedulesManager />, 'lg')}>
+            {schedulesTitle(perso)}
           </ActionButton>
           <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
             <Button
@@ -837,7 +838,7 @@ export function CalendarPage() {
                     ))
                   )}
                 </LabeledField>
-                <LabeledField label={perso ? 'Plages' : 'Plages de travail'} gap="xs">
+                <LabeledField label={schedulesTitle(perso)} gap="xs">
                   {scheduleChoices.length === 0 ? (
                     <EmptyState compact message="Aucune plage." />
                   ) : (
@@ -880,7 +881,7 @@ export function CalendarPage() {
                     }
                   />
                   <Switch
-                    label={perso ? 'Plages' : 'Plages de travail'}
+                    label={schedulesTitle(perso)}
                     checked={filters.workHours !== false}
                     onChange={(event) =>
                       setFilters({

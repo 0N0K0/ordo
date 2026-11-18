@@ -691,7 +691,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 ))}
               </SettingsSection>
             )}
-            <Comments target="DOCUMENT" id={document.id} />
+            <Comments target="DOCUMENT" id={document.id} readOnly={document.archived} />
           </Stack>
         </Grid.Col>
       </Grid>

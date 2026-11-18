@@ -127,7 +127,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
   const projectChoices = context.projectOptions(context.projects);
   const taskChoices = context.taskOptions(context.tasks);
   // Archived values keep their labels, the filter offers them only while in it (ColumnChoice.archived).
-  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name, archived: contributor.archived }))];
+  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor), archived: contributor.archived }))];
   /**
    * People of a row, with « Moi » for the user.
    * @param {string[]} ids Contributors.

@@ -447,7 +447,7 @@ export function ShoppingListPage() {
           </Text>
         </Group>
       )}
-      <Comments target="SHOPPING_LIST" id={list.id} />
+      <Comments target="SHOPPING_LIST" id={list.id} readOnly={list.archived} />
       {storeMode && <StoreMode list={list} onClose={() => setStoreMode(false)} />}
     </Stack>
   );
