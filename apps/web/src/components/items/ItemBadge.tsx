@@ -16,7 +16,7 @@ interface ItemBadgeProps extends Omit<BadgeProps, 'color' | 'children'> {
  * @param {ItemBadgeProps} props Component props.
  * @returns {JSX.Element | null} Badge.
  */
-export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBadgeProps) {
+export function ItemBadge({ item, empty, leftSection, ...props }: ItemBadgeProps) {
   if (!item) return empty ? <>{empty}</> : null;
   return (
     <Badge
@@ -24,7 +24,6 @@ export function ItemBadge({ item, empty, leftSection, style, ...props }: ItemBad
       radius="sm"
       {...props}
       color={item.color ?? 'gray'}
-      style={{ textTransform: 'none', ...(typeof style === 'object' ? style : {}) }}
       leftSection={item.iconUrl ? <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} size={14} /> : leftSection}
     >
       {item.label}

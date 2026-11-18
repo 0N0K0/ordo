@@ -65,7 +65,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Tâches"
           required={Boolean(projectIds)}

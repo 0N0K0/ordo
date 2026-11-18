@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalText, requiredText } from '../core/rules';
+import { optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
@@ -131,7 +131,7 @@ export type ClientServiceInput = z.input<typeof clientServiceSchema>;
 export const clientContactSchema = z.object({
   serviceId: z.string().nullable(),
   firstName: requiredText(100, 'Le prénom est requis.'),
-  lastName: requiredText(100),
+  lastName: requiredText(100, PERSON_NAME_REQUIRED),
   email: emailSchema,
   jobTitle: optionalText(120),
   phones: phonesSchema,

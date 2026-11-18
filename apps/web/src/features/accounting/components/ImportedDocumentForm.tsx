@@ -152,8 +152,8 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
         </SimpleGrid>
         <FileInput
           label="Document"
-          placeholder={document?.fileName ?? 'PDF du devis ou de la facture'}
-          description={document?.fileName ? 'Choisir un fichier remplace le document actuel.' : undefined}
+          placeholder={document?.filename ?? 'PDF du devis ou de la facture'}
+          description={document?.filename ? 'Choisir un fichier remplace le document actuel.' : undefined}
           leftSection={<FilePdfIcon aria-hidden />}
           accept="application/pdf,image/*"
           clearable

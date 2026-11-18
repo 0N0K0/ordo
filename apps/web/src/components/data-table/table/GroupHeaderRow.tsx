@@ -1,8 +1,8 @@
-import { FoldChevron } from '../../actions/FoldChevron';
-import { ActionIcon, Badge, ColorSwatch, Group, Table, Text } from '@mantine/core';
+import { Badge, ColorSwatch, Group, Table, Text } from '@mantine/core';
 
 import type { ReactNode } from 'react';
 import classes from './DataTable.module.css';
+import { FoldButton } from '../../actions/FoldButton';
 
 interface GroupHeaderRowProps {
   label: string;
@@ -31,9 +31,7 @@ export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggl
     <Table.Tr {...trProps} className={classes.groupRow} data-depth={depth}>
       <Table.Td colSpan={span} style={depth ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` } : undefined}>
         <Group gap="xs" wrap="nowrap">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={collapsed ? `Déplier ${label}` : `Replier ${label}`} aria-expanded={!collapsed} onClick={onToggle}>
-            <FoldChevron expanded={!collapsed} />
-          </ActionIcon>
+          <FoldButton expanded={!collapsed} item={label} onToggle={onToggle} />
           {color && <ColorSwatch color={color} size={12} />}
           <Text size="sm" fw={depth === 0 ? 700 : 600}>
             {label}

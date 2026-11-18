@@ -1,9 +1,9 @@
-import { Button } from '@mantine/core';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { type AccountingLineInput, toCents } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 interface DeductDepositMenuProps {
   clientId: string | null;
@@ -40,9 +40,9 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
       name="acompte"
       position="bottom-start"
       target={
-        <Button size="xs" variant="default" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
+        <ActionButton priority="secondary" size="xs" icon={<MinusCircleIcon aria-hidden />}>
           Déduire un acompte
-        </Button>
+        </ActionButton>
       }
       items={[
         { section: 'Factures d’acompte du client' },

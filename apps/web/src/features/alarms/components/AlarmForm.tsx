@@ -92,7 +92,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
         <Stack gap={4}>
           <SegmentedControl fullWidth data={TYPES} value={type} onChange={(value) => form.setFieldValue('type', value as AlarmType)} aria-label="Type d’alarme" />
           <Text size="xs" c="dimmed">

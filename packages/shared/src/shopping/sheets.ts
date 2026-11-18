@@ -10,7 +10,7 @@ export const sheetItemSchema = z.object({
   /** Item kept (its comments with it); none: a new one. */
   id: z.string().nullish(),
   productId: z.string().nullable(),
-  label: requiredText(200, 'Le libellé est requis.'),
+  label: requiredText(200),
   /** Category of the shopping products. */
   categoryId: z.string().nullable(),
   quantity: quantitySchema.nullable(),
@@ -63,7 +63,8 @@ export const checklistItemSchema = sheetItemSchema;
 /** Share of a sheet in an item of a list (shopping list or checklist). */
 export interface SheetSource {
   sheetId: string;
-  name: string;
+  /** Label of the sheet when it was added. */
+  label: string;
   /** Quantity it brings (none: no quantity). */
   quantity: number | null;
 }
@@ -74,7 +75,7 @@ export interface SheetSource {
  * @returns {SheetSource[]} Sources.
  */
 export function readSheetSources(value: unknown): SheetSource[] {
-  const parsed = z.array(z.object({ sheetId: z.string(), name: z.string(), quantity: z.number().nullable() })).safeParse(value);
+  const parsed = z.array(z.object({ sheetId: z.string(), label: z.string(), quantity: z.number().nullable() })).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
 

@@ -62,7 +62,7 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
       getKey={(movement) => movement.id}
       cells={(movement) => ({
         kind: (
-          <Badge size="sm" variant="light" color={KIND_COLORS[movement.kind as StockMovementKind]} tt="none">
+          <Badge size="sm" variant="light" color={KIND_COLORS[movement.kind as StockMovementKind]}>
             {STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind]}
           </Badge>
         ),

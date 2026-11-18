@@ -37,7 +37,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
   return {
     kind: 'TREASURY_ACCOUNT',
     colorRequired: false,
-    namePlaceholder: 'Compte courant, livret…',
+    labelPlaceholder: 'Compte courant, livret…',
     schema: treasuryAccountSchema,
     extra: {
       initial: (account) => ({
@@ -98,7 +98,7 @@ export function useMethodItems(): SettingsItemKind<TreasuryPaymentMethod, Method
   return {
     kind: 'TREASURY_PAYMENT_METHOD',
     colorRequired: false,
-    namePlaceholder: 'Virement, carte, chèque…',
+    labelPlaceholder: 'Virement, carte, chèque…',
     schema: treasuryPaymentMethodSchema,
     extra: {
       initial: (method) => ({ incoming: method?.incoming ?? true, outgoing: method?.outgoing ?? true }),
@@ -129,7 +129,7 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterpartyIte
   return {
     kind: 'TREASURY_COUNTERPARTY',
     colorRequired: false,
-    namePlaceholder: 'Fournisseur, administration, banque…',
+    labelPlaceholder: 'Fournisseur, administration, banque…',
     schema: COUNTERPARTY_FORM_SCHEMA,
     extra: {
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),

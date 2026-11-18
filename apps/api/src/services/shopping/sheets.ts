@@ -384,7 +384,7 @@ function withSource(sources: SheetSource[], part: SheetPart): SheetSource[] {
   const own = sources.find((source) => source.sheetId === part.sheetId);
   return own
     ? sources.map((source) => (source === own ? { ...source, quantity: addQuantities(source.quantity, part.quantity) } : source))
-    : [...sources, { sheetId: part.sheetId, name: part.sheetLabel, quantity: part.quantity }];
+    : [...sources, { sheetId: part.sheetId, label: part.sheetLabel, quantity: part.quantity }];
 }
 
 // Shopping lists ----------------------------------------------------------------------------------------------------

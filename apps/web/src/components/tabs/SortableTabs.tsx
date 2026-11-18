@@ -1,11 +1,12 @@
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Group, Tabs, Tooltip, type TabsTabProps } from '@mantine/core';
-import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { Group, Tabs, type TabsTabProps } from '@mantine/core';
+import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
 import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
+import { IconAction } from '../actions/IconAction';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).
@@ -73,9 +74,9 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
   };
 
   const addButton = (
-    <ActionIcon variant="subtle" color="gray" ml="xs" aria-label={add.label} onClick={add.onClick}>
+    <IconAction label={add.label} ml="xs" onClick={add.onClick}>
       <PlusIcon aria-hidden />
-    </ActionIcon>
+    </IconAction>
   );
 
   return (
@@ -93,11 +94,8 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
                     item.id === value ? (
                       <ActionsMenu
                         name={name(item)}
-                        target={
-                          <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions de ${name(item)}`} onClick={(event) => event.stopPropagation()}>
-                            <CaretDownIcon aria-hidden />
-                          </ActionIcon>
-                        }
+                        nested
+                        size="xs"
                         items={[
                           ...actions(item),
                           { label: 'Déplacer à gauche', icon: <ArrowLeftIcon aria-hidden />, disabled: index === 0, onClick: () => onMove(item.id, index - 1) },
@@ -115,11 +113,7 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
           </SortableContext>
         </DndContext>
       </Tabs>
-      {add.menu ? (
-        <ActionsMenu name={add.label} position="bottom-start" target={<Tooltip label={add.label}>{addButton}</Tooltip>} items={add.menu} />
-      ) : (
-        <Tooltip label={add.label}>{addButton}</Tooltip>
-      )}
+      {add.menu ? <ActionsMenu name={add.label} position="bottom-start" target={addButton} items={add.menu} /> : addButton}
     </Group>
   );
 }

@@ -6,7 +6,7 @@ import { checked, stopClick, type CellSchema } from './cell-field';
 
 interface EditableTitleProps {
   value: string;
-  /** Accessible name of the field when renamed (« Titre de la tâche #12 »). */
+  /** Accessible name of the field when renamed (« Libellé de la tâche #12 »). */
   label: string;
   /** Rule of the title (checks and normalizes it). */
   schema: CellSchema<string>;
@@ -39,7 +39,7 @@ export function EditableTitle({ value, label, schema, to, onOpen, before, after,
   const save = () => {
     if (draft === null) return;
     setDraft(null);
-    const result = checked(schema, draft, 'Titre invalide.');
+    const result = checked(schema, draft, 'Libellé invalide.');
     if (result && result.value !== value) onSave(result.value);
   };
 

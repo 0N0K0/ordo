@@ -16,7 +16,7 @@ export function useStartTimer() {
   return {
     startTimer: (input: TimerStartValues, onStarted?: () => void) => {
       const previous = running.data;
-      const message = previous ? `Chrono démarré. Le précédent est arrêté. ${savedTimeMessage(previous)}` : 'Chrono démarré.';
+      const message = previous ? `Chrono démarré. Le chrono en cours s’est arrêté. ${savedTimeMessage(previous)}` : 'Chrono démarré.';
       start.mutate(
         input,
         formCallbacks(null, message, () => onStarted?.()),

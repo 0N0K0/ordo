@@ -33,8 +33,8 @@ const PlacesDocument = graphql(`
 const SearchAddressesDocument = graphql(`
   query SearchAddresses($text: String!, $near: GeoPointInput) {
     searchAddresses(text: $text, near: $near) {
+      address
       label
-      name
       lat
       lon
     }
@@ -44,8 +44,8 @@ const SearchAddressesDocument = graphql(`
 const ReverseAddressDocument = graphql(`
   query ReverseAddress($point: GeoPointInput!) {
     reverseAddress(point: $point) {
+      address
       label
-      name
       lat
       lon
     }
@@ -191,17 +191,17 @@ export async function reverseAddress(point: GeoPoint): Promise<AddressSuggestion
  * Address of a point clicked on the map, the same rule everywhere: the address found, else its coordinates
  * (« 48.85660, 2.35220 »), a failed lookup told in a toast.
  * @param {GeoPoint} point Point clicked.
- * @returns {Promise<{ name: string | null, label: string }>} Name of the place found (none: null) and address.
+ * @returns {Promise<{ label: string | null, address: string }>} Label of the place found (none: null) and address.
  */
-export async function pickedAddress(point: GeoPoint): Promise<{ name: string | null; label: string }> {
+export async function pickedAddress(point: GeoPoint): Promise<{ label: string | null; address: string }> {
   const coordinates = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
   try {
     // eslint-disable-next-line no-restricted-syntax -- pickedAddress itself.
     const found = await reverseAddress(point);
-    return { name: found?.name ?? null, label: found?.label ?? coordinates };
+    return { label: found?.label ?? null, address: found?.address ?? coordinates };
   } catch (error) {
     notifyFailure(error);
-    return { name: null, label: coordinates };
+    return { label: null, address: coordinates };
   }
 }
 

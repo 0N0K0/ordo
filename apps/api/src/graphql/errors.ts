@@ -25,7 +25,7 @@ export function isUniqueConflict(error: unknown): error is Prisma.PrismaClientKn
 /**
  * Rethrows a caught error, a unique constraint violation turned into an error of the field taken.
  * @param {unknown} error Caught error.
- * @param {string} message Message (« Un statut porte déjà ce nom. »).
+ * @param {string} message Message (« Un statut porte déjà ce libellé. »).
  * @param {string} [field] Field taken. Optional. Default = « label ».
  * @returns {never}
  */

@@ -9,7 +9,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   mapById,
-  DEFAULT_SCHEDULE_KIND_NAME,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   readScheduleCases,
   readScheduleExceptions,
   type ScheduleCase,
@@ -106,10 +106,10 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
             </Text>
           )}
           <Group grow align="flex-start">
-            <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+            <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
             <CreatableSelect
               label="Type"
-              placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
+              placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
               clearable
               searchable
               onCreate={itemCreator('Nouveau type de plage', typeItems)}
@@ -239,26 +239,26 @@ export function WorkSchedulesManager() {
       clear,
     });
   const typeById = mapById(types ?? []);
-  const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
+  const defaultLabel = defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL;
   const today = localToday();
-  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultName);
+  const kindLabel = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultLabel);
   const scheduleComments = useCommentCounts(
     'SCHEDULE',
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'name', label: 'Nom', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
+    { id: 'name', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
       bulk: true,
       label: 'Type',
       size: 160,
-      sortValue: ({ schedule }) => kindName(schedule),
-      text: ({ schedule }) => kindName(schedule),
+      sortValue: ({ schedule }) => kindLabel(schedule),
+      text: ({ schedule }) => kindLabel(schedule),
       filter: {
         kind: 'choice',
         value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [{ value: NO_KIND, label: defaultName }, ...itemChoices(types ?? [])],
+        options: [{ value: NO_KIND, label: defaultLabel }, ...itemChoices(types ?? [])],
       },
       groupable: true,
     },
@@ -331,7 +331,7 @@ export function WorkSchedulesManager() {
       ) : (
         <DataTable
           view={view}
-          bar={{ searchLabel: 'Rechercher (nom, type, exception)…' }}
+          bar={{ searchLabel: 'Rechercher (libellé, type, exception)…' }}
           selectionLabel={(count) => selectedLabel(count, ['plage', 'plages'])}
           isArchived={({ schedule }) => schedule.archived}
           selectionActions={(rows, clear) => [
@@ -353,7 +353,7 @@ export function WorkSchedulesManager() {
             const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
-            const kindName = type?.label ?? defaultName;
+            const typeLabel = type?.label ?? defaultLabel;
             // Archived: read only.
             if (schedule.archived) {
               return {
@@ -367,8 +367,8 @@ export function WorkSchedulesManager() {
                 ),
                 type: (
                   <Group gap="xs" wrap="nowrap">
-                    <ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />
-                    <Text size="sm">{kindName}</Text>
+                    <ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />
+                    <Text size="sm">{typeLabel}</Text>
                   </Group>
                 ),
                 start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
@@ -382,13 +382,13 @@ export function WorkSchedulesManager() {
               };
             }
             return {
-              name: <EditableText value={schedule.label} label={`Nom de ${schedule.label}`} strong onSave={(label) => label && bulk('name')(row, { label })} />,
+              name: <EditableText value={schedule.label} label={`Libellé de ${schedule.label}`} strong onSave={(label) => label && bulk('name')(row, { label })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
                   label={`Type de ${schedule.label}`}
-                  leftSection={<ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />}
-                  {...listSelectProps([{ id: NO_KIND, label: defaultName, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
+                  leftSection={<ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />}
+                  {...listSelectProps([{ id: NO_KIND, label: defaultLabel, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
@@ -453,7 +453,7 @@ export function WorkSchedulesManager() {
                 primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
                 items={[
                   !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                  archiveEntry({ archived: schedule.archived, type: 'Plage', name: schedule.label, feminine: true }, setArchived, schedule.id),
+                  archiveEntry({ archived: schedule.archived, type: 'Plage', label: schedule.label, feminine: true }, setArchived, schedule.id),
                   rowMenuEntry(deleteSchedules([row])),
                 ]}
               />

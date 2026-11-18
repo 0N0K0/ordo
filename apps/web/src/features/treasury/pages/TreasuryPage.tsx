@@ -579,7 +579,7 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
-              const archiveItem = archiveEntry({ archived: entry.archived, type: forecast ? 'Prévision' : 'Mouvement', name: entry.label, feminine: forecast }, setArchived, entry.id);
+              const archiveItem = archiveEntry({ archived: entry.archived, type: forecast ? 'Prévision' : 'Mouvement', label: entry.label, feminine: forecast }, setArchived, entry.id);
               return (
                 <RowActions
                   name={item.label}

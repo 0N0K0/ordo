@@ -148,7 +148,7 @@ interface PlannedPause {
   to: string;
   label: string;
   scheduleId: string;
-  scheduleName: string;
+  scheduleLabel: string;
 }
 
 /**
@@ -318,7 +318,7 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
   return schedules.flatMap((schedule) =>
     schedule.exceptions
       .filter((exception) => !exception.cases.length && exception.from <= to && exception.to >= from)
-      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleName: schedule.label })),
+      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleLabel: schedule.label })),
   );
 }
 
@@ -461,12 +461,12 @@ export const scheduleTypeSchema = z.object({
   ...scheduleDisplayFields,
 });
 
-/** Name of the schedules without kind, unless the workspace names them. */
-export const DEFAULT_SCHEDULE_KIND_NAME = 'Travail';
+/** Label of the schedules without kind, unless the workspace labels them. */
+export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';
 
-/** Schedules without kind of a workspace: their name (empty: "Travail"), color (none: the green of working hours) and display. */
+/** Schedules without kind of a workspace: their label (empty: "Travail"), color (none: the green of working hours) and display. */
 export const defaultScheduleKindSchema = z.object({
-  name: z.string().trim().max(60, '60 caractères maximum.'),
+  label: z.string().trim().max(60, '60 caractères maximum.'),
   color: colorSchema.nullable(),
   ...scheduleDisplayFields,
 });

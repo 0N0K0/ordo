@@ -269,6 +269,31 @@ export default defineConfig([
           message: 'Utiliser AddItemButton (components/actions/AddItemButton) : « + » discret et libellé précis.',
         },
         {
+          // Decision 11: an icon alone keeps its tooltip.
+          selector: "JSXOpeningElement[name.name='ActionIcon']",
+          message: 'Utiliser IconAction (components/actions/IconAction) : un bouton icône seul garde son infobulle (décision 11) ; FoldButton pour plier, RemoveButton pour retirer.',
+        },
+        {
+          // Decision AB.
+          selector: "JSXOpeningElement[name.name='Button']:has(JSXAttribute[name.name='variant'][value.value='default']):has(JSXAttribute[name.name='leftSection'])",
+          message: 'Utiliser ActionButton priority="secondary" (components/actions/ActionButton) : icône et libellé, sans couleur (décision AB).',
+        },
+        {
+          // Decision AG.
+          selector: "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='tt']",
+          message: 'Badges en capitales (décision AG) : pas de tt sur un Badge.',
+        },
+        {
+          // Decision AE.
+          selector: 'Literal[value=/\\b(Déplier|Replier)\\b/], TemplateElement[value.raw=/\\b(Déplier|Replier)\\b/]',
+          message: 'Utiliser FoldButton (components/actions/FoldButton) : « Développer / Réduire » partout (décision AE).',
+        },
+        {
+          // Decision AI.
+          selector: 'Literal[value=/j de retard/], TemplateElement[value.raw=/j de retard/]',
+          message: 'Utiliser fmt.daysLate (lib/format), LateBadge sur l’accueil (décision AI).',
+        },
+        {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value='red']",
           message: 'Utiliser ErrorAlert (components/feedback/ErrorAlert).',
         },

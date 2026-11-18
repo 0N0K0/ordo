@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { endAfter, requiredText } from './rules';
+import { endAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from './rules';
 import { daySchema } from '../dates/times';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
@@ -10,10 +10,24 @@ export const MAX_PROJECT_DEPTH = 5;
 export const ICON_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 /** Name of a client (not unique). */
-export const entityNameSchema = requiredText(120);
+export const entityNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
 
 /** Label of a project (not unique). */
-export const projectLabelSchema = requiredText(120, 'Le titre est requis.');
+export const projectLabelSchema = requiredText(120);
+
+/** Link of a project (a mock-up, a repository…): its label, address and note; a file has no address. */
+export const projectLinkSchema = z.object({
+  label: requiredText(200),
+  url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
+  note: optionalText(1000),
+});
+export type ProjectLinkInput = z.input<typeof projectLinkSchema>;
+
+/** Longest label of a workspace. */
+export const WORKSPACE_LABEL_MAX = 60;
+
+/** Label of a workspace. */
+export const workspaceLabelSchema = requiredText(WORKSPACE_LABEL_MAX);
 
 /** Longest label of a configurable label item. */
 export const LABEL_MAX = 50;

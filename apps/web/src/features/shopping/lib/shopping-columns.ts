@@ -36,7 +36,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'name', label: 'Label', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'name', label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     categoryColumn<T>(names.categories, { size: 150, hiddenByDefault: grouping === 'category', groupable: false }),
     {
       id: 'store',

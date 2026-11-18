@@ -2,9 +2,9 @@ import { calendarPath, PAGES, projectPath } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { localDay } from '../../../lib/dates';
-import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { addDays, daysBetween, formatDuration } from '@ordo/shared';
+import { addDays, formatDuration } from '@ordo/shared';
 import { nextRing } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -20,6 +20,7 @@ import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
 import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
+import { LateBadge } from './LateBadge';
 
 interface TasksCardProps {
   context: TaskContext | null;
@@ -48,17 +49,9 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
               <HomeRow
                 key={task.id}
                 to={link.to(task.id)}
-                title={task.label}
+                label={task.label}
                 subtitle={`${context.projectLabel(task.projectId)}${task.number === null ? '' : ` · #${task.number}`}`}
-                value={
-                  late && task.deadline ? (
-                    <Badge color="red" variant="light">
-                      {daysBetween(task.deadline, today)} j de retard
-                    </Badge>
-                  ) : (
-                    <ItemBadge item={status} />
-                  )
-                }
+                value={late && task.deadline ? <LateBadge due={task.deadline} today={today} /> : <ItemBadge item={status} />}
               />
             );
           }}
@@ -115,7 +108,7 @@ export function AgendaCard({ today }: { today: string }) {
             <HomeRow
               key={item.key}
               to={item.alarm ? PAGES.alarms.path : calendarPath(item.day)}
-              title={
+              label={
                 <Group component="span" gap="xs" wrap="nowrap">
                   <Text span size="sm" c="dimmed" w={48} style={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                     {item.time ?? 'Journée'}

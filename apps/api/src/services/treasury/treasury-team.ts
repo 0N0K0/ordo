@@ -83,7 +83,7 @@ export async function saveContext(id: string | null, input: TreasuryContextInput
       return tx.treasuryContext.create({ data: { ...data, position: await nextPositionIn('treasuryContext', {}, tx) } });
     });
   } catch (error) {
-    rethrowUnique(error, 'Un contexte porte déjà ce nom.');
+    rethrowUnique(error, 'Un contexte porte déjà ce libellé.');
   }
 }
 

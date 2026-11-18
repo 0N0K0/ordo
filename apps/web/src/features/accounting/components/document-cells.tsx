@@ -43,10 +43,10 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
     const { document } = props;
     return document.fileUrl ? (
       <FileBadge
-        name={document.fileName ?? 'Fichier'}
+        filename={document.filename ?? 'Fichier'}
         onClick={(event) => {
           stopClick(event);
-          openFile({ url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
+          openFile({ url: document.fileUrl!, filename: document.filename ?? document.number, mimeType: document.fileMimeType });
         }}
       />
     ) : null;
@@ -59,9 +59,8 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
         {document.attachments.map((attachment) => (
           <FileBadge
             key={attachment.id}
-            name={attachment.filename}
-            onClick={() => openFile({ url: attachment.url, name: attachment.filename })}
-            removeLabel="Retirer la pièce jointe"
+            filename={attachment.filename}
+            onClick={() => openFile({ url: attachment.url, filename: attachment.filename })}
             onRemove={
               document.archived
                 ? undefined

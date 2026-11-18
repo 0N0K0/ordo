@@ -72,7 +72,7 @@ type ShoppingItem = ShoppingList['items'][number];
  * @returns {{ sheetId: string, name: string }[]} Sheets.
  */
 const listSheets = (items: ShoppingItem[]) => [
-  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, name: source.name }] as const))).values(),
+  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, label: source.label }] as const))).values(),
 ];
 
 /** Views made the first time a list is shown: every item (opened first), what is left to buy. */
@@ -158,12 +158,12 @@ export function ShoppingListPage() {
         id: 'sheets',
         label: 'Fiches',
         size: 180,
-        sortValue: (item) => item.sheetSources.map((source) => source.name).join(', ') || null,
-        text: (item) => item.sheetSources.map((source) => source.name).join(', '),
+        sortValue: (item) => item.sheetSources.map((source) => source.label).join(', ') || null,
+        text: (item) => item.sheetSources.map((source) => source.label).join(', '),
         filter: {
           kind: 'choices',
           value: (item) => item.sheetSources.map((source) => source.sheetId),
-          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.name })),
+          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.label })),
         },
       },
       commentColumn<ShoppingItem>(
@@ -231,7 +231,7 @@ export function ShoppingListPage() {
             <ArchivedBadge feminine />
           ) : (
             closed && (
-              <Badge variant="light" color="gray" tt="none">
+              <Badge variant="light" color="gray">
                 Clôturée
               </Badge>
             )
@@ -376,7 +376,7 @@ export function ShoppingListPage() {
           }}
           badge={(item) =>
             !item.productId && (
-              <Badge size="xs" variant="outline" color="gray" tt="none" style={{ flex: 'none' }}>
+              <Badge size="xs" variant="outline" color="gray" style={{ flex: 'none' }}>
                 hors liste
               </Badge>
             )

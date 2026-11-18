@@ -146,7 +146,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="lg">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
         <Grid gap="xl">
           <Grid.Col span={{ base: 12, md: 8 }}>
@@ -194,7 +194,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 searchable
                 // Archived categories are no longer offered, but those of the routine stay.
                 {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
-                nothingFoundMessage="Aucune catégorie : tapez son nom pour la créer"
+                nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
                 {...form.getInputProps('categoryIds')}
               />
               {context && (

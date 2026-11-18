@@ -1,7 +1,7 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
-import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
+import { Group, Paper, Table, Text } from '@mantine/core';
 import { ItemAvatar } from '../items/ItemAvatar';
-import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
 import classes from './CategoryTree.module.css';
@@ -9,6 +9,7 @@ import { useFolded, useTreeDrop } from './tree-dnd';
 
 import treeRow from './tree-drop.module.css';
 import { DragHandle } from '../actions/DragHandle';
+import { FoldButton } from '../actions/FoldButton';
 
 interface CategoryRowProps<C extends TreeCategory> {
   placed: PlacedCategory<C>;
@@ -50,13 +51,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
-          {!nested ? null : folded !== undefined ? (
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${path}`} aria-expanded={!folded} onClick={onToggle}>
-              {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-            </ActionIcon>
-          ) : (
-            <span className={treeRow.caretSpace} />
-          )}
+          {!nested ? null : folded !== undefined ? <FoldButton expanded={!folded} item={path} onToggle={onToggle} /> : <span className={treeRow.caretSpace} />}
           <ItemAvatar name={category.label} iconUrl={category.iconUrl} color={color} size={22} />
           <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>
             {category.label}

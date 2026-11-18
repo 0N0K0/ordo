@@ -52,7 +52,7 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
                 <TimePicker size="xs" aria-label={`Début, cas ${index + 1}`} {...hours.start} />
                 <Text size="sm">à</Text>
                 <TimePicker size="xs" aria-label={`Fin, cas ${index + 1}`} {...hours.end} />
-                <RemoveButton label="Retirer ces horaires" size="sm" onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })} />
+                <RemoveButton label="Retirer" aria-label="Retirer ces horaires" size="sm" onClick={() => onChange({ ...value, ranges: value.ranges.filter((_, other) => other !== position) })} />
               </Group>
             );
           })}
@@ -152,7 +152,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
                   onChange={(event) => setException(index, { label: event.currentTarget.value })}
                 />
                 <RemoveButton
-                  label="Retirer l’exception"
+                  label="Retirer"
                   mb={4}
                   aria-label={`Retirer l’exception ${index + 1}`}
                   onClick={() => setDraft({ ...draft, exceptions: draft.exceptions.filter((_, position) => position !== index) })}

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
 import { addDays } from '../dates/days';
 import { LOCALE } from '../core/numbers';
-import { daySchema } from '../dates/times';
+import { daySchema, startDaySchema } from '../dates/times';
+import { recurrenceSchema } from '../dates/recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
@@ -369,7 +370,7 @@ export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
 /** Product or service of the catalogue: default fields of a line. */
 export const catalogItemSchema = z.object({
   kind: z.enum(['ITEM', 'DISBURSEMENT']),
-  label: requiredText(300, 'Le libellé est requis.'),
+  label: requiredText(300),
   description: z
     .string()
     .max(20_000, 'Texte trop long.')
@@ -397,3 +398,13 @@ export const SENT_VIA_LABELS: Record<SendingChannel, string> = {
 
 /** Days after an invoice was sent before it may be reminded. */
 export const REMINDER_DELAY_DAYS = 15;
+
+/** Schedule of a recurring invoice: its label, repetition, first issue date, drafts or final invoices, active. */
+export const recurringInvoiceSchema = z.object({
+  label: requiredText(200),
+  recurrence: recurrenceSchema,
+  startDate: startDaySchema,
+  autoFinalize: z.boolean(),
+  active: z.boolean(),
+});
+export type RecurringInvoiceInput = z.input<typeof recurringInvoiceSchema>;

@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, type Recurrence, recurrenceSchema, requiredText, startDaySchema } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, formatOptionalDay, occurrenceDates, parseDay, parseOptionalDay, type Recurrence, recurringInvoiceSchema as settingsSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
@@ -11,13 +11,6 @@ import { requirePro } from '../workspace/workspaces';
 import { assertNotArchived } from '../core/archive';
 import { assertExists } from '../core/lookup';
 
-const settingsSchema = z.object({
-  label: requiredText(200),
-  recurrence: recurrenceSchema,
-  startDate: startDaySchema,
-  autoFinalize: z.boolean(),
-  active: z.boolean(),
-});
 export type RecurringSettings = z.input<typeof settingsSchema>;
 
 /**

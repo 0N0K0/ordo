@@ -30,7 +30,7 @@ interface LabelDelegate<T> {
 export interface LabelMessages {
   /** "Statut", "Priorité"… */
   notFound: string;
-  /** "Un statut porte déjà ce nom." */
+  /** "Un statut porte déjà ce libellé." */
   conflict: string;
 }
 

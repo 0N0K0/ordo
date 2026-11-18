@@ -6,7 +6,7 @@
  * a time, timestamp), shown in the user's time zone.
  */
 
-import { capitalize as capitalizeText, countOf, dateStyle, formatMoney, formatNumber, formatPercent, LOCALE, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
+import { capitalize as capitalizeText, countOf, dateStyle, daysBetween, formatMoney, formatNumber, formatPercent, LOCALE, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
@@ -152,6 +152,17 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
  */
 export function daysAgo(days: number): string {
   return days === 0 ? 'aujourd’hui' : `il y a ${countOf(days, 'jour')}`;
+}
+
+/**
+ * « 3 j de retard »: how late something due is.
+ * @param {string} due Day it was due (YYYY-MM-DD).
+ * @param {string} today Today (YYYY-MM-DD).
+ * @returns {string} Text.
+ */
+export function daysLate(due: string, today: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- fmt.daysLate itself.
+  return `${daysBetween(due, today)} j de retard`;
 }
 
 /**

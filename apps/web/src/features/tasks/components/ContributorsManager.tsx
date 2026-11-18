@@ -140,7 +140,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                   // Archived: read only (restored to be edited).
                   !contributor.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
                   // The user's own profile can be neither archived nor deleted.
-                  !contributor.isMe && archiveEntry({ archived: contributor.archived, type: 'Contributeur', name: contributor.name }, setArchived, contributor.id),
+                  !contributor.isMe && archiveEntry({ archived: contributor.archived, type: 'Contributeur', label: contributor.name }, setArchived, contributor.id),
                   !contributor.isMe && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(contributor) },
                 ]}
               />

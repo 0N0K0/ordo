@@ -18,6 +18,7 @@ import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -126,9 +127,9 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
       />
       <Group justify="flex-end" gap="sm">
         {item.check && routine && (
-          <Button variant="default" color="red" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
+          <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
             Décocher
-          </Button>
+          </ActionButton>
         )}
         <Button leftSection={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}

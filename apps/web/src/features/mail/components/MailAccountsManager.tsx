@@ -108,7 +108,7 @@ export function MailAccountsManager() {
                     icon: <PencilSimpleIcon aria-hidden />,
                     onClick: () => open(`Modifier — ${account.label}`, (close) => <MailAccountForm account={account} onDone={close} />),
                   },
-                  archiveEntry({ archived: account.archived, type: 'Boîte', name: account.label, feminine: true }, setArchived, account.id),
+                  archiveEntry({ archived: account.archived, type: 'Boîte', label: account.label, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />

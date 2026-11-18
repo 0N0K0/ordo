@@ -47,27 +47,27 @@ export function HomeList<T>({ items, render, group }: HomeListProps<T>) {
 interface HomeRowProps {
   /** Page the row opens. */
   to: To;
-  title: ReactNode;
-  /** Line below the title, small. Optional. */
+  label: ReactNode;
+  /** Line below the label, small. Optional. */
   subtitle?: ReactNode;
   /** Value on the right (amount, badge, date). Optional. */
   value?: ReactNode;
-  /** Bold title and a subtitle not dimmed (an unread mail). Optional. */
+  /** Bold label and a subtitle not dimmed (an unread mail). Optional. */
   emphasis?: boolean;
 }
 
 /**
- * Row of a home card: a link with a title, a subtitle below and a value on the right.
+ * Row of a home card: a link with a label, a subtitle below and a value on the right.
  * @param {HomeRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function HomeRow({ to, title, subtitle, value, emphasis = false }: HomeRowProps) {
+export function HomeRow({ to, label, subtitle, value, emphasis = false }: HomeRowProps) {
   return (
     <Link to={to} className={`${tile.tile} ${classes.row}`}>
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Stack gap={0} miw={0}>
           <Text size="sm" fw={emphasis ? 600 : undefined} truncate>
-            {title}
+            {label}
           </Text>
           {subtitle && (
             <Text size="xs" c={emphasis ? undefined : 'dimmed'} truncate>

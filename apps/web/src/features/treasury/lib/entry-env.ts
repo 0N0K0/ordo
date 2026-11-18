@@ -45,7 +45,7 @@ export interface EntryEnv {
   /** Projects, in tree order. */
   projects: TreeOption[];
   /** Full names of the projects, by id. */
-  projectNames: Map<string, string>;
+  projectLabels: Map<string, string>;
   /** Supporting documents ("lib:<id>", "res:<id>"), grouped by place. */
   documents: { group: string; items: Choice[] }[];
   /** Names of the members ("m:"), relations ("r:") and contexts ("c:"). */
@@ -70,7 +70,7 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       payers,
       payerNames: new Map(payers.flatMap((group) => group.items.map((item) => [item.value, item.label] as const))),
       projects: projectOptions(workspace, workspace?.projects ?? []),
-      projectNames: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.label])),
+      projectLabels: new Map((workspace?.projects ?? []).map((project) => [project.id, workspace ? projectFullPath(workspace, project) : project.label])),
       documents: documentGroups(documentOptions ?? []),
       names: new Map([
         ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), personName(member)] as const),

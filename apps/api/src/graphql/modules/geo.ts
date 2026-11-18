@@ -40,8 +40,8 @@ const TravelModeEnum = builder.enumType('TravelMode', { values: TRAVEL_MODES });
 const AddressSuggestionRef = builder.objectRef<geo.AddressSuggestion>('AddressSuggestion').implement({
   description: 'Address found by a search (OpenStreetMap).',
   fields: (t) => ({
-    label: t.exposeString('label'),
-    name: t.exposeString('name', { nullable: true, description: 'Name of the place, when it has one (a station, a shop…).' }),
+    address: t.exposeString('address'),
+    label: t.exposeString('label', { nullable: true, description: 'Label of the place, when it has one (a station, a shop…).' }),
     lat: t.exposeFloat('lat'),
     lon: t.exposeFloat('lon'),
   }),

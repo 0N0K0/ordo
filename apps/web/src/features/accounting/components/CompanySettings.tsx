@@ -11,6 +11,7 @@ import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type Acco
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
 
@@ -80,9 +81,9 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                 <Group gap="xs">
                   <FileButton accept="image/png,image/jpeg" onChange={(file) => file && setLogo.mutate(file, toastCallbacks('Logo enregistré.'))}>
                     {(props) => (
-                      <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={setLogo.isPending} {...props}>
+                      <ActionButton priority="secondary" size="xs" icon={<UploadSimpleIcon aria-hidden />} loading={setLogo.isPending} {...props}>
                         {profile.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
-                      </Button>
+                      </ActionButton>
                     )}
                   </FileButton>
                   {profile.logoUrl && (
@@ -237,15 +238,15 @@ function NumberingSettings() {
                   </Table.Td>
                   <Table.Td ff="monospace">{documentNumber(sequence.type, year, value)}</Table.Td>
                   <Table.Td>
-                    <Button
+                    <ActionButton
+                      priority="secondary"
                       size="xs"
-                      variant="default"
                       disabled={value === sequence.nextNumber}
-                      leftSection={<FloppyDiskIcon aria-hidden />}
+                      icon={<FloppyDiskIcon aria-hidden />}
                       onClick={() => setSequence.mutate({ type: sequence.type, year, nextNumber: value }, toastCallbacks('Numérotation enregistrée.'))}
                     >
                       Enregistrer
-                    </Button>
+                    </ActionButton>
                   </Table.Td>
                 </Table.Tr>
               );

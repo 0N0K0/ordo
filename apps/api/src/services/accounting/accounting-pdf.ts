@@ -830,7 +830,7 @@ function writeHeader(
 
   // Buyer, in the window of the envelope (lower when the facts above reach it), on the white of the page.
   const contact = buyer.contact ? [contactName(buyer.contact), buyer.contact.jobTitle].filter(Boolean).join(', ') : null;
-  const postalLines = [buyer.service?.name ?? null, contact ? `À l’attention de ${contact}` : null, ...printedAddress(buyer.address)].filter((line): line is string => Boolean(line?.trim()));
+  const postalLines = [buyer.service?.label ?? null, contact ? `À l’attention de ${contact}` : null, ...printedAddress(buyer.address)].filter((line): line is string => Boolean(line?.trim()));
   const identifiers = [buyer.siret ? `SIRET ${buyer.siret}` : buyer.siren ? `SIREN ${buyer.siren}` : null, buyer.vatNumber ? `TVA ${buyer.vatNumber}` : null].filter((line): line is string =>
     Boolean(line),
   );

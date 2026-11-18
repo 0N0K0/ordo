@@ -98,7 +98,7 @@ const WorkSchedulesDocument = graphql(`
       position
     }
     defaultScheduleKind {
-      name
+      label
       color
       dayDisplay
       dayBar
@@ -178,7 +178,7 @@ const SubscribeScheduleKindDocument = graphql(`
 const SaveDefaultScheduleKindDocument = graphql(`
   mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
     saveDefaultScheduleKind(input: $input) {
-      name
+      label
     }
   }
 `);
@@ -611,7 +611,7 @@ export function useWorkScheduleMutations() {
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
-      async (input: { name: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
+      async (input: { label: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
     ),
     setLook: useCalendarMutation(
       async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) => (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,

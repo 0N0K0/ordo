@@ -143,7 +143,7 @@ const ChecklistDocument = graphql(`
         position
         sources {
           sheetId
-          name
+          label
           quantity
         }
       }

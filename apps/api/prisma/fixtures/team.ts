@@ -66,11 +66,11 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
   const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === name && item.direction === direction)?.id ?? null;
   const budget = (
-    categoryName: string,
+    categoryLabel: string,
     amount: number,
     changes: { memberId?: string | null; relationId?: string | null; contextId?: string | null; repeatEvery?: number | null; month?: string; repeatUntil?: string | null },
   ) => {
-    const categoryId = category(categoryName);
+    const categoryId = category(categoryLabel);
     if (!categoryId) return null;
     return saveBudget(null, { month: month(-3), memberId: null, contextId: null, repeatEvery: 1, repeatUntil: null, ...changes, categoryId, amount });
   };

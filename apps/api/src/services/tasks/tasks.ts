@@ -254,7 +254,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
  * @returns {Promise<Task>} Created task.
  */
 export async function createTask(input: TaskInput & { label: string }): Promise<Task> {
-  if (!input.label?.trim()) throw fieldError('label', 'Le titre est requis.');
+  if (!input.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
   const details = parseDetails(input);
   const projectId = input.projectId ?? null;
   if (projectId) await assertProject(projectId);

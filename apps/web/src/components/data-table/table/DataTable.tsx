@@ -1,8 +1,7 @@
-import { FoldChevron } from '../../actions/FoldChevron';
 import { fittedLayout, movedColumnOrder } from './column-fit';
 import { dropProjection, withoutDescendants } from '../../tree/tree-dnd';
 import { TableSkeleton } from '../../feedback/Skeletons';
-import { ActionIcon, Group, Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
+import { Group, Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
 import { closestCenter, DndContext, pointerWithin, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -40,6 +39,7 @@ import type { RowGroup } from './table-engine';
 import type { DataView } from '../views/use-data-view';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
 import { DragHandle } from '../../actions/DragHandle';
+import { FoldButton } from '../../actions/FoldButton';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 interface LeadingCell<R> {
@@ -683,19 +683,12 @@ export function DataTable<R>({
                       {first ? (
                         <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
                           {row.getCanExpand() ? (
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              aria-label={row.getIsExpanded() ? 'Replier les sous-éléments' : 'Déplier les sous-éléments'}
-                              aria-expanded={row.getIsExpanded()}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                row.toggleExpanded();
-                              }}
-                            >
-                              <FoldChevron expanded={row.getIsExpanded()} />
-                            </ActionIcon>
+                            <FoldButton
+                              expanded={row.getIsExpanded()}
+                              aria-label={row.getIsExpanded() ? 'Réduire les sous-éléments' : 'Développer les sous-éléments'}
+                              inRow
+                              onToggle={() => row.toggleExpanded()}
+                            />
                           ) : (
                             <span className={classes.chevronSpacer} />
                           )}

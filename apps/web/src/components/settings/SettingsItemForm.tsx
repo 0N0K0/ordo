@@ -44,7 +44,7 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
   colorRequired?: boolean;
   /** Placeholder of the name (« Virement, carte, chèque… »). Optional. */
-  namePlaceholder?: string;
+  labelPlaceholder?: string;
   /** Rule of the values (zod, `@ordo/shared`). */
   schema: Parameters<typeof useAppForm>[0]['schema'];
   /** Fields of the list of its own, in the form. Optional. */
@@ -85,7 +85,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   initial,
   withColor = true,
   colorRequired = !tree,
-  namePlaceholder,
+  labelPlaceholder,
   schema,
   extra,
   create,
@@ -129,7 +129,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required placeholder={namePlaceholder} data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
         {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
         <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (

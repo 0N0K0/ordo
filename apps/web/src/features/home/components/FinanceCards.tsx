@@ -41,8 +41,8 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                   <HomeRow
                     key={invoice.id}
                     to={`/accounting/${invoice.id}`}
-                    title={invoice.clientName ?? 'Client inconnu'}
-                    subtitle={`${invoice.number} · ${daysBetween(invoice.dueDate ?? today, today)} j de retard${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
+                    label={invoice.clientName ?? 'Client inconnu'}
+                    subtitle={`${invoice.number} · ${fmt.daysLate(invoice.dueDate ?? today, today)}${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
                     value={
                       <Text size="sm" fw={600} c="red">
                         {fmt.money(invoice.balance ?? 0)}
@@ -77,7 +77,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
               <HomeRow
                 key={quote.id}
                 to={`/accounting/${quote.id}`}
-                title={`${quote.clientName ?? 'Client inconnu'}${quote.label ? ` · ${quote.label}` : ''}`}
+                label={`${quote.clientName ?? 'Client inconnu'}${quote.label ? ` · ${quote.label}` : ''}`}
                 subtitle={`${quote.number} · envoyé ${fmt.daysAgo(daysBetween(sent, today))}`}
                 value={
                   <Text size="sm" fw={600}>

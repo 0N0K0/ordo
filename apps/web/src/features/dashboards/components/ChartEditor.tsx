@@ -89,7 +89,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
    */
   const save = () => {
     const titleResult = chartLabelSchema.safeParse(title);
-    setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Titre invalide.'));
+    setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Libellé invalide.'));
     if (!titleResult.success || !validation.success) return;
     const input = { label: titleResult.data, config: validation.data, wide };
     const callbacks = formCallbacks(null, chart ? 'Diagramme modifié.' : 'Diagramme ajouté.', onDone);
@@ -139,7 +139,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
               });
             }}
           />
-          <TextInput label="Titre" required data-autofocus value={title} error={titleError} onChange={(event) => setTitle(event.currentTarget.value)} />
+          <TextInput label="Libellé" required data-autofocus value={title} error={titleError} onChange={(event) => setTitle(event.currentTarget.value)} />
           <Select
             label="Type"
             allowDeselect={false}

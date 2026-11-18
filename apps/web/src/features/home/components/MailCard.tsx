@@ -41,7 +41,7 @@ export function MailCard({ today }: { today: string }) {
                 key={`${accountId}-${message.uid}`}
                 to={mailPath(accountId, 'INBOX', message.uid)}
                 emphasis
-                title={message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
+                label={message.from[0]?.name || message.from[0]?.address || 'Expéditeur inconnu'}
                 subtitle={
                   <>
                     {message.subject || NO_SUBJECT}

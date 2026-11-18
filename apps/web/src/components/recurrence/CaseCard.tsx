@@ -52,7 +52,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
           ) : (
             heading
           )}
-          {onRemove && <RemoveButton label="Retirer le cas" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
+          {onRemove && <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
         </Group>
         <Collapse expanded={shown}>
           <Stack gap="xs">{children}</Stack>

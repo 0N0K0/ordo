@@ -147,7 +147,7 @@ const ShoppingListsDocument = graphql(`
         deliveryId
         sheetSources {
           sheetId
-          name
+          label
           quantity
         }
         position

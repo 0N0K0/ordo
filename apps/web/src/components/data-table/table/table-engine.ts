@@ -102,7 +102,7 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
       const options = offeredChoices(filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [], values);
       // Choices of a tree (categories, projects, tasks…) offered as their tree.
       return options.some((option) => option.depth !== undefined)
-        ? treeSelectProps(options.map((option) => ({ ...option, name: option.name ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
+        ? treeSelectProps(options.map((option) => ({ ...option, nodeLabel: option.nodeLabel ?? option.label, depth: option.depth ?? 0, parent: option.parent ?? null })))
         : options.some(hasAvatar)
           ? { data: options, renderOption: itemRenderOption(options) }
           : { data: options };

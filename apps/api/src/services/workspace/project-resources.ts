@@ -1,4 +1,4 @@
-import { optionalText, requiredText } from '@ordo/shared';
+import { projectLinkSchema as linkSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { ProjectResource } from '../../generated/prisma/client';
@@ -6,12 +6,6 @@ import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { assertExists } from '../core/lookup';
-
-const linkSchema = z.object({
-  label: requiredText(200, 'Le titre est requis.'),
-  url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  note: optionalText(1000),
-});
 
 /**
  * Next position among the resources of a project.

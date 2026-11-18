@@ -167,7 +167,17 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     [periodEvents.data, projectIds],
   );
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
-  const view = useDataView({ tableKey: 'tasks', projectId, columns, rows, title, views, getKey: (row) => row.key, archived: (row) => row.kind === 'task' && row.task.archived });
+  const view = useDataView({
+    tableKey: 'tasks',
+    projectId,
+    columns,
+    rows,
+    title,
+    views,
+    getKey: (row) => row.key,
+    archived: (row) => row.kind === 'task' && row.task.archived,
+    archivedLabel: 'Afficher les archivées',
+  });
   const eventComments = useCommentCounts(
     'EVENT',
     eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
@@ -305,7 +315,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         framed
         verticalSpacing={4}
         bar={{
-          searchLabel: 'Rechercher (titre, numéro, description)',
+          searchLabel: 'Rechercher (libellé, numéro, description)',
           manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
           actions: (
             <Group gap="sm" wrap="nowrap">

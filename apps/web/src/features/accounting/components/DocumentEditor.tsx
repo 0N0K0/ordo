@@ -104,6 +104,7 @@ import { DiscountInput } from './DiscountInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -398,7 +399,12 @@ function Editor({ document }: { document: AccountingDocument }) {
                 name: documentName,
                 items: [
                   archiveEntry(
-                    { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+                    {
+                      archived: document.archived,
+                      type: DOCUMENT_TYPE_LABELS[document.type],
+                      label: document.number ?? document.label ?? 'Brouillon',
+                      feminine: isFeminineDocumentType(document.type),
+                    },
                     setArchived,
                     document.id,
                   ),
@@ -409,9 +415,9 @@ function Editor({ document }: { document: AccountingDocument }) {
           <>
             {/* A final document shows its PDF in the page. */}
             {!readOnly && (
-              <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
+              <ActionButton priority="secondary" icon={<EyeIcon aria-hidden />} onClick={preview}>
                 Aperçu
-              </Button>
+              </ActionButton>
             )}
             <IconAction
               label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}
@@ -426,9 +432,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             </IconAction>
             {receiptable && (
               <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
-                <Button component="a" href={pdfUrl(document.id, true, true)} download variant="default" leftSection={<ReceiptIcon aria-hidden />}>
+                <ActionButton priority="secondary" href={pdfUrl(document.id, true, true)} download icon={<ReceiptIcon aria-hidden />}>
                   Facture acquittée
-                </Button>
+                </ActionButton>
               </Tooltip>
             )}
             {readOnly && !archived && (
@@ -437,9 +443,9 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Button>
             )}
             {!locked && (
-              <Button variant="default" leftSection={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
+              <ActionButton priority="secondary" icon={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
                 Enregistrer
-              </Button>
+              </ActionButton>
             )}
             {document.status === 'DRAFT' && (
               <>
@@ -455,23 +461,23 @@ function Editor({ document }: { document: AccountingDocument }) {
             )}
             {readOnly && !archived && isQuote && (
               <>
-                <Button variant="default" leftSection={<HandCoinsIcon aria-hidden />} onClick={() => openDepositForm({ quoteId: document.id })}>
+                <ActionButton priority="secondary" icon={<HandCoinsIcon aria-hidden />} onClick={() => openDepositForm({ quoteId: document.id })}>
                   Facture d’acompte
-                </Button>
-                <Button variant="default" leftSection={<ReceiptIcon aria-hidden />} onClick={() => createFrom('INVOICE')}>
+                </ActionButton>
+                <ActionButton priority="secondary" icon={<ReceiptIcon aria-hidden />} onClick={() => createFrom('INVOICE')}>
                   Facturer
-                </Button>
+                </ActionButton>
               </>
             )}
             {readOnly && !archived && isInvoice && (
-              <Button variant="default" color="orange" leftSection={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
+              <ActionButton priority="secondary" icon={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
                 Créer un avoir
-              </Button>
+              </ActionButton>
             )}
             {document.type === 'INVOICE' && !isTemplate && !archived && (
-              <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
+              <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
                 Rendre récurrente
-              </Button>
+              </ActionButton>
             )}
             {!isTemplate && !archived && (
               <IconAction
@@ -519,7 +525,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && finalView === 'preview' ? (
             <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
-              <FilePreview url={pdfUrl(document.id)} name={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
+              <FilePreview url={pdfUrl(document.id)} filename={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
             </Paper>
           ) : (
             <Stack gap="md">
@@ -592,9 +598,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                   extraActions={
                     <>
                       {canBillTime && (
-                        <Button size="xs" variant="default" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                        <ActionButton priority="secondary" size="xs" icon={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
                           Temps passé
-                        </Button>
+                        </ActionButton>
                       )}
                       {document.type === 'INVOICE' && (
                         <DeductDepositMenu
@@ -785,9 +791,9 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
         !readOnly && (
           <FileButton multiple onChange={(files) => files.length && addAttachments.mutate({ id: document.id, files }, toastCallbacks('Fichiers joints.'))}>
             {(props) => (
-              <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
+              <ActionButton priority="secondary" size="xs" icon={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
                 Joindre
-              </Button>
+              </ActionButton>
             )}
           </FileButton>
         )
@@ -798,7 +804,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
-            <FileLink url={attachment.url} name={attachment.filename} size="sm" truncate>
+            <FileLink url={attachment.url} filename={attachment.filename} size="sm" truncate>
               <Group gap={4} wrap="nowrap">
                 <PaperclipIcon aria-hidden /> {attachment.filename}
               </Group>

@@ -1,7 +1,7 @@
 import { collator } from '../../../lib/text';
 import { IconAction } from '../../../components/actions/IconAction';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { daysBetween, mapById } from '@ordo/shared';
+import { mapById } from '@ordo/shared';
 import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -16,6 +16,7 @@ import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
+import { LateBadge } from './LateBadge';
 
 /**
  * Routines left to do today (late ones first), ticked from the card.
@@ -62,11 +63,7 @@ export function RoutinesCard({ today }: { today: string }) {
                       <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
                     </Tooltip>
                   )}
-                  {late && routine.currentDate && (
-                    <Badge color="orange" variant="light">
-                      {daysBetween(routine.currentDate, today)} j de retard
-                    </Badge>
-                  )}
+                  {late && routine.currentDate && <LateBadge due={routine.currentDate} today={today} />}
                   {(routine.windowFrom || routine.windowTo) && (
                     <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
                       {[scheduleOf(routine).leaveAt && `départ ${scheduleOf(routine).leaveAt}`, windowText(windowOf(routine))].filter(Boolean).join(' · ')}
@@ -119,7 +116,7 @@ export function ShoppingCard() {
             <HomeRow
               key={list.id}
               to={`/shopping/${list.id}`}
-              title={list.label}
+              label={list.label}
               value={
                 <Badge variant="light" color={left ? undefined : 'green'}>
                   {left ? `${left} à acheter` : 'Tout acheté'}

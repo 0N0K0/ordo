@@ -71,7 +71,7 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Nom', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+  { id: 'name', label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
@@ -173,7 +173,7 @@ function RecurringList() {
           name: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.label} label={`Nom de ${item.label}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { label: name })} />
+                <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { label: name })} />
                 {item.archived && <ArchivedBadge feminine size="xs" />}
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
@@ -216,7 +216,7 @@ function RecurringList() {
           primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
             { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
-            archiveEntry({ archived: item.archived, type: 'Facture récurrente', name: item.label, feminine: true }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Facture récurrente', label: item.label, feminine: true }, setArchived, item.id),
             rowMenuEntry(deleteRecurring([item])),
           ]}
         />

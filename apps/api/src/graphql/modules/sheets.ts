@@ -16,7 +16,7 @@ export const SheetSourceRef = builder.objectRef<SheetSource>('SheetSource').impl
   description: 'Share of a sheet in an item of a shopping list or of a checklist.',
   fields: (t) => ({
     sheetId: t.exposeID('sheetId'),
-    name: t.exposeString('name', { description: 'Name of the sheet when it was added.' }),
+    label: t.exposeString('label', { description: 'Label of the sheet when it was added.' }),
     quantity: t.exposeFloat('quantity', { nullable: true }),
   }),
 });

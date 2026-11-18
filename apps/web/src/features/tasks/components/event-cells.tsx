@@ -123,7 +123,7 @@ export function EventStatusCell({ event }: { event: EventOccurrence }) {
   const now = useNow(true, 60_000);
   const { label, color } = EVENT_STATES[eventState(event, now)];
   return (
-    <Badge variant="light" color={color} radius="sm" style={{ textTransform: 'none' }}>
+    <Badge variant="light" color={color} radius="sm">
       {label}
     </Badge>
   );

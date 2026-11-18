@@ -1,6 +1,6 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
-import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, requiredText } from '@ordo/shared';
+import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, workspaceLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
@@ -17,7 +17,7 @@ const WORKSPACE_COOKIE = 'ordo_workspace';
 const WORKSPACE_HEADER = 'x-ordo-workspace';
 
 const workspaceInputSchema = z.object({
-  label: requiredText(60),
+  label: workspaceLabelSchema,
   kind: z.enum(['PRO', 'PERSO']),
 });
 

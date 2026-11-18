@@ -116,7 +116,7 @@ export const ROUTINE_LABEL_MAX = 200;
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    label: requiredText(ROUTINE_LABEL_MAX, 'Le titre est requis.'),
+    label: requiredText(ROUTINE_LABEL_MAX),
     description: z
       .string()
       .max(4000, '4 000 caractères maximum.')

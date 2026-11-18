@@ -52,8 +52,8 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
   // No invoicing in a personal workspace.
   const { perso } = useActiveWorkspace();
   const time = isTimeDimension(config.dimension);
-  const mainName = config.name || MEASURE_LABELS[config.measure];
-  const options = [{ value: MAIN_DATASET, label: mainName }, ...config.datasets.map((dataset) => ({ value: dataset.id, label: dataset.name }))];
+  const mainLabel = config.label || MEASURE_LABELS[config.measure];
+  const options = [{ value: MAIN_DATASET, label: mainLabel }, ...config.datasets.map((dataset) => ({ value: dataset.id, label: dataset.label }))];
 
   /**
    * Changes a data set.
@@ -73,7 +73,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     const dateField = time && !SOURCE_TIME_DIMENSIONS[base.source].includes(config.dimension) ? (SOURCE_TIME_DIMENSIONS[base.source][0] as ChartDataset['dateField']) : null;
     const dataset: ChartDataset = {
       id: newId('d'),
-      name: source ? `${SOURCE_LABELS[source]} ${config.datasets.length + 2}` : `${mainName} (filtré)`,
+      label: source ? `${SOURCE_LABELS[source]} ${config.datasets.length + 2}` : `${mainLabel} (filtré)`,
       source: base.source,
       measure: base.source === 'treasury' && base.measure === 'balance' ? 'amount' : base.measure,
       dateField,
@@ -88,7 +88,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     change({
       datasets: [...config.datasets, dataset],
       ...(config.type === 'donut' || config.type === 'burndown' ? { type: 'bar' as const } : {}),
-      ...(!config.name && { name: mainName }),
+      ...(!config.label && { label: mainLabel }),
     });
   };
 
@@ -111,7 +111,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     const last = config.datasets.at(-1);
     const a = last?.id ?? MAIN_DATASET;
     const label = (id: string) => options.find((option) => option.value === id)?.label ?? '';
-    change({ comparisons: [...config.comparisons, { id: newId('c'), name: `% ${label(a)} / ${mainName}`, kind: 'ratio', a, b: MAIN_DATASET, type: 'line' }] });
+    change({ comparisons: [...config.comparisons, { id: newId('c'), label: `% ${label(a)} / ${mainLabel}`, kind: 'ratio', a, b: MAIN_DATASET, type: 'line' }] });
   };
 
   /**
@@ -129,11 +129,11 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     <Stack gap="sm">
       {several && (
         <TextInput
-          label="Nom du jeu principal"
+          label="Libellé du jeu principal"
           description="Le jeu défini par les champs et filtres principaux."
-          value={config.name}
+          value={config.label}
           placeholder={MEASURE_LABELS[config.measure]}
-          onChange={(event) => change({ name: event.currentTarget.value })}
+          onChange={(event) => change({ label: event.currentTarget.value })}
         />
       )}
       {several && (
@@ -145,18 +145,18 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                 <Group gap={4} wrap="nowrap" pr="xs">
                   <Accordion.Control>
                     <Text size="sm" fw={600}>
-                      {dataset.name}
+                      {dataset.label}
                     </Text>
                     <Text size="xs" c="dimmed">
                       {SOURCE_LABELS[dataset.source]} · {measureLabel(dataset.source, dataset.measure)}
                       {dataset.series ? ` · séries : ${DIMENSION_LABELS[dataset.series].toLowerCase()}` : ''}
                     </Text>
                   </Accordion.Control>
-                  <RemoveButton label="Retirer le jeu de données" aria-label={`Retirer ${dataset.name}`} onClick={() => removeDataset(dataset)} />
+                  <RemoveButton label="Retirer" item={dataset.label} onClick={() => removeDataset(dataset)} />
                 </Group>
                 <Accordion.Panel>
                   <Stack gap="sm">
-                    <TextInput label="Nom" required value={dataset.name} onChange={(event) => setDataset(index, { name: event.currentTarget.value })} />
+                    <TextInput label="Libellé" required value={dataset.label} onChange={(event) => setDataset(index, { label: event.currentTarget.value })} />
                     <SegmentedControl
                       fullWidth
                       data={(Object.keys(SOURCE_LABELS) as ChartSource[])
@@ -244,13 +244,8 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
           <Paper key={comparison.id} withBorder radius="md" p="sm">
             <Stack gap="xs">
               <Group gap="xs" wrap="nowrap" align="flex-end">
-                <TextInput label="Comparaison" style={{ flex: 1 }} value={comparison.name} onChange={(event) => setComparison(index, { name: event.currentTarget.value })} />
-                <RemoveButton
-                  label="Retirer la comparaison"
-                  size="lg"
-                  aria-label={`Retirer ${comparison.name}`}
-                  onClick={() => change({ comparisons: config.comparisons.filter((other) => other.id !== comparison.id) })}
-                />
+                <TextInput label="Comparaison" style={{ flex: 1 }} value={comparison.label} onChange={(event) => setComparison(index, { label: event.currentTarget.value })} />
+                <RemoveButton label="Retirer" size="lg" item={comparison.label} onClick={() => change({ comparisons: config.comparisons.filter((other) => other.id !== comparison.id) })} />
               </Group>
               <SegmentedControl
                 size="xs"

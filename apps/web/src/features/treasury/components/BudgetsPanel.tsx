@@ -791,7 +791,7 @@ export function BudgetsPanel() {
                   }
             }
             actions={(budget) => {
-              const archiveItem = archiveEntry({ archived: budget.archived, type: 'Budget', name: paths.get(budget.categoryId) ?? '' }, setArchived, budget.id);
+              const archiveItem = archiveEntry({ archived: budget.archived, type: 'Budget', label: paths.get(budget.categoryId) ?? '' }, setArchived, budget.id);
               return (
                 <RowActions
                   name="le budget"

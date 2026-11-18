@@ -15,7 +15,7 @@ export type StockLocationInput = z.infer<typeof stockLocationSchema>;
 /** Item of the stock: a reference followed in stock, or an item of its own. */
 export const stockItemSchema = z.object({
   productId: z.string().nullable(),
-  label: requiredText(200, 'Le libellé est requis.'),
+  label: requiredText(200),
   categoryId: z.string().nullable(),
   unit: unitSchema,
   locationId: z.string().nullable(),

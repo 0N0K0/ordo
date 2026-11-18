@@ -244,7 +244,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
               !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
-              archiveEntry({ archived: entry.archived, type: 'Mouvement', name: entry.label }, setArchived, entry.id),
+              archiveEntry({ archived: entry.archived, type: 'Mouvement', label: entry.label }, setArchived, entry.id),
               rowMenuEntry(deleteEntries.movements([entry])),
             ]}
           />

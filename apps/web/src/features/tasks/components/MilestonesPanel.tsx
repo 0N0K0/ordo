@@ -1,5 +1,6 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
+import { planCardActions } from '../lib/plan-card-actions';
 import { DragHandle } from '../../../components/actions/DragHandle';
 
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -14,11 +15,11 @@ import { useSortableItem } from '../../../components/actions/use-sortable-item';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FlagIcon, PlusIcon } from '@phosphor-icons/react';
 
-import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -64,7 +65,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
         <MarkdownEditor
           label="Description"
@@ -178,15 +179,16 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                 <PlanCard
                   icon={<FlagIcon aria-hidden />}
                   title={milestone.label}
-                  badges={milestone.archived && <ArchivedBadge size="sm" />}
-                  dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
-                  datesColor={late ? 'red' : undefined}
-                  actions={[
-                    // Archived (or of an archived project): read only.
-                    !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                    archiveEntry({ archived: milestone.archived, type: 'Jalon', name: milestone.label }, setArchived, milestone.id),
-                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
-                  ]}
+                  archived={milestone.archived}
+                  late={late ? tasks.length - done : 0}
+                  dates={milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}
+                  actions={planCardActions(milestone, {
+                    type: 'Jalon',
+                    locked: Boolean(project?.archived),
+                    setArchived,
+                    onEdit: () => openForm(milestone),
+                    onDelete: () => confirmDelete(milestone, tasks.length),
+                  })}
                   progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.label}`} />}
                   description={milestone.description}
                   targets={context.targetsFor(milestone.projectId)}

@@ -1,12 +1,15 @@
 import { z } from 'zod';
 
+/** Message of a person's name left empty (« Nom » only for persons, decision AD). */
+export const PERSON_NAME_REQUIRED = 'Le nom est requis.';
+
 /**
- * Text that must be given (a name, a title, a label): trimmed, at most a length.
+ * Text that must be given (a label, a name): trimmed, at most a length.
  * @param {number} max Most characters.
- * @param {string} [required] Message when empty. Optional. Default = « Le nom est requis. ».
+ * @param {string} [required] Message when empty. Optional. Default = « Le libellé est requis. » (decision AD).
  * @returns {z.ZodString} Rule.
  */
-export const requiredText = (max: number, required = 'Le nom est requis.') => z.string().trim().min(1, required).max(max, `${max} caractères maximum.`);
+export const requiredText = (max: number, required = 'Le libellé est requis.') => z.string().trim().min(1, required).max(max, `${max} caractères maximum.`);
 
 /**
  * Text that may be left empty (saved as null): trimmed, at most a length.

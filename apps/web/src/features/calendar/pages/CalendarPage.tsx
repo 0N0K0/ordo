@@ -51,7 +51,7 @@ import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { archivedCalendarIds, isArchivedOccurrence, kindLabel, occurrenceSpan, scheduleLayerName, scheduleSources } from '../lib/calendar-events';
+import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleLayerLabel, scheduleSources } from '../lib/calendar-events';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -737,10 +737,10 @@ export function CalendarPage() {
   const scheduleChoices = [
     ...(schedules ?? []).map((schedule) => ({
       id: schedule.id,
-      label: scheduleLayerName(schedule.label, kindLabel((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)),
+      label: scheduleLayerLabel(schedule.label, ((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)?.label),
       color: (schedule.typeId ? typeById.get(schedule.typeId)?.color : undefined) ?? defaultKind?.color ?? 'green',
     })),
-    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerName(schedule.label, schedule.typeLabel, schedule.workspaceLabel), color: schedule.color ?? 'green' })),
+    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel), color: schedule.color ?? 'green' })),
   ];
   const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
@@ -857,9 +857,9 @@ export function CalendarPage() {
               <SettingsSection title="Exporter">
                 <Group gap="sm" wrap="wrap">
                   <Tooltip label="La vue affichée, pour l’imprimer">
-                    <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
+                    <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
                       Vue en PDF
-                    </Button>
+                    </ActionButton>
                   </Tooltip>
                   <CalendarsIcsButton />
                 </Group>
@@ -909,7 +909,7 @@ export function CalendarPage() {
           }}
           allDayContent={() => (
             <IconAction
-              label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}
+              label={allDayExpanded ? 'Réduire' : 'Développer'}
               variant="light"
               size="sm"
               aria-label={allDayExpanded ? 'Réduire la ligne journée entière' : 'Développer la ligne journée entière'}

@@ -165,14 +165,14 @@ export async function archiveWithUndo(
 
 /**
  * « Archiver » / « Restaurer » entry of the menu of an element (hidden from the lists, read only), told with its undo.
- * @param {{ archived?: boolean | null, type: string, name: string, feminine?: boolean, cascade?: string }} element Element: archived, its type and its name, told « <Type> « nom » » in the message (« Liste « Courses » archivée. »), its type in the feminine (optional), what is archived along (optional).
+ * @param {{ archived?: boolean | null, type: string, label: string, feminine?: boolean, cascade?: string }} element Element: archived, its type and its label, told « <Type> « libellé » » in the message (« Liste « Courses » archivée. »), its type in the feminine (optional), what is archived along (optional).
  * @param {ArchiveMutation} mutation Archive mutation of its kind (`useSetArchived(kind)`).
  * @param {string} id Element.
  * @param {() => void} [onDone] Called once archived or restored (closes its form…). Optional.
  * @returns {{ label: string, icon: JSX.Element, onClick: () => void, inMenu: true }} Menu entry, never a button (decision R).
  */
 export function archiveEntry(
-  { archived, type, name, feminine, cascade }: { archived?: boolean | null; type: string; name: string; feminine?: boolean; cascade?: string },
+  { archived, type, label, feminine, cascade }: { archived?: boolean | null; type: string; label: string; feminine?: boolean; cascade?: string },
   mutation: ArchiveMutation,
   id: string,
   onDone?: () => void,
@@ -180,7 +180,7 @@ export function archiveEntry(
   return {
     label: archived ? 'Restaurer' : 'Archiver',
     icon: archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-    onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label: `${type} « ${name} »`, feminine, cascade }).then(onDone),
+    onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label: `${type} « ${label} »`, feminine, cascade }).then(onDone),
     inMenu: true as const,
   };
 }

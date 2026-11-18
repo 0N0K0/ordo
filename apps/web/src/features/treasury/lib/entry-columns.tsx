@@ -54,7 +54,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
   };
   const projectText = (row: R) => {
     return entryProjects(entryOf(row))
-      .map((id) => env.projectNames.get(id) ?? '')
+      .map((id) => env.projectLabels.get(id) ?? '')
       .join(', ');
   };
   const valueDate = (row: R) => {
@@ -268,7 +268,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       />
     ),
     project: split ? (
-      onLines(entryProjects(entry).map((id) => env.projectNames.get(id) ?? ''))
+      onLines(entryProjects(entry).map((id) => env.projectLabels.get(id) ?? ''))
     ) : (
       <ProjectCell value={entry.projectId ?? null} env={env} label={`Projet de ${entry.label}`} onSave={(projectId) => save('project')(entry, (row) => (row.lines.length ? {} : { projectId }))} />
     ),

@@ -49,7 +49,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
         <Text size="sm" c="dimmed">
           Un dossier de recherche rassemble les mails qui répondent à ses critères, dans une ou plusieurs boîtes. Il n’existe que dans Ordo : rien n’est créé sur le serveur.
         </Text>
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}

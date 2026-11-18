@@ -1,7 +1,7 @@
 import type { TaskColumn } from '@ordo/shared';
 
 export const COLUMN_LABELS: Record<TaskColumn, string> = {
-  title: 'Label',
+  title: 'Libellé',
   project: 'Projet',
   status: 'Statut',
   priority: 'Priorité',

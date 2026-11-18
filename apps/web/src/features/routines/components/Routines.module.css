@@ -17,7 +17,7 @@
       opacity: var(--onoko-muted-opacity);
     }
 
-    &[data-done] input[aria-label^='Titre'] {
+    &[data-done] input[aria-label^='Libellé'] {
       /* Typographie */
       text-decoration: line-through;
     }

@@ -5,7 +5,7 @@ import { Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from './ByWorkspace';
 
-import { DEFAULT_SCHEDULE_KIND_NAME, readScheduleDisplay } from '@ordo/shared';
+import { DEFAULT_SCHEDULE_KIND_LABEL, readScheduleDisplay } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -17,7 +17,7 @@ import { LookPanel, LookToggle } from './LookToggle';
 import { SubscriptionRow } from './SubscriptionRow';
 
 /**
- * Schedules without kind: their name, color and display in the calendar (a setting apart, not an item of the list of
+ * Schedules without kind: their label, color and display in the calendar (a setting apart, not an item of the list of
  * kinds).
  * @returns {JSX.Element | null} Section.
  */
@@ -40,12 +40,12 @@ function DefaultScheduleKind() {
             onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
           />
           <TextInput
-            key={defaultKind.name}
+            key={defaultKind.label}
             size="xs"
             style={{ flex: 1 }}
-            aria-label="Nom des plages sans type"
-            placeholder={DEFAULT_SCHEDULE_KIND_NAME}
-            defaultValue={defaultKind.name}
+            aria-label="Libellé des plages sans type"
+            placeholder={DEFAULT_SCHEDULE_KIND_LABEL}
+            defaultValue={defaultKind.label}
             rightSectionWidth={80}
             rightSection={
               <Badge size="xs" variant="light" color="gray">
@@ -53,13 +53,13 @@ function DefaultScheduleKind() {
               </Badge>
             }
             onBlur={(event) =>
-              event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, ON_ERROR)
+              event.currentTarget.value.trim() !== defaultKind.label && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), label: event.currentTarget.value }, ON_ERROR)
             }
           />
           <LookToggle label="Affichage dans l’agenda" ariaLabel="Affichage des plages sans type" opened={opened} onToggle={() => setOpened(!opened)} />
         </Group>
         <LookPanel opened={opened}>
-          <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, ON_ERROR)} />
+          <ScheduleLookEditor name={defaultKind.label} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, ON_ERROR)} />
         </LookPanel>
       </Stack>
     </SettingsSection>

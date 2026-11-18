@@ -21,7 +21,7 @@ export function BulkHint({ selection, labelOf, onClear }: BulkHintProps) {
   if (selection.column === ALL_COLUMNS)
     return (
       <Group gap="xs" role="status" aria-live="polite">
-        <Badge variant="light" tt="none" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
+        <Badge variant="light" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
           {count} {plural(count, 'ligne')} {plural(count, 'cochée')}
         </Badge>
         <Text size="xs" c="dimmed">
@@ -32,7 +32,7 @@ export function BulkHint({ selection, labelOf, onClear }: BulkHintProps) {
     );
   return (
     <Group gap="xs" role="status" aria-live="polite">
-      <Badge variant="light" tt="none" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
+      <Badge variant="light" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
         {count} {plural(count, 'cellule')} « {labelOf(selection.column)} » {plural(count, 'sélectionnée')}
       </Badge>
       <Text size="xs" c="dimmed">

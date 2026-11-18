@@ -360,9 +360,9 @@ export type DefaultScheduleKindInput = {
   color?: string | null | undefined;
   dayBar: boolean;
   dayDisplay: string;
-  monthDisplay: string;
   /** Empty: "Travail". */
-  name: string;
+  label: string;
+  monthDisplay: string;
 };
 
 export type DiscountType =
@@ -1339,7 +1339,7 @@ export type DeleteCatalogItemMutation = { deleteCatalogItem: boolean };
 
 export type AccountingDocumentListFieldsFragment = { id: string, archived: boolean, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, paymentMethods: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, depositType: DiscountType | null, depositValue: number | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null, attachments: Array<{ id: string, filename: string, url: string }> };
 
-export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, importedSourceId: string | null, importedSourceNumber: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, archived: boolean, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountLabel: string, methodLabel: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, label: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null, deductedDocumentId: string | null }>, attachments: Array<{ id: string, filename: string, size: number, url: string }>, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null };
+export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, importedSourceId: string | null, importedSourceNumber: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFilename: string | null, paid: number | null, credited: number | null, id: string, archived: boolean, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountLabel: string, methodLabel: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, label: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null, deductedDocumentId: string | null }>, attachments: Array<{ id: string, filename: string, size: number, url: string }>, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null };
 
 export type AccountingDocumentsQueryVariables = Exact<{
   clientId?: string | number | null | undefined;
@@ -1354,7 +1354,7 @@ export type AccountingDocumentQueryVariables = Exact<{
 }>;
 
 
-export type AccountingDocumentQuery = { accountingDocument: { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, importedSourceId: string | null, importedSourceNumber: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, archived: boolean, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountLabel: string, methodLabel: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, label: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null, deductedDocumentId: string | null }>, attachments: Array<{ id: string, filename: string, size: number, url: string }>, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null } | null };
+export type AccountingDocumentQuery = { accountingDocument: { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, importedSourceId: string | null, importedSourceNumber: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFilename: string | null, paid: number | null, credited: number | null, id: string, archived: boolean, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountLabel: string, methodLabel: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, label: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null, deductedDocumentId: string | null }>, attachments: Array<{ id: string, filename: string, size: number, url: string }>, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null } | null };
 
 export type NewDocumentDefaultsQueryVariables = Exact<{
   type: AccountingDocumentType;
@@ -1548,7 +1548,7 @@ export type MoveProjectResourceMutationVariables = Exact<{
 
 export type MoveProjectResourceMutation = { moveProjectResource: boolean };
 
-export type ImportedDocumentFieldsFragment = { id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null };
+export type ImportedDocumentFieldsFragment = { id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, filename: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null };
 
 export type ImportedDocumentsQueryVariables = Exact<{
   clientId?: string | number | null | undefined;
@@ -1556,14 +1556,14 @@ export type ImportedDocumentsQueryVariables = Exact<{
 }>;
 
 
-export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null }> };
+export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, filename: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null }> };
 
 export type ImportedDocumentQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type ImportedDocumentQuery = { importedDocument: { id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null } | null };
+export type ImportedDocumentQuery = { importedDocument: { id: string, archived: boolean, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, label: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, filename: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, archived: boolean, label: string, color: string, category: DocumentStatusCategory } | null } | null };
 
 export type MarkImportedDocumentSentMutationVariables = Exact<{
   id: string | number;
@@ -1922,7 +1922,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1969,7 +1969,7 @@ export type SaveDefaultScheduleKindMutationVariables = Exact<{
 }>;
 
 
-export type SaveDefaultScheduleKindMutation = { saveDefaultScheduleKind: { name: string } };
+export type SaveDefaultScheduleKindMutation = { saveDefaultScheduleKind: { label: string } };
 
 export type SetScheduleSubscriptionLookMutationVariables = Exact<{
   workspaceId: string | number;
@@ -2304,14 +2304,14 @@ export type SearchAddressesQueryVariables = Exact<{
 }>;
 
 
-export type SearchAddressesQuery = { searchAddresses: Array<{ label: string, name: string | null, lat: number, lon: number }> };
+export type SearchAddressesQuery = { searchAddresses: Array<{ address: string, label: string | null, lat: number, lon: number }> };
 
 export type ReverseAddressQueryVariables = Exact<{
   point: GeoPointInput;
 }>;
 
 
-export type ReverseAddressQuery = { reverseAddress: { label: string, name: string | null, lat: number, lon: number } | null };
+export type ReverseAddressQuery = { reverseAddress: { address: string, label: string | null, lat: number, lon: number } | null };
 
 export type TravelTimeQueryVariables = Exact<{
   from: GeoPointInput;
@@ -3070,7 +3070,7 @@ export type ChecklistQueryVariables = Exact<{
 }>;
 
 
-export type ChecklistQuery = { checklist: { id: string, routineId: string | null, eventId: string | null, taskId: string | null, occurrenceDate: string | null, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, checkedAt: string | null, position: number, sources: Array<{ sheetId: string, name: string, quantity: number | null }> }> } | null };
+export type ChecklistQuery = { checklist: { id: string, routineId: string | null, eventId: string | null, taskId: string | null, occurrenceDate: string | null, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, checkedAt: string | null, position: number, sources: Array<{ sheetId: string, label: string, quantity: number | null }> }> } | null };
 
 export type CreateSheetMutationVariables = Exact<{
   input: SheetInput;
@@ -3246,7 +3246,7 @@ export type ShoppingListsQueryVariables = Exact<{
 }>;
 
 
-export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, archived: boolean, label: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, remote: boolean, deliveryAddress: string | null, deliveryLat: number | null, deliveryLon: number | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, deliveries: Array<{ id: string, label: string | null, trackingUrl: string | null, pickup: boolean, windowFrom: string | null, windowTo: string | null, address: string | null, lat: number | null, lon: number | null, receivedAt: string | null, position: number }>, items: Array<{ id: string, listId: string, productId: string | null, label: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, optional: boolean, deliveryId: string | null, position: number, memberIds: Array<string>, relationIds: Array<string>, sheetSources: Array<{ sheetId: string, name: string, quantity: number | null }> }> }> };
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, archived: boolean, label: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, remote: boolean, deliveryAddress: string | null, deliveryLat: number | null, deliveryLon: number | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, deliveries: Array<{ id: string, label: string | null, trackingUrl: string | null, pickup: boolean, windowFrom: string | null, windowTo: string | null, address: string | null, lat: number | null, lon: number | null, receivedAt: string | null, position: number }>, items: Array<{ id: string, listId: string, productId: string | null, label: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, optional: boolean, deliveryId: string | null, position: number, memberIds: Array<string>, relationIds: Array<string>, sheetSources: Array<{ sheetId: string, label: string, quantity: number | null }> }> }> };
 
 export type CreateShoppingCategoryMutationVariables = Exact<{
   input: ShoppingCategoryInput;
@@ -4693,7 +4693,7 @@ export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
   sentVia
   acceptedAt
   signedFileUrl
-  signedFileName
+  signedFilename
   paid
   credited
   reminders {
@@ -4789,7 +4789,7 @@ export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
   currency
   note
   fileUrl
-  fileName
+  filename
   settled
   paid
   balance
@@ -5520,7 +5520,7 @@ fragment AccountingDocumentFields on AccountingDocument {
   sentVia
   acceptedAt
   signedFileUrl
-  signedFileName
+  signedFilename
   paid
   credited
   reminders {
@@ -5744,7 +5744,7 @@ export const ImportedDocumentsDocument = new TypedDocumentString(`
   currency
   note
   fileUrl
-  fileName
+  filename
   settled
   paid
   balance
@@ -5782,7 +5782,7 @@ export const ImportedDocumentDocument = new TypedDocumentString(`
   currency
   note
   fileUrl
-  fileName
+  filename
   settled
   paid
   balance
@@ -6233,7 +6233,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     position
   }
   defaultScheduleKind {
-    name
+    label
     color
     dayDisplay
     dayBar
@@ -6306,7 +6306,7 @@ export const SubscribeScheduleKindDocument = new TypedDocumentString(`
 export const SaveDefaultScheduleKindDocument = new TypedDocumentString(`
     mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
   saveDefaultScheduleKind(input: $input) {
-    name
+    label
   }
 }
     `) as unknown as TypedDocumentString<SaveDefaultScheduleKindMutation, SaveDefaultScheduleKindMutationVariables>;
@@ -6742,8 +6742,8 @@ export const PlacesDocument = new TypedDocumentString(`
 export const SearchAddressesDocument = new TypedDocumentString(`
     query SearchAddresses($text: String!, $near: GeoPointInput) {
   searchAddresses(text: $text, near: $near) {
+    address
     label
-    name
     lat
     lon
   }
@@ -6752,8 +6752,8 @@ export const SearchAddressesDocument = new TypedDocumentString(`
 export const ReverseAddressDocument = new TypedDocumentString(`
     query ReverseAddress($point: GeoPointInput!) {
   reverseAddress(point: $point) {
+    address
     label
-    name
     lat
     lon
   }
@@ -7773,7 +7773,7 @@ export const ChecklistDocument = new TypedDocumentString(`
       position
       sources {
         sheetId
-        name
+        label
         quantity
       }
     }
@@ -8026,7 +8026,7 @@ export const ShoppingListsDocument = new TypedDocumentString(`
       deliveryId
       sheetSources {
         sheetId
-        name
+        label
         quantity
       }
       position

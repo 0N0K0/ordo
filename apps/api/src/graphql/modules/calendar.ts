@@ -157,9 +157,9 @@ const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
 });
 
 const DefaultScheduleKindRef = builder.objectRef<schedules.DefaultScheduleKind>('DefaultScheduleKind').implement({
-  description: 'Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.',
+  description: 'Schedules without kind of this workspace: their label, color (none: the green of working hours) and display.',
   fields: (t) => ({
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color', { nullable: true }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
     dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
@@ -169,7 +169,7 @@ const DefaultScheduleKindRef = builder.objectRef<schedules.DefaultScheduleKind>(
 
 const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
   fields: (t) => ({
-    name: t.string({ required: true, description: 'Empty: "Travail".' }),
+    label: t.string({ required: true, description: 'Empty: "Travail".' }),
     color: t.string(),
     dayDisplay: t.string({ required: true }),
     dayBar: t.boolean({ required: true }),

@@ -125,7 +125,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
   return (
     <form noValidate onSubmit={form.onSubmit((input) => (service ? updateService.mutate({ id: service.id, input }, callbacks) : createService.mutate({ clientId, input }, callbacks)))}>
       <Stack gap="md">
-        <TextInput label="Nom du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
+        <TextInput label="Libellé du service" required data-autofocus placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
         <AddressFields legend="Adresse" value={form.values.address} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors(form.errors)} />
         <TextInput label="Email" {...form.getInputProps('email')} />
         <PhonesField value={form.values.phones} onChange={(phones) => form.setFieldValue('phones', phones)} />

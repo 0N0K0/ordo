@@ -17,6 +17,7 @@ import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-con
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -433,9 +434,9 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               >
                 Synchroniser
               </Button>
-              <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
+              <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
-              </Button>
+              </ActionButton>
               <DestructiveButton leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
               </DestructiveButton>

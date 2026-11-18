@@ -237,7 +237,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   popoverProps={comboboxProps}
                   style={{ flex: 1 }}
                 />
-                <RemoveButton label="Retirer la pause" aria-label={`Retirer la pause ${index + 1}`} onClick={() => update({ pauses: rule.pauses.filter((_, position) => position !== index) })} />
+                <RemoveButton label="Retirer" aria-label={`Retirer la pause ${index + 1}`} onClick={() => update({ pauses: rule.pauses.filter((_, position) => position !== index) })} />
               </Group>
             ))}
             {rule.pauses.length === 0 && (

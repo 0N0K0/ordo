@@ -56,7 +56,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
   return (
     <EditableTitle
       value={task.label}
-      label={`Titre de la tâche ${taskName(task)}`}
+      label={`Libellé de la tâche ${taskName(task)}`}
       schema={taskLabelSchema}
       to={link.to(task.id)}
       before={

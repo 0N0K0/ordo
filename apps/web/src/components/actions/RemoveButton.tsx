@@ -4,11 +4,11 @@ import type { MouseEvent } from 'react';
 import { IconAction } from './IconAction';
 
 interface RemoveButtonProps extends Omit<ActionIconProps, 'variant' | 'color' | 'children'> {
-  /** What it does, in its tooltip (« Retirer la ligne »). */
+  /** The action, in its tooltip (« Retirer », « Supprimer »). */
   label: string;
   /** Element removed (« Urgent »): the hidden label says « Retirer « Urgent » ». Optional. */
   item?: string;
-  /** Name read by screen readers, when the element is not a name (« Retirer la ligne 2 »). Optional. Default = from label and item. */
+  /** Hidden label when the element is not a name (« Retirer la ligne 2 »). Optional. Default = from label and item. */
   'aria-label'?: string;
   /** `field`: gray cross of an item inside a field (chip, attachment, link in a badge). Optional. Default = red trash of a line. */
   variant?: 'field';

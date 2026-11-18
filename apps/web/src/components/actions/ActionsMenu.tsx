@@ -71,6 +71,8 @@ interface ActionsMenuProps {
   target?: ReactNode;
   /** In a clickable or draggable row (a folder, a search, a tree): its clicks and pointer presses stay in the menu. Optional. */
   inRow?: boolean;
+  /** Inside another button (a tab): the default button is drawn as a span, its clicks kept from that button. Optional. */
+  nested?: boolean;
   /** Size of the default button. Optional. */
   size?: ActionIconProps['size'];
   /** Look of the default button: « subtle » in a row or a list, « default » (bordered) next to buttons (a header). Optional. Default = « subtle ». */
@@ -104,6 +106,7 @@ export function ActionsMenu({
   items,
   target,
   inRow = false,
+  nested = false,
   size,
   variant = 'subtle',
   loading,
@@ -130,13 +133,15 @@ export function ActionsMenu({
     >
       <Menu.Target>
         {target ?? (
+          // eslint-disable-next-line no-restricted-syntax -- the « ⋯ » button of every menu, its name read by screen readers.
           <ActionIcon
+            {...(nested ? { component: 'span' as const } : {})}
             variant={variant}
             color={variant === 'subtle' ? 'gray' : undefined}
             size={size}
             loading={loading}
             aria-label={`Actions de ${name}`}
-            onClick={inRow ? (event) => event.stopPropagation() : undefined}
+            onClick={inRow || nested ? (event) => event.stopPropagation() : undefined}
             onPointerDown={inRow ? (event) => event.stopPropagation() : undefined}
           >
             <DotsThreeVerticalIcon weight="bold" aria-hidden />

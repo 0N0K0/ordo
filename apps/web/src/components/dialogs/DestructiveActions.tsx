@@ -1,6 +1,7 @@
 import { Button, Group, Radio, Stack, Text, type ButtonProps } from '@mantine/core';
 import { TrashIcon, XIcon } from '@phosphor-icons/react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { ActionButton } from '../actions/ActionButton';
 
 interface DestructiveActionsProps {
   onConfirm: () => void;
@@ -24,9 +25,9 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
       <Button color="red" leftSection={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
         {confirmLabel}
       </Button>
-      <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onCancel}>
+      <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
         Annuler
-      </Button>
+      </ActionButton>
     </Group>
   );
 }

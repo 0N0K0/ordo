@@ -17,6 +17,7 @@ import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -290,15 +291,15 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
             >
               Enregistrer le brouillon
             </Button>
-            <Button
-              variant="default"
-              leftSection={<PencilSimpleLineIcon aria-hidden />}
+            <ActionButton
+              priority="secondary"
+              icon={<PencilSimpleLineIcon aria-hidden />}
               onClick={() => {
                 close();
               }}
             >
               Continuer la rédaction
-            </Button>
+            </ActionButton>
           </Group>
         </Stack>
       ),
@@ -398,39 +399,39 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           {sourceFiles?.files.map((file) => (
             <FileBadge
               key={`source-${file.index}`}
-              name={file.filename}
+              filename={file.filename}
               size={file.size}
               onRemove={() => setSourceFiles({ ...sourceFiles, files: sourceFiles.files.filter((item) => item.index !== file.index) })}
             />
           ))}
           {files.map((file, index) => (
-            <FileBadge key={`${file.name}-${index}`} name={file.name} size={file.size} onRemove={() => setFiles(files.filter((_, item) => item !== index))} />
+            <FileBadge key={`${file.name}-${index}`} filename={file.name} size={file.size} onRemove={() => setFiles(files.filter((_, item) => item !== index))} />
           ))}
         </Group>
       )}
       <Group justify="space-between">
         <FileButton multiple onChange={(picked) => setFiles([...files, ...picked])}>
           {(props) => (
-            <Button variant="default" leftSection={<PaperclipIcon aria-hidden />} {...props}>
+            <ActionButton priority="secondary" icon={<PaperclipIcon aria-hidden />} {...props}>
               Joindre des fichiers
-            </Button>
+            </ActionButton>
           )}
         </FileButton>
         <Group gap="sm">
-          <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={requestClose}>
+          <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={requestClose}>
             Fermer
-          </Button>
+          </ActionButton>
           <Popover opened={scheduling} onChange={setScheduling} position="top-end" shadow="md" withinPortal={false} trapFocus>
             <Popover.Target>
-              <Button
-                variant="default"
-                leftSection={<ClockCountdownIcon aria-hidden />}
+              <ActionButton
+                priority="secondary"
+                icon={<ClockCountdownIcon aria-hidden />}
                 disabled={!account || recipients.length === 0 || invalid}
                 loading={schedule.isPending}
                 onClick={() => setScheduling((open) => !open)}
               >
                 Programmer
-              </Button>
+              </ActionButton>
             </Popover.Target>
             <Popover.Dropdown>
               <Stack gap="xs" w={260}>

@@ -161,7 +161,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
       target={
         <>
           {routine.reminders.length ? (
-            <Badge size="sm" variant="light" color="teal" leftSection={<BellIcon aria-hidden />} tt="none">
+            <Badge size="sm" variant="light" color="teal" leftSection={<BellIcon aria-hidden />}>
               {routine.reminders.length}
             </Badge>
           ) : (

@@ -285,7 +285,7 @@ export async function seedPersonal({
   await subscribe(proCalendarId);
 
   // --- Schedules: default kind renamed, a childcare kind every other week, working hours subscribed to -----------
-  await saveDefaultScheduleKind({ name: 'Disponibilités', color: '#40c057', dayDisplay: 'SLOT_BACKGROUND', dayBar: true, monthDisplay: 'BACKGROUND' });
+  await saveDefaultScheduleKind({ label: 'Disponibilités', color: '#40c057', dayDisplay: 'SLOT_BACKGROUND', dayBar: true, monthDisplay: 'BACKGROUND' });
   const range = (start: string, end: string) => ({ start, end });
   const weekly = (weekdays: number[], ranges: { start: string; end: string }[], every = 1) => ({ pattern: 'WEEKLY', weekdays, every, from: null, allDay: false, ranges });
   await prisma.workSchedule.create({

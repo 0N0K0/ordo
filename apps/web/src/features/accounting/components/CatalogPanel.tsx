@@ -7,7 +7,8 @@ import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textar
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useArchivedToggle, useSetArchived } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -61,33 +62,6 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
     text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${fmt.percent(item.vatRate)}`),
     groupable: true,
   },
-  {
-    id: 'archived',
-    label: 'Archivé',
-    size: 100,
-    hiddenByDefault: true,
-    sortValue: (item) => (item.archived ? 1 : 0),
-    text: (item) => (item.archived ? 'Archivé' : 'Actif'),
-    filter: { kind: 'boolean', value: (item) => item.archived },
-    groupable: true,
-  },
-];
-
-/** Views made the first time the catalogue is shown: the items offered, the archived ones. */
-const CATALOG_VIEWS = [
-  {
-    label: 'Actifs',
-    config: {
-      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isFalse', value: null }] },
-    },
-  },
-  {
-    label: 'Archivés',
-    config: {
-      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
-    },
-  },
-  { label: 'Tous' },
 ];
 
 /**
@@ -156,7 +130,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
 
 /**
  * Catalogue of products and services: default label, unit, price and VAT of the lines, added, edited,
- * archived (not offered any more, read only; its views « Actifs » / « Archivés ») or restored, or deleted.
+ * archived (not offered any more, read only; hidden until « Afficher les archivés ») or restored, or deleted.
  * @returns {JSX.Element} Panel.
  */
 export function CatalogPanel() {
@@ -190,13 +164,13 @@ export function CatalogPanel() {
     'CATALOG_ITEM',
     (items ?? []).map((item) => item.id),
   );
+  const { shown, toggle: archivedToggle } = useArchivedToggle(items ?? []);
   const view = useDataView({
     tableKey: 'catalog',
     getKey: (item) => item.id,
     columns: [...CATALOG_COLUMNS, commentColumn<CatalogItem>(itemComments, (item) => item.id)],
-    rows: items ?? [],
+    rows: shown,
     title: 'Catalogue',
-    first: CATALOG_VIEWS,
   });
   // An archived item is read only (restored by « Restaurer » in its menu).
   const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => !item.archived && saveItem(item, change));
@@ -238,9 +212,12 @@ export function CatalogPanel() {
       bar={{
         searchLabel: 'Rechercher un article',
         actions: (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Nouvel article
-          </ActionButton>
+          <Group gap="md">
+            <ShowArchivedSwitch {...archivedToggle} />
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+              Nouvel article
+            </ActionButton>
+          </Group>
         ),
       }}
       empty={
@@ -314,18 +291,12 @@ export function CatalogPanel() {
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
           ),
-        // Archived or restored from its « … » menu only (decision R).
-        archived: (
-          <Text size="sm" c="dimmed">
-            {item.archived ? 'Archivé' : 'Actif'}
-          </Text>
-        ),
       })}
       actions={(item) => (
         <RowActions
           name={item.label}
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
-          items={[archiveEntry({ archived: item.archived, type: 'Article', name: item.label }, setArchived, item.id), rowMenuEntry(deleteItems([item]))]}
+          items={[archiveEntry({ archived: item.archived, type: 'Article', label: item.label }, setArchived, item.id), rowMenuEntry(deleteItems([item]))]}
         />
       )}
     />

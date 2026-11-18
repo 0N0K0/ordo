@@ -1,6 +1,6 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { endAfter, requiredText } from '../core/rules';
+import { endAfter, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
 import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
@@ -8,7 +8,7 @@ import { endDaySchema, startDaySchema } from '../dates/times';
 /** Longest label of a task. */
 export const TASK_LABEL_MAX = 256;
 
-export const taskLabelSchema = requiredText(TASK_LABEL_MAX, 'Le titre est requis.');
+export const taskLabelSchema = requiredText(TASK_LABEL_MAX);
 
 /** Markdown text (description, comment); empty becomes null. */
 export const markdownSchema = z
@@ -33,7 +33,7 @@ export const handleSchema = z
   .max(39, '39 caractères maximum.')
   .regex(/^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/, 'Lettres, chiffres, « - » et « _ » ; ni au début ni à la fin pour « - » et « _ ».');
 
-export const contributorNameSchema = requiredText(120);
+export const contributorNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
 
 /**
  * Suggests a mention handle from a name ("Noémie Koelblen" → "noemie-koelblen").
@@ -89,7 +89,7 @@ export type TaskFormValues = z.input<typeof taskFormSchema>;
 /** Longest label of a milestone. */
 export const MILESTONE_LABEL_MAX = 120;
 
-export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX, 'Le titre est requis.');
+export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX);
 
 export const milestoneFormSchema = z.object({
   label: milestoneLabelSchema,

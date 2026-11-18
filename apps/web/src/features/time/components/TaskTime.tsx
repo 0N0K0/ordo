@@ -1,5 +1,5 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { Button, Group, Text, Tooltip } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
@@ -7,6 +7,7 @@ import { useRunningTimer } from '../api';
 import { TIMER_REPLACED_HINT, useStartTimer } from '../hooks/use-start-timer';
 import { TimerControls } from './TimerControls';
 import { TimerRunningBadge } from './TimerStop';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Time tracked on a task (its share of each time entry), and a button starting the timer on it.
@@ -30,16 +31,16 @@ export function TaskTime({ task }: { task: Task }) {
           </Group>
         ) : (
           <Tooltip label={TIMER_REPLACED_HINT} disabled={!replacing}>
-            <Button
+            <ActionButton
+              priority="secondary"
               size="compact-sm"
-              variant="default"
-              leftSection={<PlayIcon aria-hidden />}
+              icon={<PlayIcon aria-hidden />}
               loading={isPending}
               disabled={task.archived}
               onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
             >
               Démarrer le chrono
-            </Button>
+            </ActionButton>
           </Tooltip>
         )}
       </Group>

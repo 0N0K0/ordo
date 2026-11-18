@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useMailLabels } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { dateRangeProps } from '../../../components/inputs/date-range';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Where an advanced search looks: the folder shown, every folder of its account, or every account. */
 type Where = 'folder' | 'account' | 'everywhere';
@@ -108,9 +109,9 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
               Enregistrer en dossier de recherche
             </Button>
             <Group gap="xs">
-              <Button size="xs" variant="default" leftSection={<EraserIcon aria-hidden />} onClick={onClear}>
+              <ActionButton priority="secondary" size="xs" icon={<EraserIcon aria-hidden />} onClick={onClear}>
                 Effacer
-              </Button>
+              </ActionButton>
               <Button size="xs" type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />}>
                 Rechercher
               </Button>

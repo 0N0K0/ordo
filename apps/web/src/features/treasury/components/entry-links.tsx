@@ -76,7 +76,6 @@ export function LinkBadge({ link, onUnlink, variant = 'light', size, children, w
       color={link.amount < 0 ? 'red' : 'green'}
       leftSection={<LinkIcon aria-hidden />}
       rightSection={onUnlink && <RemoveButton variant="field" size="xs" label="Délier" aria-label={`Délier ${describeLink(link)}`} onClick={onUnlink} />}
-      tt="none"
     >
       {children ?? describeLink(link)}
     </Badge>

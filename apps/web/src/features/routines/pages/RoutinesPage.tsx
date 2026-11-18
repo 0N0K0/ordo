@@ -43,21 +43,13 @@ import { rowMenuEntry } from '../../../components/data-table/selection/selection
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
 
-/** Views made the first time: those to do, all, the archived ones; grouped by category. */
+/** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
   {
     label: 'À faire',
     config: { groupBy: 'categories', filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'todo', field: 'state', operator: 'in', value: ['late', 'due'] }] } },
   },
   { label: 'Toutes', config: { groupBy: 'categories' } },
-  {
-    label: 'Archivées',
-    config: {
-      groupBy: 'categories',
-      includeArchived: true,
-      filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
-    },
-  },
 ];
 
 /**
@@ -132,6 +124,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     first: ROUTINE_VIEWS,
     getKey: (routine) => routine.id,
     archived: (routine) => routine.archived,
+    archivedLabel: 'Afficher les archivées',
     // One being created shows at once (its occurrences, computed once saved, may then take it out of the view).
     alwaysKept: isDraftRoutine,
   });
@@ -264,7 +257,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       verticalSpacing={4}
       className={classes.table}
       bar={{
-        searchLabel: 'Rechercher (label, description, lieu)',
+        searchLabel: 'Rechercher (libellé, description, lieu)',
         actions: (
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
             Nouvelle routine

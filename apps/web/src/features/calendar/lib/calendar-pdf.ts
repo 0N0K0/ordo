@@ -8,7 +8,7 @@ type PdfKind = 'event' | 'task' | 'routine' | 'time' | 'pause' | 'work';
 
 /** Item of the calendar as the PDF draws it. */
 interface PdfItem {
-  title: string;
+  label: string;
   kind: PdfKind;
   allDay: boolean;
   start: string;
@@ -69,11 +69,11 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
       const start = dayOf(String(item.start));
       // FullCalendar ends are exclusive.
       const end = item.end ? addDays(dayOf(String(item.end)), -1) : start;
-      return [{ title: item.title ?? '', kind, allDay: true, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
+      return [{ label: item.title ?? '', kind, allDay: true, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
     }
     const start = localDateTime(item.start);
     const end = item.end ? localDateTime(item.end) : start;
-    return [{ title: item.title ?? '', kind, allDay: false, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
+    return [{ label: item.title ?? '', kind, allDay: false, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
   });
 }
 

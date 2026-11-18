@@ -51,7 +51,7 @@ import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf, countWith } from '../../../lib/text';
-import { openNameForm } from '../../../components/dialogs/open-name-form';
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
 /** Image of a chart as exported. */
@@ -110,7 +110,7 @@ interface ChartCardProps {
   scope: ChartScope;
   context: TaskContext;
   /** Title of the dashboard, for the file names. */
-  dashboardName: string;
+  dashboardLabel: string;
   captures: Captures;
   onEdit: () => void;
   /** Its dashboard is archived: only its exports. Optional. Default = false. */
@@ -124,7 +124,7 @@ interface ChartCardProps {
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
-function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit, readOnly = false }: ChartCardProps) {
+function ChartCard({ chart, index, count, scope, context, dashboardLabel, captures, onEdit, readOnly = false }: ChartCardProps) {
   const { ref: sortableRef, style: sortableItemStyle, dragging, handle } = useSortableItem(chart.id);
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
@@ -159,11 +159,11 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     const capture = captures.current.get(chart.id);
     if (!capture) return;
     const image = await capture({ scheme: 'light', render: PRINT_SIZE });
-    await downloadChartsPdf({ title: chart.label, subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`, charts: [image] });
+    await downloadChartsPdf({ title: chart.label, subtitle: `${dashboardLabel} · exporté le ${fmt.exportDateTime(new Date())}`, charts: [image] });
   });
   // The data of the chart as a PDF table.
   const { run: exportTablePdf, loading: exportingTable } = useAsyncAction(async () => {
-    if (data) await downloadChartTablePdf(chartTable(data, config), chart.label, `${dashboardName} · ${description}`);
+    if (data) await downloadChartTablePdf(chartTable(data, config), chart.label, `${dashboardLabel} · ${description}`);
   });
   const exporting = exportingPdf || exportingTable;
 
@@ -185,7 +185,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             onExport={(settings) => {
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
-                .then((image) => download(image.image, fileName(`${dashboardName} — ${chart.label}`, 'png')))
+                .then((image) => download(image.image, fileName(`${dashboardLabel} — ${chart.label}`, 'png')))
                 .catch(onMutationError);
             }}
           />
@@ -267,7 +267,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 label: 'Exporter les données (CSV)',
                 icon: <TableIcon aria-hidden />,
                 disabled: !data || data.empty,
-                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.label}`),
+                onClick: () => data && downloadChartCsv(chartTable(data, config), `${dashboardLabel} — ${chart.label}`),
               },
               {
                 label: 'Exporter les données (PDF)',
@@ -340,8 +340,8 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
    * @param {Dashboard} [dashboard] Dashboard to rename. Optional.
    * @returns {void}
    */
-  const askName = (dashboard?: Dashboard) =>
-    openNameForm(dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord', {
+  const askLabel = (dashboard?: Dashboard) =>
+    openLabelForm(dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord', {
       initial: dashboard?.label ?? (dashboards?.length ? '' : 'KPI'),
       schema: dashboardLabelSchema,
       placeholder: 'KPI, Sprint, Mensuel…',
@@ -422,7 +422,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       <Stack gap="md">
         <ActionsRow>
           <ShowArchivedSwitch {...archivedToggle} />
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askName()}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askLabel()}>
             Nouveau tableau de bord
           </ActionButton>
         </ActionsRow>
@@ -451,11 +451,11 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           )}
           actions={(dashboard) => [
             // Archived: read only.
-            ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]),
-            archiveEntry({ archived: dashboard.archived, type: 'Tableau de bord', name: dashboard.label }, setArchived, dashboard.id),
+            ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askLabel(dashboard) }]),
+            archiveEntry({ archived: dashboard.archived, type: 'Tableau de bord', label: dashboard.label }, setArchived, dashboard.id),
           ]}
           onDelete={confirmDelete}
-          add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}
+          add={{ label: 'Nouveau tableau de bord', onClick: () => askLabel() }}
         />
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
@@ -492,7 +492,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                 count={current.charts.length}
                 scope={scope}
                 context={context}
-                dashboardName={`${title} — ${current.label}`}
+                dashboardLabel={`${title} — ${current.label}`}
                 captures={captures}
                 onEdit={() => openEditor(chart)}
                 readOnly={current.archived}

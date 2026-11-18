@@ -27,7 +27,7 @@ export function RowActions({ name, primary, items }: RowActionsProps) {
   return (
     <Group gap={2} wrap="nowrap" justify="flex-end">
       {primary && (
-        <IconAction label={primary.label} aria-label={`${primary.label} : ${name}`} disabled={primary.disabled} onClick={primary.onClick} {...linkProps(primary)}>
+        <IconAction label={primary.label} item={name} hint={primary.hint} color={primary.danger ? 'red' : 'gray'} disabled={primary.disabled} onClick={primary.onClick} {...linkProps(primary)}>
           {primary.icon}
         </IconAction>
       )}

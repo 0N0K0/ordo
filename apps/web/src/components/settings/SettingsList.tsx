@@ -73,7 +73,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   nested = false,
   withColor = true,
   colorRequired,
-  namePlaceholder,
+  labelPlaceholder,
   usage,
   usageNoun,
   schema,
@@ -114,7 +114,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         initial={initial}
         withColor={withColor}
         colorRequired={colorRequired}
-        namePlaceholder={namePlaceholder}
+        labelPlaceholder={labelPlaceholder}
         schema={schema}
         extra={extra}
         create={create}

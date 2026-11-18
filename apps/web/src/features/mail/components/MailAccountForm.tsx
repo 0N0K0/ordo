@@ -1,6 +1,6 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { PlugsConnectedIcon } from '@phosphor-icons/react';
-import { Button, Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
+import { Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
 import { mailAccountFormSchema, type MailAccountFormValues } from '@ordo/shared';
 
 import { useEffect, useState } from 'react';
@@ -8,6 +8,7 @@ import { showFormError, useAppForm, formCallbacks } from '../../../lib/form';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
 import { useMailAccountMutations, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Usual settings of common providers. */
 const PRESETS: Record<string, { label: string; imap: [string, number, boolean]; smtp: [string, number, boolean]; saveSent: boolean }> = {
@@ -115,7 +116,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          <TextInput label="Nom dans Ordo" placeholder="Pro, Perso…" required data-autofocus {...form.getInputProps('label')} />
+          <TextInput label="Libellé dans Ordo" placeholder="Pro, Perso…" required data-autofocus {...form.getInputProps('label')} />
           <Select
             label="Hébergeur"
             placeholder="Remplir les serveurs…"
@@ -183,9 +184,9 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
 
         {tested && <NoticeAlert kind="success">Connexion réussie à la réception et à l’envoi.</NoticeAlert>}
         <Group justify="space-between" gap="sm">
-          <Button
-            variant="default"
-            leftSection={<PlugsConnectedIcon aria-hidden />}
+          <ActionButton
+            priority="secondary"
+            icon={<PlugsConnectedIcon aria-hidden />}
             loading={test.isPending}
             onClick={() => {
               setTested(false);
@@ -194,7 +195,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
             }}
           >
             Tester la connexion
-          </Button>
+          </ActionButton>
           <FormActions onCancel={onDone} submitLabel={account ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
         </Group>
       </Stack>

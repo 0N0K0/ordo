@@ -17,6 +17,7 @@ import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { SlotTimesFields } from './SlotTimesFields';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Short date of a calendar date: "jeu. 13 nov.".
@@ -171,9 +172,9 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           </SubSection>
         )}
         <Group justify="flex-end" gap="sm">
-          <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onDone}>
+          <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onDone}>
             Fermer
-          </Button>
+          </ActionButton>
           {date && (
             <DestructiveButton
               leftSection={<CalendarXIcon aria-hidden />}

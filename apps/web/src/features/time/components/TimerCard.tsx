@@ -74,7 +74,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           <TimeTasksSelect context={context} projectId={projectId} value={taskIds} onChange={setTaskIds} {...extra} />
         </div>
         <MarkdownEditor label="Description" placeholder="Ce que vous faites…" minRows={2} value={description} onChange={setDescription} suggestions={context.suggestionsFor(projectId)} />
-        <FormActions submitLabel="Démarrer" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={starting} />
+        <FormActions submitLabel="Démarrer le chrono" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={starting} />
       </Stack>
     </form>
   );

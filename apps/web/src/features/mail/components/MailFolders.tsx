@@ -3,14 +3,12 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Box, Button, Group, NavLink, Stack, Text } from '@mantine/core';
+import { Box, Button, Group, NavLink, Stack, Text } from '@mantine/core';
 import { requiredText } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
   ArrowsOutCardinalIcon,
-  CaretDownIcon,
-  CaretRightIcon,
   EnvelopeSimpleIcon,
   FileIcon,
   FolderIcon,
@@ -25,7 +23,9 @@ import { useState, type ReactNode } from 'react';
 import { notifySuccess } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
-import { openNameForm } from '../../../components/dialogs/open-name-form';
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
+import { FoldButton } from '../../../components/actions/FoldButton';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -101,17 +101,17 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
         <Text size="sm" c="dimmed">
           Le dossier, ses sous-dossiers et leurs mails changent de place.
         </Text>
-        <Button
-          variant="default"
+        <ActionButton
+          priority="secondary"
           justify="flex-start"
-          leftSection={<FolderIcon aria-hidden />}
+          icon={<FolderIcon aria-hidden />}
           onClick={() => {
             close();
             placeFolder(folder, null);
           }}
         >
           Premier niveau
-        </Button>
+        </ActionButton>
         {choices.map((item) => (
           <Button
             key={item.path}
@@ -163,8 +163,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askCreate = (parent: string | null) => {
-    openNameForm(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', {
+    openLabelForm(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', {
       initial: '',
+      fieldLabel: 'Nom',
       schema: FOLDER_NAME,
       submitLabel: 'Créer',
       onSubmit: (name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.')),
@@ -177,8 +178,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askRename = (folder: { path: string; name: string }) => {
-    openNameForm('Renommer le dossier', {
+    openLabelForm('Renommer le dossier', {
       initial: folder.name,
+      fieldLabel: 'Nom',
       schema: FOLDER_NAME,
       submitLabel: 'Renommer',
       onSubmit: (name) =>
@@ -258,19 +260,13 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             leftSection={
               <Group gap={2} wrap="nowrap">
                 {hasChildren ? (
-                  <ActionIcon
+                  <FoldButton
                     size="xs"
-                    variant="subtle"
-                    color="gray"
-                    aria-label={folded ? `Développer ${folder.name}` : `Réduire ${folder.name}`}
-                    aria-expanded={!folded}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setCollapsed(folded ? collapsed.filter((path) => path !== folder.path) : [...collapsed, folder.path]);
-                    }}
-                  >
-                    {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-                  </ActionIcon>
+                    expanded={!folded}
+                    item={folder.name}
+                    inRow
+                    onToggle={() => setCollapsed(folded ? collapsed.filter((path) => path !== folder.path) : [...collapsed, folder.path])}
+                  />
                 ) : (
                   <Box w={22} />
                 )}

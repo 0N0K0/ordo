@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useMailActions } from '../api';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * "Rattacher à un projet": a copy of the mail is kept in the chosen project, and the next messages of the
@@ -21,9 +22,9 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
   return (
     <Popover opened={opened} onChange={(value) => !value && close()} width={340} position="bottom-end" shadow="md" trapFocus>
       <Popover.Target>
-        <Button size="xs" variant="default" leftSection={<FolderSimplePlusIcon aria-hidden />} onClick={toggle}>
+        <ActionButton priority="secondary" size="xs" icon={<FolderSimplePlusIcon aria-hidden />} onClick={toggle}>
           Rattacher à un projet
-        </Button>
+        </ActionButton>
       </Popover.Target>
       <Popover.Dropdown>
         <Stack gap="sm">

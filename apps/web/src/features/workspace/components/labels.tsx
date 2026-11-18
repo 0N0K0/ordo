@@ -56,7 +56,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
       <Popover.Dropdown>
         {/* Not a nested <form>: the popover renders inside the project form. */}
         <Stack gap="sm" w={240}>
-          <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
           <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
             <Button size="xs" leftSection={<PlusIcon aria-hidden />} loading={mutation.isPending} onClick={() => handleSubmit()}>

@@ -2,7 +2,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { Badge, Box, Button, Grid, Group, Paper, Stack, Text } from '@mantine/core';
+import { Badge, Box, Grid, Group, Paper, Stack, Text } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -23,6 +23,7 @@ import * as fmt from '../../../lib/format';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { Comments } from '../../comments/components/Comments';
 import { DetailHeader } from '../../../components/page/DetailHeader';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
@@ -41,7 +42,7 @@ export function ImportedDocumentPage() {
   }
   if (!document) return <DetailNotFound what="Ce document" backTo="/accounting" backLabel="Facturation" />;
 
-  const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, name: document.fileName, mimeType: document.fileMimeType }) : null;
+  const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, filename: document.filename, mimeType: document.fileMimeType }) : null;
   const money = (amount: number) => fmt.money(amount, document.currency);
   const facts: [string, string | null][] = [
     ['Client', document.clientName || null],
@@ -75,16 +76,16 @@ export function ImportedDocumentPage() {
               </IconAction>
             )}
             {!document.archived && (
-              <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
+              <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
                 Modifier
-              </Button>
+              </ActionButton>
             )}
           </>
         }
         menu={{
           name: `« ${document.number} »`,
           items: [
-            archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number, feminine: isFeminineDocumentType(document.type) }, setArchived, document.id),
+            archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: document.number, feminine: isFeminineDocumentType(document.type) }, setArchived, document.id),
           ],
         }}
       />
@@ -93,7 +94,7 @@ export function ImportedDocumentPage() {
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
             {document.fileUrl && kind ? (
-              <FilePreview url={document.fileUrl} name={document.fileName ?? document.number} kind={kind} height="max(36rem, calc(100dvh - 16rem))" />
+              <FilePreview url={document.fileUrl} filename={document.filename ?? document.number} kind={kind} height="max(36rem, calc(100dvh - 16rem))" />
             ) : (
               <Box p="xl">
                 <EmptyState
@@ -102,14 +103,14 @@ export function ImportedDocumentPage() {
                   message={document.fileUrl ? 'Ce fichier ne peut pas être affiché ici.' : 'Aucun fichier joint.'}
                   action={
                     document.fileUrl ? (
-                      <Button component="a" href={downloadUrl(document.fileUrl)} variant="default" leftSection={<DownloadSimpleIcon aria-hidden />}>
-                        Télécharger {document.fileName}
-                      </Button>
+                      <ActionButton priority="secondary" href={downloadUrl(document.fileUrl)} icon={<DownloadSimpleIcon aria-hidden />}>
+                        Télécharger {document.filename}
+                      </ActionButton>
                     ) : (
                       !document.archived && (
-                        <Button variant="default" leftSection={<PaperclipIcon aria-hidden />} onClick={() => openImportForm(document)}>
+                        <ActionButton priority="secondary" icon={<PaperclipIcon aria-hidden />} onClick={() => openImportForm(document)}>
                           Joindre le fichier
-                        </Button>
+                        </ActionButton>
                       )
                     )
                   }

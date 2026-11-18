@@ -2,9 +2,8 @@ import { projectPath } from '../../../app/pages';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
+import { Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
 
 import { Link } from 'react-router';
 import type { TreePlace } from '../../../components/tree/category-tree';
@@ -17,6 +16,7 @@ import classes from './ProjectList.module.css';
 
 import treeRow from '../../../components/tree/tree-drop.module.css';
 import { DragHandle } from '../../../components/actions/DragHandle';
+import { FoldButton } from '../../../components/actions/FoldButton';
 
 interface ProjectListProps {
   projects: Project[];
@@ -76,13 +76,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       ) : (
         <DragHandle label={`Déplacer ${project.label}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       )}
-      {folded !== undefined ? (
-        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`${folded ? 'Déplier' : 'Replier'} ${project.label}`} aria-expanded={!folded} onClick={onToggle}>
-          {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-        </ActionIcon>
-      ) : (
-        <span className={treeRow.caretSpace} />
-      )}
+      {folded !== undefined ? <FoldButton expanded={!folded} item={project.label} onToggle={onToggle} /> : <span className={treeRow.caretSpace} />}
       <UnstyledButton component={Link} to={projectPath(project.id)} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="sm" wrap="nowrap">
           <ItemAvatar name={project.label} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />

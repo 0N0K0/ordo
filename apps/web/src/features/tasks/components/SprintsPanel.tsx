@@ -1,8 +1,8 @@
 import { PERIOD_STATES, periodState } from '../../../lib/periods';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
+import { planCardActions } from '../lib/plan-card-actions';
 
-import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
 import { leafEffort } from '../lib/task-effort';
@@ -13,11 +13,11 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
-import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
 
-import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -62,7 +62,7 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* By the width of the settings sidebar, not the window's. */}
         <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
           <DatePickerInput label="Début" required {...period.start} />
@@ -162,26 +162,21 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
               <PlanCard
                 icon={<TimerIcon aria-hidden />}
                 title={sprint.label}
+                archived={sprint.archived}
                 badges={
-                  <>
-                    {sprint.archived && <ArchivedBadge size="sm" />}
-                    <Badge size="sm" variant="light" color={state.color}>
-                      {state.label}
-                    </Badge>
-                    {late && (
-                      <Badge size="sm" variant="light" color="red">
-                        {tasks.length - done.length} {plural(tasks.length - done.length, 'tâche')} non {plural(tasks.length - done.length, 'terminée')}
-                      </Badge>
-                    )}
-                  </>
+                  <Badge size="sm" variant="light" color={state.color}>
+                    {state.label}
+                  </Badge>
                 }
+                late={late ? tasks.length - done.length : 0}
                 dates={`Du ${fmt.day(start)} au ${fmt.day(end)}`}
-                actions={[
-                  // Archived (or of an archived project): read only.
-                  !sprint.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
-                  archiveEntry({ archived: sprint.archived, type: 'Sprint', name: sprint.label }, setArchived, sprint.id),
-                  { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
-                ]}
+                actions={planCardActions(sprint, {
+                  type: 'Sprint',
+                  locked: Boolean(project?.archived),
+                  setArchived,
+                  onEdit: () => openForm(sprint),
+                  onDelete: () => confirmDelete(sprint, tasks.length),
+                })}
                 progress={
                   <TaskProgress
                     done={done.length}

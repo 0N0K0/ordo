@@ -273,7 +273,7 @@ export function StockTable() {
           ),
           unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
           expiry: first && (
-            <Badge size="sm" variant="light" tt="none" color={first < today ? 'red' : first <= soon ? 'orange' : 'gray'} leftSection={first <= soon ? <WarningIcon aria-hidden /> : undefined}>
+            <Badge size="sm" variant="light" color={first < today ? 'red' : first <= soon ? 'orange' : 'gray'} leftSection={first <= soon ? <WarningIcon aria-hidden /> : undefined}>
               {fmt.day(first)}
             </Badge>
           ),
@@ -330,7 +330,7 @@ export function StockTable() {
               onClick: () => openFormPanel(item.label, (close) => <StockMoveForm item={item} onDone={close} />),
             },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, onClick: () => openFormPanel(`Historique · ${item.label}`, () => <MovementsTable itemId={item.id} />, 'lg') },
-            archiveEntry({ archived: item.archived, type: 'Article', name: item.label }, setArchived, item.id),
+            archiveEntry({ archived: item.archived, type: 'Article', label: item.label }, setArchived, item.id),
             rowMenuEntry(deleteItems([item])),
           ]}
         />

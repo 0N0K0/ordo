@@ -112,7 +112,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
       <Stack gap="sm">
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <TextInput
-            label="Nom"
+            label="Libellé"
             required
             readOnly={sheet.archived}
             value={name}
@@ -274,7 +274,7 @@ export function SheetPage() {
             <ActionButton
               priority="secondary"
               icon={<CookingPotIcon aria-hidden />}
-              onClick={() => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.label} onDone={close} />)}
+              onClick={() => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} label={sheet.label} onDone={close} />)}
             >
               Utiliser cette fiche
             </ActionButton>
@@ -292,7 +292,7 @@ export function SheetPage() {
                   formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
                 ),
             },
-            archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.label, feminine: true }, setArchived, sheet.id),
+            archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
             remove,
           ],
         }}

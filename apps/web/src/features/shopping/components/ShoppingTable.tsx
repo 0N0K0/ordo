@@ -237,7 +237,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       // Sheets an item of a list comes from, with their share (products of the references have none).
       sheets: 'sheetSources' in item && Array.isArray(item.sheetSources) && (
         <StackedValues>
-          {(item.sheetSources as { sheetId: string; name: string; quantity: number | null }[]).map((source) => (
+          {(item.sheetSources as { sheetId: string; label: string; quantity: number | null }[]).map((source) => (
             <Text key={source.sheetId} size="sm" truncate>
               {sheetSourceText(source)}
             </Text>

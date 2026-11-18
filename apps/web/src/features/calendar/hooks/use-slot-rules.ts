@@ -3,7 +3,9 @@ import {
   addDays,
   allowedAt,
   blockingEvent,
+  type BusyEvent,
   busyUntil,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   DEFAULT_SLOT_KIND,
   effectiveSlotRule,
   foreignSlotKind,
@@ -13,7 +15,6 @@ import {
   ownSlotKind,
   readSlotRule,
   scheduleKinds,
-  type BusyEvent,
   type SlotRule,
 } from '@ordo/shared';
 import { useMemo } from 'react';
@@ -134,7 +135,7 @@ export function useSlotRules(): SlotRules {
     const ruleOf = (value: unknown) => knownSlotRule(effectiveSlotRule(readSlotRule(value), perso), known);
 
     const kinds: SlotKindOption[] = [
-      { value: DEFAULT_SLOT_KIND, label: defaultKind?.name ?? 'Travail', group: 'Cet espace' },
+      { value: DEFAULT_SLOT_KIND, label: defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL, group: 'Cet espace' },
       ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.label, group: 'Cet espace', archived: type.archived })),
       ...(foreignKinds ?? [])
         .filter((kind) => kind.subscribed)

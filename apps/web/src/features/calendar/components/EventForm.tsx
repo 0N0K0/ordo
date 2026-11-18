@@ -13,7 +13,7 @@ import { listSelectProps } from '../../../components/items/item-look';
 import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, EVENT_LABEL_MAX } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, LinkIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -52,6 +52,7 @@ import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { calendarPath } from '../../../app/pages';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -83,7 +84,7 @@ function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeF
   return (
     <Stack gap="sm">
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
-      <TextInput label="Titre" required value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
+      <TextInput label="Libellé" required value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
         <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
         {!fields.allDay && <TimePicker label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
@@ -238,7 +239,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
   const archiveMenu = occurrence && (
-    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', name: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
+    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
   );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -339,7 +340,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="md">
-            <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
+            <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
             <EventRepetition
               ruleStart={ruleStart}
               error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
@@ -385,7 +386,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                   />
                   <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
                   <RemoveButton
-                    label="Retirer le lien"
+                    label="Retirer"
                     mt={4}
                     aria-label={`Retirer le lien ${index + 1}`}
                     onClick={() =>
@@ -514,9 +515,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             {occurrence && (
               <Group gap="sm">
                 <Tooltip label={values.projectId ? `Démarre un chrono rattaché à cet évènement. ${replacing ? TIMER_REPLACED_HINT : ''}`.trim() : 'Choisissez d’abord un projet'}>
-                  <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
+                  <ActionButton priority="secondary" size="xs" icon={<PlayIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
                     Démarrer le chrono
-                  </Button>
+                  </ActionButton>
                 </Tooltip>
                 {occurrence.trackedSeconds > 0 && (
                   <Text size="sm" c="dimmed">
@@ -550,9 +551,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             ) : (
               <span />
             )}
-            <Button variant="default" leftSection={<XIcon aria-hidden />} onClick={onDone}>
+            <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onDone}>
               Fermer
-            </Button>
+            </ActionButton>
           </Group>
         ) : (
           <FormActions

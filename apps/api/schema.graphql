@@ -82,8 +82,8 @@ type AccountingDocument {
   serviceId: ID
   serviceStart: Date
   showBankDetails: Boolean!
-  signedFileName: String
   signedFileUrl: String
+  signedFilename: String
   sourceId: ID
   sourceNumber: String
   status: AccountingDocumentStatus!
@@ -194,12 +194,12 @@ enum AccountingUnit {
 
 """Address found by a search (OpenStreetMap)."""
 type AddressSuggestion {
-  label: String!
+  address: String!
+
+  """Label of the place, when it has one (a station, a shop…)."""
+  label: String
   lat: Float!
   lon: Float!
-
-  """Name of the place, when it has one (a station, a shop…)."""
-  name: String
 }
 
 type Alarm {
@@ -877,24 +877,24 @@ type DeductibleRate {
 }
 
 """
-Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.
+Schedules without kind of this workspace: their label, color (none: the green of working hours) and display.
 """
 type DefaultScheduleKind {
   color: String
   dayBar: Boolean!
   dayDisplay: String!
+  label: String!
   monthDisplay: String!
-  name: String!
 }
 
 input DefaultScheduleKindInput {
   color: String
   dayBar: Boolean!
   dayDisplay: String!
-  monthDisplay: String!
 
   """Empty: "Travail"."""
-  name: String!
+  label: String!
+  monthDisplay: String!
 }
 
 enum DiscountType {
@@ -1161,8 +1161,8 @@ type ImportedDocument {
   currency: String!
   dueDate: Date
   fileMimeType: String
-  fileName: String
   fileUrl: String
+  filename: String
   id: ID!
   issueDate: Date!
   label: String
@@ -3375,8 +3375,8 @@ input SheetLinkInput {
 
 """Share of a sheet in an item of a shopping list or of a checklist."""
 type SheetSource {
-  """Name of the sheet when it was added."""
-  name: String!
+  """Label of the sheet when it was added."""
+  label: String!
   quantity: Float
   sheetId: ID!
 }

@@ -3,7 +3,7 @@ import { EditablePopoverCell } from '../../../components/data-table/cells/Editab
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Anchor, Badge, Group, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -159,9 +159,9 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
         <ActionsMenu
           name={task.label}
           target={
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.label}`} style={{ flex: 'none' }}>
+            <IconAction label="Ajouter une liste d’achats" item={task.label} size="sm" style={{ flex: 'none' }}>
               <PlusIcon aria-hidden />
-            </ActionIcon>
+            </IconAction>
           }
           items={[
             { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },

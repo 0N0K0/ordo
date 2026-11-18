@@ -1,6 +1,5 @@
-import { FoldChevron } from '../../../components/actions/FoldChevron';
 import { clientPath, projectPath } from '../../../app/pages';
-import { ActionIcon, TextInput } from '@mantine/core';
+import { TextInput } from '@mantine/core';
 import { entityNameSchema, projectLabelSchema } from '@ordo/shared';
 
 import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
@@ -10,6 +9,7 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { EntityMenu } from './EntityMenu';
 import classes from './TreeRow.module.css';
+import { FoldButton } from '../../../components/actions/FoldButton';
 
 interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
   entity: EntityRef;
@@ -54,7 +54,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
   };
 
   /**
-   * Validates and saves the new name (client) or title (project).
+   * Validates and saves the new name (client) or label (project).
    * @param {boolean} fromBlur Whether focus left the field (an invalid value is then dropped).
    * @returns {void}
    */
@@ -63,7 +63,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
     if (!result.success) {
       const message = result.error.issues[0]?.message ?? 'Valeur invalide.';
       if (fromBlur) {
-        notifyError(`${message} ${isProject ? 'Le titre' : 'Le nom'} n’a pas été modifié.`);
+        notifyError(`${message} ${isProject ? 'Le libellé' : 'Le nom'} n’a pas été modifié.`);
         setEditing(false);
       } else {
         setError(message);
@@ -106,21 +106,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
         setMenuOpened(true);
       }}
     >
-      {expansion ? (
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={expansion.expanded ? 'Replier' : 'Déplier'}
-          aria-expanded={expansion.expanded}
-          onClick={expansion.onToggle}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <FoldChevron expanded={expansion.expanded} />
-        </ActionIcon>
-      ) : (
-        <span className={classes.spacer} />
-      )}
+      {expansion ? <FoldButton expanded={expansion.expanded} item={label} onToggle={expansion.onToggle} inRow /> : <span className={classes.spacer} />}
 
       {editing ? (
         <TextInput
@@ -136,7 +122,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
           onKeyDown={handleKeyDown}
           onBlur={() => commit(true)}
           onPointerDown={(event) => event.stopPropagation()}
-          aria-label={isProject ? 'Nouveau titre' : 'Nouveau nom'}
+          aria-label={isProject ? 'Nouveau libellé' : 'Nouveau nom'}
           style={{ flex: 1 }}
         />
       ) : (

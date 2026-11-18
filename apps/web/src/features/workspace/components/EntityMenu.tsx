@@ -56,7 +56,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           onClick: () => actions.setFavorite(entity, !item.favorite),
         },
         archiveEntry(
-          { archived: item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', name: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
+          { archived: item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
           actions.archiver(entity),
           item.id,
         ),

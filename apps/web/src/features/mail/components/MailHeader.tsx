@@ -64,15 +64,15 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
     <Group gap="xs">
       {files.map((file) => {
         // A PDF or an image opens in the app's viewer, another file downloads.
-        const viewable = Boolean(viewableKind(file));
+        const viewable = Boolean(viewableKind({ url: file.url, filename: file.name }));
         return (
           <FileBadge
             key={file.key}
-            name={file.name}
+            filename={file.name}
             size={file.size}
             href={viewable ? file.url : downloadUrl(file.url)}
             target={viewable ? '_blank' : undefined}
-            onClick={(event) => handleFileClick(event, file)}
+            onClick={(event) => handleFileClick(event, { url: file.url, filename: file.name })}
           />
         );
       })}

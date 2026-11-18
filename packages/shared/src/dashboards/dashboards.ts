@@ -137,7 +137,7 @@ const chartFilterFields = {
 /** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
 const chartDatasetSchema = z.object({
   id: z.string().min(1).max(40),
-  name: requiredText(60, 'Nommez le jeu de données.'),
+  label: requiredText(60, 'Nommez le jeu de données.'),
   source: z.enum(CHART_SOURCES),
   measure: z.enum(CHART_MEASURES),
   /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
@@ -154,7 +154,7 @@ export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
 const chartComparisonSchema = z.object({
   id: z.string().min(1).max(40),
-  name: requiredText(60, 'Nommez la comparaison.'),
+  label: requiredText(60, 'Nommez la comparaison.'),
   kind: z.enum(CHART_COMPARISON_KINDS),
   /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
   a: z.string().min(1),
@@ -181,8 +181,8 @@ export const chartConfigSchema = z
     /** Burndown: the sprint followed. */
     sprintId: z.string().nullable().default(null),
     ...chartFilterFields,
-    /** Name of the main data set (shown when there are several). */
-    name: z.string().trim().max(60, '60 caractères maximum.').default(''),
+    /** Label of the main data set (shown when there are several). */
+    label: z.string().trim().max(60, '60 caractères maximum.').default(''),
     /** Other data sets, drawn on the same axis. */
     datasets: z.array(chartDatasetSchema).max(8, '8 jeux de données supplémentaires maximum.').default([]),
     /** Comparisons of data sets (ratio in percent on a right axis, or difference). */
@@ -209,21 +209,22 @@ export const chartConfigSchema = z
       const path = (field: string) => ['datasets', index, field];
       if (ids.has(dataset.id)) context.addIssue({ code: 'custom', path: path('id'), message: 'Jeu de données en double.' });
       ids.add(dataset.id);
-      if (!SOURCE_MEASURES[dataset.source].includes(dataset.measure)) context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : mesure indisponible pour sa source.` });
-      if (dataset.source === 'treasury' && dataset.measure === 'balance') context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : le solde ne se compare pas.` });
+      if (!SOURCE_MEASURES[dataset.source].includes(dataset.measure))
+        context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.label} » : mesure indisponible pour sa source.` });
+      if (dataset.source === 'treasury' && dataset.measure === 'balance') context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.label} » : le solde ne se compare pas.` });
       if (dataset.series && (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(dataset.series) || dataset.series === config.dimension)) {
-        context.addIssue({ code: 'custom', path: path('series'), message: `« ${dataset.name} » : séries indisponibles.` });
+        context.addIssue({ code: 'custom', path: path('series'), message: `« ${dataset.label} » : séries indisponibles.` });
       }
       if (time) {
         const field = dataset.dateField ?? config.dimension;
-        if (!SOURCE_TIME_DIMENSIONS[dataset.source].includes(field)) context.addIssue({ code: 'custom', path: path('dateField'), message: `« ${dataset.name} » : choisissez sa date.` });
+        if (!SOURCE_TIME_DIMENSIONS[dataset.source].includes(field)) context.addIssue({ code: 'custom', path: path('dateField'), message: `« ${dataset.label} » : choisissez sa date.` });
       } else if (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(config.dimension as ChartGroupDimension)) {
-        context.addIssue({ code: 'custom', path: path('source'), message: `« ${dataset.name} » : l’axe n’existe pas pour sa source.` });
+        context.addIssue({ code: 'custom', path: path('source'), message: `« ${dataset.label} » : l’axe n’existe pas pour sa source.` });
       }
     });
     config.comparisons.forEach((comparison, index) => {
-      if (!ids.has(comparison.a) || !ids.has(comparison.b)) context.addIssue({ code: 'custom', path: ['comparisons', index, 'a'], message: `« ${comparison.name} » : jeu de données introuvable.` });
-      if (comparison.a === comparison.b) context.addIssue({ code: 'custom', path: ['comparisons', index, 'b'], message: `« ${comparison.name} » : comparez deux jeux différents.` });
+      if (!ids.has(comparison.a) || !ids.has(comparison.b)) context.addIssue({ code: 'custom', path: ['comparisons', index, 'a'], message: `« ${comparison.label} » : jeu de données introuvable.` });
+      if (comparison.a === comparison.b) context.addIssue({ code: 'custom', path: ['comparisons', index, 'b'], message: `« ${comparison.label} » : comparez deux jeux différents.` });
     });
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
@@ -233,7 +234,7 @@ export const CHART_LABEL_MAX = 120;
 /** Longest label of a dashboard. */
 export const DASHBOARD_LABEL_MAX = 60;
 
-export const chartLabelSchema = requiredText(CHART_LABEL_MAX, 'Le titre est requis.');
+export const chartLabelSchema = requiredText(CHART_LABEL_MAX);
 export const dashboardLabelSchema = requiredText(DASHBOARD_LABEL_MAX);
 
 /**

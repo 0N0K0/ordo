@@ -118,7 +118,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
       if (places?.find((item) => item.id === id)?.parentId) return;
     } else {
       const suggestion = suggestions[Number(id)];
-      if (suggestion) onChange({ text: suggestion.label, point: { lat: suggestion.lat, lon: suggestion.lon } });
+      if (suggestion) onChange({ text: suggestion.address, point: { lat: suggestion.lat, lon: suggestion.lon } });
     }
     combobox.closeDropdown();
   };
@@ -215,10 +215,10 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
               {suggestions.length > 0 && (
                 <Combobox.Group label="Adresses (OpenStreetMap)">
                   {suggestions.map((suggestion, index) => (
-                    <Combobox.Option key={suggestion.label} value={`address:${index}`}>
+                    <Combobox.Option key={suggestion.address} value={`address:${index}`}>
                       <Group gap="xs" wrap="nowrap">
                         <MapPinIcon aria-hidden />
-                        <Text size="sm">{suggestion.label}</Text>
+                        <Text size="sm">{suggestion.address}</Text>
                       </Group>
                     </Combobox.Option>
                   ))}

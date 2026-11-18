@@ -154,7 +154,7 @@ export function BaseLists() {
         actions={(baseList) => [
           // Archived: read only.
           ...(baseList.archived ? [] : [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]),
-          archiveEntry({ archived: baseList.archived, type: 'Référence', name: baseList.label, feminine: true }, setArchived, baseList.id),
+          archiveEntry({ archived: baseList.archived, type: 'Référence', label: baseList.label, feminine: true }, setArchived, baseList.id),
         ]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}

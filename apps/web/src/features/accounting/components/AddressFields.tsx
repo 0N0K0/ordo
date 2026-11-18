@@ -41,7 +41,7 @@ export function AddressFields({ legend, value, onChange, errors = {} }: AddressF
               style={{ flex: 1 }}
             />
             {address.lines.length > 1 && (
-              <RemoveButton label="Retirer la ligne" mb={4} aria-label={`Retirer la ligne ${index + 1}`} onClick={() => update({ lines: address.lines.filter((_, position) => position !== index) })} />
+              <RemoveButton label="Retirer" mb={4} aria-label={`Retirer la ligne ${index + 1}`} onClick={() => update({ lines: address.lines.filter((_, position) => position !== index) })} />
             )}
           </Group>
         ))}

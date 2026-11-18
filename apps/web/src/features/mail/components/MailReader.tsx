@@ -35,6 +35,7 @@ import { MailFiles, MailHeader } from './MailHeader';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { Comments } from '../../comments/components/Comments';
 import { useAsyncAction } from '../../../lib/use-async-action';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Message read on the server, as a source of reply or forward.
@@ -227,15 +228,15 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
         </Group>
       ) : (
         <Group gap="xs">
-          <Button size="xs" variant="default" leftSection={<ArrowBendUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), false, own, projectId))}>
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), false, own, projectId))}>
             Répondre
-          </Button>
-          <Button size="xs" variant="default" leftSection={<ArrowBendDoubleUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), true, own, projectId))}>
+          </ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendDoubleUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), true, own, projectId))}>
             Répondre à tous
-          </Button>
-          <Button size="xs" variant="default" leftSection={<ArrowBendUpRightIcon aria-hidden />} onClick={() => compose(forwardOptions(sourceOf(mail), files, projectId))}>
+          </ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendUpRightIcon aria-hidden />} onClick={() => compose(forwardOptions(sourceOf(mail), files, projectId))}>
             Transférer
-          </Button>
+          </ActionButton>
           {projectId ? (
             copy && (
               <DestructiveButton size="xs" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>

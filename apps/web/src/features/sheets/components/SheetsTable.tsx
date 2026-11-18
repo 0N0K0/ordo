@@ -38,16 +38,16 @@ import { deleteSheetsAction } from '../lib/delete-sheets';
  * @returns {DataColumn<Sheet>[]} Columns.
  */
 function sheetColumns(context: TaskContext | null, categories: SheetCategory[], inProject: boolean): DataColumn<Sheet>[] {
-  const projectName = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
-  const categoryName = new Map(categories.map((category) => [category.id, category.label]));
+  const projectLabelOf = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
+  const categoryLabel = new Map(categories.map((category) => [category.id, category.label]));
   const categoryText = (sheet: Sheet) =>
     sheet.categoryIds
-      .map((id) => categoryName.get(id) ?? '')
+      .map((id) => categoryLabel.get(id) ?? '')
       .filter(Boolean)
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
+    { id: 'name', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -68,8 +68,8 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       size: 200,
       bulk: true,
       hiddenByDefault: inProject,
-      sortValue: (sheet) => projectName(sheet) || null,
-      text: projectName,
+      sortValue: (sheet) => projectLabelOf(sheet) || null,
+      text: projectLabelOf,
       filter: {
         kind: 'choice',
         value: (sheet) => sheet.projectId ?? null,
@@ -153,7 +153,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       verticalSpacing="xs"
       highlightOnHover
       bar={{
-        searchLabel: 'Rechercher (nom, élément)',
+        searchLabel: 'Rechercher (libellé, élément)',
         actions: (
           <Group gap="md">
             <ShowArchivedSwitch {...archivedToggle} label="Afficher les archivées" />
@@ -233,10 +233,10 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
               !sheet.archived && {
                 label: 'Utiliser cette fiche…',
                 icon: <CookingPotIcon aria-hidden />,
-                onClick: () => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.label} onDone={close} />),
+                onClick: () => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} label={sheet.label} onDone={close} />),
               },
               !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
-              archiveEntry({ archived: sheet.archived, type: 'Fiche', name: sheet.label, feminine: true }, setArchived, sheet.id),
+              archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
               rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}
           />

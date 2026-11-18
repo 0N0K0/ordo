@@ -111,12 +111,12 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
                         <Group gap={6} wrap="nowrap">
                           <Text size="sm">{product.label}</Text>
                           {product.missing && (
-                            <Badge size="xs" variant="light" color="orange" tt="none">
+                            <Badge size="xs" variant="light" color="orange">
                               manque
                             </Badge>
                           )}
                           {present && (
-                            <Badge size="xs" variant="outline" color="gray" tt="none">
+                            <Badge size="xs" variant="outline" color="gray">
                               déjà dans la liste
                             </Badge>
                           )}

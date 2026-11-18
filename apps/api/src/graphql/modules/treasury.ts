@@ -471,7 +471,7 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
     select: { signedAttachment: { select: { id: true, filename: true } } },
     resolve: (document) => (document.signedAttachment ? attachmentUrl(document.signedAttachment) : null),
   }),
-  signedFileName: t.string({ nullable: true, select: { signedAttachment: { select: { filename: true } } }, resolve: (document) => document.signedAttachment?.filename ?? null }),
+  signedFilename: t.string({ nullable: true, select: { signedAttachment: { select: { filename: true } } }, resolve: (document) => document.signedAttachment?.filename ?? null }),
   paid: t.float({
     nullable: true,
     description: 'Final invoices: paid by the client; credit notes: refunded.',

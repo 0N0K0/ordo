@@ -96,7 +96,7 @@ export function TeamMembers() {
                   <InlineActions
                     name={member.name}
                     items={[
-                      archiveEntry({ archived: member.archived, type: 'Membre', name: member.name }, setArchived, member.id),
+                      archiveEntry({ archived: member.archived, type: 'Membre', label: member.name }, setArchived, member.id),
                       {
                         label: 'Retirer',
                         hint: `Retirer du ${team.toLowerCase()} (reste contributeur)`,
@@ -176,7 +176,7 @@ export function ContextForm({ context, label = '', onDone }: { context?: Treasur
       )}
     >
       <Stack gap="sm">
-        <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
         <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
@@ -462,7 +462,7 @@ export function TeamRelations() {
                     name={relation.name}
                     items={[
                       !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
-                      archiveEntry({ archived: relation.archived, type: 'Relation', name: relation.name, feminine: true }, setArchived, relation.id),
+                      archiveEntry({ archived: relation.archived, type: 'Relation', label: relation.name, feminine: true }, setArchived, relation.id),
                       {
                         label: 'Supprimer',
                         icon: <TrashIcon aria-hidden />,

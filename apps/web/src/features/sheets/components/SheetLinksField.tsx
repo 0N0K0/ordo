@@ -53,7 +53,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
               if (value !== link.multiplier) save(current.map((other, position) => (position === index ? { ...other, multiplier: value } : other)));
             }}
           />
-          <RemoveButton label="Retirer la fiche" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
+          <RemoveButton label="Retirer" aria-label={`Retirer la fiche ${index + 1}`} onClick={() => save(current.filter((_, position) => position !== index))} />
         </Group>
       ))}
       <AddItemButton disabled={free.length === 0} onClick={() => save([...current, { sheetId: free[0].value, multiplier: 1 }])}>

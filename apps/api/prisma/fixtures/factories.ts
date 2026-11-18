@@ -179,7 +179,7 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
 /** Time zone of the fixtures' events (the machine's). */
 export const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-const EVENT_TITLES = [
+const EVENT_LABELS = [
   'Rendez-vous client',
   'Atelier de cadrage',
   'Démo du sprint',
@@ -225,7 +225,7 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
   const date = parseDay(localDate(day));
   const place = faker.helpers.arrayElement(PLACES);
   return {
-    label: faker.helpers.arrayElement(EVENT_TITLES),
+    label: faker.helpers.arrayElement(EVENT_LABELS),
     description: maybe(0.4, () => faker.lorem.sentences({ min: 1, max: 2 })),
     location: maybe(0.7, () => (place === 'Chez le client' ? faker.location.streetAddress({ useFullAddress: true }) : place)),
     links: place === 'Visio' || faker.datatype.boolean(0.2) ? [{ url: `https://meet.example.com/${faker.string.alphanumeric(10).toLowerCase()}`, label: 'Visio' }] : [],

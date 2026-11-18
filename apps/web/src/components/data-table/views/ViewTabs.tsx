@@ -1,7 +1,7 @@
 import { copyName } from '../../../lib/text';
 import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
-import { openNameForm } from '../../dialogs/open-name-form';
+import { openLabelForm } from '../../dialogs/open-label-form';
 
 import { Indicator } from '@mantine/core';
 import { taskViewLabelSchema, VIEW_LABEL_MAX } from '@ordo/shared';
@@ -18,7 +18,7 @@ import { usePublishedHeight } from './published-height';
  * @returns {void}
  */
 function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
-  openNameForm(title, { initial, label: 'Nom de la vue', schema: taskViewLabelSchema, submitLabel, onSubmit });
+  openLabelForm(title, { initial, fieldLabel: 'Libellé de la vue', schema: taskViewLabelSchema, submitLabel, onSubmit });
 }
 
 /**

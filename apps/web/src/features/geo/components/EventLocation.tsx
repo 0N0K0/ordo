@@ -24,7 +24,7 @@ export function EventLocation({ value, onChange, error }: EventLocationProps) {
    */
   const move = async (point: GeoPoint) => {
     onChange({ text: value.text, point });
-    onChange({ text: (await pickedAddress(point)).label, point });
+    onChange({ text: (await pickedAddress(point)).address, point });
   };
   return (
     <Stack gap={6}>

@@ -90,7 +90,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
           <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} />
           <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
           {(allowEmpty || moments.length > 1) && (
-            <RemoveButton label="Retirer le moment" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
+            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
           )}
         </Group>
       ))}

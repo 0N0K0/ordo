@@ -2,7 +2,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { SubSection } from '../../../components/page/SubSection';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Paper, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Checkbox, Group, Paper, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { shoppingDeliverySchema, type ShoppingDeliveryInput } from '@ordo/shared';
 import { ArrowSquareOutIcon, CheckIcon, PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
@@ -21,6 +21,7 @@ import { deliveryWindow } from '../lib/delivery-format';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -58,7 +59,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput
-          label="Nom"
+          label="Libellé"
           placeholder="Colis 1, Drive, Pharmacie…"
           data-autofocus
           value={values.label ?? ''}
@@ -136,9 +137,9 @@ function OrderFields({ list }: { list: ShoppingList }) {
             title="Livraisons"
             gap="md"
             action={
-              <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouvelle livraison', (close) => <DeliveryForm list={list} onDone={close} />)}>
+              <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouvelle livraison', (close) => <DeliveryForm list={list} onDone={close} />)}>
                 Ajouter une livraison
-              </Button>
+              </ActionButton>
             }
           >
             {list.deliveries.length === 0 && <EmptyState compact icon={<PackageIcon aria-hidden />} message="Aucune livraison : ajoutez-en une par colis (ou par retrait)." />}
@@ -154,12 +155,12 @@ function OrderFields({ list }: { list: ShoppingList }) {
                           {delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
                         </Text>
                         {delivery.pickup && (
-                          <Badge size="xs" variant="light" tt="none">
+                          <Badge size="xs" variant="light">
                             à retirer
                           </Badge>
                         )}
                         {delivery.receivedAt && (
-                          <Badge size="xs" variant="light" color="green" tt="none">
+                          <Badge size="xs" variant="light" color="green">
                             réceptionnée le {fmt.day(delivery.receivedAt)}
                           </Badge>
                         )}
@@ -194,16 +195,16 @@ function OrderFields({ list }: { list: ShoppingList }) {
                       >
                         <CheckIcon aria-hidden />
                       </IconAction>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
+                      <IconAction
+                        label="Modifier"
                         aria-label="Modifier la livraison"
                         onClick={() => openFormPanel('Modifier la livraison', (close) => <DeliveryForm list={list} delivery={delivery} onDone={close} />)}
                       >
                         <PencilSimpleIcon aria-hidden />
-                      </ActionIcon>
+                      </IconAction>
                       <RemoveButton
-                        label="Supprimer la livraison"
+                        label="Supprimer"
+                        aria-label="Supprimer la livraison"
                         onClick={() =>
                           confirmDestructive({
                             title: 'Supprimer la livraison',

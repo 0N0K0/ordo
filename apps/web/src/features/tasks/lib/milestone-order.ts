@@ -7,7 +7,7 @@ export type MilestoneOrder = 'dueDate' | 'title' | 'manual';
 
 export const MILESTONE_ORDER_OPTIONS: { value: MilestoneOrder; label: string }[] = [
   { value: 'dueDate', label: 'Échéance' },
-  { value: 'title', label: 'Titre' },
+  { value: 'title', label: 'Libellé' },
   { value: 'manual', label: 'Manuel' },
 ];
 

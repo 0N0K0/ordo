@@ -8,7 +8,7 @@ import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePers
 import { unarchived } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/items/item-look';
-import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { Button, Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -22,6 +22,7 @@ import { AmountInput } from '../../../components/inputs/AmountInput';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { meName } from '../../../components/people/people-options';
+import { IconAction } from '../../../components/actions/IconAction';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -250,19 +251,22 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Tooltip label="Projet, pièces justificatives, liens">
-                        <Indicator label={attachmentCount(line)} size={16} disabled={!attachmentCount(line)} offset={4}>
-                          <ActionIcon variant={attachmentCount(line) ? 'light' : 'subtle'} color="gray" aria-label={`Rattachements de la ligne ${index + 1}`} onClick={() => setAttaching(index)}>
-                            <PaperclipIcon aria-hidden />
-                          </ActionIcon>
-                        </Indicator>
-                      </Tooltip>
+                      <IconAction
+                        label="Rattacher"
+                        hint="Projet, pièces justificatives, liens"
+                        aria-label={`Rattachements de la ligne ${index + 1}`}
+                        variant={attachmentCount(line) ? 'light' : 'subtle'}
+                        indicator={attachmentCount(line)}
+                        onClick={() => setAttaching(index)}
+                      >
+                        <PaperclipIcon aria-hidden />
+                      </IconAction>
                     </Table.Td>
                     <Table.Td ta="right">
                       <SignedAmount value={relative * sign} aria-label={`Montant de la ligne ${index + 1}`} />
                     </Table.Td>
                     <Table.Td>
-                      <RemoveButton label="Retirer la ligne" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))} />
+                      <RemoveButton label="Retirer" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))} />
                     </Table.Td>
                   </Table.Tr>
                 );

@@ -198,7 +198,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     },
     {
       id: 'itemNames',
-      label: 'Produits (noms)',
+      label: 'Produits (libellés)',
       size: 220,
       hiddenByDefault: true,
       groupable: false,
@@ -284,13 +284,13 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
           name: (
             <Group gap="xs" wrap="nowrap">
-              <EditableText value={list.label} label={`Nom de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
+              <EditableText value={list.label} label={`Libellé de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
               <IconAction label="Ouvrir la liste" component={Link} to={`/shopping/${list.id}`} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
                 <ArrowSquareInIcon aria-hidden />
               </IconAction>
               {list.archived && <ArchivedBadge feminine size="sm" />}
               {list.entryId && (
-                <Badge size="xs" variant="light" tt="none">
+                <Badge size="xs" variant="light">
                   Payée
                 </Badge>
               )}

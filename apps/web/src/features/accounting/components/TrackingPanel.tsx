@@ -22,6 +22,7 @@ import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Acceptance of a quote: date, and its signed copy.
@@ -37,7 +38,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
       <DatePickerInput label="Date d’acceptation" required value={date} onChange={(value) => setDate(value)} />
       <FileInput
         label="Devis signé"
-        description={document.signedFileName ? `Remplace « ${document.signedFileName} ».` : 'PDF ou image du devis signé « Bon pour accord ».'}
+        description={document.signedFilename ? `Remplace « ${document.signedFilename} ».` : 'PDF ou image du devis signé « Bon pour accord ».'}
         placeholder="Choisir un fichier"
         accept="application/pdf,image/*"
         leftSection={<FileArrowUpIcon aria-hidden />}
@@ -157,18 +158,18 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           {document.acceptedAt && <Text size="sm">Accepté le {fmt.day(document.acceptedAt)}</Text>}
           {document.signedFileUrl && (
             <Group justify="space-between" wrap="nowrap">
-              <FileLink url={document.signedFileUrl} name={document.signedFileName ?? 'Devis signé'} size="sm" truncate>
+              <FileLink url={document.signedFileUrl} filename={document.signedFilename ?? 'Devis signé'} size="sm" truncate>
                 <Group gap={4} wrap="nowrap">
-                  <PaperclipIcon aria-hidden /> {document.signedFileName}
+                  <PaperclipIcon aria-hidden /> {document.signedFilename}
                 </Group>
               </FileLink>
-              {!locked && <RemoveButton variant="field" label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, ON_ERROR)} />}
+              {!locked && <RemoveButton variant="field" label="Retirer" aria-label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, ON_ERROR)} />}
             </Group>
           )}
           {!locked && (
-            <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
+            <ActionButton priority="secondary" icon={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
               {document.acceptedAt ? (document.signedFileUrl ? 'Remplacer le devis signé' : 'Joindre le devis signé') : 'Enregistrer l’acceptation'}
-            </Button>
+            </ActionButton>
           )}
         </Stack>
       )}
@@ -211,9 +212,9 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             </Group>
           ))}
           {balance > 0 && !locked && (
-            <Button variant="default" leftSection={<CoinsIcon aria-hidden />} onClick={() => openDialog('payment')}>
+            <ActionButton priority="secondary" icon={<CoinsIcon aria-hidden />} onClick={() => openDialog('payment')}>
               {isCredit ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
-            </Button>
+            </ActionButton>
           )}
         </Stack>
       )}
@@ -226,9 +227,9 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             balance > 0 &&
             !locked && (
               <Group gap={4}>
-                <Button size="compact-xs" variant="default" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
+                <ActionButton priority="secondary" size="compact-xs" icon={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
-                </Button>
+                </ActionButton>
                 <Button size="compact-xs" variant="subtle" color="gray" leftSection={<NotePencilIcon aria-hidden />} onClick={() => openDialog('reminder')}>
                   Noter
                 </Button>
@@ -245,7 +246,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   {fmt.day(reminder.date)}
                   {reminder.note ? ` · ${reminder.note}` : ''}
                 </Text>
-                {!locked && <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, ON_ERROR)} />}
+                {!locked && <RemoveButton label="Supprimer" aria-label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, ON_ERROR)} />}
               </Group>
             ))
           )}

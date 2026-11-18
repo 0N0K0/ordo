@@ -66,10 +66,10 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   await category('Ménage', '#e64980', [upkeep.id]);
 
   const [alex, sam] = team.memberIds;
-  const article = ({ label, ...changes }: Article, categoryName: string, storeName: string | null): ShoppingItemInput => ({
+  const article = ({ label, ...changes }: Article, categoryLabel: string, storeLabel: string | null): ShoppingItemInput => ({
     label,
-    categoryId: categories.get(categoryName) ?? null,
-    storeId: storeName ? (stores.get(storeName) ?? null) : null,
+    categoryId: categories.get(categoryLabel) ?? null,
+    storeId: storeLabel ? (stores.get(storeLabel) ?? null) : null,
     url: null,
     note: null,
     quantity: null,
@@ -96,8 +96,8 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     [upkeep.id, { label: 'Éponges', quantity: 1, unit: 'lot', unitPrice: 3.5 }, 'Ménage', 'Carrefour', false],
     [upkeep.id, { label: 'Sacs poubelle', quantity: 1, unit: 'rouleau', unitPrice: 4.2 }, 'Ménage', 'Carrefour', true],
   ];
-  for (const [baseListId, item, categoryName, storeName, missing] of products) {
-    await createProduct({ ...article(item, categoryName, storeName), baseListId, missing });
+  for (const [baseListId, item, categoryLabel, storeLabel, missing] of products) {
+    await createProduct({ ...article(item, categoryLabel, storeLabel), baseListId, missing });
   }
 
   // --- Lists ----------------------------------------------------------------------------------------

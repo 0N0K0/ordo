@@ -2,7 +2,7 @@ import { formatMoney, percentOf, round2, toCents } from './accounting-documents'
 import { mapById } from '../core/collections';
 import { clipText } from '../core/text';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, optionalText, requiredText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
 import { printedDay } from '../dates/days';
 import { recurrenceSchema } from '../dates/recurrence';
@@ -50,8 +50,10 @@ export type TreasuryAllocationInput = z.input<typeof treasuryAllocationSchema>;
 const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 
-const name = requiredText(100);
-const label = name;
+/** Label of a treasury item (an account, a category…). */
+const label = requiredText(100);
+/** Name of a person (a counterparty, a relation). */
+const name = requiredText(100, PERSON_NAME_REQUIRED);
 
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({
@@ -140,7 +142,7 @@ export function splitAmounts(entryAmount: number, lines: readonly { mode: Treasu
 
 /** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
 export const treasuryRelationSchema = z.object({
-  name: requiredText(100),
+  name,
   note: optionalText(500),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
@@ -228,7 +230,7 @@ export const treasuryEntrySchema = z
     /** Execution date. */
     date: daySchema(),
     valueDate: daySchema().nullable(),
-    label: requiredText(ENTRY_LABEL_MAX, 'Le libellé est requis.'),
+    label: requiredText(ENTRY_LABEL_MAX),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
     methodId: z.string().nullable(),

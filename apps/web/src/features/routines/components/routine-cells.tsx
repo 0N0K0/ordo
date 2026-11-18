@@ -42,7 +42,7 @@ export function TitleCell({ routine, readOnly = false }: CellProps) {
   return (
     <EditableTitle
       value={routine.label}
-      label={`Titre de ${routine.label}`}
+      label={`Libellé de ${routine.label}`}
       schema={routineSchema.shape.label}
       // Not opened when read only (archived or being created): the form would change it.
       onOpen={readOnly ? undefined : () => openRoutineForm({ routine })}

@@ -55,8 +55,8 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const me = env.settings?.treasuryMembers.find((member) => member.isMe);
   const whomName = (row: LineRow) => (whomKey(row.line) === ME ? meName(me) : (env.names.get(whomKey(row.line)) ?? ''));
   const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(`context:${row.line.contextId}`) ?? '') : EVERYDAY_CONTEXT);
-  const categoryName = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
-  const projectName = (row: LineRow) => (row.line.projectId ? (env.projectNames.get(row.line.projectId) ?? '') : '');
+  const categoryLabel = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
+  const projectLabelOf = (row: LineRow) => (row.line.projectId ? (env.projectLabels.get(row.line.projectId) ?? '') : '');
   const whomChoices = [
     ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: personName(member) })),
     ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
@@ -78,8 +78,8 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       bulk: true,
       label: 'Catégorie',
       size: 180,
-      sortValue: (row) => categoryName(row) || null,
-      text: categoryName,
+      sortValue: (row) => categoryLabel(row) || null,
+      text: categoryLabel,
       filter: {
         kind: 'choice',
         value: (row) => row.line.categoryId,
@@ -136,8 +136,8 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       bulk: true,
       label: 'Projet',
       size: 180,
-      sortValue: (row) => projectName(row) || null,
-      text: projectName,
+      sortValue: (row) => projectLabelOf(row) || null,
+      text: projectLabelOf,
       filter: { kind: 'choice', value: (row) => row.line.projectId, options: env.projects },
       groupable: true,
     },

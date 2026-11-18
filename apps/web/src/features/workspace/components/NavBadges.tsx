@@ -51,7 +51,7 @@ export function TimeNavBadge() {
   const { data: running } = useRunningTimer();
   if (!time || (!time.today && !running)) return null;
   return (
-    <Badge size="sm" variant="light" tt="none" color={running ? 'red' : 'blue'} aria-label={`${formatDuration(time.today)} aujourd’hui${running ? ', chrono en cours' : ''}`}>
+    <Badge size="sm" variant="light" color={running ? 'red' : 'blue'} aria-label={`${formatDuration(time.today)} aujourd’hui${running ? ', chrono en cours' : ''}`}>
       {formatDuration(time.today)}
     </Badge>
   );
@@ -67,7 +67,7 @@ export function TreasuryNavBadge() {
   if (open.length === 0) return null;
   const balance = open.reduce((sum, account) => sum + account.balance, 0);
   return (
-    <Badge size="sm" variant="light" tt="none" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
+    <Badge size="sm" variant="light" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
       {fmt.moneyCompact(balance)}
     </Badge>
   );

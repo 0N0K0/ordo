@@ -147,7 +147,7 @@ builder.prismaObject('ImportedDocument', {
       select: { attachment: { select: { id: true, filename: true } } },
       resolve: (document) => (document.attachment ? attachmentUrl(document.attachment) : null),
     }),
-    fileName: t.string({ nullable: true, select: { attachment: { select: { filename: true } } }, resolve: (document) => document.attachment?.filename ?? null }),
+    filename: t.string({ nullable: true, select: { attachment: { select: { filename: true } } }, resolve: (document) => document.attachment?.filename ?? null }),
     fileMimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
   }),
 });

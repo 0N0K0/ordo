@@ -124,7 +124,7 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
   try {
     return await prisma.documentStatus.create({ data: { ...data, scope: input.scope, category: input.category, position } });
   } catch (error) {
-    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
+    return rethrowUnique(error, 'Un statut porte déjà ce libellé.');
   }
 }
 
@@ -151,7 +151,7 @@ export async function updateDocumentStatus(id: string, input: { label?: string |
   try {
     return await prisma.documentStatus.update({ where: { id }, data: { ...data, category: input.category ?? undefined } });
   } catch (error) {
-    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
+    return rethrowUnique(error, 'Un statut porte déjà ce libellé.');
   }
 }
 

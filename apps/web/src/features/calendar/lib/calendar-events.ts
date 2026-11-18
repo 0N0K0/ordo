@@ -51,29 +51,20 @@ export interface ScheduleSource {
 }
 
 /**
- * Name of a layer of slots, the same everywhere (the agenda, its layers, the day of a routine): « Nom (Type) », and
- * « · Espace » after it for a schedule of another workspace.
- * @param {string} name Label of the schedule.
+ * Label of a layer of slots, the same everywhere (the agenda, its layers, the day of a routine): « Libellé (Type) »,
+ * and « · Espace » after it for a schedule of another workspace.
+ * @param {string} label Label of the schedule.
  * @param {string | null | undefined} type Label of its kind (none, or the same: left out).
  * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
- * @returns {string} Name.
+ * @returns {string} Label.
  */
-export function scheduleLayerName(name: string, type: string | null | undefined, workspace?: string): string {
-  return `${name}${type && type !== name ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
-}
-
-/**
- * Label of a kind of slots: a kind of the workspace (its label) or its default kind (its name, kept by the workspace).
- * @param {{ label: string } | { name: string } | null | undefined} kind Kind (none while loading).
- * @returns {string | undefined} Label.
- */
-export function kindLabel(kind: { label: string } | { name: string } | null | undefined): string | undefined {
-  return kind ? ('label' in kind ? kind.label : kind.name) : undefined;
+export function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
+  return `${label}${type && type !== label ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
 }
 
 /**
  * Schedules shown as slots: those of the workspace (in the color of their kind, the default kind without one), then
- * those of other workspaces subscribed to, each named « Nom (Type) » (`scheduleLayerName`).
+ * those of other workspaces subscribed to, each labelled « Libellé (Type) » (`scheduleLayerLabel`).
  * @param {readonly WorkSchedule[]} own Schedules of the workspace.
  * @param {readonly ForeignSchedule[]} foreign Schedules subscribed to.
  * @param {readonly ScheduleType[]} types Kinds of slots.
@@ -90,7 +81,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
         schedule,
         rule: scheduleRules([schedule])[0],
         color: kind?.color ?? null,
-        label: scheduleLayerName(schedule.label, kindLabel(kind)),
+        label: scheduleLayerLabel(schedule.label, kind?.label),
         foreign: false,
         display: readScheduleDisplay(kind),
       };
@@ -99,7 +90,7 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
       schedule,
       rule: scheduleRules([schedule])[0],
       color: schedule.color ?? null,
-      label: scheduleLayerName(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
+      label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
       foreign: true,
       display: readScheduleDisplay(schedule),
     })),

@@ -40,7 +40,7 @@ export function PlacesManager() {
    */
   const pick = async (point: GeoPoint) => {
     const found = await pickedAddress(point);
-    adderRef.current?.({ ...(found.name ? { label: found.name } : {}), address: found.label, lat: point.lat, lon: point.lon, parentId: null });
+    adderRef.current?.({ ...(found.label ? { label: found.label } : {}), address: found.address, lat: point.lat, lon: point.lon, parentId: null });
   };
 
   /**

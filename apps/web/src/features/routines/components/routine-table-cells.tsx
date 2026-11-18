@@ -23,21 +23,21 @@ function DueBadge({ routine }: { routine: Routine }) {
   const { leaveAt } = scheduleOf(routine);
   if (dueTime && now > dueTime) {
     return (
-      <Badge variant="light" color="red" tt="none">
+      <Badge variant="light" color="red">
         Après {dueTime}
       </Badge>
     );
   }
   if (leaveAt && now >= leaveAt) {
     return (
-      <Badge variant="filled" color="orange" tt="none">
+      <Badge variant="filled" color="orange">
         Partir maintenant
       </Badge>
     );
   }
   const window = windowText({ fromTime, dueTime });
   return (
-    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined} tt="none">
+    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined}>
       Aujourd’hui{window ? ` ${window}` : ''}
     </Badge>
   );
@@ -59,13 +59,13 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
       <span className={classes.nowrap}>
         {moved && <ArrowBendUpRightIcon aria-label={moved.to > moved.from ? 'Reportée' : 'Avancée'} style={{ verticalAlign: 'middle', marginRight: 4 }} />}
         {state === 'done' && (
-          <Badge variant="light" color="green" tt="none">
+          <Badge variant="light" color="green">
             Fait
           </Badge>
         )}
         {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
-          <Badge variant="light" color="orange" tt="none">
+          <Badge variant="light" color="orange">
             Depuis {fmt.weekday(routine.currentDate!)}
           </Badge>
         )}

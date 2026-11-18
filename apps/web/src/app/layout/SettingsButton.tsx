@@ -12,7 +12,7 @@ export function SettingsButton() {
   const { opened, setOpened } = useSettingsOpened();
   if (!title) return null;
   return (
-    <IconAction label={opened ? `Fermer : ${title}` : title} size="input-xs" variant={opened ? 'filled' : 'light'} aria-label={title} aria-pressed={opened} onClick={() => setOpened(!opened)}>
+    <IconAction label={opened ? 'Fermer' : title} item={opened ? title : undefined} size="input-xs" variant={opened ? 'filled' : 'light'} aria-pressed={opened} onClick={() => setOpened(!opened)}>
       <GearSixIcon aria-hidden />
     </IconAction>
   );

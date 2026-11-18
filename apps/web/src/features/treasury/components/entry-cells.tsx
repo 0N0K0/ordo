@@ -1,7 +1,7 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon, LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { ellipsis } from '../../../lib/text';
 import { useState } from 'react';
@@ -16,6 +16,7 @@ import { handleFileClick } from '../../files/lib/open-file';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
 import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
@@ -65,11 +66,11 @@ export function DocumentsCell({
         {documents.map((document) => (
           <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
             <FileBadge
-              name={document.label}
+              filename={document.label}
               href={document.url}
               target="_blank"
               // A file of the app (PDF, image) opens in its viewer.
-              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.label })}
+              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, filename: document.label })}
             />
           </Tooltip>
         ))}
@@ -186,9 +187,9 @@ export function DetailsToggle({ opened, count, label, onToggle }: { opened: bool
       variant="subtle"
       color="gray"
       size="compact-xs"
-      leftSection={opened ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+      leftSection={<FoldChevron expanded={opened} />}
       aria-expanded={opened}
-      aria-label={`${opened ? 'Replier' : 'Déplier'} la répartition de ${label}`}
+      aria-label={`${opened ? 'Réduire' : 'Développer'} la répartition de ${label}`}
       onClick={onToggle}
     >
       détails ({count})

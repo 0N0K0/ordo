@@ -16,7 +16,7 @@ export const EVENT_LABEL_MAX = 300;
 /** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
-    label: requiredText(EVENT_LABEL_MAX, 'Le titre est requis.'),
+    label: requiredText(EVENT_LABEL_MAX),
     description: z
       .string()
       .max(65_536, 'Texte trop long.')

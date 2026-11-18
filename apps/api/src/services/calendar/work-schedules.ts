@@ -1,5 +1,5 @@
 import {
-  DEFAULT_SCHEDULE_KIND_NAME,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   defaultScheduleKindSchema,
   formatDay,
   formatOptionalDay,
@@ -111,7 +111,7 @@ export async function deleteWorkSchedule(id: string): Promise<void> {
 }
 
 /** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
-export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce nom.' }, { schema: scheduleTypeSchema });
+export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
@@ -193,34 +193,34 @@ function lookOf(
 
 /** Default kind of a workspace as stored on it: its schedules without kind. */
 const defaultKindSelect = {
-  scheduleName: true,
+  scheduleLabel: true,
   scheduleColor: true,
   scheduleDayDisplay: true,
   scheduleDayBar: true,
   scheduleMonthDisplay: true,
 } as const;
 
-/** Default kind of a workspace: name, color and display of its schedules without kind. */
+/** Default kind of a workspace: label, color and display of its schedules without kind. */
 export interface DefaultScheduleKind {
-  name: string;
+  label: string;
   color: string | null;
   display: ScheduleDisplay;
 }
 
 /**
  * Default kind of a workspace read from its columns.
- * @param {{ scheduleName: string | null, scheduleColor: string | null, scheduleDayDisplay: string, scheduleDayBar: boolean, scheduleMonthDisplay: string }} workspace Workspace.
+ * @param {{ scheduleLabel: string | null, scheduleColor: string | null, scheduleDayDisplay: string, scheduleDayBar: boolean, scheduleMonthDisplay: string }} workspace Workspace.
  * @returns {DefaultScheduleKind} Kind.
  */
 function defaultKindOf(workspace: {
-  scheduleName: string | null;
+  scheduleLabel: string | null;
   scheduleColor: string | null;
   scheduleDayDisplay: string;
   scheduleDayBar: boolean;
   scheduleMonthDisplay: string;
 }): DefaultScheduleKind {
   return {
-    name: workspace.scheduleName || DEFAULT_SCHEDULE_KIND_NAME,
+    label: workspace.scheduleLabel || DEFAULT_SCHEDULE_KIND_LABEL,
     color: workspace.scheduleColor,
     display: readScheduleDisplay({
       dayDisplay: workspace.scheduleDayDisplay,
@@ -240,9 +240,9 @@ export async function defaultScheduleKind(): Promise<DefaultScheduleKind> {
 }
 
 /**
- * Saves the default kind of this workspace: name (empty: 'Travail'), color (none: the green of working hours) and
+ * Saves the default kind of this workspace: label (empty: 'Travail'), color (none: the green of working hours) and
  * display of its schedules without kind.
- * @param {DefaultScheduleKindInput} input Name, color and display.
+ * @param {DefaultScheduleKindInput} input Label, color and display.
  * @returns {Promise<DefaultScheduleKind>} Kind.
  */
 export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): Promise<DefaultScheduleKind> {
@@ -250,7 +250,7 @@ export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): 
   const workspace = await unscopedPrisma.workspace.update({
     where: { id: currentWorkspaceId() },
     data: {
-      scheduleName: data.name || null,
+      scheduleLabel: data.label || null,
       scheduleColor: data.color,
       scheduleDayDisplay: data.dayDisplay,
       scheduleDayBar: data.dayBar,
@@ -311,7 +311,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
             {
               workspace: { id: workspace.id, label: workspace.label },
               typeId: null,
-              label: untyped.name,
+              label: untyped.label,
               sourceColor: untyped.color,
               ...lookOf(subscribed.get(`${workspace.id}|`), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
@@ -367,7 +367,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     const { color, display } = lookOf(lookByKind.get(`${schedule.workspaceId}|${schedule.typeId ?? ''}`), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
-      typeLabel: schedule.type?.label ?? untyped.name,
+      typeLabel: schedule.type?.label ?? untyped.label,
       color,
       display,
       workspace: { id: schedule.workspace.id, label: schedule.workspace.label },

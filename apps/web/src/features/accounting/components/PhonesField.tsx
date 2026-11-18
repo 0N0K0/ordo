@@ -30,7 +30,7 @@ export function PhonesField({ value, onChange }: { value: Phone[]; onChange: (va
             value={phone.number}
             onChange={(event) => onChange(value.map((item, position) => (position === index ? { ...item, number: event.currentTarget.value } : item)))}
           />
-          <RemoveButton label="Retirer le numéro" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))} />
+          <RemoveButton label="Retirer" aria-label={`Retirer le numéro ${index + 1}`} onClick={() => onChange(value.filter((_, position) => position !== index))} />
         </Group>
       ))}
       <AddItemButton onClick={() => onChange([...value, { label: '', number: '' }])}>Ajouter un numéro</AddItemButton>

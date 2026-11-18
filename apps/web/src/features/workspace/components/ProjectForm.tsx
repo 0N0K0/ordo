@@ -98,7 +98,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('label')} />
         <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
           <Select label="Projet parent" placeholder="Aucun (projet racine)" {...treeSelectProps(parentOptions)} searchable clearable {...form.getInputProps('parentId')} />
           {!perso && (

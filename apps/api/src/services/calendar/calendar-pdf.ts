@@ -23,7 +23,7 @@ const calendarPdfSchema = reportHeadingSchema
     items: z
       .array(
         z.object({
-          title: z.string().max(300),
+          label: z.string().max(300),
           kind: z.enum(['event', 'task', 'time', 'pause', 'work']),
           allDay: z.boolean(),
           /** All day: first and last days (YYYY-MM-DD, included); timed: local date-times. */
@@ -129,7 +129,7 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
     const outlined = item.kind === 'task' || item.kind === 'pause';
     doc.rect(x, top, width, barHeight).fill(outlined ? tint(item.color, 0.15) : item.color);
     if (outlined) doc.rect(x, top, 2, barHeight).fill(item.color);
-    clippedText(doc, item.title, { x: x + 4, y: top + 1.8, width: width - 6, height: barHeight - 2, size: 6.5, color: outlined ? COLORS.text : '#ffffff', struck: item.struck });
+    clippedText(doc, item.label, { x: x + 4, y: top + 1.8, width: width - 6, height: barHeight - 2, size: 6.5, color: outlined ? COLORS.text : '#ffffff', struck: item.struck });
   }
   const hidden = placed.filter((entry) => entry.row >= maxRows).length;
   if (hidden) clippedText(doc, `+${hidden}`, { x: area.x + 2, y: y + 2, width: axis - 4, height: 9, size: 6.5, color: COLORS.muted });
@@ -211,7 +211,7 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
         doc.rect(x, top, width - 1, height).fill(light ? tint(item.color, 0.2) : item.color);
         if (light) doc.rect(x, top, 2, height).fill(item.color);
         const time = `${item.start.slice(11)}–${item.end.slice(11)}`;
-        clippedText(doc, `${item.title}${height > 16 ? `\n${time}` : ''}`, {
+        clippedText(doc, `${item.label}${height > 16 ? `\n${time}` : ''}`, {
           x: x + 4,
           y: top + 1.5,
           width: width - 7,
@@ -272,7 +272,7 @@ function drawMonth(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: { x:
         if (item.struck) doc.opacity(0.55);
         if (item.allDay) doc.rect(x + 2, lineY, cellWidth - 4, lineHeight - 1).fill(item.kind === 'event' ? item.color : tint(item.color, 0.2));
         else doc.circle(x + 5, lineY + lineHeight / 2 - 0.5, 1.8).fill(item.color);
-        const label = item.allDay ? item.title : `${item.start.slice(11)} ${item.title}`;
+        const label = item.allDay ? item.label : `${item.start.slice(11)} ${item.label}`;
         clippedText(doc, label, {
           x: x + (item.allDay ? 4 : 9),
           y: lineY + 1.2,

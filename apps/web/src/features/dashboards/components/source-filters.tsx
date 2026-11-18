@@ -143,7 +143,7 @@ export function SourceFilters({ source, config, context, change }: { source: Cha
   if (source === 'treasury') return <TreasuryFilters config={config} change={change} />;
   return (
     <>
-      <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
+      <TextInput placeholder="Recherche (libellé, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
       <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
       <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
     </>

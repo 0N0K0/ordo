@@ -57,13 +57,13 @@ const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !
 
 /**
  * Columns of the documents (type and client only where they vary).
- * @param {{ rows: Row[], projectNames: Map<string, string>, projects: TreeOption[] }} env Rows (their clients and statuses offered by the filters), names of the projects, projects as their tree.
+ * @param {{ rows: Row[], projectLabels: Map<string, string>, projects: TreeOption[] }} env Rows (their clients and statuses offered by the filters), labels of the projects, projects as their tree.
  * @returns {DataColumn<Row>[]} Columns.
  */
-function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projectNames: Map<string, string>; projects: TreeOption[] }): DataColumn<Row>[] {
+function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; projectLabels: Map<string, string>; projects: TreeOption[] }): DataColumn<Row>[] {
   const clients = new Map(rows.flatMap((row) => (row.document.clientId ? [[row.document.clientId, row.document.clientName ?? ''] as const] : [])));
   const statuses = new Map(rows.map((row) => [trackingText(row), trackingText(row)] as const).filter(([name]) => name));
-  const projectOf = (row: Row) => (row.document.projectId ? (projectNames.get(row.document.projectId) ?? '') : '');
+  const projectOf = (row: Row) => (row.document.projectId ? (projectLabels.get(row.document.projectId) ?? '') : '');
   const money = (amount: number) => fmt.money(amount);
   return [
     { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => row.document.number ?? 'Brouillon' },
@@ -179,7 +179,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       label: 'Pièces jointes',
       size: 220,
       hiddenByDefault: true,
-      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.filename).join(', ') : (row.document.fileName ?? '')),
+      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.filename).join(', ') : (row.document.filename ?? '')),
       filter: { kind: 'boolean', value: (row) => (row.kind === 'ordo' ? row.document.attachments.length > 0 : Boolean(row.document.fileUrl)) },
     },
   ];
@@ -260,7 +260,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
         archiveEntry(
-          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], name: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
           setArchived,
           document.id,
         ),
@@ -310,14 +310,14 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     imported.map((document) => document.id),
   );
   const { data: workspace } = useWorkspace();
-  const projectNames = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
+  const projectLabels = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
   const projects = projectOptions(workspace, unarchived(workspace?.projects ?? []));
   // Latest first, before any sort.
   const rows = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
     b.document.issueDate.localeCompare(a.document.issueDate),
   ) as Row[];
   const columns = [
-    ...documentColumns({ rows, projectNames, projects: projectOptions(workspace, workspace?.projects ?? []) }).filter(
+    ...documentColumns({ rows, projectLabels, projects: projectOptions(workspace, workspace?.projects ?? []) }).filter(
       (column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient),
     ),
     commentColumn<Row>(
@@ -326,7 +326,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       (row) => (row.kind === 'imported' ? row.document.note : null),
     ),
   ];
-  // Archived documents are hidden unless the view includes them (« Inclure les archivées »).
+  // Archived documents are hidden until « Afficher les archivés » is on.
   const view = useDataView({ tableKey, getKey: rowKey, projectId, columns, rows, title, first, archived: (row) => row.document.archived });
 
   /**
@@ -556,7 +556,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
                 row.document.fileUrl && {
                   label: 'Voir le fichier',
                   icon: <FilePdfIcon aria-hidden />,
-                  onClick: () => openFile({ url: row.document.fileUrl!, name: row.document.fileName ?? row.document.number, mimeType: row.document.fileMimeType }),
+                  onClick: () => openFile({ url: row.document.fileUrl!, filename: row.document.filename ?? row.document.number, mimeType: row.document.fileMimeType }),
                 }
               }
               items={[
@@ -571,7 +571,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
                   },
                 !row.document.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(row.document as ImportedDocument) },
                 archiveEntry(
-                  { archived: row.document.archived, type: DOCUMENT_TYPE_LABELS[row.document.type], name: row.document.number, feminine: isFeminineDocumentType(row.document.type) },
+                  { archived: row.document.archived, type: DOCUMENT_TYPE_LABELS[row.document.type], label: row.document.number, feminine: isFeminineDocumentType(row.document.type) },
                   archiveImported,
                   row.document.id,
                 ),

@@ -105,7 +105,7 @@ export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
       onChange={onChange}
       searchable
       clearable
-      nothingFoundMessage="Aucune étiquette : tapez son nom pour la créer"
+      nothingFoundMessage="Aucune étiquette : tapez son libellé pour la créer"
     />
   );
 }

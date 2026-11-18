@@ -28,6 +28,7 @@ import { itemGroupFields } from '../lib/sheet-format';
 import { checklistItemSchema } from '@ordo/shared';
 
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -62,11 +63,11 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       id: 'sources',
       label: 'Fiches',
       size: 170,
-      text: (item) => item.sources.map((source) => source.name).join(', '),
+      text: (item) => item.sources.map((source) => source.label).join(', '),
       filter: {
         kind: 'choices',
         value: (item) => item.sources.map((source) => source.sheetId),
-        options: [...new Map((list?.items ?? []).flatMap((item) => item.sources.map((source) => [source.sheetId, source.name] as const)))].map(([value, name]) => ({ value, label: name })),
+        options: [...new Map((list?.items ?? []).flatMap((item) => item.sources.map((source) => [source.sheetId, source.label] as const)))].map(([value, label]) => ({ value, label })),
       },
       groupable: true,
     },
@@ -122,10 +123,10 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         }
         actions={
           <>
-            <Button
+            <ActionButton
+              priority="secondary"
               size="xs"
-              variant="default"
-              leftSection={<PlusIcon aria-hidden />}
+              icon={<PlusIcon aria-hidden />}
               onClick={() =>
                 openFormPanel('Ajouter une fiche', (close) => (
                   <SheetPicker onAdd={(sheetId, multiplier) => mutations.addToChecklist.mutateAsync({ id: list.id, sheetId, multiplier })} onDone={close} />
@@ -133,7 +134,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
               }
             >
               Ajouter une fiche
-            </Button>
+            </ActionButton>
             <Button
               size="xs"
               variant="subtle"
@@ -183,7 +184,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
             <StackedValues>
               {item.sources.map((source) => (
                 <Text key={source.sheetId} size="sm" truncate>
-                  {source.name}
+                  {source.label}
                 </Text>
               ))}
             </StackedValues>

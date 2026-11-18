@@ -1,4 +1,4 @@
-import { Anchor, Button, Divider, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Divider, Group, Stack, Text } from '@mantine/core';
 import { nextRing } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, TimerIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -10,6 +10,7 @@ import { useRunningTimer } from '../../time/api';
 import { RunningTimer, TimerStartForm } from '../../time/components/TimerCard';
 import { HomeCard } from './HomeCard';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Timer and alarms: the running timer (or the form starting one), and a button programming an alarm, with
@@ -49,9 +50,9 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
               Gérer
             </Anchor>
           </Group>
-          <Button variant="default" leftSection={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
+          <ActionButton priority="secondary" icon={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
             Programmer une alarme
-          </Button>
+          </ActionButton>
         </Stack>
       )}
     </HomeCard>

@@ -105,7 +105,7 @@ export const ALARM_LABEL_MAX = 200;
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    label: requiredText(ALARM_LABEL_MAX, 'Le titre est requis.'),
+    label: requiredText(ALARM_LABEL_MAX),
     note: z
       .string()
       .max(4000, '4 000 caractères maximum.')

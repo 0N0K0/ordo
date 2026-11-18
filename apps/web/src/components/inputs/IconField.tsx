@@ -3,6 +3,7 @@ import { ICON_MIME_TYPES, MAX_ICON_BYTES } from '@ordo/shared';
 import { ImageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { ItemAvatar } from '../items/ItemAvatar';
+import { ActionButton } from '../actions/ActionButton';
 
 export interface IconValue {
   /** Newly chosen file. */
@@ -69,9 +70,9 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
           <Group gap="xs">
             <FileButton onChange={handleFile} accept={ICON_MIME_TYPES.join(',')}>
               {(props) => (
-                <Button {...props} variant="default" size="xs" leftSection={<ImageIcon aria-hidden />}>
+                <ActionButton priority="secondary" {...props} size="xs" icon={<ImageIcon aria-hidden />}>
                   Choisir une image
-                </Button>
+                </ActionButton>
               )}
             </FileButton>
             {shownUrl && (

@@ -7,11 +7,11 @@ import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '
 import { deleteOrNotFound } from './lookup';
 import { assertNotArchived } from './archive';
 
-/** Address found by a search: its label and point. */
+/** Address found by a search: the address in words, the label of the place and its point (as a `Place`). */
 export interface AddressSuggestion {
-  label: string;
-  /** Name of the place, when it has one (a station, a shop…). */
-  name: string | null;
+  address: string;
+  /** Label of the place, when it has one (a station, a shop…). */
+  label: string | null;
   lat: number;
   lon: number;
 }
@@ -50,15 +50,15 @@ interface PhotonFeature {
 /**
  * Address of a Photon result in words: "Gare de Lyon, 20 Boulevard Diderot, 75012 Paris, France".
  * @param {Record<string, string | undefined>} p Properties.
- * @returns {{ label: string, name: string | null }} Label and name.
+ * @returns {{ address: string, label: string | null }} Address, and label of the place when it has one.
  */
-function photonLabel(p: Record<string, string | undefined>): { label: string; name: string | null } {
+function photonAddress(p: Record<string, string | undefined>): { address: string; label: string | null } {
   const street = [p.housenumber, p.street].filter(Boolean).join(' ');
   const city = [p.postcode, p.city ?? p.town ?? p.village ?? p.district].filter(Boolean).join(' ');
   // A street or a city found as such has its name in "name".
-  const name = p.name && p.name !== p.street && p.name !== p.city ? p.name : null;
-  const parts = [name, street || (p.type === 'street' ? p.name : null), city || (p.type === 'city' ? p.name : null), p.country].filter(Boolean) as string[];
-  return { label: [...new Set(parts)].join(', '), name };
+  const label = p.name && p.name !== p.street && p.name !== p.city ? p.name : null;
+  const parts = [label, street || (p.type === 'street' ? p.name : null), city || (p.type === 'city' ? p.name : null), p.country].filter(Boolean) as string[];
+  return { address: [...new Set(parts)].join(', '), label };
 }
 
 /**
@@ -71,10 +71,10 @@ function photonSuggestions(body: unknown): AddressSuggestion[] {
   const seen = new Set<string>();
   return features.flatMap((feature) => {
     const [lon, lat] = feature.geometry!.coordinates!;
-    const { label, name } = photonLabel(feature.properties ?? {});
-    if (!label || seen.has(label)) return [];
-    seen.add(label);
-    return [{ label, name, lat, lon }];
+    const { address, label } = photonAddress(feature.properties ?? {});
+    if (!address || seen.has(address)) return [];
+    seen.add(address);
+    return [{ address, label, lat, lon }];
   });
 }
 
@@ -185,8 +185,8 @@ export async function places(): Promise<PlaceView[]> {
 }
 
 /** Conflicts of a place label: among the places at the top, among the zones of a place (the database checks these). */
-const PLACE_TAKEN = 'Un lieu porte déjà ce nom.';
-const ZONE_TAKEN = 'Une zone de ce lieu porte déjà ce nom.';
+const PLACE_TAKEN = 'Un lieu porte déjà ce libellé.';
+const ZONE_TAKEN = 'Une zone de ce lieu porte déjà ce libellé.';
 
 /** Places and their zones, as every settings tree (deleting a place deletes its zones, though: see deletePlace). */
 const placeTree = treeListService<Place, ReturnType<typeof placeSchema.parse>>(

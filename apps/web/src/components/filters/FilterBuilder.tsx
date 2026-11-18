@@ -215,7 +215,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         w={190}
       />
       {editor}
-      <RemoveButton label="Retirer la condition" size="input-xs" onClick={onRemove} />
+      <RemoveButton label="Retirer" aria-label="Retirer la condition" size="input-xs" onClick={onRemove} />
     </Group>
   );
 }

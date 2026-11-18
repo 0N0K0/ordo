@@ -195,11 +195,11 @@ function line(item: CatalogItem, quantity: number, changes: Partial<AccountingLi
 
 /**
  * Section title line.
- * @param {string} title Title.
+ * @param {string} label Its label.
  * @returns {AccountingLineInput} Line.
  */
-function section(title: string): AccountingLineInput {
-  return { kind: 'TEXT', label: title, description: null, quantity: 1, unit: 'UNIT', unitPrice: 0, vatRate: 0, discountType: null, discountValue: null };
+function section(label: string): AccountingLineInput {
+  return { kind: 'TEXT', label, description: null, quantity: 1, unit: 'UNIT', unitPrice: 0, vatRate: 0, discountType: null, discountValue: null };
 }
 
 /**
@@ -228,7 +228,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await seedCompany();
   await seedClientBilling(clients);
   const catalog = await seedCatalog();
-  const item = (title: string) => catalog.get(title)!;
+  const item = (label: string) => catalog.get(label)!;
   const fresh = await prisma.client.findMany({ where: { id: { in: clients.map((client) => client.id) } } });
   const byId = mapById(fresh);
   const [clientA, clientB, clientC, clientD] = clients.slice(0, 4).map((client) => byId.get(client.id)!);
@@ -240,18 +240,18 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
 
   // --- Treasury settings: categories (with sub-categories), payment methods, counterparties -------------
   const categoryIds = new Map<string, string>();
-  const category = async (name: string, direction: 'IN' | 'OUT', parent?: string) => {
-    const created = await createCategory({ label: name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
-    categoryIds.set(`${direction}:${name}`, created.id);
+  const category = async (label: string, direction: 'IN' | 'OUT', parent?: string) => {
+    const created = await createCategory({ label, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
+    categoryIds.set(`${direction}:${label}`, created.id);
   };
-  for (const name of ['Ventes', 'Subventions', 'Remboursements de frais', 'Divers']) await category(name, 'IN');
-  for (const name of ['Prestations', 'Ventes de produits']) await category(name, 'IN', 'Ventes');
-  for (const name of ['Locaux', 'Charges sociales', 'Impôts et taxes', 'Équipement', 'Frais de fonctionnement', 'Remboursements clients', 'Divers']) await category(name, 'OUT');
+  for (const label of ['Ventes', 'Subventions', 'Remboursements de frais', 'Divers']) await category(label, 'IN');
+  for (const label of ['Prestations', 'Ventes de produits']) await category(label, 'IN', 'Ventes');
+  for (const label of ['Locaux', 'Charges sociales', 'Impôts et taxes', 'Équipement', 'Frais de fonctionnement', 'Remboursements clients', 'Divers']) await category(label, 'OUT');
   await category('Loyer', 'OUT', 'Locaux');
   await category('TVA', 'OUT', 'Impôts et taxes');
-  for (const name of ['Matériel', 'Logiciels']) await category(name, 'OUT', 'Équipement');
-  for (const name of ['Frais bancaires', 'Déplacements', 'Repas']) await category(name, 'OUT', 'Frais de fonctionnement');
-  const categoryOf = (name: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${name}`) ?? null;
+  for (const label of ['Matériel', 'Logiciels']) await category(label, 'OUT', 'Équipement');
+  for (const label of ['Frais bancaires', 'Déplacements', 'Repas']) await category(label, 'OUT', 'Frais de fonctionnement');
+  const categoryOf = (label: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${label}`) ?? null;
   const methodIds = new Map<string, string>();
   for (const method of [
     { label: 'Virement', incoming: true, outgoing: true },
@@ -262,7 +262,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   ]) {
     methodIds.set(method.label, (await createPaymentMethod(method)).id);
   }
-  const methodOf = (name: string) => methodIds.get(name) ?? null;
+  const methodOf = (label: string) => methodIds.get(label) ?? null;
   const counterpartyIds = new Map<string, string>();
   for (const name of ['Agence immobilière du Centre', 'URSSAF', 'DGFiP', 'Banque Populaire', 'Région', 'SNCF', 'Boulanger']) {
     counterpartyIds.set(name, (await createCounterparty({ name, note: null })).id);
@@ -715,8 +715,16 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     { date: day(-50), label: 'Déjeuner client', amount: -64, category: 'Repas', method: 'Carte' },
   ];
   for (const entry of oneOff) {
-    const { category: name, method, payee, ...fields } = entry;
-    await createEntry({ ...entryBase, ...fields, accountId: bank.id, status: 'ACTUAL', categoryId: categoryOf(name, entry.amount), methodId: methodOf(method), counterpartyId: counterpartyOf(payee) });
+    const { category, method, payee, ...fields } = entry;
+    await createEntry({
+      ...entryBase,
+      ...fields,
+      accountId: bank.id,
+      status: 'ACTUAL',
+      categoryId: categoryOf(category, entry.amount),
+      methodId: methodOf(method),
+      counterpartyId: counterpartyOf(payee),
+    });
   }
   // Travel costs paid for a client and refunded by them: linked, they offset each other in the charts.
   const advance = await createEntry({
@@ -749,13 +757,13 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     { date: day(40), label: 'Ordinateur portable', amount: -2300, category: 'Matériel', method: 'Carte', payee: 'Boulanger' },
     { date: day(60), label: 'Subvention région (solde)', amount: 3000, category: 'Subventions', method: 'Virement', payee: 'Région' },
   ]) {
-    const { category: name, method, payee, ...fields } = entry;
+    const { category, method, payee, ...fields } = entry;
     await createEntry({
       ...entryBase,
       ...fields,
       accountId: bank.id,
       status: 'FORECAST',
-      categoryId: categoryOf(name, entry.amount),
+      categoryId: categoryOf(category, entry.amount),
       methodId: methodOf(method),
       counterpartyId: counterpartyOf(payee),
     });

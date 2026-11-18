@@ -112,7 +112,7 @@ graphql(`
     sentVia
     acceptedAt
     signedFileUrl
-    signedFileName
+    signedFilename
     paid
     credited
     reminders {
@@ -503,7 +503,7 @@ graphql(`
     currency
     note
     fileUrl
-    fileName
+    filename
     settled
     paid
     balance

@@ -39,7 +39,7 @@ function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) 
   return (
     <form noValidate onSubmit={form.onSubmit((values) => updateList.mutate({ id: list.id, label: values.label, taskIds: values.taskIds }, formCallbacks(form, 'Liste modifiée.', onDone)))}>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* The tasks of the list stay offered, even closed. */}
         <BatchMultiSelect
           label="Tâches"
@@ -130,7 +130,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       people: people.byKey,
     });
 
-  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', name: list.label, feminine: true }, setArchived, list.id);
+  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', label: list.label, feminine: true }, setArchived, list.id);
   const exports: RowMenuEntry[] = [
     {
       label: 'Copier en texte',

@@ -9,7 +9,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskLabelSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
@@ -42,6 +42,8 @@ import { dateRangeProps } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 interface LinkListProps {
   label: string;
@@ -70,7 +72,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       {tasks.map((task) => (
         <Group key={task.id} gap={4} wrap="nowrap" justify="space-between">
           <TaskRef task={task} blocked={context.isBlocked(task)} />
-          <CloseButton size="xs" aria-label={`Retirer ${taskName(task)}`} onClick={() => onRemove(task.id)} />
+          <RemoveButton variant="field" size="xs" label="Retirer" item={taskName(task)} onClick={() => onRemove(task.id)} />
         </Group>
       ))}
       {adding ? (
@@ -136,7 +138,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const saveTitle = () => {
     const result = taskLabelSchema.safeParse(titleDraft ?? '');
     if (!result.success) {
-      setTitleError(result.error.issues[0]?.message ?? 'Titre invalide.');
+      setTitleError(result.error.issues[0]?.message ?? 'Libellé invalide.');
       return;
     }
     if (result.data === task.label) setTitleDraft(null);
@@ -215,19 +217,18 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             actions={
               !locked && (
                 <>
-                  <Button
-                    variant="default"
+                  <ActionButton
+                    priority="secondary"
                     size="xs"
-                    color={task.closed ? 'green' : 'violet'}
-                    leftSection={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+                    icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
                     loading={setClosed.isPending}
                     onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
                   >
                     {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-                  </Button>
-                  <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.label)}>
+                  </ActionButton>
+                  <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.label)}>
                     Modifier
-                  </Button>
+                  </ActionButton>
                 </>
               )
             }
@@ -249,7 +250,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   setTitleDraft(null);
                 }
               }}
-              aria-label="Titre"
+              aria-label="Libellé"
               autoFocus
               style={{ flex: 1 }}
             />
@@ -309,7 +310,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 </>
               }
               gap="xs"
-              action={!task.archived && <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>}
             >
               {subtasks.length > 0 ? (
                 <>
@@ -321,6 +321,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               ) : (
                 <EmptyState compact message="Aucune sous-tâche." />
               )}
+              {!task.archived && <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>}
             </SubSection>
 
             <Divider />

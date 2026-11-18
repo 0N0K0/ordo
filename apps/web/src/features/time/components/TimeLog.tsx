@@ -65,7 +65,7 @@ const TIME_VIEWS: FirstTableView[] = [
  * @returns {DataColumn<TimeEntry>[]} Columns.
  */
 function timeColumns(context: TaskContext | null, comments: Map<string, number>, routines: TreeOption[], entries: readonly TimeEntry[]): DataColumn<TimeEntry>[] {
-  const projectName = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
+  const projectLabelOf = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
   return [
     {
       id: 'day',
@@ -104,8 +104,8 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       bulk: true,
       label: 'Projet',
       size: 180,
-      sortValue: (entry) => projectName(entry) || null,
-      text: projectName,
+      sortValue: (entry) => projectLabelOf(entry) || null,
+      text: projectLabelOf,
       // A project keeps the times of its sub-projects.
       filter: {
         kind: 'choices',

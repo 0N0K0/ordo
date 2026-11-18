@@ -47,7 +47,7 @@ export function describeChart(config: ChartConfig, context: TaskContext): string
   if (config.source === 'documents' && config.documents.creditNotesNegative && config.measure !== 'count') parts.push('avoirs déduits');
   if (config.source === 'treasury' && config.treasury.includeForecast) parts.push('prévisionnel inclus');
   if (config.datasets.length) parts.push(`${config.datasets.length + 1} jeux de données`);
-  if (config.comparisons.length) parts.push(config.comparisons.map((comparison) => comparison.name).join(', '));
+  if (config.comparisons.length) parts.push(config.comparisons.map((comparison) => comparison.label).join(', '));
   return parts.join(' · ');
 }
 

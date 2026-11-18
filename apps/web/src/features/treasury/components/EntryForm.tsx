@@ -195,7 +195,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                 clearable
                 searchable
                 onCreate={createCategory[values.direction]}
-                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un nom pour la créer'}
+                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un libellé pour la créer'}
                 {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
                 {...form.getInputProps('categoryId')}
               />
@@ -204,7 +204,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               label="Moyen de paiement"
               clearable
               onCreate={create.method}
-              placeholder={methods.length ? '—' : 'Aucun : tapez un nom pour le créer'}
+              placeholder={methods.length ? '—' : 'Aucun : tapez un libellé pour le créer'}
               {...listSelectProps(methods, undefined, values.methodId)}
               {...form.getInputProps('methodId')}
             />

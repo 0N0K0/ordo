@@ -386,7 +386,7 @@ export async function buyerSnapshot(document: AccountingDocument) {
     siren: client.siren,
     siret: client.siret,
     activityCode: client.activityCode,
-    service: service ? { name: service.label, email: service.email, phones: service.phones } : null,
+    service: service ? { label: service.label, email: service.email, phones: service.phones } : null,
     contact: contact ? { firstName: contact.firstName, lastName: contact.lastName, email: contact.email, jobTitle: contact.jobTitle } : null,
   };
 }

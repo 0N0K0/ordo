@@ -74,7 +74,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   await savePlace(null, { label: 'Client — Villeurbanne', address: '20 cours Émile Zola, 69100 Villeurbanne', lat: 45.7699, lon: 4.8803 });
 
   // --- Categories --------------------------------------------------------------------------------------
-  const category = async (name: string, color: string | null, parentId: string | null = null) => (await createCategory({ label: name, color, parentId })).id;
+  const category = async (label: string, color: string | null, parentId: string | null = null) => (await createCategory({ label, color, parentId })).id;
   const work = await category('Bureau', '#228be6');
   const paperwork = await category('Administratif', '#fab005', work);
   const tidying = await category('Rangement', '#12b886', work);
@@ -82,8 +82,8 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   const learning = await category('Apprentissage', '#7950f2');
 
   const activeRoots = projects.filter((project) => project.parentId === null && !project.archivedAt);
-  const base = (title: string, startOffset: number, recurrence: Recurrence, changes: Partial<RoutineInput> = {}): RoutineInput => ({
-    label: title,
+  const base = (label: string, startOffset: number, recurrence: Recurrence, changes: Partial<RoutineInput> = {}): RoutineInput => ({
+    label,
     description: null,
     categoryIds: [],
     parentId: null,

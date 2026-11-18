@@ -52,14 +52,14 @@ export function systemNotification(title: string, body: string | undefined, tag:
  * @param {Alarm} alarm Alarm.
  * @param {string} key Occurrence key, deduplicating tabs.
  * @param {RingLink[]} links Task or project, workspace.
- * @param {string} [workspaceName] Workspace, when not the one open. Optional.
+ * @param {string} [workspaceLabel] Workspace, when not the one open. Optional.
  * @returns {void}
  */
-export function ringAlarm(alarm: Pick<Alarm, 'label' | 'note'>, key: string, links: RingLink[], workspaceName?: string): void {
+export function ringAlarm(alarm: Pick<Alarm, 'label' | 'note'>, key: string, links: RingLink[], workspaceLabel?: string): void {
   if (!claim(`ordo.alarm.${key}`)) return;
   playChime();
-  systemNotification(alarm.label, [workspaceName, alarm.note].filter(Boolean).join(' · ') || undefined, key);
-  notifyInfo({ icon: <AlarmIcon />, title: alarm.label, lines: [workspaceName && `Espace « ${workspaceName} »`, alarm.note], actions: links });
+  systemNotification(alarm.label, [workspaceLabel, alarm.note].filter(Boolean).join(' · ') || undefined, key);
+  notifyInfo({ icon: <AlarmIcon />, title: alarm.label, lines: [workspaceLabel && `Espace « ${workspaceLabel} »`, alarm.note], actions: links });
 }
 
 /**
@@ -76,10 +76,10 @@ function occurrenceStart(occurrence: EventOccurrence): Date {
  * @param {EventOccurrence[]} occurrences Occurrences of the next days.
  * @param {Date} now Current time.
  * @param {RingLink[]} links Calendar, workspace.
- * @param {string} [workspaceName] Workspace, when not the one open. Optional.
+ * @param {string} [workspaceLabel] Workspace, when not the one open. Optional.
  * @returns {void}
  */
-export function ringReminders(occurrences: EventOccurrence[], now: Date, links: RingLink[], workspaceName?: string): void {
+export function ringReminders(occurrences: EventOccurrence[], now: Date, links: RingLink[], workspaceLabel?: string): void {
   for (const occurrence of occurrences) {
     const start = occurrenceStart(occurrence);
     for (const minutes of occurrence.reminders) {
@@ -90,8 +90,8 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
       playChime();
       const when = occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start);
       const body = [when, occurrence.location].filter(Boolean).join(' · ');
-      systemNotification(occurrence.label, [workspaceName, body].filter(Boolean).join(' · '), key);
-      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [workspaceName && `Espace « ${workspaceName} »`, body], actions: links });
+      systemNotification(occurrence.label, [workspaceLabel, body].filter(Boolean).join(' · '), key);
+      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [workspaceLabel && `Espace « ${workspaceLabel} »`, body], actions: links });
     }
   }
 }
