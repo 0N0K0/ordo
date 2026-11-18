@@ -15,6 +15,21 @@ export function isPdf(data: Uint8Array): boolean {
   return Buffer.from(data.subarray(0, 5)).toString('latin1') === '%PDF-';
 }
 
+/** Name of a file in its link when it has none. */
+const FALLBACK_FILENAME = 'fichier';
+
+/**
+ * Link of a stored file, the same everywhere: its name encoded, parentheses included (markdown links need it).
+ * @param {{ id: string, filename?: string | null } | null | undefined} attachment Stored file (its name: « fichier » without one).
+ * @returns {string} Link « /api/attachments/{id}/{name} ».
+ */
+export function attachmentUrl(attachment: { id: string; filename?: string | null } | null | undefined): string {
+  const name = encodeURIComponent(attachment?.filename || FALLBACK_FILENAME)
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29');
+  return `/api/attachments/${attachment?.id ?? ''}/${name}`;
+}
+
 /**
  * Security policy of a file served by the app: none of its content runs, and a PDF shown in place may be framed
  * by the app (browsers do not show PDFs in a sandboxed frame; their viewer isolates them).

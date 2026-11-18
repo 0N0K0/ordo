@@ -50,7 +50,7 @@ import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
-import { countOf } from '../../../lib/text';
+import { countOf, countWith } from '../../../lib/text';
 import { openNameForm } from '../../../components/dialogs/open-name-form';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
@@ -358,7 +358,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const confirmDelete = (dashboard: Dashboard) => {
     confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      risks: `« ${dashboard.label} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées.`,
+      risks: `« ${dashboard.label} » et ${countWith(dashboard.charts.length, 'diagramme', ['son', 'ses'])} seront supprimés définitivement. Les données affichées ne sont pas modifiées.`,
       run: () => mutations.remove.mutateAsync(dashboard.id),
       done: 'Tableau de bord supprimé.',
     });

@@ -348,7 +348,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           archiveItemsAction(checked, setArchived, { noun: 'liste', feminine: true, clear }),
           deleteRowsAction(checked, {
             title: 'Supprimer les listes',
-            risks: `${countOf(checked.length, 'liste')} et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
+            risks: `${countOf(checked.length, 'liste')} et ${plural(checked.length, 'ses', 'leurs')} éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
             remove: (list) => deleteList.mutateAsync({ id: list.id }),
             done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'supprimée')}.`,
             clear,

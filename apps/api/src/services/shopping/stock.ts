@@ -293,7 +293,7 @@ export async function setLotExpiry(id: string, expiresAt: string | null): Promis
 export async function recordCount(input: StockCountInput): Promise<StockCount> {
   const data = parseInput(stockCountSchema, input);
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId);
+  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
   await assertNoneArchived(
@@ -331,7 +331,7 @@ export async function setProductStock(id: string, input: ProductStockInput): Pro
   const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true } }), 'Référence');
   await assertNotArchived('SHOPPING_PRODUCT', id);
   await assertExists(prisma.stockLocation, data.stockLocationId, 'Emplacement');
-  if (data.stockLocationId !== product.stockLocationId) await assertNotArchived('STOCK_LOCATION', data.stockLocationId);
+  await assertNotArchived('STOCK_LOCATION', data.stockLocationId, { keep: product.stockLocationId, field: 'stockLocationId' });
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });
 }
 
@@ -376,7 +376,7 @@ async function itemFor(
 export async function addPurchase(input: StockPurchaseInput): Promise<void> {
   const data = parseInput(stockPurchaseSchema, input);
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId);
+  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
   await prisma.$transaction((tx) => storePurchase(tx, data.shoppingItemId, data.quantity, data.locationId, data.expiresAt));
 }
 

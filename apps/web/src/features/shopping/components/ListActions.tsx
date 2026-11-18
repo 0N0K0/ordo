@@ -1,4 +1,4 @@
-import { countOf } from '../../../lib/text';
+import { countWith } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -150,7 +150,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     onClick: () =>
       confirmDestructive({
         title: 'Supprimer la liste',
-        risks: `« ${list.label} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
+        risks: `« ${list.label} » et ${countWith(list.items.length, 'élément', ['son', 'ses'])} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
         onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },

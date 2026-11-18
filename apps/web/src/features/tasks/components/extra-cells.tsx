@@ -56,7 +56,7 @@ export function SlotsCell({ task }: { task: Task }) {
 export function TimerCell({ task }: { task: Task }) {
   const running = useRunningTimer();
   const mine = running.data?.taskIds.includes(task.id) ? running.data : null;
-  return <TimerToggle name={task.label} mine={mine} othersRunning={Boolean(running.data) && !mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
+  return <TimerToggle name={task.label} mine={mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
 }
 
 /**

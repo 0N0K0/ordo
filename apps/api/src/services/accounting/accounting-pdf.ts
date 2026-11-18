@@ -12,6 +12,7 @@ import {
   printedDay,
   toCents,
   UNIT_LABELS,
+  fileName,
 } from '@ordo/shared';
 import { createPdf, PDF_TABLE, PDF_TEXT } from '../core/pdf-report';
 import { prisma } from '../../db';
@@ -1148,5 +1149,5 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
     doc.file(Buffer.from(xml, 'utf8'), options);
     doc.appendXML(facturXmp());
   }
-  return { content: await end(), filename: `${title}.pdf` };
+  return { content: await end(), filename: fileName(title, 'pdf') };
 }

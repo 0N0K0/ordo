@@ -1,4 +1,3 @@
-import { colorSchema, requiredText } from '@ordo/shared';
 import type { ImapFlow, ListResponse } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -236,13 +235,8 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
   });
 }
 
-const labelSchema = z.object({
-  label: requiredText(40),
-  color: colorSchema,
-});
-
-/** Flags of the mails (no two with the same label is not enforced by the database). */
-export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce nom.' }, { schema: labelSchema });
+/** Flags of the mails: a label of LABEL_MAX characters like the other labels (decision Z), unique in the workspace (decision L). */
+export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce nom.' });
 
 /**
  * Deletes a flag (its keyword stays on the mails, unused; the marks kept in Ordo lose it).

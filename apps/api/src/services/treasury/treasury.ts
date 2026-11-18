@@ -18,7 +18,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertNotArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
@@ -137,48 +137,23 @@ interface EntryRefs {
  * @returns {Promise<void>}
  */
 async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.parse>, previous: EntryRefs | null): Promise<void> {
-  /**
-   * Ids given that the entry did not have.
-   * @param {(string | null | undefined)[]} ids Ids given.
-   * @param {(string | null | undefined)[]} before Ids it had.
-   * @returns {string[]} New ids.
-   */
-  const added = (ids: (string | null | undefined)[], before: (string | null | undefined)[]) => ids.filter((id): id is string => Boolean(id) && !before.includes(id));
   const lines = previous?.lines ?? [];
   const allocations = previous?.allocations ?? [];
-  await assertNoneArchived('TREASURY_ACCOUNT', added([entry.accountId], [previous?.accountId]));
-  await assertNoneArchived('TREASURY_CATEGORY', added([entry.categoryId, ...entry.lines.map((line) => line.categoryId)], [previous?.categoryId, ...lines.map((line) => line.categoryId)]));
-  await assertNoneArchived('TREASURY_PAYMENT_METHOD', added([entry.methodId], [previous?.methodId]));
-  await assertNoneArchived('TREASURY_COUNTERPARTY', added([entry.counterpartyId], [previous?.counterpartyId]));
-  await assertNoneArchived(
-    'TREASURY_CONTEXT',
-    added(
-      entry.lines.map((line) => line.contextId),
-      lines.map((line) => line.contextId),
-    ),
-  );
-  await assertNoneArchived(
-    'TREASURY_RELATION',
-    added(
-      entry.lines.map((line) => line.relationId),
-      lines.map((line) => line.relationId),
-    ),
-  );
+  const categories = [previous?.categoryId, ...lines.map((item) => item.categoryId)];
+  await assertNotArchived('TREASURY_ACCOUNT', entry.accountId, { keep: previous?.accountId, field: 'accountId' });
+  await assertNotArchived('TREASURY_CATEGORY', entry.categoryId, { keep: categories, field: 'categoryId' });
+  await assertNotArchived('TREASURY_PAYMENT_METHOD', entry.methodId, { keep: previous?.methodId, field: 'methodId' });
+  await assertNotArchived('TREASURY_COUNTERPARTY', entry.counterpartyId, { keep: previous?.counterpartyId, field: 'counterpartyId' });
+  for (const [index, line] of entry.lines.entries()) {
+    await assertNotArchived('TREASURY_CATEGORY', line.categoryId, { keep: categories, field: `lines.${index}.categoryId` });
+    await assertNotArchived('TREASURY_CONTEXT', line.contextId, { keep: lines.map((item) => item.contextId), field: `lines.${index}.contextId` });
+    await assertNotArchived('TREASURY_RELATION', line.relationId, { keep: lines.map((item) => item.relationId), field: `lines.${index}.relationId` });
+  }
   // Settling an archived document changes it: refused (an allocation it had stays).
-  await assertNoneArchived(
-    'ACCOUNTING_DOCUMENT',
-    added(
-      entry.allocations.map((allocation) => allocation.documentId),
-      allocations.map((allocation) => allocation.documentId),
-    ),
-  );
-  await assertNoneArchived(
-    'IMPORTED_DOCUMENT',
-    added(
-      entry.allocations.map((allocation) => allocation.importedDocumentId),
-      allocations.map((allocation) => allocation.importedDocumentId),
-    ),
-  );
+  for (const [index, allocation] of entry.allocations.entries()) {
+    await assertNotArchived('ACCOUNTING_DOCUMENT', allocation.documentId, { keep: allocations.map((item) => item.documentId), field: `allocations.${index}` });
+    await assertNotArchived('IMPORTED_DOCUMENT', allocation.importedDocumentId, { keep: allocations.map((item) => item.importedDocumentId), field: `allocations.${index}` });
+  }
 }
 
 /** What `assertNoNewArchived` reads of a stored entry. */

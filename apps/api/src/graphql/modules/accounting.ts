@@ -7,6 +7,7 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
 import { reloaded } from '../reload';
+import { attachmentUrl } from '../../services/core/attachments';
 
 export const AccountingDocumentTypeEnum = builder.enumType('AccountingDocumentType', { values: ACCOUNTING_DOCUMENT_TYPES });
 
@@ -95,7 +96,7 @@ builder.prismaObject('CompanyProfile', {
     logoUrl: t.string({
       nullable: true,
       select: { logoId: true },
-      resolve: (profile) => (profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null),
+      resolve: (profile) => (profile.logoId ? attachmentUrl({ id: profile.logoId, filename: 'logo' }) : null),
     }),
     bankName: t.exposeString('bankName', { nullable: true }),
     accountHolder: t.exposeString('accountHolder', { nullable: true }),

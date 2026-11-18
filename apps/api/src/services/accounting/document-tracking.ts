@@ -141,7 +141,7 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
   const document = await finalDocument(id);
   const status = await scopedStatus(statusId, document.type);
   // An archived status stays the one of its documents, but is not given any more.
-  if (status.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', status.id);
+  await assertNotArchived('DOCUMENT_STATUS', status.id, { keep: document.trackingStatusId, field: 'statusId' });
   return prisma.accountingDocument.update({
     where: { id },
     data: {
@@ -192,7 +192,7 @@ export async function markSent(id: string, options: { date?: string | null; via?
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
-  if (chosen && chosen.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', chosen.id);
+  await assertNotArchived('DOCUMENT_STATUS', chosen?.id, { keep: document.trackingStatusId, field: 'statusId' });
   const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
   return prisma.accountingDocument.update({
     where: { id },
@@ -267,8 +267,8 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   await assertExists(prisma.treasuryAccount, payment.accountId, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId);
-  await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId);
+  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId, { field: 'accountId' });
+  await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId, { field: 'methodId' });
   const refund = document.type === 'CREDIT_NOTE';
   if (payment.methodId) {
     const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');

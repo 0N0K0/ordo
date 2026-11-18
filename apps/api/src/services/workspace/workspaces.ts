@@ -9,6 +9,7 @@ import { clientError, notFound, orNotFound, parseInput } from '../../graphql/err
 import { assertExists } from '../core/lookup';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
 import { resolveCalendarId } from '../calendar/calendars';
+import { freeHandle } from './contributors';
 import { ensureDocumentStatuses } from '../accounting/document-statuses';
 
 /** Cookie (and header) naming the workspace the app shows. */
@@ -110,10 +111,7 @@ export async function meContributorId(userId: string): Promise<string | null> {
  */
 export async function ensureMeContributor(user: { id: string; username: string }): Promise<void> {
   if (await meContributorId(user.id)) return;
-  const base = user.username.replace(/[^a-z0-9_-]/g, '-');
-  const taken = new Set((await prisma.contributor.findMany({ where: { handle: { startsWith: base } }, select: { handle: true } })).map((item) => item.handle));
-  let handle = taken.has(base) ? `${base}-moi` : base;
-  for (let index = 2; taken.has(handle); index += 1) handle = `${base}-moi-${index}`;
+  const handle = await freeHandle(user.username, { fallback: 'moi', suffix: 'moi' });
   await prisma.contributor.create({ data: { name: user.username, handle, userId: user.id } });
 }
 

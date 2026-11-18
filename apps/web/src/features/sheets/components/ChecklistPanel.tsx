@@ -161,7 +161,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           deleteRowsAction(rows, {
             label: 'Retirer',
             title: 'Retirer les éléments',
-            risks: `${countOf(rows.length, 'élément')} seront retirés de la liste à cocher.`,
+            risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la liste à cocher.`,
             remove: (item) => mutations.removeChecklistItem.mutateAsync(item.id),
             done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
             clear,

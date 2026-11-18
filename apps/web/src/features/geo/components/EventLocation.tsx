@@ -1,7 +1,7 @@
 import { Stack } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
 import { AddressInput, type AddressValue } from './AddressInput';
-import { reverseAddress } from '../api';
+import { pickedAddress } from '../api';
 import { PlaceMap } from './PlaceMap';
 
 interface EventLocationProps {
@@ -18,14 +18,13 @@ interface EventLocationProps {
  */
 export function EventLocation({ value, onChange, error }: EventLocationProps) {
   /**
-   * Moves the location to a point clicked on the map.
+   * Moves the location to a point clicked on the map (its address, else its coordinates).
    * @param {GeoPoint} point Point.
    * @returns {Promise<void>}
    */
   const move = async (point: GeoPoint) => {
     onChange({ text: value.text, point });
-    const found = await reverseAddress(point).catch(() => null);
-    if (found) onChange({ text: found.label, point });
+    onChange({ text: (await pickedAddress(point)).label, point });
   };
   return (
     <Stack gap={6}>

@@ -5,6 +5,7 @@ import type { GeoPoint, PlaceInput, TravelMode } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type { PlacesQuery, SearchAddressesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { notifyFailure } from '../../../lib/notify';
 
 export type Place = PlacesQuery['places'][number];
 export type AddressSuggestion = SearchAddressesQuery['searchAddresses'][number];
@@ -184,6 +185,24 @@ export function useAddressSearch(text: string, near: GeoPoint | null) {
  */
 export async function reverseAddress(point: GeoPoint): Promise<AddressSuggestion | null> {
   return (await execute(ReverseAddressDocument, { point })).reverseAddress ?? null;
+}
+
+/**
+ * Address of a point clicked on the map, the same rule everywhere: the address found, else its coordinates
+ * (« 48.85660, 2.35220 »), a failed lookup told in a toast.
+ * @param {GeoPoint} point Point clicked.
+ * @returns {Promise<{ name: string | null, label: string }>} Name of the place found (none: null) and address.
+ */
+export async function pickedAddress(point: GeoPoint): Promise<{ name: string | null; label: string }> {
+  const coordinates = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
+  try {
+    // eslint-disable-next-line no-restricted-syntax -- pickedAddress itself.
+    const found = await reverseAddress(point);
+    return { name: found?.name ?? null, label: found?.label ?? coordinates };
+  } catch (error) {
+    notifyFailure(error);
+    return { name: null, label: coordinates };
+  }
 }
 
 /**

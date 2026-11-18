@@ -1,6 +1,6 @@
 import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { countOf, plural } from '../../../lib/text';
+import { plural, countWith } from '../../../lib/text';
 
 /** What the texts of a deletion say of a sheet. */
 interface DeletedSheet {
@@ -24,7 +24,7 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
     name: rowLabel,
     risks: (subject, one, sheets) => {
       const usedBy = sheets.reduce((sum, sheet) => sum + (sheet.usedBy ?? 0), 0);
-      const items = one ? `ses ${countOf(sheets[0].items.length, 'élément')}` : 'leurs éléments';
+      const items = one ? countWith(sheets[0].items.length, 'élément', ['son', 'ses']) : 'leurs éléments';
       const used = usedBy ? `, et retirés des ${usedBy} ${plural(usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui ${one ? 'l’ont' : 'les ont'}` : '';
       return `${subject} et ${items} seront supprimés définitivement${used}. Les listes d’achats et les listes à cocher déjà faites ${one ? 'la' : 'les'} gardent.`;
     },

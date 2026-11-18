@@ -10,10 +10,13 @@ const calendarLinkSchema = z.object({
   label: z.string().trim().max(200, '200 caractères maximum.'),
 });
 
+/** Longest label of a calendar event. */
+export const EVENT_LABEL_MAX = 300;
+
 /** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
-    label: requiredText(300, 'Le titre est requis.'),
+    label: requiredText(EVENT_LABEL_MAX, 'Le titre est requis.'),
     description: z
       .string()
       .max(65_536, 'Texte trop long.')

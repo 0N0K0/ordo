@@ -1,5 +1,5 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { countOf } from '../../../lib/text';
+import { countWith } from '../../../lib/text';
 
 /**
  * Asks before deleting what plans tasks (a milestone, a sprint): the tasks stay, without it.
@@ -15,7 +15,7 @@ import { countOf } from '../../../lib/text';
 export function confirmPlanDelete({ title, what, count, link, done, remove }: { title: string; what: string; count: number; link: string; done: string; remove: () => Promise<unknown> }): void {
   confirmDestructive({
     title,
-    risks: `${what} sera supprimé définitivement${count > 0 ? ` et retiré des ${countOf(count, 'tâche')} ${link}` : ''}. Les tâches ne sont pas supprimées.`,
+    risks: `${what} sera supprimé définitivement${count > 0 ? ` et retiré ${countWith(count, 'tâche', ['de la', 'des'])} ${link}` : ''}. Les tâches ne sont pas supprimées.`,
     run: remove,
     done,
   });

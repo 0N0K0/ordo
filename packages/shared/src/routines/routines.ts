@@ -110,10 +110,13 @@ export const routineCaseSchema = z
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
+/** Longest label of a routine. */
+export const ROUTINE_LABEL_MAX = 200;
+
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    label: requiredText(200, 'Le titre est requis.'),
+    label: requiredText(ROUTINE_LABEL_MAX, 'Le titre est requis.'),
     description: z
       .string()
       .max(4000, '4 000 caractères maximum.')

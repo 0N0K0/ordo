@@ -271,7 +271,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             deleteRowsAction(rows, {
               label: 'Retirer',
               title: 'Retirer les produits',
-              risks: `${countOf(rows.length, 'produit')} seront retirés de « ${baseList.label} » ; les listes déjà faites les gardent.`,
+              risks: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de « ${baseList.label} » ; les listes déjà faites ${plural(rows.length, 'le gardent', 'les gardent')}.`,
               remove: (product) => mutations.deleteProduct.mutateAsync({ id: product.id }),
               done: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'retiré')}.`,
               clear,

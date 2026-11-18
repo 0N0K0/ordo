@@ -14,6 +14,9 @@ import {
   shoppingProductSchema,
   shoppingShares,
   type ShoppingStoreInput,
+  SHOPPING_LIST_LABEL_MAX,
+  ENTRY_LINE_LABEL_MAX,
+  clipText,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { createLabelService } from '../core/labels';
@@ -118,10 +121,7 @@ const categories = treeListService<CategoryWithLists, ParsedCategory, ShoppingCa
       data.baseListIds = [...new Set(data.baseListIds)];
       await assertAllExist(prisma.shoppingBaseList, data.baseListIds, 'Référence');
       // Archived base lists: no longer chosen, those already there stay.
-      await assertNoneArchived(
-        'SHOPPING_BASE_LIST',
-        data.baseListIds.filter((baseListId) => !current?.baseLists.some((baseList) => baseList.id === baseListId)),
-      );
+      await assertNoneArchived('SHOPPING_BASE_LIST', data.baseListIds, { keep: current?.baseLists.map((baseList) => baseList.id), field: 'baseListIds' });
       return data;
     },
     moveInput: (category, parentId) => ({ label: category.label, color: category.color, parentId, baseListIds: category.baseLists.map((baseList) => baseList.id) }),
@@ -215,7 +215,7 @@ export async function updateProduct(id: string, input: ShoppingProductInput): Pr
   await assertNotArchived('SHOPPING_BASE_LIST', current.baseListId);
   const data = await parseShopping(shoppingProductSchema, input, current);
   await assertBaseList(data.baseListId);
-  if (data.baseListId !== current.baseListId) await assertNotArchived('SHOPPING_BASE_LIST', data.baseListId);
+  await assertNotArchived('SHOPPING_BASE_LIST', data.baseListId, { keep: current.baseListId, field: 'baseListId' });
   const row = fields(data);
   return prisma.shoppingProduct.update({ where: { id }, data: { ...row, baseListId: data.baseListId, missing: data.missing, ...peopleData(data, 'set') } });
 }
@@ -403,10 +403,7 @@ const assertItemOpen = (item: { listId: string }): Promise<void> => assertNotArc
 async function assertTasks(taskIds: string[], current: string[] = []): Promise<string[]> {
   const ids = [...new Set(taskIds)];
   await assertAllExist(prisma.task, ids, 'Tâche');
-  await assertNoneArchived(
-    'task',
-    ids.filter((id) => !current.includes(id)),
-  );
+  await assertNoneArchived('task', ids, { keep: current, field: 'taskIds' });
   return ids;
 }
 
@@ -420,7 +417,7 @@ export async function createList({ label, taskIds, baseListIds }: { label: strin
   const data = { label: parseInput(shoppingListLabelSchema, label), tasks: { connect: tasks } };
   const ids = [...new Set(baseListIds)];
   await assertAllExist(prisma.shoppingBaseList, ids, 'Référence');
-  await assertNoneArchived('SHOPPING_BASE_LIST', ids);
+  await assertNoneArchived('SHOPPING_BASE_LIST', ids, { field: 'baseListIds' });
   // The archived products are not offered anymore.
   const products = ids.length ? await prisma.shoppingProduct.findMany({ where: { missing: true, archivedAt: null, baseListId: { in: ids } }, include: withPeople, orderBy: { label: 'asc' } }) : [];
   return prisma.shoppingList.create({ data: { ...data, items: { create: products.map((product, position) => copyOf(product, product.id, position)) } } });
@@ -469,7 +466,7 @@ export async function duplicateList(id: string): Promise<ShoppingList> {
   await assertNotArchived('SHOPPING_LIST', id);
   return prisma.shoppingList.create({
     data: {
-      label: copyName(list.label, 120),
+      label: copyName(list.label, SHOPPING_LIST_LABEL_MAX),
       items: { create: list.items.map((item, position) => copyOf(item, item.productId, position)) },
     },
   });
@@ -518,7 +515,7 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
         data: {
           entryId,
           position: start + index,
-          label: list.label.slice(0, 100),
+          label: clipText(list.label, ENTRY_LINE_LABEL_MAX),
           mode: percent ? 'PERCENT' : 'AMOUNT',
           value: toDecimal(percent ? Math.round((share.cents / total) * 1_000_000) / 10_000 : (Math.sign(amount) || -1) * fromCents(share.cents)),
           memberId: share.memberId,

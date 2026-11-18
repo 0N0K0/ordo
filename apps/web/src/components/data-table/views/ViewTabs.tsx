@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openNameForm } from '../../dialogs/open-name-form';
 
 import { Indicator } from '@mantine/core';
-import { taskViewLabelSchema } from '@ordo/shared';
+import { taskViewLabelSchema, VIEW_LABEL_MAX } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from './published-height';
@@ -75,7 +75,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         label: 'Nouvelle vue',
         menu: [
           { label: 'Vue vierge', onClick: () => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
-          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.label ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true)) },
+          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.label ?? 'Vue', VIEW_LABEL_MAX), 'Créer', (name) => state.createView(name, true)) },
         ],
       }}
     />

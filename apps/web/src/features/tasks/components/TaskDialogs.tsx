@@ -10,7 +10,7 @@ import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../co
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
-import { countOf, plural } from '../../../lib/text';
+import { plural, countWith } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
 import { countSubtasks } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
@@ -62,7 +62,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
       </DestructiveRisks>
       {subtasks > 0 && (
         <CascadeChoice
-          label={single ? `Que faire de ses ${countOf(subtasks, 'sous-tâche')} ?` : 'Que faire de leurs sous-tâches non sélectionnées ?'}
+          label={single ? `Que faire de ${countWith(subtasks, 'sous-tâche', ['sa', 'ses'])} ?` : 'Que faire de leurs sous-tâches non sélectionnées ?'}
           keepLabel="Les conserver (elles remontent d’un niveau)"
           value={mode}
           onChange={setMode}
@@ -136,7 +136,7 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
         {!single
           ? `${tasksLabel(tasks.length)} et leurs sous-tâches seront déplacées dans le projet choisi.`
           : subtasks > 0
-            ? `La tâche et ses ${countOf(subtasks, 'sous-tâche')} seront déplacées.`
+            ? `La tâche et ${countWith(subtasks, 'sous-tâche', ['sa', 'ses'])} seront déplacées.`
             : 'La tâche sera déplacée dans le projet choisi.'}
       </Text>
       <ProjectSelect context={context} label="Projet de destination" value={projectId} onChange={setProjectId} disabled={none} data-autofocus />

@@ -1,6 +1,6 @@
 import { copyName } from '../../../lib/text';
 import { useSetParams } from '../../../lib/search-params';
-import { byPosition } from '@ordo/shared';
+import { byPosition, VIEW_LABEL_MAX } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { onMutationError, ON_ERROR } from '../../../lib/notify';
@@ -152,7 +152,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, label: copyName(view.label, 60) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
+    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, label: copyName(view.label, VIEW_LABEL_MAX) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
 
     /**
      * Deletes a view.

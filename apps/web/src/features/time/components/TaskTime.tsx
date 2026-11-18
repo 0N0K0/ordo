@@ -4,7 +4,7 @@ import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
 import { useRunningTimer } from '../api';
-import { useStartTimer } from '../hooks/use-start-timer';
+import { TIMER_REPLACED_HINT, useStartTimer } from '../hooks/use-start-timer';
 import { TimerControls } from './TimerControls';
 import { TimerRunningBadge } from './TimerStop';
 
@@ -15,7 +15,7 @@ import { TimerRunningBadge } from './TimerStop';
  */
 export function TaskTime({ task }: { task: Task }) {
   const running = useRunningTimer();
-  const { startTimer, isPending } = useStartTimer();
+  const { startTimer, isPending, replacing } = useStartTimer();
   const onThisTask = running.data?.taskIds.includes(task.id) ?? false;
   return (
     <LabeledField label="Temps passé">
@@ -29,7 +29,7 @@ export function TaskTime({ task }: { task: Task }) {
             <TimerControls entry={running.data} size="sm" look="header" />
           </Group>
         ) : (
-          <Tooltip label="Arrête le chrono en cours et en démarre un sur cette tâche" disabled={!running.data}>
+          <Tooltip label={TIMER_REPLACED_HINT} disabled={!replacing}>
             <Button
               size="compact-sm"
               variant="default"

@@ -4,10 +4,9 @@ import { useRef, type CSSProperties } from 'react';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import type { SettingsItemValues } from '../../../components/settings/SettingsItemForm';
-import { notifyFailure } from '../../../lib/notify';
 import { useFillHeight } from '../../../lib/fill-height';
 import { AddressInput } from './AddressInput';
-import { reverseAddress, usePlaceMutations, usePlaces, type Place } from '../api';
+import { pickedAddress, usePlaceMutations, usePlaces, type Place } from '../api';
 import { PlaceMap } from './PlaceMap';
 import classes from './PlacesManager.module.css';
 
@@ -40,14 +39,8 @@ export function PlacesManager() {
    * @returns {Promise<void>}
    */
   const pick = async (point: GeoPoint) => {
-    const fallback = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
-    try {
-      const found = await reverseAddress(point);
-      adderRef.current?.({ label: found?.name ?? '', address: found?.label ?? fallback, lat: point.lat, lon: point.lon, parentId: null });
-    } catch (error) {
-      notifyFailure(error);
-      adderRef.current?.({ address: fallback, lat: point.lat, lon: point.lon, parentId: null });
-    }
+    const found = await pickedAddress(point);
+    adderRef.current?.({ ...(found.name ? { label: found.name } : {}), address: found.label, lat: point.lat, lon: point.lon, parentId: null });
   };
 
   /**

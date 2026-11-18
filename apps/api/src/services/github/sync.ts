@@ -1,4 +1,4 @@
-import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_MAX, mapById, MILESTONE_LABEL_MAX, normalize, parseDay, round2, TASK_LABEL_MAX } from '@ordo/shared';
+import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_MAX, mapById, MILESTONE_LABEL_MAX, normalize, parseDay, round2, TASK_LABEL_MAX, SPRINT_LABEL_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -616,7 +616,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
     if (!sprint) {
       const startDate = parseDay(iteration.startDate);
       const endDate = parseDay(addDays(iteration.startDate, iteration.duration - 1));
-      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, label: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
+      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, label: clipText(iteration.title, SPRINT_LABEL_MAX), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
     }
   }

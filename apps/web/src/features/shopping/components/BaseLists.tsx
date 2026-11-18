@@ -1,5 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
-import { countOf } from '../../../lib/text';
+import { countOf, countWith, plural } from '../../../lib/text';
 import { moveToIndex } from '../../../lib/mutation';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
@@ -96,7 +96,8 @@ export function BaseLists() {
       title: 'Supprimer la référence',
       risks: (
         <>
-          « {baseList.label} » sera supprimée définitivement{count ? `, avec ses ${countOf(count, 'produit')} et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments.
+          « {baseList.label} » sera supprimée définitivement{count ? `, avec ${countWith(count, 'produit', ['son', 'ses'])} et ${plural(count, 'son', 'leur')} historique d’achat` : ''}. Les listes
+          déjà faites gardent leurs éléments.
         </>
       ),
       onConfirm: () => {

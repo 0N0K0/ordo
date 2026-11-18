@@ -127,7 +127,7 @@ export async function setImportedTrackingStatus(id: string, statusId: string | n
   if (statusId) {
     await scopedStatus(statusId, document.type);
     // An archived status stays the one of its documents, but is not given any more.
-    if (statusId !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', statusId);
+    await assertNotArchived('DOCUMENT_STATUS', statusId, { keep: document.trackingStatusId, field: 'statusId' });
   }
   return prisma.importedDocument.update({ where: { id }, data: { trackingStatusId: statusId } });
 }
@@ -144,6 +144,6 @@ export async function markImportedSent(id: string, options: { date?: string | nu
   const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
   await assertNotArchived('IMPORTED_DOCUMENT', id);
   const status = await sentStatus(options.statusId, document.type);
-  if (status.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', status.id);
+  await assertNotArchived('DOCUMENT_STATUS', status.id, { keep: document.trackingStatusId, field: 'statusId' });
   return prisma.importedDocument.update({ where: { id }, data: { ...sendingData(options), trackingStatusId: status.id } });
 }

@@ -65,7 +65,7 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
   await assertExists(prisma.scheduleType, schedule.typeId, 'Type de plage');
-  if (schedule.typeId !== currentTypeId) await assertNotArchived('scheduleType', schedule.typeId);
+  await assertNotArchived('scheduleType', schedule.typeId, { keep: currentTypeId, field: 'typeId' });
   return {
     typeId: schedule.typeId ?? null,
     label: schedule.label,

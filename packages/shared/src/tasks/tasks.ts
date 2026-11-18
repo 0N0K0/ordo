@@ -98,7 +98,10 @@ export const milestoneFormSchema = z.object({
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-export const sprintLabelSchema = requiredText(120);
+/** Longest label of a sprint. */
+export const SPRINT_LABEL_MAX = 120;
+
+export const sprintLabelSchema = requiredText(SPRINT_LABEL_MAX);
 
 /**
  * Schema of a sprint: its label, its days (the end not before the start) and its goal.

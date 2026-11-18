@@ -1,7 +1,7 @@
 import { copyName } from '../../../lib/text';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
+import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence, ALARM_LABEL_MAX } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
@@ -66,7 +66,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      label: alarm ? (copy ? copyName(alarm.label) : alarm.label) : (defaults?.label ?? ''),
+      label: alarm ? (copy ? copyName(alarm.label, ALARM_LABEL_MAX) : alarm.label) : (defaults?.label ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),

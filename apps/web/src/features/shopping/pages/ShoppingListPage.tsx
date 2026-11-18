@@ -318,7 +318,7 @@ export function ShoppingListPage() {
               ...deleteRowsAction(rows, {
                 label: 'Retirer de la liste',
                 title: 'Retirer les éléments',
-                risks: `${countOf(rows.length, 'élément')} seront retirés de la liste ; ceux qui ne sont dans aucune référence seront supprimés définitivement.`,
+                risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la liste ; ${plural(rows.length, 's’il n’est dans aucune référence, il sera supprimé', 'ceux qui ne sont dans aucune référence seront supprimés')} définitivement.`,
                 remove: (item) => mutations.deleteItem.mutateAsync({ id: item.id }),
                 done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
                 clear,

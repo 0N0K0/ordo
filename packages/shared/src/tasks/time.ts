@@ -99,10 +99,13 @@ export type AlarmType = (typeof ALARM_TYPES)[number];
 export const ALARM_FREQUENCIES = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY'] as const;
 export type AlarmFrequency = (typeof ALARM_FREQUENCIES)[number];
 
+/** Longest label of an alarm. */
+export const ALARM_LABEL_MAX = 200;
+
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    label: requiredText(200, 'Le titre est requis.'),
+    label: requiredText(ALARM_LABEL_MAX, 'Le titre est requis.'),
     note: z
       .string()
       .max(4000, '4 000 caractères maximum.')

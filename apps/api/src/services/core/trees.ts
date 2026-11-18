@@ -154,7 +154,7 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
     const parentId = data.parentId ?? null;
     await assertTreeParent(model, parentId, current?.id, { missing: messages.missingParent, loop: messages.loop });
     // An archived item takes no new child (those already there stay).
-    if (parentId !== (current?.parentId ?? null)) await assertNotArchived(model, parentId);
+    await assertNotArchived(model, parentId, { keep: current?.parentId, field: 'parentId' });
     return data;
   };
 

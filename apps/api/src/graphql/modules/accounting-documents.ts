@@ -10,6 +10,7 @@ import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
+import { attachmentUrl } from '../../services/core/attachments';
 
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
 export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
@@ -38,7 +39,7 @@ const DocumentAttachment = builder.objectRef<{ id: string; filename: string; siz
     id: t.exposeID('id'),
     filename: t.exposeString('filename'),
     size: t.exposeInt('size'),
-    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.filename)}` }),
+    url: t.string({ resolve: (attachment) => attachmentUrl(attachment) }),
   }),
 });
 
@@ -144,7 +145,7 @@ builder.prismaObject('ImportedDocument', {
     fileUrl: t.string({
       nullable: true,
       select: { attachment: { select: { id: true, filename: true } } },
-      resolve: (document) => (document.attachment ? `/api/attachments/${document.attachment.id}/${encodeURIComponent(document.attachment.filename)}` : null),
+      resolve: (document) => (document.attachment ? attachmentUrl(document.attachment) : null),
     }),
     fileName: t.string({ nullable: true, select: { attachment: { select: { filename: true } } }, resolve: (document) => document.attachment?.filename ?? null }),
     fileMimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
@@ -196,7 +197,7 @@ builder.prismaObject('ProjectResource', {
     note: t.exposeString('note', { nullable: true }),
     url: t.string({
       select: { attachment: { select: { id: true, filename: true } } },
-      resolve: (resource) => (resource.kind === 'LINK' ? (resource.url ?? '') : `/api/attachments/${resource.attachment?.id}/${encodeURIComponent(resource.attachment?.filename ?? 'fichier')}`),
+      resolve: (resource) => (resource.kind === 'LINK' ? (resource.url ?? '') : attachmentUrl(resource.attachment)),
     }),
     size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

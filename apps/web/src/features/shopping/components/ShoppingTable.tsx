@@ -154,7 +154,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       name: (
         <>
           <Group gap={4} wrap="nowrap">
-            <EditableText value={name} label={`Label de ${name}`} schema={shoppingItemSchema.shape.label} strong readOnly={readOnly} onSave={(value) => value && save('name', { label: value })} />
+            <EditableText value={name} label={`Libellé de ${name}`} schema={shoppingItemSchema.shape.label} strong readOnly={readOnly} onSave={(value) => value && save('name', { label: value })} />
             {badge?.(item)}
           </Group>
           {item.note && (

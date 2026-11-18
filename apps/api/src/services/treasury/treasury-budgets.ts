@@ -43,9 +43,9 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
   await assertExists(prisma.treasuryRelation, budget.relationId, 'Relation');
   await assertExists(prisma.treasuryContext, budget.contextId, 'Contexte');
-  if (budget.categoryId !== previous?.categoryId) await assertNotArchived('TREASURY_CATEGORY', budget.categoryId);
-  if (budget.relationId !== previous?.relationId) await assertNotArchived('TREASURY_RELATION', budget.relationId);
-  if (budget.contextId !== previous?.contextId) await assertNotArchived('TREASURY_CONTEXT', budget.contextId);
+  await assertNotArchived('TREASURY_CATEGORY', budget.categoryId, { keep: previous?.categoryId, field: 'categoryId' });
+  await assertNotArchived('TREASURY_RELATION', budget.relationId, { keep: previous?.relationId, field: 'relationId' });
+  await assertNotArchived('TREASURY_CONTEXT', budget.contextId, { keep: previous?.contextId, field: 'contextId' });
   return {
     month: parseDay(`${budget.month}-01`),
     memberId: budget.relationId ? null : budget.memberId,

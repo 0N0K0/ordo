@@ -308,11 +308,11 @@ export function SheetPage() {
           locked
             ? undefined
             : (rows, clear) => [
-                deleteRowsAction([rows], {
+                deleteRowsAction(rows, {
                   label: 'Retirer',
                   title: 'Retirer les éléments',
-                  risks: `${countOf(rows.length, 'élément')} seront retirés de la fiche.`,
-                  remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
+                  risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la fiche.`,
+                  removeAll: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
                   done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
                   clear,
                 }),

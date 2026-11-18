@@ -63,7 +63,6 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
   },
   {
     id: 'archived',
-    bulk: true,
     label: 'Archivé',
     size: 100,
     hiddenByDefault: true,

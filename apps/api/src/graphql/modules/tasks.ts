@@ -1,7 +1,7 @@
 import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
-import { storeAttachment } from '../../services/core/attachments';
+import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/workspace/contributors';
 import * as milestones from '../../services/tasks/milestones';
 import * as sprints from '../../services/tasks/sprints';
@@ -48,7 +48,7 @@ builder.prismaObject('Attachment', {
     isImage: t.boolean({ description: 'Shown in place in markdown.', resolve: (attachment) => attachment.mimeType.startsWith('image/') }),
     url: t.string({
       // Parentheses are escaped too: the URL goes inside a markdown link.
-      resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.filename).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
+      resolve: (attachment) => attachmentUrl(attachment),
     }),
   }),
 });

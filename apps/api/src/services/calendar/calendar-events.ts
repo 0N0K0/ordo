@@ -22,7 +22,7 @@ import { Prisma, type CalendarEvent, type CalendarEventException } from '../../g
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
-import { assertActiveContributors, assertActiveRelations, assertProjectContributors } from '../workspace/contributors';
+import { assertProjectContributors } from '../workspace/contributors';
 import { assertAllExist, assertExists } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
@@ -210,14 +210,11 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, event.relationIds, 'Relation');
-  await assertActiveContributors(event.beneficiaryIds, keepBeneficiaries, 'beneficiaryIds');
-  await assertActiveRelations(event.beneficiaryRelationIds, keepRelations, 'beneficiaryIds');
-  await assertActiveRelations(event.relationIds, keepRelations, 'relationIds');
+  await assertNoneArchived('contributor', event.beneficiaryIds, { keep: keepBeneficiaries, field: 'beneficiaryIds' });
+  await assertNoneArchived('treasuryRelation', event.beneficiaryRelationIds, { keep: keepRelations, field: 'beneficiaryIds' });
+  await assertNoneArchived('treasuryRelation', event.relationIds, { keep: keepRelations, field: 'relationIds' });
   await assertAllExist(prisma.calendarCategory, event.categoryIds, 'Catégorie');
-  await assertNoneArchived(
-    'calendarCategory',
-    event.categoryIds.filter((id) => !keepCategories.includes(id)),
-  );
+  await assertNoneArchived('calendarCategory', event.categoryIds, { keep: keepCategories, field: 'categoryIds' });
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
@@ -262,7 +259,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
     event.travelAfter = 0;
   }
   const calendarId = await resolveCalendarId(event.calendarId);
-  await assertNotArchived('calendar', calendarId);
+  await assertNotArchived('calendar', calendarId, { field: 'calendarId' });
   return { ...event, calendarId };
 }
 

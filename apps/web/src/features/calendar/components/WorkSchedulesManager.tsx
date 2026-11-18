@@ -7,7 +7,17 @@ import * as fmt from '../../../lib/format';
 import { listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { mapById, DEFAULT_SCHEDULE_KIND_NAME, readScheduleCases, readScheduleExceptions, type ScheduleCase, type ScheduleException, type WorkScheduleInput, workScheduleSchema } from '@ordo/shared';
+import {
+  mapById,
+  DEFAULT_SCHEDULE_KIND_NAME,
+  readScheduleCases,
+  readScheduleExceptions,
+  type ScheduleCase,
+  type ScheduleException,
+  type WorkScheduleInput,
+  workScheduleSchema,
+  WORK_SCHEDULE_LABEL_MAX,
+} from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -61,7 +71,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      label: schedule?.label ?? (copyOf ? copyName(copyOf.label) : 'Semaine type'),
+      label: schedule?.label ?? (copyOf ? copyName(copyOf.label, WORK_SCHEDULE_LABEL_MAX) : 'Semaine type'),
       // A copy has no dates: to choose.
       startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? schedule.endDate : null,

@@ -1,2 +1,2 @@
 // eslint-disable-next-line no-restricted-imports -- the one path of collator and normalize in the app.
-export { collator, copyName, countOf, ellipsis, normalize, plural, sameName } from '@ordo/shared';
+export { collator, copyName, countOf, countWith, ellipsis, normalize, plural, sameName } from '@ordo/shared';

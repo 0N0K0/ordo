@@ -12,7 +12,7 @@ import { prisma } from '../../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
 import { fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
-import { assertNotArchived, ARCHIVED_MESSAGE } from '../core/archive';
+import { assertNotArchived } from '../core/archive';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /** Category of the treasury as validated. */
@@ -31,7 +31,7 @@ const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCat
       if (!data.parentId) return data;
       const parent = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: data.parentId } }), 'Catégorie parente');
       // Nothing is put under an archived category (a category already there stays).
-      if (parent.archivedAt && current?.parentId !== parent.id) throw fieldError('parentId', ARCHIVED_MESSAGE);
+      await assertNotArchived('treasuryCategory', parent.id, { keep: current?.parentId, field: 'parentId' });
       if (parent.direction !== data.direction) throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
       return data;
     },
@@ -139,9 +139,9 @@ export async function setInvoiceCategories(input: { invoiceCategoryId: string | 
     [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
   ] as const) {
     if (!id) continue;
-    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true, archivedAt: true } }), 'Catégorie');
+    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } }), 'Catégorie');
     // An archived category stays the one set, but is not set any more.
-    if (category.archivedAt && id !== (await getCompanyProfile())[field]) throw fieldError(field, ARCHIVED_MESSAGE);
+    await assertNotArchived('treasuryCategory', id, { keep: (await getCompanyProfile())[field], field });
     if (category.direction !== direction) {
       const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
       throw fieldError(field, message);

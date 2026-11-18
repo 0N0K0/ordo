@@ -89,7 +89,7 @@ export function ChronoCell({ routine, running }: { routine: Routine; running: Ti
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap">
-      <TimerToggle name={routine.label} mine={mine} othersRunning={Boolean(running) && !mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
+      <TimerToggle name={routine.label} mine={mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
       </Text>

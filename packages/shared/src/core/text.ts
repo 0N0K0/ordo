@@ -92,6 +92,19 @@ export function countOf(count: number, word: string, many?: string): string {
 }
 
 /**
+ * A count and its word after their determiner, the count dropped for one: « ses 3 tâches » but « sa tâche », « des 2
+ * tâches » but « de la tâche ».
+ * @param {number} count Count.
+ * @param {string} word Word, in the singular.
+ * @param {[string, string]} determiners Determiner of one (« sa », « son », « de la ») and of several (« ses », « des »).
+ * @param {string} [many] Plural of the word, when not with an « s ». Optional.
+ * @returns {string} Text.
+ */
+export function countWith(count: number, word: string, [one, several]: [string, string], many?: string): string {
+  return count === 1 ? `${one} ${word}` : `${several} ${countOf(count, word, many)}`;
+}
+
+/**
  * A text cut to a length, an ellipsis replacing its end: « rapport-annuel-2026-ver… ».
  * @param {string} text Text.
  * @param {number} max Most characters kept, the ellipsis included.

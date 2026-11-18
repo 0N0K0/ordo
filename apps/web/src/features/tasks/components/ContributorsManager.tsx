@@ -17,7 +17,7 @@ import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { relationNoun } from '../../../components/people/people-options';
 
-import { countOf } from '../../../lib/text';
+import { countOf, countWith, plural } from '../../../lib/text';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 interface ContributorsManagerProps {
@@ -63,7 +63,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
     const used = usage.get(contributor.id) ?? 0;
     confirmDestructive({
       title: 'Supprimer le contributeur',
-      risks: `${contributor.name} sera supprimé définitivement${used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions @${contributor.handle} resteront dans le texte, sans lien.`,
+      risks: `${contributor.name} sera supprimé définitivement${used > 0 ? ` et retiré ${countWith(used, 'tâche', ['de la', 'des'])} qui lui ${plural(used, 'est assignée', 'sont assignées')}` : ''}. Ses mentions @${contributor.handle} resteront dans le texte, sans lien.`,
       run: () => remove.mutateAsync({ id: contributor.id }),
       done: `${contributor.name} supprimé.`,
     });

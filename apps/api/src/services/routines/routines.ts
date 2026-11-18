@@ -55,7 +55,7 @@ import { Prisma, type Routine, type RoutineCategory } from '../../generated/pris
 import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
-import { assertActiveContributors, assertActiveRelations, assertProjectContributors } from '../workspace/contributors';
+import { assertProjectContributors } from '../workspace/contributors';
 import { parisToday } from '../../today';
 import { assertAllExist, assertExists } from '../core/lookup';
 import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived } from '../core/archive';
@@ -496,19 +496,13 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
     : null;
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
-  await assertNoneArchived(
-    'routineCategory',
-    data.categoryIds.filter((categoryId) => !keptCategoryIds.includes(categoryId)),
-  );
+  await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });
   const keptScheduleIds = restoring
     ? scheduleIds
     : current
       ? [...conditionScheduleIds(storedCondition(current)), ...storedCases(current.cases).flatMap((item) => conditionScheduleIds(item.condition))]
       : [];
-  await assertNoneArchived(
-    'workSchedule',
-    scheduleIds.filter((scheduleId) => !keptScheduleIds.includes(scheduleId)),
-  );
+  await assertNoneArchived('workSchedule', scheduleIds, { keep: keptScheduleIds });
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
@@ -527,14 +521,11 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
   await assertAllExist(prisma.contributor, data.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, data.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   // Archived beneficiaries, parent and required routines: no longer chosen, those already there stay.
-  if (!restoring) await assertActiveContributors(data.beneficiaryIds, current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], 'beneficiaryIds');
-  if (!restoring) await assertActiveRelations(data.beneficiaryRelationIds, current?.beneficiaryRelations.map((relation) => relation.id) ?? [], 'beneficiaryIds');
-  if (!restoring && (data.parentId ?? null) !== (current?.parentId ?? null)) await assertNotArchived('routine', data.parentId).catch(() => Promise.reject(fieldError('parentId', ARCHIVED_MESSAGE)));
+  if (!restoring) await assertNoneArchived('contributor', data.beneficiaryIds, { keep: current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], field: 'beneficiaryIds' });
+  if (!restoring) await assertNoneArchived('treasuryRelation', data.beneficiaryRelationIds, { keep: current?.beneficiaryRelations.map((relation) => relation.id) ?? [], field: 'beneficiaryIds' });
+  if (!restoring) await assertNotArchived('routine', data.parentId, { keep: current?.parentId, field: 'parentId' });
   const keptRequiredIds = restoring ? data.requiredIds : (current?.requires.map((dependency) => dependency.requiredId) ?? []);
-  await assertNoneArchived(
-    'routine',
-    data.requiredIds.filter((requiredId) => !keptRequiredIds.includes(requiredId)),
-  ).catch(() => Promise.reject(fieldError('requiredIds', ARCHIVED_MESSAGE)));
+  await assertNoneArchived('routine', data.requiredIds, { keep: keptRequiredIds, field: 'requiredIds' });
   // Of a project: its contributors only (those already assigned stay).
   const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
   await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds', restoring);

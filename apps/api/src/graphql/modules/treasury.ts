@@ -17,6 +17,7 @@ import { builder } from '../builder';
 import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
+import { attachmentUrl } from '../../services/core/attachments';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -253,7 +254,7 @@ const documentSelect = {
  * @returns {string} URL.
  */
 const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; filename: string } | null }) =>
-  document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.filename ?? 'fichier')}`;
+  document.kind === 'LINK' ? (document.url ?? '') : attachmentUrl(document.attachment);
 
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
@@ -468,7 +469,7 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
   signedFileUrl: t.string({
     nullable: true,
     select: { signedAttachment: { select: { id: true, filename: true } } },
-    resolve: (document) => (document.signedAttachment ? `/api/attachments/${document.signedAttachment.id}/${encodeURIComponent(document.signedAttachment.filename)}` : null),
+    resolve: (document) => (document.signedAttachment ? attachmentUrl(document.signedAttachment) : null),
   }),
   signedFileName: t.string({ nullable: true, select: { signedAttachment: { select: { filename: true } } }, resolve: (document) => document.signedAttachment?.filename ?? null }),
   paid: t.float({

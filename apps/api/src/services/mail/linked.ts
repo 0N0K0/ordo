@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
 import { errorMessage } from '../../graphql/errors';
-import { attachmentData } from '../core/attachments';
+import { attachmentData, attachmentUrl } from '../core/attachments';
 import { withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
@@ -66,7 +66,7 @@ export async function copyToProject(parsed: ParsedMail, { projectId, accountId, 
         },
         select: { id: true, filename: true },
       });
-      urls.push(`/api/attachments/${stored.id}/${encodeURIComponent(stored.filename)}`);
+      urls.push(attachmentUrl(stored));
     }
     // Inline images point to the stored copies.
     const html = messageHtml(parsed, (index) => urls[index]);

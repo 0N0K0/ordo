@@ -12,7 +12,7 @@ import { listSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, EVENT_LABEL_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
@@ -26,7 +26,8 @@ import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, use
 import { archivedCalendarIds } from '../lib/calendar-events';
 import { archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { useStartTimer } from '../../time/hooks/use-start-timer';
+import { TIMER_REPLACED_HINT, useStartTimer } from '../../time/hooks/use-start-timer';
+import { timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
@@ -143,7 +144,7 @@ interface EventFormProps {
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const { startTimer, isPending: timerStarting } = useStartTimer();
+  const { startTimer, isPending: timerStarting, replacing } = useStartTimer();
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -158,13 +159,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
    */
   const handleTimer = () => {
     if (!occurrence || !values.projectId) return;
+    const allowed = new Set(timeTasks(context, values.projectId).map((task) => task.id));
+    const timeTaskIds = (values.taskIds ?? []).filter((id) => allowed.has(id));
     startTimer({
       projectId: values.projectId,
-      // Tasks of the event belonging to its project tree (a timer only takes those).
-      taskIds: (values.taskIds ?? []).filter((id) => {
-        const task = context.taskById.get(id);
-        return task !== undefined && context.rootOf(task.projectId) === context.rootOf(values.projectId!);
-      }),
+      // Tasks of the event a timer on its project takes (the API's rule: the project, its sub-projects, tasks without project).
+      taskIds: timeTaskIds,
       description: values.label,
       event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
     });
@@ -513,7 +513,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             )}
             {occurrence && (
               <Group gap="sm">
-                <Tooltip label={values.projectId ? 'Démarre un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
+                <Tooltip label={values.projectId ? `Démarre un chrono rattaché à cet évènement. ${replacing ? TIMER_REPLACED_HINT : ''}`.trim() : 'Choisissez d’abord un projet'}>
                   <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
                     Démarrer le chrono
                   </Button>
@@ -571,7 +571,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                         leftSection={<CopyIcon aria-hidden />}
                         onClick={() =>
                           // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                          onDuplicate({ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) })
+                          onDuplicate({ ...values, label: copyName(values.label, EVENT_LABEL_MAX), recurrence: recurring ? null : (values.recurrence ?? null) })
                         }
                       >
                         Dupliquer

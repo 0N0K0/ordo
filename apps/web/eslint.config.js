@@ -210,6 +210,29 @@ export default defineConfig([
           selector: "ConditionalExpression[test.operator=/^(>|!==|!=)$/][test.right.value=1][consequent.value='s']",
           message: 'Utiliser plural(count, mot) ou countOf(count, mot) (lib/text).',
         },
+        // A count and its verb or determiner agree: « 1 élément sera retiré », « sa sous-tâche ».
+        {
+          selector: "TemplateLiteral:has(> CallExpression[callee.name='countOf']) > TemplateElement[value.raw=/^ (seront|sont|ont) /]",
+          message: 'Accorder le verbe : plural(count, « sera retiré », « seront retirés ») (lib/text).',
+        },
+        {
+          selector: "JSXExpressionContainer:has(> CallExpression[callee.name='countOf']) + JSXText[value=/^\\s*(seront|sont|ont) /]",
+          message: 'Accorder le verbe : plural(count, « sera retiré », « seront retirés ») (lib/text).',
+        },
+        {
+          selector: "TemplateLiteral:has(> CallExpression[callee.name='countOf']) > TemplateElement[value.raw=/(^|\\s)(ses|des|leurs) $/]",
+          message: 'Utiliser countWith(count, mot, [« sa », « ses »]) (lib/text) : « sa sous-tâche », « ses 3 sous-tâches ».',
+        },
+        // Numbers typed: one format.
+        {
+          selector: "JSXAttribute[name.name='thousandSeparator'][value.value=' ']",
+          message: 'Utiliser {...FRENCH_NUMBER_FORMAT} (components/inputs/number-format) : « 1 000,5 » partout.',
+        },
+        // A click on the map: one rule (its address, else its coordinates; a failure in a toast).
+        {
+          selector: "CallExpression[callee.name='reverseAddress']",
+          message: 'Utiliser pickedAddress(point) (features/geo/api) : l’adresse, sinon les coordonnées, une erreur en notification.',
+        },
         // Tab of a page: unknown tabs fall back (usePageTab).
         {
           selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",

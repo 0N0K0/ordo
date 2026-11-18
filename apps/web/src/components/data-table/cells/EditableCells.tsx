@@ -8,6 +8,7 @@ import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
 import { accepted, cellCombobox, cellField, cellKeys, checked, stopClick, type CellSchema } from './cell-field';
+import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
 
 interface EditableTextProps {
   value: string | null;
@@ -162,8 +163,7 @@ export function EditableNumber({
       readOnly={readOnly}
       decimalScale={decimals}
       allowDecimal={decimals > 0}
-      decimalSeparator=","
-      thousandSeparator=" "
+      {...FRENCH_NUMBER_FORMAT}
       suffix={unit ? ` ${unit}` : undefined}
       allowNegative={signed}
       min={min}

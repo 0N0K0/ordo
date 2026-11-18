@@ -12,6 +12,7 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type BuilderTypes, type InputFields } from '../builder';
 import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
+import { attachmentUrl } from '../../services/core/attachments';
 
 labelObject('MailLabel', { description: 'Flag of mails (label, color).' });
 
@@ -145,7 +146,7 @@ const LinkedMailAttachment = builder.objectRef<{ id: string; filename: string; s
     filename: t.exposeString('filename'),
     size: t.exposeInt('size'),
     inline: t.boolean({ resolve: (attachment) => attachment.contentId !== null }),
-    url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.filename)}` }),
+    url: t.string({ resolve: (attachment) => attachmentUrl(attachment) }),
   }),
 });
 

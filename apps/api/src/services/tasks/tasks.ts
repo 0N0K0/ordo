@@ -199,10 +199,8 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
   if (restoring) return;
   const ids = (value: string | readonly string[] | null | undefined): string[] => (typeof value === 'string' ? [value] : [...(value ?? [])]);
   for (const key of Object.keys(ACTIVE_REFS) as (keyof ActiveRefs)[]) {
-    const kept = new Set(ids(current[key]));
-    const added = ids(refs[key]).filter((id) => !kept.has(id));
     const [model, field] = ACTIVE_REFS[key];
-    if (added.length) await assertNoneArchived(model, added).catch(() => Promise.reject(fieldError(field, ARCHIVED_MESSAGE)));
+    await assertNoneArchived(model, ids(refs[key]), { keep: ids(current[key]), field });
   }
 }
 

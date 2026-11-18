@@ -103,25 +103,30 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   // Each project with its full path: client › project › sub-project.
   const projectChoices = projectOptions(workspace, unarchived(workspace?.projects ?? [], [...chosenProjects]));
 
+  /**
+   * Option of a document the entry can settle: its name (kept for the label of the entry) and what is left due.
+   * @param {string} value Key (« doc:id », « imp:id »).
+   * @param {string} name Number and client of the document.
+   * @param {{ balance?: number | null, currency: Parameters<typeof fmt.money>[1] }} document Document.
+   * @returns {{ value: string, name: string, label: string, balance: number }} Option.
+   */
+  const settleOption = (value: string, name: string, document: { balance?: number | null; currency: Parameters<typeof fmt.money>[1] }) => ({
+    value,
+    name,
+    label: `${name} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
+    balance: document.balance ?? 0,
+  });
   // Documents it can settle: still due and not archived, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
   const settleable = [
     ...(documents ?? [])
       .filter((document) => document.status === 'FINAL' && document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => ({
-        value: `doc:${document.id}`,
-        label: `${document.number} — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
-        balance: document.balance ?? 0,
-      })),
+      .map((document) => settleOption(`doc:${document.id}`, `${document.number} — ${document.clientName}`, document)),
     ...(imported ?? [])
       .filter((document) => document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => ({
-        value: `imp:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
-        balance: document.balance ?? 0,
-      })),
+      .map((document) => settleOption(`imp:${document.id}`, `${document.number} (importé) — ${document.clientName}`, document)),
   ];
   const allocated = values.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
   const keyOf = (allocation: TreasuryAllocationInput) => (allocation.documentId ? `doc:${allocation.documentId}` : allocation.importedDocumentId ? `imp:${allocation.importedDocumentId}` : null);
@@ -333,6 +338,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     style={{ flex: 1 }}
                     data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
                     value={keyOf(allocation)}
+                    error={form.errors[`allocations.${index}`]}
                     onChange={(key) => {
                       const option = settleable.find((item) => item.value === key);
                       const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
@@ -343,7 +349,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                       });
                       // An empty entry takes the amount and the name of the document it settles.
                       if (option && !values.amount) form.setFieldValue('amount', allocated - allocation.amount + amount);
-                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
+                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.name}`);
                     }}
                   />
                   <AmountInput

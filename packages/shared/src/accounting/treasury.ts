@@ -1,5 +1,6 @@
 import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
 import { mapById } from '../core/collections';
+import { clipText } from '../core/text';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, optionalText, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
@@ -79,11 +80,16 @@ export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
  * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
  * without lines).
  */
+/** Longest label of a treasury entry. */
+export const ENTRY_LABEL_MAX = 300;
+/** Longest label of a line of a treasury entry. */
+export const ENTRY_LINE_LABEL_MAX = 200;
+
 const treasuryEntryLineSchema = z
   .object({
     /** Line kept (its links from other entries stay); none for a new line. */
     id: z.string().nullish(),
-    label: optionalText(200),
+    label: optionalText(ENTRY_LINE_LABEL_MAX),
     mode: z.enum(TREASURY_LINE_MODES),
     value: z.number({ error: 'Valeur attendue.' }),
     memberId: z.string().nullable(),
@@ -222,7 +228,7 @@ export const treasuryEntrySchema = z
     /** Execution date. */
     date: daySchema(),
     valueDate: daySchema().nullable(),
-    label: requiredText(300, 'Le libellé est requis.'),
+    label: requiredText(ENTRY_LABEL_MAX, 'Le libellé est requis.'),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
     methodId: z.string().nullable(),
@@ -499,12 +505,14 @@ export function readStatement(text: string, mapping: StatementMapping): Statemen
     .slice(mapping.skipRows)
     .flatMap((cells) => {
       const date = statementDate(cells[mapping.dateColumn], mapping.dateFormat);
-      const label = mapping.labelColumns
-        .map((column) => (cells[column] ?? '').trim())
-        .filter(Boolean)
-        .join(' — ')
-        .replace(/\s+/g, ' ')
-        .slice(0, 300);
+      const label = clipText(
+        mapping.labelColumns
+          .map((column) => (cells[column] ?? '').trim())
+          .filter(Boolean)
+          .join(' — ')
+          .replace(/\s+/g, ' '),
+        ENTRY_LABEL_MAX,
+      );
       let amount: number | null;
       if (mapping.amountColumn !== null) amount = statementAmount(cells[mapping.amountColumn]);
       else {

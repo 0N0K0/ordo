@@ -25,6 +25,7 @@ import {
   timesSheet,
   UNIT_MAX,
   unitSchema,
+  SHEET_LABEL_MAX,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -150,10 +151,7 @@ const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
 async function assertCategories(ids: string[], current: string[] = []): Promise<string[]> {
   const unique = [...new Set(ids)];
   await assertAllExist(prisma.sheetCategory, unique, 'Catégorie');
-  await assertNoneArchived(
-    'SHEET_CATEGORY',
-    unique.filter((id) => !current.includes(id)),
-  );
+  await assertNoneArchived('SHEET_CATEGORY', unique, { keep: current, field: 'categoryIds' });
   return unique;
 }
 
@@ -165,7 +163,7 @@ async function assertCategories(ids: string[], current: string[] = []): Promise<
 export async function createSheet(input: SheetInput): Promise<Sheet> {
   const data = parseInput(sheetSchema, input);
   await assertExists(prisma.project, data.projectId, 'Projet');
-  await assertNotArchived('project', data.projectId);
+  await assertNotArchived('project', data.projectId, { field: 'projectId' });
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
@@ -184,7 +182,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
   await assertNotArchived('SHEET', id);
   const data = parseInput(sheetSchema, input);
   await assertExists(prisma.project, data.projectId, 'Projet');
-  if (data.projectId !== sheet.projectId) await assertNotArchived('project', data.projectId);
+  await assertNotArchived('project', data.projectId, { keep: sheet.projectId, field: 'projectId' });
   const categories = await assertCategories(
     data.categoryIds,
     sheet.categories.map((category) => category.id),
@@ -200,7 +198,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   await assertNotArchived('SHEET', id);
-  const copy = await createSheet({ label: copyName(sheet.label, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  const copy = await createSheet({ label: copyName(sheet.label, SHEET_LABEL_MAX), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({

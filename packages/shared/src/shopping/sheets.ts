@@ -30,9 +30,12 @@ export const sheetItemSchema = z.object({
 });
 export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
+/** Longest label of a sheet. */
+export const SHEET_LABEL_MAX = 100;
+
 /** Sheet: a label, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
-  label: requiredText(100),
+  label: requiredText(SHEET_LABEL_MAX),
   note: z.string().max(20_000, 'Note trop longue.').nullable(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),

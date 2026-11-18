@@ -75,4 +75,7 @@ export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableVie
 }
 
 /** Label of a saved view of a table. */
-export const taskViewLabelSchema = requiredText(60);
+/** Longest label of a saved view. */
+export const VIEW_LABEL_MAX = 60;
+
+export const taskViewLabelSchema = requiredText(VIEW_LABEL_MAX);

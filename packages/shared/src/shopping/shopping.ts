@@ -72,7 +72,10 @@ export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
 /** Base list ("liste type"): its label. */
 export const shoppingBaseListLabelSchema = requiredText(80);
 
-export const shoppingListLabelSchema = requiredText(120);
+/** Longest label of a shopping list. */
+export const SHOPPING_LIST_LABEL_MAX = 120;
+
+export const shoppingListLabelSchema = requiredText(SHOPPING_LIST_LABEL_MAX);
 
 /** Label and tasks of a shopping list, as its forms edit them. */
 export const shoppingListFormSchema = z.object({ label: shoppingListLabelSchema, taskIds: z.array(z.string()) });

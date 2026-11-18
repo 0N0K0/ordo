@@ -101,10 +101,13 @@ const exceptionFields = {
 const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
+/** Longest label of planned time slots. */
+export const WORK_SCHEDULE_LABEL_MAX = 100;
+
 /** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    label: requiredText(100),
+    label: requiredText(WORK_SCHEDULE_LABEL_MAX),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),

@@ -228,8 +228,13 @@ export const chartConfigSchema = z
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
 
-export const chartLabelSchema = requiredText(120, 'Le titre est requis.');
-export const dashboardLabelSchema = requiredText(60);
+/** Longest label of a chart. */
+export const CHART_LABEL_MAX = 120;
+/** Longest label of a dashboard. */
+export const DASHBOARD_LABEL_MAX = 60;
+
+export const chartLabelSchema = requiredText(CHART_LABEL_MAX, 'Le titre est requis.');
+export const dashboardLabelSchema = requiredText(DASHBOARD_LABEL_MAX);
 
 /**
  * Configuration of a new chart of a source: tasks created per week, invoiced revenue per month, or money in

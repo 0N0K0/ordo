@@ -3,6 +3,8 @@ import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotM
 import { useMemo } from 'react';
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { scheduleRules, useWorkSchedules } from '../../calendar/api';
+import { schedulesTitle } from '../../calendar/lib/schedule-text';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { useTimeEntriesSince } from '../api';
 import { useNow } from '../../../lib/use-now';
 import * as fmt from '../../../lib/format';
@@ -37,6 +39,7 @@ function Gauge({ label, tracked, planned }: { label: string; tracked: number; pl
  * @returns {JSX.Element | null} Card.
  */
 export function PlannedTime() {
+  const { perso } = useActiveWorkspace();
   const today = localToday();
   // The week of the workspace (it may start another day than Monday, or last 8 days).
   const [monday, after] = weekRange(today, currentWeek());
@@ -94,7 +97,7 @@ export function PlannedTime() {
           })}
         </SimpleGrid>
         <Text size="xs" c="dimmed">
-          Temps prévu par vos plages de travail (Agenda › Plages de travail), hors pauses.
+          Temps prévu par vos {schedulesTitle(perso).toLowerCase()} (Agenda › {schedulesTitle(perso)}), hors pauses.
         </Text>
       </Stack>
     </SettingsSection>

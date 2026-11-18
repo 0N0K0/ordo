@@ -1,7 +1,19 @@
 import { copyName } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
-import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
+import {
+  opensFits,
+  readOpens,
+  readSlotCondition,
+  type Recurrence,
+  type RoutineCase,
+  type RoutineOpens,
+  routineSchema,
+  type RoutineSlot,
+  type SlotCondition,
+  subtreeOf,
+  ROUTINE_LABEL_MAX,
+} from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
@@ -80,7 +92,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
     initialValues: {
-      label: routine ? (copy ? copyName(routine.label) : routine.label) : '',
+      label: routine ? (copy ? copyName(routine.label, ROUTINE_LABEL_MAX) : routine.label) : '',
       description: routine?.description ?? '',
       categoryIds: routine ? routine.categoryIds : (parent?.categoryIds ?? (categoryId ? [categoryId] : [])),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
