@@ -36,7 +36,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Mail :** `services/mail/sender.ts:44` et `reader.ts:472` cherchent les dossiers spéciaux sans repli sur le nom, contrairement à `organize.ts:67 specialFolder`.
 - **Étiquettes :** `services/core/labels.ts:67-68` calcule la position suivante à la main, hors transaction, au lieu de `nextPositionIn`.
 - **Recherche des tableaux :** `components/data-table/table/table-engine.ts:127-128, 173-188` est sensible aux accents, contrairement aux sélecteurs en arbre.
-- **Erreurs de bénéficiaire :** erreur de champ dans les routines (`routines.ts:546-549`), NOT_FOUND dans les tâches et les évènements (`tasks.ts:152`, `calendar-events.ts:180`).
+- **Erreurs de bénéficiaire :** **Fait** : une erreur de champ (`beneficiaryIds`) partout, routines, tâches et évènements.
 
 ## API
 
@@ -188,10 +188,9 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 Reste à décider :
 
-1. Erreur de champ ou NOT_FOUND pour un bénéficiaire introuvable (4).
-2. Le format d'erreur des routes REST (7).
-3. La forme des trimestres, puis `periodName` (21).
-4. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
+1. Le format d'erreur des routes REST (7).
+2. La forme des trimestres, puis `periodName` (21).
+3. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
 
 ## Restent à part
 

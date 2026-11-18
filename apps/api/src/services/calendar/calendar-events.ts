@@ -174,8 +174,8 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   await assertExists(prisma.project, event.projectId, 'Projet');
   await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
   await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
-  await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire');
-  await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire');
+  await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertAllExist(prisma.treasuryRelation, event.relationIds, 'Relation');
   await assertAllExist(prisma.calendarCategory, event.categoryIds, 'Catégorie');
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });

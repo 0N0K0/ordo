@@ -140,8 +140,8 @@ async function assertReferences(refs: {
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
 }): Promise<void> {
-  await assertAllExist(prisma.contributor, refs.beneficiaryIds, 'Bénéficiaire');
-  await assertAllExist(prisma.treasuryRelation, refs.beneficiaryRelationIds, 'Bénéficiaire');
+  await assertAllExist(prisma.contributor, refs.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  await assertAllExist(prisma.treasuryRelation, refs.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   await assertExists(prisma.taskStatus, refs.statusId, 'Statut');
   await assertExists(prisma.taskPriority, refs.priorityId, 'Priorité');
   await assertExists(prisma.taskType, refs.typeId, 'Type');
