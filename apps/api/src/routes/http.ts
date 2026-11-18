@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
 
 /**
@@ -62,4 +63,37 @@ export function sendDownload(res: Response, content: Buffer | string, options: D
     'X-Content-Type-Options': 'nosniff',
   });
   res.send(content);
+}
+
+/** HTTP status of each error code of the services. */
+const STATUS_OF: Record<string, number> = {
+  BAD_USER_INPUT: 400,
+  INVALID_CREDENTIALS: 400,
+  INVALID_TOKEN: 400,
+  UNAUTHENTICATED: 401,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
+  SERVICE_UNAVAILABLE: 503,
+};
+
+/**
+ * Answers a failed route: an error of a service with its message as JSON (`{ error }`), or as plain text when a page is
+ * asked (a link, a preview frame), and the status of its code; any other error logged and answered 500 without detail
+ * (the client shows its own message).
+ * @param {Response} res Response.
+ * @param {unknown} error Error caught.
+ * @param {string} context What failed, for the log.
+ * @returns {void}
+ */
+export function sendServiceError(res: Response, error: unknown, context: string): void {
+  const status = error instanceof GraphQLError ? STATUS_OF[String(error.extensions.code)] : undefined;
+  if (error instanceof GraphQLError && status) {
+    res.status(status);
+    if (res.req.accepts(['json', 'html']) === 'html') res.type('text/plain').send(error.message);
+    else res.json({ error: error.message });
+    return;
+  }
+  console.error(context, error);
+  res.sendStatus(500);
 }

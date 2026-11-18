@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { GraphQLError } from 'graphql';
 import { prisma } from '../db';
 import { libraryZip } from '../services/library/library';
-import { queryText, requireSession, sendDownload } from './http';
+import { queryText, requireSession, sendDownload, sendServiceError } from './http';
 
 export const libraryRouter: Router = Router();
 
@@ -15,11 +14,7 @@ libraryRouter.get('/zip', async (req, res) => {
     const zip = await libraryZip(ids ? { ids } : { folderId });
     sendDownload(res, zip.content, { type: 'application/zip', filename: zip.name });
   } catch (error) {
-    if (error instanceof GraphQLError) res.status(error.extensions.code === 'NOT_FOUND' ? 404 : 400).json({ error: error.message });
-    else {
-      console.error('Archive impossible.', error);
-      res.sendStatus(500);
-    }
+    sendServiceError(res, error, 'Archive impossible.');
   }
 });
 

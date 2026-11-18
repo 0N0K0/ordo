@@ -58,7 +58,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - 9 blocs d'en-têtes de téléchargement (`Content-Disposition`, `no-store`, `nosniff`).
 - 6 `catch` de `GraphQLError` aux réponses différentes : 400 en texte, 400 en JSON, 409.
 - Le nettoyage du nom de fichier (`exports.ts` ×4, `treasury-pdf.ts:384`) et la lecture d'un paramètre texte (`accounting.ts:16`, `treasury.ts:15`).
-- **Proposition :** `routes/http.ts` avec `requireSession`, `sendDownload`, `sendServiceError`, `safeFilename`. À décider : un seul format d'erreur.
+- **Fait** : `routes/http.ts` avec `requireSession`, `queryText`, `safeFilename`, `sendDownload` et `sendServiceError` : une erreur de service part en JSON `{ error }`, avec le statut de son code (400, 401, 404, 409, 429, 503) ; une autre est journalisée et répond 500 sans détail.
 
 ### 8. GraphQL
 
@@ -176,10 +176,9 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ## Plan proposé
 
-**Fait le 17 novembre 2026**, sans les décisions : points 1, 2, 4 (sauf l'erreur de bénéficiaire), 5, 6, 8 à 21, et 7 sauf les réponses d'erreur. Écarts :
+**Fait le 17 novembre 2026**, sans les décisions : points 1, 2, 4 (sauf l'erreur de bénéficiaire), 5, 6, 8 à 21, et 7. Écarts :
 
 - `assertExists` et `assertAllExist` (`services/core/lookup.ts`) gardent l'erreur actuelle de chaque appel ; les listes sont dédoublonnées.
-- `routes/http.ts` : `requireSession`, `queryText`, `safeFilename`, `sendDownload` ; les `catch` gardent leur réponse.
 - `services/shopping/people.ts` : écriture et relecture communes, validation inchangée.
 - `withMailbox` : 12 sites sur 13 (`reader.ts:158` ignore l'échec du verrou).
 - `labelObject` : TaskStatus, DocumentStatus et ScheduleType restent écrits à la main (champs en plus).
@@ -188,9 +187,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 Reste à décider :
 
-1. Le format d'erreur des routes REST (7).
-2. La forme des trimestres, puis `periodName` (21).
-3. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
+1. La forme des trimestres, puis `periodName` (21).
+2. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
 
 ## Restent à part
 
