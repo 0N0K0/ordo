@@ -2,7 +2,7 @@ import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/share
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /**
  * Validates an alarm and the project or task it points to.
@@ -66,6 +66,5 @@ export async function markAlarmFired(id: string, at: Date): Promise<Alarm> {
  * @returns {Promise<void>}
  */
 export async function deleteAlarm(id: string): Promise<void> {
-  await assertExists(prisma.alarm, id, 'Alarme');
-  await prisma.alarm.delete({ where: { id } });
+  await deleteOrNotFound(prisma.alarm, id, 'Alarme');
 }

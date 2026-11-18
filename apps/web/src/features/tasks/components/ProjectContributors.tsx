@@ -6,7 +6,7 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Anchor, Badge, Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { PlusIcon, UsersIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { descendantIds, type Project } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
@@ -64,10 +64,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   const save = (contributorIds: string[], message: string) =>
     setProjectContributors.mutate(
       { projectId, contributorIds },
-      {
-        onSuccess: () => notifySuccess(message),
-        onError: onMutationError,
-      },
+      toastCallbacks(message),
     );
 
   return (

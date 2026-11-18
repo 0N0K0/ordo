@@ -1,7 +1,7 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useMailAccounts, useMailActions, useScheduledMails } from '../api';
 import * as fmt from '../../../lib/format';
 
@@ -14,7 +14,6 @@ export function ScheduledMailsList() {
   const { data: scheduled } = useScheduledMails();
   const { data: accounts } = useMailAccounts();
   const { sendScheduled, cancelScheduled } = useMailActions();
-  const onError = onMutationError;
 
   if (!scheduled?.length) {
     return (
@@ -53,7 +52,7 @@ export function ScheduledMailsList() {
                     variant="subtle"
                     aria-label={`Envoyer maintenant « ${mail.subject} »`}
                     loading={sendScheduled.isPending && sendScheduled.variables === mail.id}
-                    onClick={() => sendScheduled.mutate(mail.id, { onSuccess: () => notifySuccess('Mail envoyé.'), onError })}
+                    onClick={() => sendScheduled.mutate(mail.id, toastCallbacks('Mail envoyé.'))}
                   >
                     <PaperPlaneRightIcon aria-hidden />
                   </ActionIcon>
@@ -64,7 +63,7 @@ export function ScheduledMailsList() {
                     color="gray"
                     aria-label={`Annuler l’envoi de « ${mail.subject} »`}
                     loading={cancelScheduled.isPending && cancelScheduled.variables === mail.id}
-                    onClick={() => cancelScheduled.mutate(mail.id, { onSuccess: () => notifySuccess('Envoi annulé : le mail est dans les brouillons.'), onError })}
+                    onClick={() => cancelScheduled.mutate(mail.id, toastCallbacks('Envoi annulé : le mail est dans les brouillons.'))}
                   >
                     <ArrowCounterClockwiseIcon aria-hidden />
                   </ActionIcon>

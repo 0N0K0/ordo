@@ -122,8 +122,8 @@ export async function deleteWorkSchedule(id: string): Promise<void> {
   await deleteOrNotFound(prisma.workSchedule, id, "Plage de travail");
 }
 
-/** Kinds of time slots; the schedules of a deleted one stay, without kind. */
-const scheduleTypes = createLabelService<ScheduleType>("scheduleType", { notFound: "Type de plage", conflict: "Un type porte déjà ce nom." }, { schema: scheduleTypeSchema });
+/** Kinds of time slots (name, color and display, checked here); the schedules of a deleted one stay, without kind. */
+export const scheduleTypes = createLabelService<ScheduleType>("scheduleType", { notFound: "Type de plage", conflict: "Un type porte déjà ce nom." }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
@@ -136,15 +136,6 @@ export function saveScheduleType(
   input: ScheduleTypeInput,
 ): Promise<ScheduleType> {
   return id ? scheduleTypes.update(id, input) : scheduleTypes.create(input);
-}
-
-/**
- * Deletes a kind of time slots: its schedules stay, without kind.
- * @param {string} id Kind.
- * @returns {Promise<void>}
- */
-export function deleteScheduleType(id: string): Promise<void> {
-  return scheduleTypes.remove(id);
 }
 
 /** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */

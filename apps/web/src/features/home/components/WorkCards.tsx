@@ -3,7 +3,8 @@ import { SubSection } from '../../../components/page/SubSection';
 import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { addDays, daysBetween, formatDuration, groupBy, nextOccurrence } from '@ordo/shared';
+import { addDays, daysBetween, formatDuration, groupBy } from '@ordo/shared';
+import { nextRing } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -93,8 +94,7 @@ export function AgendaCard({ today }: { today: string }) {
       list.push({ key: event.key, day: start ? localDay(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
     }
     for (const alarm of alarms.data) {
-      if (!alarm.enabled || alarm.type === 'TRACKING_DURATION') continue;
-      const next = nextOccurrence(alarm, now);
+      const next = nextRing(alarm, now);
       if (!next) continue;
       const day = localDay(next.toISOString());
       if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.title, alarm: true });

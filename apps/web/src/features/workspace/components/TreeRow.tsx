@@ -101,6 +101,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
       data-menu-open={menuOpened || undefined}
       data-draggable={(draggable && !editing) || undefined}
       data-dragging={dragging || undefined}
+      data-reveal-host
       onContextMenu={(event) => {
         event.preventDefault();
         setMenuOpened(true);
@@ -158,7 +159,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
       )}
 
       {!editing && (
-        <span className={classes.actions}>
+        <span className={classes.actions} data-reveal>
           <EntityMenu entity={entity} opened={menuOpened} onChange={setMenuOpened} />
         </span>
       )}

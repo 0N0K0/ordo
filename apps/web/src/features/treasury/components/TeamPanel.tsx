@@ -16,10 +16,10 @@ import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContext
 import { ArchiveIcon, ArrowCounterClockwiseIcon, CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -30,7 +30,7 @@ import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -60,7 +60,6 @@ export function TeamMembers() {
   // A relation is not a member too.
   const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
   const others = unarchived(context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
-  const onError = onMutationError;
   const team = perso ? 'Foyer' : 'Équipe';
 
   return (
@@ -110,7 +109,7 @@ export function TeamMembers() {
                         color="gray"
                         aria-label={`Retirer ${member.name}`}
                         loading={removeMember.isPending && removeMember.variables === member.id}
-                        onClick={() => removeMember.mutate(member.id, { onSuccess: () => notifySuccess(`${member.name} n’est plus membre.`), onError })}
+                        onClick={() => removeMember.mutate(member.id, toastCallbacks(`${member.name} n’est plus membre.`))}
                       >
                         <UserMinusIcon aria-hidden />
                       </ActionIcon>
@@ -135,13 +134,16 @@ export function TeamMembers() {
             return <PersonOption name={option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
           }}
           value={null}
-          onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, { onSuccess: () => notifySuccess('Membre ajouté.'), onError })}
+          onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, toastCallbacks('Membre ajouté.'))}
         />
         <form
           onSubmit={(event) => {
             event.preventDefault();
             if (!name.trim()) return;
-            addMember.mutate({ name: name.trim() }, { onSuccess: () => (notifySuccess('Membre ajouté.'), setName('')), onError });
+            addMember.mutate(
+              { name: name.trim() },
+              formCallbacks(null, 'Membre ajouté.', () => setName('')),
+            );
           }}
         >
           <Group gap={4} wrap="nowrap">
@@ -243,7 +245,6 @@ function Contexts() {
   const allPeriods = settings?.treasuryContextPeriods ?? [];
   const archivedPeriod = (period: TreasuryContextPeriod) => Boolean(contextById.get(period.contextId)?.archived);
   const periods = allPeriods.filter((period) => showArchived || !archivedPeriod(period));
-  const onError = onMutationError;
   /**
    * Opens the form of a new or changed period.
    * @param {TreasuryContextPeriod} [period] Period changed. Optional.
@@ -324,7 +325,7 @@ function Contexts() {
                                 confirmDestructive({
                                   title: 'Supprimer la période',
                                   risks: `La période « ${item?.name ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                                  onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
+                                  onConfirm: () => deleteContextPeriod.mutate(period.id, toastCallbacks('Période supprimée.')),
                                 }),
                             },
                           ]}
@@ -473,11 +474,7 @@ export function TeamRelations() {
                     name={relation.name}
                     items={[
                       !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
-                      {
-                        label: relation.archived ? 'Restaurer' : 'Archiver',
-                        icon: relation.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                        onClick: () => void archiveWithUndo(setArchived, { ids: [relation.id], archived: !relation.archived, label: `« ${relation.name} »`, feminine: true }),
-                      },
+                      archiveEntry({ archived: relation.archived, label: `« ${relation.name} »`, feminine: true }, setArchived, relation.id),
                       {
                         label: 'Supprimer',
                         icon: <TrashIcon aria-hidden />,
@@ -486,7 +483,7 @@ export function TeamRelations() {
                           confirmDestructive({
                             title: 'Supprimer la relation',
                             risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                            onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: onMutationError }),
+                            onConfirm: () => deleteRelation.mutate(relation.id, toastCallbacks('Relation supprimée.')),
                           }),
                       },
                     ]}

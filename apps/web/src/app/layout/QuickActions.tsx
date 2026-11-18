@@ -1,4 +1,5 @@
-import { Button, Menu } from '@mantine/core';
+import { Button } from '@mantine/core';
+import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { AlarmIcon, CalendarPlusIcon, CaretDownIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
@@ -58,9 +59,12 @@ export function QuickActions() {
   ];
 
   return (
-    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
-      <Menu.Target>
-        {/* On a very small screen, only the plus (the name stays for screen readers). */}
+    <ActionsMenu
+      name="l’ajout"
+      hover
+      items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled }))}
+      target={
+        // On a very small screen, only the plus (the name stays for screen readers).
         <Button
           className={classes.add}
           size="xs"
@@ -73,14 +77,7 @@ export function QuickActions() {
         >
           <span className={classes.label}>Ajouter</span>
         </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
-        {actions.map((action) => (
-          <Menu.Item key={action.title} leftSection={action.icon} onClick={action.onClick} disabled={action.disabled}>
-            {action.title}
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
+      }
+    />
   );
 }

@@ -1,9 +1,10 @@
+import { moveEntries } from '../../../components/actions/move-entries';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, TrashIcon } from '@phosphor-icons/react';
+import { NotePencilIcon, PackageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -89,8 +90,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
                 name={`la ligne ${index + 1}`}
                 items={[
                   { label: 'Description', icon: <NotePencilIcon aria-hidden />, onClick: () => setShowDescription((value) => !value) },
-                  { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => onMove(-1) },
-                  { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => onMove(1) },
+                  ...moveEntries(index, count, (to) => onMove(to - index)),
                   { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: onRemove },
                 ]}
               />

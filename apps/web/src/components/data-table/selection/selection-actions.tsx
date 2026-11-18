@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { plural } from '../../../lib/text';
 import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
-import type { RowMenuEntry } from '../cells/RowActions';
+import type { RowMenuEntry } from '../../actions/ActionsMenu';
 import type { SelectionAction } from './SelectionBar';
 
 /**
@@ -113,16 +113,15 @@ export function switchRowsAction({
   clear?: () => void;
   loading?: boolean;
 }): SelectionAction {
-  const onError = onMutationError;
   return {
     label: on ? labels[1] : labels[0],
     icon: on ? icons[1] : icons[0],
     loading,
     onClick: () =>
       void apply(!on).then(() => {
-        notifyWithUndo(done(!on), undo?.(!on) ?? (() => void apply(on).catch(onError)));
+        notifyWithUndo(done(!on), undo?.(!on) ?? (() => void apply(on).catch(onMutationError)));
         clear?.();
-      }, onError),
+      }, onMutationError),
   };
 }
 

@@ -23,7 +23,7 @@ interface SentFormProps {
  */
 export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
   const today = localToday();
-  const [date, setDate] = useState<string | null>(sentAt ? localDay(new Date(sentAt)) : today);
+  const [date, setDate] = useState<string | null>(sentAt ? localDay(sentAt) : today);
   const [via, setVia] = useState<SendingChannel>((SENDING_CHANNELS as readonly string[]).includes(sentVia ?? '') ? (sentVia as SendingChannel) : 'CHORUS');
   const { run: save, loading: saving } = useAsyncAction(
     async () => {

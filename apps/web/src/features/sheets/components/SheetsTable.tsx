@@ -1,7 +1,7 @@
-import { plural, countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
 import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -18,14 +18,14 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
 import { sheetInput } from '../lib/sheet-format';
 import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 
@@ -94,7 +94,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       hiddenByDefault: true,
       sortValue: (sheet) => sheet.updatedAt,
       text: (sheet) => fmt.day(sheet.updatedAt),
-      filter: { kind: 'date', value: (sheet) => localDay(new Date(sheet.updatedAt)) },
+      filter: { kind: 'date', value: (sheet) => localDay(sheet.updatedAt) },
     },
   ];
 }
@@ -122,18 +122,17 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
     rows: [...visibleItems(sheets ?? [], showArchived)],
     title: 'Fiches',
   });
-  const onError = { onError: onMutationError };
   // The archived sheets are left as they are.
   const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(
     view,
-    (sheet, change) => !sheet.archived && update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError),
+    (sheet, change) => !sheet.archived && update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR),
   );
 
   /**
    * Creates a sheet and opens its page.
    * @returns {void}
    */
-  const createSheet = () => create.mutate({ name: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...onError });
+  const createSheet = () => create.mutate({ name: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...ON_ERROR });
 
   return (
     <DataTable
@@ -248,12 +247,8 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
                 icon: <CookingPotIcon aria-hidden />,
                 onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
               },
-              !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche dupliquée.'), ...onError }) },
-              {
-                label: sheet.archived ? 'Restaurer' : 'Archiver',
-                icon: sheet.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                onClick: () => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: !sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }),
-              },
+              !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
+              archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
               {
                 label: 'Supprimer',
                 icon: <TrashIcon aria-hidden />,
@@ -261,8 +256,8 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
                 onClick: () =>
                   confirmDestructive({
                     title: 'Supprimer la fiche',
-                    risks: `« ${sheet.name} » et ses ${sheet.items.length} élément(s) seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} routine(s), évènement(s) ou tâche(s) qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-                    onConfirm: () => remove.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche supprimée.'), ...onError }),
+                    risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} ${plural(sheet.usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent. Cette action est irréversible.`,
+                    onConfirm: () => remove.mutate(sheet.id, toastCallbacks('Fiche supprimée.')),
                   }),
               },
             ]}

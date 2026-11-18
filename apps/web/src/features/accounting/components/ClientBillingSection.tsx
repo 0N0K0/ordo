@@ -1,5 +1,5 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -8,7 +8,7 @@ import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/c
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../../components/address/countries';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
@@ -76,7 +76,7 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
           { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />) },
           { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
               confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement. Cette action est irréversible.`, onConfirm: () =>
-                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: onMutationError }) })
+                deleteContact.mutate(contact.id, toastCallbacks('Contact supprimé.')) })
              },
         ]}
       />
@@ -106,7 +106,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
               { label: 'Ajouter un contact', icon: <UserPlusIcon aria-hidden />, onClick: () => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />) },
               { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />) },
               { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () =>
-                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: onMutationError }) })
+                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, toastCallbacks('Service supprimé.')) })
                  },
             ]}
           />

@@ -36,6 +36,8 @@ interface MarkdownEditorProps {
   error?: string;
   /** Ctrl/⌘ + Enter. */
   onSubmitShortcut?: () => void;
+  /** The text field loses the focus (a value saved then). Optional. */
+  onBlur?: () => void;
 }
 
 const MAX_SUGGESTIONS = 8;
@@ -93,6 +95,7 @@ export function MarkdownEditor({
   autoFocus,
   error,
   onSubmitShortcut,
+  onBlur,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
@@ -413,7 +416,10 @@ export function MarkdownEditor({
               onKeyDown={handleKeyDown}
               onKeyUp={(event) => ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) && refreshToken(event.currentTarget)}
               onClick={(event) => refreshToken(event.currentTarget)}
-              onBlur={() => setToken(null)}
+              onBlur={() => {
+                setToken(null);
+                onBlur?.();
+              }}
               onPaste={handlePaste}
               onDragOver={(event) => {
                 if (!event.dataTransfer.types.includes('Files')) return;

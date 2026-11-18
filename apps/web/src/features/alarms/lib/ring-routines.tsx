@@ -1,6 +1,6 @@
 import { routineAlertTime } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
-import { localToday } from '../../../lib/dates';
+import { localInstant, localToday } from '../../../lib/dates';
 import type { Routine } from '../../routines/api';
 import { isDone, windowText } from '../../routines/lib/routine-format';
 import { playChime } from './alarm-sound';
@@ -28,7 +28,7 @@ export function ringRoutineReminders(routines: Routine[], now: Date, links: Ring
       if (slot.done) continue;
       const moment = routineAlertTime({ ...routine, fromTime: slot.fromTime, dueTime: slot.dueTime });
       if (!moment) continue;
-      const base = new Date(`${today}T${moment}:00`).getTime();
+      const base = localInstant(today, moment).getTime();
       for (const minutes of routine.reminders) {
         const planned = base - minutes * 60_000;
         const at = defer ? (defer(routine, new Date(planned))?.getTime() ?? null) : planned;

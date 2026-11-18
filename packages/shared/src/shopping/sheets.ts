@@ -1,11 +1,9 @@
-import { colorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
-import { shoppingItemSchema } from './shopping';
+import { colorSchema } from '../core/workspace';
+import { itemNoteSchema, quantitySchema, shoppingItemSchema, unitSchema } from './shopping';
 
 const shopping = shoppingItemSchema.shape;
-
-const quantity = z.number().min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.').nullable();
 
 /** Item of a sheet: a product of the base lists, or a label of its own. */
 export const sheetItemSchema = z.object({
@@ -15,10 +13,10 @@ export const sheetItemSchema = z.object({
   label: requiredText(200, 'Le libellé est requis.'),
   /** Category of the shopping products. */
   categoryId: z.string().nullable(),
-  quantity,
-  unit: z.string().trim().max(40, '40 caractères maximum.').nullable(),
+  quantity: quantitySchema.nullable(),
+  unit: unitSchema,
   /** Description (markdown). */
-  note: z.string().max(20_000, 'Description trop longue.').nullable(),
+  note: itemNoteSchema,
   /** Used up when the sheet is used (taken from the stock); a checklist item: taken when ticked. */
   consumable: z.boolean().default(true),
   /** As the items of the shopping lists: store, link, conservation, whom it is for, optional. */

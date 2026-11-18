@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
+import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { useWorkScheduleMutations } from '../api';
@@ -52,7 +52,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: { name: schedule.name, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
       {
-        onSuccess: () => notifySuccess(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
+        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -76,7 +76,7 @@ export function useCalendarEdits() {
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
       {
-        onSuccess: () => notifySuccess(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
+        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -95,14 +95,13 @@ export function useCalendarEdits() {
     const { routine, date } = occurrence;
     const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false });
     if (!scope) return;
-    const onError = onMutationError;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },
       {
-        onError,
+        onError: onMutationError,
         onSuccess: (archived) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.title} » est archivée.`);
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, { onError }));
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, ON_ERROR));
           else notifySuccess(`« ${routine.title} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },

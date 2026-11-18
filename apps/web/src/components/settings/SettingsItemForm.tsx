@@ -2,7 +2,7 @@ import { ColorField } from '../inputs/ColorField';
 import { Select, Stack, TextInput } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
-import { IconField, type IconValue } from '../../features/workspace/components/IconField';
+import { IconField, type IconValue } from '../inputs/IconField';
 import { useColorSwatches } from '../../lib/use-color-swatches';
 import { useAppForm, formCallbacks } from '../../lib/form';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
@@ -26,7 +26,7 @@ export interface SettingsItem {
 export type SettingsItemValues<E extends object = Record<string, never>> = { name: string; color: string; parentId: string | null } & E;
 
 /** Fields of a list of its own (a status category, base lists…), after the common ones. */
-export interface SettingsItemExtra<C extends SettingsItem, E extends object> {
+interface SettingsItemExtra<C extends SettingsItem, E extends object> {
   /** Their starting values: those of the item edited, or of a new one. */
   initial: (item?: C) => E;
   /** Their fields, given the item edited (none: a new one). */

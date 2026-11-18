@@ -1,4 +1,5 @@
 import {
+  copyName,
   fromCents,
   lineageOf,
   mapById,
@@ -12,10 +13,7 @@ import {
   type ShoppingProductInput,
   shoppingProductSchema,
   shoppingShares,
-  shoppingStorageSchema,
   type ShoppingStoreInput,
-  shoppingStoreSchema,
-  toCents,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { createLabelService } from '../core/labels';
@@ -33,13 +31,13 @@ import {
   type ShoppingStore,
   type ShoppingUnit,
 } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertAllExist, assertExists } from '../core/lookup';
+import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { connectIds } from '../core/relations';
-import { fromDecimal, toDecimal } from '../core/decimal';
+import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
 const day = (value: string | null) => (value === null ? null : parseDay(value));
 
@@ -176,14 +174,10 @@ export function deleteCategory(id: string): Promise<void> {
 // Stores and storage modes --------------------------------------------------------------------------------------
 
 /** Stores (or suppliers) the products are bought at; products and items of a deleted one are left without one. */
-export const shoppingStores = createLabelService<ShoppingStore>('shoppingStore', { notFound: 'Magasin', conflict: 'Ce magasin existe déjà.' }, { schema: shoppingStoreSchema });
+export const shoppingStores = createLabelService<ShoppingStore>('shoppingStore', { notFound: 'Magasin', conflict: 'Ce magasin existe déjà.' });
 
 /** Storage modes of the perishable products; products and items of a deleted one are left without one. */
-export const shoppingStorages = createLabelService<ShoppingStorage>(
-  'shoppingStorage',
-  { notFound: 'Mode de conservation', conflict: 'Ce mode de conservation existe déjà.' },
-  { schema: shoppingStorageSchema },
-);
+export const shoppingStorages = createLabelService<ShoppingStorage>('shoppingStorage', { notFound: 'Mode de conservation', conflict: 'Ce mode de conservation existe déjà.' });
 
 // Base lists -----------------------------------------------------------------------------------------------------
 
@@ -278,8 +272,7 @@ export async function setProductsMissing(ids: string[], missing: boolean): Promi
  * @returns {Promise<void>}
  */
 export async function deleteProduct(id: string): Promise<void> {
-  await assertExists(prisma.shoppingProduct, id, 'Produit');
-  await prisma.shoppingProduct.delete({ where: { id } });
+  await deleteOrNotFound(prisma.shoppingProduct, id, 'Produit');
 }
 
 /**
@@ -328,10 +321,18 @@ export async function moveProducts(ids: string[], baseListId: string): Promise<n
 
 // Units ----------------------------------------------------------------------------------------------------------
 
-const UNIT_TAKEN = 'Cette unité existe déjà.';
-
-/** Units of quantity (the products and items keep theirs as text): created here, renamed and deleted below. */
-const shoppingUnits = createLabelService<ShoppingUnit>('shoppingUnit', { notFound: 'Unité', conflict: UNIT_TAKEN }, { schema: shoppingStorageSchema });
+/** Units of quantity (the products and items keep theirs as text, and follow a renamed one): deleted below. */
+const shoppingUnits = createLabelService<ShoppingUnit>(
+  'shoppingUnit',
+  { notFound: 'Unité', conflict: 'Cette unité existe déjà.' },
+  {
+    afterUpdate: async (tx, before, after) => {
+      if (after.name === before.name) return;
+      await tx.shoppingProduct.updateMany({ where: { unit: before.name }, data: { unit: after.name } });
+      await tx.shoppingItem.updateMany({ where: { unit: before.name }, data: { unit: after.name } });
+    },
+  },
+);
 
 /**
  * Creates a unit of quantity, after the others.
@@ -346,25 +347,10 @@ export function createUnit(input: ShoppingStoreInput): Promise<ShoppingUnit> {
  * Renames a unit: the products and items in it follow.
  * @param {string} id Unit id.
  * @param {Partial<ShoppingStoreInput>} input Changes.
- * @returns {Promise<void>}
+ * @returns {Promise<ShoppingUnit>} Unit.
  */
-export async function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Promise<void> {
-  const current = await orNotFound(prisma.shoppingUnit.findUnique({ where: { id } }), 'Unité');
-  await assertNotArchived('SHOPPING_UNIT', id);
-  const data = parseInput(shoppingStorageSchema, { name: input.name ?? current.name, color: input.color ?? current.color });
-  try {
-    await prisma.$transaction([
-      prisma.shoppingUnit.update({ where: { id }, data }),
-      ...(data.name !== current.name
-        ? [
-            prisma.shoppingProduct.updateMany({ where: { unit: current.name }, data: { unit: data.name } }),
-            prisma.shoppingItem.updateMany({ where: { unit: current.name }, data: { unit: data.name } }),
-          ]
-        : []),
-    ]);
-  } catch (error) {
-    rethrowUnique(error, UNIT_TAKEN);
-  }
+export function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Promise<ShoppingUnit> {
+  return shoppingUnits.update(id, input);
 }
 
 /**
@@ -517,7 +503,7 @@ export async function duplicateList(id: string): Promise<ShoppingList> {
   await assertNotArchived('SHOPPING_LIST', id);
   return prisma.shoppingList.create({
     data: {
-      name: `${list.name} (copie)`.slice(0, 120),
+      name: copyName(list.name, 120),
       items: { create: list.items.map((item, position) => copyOf(item, item.productId, position)) },
     },
   });
@@ -557,7 +543,7 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
   );
   const shares = [...[...members].map(([memberId, cents]) => ({ memberId, relationId: null, cents })), ...[...relations].map(([relationId, cents]) => ({ memberId: null, relationId, cents }))];
   if (entry.lines.length + shares.length > 50) throw clientError('BAD_USER_INPUT', 'Le mouvement aurait plus de 50 lignes de répartition.');
-  const amount = toCents(Number(entry.amount));
+  const amount = decimalCents(entry.amount);
   const percent = total > Math.abs(amount);
   const start = Math.max(-1, ...entry.lines.map((line) => line.position)) + 1;
   await prisma.$transaction([
@@ -568,7 +554,7 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
           position: start + index,
           label: list.name.slice(0, 100),
           mode: percent ? 'PERCENT' : 'AMOUNT',
-          value: new Prisma.Decimal(percent ? Math.round((share.cents / total) * 1_000_000) / 10_000 : (Math.sign(amount) || -1) * fromCents(share.cents)),
+          value: toDecimal(percent ? Math.round((share.cents / total) * 1_000_000) / 10_000 : (Math.sign(amount) || -1) * fromCents(share.cents)),
           memberId: share.memberId,
           relationId: share.relationId,
         },

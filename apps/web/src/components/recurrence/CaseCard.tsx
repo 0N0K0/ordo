@@ -1,6 +1,5 @@
 import { DragHandle } from '../actions/DragHandle';
-import { useSortable } from '@dnd-kit/sortable';
-import { sortableStyle } from '../actions/sortable-style';
+import { useSortableItem } from '../actions/use-sortable-item';
 import { Collapse, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -31,7 +30,7 @@ interface CaseCardProps {
  * @returns {JSX.Element} Case.
  */
 export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemove, sortId, sortable, children }: CaseCardProps) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: sortId, disabled: !sortable });
+  const { ref, style, dragging, handle } = useSortableItem(sortId, !sortable);
   const shown = !collapsible || opened;
   const heading = (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -42,10 +41,10 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
     </Group>
   );
   return (
-    <Paper ref={setNodeRef} withBorder radius="sm" p="sm" shadow={isDragging ? 'md' : undefined} style={sortableStyle({ transform, transition, isDragging })}>
+    <Paper ref={ref} withBorder radius="sm" p="sm" shadow={dragging ? 'md' : undefined} style={style}>
       <Stack gap={shown ? 'xs' : 0}>
         <Group justify="space-between" wrap="nowrap" gap={4}>
-          {sortable && <DragHandle label={`Déplacer le cas ${index}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} size="sm" />}
+          {sortable && <DragHandle label={`Déplacer le cas ${index}`} {...handle} size="sm" />}
           {collapsible ? (
             <UnstyledButton onClick={onToggle} aria-expanded={shown} style={{ minWidth: 0, flex: 1 }}>
               {heading}

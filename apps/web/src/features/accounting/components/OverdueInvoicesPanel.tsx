@@ -52,8 +52,8 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     label: 'Envoi',
     size: 230,
     sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(new Date(invoice.sentAt))) : ''),
-    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null) },
+    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
+    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
   },
   {
     id: 'balance',
@@ -69,7 +69,7 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     size: 200,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
     text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
-    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(new Date(invoice.lastReminderAt)) : null) },
+    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
 ];
@@ -116,7 +116,8 @@ export function OverdueInvoicesPanel() {
     openModal(`Relancer ${countOf(chosen.length, 'facture')}`, (close) => (
       <Stack gap="md">
         <Text size="sm">
-          {chosen.length} mail{chosen.length > 1 ? 's partiront' : ' partira'} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture.
+          {countOf(chosen.length, 'mail')} {plural(chosen.length, 'partira', 'partiront')} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa
+          facture.
         </Text>
         <Stack gap={2}>
           {chosen.map((invoice) => (
@@ -137,7 +138,7 @@ export function OverdueInvoicesPanel() {
                 onSuccess: (results) => {
                   const sent = results.filter((result) => !result.error);
                   const failed = results.filter((result) => result.error);
-                  if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
+                  if (sent.length) notifySuccess(`${countOf(sent.length, 'relance')} ${plural(sent.length, 'envoyée')}.`);
                   if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
                   setSelected(new Set(failed.map((result) => result.documentId)));
                 },
@@ -226,7 +227,7 @@ export function OverdueInvoicesPanel() {
         }}
         cells={(invoice) => {
           // Reminders count from the sending.
-          const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
+          const sentDay = invoice.sentAt ? localDay(invoice.sentAt) : null;
           const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
           const since = daysSinceReminder(invoice, today);
           return {

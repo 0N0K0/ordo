@@ -1,5 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ByWorkspace } from '../../../components/settings/ByWorkspace';
+import { ByWorkspace } from './ByWorkspace';
 
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Button, Stack, Tooltip } from '@mantine/core';
@@ -7,7 +7,7 @@ import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { CalendarBlankIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -64,7 +64,6 @@ function OwnCalendars() {
 function OtherCalendars() {
   const { data: calendars, isPending } = useSubscribableCalendars(true);
   const { subscribe, unsubscribe } = useCalendarMutations();
-  const onError = onMutationError;
 
   return (
     <SettingsSection
@@ -85,7 +84,7 @@ function OtherCalendars() {
               color={calendar.color}
               workspaceName={calendar.workspace.name}
               subscribed={calendar.subscribed}
-              onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(calendar.id, { onError })}
+              onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(calendar.id, ON_ERROR)}
             />
           )}
         </ByWorkspace>

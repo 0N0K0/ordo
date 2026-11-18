@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { Checkbox, Stack, Text, TextInput } from '@mantine/core';
 import { shoppingListFormSchema } from '@ordo/shared';
 import { useNavigate } from 'react-router';
@@ -80,7 +81,12 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
           <Checkbox.Group label="Reprendre les produits manquants de" {...form.getInputProps('baseListIds')}>
             <Stack gap={6} mt={6}>
               {baseLists.map((baseList) => (
-                <Checkbox key={baseList.id} value={baseList.id} disabled={missingOf(baseList.id) === 0} label={`${baseList.name} (${missingOf(baseList.id)} manquant(s))`} />
+                <Checkbox
+                  key={baseList.id}
+                  value={baseList.id}
+                  disabled={missingOf(baseList.id) === 0}
+                  label={`${baseList.name} (${missingOf(baseList.id)} ${plural(missingOf(baseList.id), 'manquant')})`}
+                />
               ))}
             </Stack>
           </Checkbox.Group>

@@ -1,44 +1,4 @@
 @layer app {
-  .table {
-    /* Dimension */
-    table-layout: fixed;
-  }
-
-  .row {
-    /* Arrière-Plan */
-    &[data-selected] {
-      background-color: var(--mantine-primary-color-light);
-    }
-
-    &[data-active] {
-      background-color: var(--mantine-primary-color-light-hover);
-    }
-
-    /* Effets */
-    &[data-archived] {
-      opacity: 0.6;
-    }
-
-    &[data-dragging] {
-      opacity: 0.5;
-    }
-
-    /* Future parent of the dragged task. */
-    &[data-drop-target] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 1px solid var(--mantine-primary-color-filled);
-      outline-offset: -1px;
-    }
-
-    & td {
-      /* Dimension */
-      overflow: hidden;
-    }
-  }
-
   .recurring {
     /* Agencement */
     flex: none;

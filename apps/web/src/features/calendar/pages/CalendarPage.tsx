@@ -1,3 +1,5 @@
+import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
@@ -61,7 +63,7 @@ import { ScheduleSettings } from '../components/ScheduleSettings';
 import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
@@ -92,7 +94,7 @@ interface Filters {
 }
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'display' | 'settings';
+const SETTINGS_TABS = ['display', 'settings'] as const;
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
 /** Rows of the collapsed all-day row (week and day views). */
@@ -721,10 +723,7 @@ export function CalendarPage() {
   };
 
   const api = () => calendarRef.current?.getApi();
-  const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({
-    key: 'ordo.calendar.settingsTab',
-    defaultValue: 'display',
-  });
+  const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
   // Calendars that can be shown: those of the workspace, and those of other workspaces it subscribes to.
   const calendarChoices = [
     ...ownCalendars.map((calendar) => ({
@@ -818,10 +817,7 @@ export function CalendarPage() {
           <SettingsTabPanel value="display">
             <Stack gap="md">
               <SettingsSection title="Affichage">
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Calendriers
-                  </Text>
+                <LabeledField label="Calendriers" gap="xs">
                   {calendarChoices.length === 0 ? (
                     <EmptyState compact message="Aucun calendrier." />
                   ) : (
@@ -840,11 +836,8 @@ export function CalendarPage() {
                       />
                     ))
                   )}
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    {perso ? 'Plages' : 'Plages de travail'}
-                  </Text>
+                </LabeledField>
+                <LabeledField label={perso ? 'Plages' : 'Plages de travail'} gap="xs">
                   {scheduleChoices.length === 0 ? (
                     <EmptyState compact message="Aucune plage." />
                   ) : (
@@ -864,11 +857,8 @@ export function CalendarPage() {
                       />
                     ))
                   )}
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Aussi dans l’agenda
-                  </Text>
+                </LabeledField>
+                <LabeledField label="Aussi dans l’agenda" gap="xs">
                   <Switch
                     label="Tâches"
                     checked={filters.tasks}
@@ -910,11 +900,8 @@ export function CalendarPage() {
                     }
                   />
                   <ShowArchivedSwitch checked={showArchived} onChange={(archived) => setFilters({ ...filters, archived })} />
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Heures (semaine, jour)
-                  </Text>
+                </LabeledField>
+                <LabeledField label="Heures (semaine, jour)" gap="xs">
                   <Switch
                     label="Par 5 minutes"
                     description="Sinon par 30 minutes : les routines courtes se lisent mieux par 5 minutes."
@@ -926,7 +913,7 @@ export function CalendarPage() {
                       })
                     }
                   />
-                </Stack>
+                </LabeledField>
               </SettingsSection>
               <SettingsSection title="Exporter">
                 <Group gap="sm" wrap="wrap">

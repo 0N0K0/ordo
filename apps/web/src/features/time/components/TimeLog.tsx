@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
@@ -26,6 +27,7 @@ import type { TreeOption } from '../../../components/tree/tree-select';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 /**
  * Seconds of the finished times (a running timer counts once stopped).
@@ -81,16 +83,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       filter: { kind: 'date', value: (entry) => localDay(entry.startedAt) },
       groupable: true,
     },
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 140,
-      hiddenByDefault: true,
-      sortValue: (entry) => localDay(entry.startedAt).slice(0, 7),
-      text: (entry) => fmt.capitalize(fmt.month(entry.startedAt)),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', (entry) => entry.startedAt, 140),
     { id: 'start', bulk: true, label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(entry.startedAt), text: (entry) => fmt.time(entry.startedAt), filter: false },
     {
       id: 'end',
@@ -254,7 +247,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
               title: 'Supprimer les temps',
               risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}. Cette action est irréversible.`,
               remove: (entry) => remove.mutateAsync(entry.id),
-              done: `${deletable.length} temps supprimé(s).`,
+              done: `${deletable.length} temps ${plural(deletable.length, 'supprimé')}.`,
               clear,
             }),
             disabled: deletable.length === 0,

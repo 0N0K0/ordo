@@ -1,8 +1,12 @@
+import type { InputObjectRef } from '@pothos/core';
 import type PrismaTypes from '../generated/pothos-types';
 import { prisma } from '../db';
 import type { LabelService } from '../services/core/labels';
 import { builder } from './builder';
 import { done } from './errors';
+
+/** Schema types of the builder. */
+type BuilderTypes = typeof builder extends PothosSchemaTypes.SchemaBuilder<infer Types> ? Types : never;
 
 /** Name and color of an item of a simple list (a status, a category, a store…). */
 export const NameColorInput = builder.inputType('NameColorInput', {
@@ -42,8 +46,8 @@ export function labelObject(name: LabelModel, options: { description?: string; c
   });
 }
 
-/** Input type of the create or update mutation of a simple list (`NameColorInput`, `TaskLabelInput`…). */
-type LabelInputRef = typeof NameColorInput | typeof NameColorPatch;
+/** Input type of the create or update mutation of a simple list (`NameColorInput`, `TaskLabelInput`, `ScheduleTypeInput`…). */
+type LabelInputRef = InputObjectRef<BuilderTypes, object>;
 
 /**
  * Defines the create, update and delete mutations of a simple list (`createTaskStatus`, `updateTaskStatus`,
@@ -51,9 +55,15 @@ type LabelInputRef = typeof NameColorInput | typeof NameColorPatch;
  * @param {LabelModel} name Prisma model (and GraphQL type) name, also the suffix of the mutations.
  * @param {LabelService<{ id: string }>} service Label service of the model.
  * @param {{ create: LabelInputRef, update: LabelInputRef }} inputs Input types of the create and update mutations.
+ * @param {Partial<Record<'create' | 'update' | 'delete', string>>} [descriptions] Descriptions of the mutations (what follows them). Optional.
  * @returns {void}
  */
-export function labelMutations(name: LabelModel, service: LabelService<{ id: string }>, inputs: { create: LabelInputRef; update: LabelInputRef }): void {
+export function labelMutations(
+  name: LabelModel,
+  service: LabelService<{ id: string }>,
+  inputs: { create: LabelInputRef; update: LabelInputRef },
+  descriptions: Partial<Record<'create' | 'update' | 'delete', string>> = {},
+): void {
   // Every LabelModel is an object of the schema, so typing the calls with one of them is enough.
   const type = name as 'TaskPriority';
   const model = (prisma as unknown as Record<string, typeof prisma.taskPriority>)[name.charAt(0).toLowerCase() + name.slice(1)];
@@ -69,15 +79,18 @@ export function labelMutations(name: LabelModel, service: LabelService<{ id: str
   builder.mutationFields((t) => ({
     [`create${name}`]: t.prismaField({
       type,
+      ...(descriptions.create === undefined ? {} : { description: descriptions.create }),
       args: { input: t.arg({ type: inputs.create as typeof NameColorInput, required: true }) },
       resolve: async (query, _root, { input }) => reload(query, await service.create(input)),
     }),
     [`update${name}`]: t.prismaField({
       type,
+      ...(descriptions.update === undefined ? {} : { description: descriptions.update }),
       args: { id: t.arg.id({ required: true }), input: t.arg({ type: inputs.update as typeof NameColorPatch, required: true }) },
       resolve: async (query, _root, { id, input }) => reload(query, await service.update(id, input)),
     }),
     [`delete${name}`]: t.boolean({
+      ...(descriptions.delete === undefined ? {} : { description: descriptions.delete }),
       args: { id: t.arg.id({ required: true }) },
       resolve: (_root, { id }) => done(service.remove(id)),
     }),

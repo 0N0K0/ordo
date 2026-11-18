@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { countOf } from '../../../lib/text';
 import { moveToIndex } from '../../../lib/mutation';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
@@ -12,15 +13,15 @@ import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Badge, Group, Stack } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { z } from 'zod';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { BaseList } from './BaseList';
 
@@ -96,22 +97,14 @@ export function BaseLists() {
       title: 'Supprimer la référence',
       risks: (
         <>
-          <Text size="sm">
-            « {baseList.name} » sera supprimée définitivement{count ? `, avec ses ${countOf(count, 'produit')} et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments. Cette
-            action est irréversible.
-          </Text>
+          « {baseList.name} » sera supprimée définitivement{count ? `, avec ses ${countOf(count, 'produit')} et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments. Cette
+          action est irréversible.
         </>
       ),
       onConfirm: () => {
         mutations.deleteBaseList.mutate(
           { id: baseList.id },
-          {
-            onSuccess: () => {
-              notifySuccess('Référence supprimée.');
-              select(null);
-            },
-            onError: onMutationError,
-          },
+          formCallbacks(null, 'Référence supprimée.', () => select(null)),
         );
       },
     });
@@ -162,11 +155,7 @@ export function BaseLists() {
         actions={(baseList) => [
           // Archived: read only.
           ...(baseList.archived ? [] : [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]),
-          {
-            label: baseList.archived ? 'Restaurer' : 'Archiver',
-            icon: baseList.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-            onClick: () => void archiveWithUndo(setArchived, { ids: [baseList.id], archived: !baseList.archived, label: `Référence « ${baseList.name} »`, feminine: true }),
-          },
+          archiveEntry({ archived: baseList.archived, label: `Référence « ${baseList.name} »`, feminine: true }, setArchived, baseList.id),
         ]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}

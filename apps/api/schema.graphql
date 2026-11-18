@@ -537,6 +537,7 @@ type CalendarWorkspace {
 Product or service of the catalogue: default fields of a document line.
 """
 type CatalogItem {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   description: String
   id: ID!
@@ -548,7 +549,6 @@ type CatalogItem {
 }
 
 input CatalogItemInput {
-  archived: Boolean!
   description: String
 
   """ITEM or DISBURSEMENT."""
@@ -595,6 +595,8 @@ type Client {
 
   """Postal address { lines, postalCode, city, region, country }."""
   address: JSON
+
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   color: String
   contacts: [ClientContact!]!
@@ -1627,7 +1629,7 @@ type Mutation {
 
   """Creates a folder (under another one, or at the top); returns its path."""
   createMailFolder(accountId: ID!, name: String!, parent: String): String!
-  createMailLabel(color: String!, name: String!): ID!
+  createMailLabel(input: NameColorInput!): MailLabel!
   createMailSearch(input: MailSearchInput!): ID!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
@@ -1636,8 +1638,9 @@ type Mutation {
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
   createRoutine(input: RoutineInput!): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
+  createScheduleType(input: ScheduleTypeInput!): ScheduleType!
   createSheet(input: SheetInput!): ID!
-  createSheetCategory(input: NameColorInput!): ID!
+  createSheetCategory(input: NameColorInput!): SheetCategory!
   createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
   createShoppingDelivery(input: ShoppingDeliveryInput!, listId: ID!): ID!
@@ -1645,9 +1648,9 @@ type Mutation {
   """Creates a list, empty or with the missing products of some base lists."""
   createShoppingList(baseListIds: [ID!]!, name: String!, taskIds: [ID!]!): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
-  createShoppingStorage(input: NameColorInput!): ID!
-  createShoppingStore(input: NameColorInput!): ID!
-  createShoppingUnit(input: NameColorInput!): ID!
+  createShoppingStorage(input: NameColorInput!): ShoppingStorage!
+  createShoppingStore(input: NameColorInput!): ShoppingStore!
+  createShoppingUnit(input: NameColorInput!): ShoppingUnit!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createStockItem(input: StockItemInput!): ID!
   createStockLocation(input: StockLocationInput!): ID!
@@ -1980,7 +1983,6 @@ type Mutation {
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
   savePlace(id: ID, input: PlaceInput!): ID!
-  saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
 
   """Adds an item of a list to a base list; returns the product."""
   saveShoppingItemToBase(baseListId: ID!, id: ID!): ID!
@@ -2185,7 +2187,7 @@ type Mutation {
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateLibraryDocument(file: File, id: ID!, note: String, title: String!, url: String): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
-  updateMailLabel(color: String!, id: ID!, name: String!): Boolean!
+  updateMailLabel(id: ID!, input: NameColorPatch!): MailLabel!
   updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
@@ -2203,19 +2205,20 @@ type Mutation {
     restoring: Boolean
   ): Boolean!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
+  updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
-  updateSheetCategory(id: ID!, input: NameColorPatch!): Boolean!
+  updateSheetCategory(id: ID!, input: NameColorPatch!): SheetCategory!
   updateSheetItem(id: ID!, input: SheetItemInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingDelivery(id: ID!, input: ShoppingDeliveryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
-  updateShoppingStorage(id: ID!, input: NameColorPatch!): Boolean!
-  updateShoppingStore(id: ID!, input: NameColorPatch!): Boolean!
+  updateShoppingStorage(id: ID!, input: NameColorPatch!): ShoppingStorage!
+  updateShoppingStore(id: ID!, input: NameColorPatch!): ShoppingStore!
 
   """Renames a unit; the products and items in it follow."""
-  updateShoppingUnit(id: ID!, input: NameColorPatch!): Boolean!
+  updateShoppingUnit(id: ID!, input: NameColorPatch!): ShoppingUnit!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
@@ -2318,6 +2321,7 @@ input ProductStockInput {
 }
 
 type Project {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   categories: [ProjectCategory!]!
   clientId: ID
@@ -2791,6 +2795,7 @@ type ReminderResult {
 Task repeating on a calendar rule, ticked once done for its current occurrence.
 """
 type Routine {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   assigneeIds: [ID!]!
 
@@ -3816,6 +3821,7 @@ type SubscribableCalendar {
 }
 
 type Task {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   assigneeIds: [ID!]!
 
@@ -4169,6 +4175,7 @@ type TravelTime {
 }
 
 type TreasuryAccount {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
 
   """Balance today."""
@@ -4188,7 +4195,6 @@ type TreasuryAccount {
 }
 
 input TreasuryAccountInput {
-  archived: Boolean!
   name: String!
   openingBalance: Float!
   openingDate: Date!
@@ -4337,6 +4343,7 @@ input TreasuryContextPeriodInput {
 }
 
 type TreasuryCounterparty {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   color: String
   entryCount: Int!
@@ -4350,7 +4357,6 @@ type TreasuryCounterparty {
 }
 
 input TreasuryCounterpartyInput {
-  archived: Boolean!
   name: String!
   note: String
 }

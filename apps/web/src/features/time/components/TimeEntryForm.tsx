@@ -3,7 +3,7 @@ import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { useState } from 'react';
-import { localParts, localToday } from '../../../lib/dates';
+import { localInstant, localParts, localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { ProjectSelect } from '../../tasks/components/task-ui';
@@ -39,7 +39,7 @@ interface TimeEntryFormProps {
 export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
   const { data: routinesData } = useRoutinesData();
-  const parts = entry ? localParts(new Date(entry.startedAt)) : null;
+  const parts = entry ? localParts(entry.startedAt) : null;
   const initial = parts ? { date: parts.date, start: parts.time } : { date: localToday(), start: '09:00' };
   const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
   const form = useAppForm<TimeEntryFormValues>({
@@ -69,7 +69,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       taskIds: values.taskIds,
       description: values.description,
       // Local day and time.
-      startedAt: new Date(`${values.date}T${values.start}`).toISOString(),
+      startedAt: localInstant(values.date, values.start).toISOString(),
       duration: parseDuration(values.duration)!,
       event: parseEventKey(eventKey),
     };

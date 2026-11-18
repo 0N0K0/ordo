@@ -180,13 +180,6 @@ const DeliveryInput = builder.inputType('ShoppingDeliveryInput', {
 });
 
 /**
- * Day of a Date scalar.
- * @param {unknown} value Date argument.
- * @returns {string | null} YYYY-MM-DD.
- */
-const day = (value: unknown) => (value ? String(value instanceof Date ? value.toISOString() : value).slice(0, 10) : null);
-
-/**
  * Item input as the service reads it.
  * @param {typeof ItemInput.$inferInput} input Input.
  * @returns {import('@ordo/shared').NewStockItemInput} Item.
@@ -202,7 +195,7 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
   memberIds: input.memberIds,
   relationIds: input.relationIds,
   quantity: input.quantity ?? null,
-  expiresAt: day(input.expiresAt),
+  expiresAt: input.expiresAt ?? null,
 });
 
 /**
@@ -214,8 +207,8 @@ const deliveryInput = (input: typeof DeliveryInput.$inferInput) => ({
   label: input.label ?? null,
   trackingUrl: input.trackingUrl ?? null,
   pickup: input.pickup,
-  windowFrom: day(input.windowFrom),
-  windowTo: day(input.windowTo),
+  windowFrom: input.windowFrom ?? null,
+  windowTo: input.windowTo ?? null,
   address: input.address ?? null,
   lat: input.lat ?? null,
   lon: input.lon ?? null,
@@ -279,13 +272,13 @@ builder.mutationFields((t) => ({
         kind: input.kind as 'PURCHASE' | 'CONSUMPTION' | 'LOSS' | 'CORRECTION',
         quantity: input.quantity,
         lotId: input.lotId || null,
-        expiresAt: day(input.expiresAt),
+        expiresAt: input.expiresAt ?? null,
         note: input.note ?? null,
       }),
   }),
   setStockLotExpiry: t.boolean({
     args: { id: t.arg.id({ required: true }), expiresAt: t.arg({ type: 'Date' }) },
-    resolve: (_root, { id, expiresAt }) => done(stock.setLotExpiry(id, day(expiresAt))),
+    resolve: (_root, { id, expiresAt }) => done(stock.setLotExpiry(id, expiresAt ?? null)),
   }),
   recordStockCount: t.id({
     args: { input: t.arg({ type: CountInput, required: true }) },
@@ -306,7 +299,7 @@ builder.mutationFields((t) => ({
     description: 'Adds an item bought on a shopping list to the stock.',
     args: { input: t.arg({ type: PurchaseInput, required: true }) },
     resolve: (_root, { input }) =>
-      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: day(input.expiresAt) }),
+      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: input.expiresAt ?? null }),
       ),
   }),
   setShoppingOrder: t.boolean({

@@ -8,6 +8,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import * as fmt from '../../../lib/format';
 import { useStockMovements, type StockMovement } from '../api';
 import { SignedAmount } from '../../../components/money/SignedAmount';
+import { localDay } from '../../../lib/dates';
+import { monthColumn } from '../../../components/data-table/table/month-column';
 
 const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
 
@@ -25,18 +27,9 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
       size: 150,
       sortValue: (movement) => movement.date,
       text: (movement) => fmt.dateTime(movement.date),
-      filter: { kind: 'date', value: (movement) => movement.date.slice(0, 10) },
+      filter: { kind: 'date', value: (movement) => localDay(movement.date) },
     },
-    {
-      id: 'month',
-      label: 'Mois',
-      size: 130,
-      hiddenByDefault: true,
-      sortValue: (movement) => movement.date.slice(0, 7),
-      text: (movement) => fmt.capitalize(fmt.month(movement.date.slice(0, 7))),
-      filter: false,
-      groupable: true,
-    },
+    monthColumn('month', 'Mois', (movement) => movement.date, 130),
     { id: 'item', label: 'Article', size: 200, locked: true, sortValue: (movement) => movement.itemLabel, text: (movement) => movement.itemLabel, groupable: true },
     {
       id: 'kind',

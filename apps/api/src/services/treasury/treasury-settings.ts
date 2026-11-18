@@ -138,15 +138,15 @@ export async function createCounterparty(input: TreasuryCounterpartyInput): Prom
 }
 
 /**
- * Updates (or archives) a counterparty; an archived one is only changed when restored by it.
+ * Updates a counterparty; not an archived one (restore it first).
  * @param {string} id Counterparty id.
  * @param {TreasuryCounterpartyInput} input Counterparty.
  * @returns {Promise<TreasuryCounterparty>} Counterparty.
  */
 export async function updateCounterparty(id: string, input: TreasuryCounterpartyInput): Promise<TreasuryCounterparty> {
   const data = parseInput(treasuryCounterpartySchema, input);
-  const current = await orNotFound(prisma.treasuryCounterparty.findUnique({ where: { id }, select: { archived: true } }), 'Tiers');
-  if (current.archived && data.archived) await assertNotArchived('TREASURY_COUNTERPARTY', id);
+  await assertExists(prisma.treasuryCounterparty, id, 'Tiers');
+  await assertNotArchived('TREASURY_COUNTERPARTY', id);
   return prisma.treasuryCounterparty.update({ where: { id }, data });
 }
 

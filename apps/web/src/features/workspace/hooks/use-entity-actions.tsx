@@ -3,7 +3,7 @@ import { openModal } from '../../../components/panels/open-modal';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
-import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { descendantIds, useSetClientArchived, useSetClientFavorite, useSetProjectArchived, useSetProjectFavorite, useUpdateClient, useUpdateProject, workspaceQueryKey, type Client, type Project, type Workspace } from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
@@ -97,9 +97,8 @@ export function useEntityActions() {
    */
   const rename = (entity: EntityRef, label: string): void => {
     if (label === entityLabel(entity)) return;
-    const onError = onMutationError;
-    if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, { onError });
-    else updateProject.mutate({ id: entity.item.id, input: { title: label } }, { onError });
+    if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, ON_ERROR);
+    else updateProject.mutate({ id: entity.item.id, input: { title: label } }, ON_ERROR);
   };
 
   return {

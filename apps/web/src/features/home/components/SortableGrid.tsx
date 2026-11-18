@@ -1,9 +1,9 @@
-import { arrayMove, useSortable } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 import { SimpleGrid } from '@mantine/core';
-import { useMemo, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { DragHandleContext } from '../lib/drag-handle';
 import { SortableArea } from '../../../components/actions/sortable';
-import { sortableStyle } from '../../../components/actions/sortable-style';
+import { useSortableItem } from '../../../components/actions/use-sortable-item';
 
 interface SortableItemProps {
   id: string;
@@ -16,10 +16,9 @@ interface SortableItemProps {
  * @returns {JSX.Element} Item.
  */
 function SortableItem({ id, children }: SortableItemProps) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
-  const handle = useMemo(() => ({ activator: setActivatorNodeRef, attributes, listeners, dragging: isDragging }), [setActivatorNodeRef, attributes, listeners, isDragging]);
+  const { ref, style, handle } = useSortableItem(id);
   return (
-    <div ref={setNodeRef} style={{ ...sortableStyle({ transform, transition, isDragging }), opacity: isDragging ? 0.85 : undefined }}>
+    <div ref={ref} style={style}>
       <DragHandleContext.Provider value={handle}>{children}</DragHandleContext.Provider>
     </div>
   );

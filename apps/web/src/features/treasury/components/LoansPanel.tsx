@@ -84,7 +84,7 @@ const COLUMNS: DataColumn<LoanRow>[] = [
     size: 120,
     sortValue: (row) => (row.kind === 'line' ? row.date : null),
     text: (row) => (row.kind === 'line' ? fmt.day(row.date) : ''),
-    filter: { kind: 'date', value: (row) => (row.kind === 'line' ? row.date.slice(0, 10) : null) },
+    filter: { kind: 'date', value: (row) => (row.kind === 'line' ? row.date : null) },
   },
   {
     id: 'amount',

@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Checkbox, Popover, Group, NumberInput, Select, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { ActionIcon, Anchor, Checkbox, Popover, Group, NumberInput, Select, Text, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -351,6 +351,8 @@ interface EditablePopoverCellProps {
   onOpenedChange?: (opened: boolean) => void;
   /** After the editor closes. Optional. */
   onClose?: () => void;
+  /** Only shown (archived row…): no editor. Optional. Default = false. */
+  readOnly?: boolean;
   /** Editor. */
   children: ReactNode;
 }
@@ -361,7 +363,14 @@ interface EditablePopoverCellProps {
  * @param {EditablePopoverCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditablePopoverCell({ target, empty = false, label, width, truncate = false, opened, onOpenedChange, onClose, children }: EditablePopoverCellProps) {
+export function EditablePopoverCell({ target, empty = false, label, width, truncate = false, opened, onOpenedChange, onClose, readOnly = false, children }: EditablePopoverCellProps) {
+  if (readOnly) {
+    return (
+      <Text component="div" size="sm" c={empty ? 'dimmed' : undefined} aria-label={label} truncate={truncate}>
+        {target}
+      </Text>
+    );
+  }
   return (
     <Popover opened={opened} onChange={onOpenedChange} onClose={onClose} position="bottom-start" withinPortal shadow="md" width={width}>
       <Popover.Target>

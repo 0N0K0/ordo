@@ -56,6 +56,7 @@ function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSor
       ref={setNodeRef}
       style={{ width: column.width, transform: CSS.Translate.toString(transform), transition }}
       className={classes.header}
+      data-reveal-host
       data-dragging={isDragging || undefined}
       data-numeric={column.numeric || undefined}
       aria-sort={sort ? (sort.desc ? 'descending' : 'ascending') : undefined}
@@ -76,7 +77,7 @@ function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSor
         ) : (
           <span className={classes.label}>{column.label}</span>
         )}
-        <span className={classes.headerMenu}>
+        <span className={classes.headerMenu} data-reveal>
           <ColumnHeaderMenu
             label={column.label}
             sort={sortable ? (sort ?? null) : undefined}

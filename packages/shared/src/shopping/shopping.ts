@@ -8,7 +8,19 @@ const linkSchema = z
   .transform((value) => value || null)
   .nullable();
 
-const quantitySchema = z.number({ error: 'Nombre attendu.' }).positive('La quantité doit être positive.').max(999_999, 'Quantité trop grande.').nullable();
+/** Most characters of the unit of a product (sheet, stock or shopping item), as a unit of the settings. */
+export const UNIT_MAX = 50;
+/** Most characters of the note of a product (sheet, stock or shopping item). */
+export const ITEM_NOTE_MAX = 500;
+/** Most characters of the name of a shopping product or item. */
+export const SHOPPING_NAME_MAX = 120;
+
+/** Quantity of a product (sheet, stock or shopping item): 0 or more. */
+export const quantitySchema = z.number({ error: 'Nombre attendu.' }).min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
+/** Unit of a product (sheet, stock or shopping item): may be left empty (null). */
+export const unitSchema = optionalText(UNIT_MAX);
+/** Note of a product (sheet, stock or shopping item, markdown): may be left empty (null). */
+export const itemNoteSchema = optionalText(ITEM_NOTE_MAX);
 const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne peut pas être négatif.').max(9_999_999, 'Prix trop grand.').nullable();
 
 /** Store: a name and a color. */
@@ -30,13 +42,13 @@ export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
 /** Fields shared by a product of the base list and an item of a list. */
 const shoppingFields = {
-  name: requiredText(120),
+  name: requiredText(SHOPPING_NAME_MAX),
   categoryId: z.string().nullable(),
   storeId: z.string().nullable(),
   url: linkSchema,
-  note: optionalText(500),
-  quantity: quantitySchema,
-  unit: optionalText(20),
+  note: itemNoteSchema,
+  quantity: quantitySchema.nullable(),
+  unit: unitSchema,
   unitPrice: priceSchema,
   /** Members of the team or household it is for. */
   memberIds: z.array(z.string()).max(50).default([]),

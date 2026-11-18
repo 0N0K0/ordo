@@ -1,0 +1,30 @@
+@layer app {
+  /*
+   * Revealed on hover: an element marked [data-reveal] (row actions, drag handle, check box…) stays hidden until its
+   * host ([data-reveal-host]: a row, a column header) is hovered, focused or has its menu open; always shown on touch
+   * screens (no hover). A component may add its own cases (checked, while rows are checked…).
+   */
+  [data-reveal] {
+    /* Effets */
+    opacity: 0;
+
+    /* Animation */
+    transition: opacity 120ms ease;
+  }
+
+  [data-reveal-host]:hover [data-reveal],
+  [data-reveal-host]:focus-within [data-reveal],
+  [data-reveal-host][data-menu-open] [data-reveal],
+  [data-reveal]:focus-within,
+  [data-reveal]:focus-visible {
+    /* Effets */
+    opacity: 1;
+  }
+
+  /* Touch screens: no hover, always shown. */
+  @media (hover: none) {
+    [data-reveal] {
+      opacity: 1;
+    }
+  }
+}

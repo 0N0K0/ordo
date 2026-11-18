@@ -1,7 +1,7 @@
+import { formCallbacks } from '../../../lib/form';
 import { Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useDeleteClient, useDeleteProject, type Client, type Project } from '../api';
 import { countOf } from '../../../lib/text';
 
@@ -30,13 +30,7 @@ export function DeleteClientDialog({ client, projectCount, onDone }: DeleteClien
   const handleConfirm = () => {
     deleteClient.mutate(
       { id: client.id, deleteProjects: mode === 'delete' },
-      {
-        onSuccess: () => {
-          notifySuccess(`Client « ${client.name} » supprimé.`);
-          onDone(true);
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, `Client « ${client.name} » supprimé.`, () => onDone(true)),
     );
   };
 
@@ -88,13 +82,7 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
   const handleConfirm = () => {
     deleteProject.mutate(
       { id: project.id },
-      {
-        onSuccess: () => {
-          notifySuccess(`Projet « ${project.title} » supprimé.`);
-          onDone(true);
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, `Projet « ${project.title} » supprimé.`, () => onDone(true)),
     );
   };
 

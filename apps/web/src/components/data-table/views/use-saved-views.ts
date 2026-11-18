@@ -4,7 +4,7 @@ import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
-import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from '../../../features/tasks/api';
+import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
 
 /** Saved view with its configuration parsed. */
 export interface SavedView<C> extends Omit<TaskViewRecord, 'config'> {

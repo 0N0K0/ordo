@@ -27,7 +27,6 @@ builder.prismaObject('Client', {
     color: t.exposeString('color', { nullable: true }),
     position: t.exposeInt('position'),
     favorite: t.exposeBoolean('favorite'),
-    archived: t.boolean({ resolve: (client) => client.archivedAt !== null }),
   }),
 });
 
@@ -45,7 +44,6 @@ builder.prismaObject('Project', {
     color: t.exposeString('color', { nullable: true }),
     position: t.exposeInt('position'),
     favorite: t.exposeBoolean('favorite'),
-    archived: t.boolean({ resolve: (project) => project.archivedAt !== null }),
     categories: t.relation('categories', { query: { orderBy: { name: 'asc' } } }),
   }),
 });

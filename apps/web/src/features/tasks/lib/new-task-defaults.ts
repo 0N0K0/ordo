@@ -12,6 +12,16 @@ export interface NewTaskDefaults extends Partial<TaskInputValues> {
 }
 
 /**
+ * Status a new task starts with: the first « to do » status not archived, else the first status not archived.
+ * @param {TaskContext} context Task context.
+ * @returns {string | null} Status id (none: no status defined).
+ */
+export function defaultStatusId(context: TaskContext): string | null {
+  const statuses = context.statuses.filter((status) => !status.archived);
+  return (statuses.find((status) => status.category === 'TODO') ?? statuses[0])?.id ?? null;
+}
+
+/**
  * Values of a new task created in a group: the group's status, priority, type, assignee, milestone, sprint,
  * parent, project or state. The "none" group sets nothing, nor the group of an archived value (not given anymore).
  * @param {TaskGroupBy} groupBy Grouping field.

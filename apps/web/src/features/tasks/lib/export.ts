@@ -1,4 +1,5 @@
-import { formatDuration, type TaskColumn } from '@ordo/shared';
+import { commentTotal } from '../../comments/lib/comment-column';
+import { formatDuration, printedDay, type TaskColumn } from '@ordo/shared';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
@@ -6,13 +7,6 @@ import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import * as fmt from '../../../lib/format';
 import { beneficiaryNames } from '../../beneficiaries/hooks/use-beneficiaries';
 import { taskRef } from '../hooks/use-task-context';
-
-/**
- * Calendar date (YYYY-MM-DD) as dd/mm/yyyy.
- * @param {string | null} day Date.
- * @returns {string} Text.
- */
-const printedDay = (day: string | null) => (day ? fmt.exportDay(day) : '');
 
 /**
  * Text of a task cell.
@@ -58,11 +52,11 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'trackedTime':
       return task.trackedSeconds > 0 ? formatDuration(task.trackedSeconds) : '';
     case 'startDate':
-      return printedDay(task.startDate);
+      return task.startDate ? printedDay(task.startDate) : '';
     case 'endDate':
-      return printedDay(task.endDate);
+      return task.endDate ? printedDay(task.endDate) : '';
     case 'deadline':
-      return printedDay(task.deadline);
+      return task.deadline ? printedDay(task.deadline) : '';
     case 'minDate':
       return task.minDate ? fmt.exportDay(task.minDate) : '';
     case 'slots':
@@ -105,7 +99,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       return numbers(task.relatedIds);
     case 'comments': {
       // A description counts as a comment.
-      const count = task.commentCount + (task.description?.trim() ? 1 : 0);
+      const count = commentTotal(task.commentCount, task.description);
       return count ? String(count) : '';
     }
     case 'createdAt':

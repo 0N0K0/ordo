@@ -1,6 +1,5 @@
-import { calendarCategoryFormSchema } from '@ordo/shared';
 import { categorySubtree } from '../../../components/tree/category-tree';
-import { listMutations } from '../../../components/settings/settings-api';
+import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { useCalendarCategories, useCalendarCategoryMutations } from '../api';
 import { countOf } from '../../../lib/text';
@@ -12,29 +11,19 @@ import { countOf } from '../../../lib/text';
  */
 export function CalendarCategoriesManager() {
   const { data: categories, isPending } = useCalendarCategories();
-  const { create, update, remove, move } = useCalendarCategoryMutations();
+  const { remove, move } = useCalendarCategoryMutations();
+  const kind = useCalendarCategoryItems();
   const items = categories ?? [];
-  /**
-   * Input of a category from the form values.
-   * @param {{ name: string, color: string, parentId: string | null }} values Values.
-   * @returns {{ name: string, color: string, parentId: string | null }} Input.
-   */
-  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color, parentId: values.parentId });
-  const { create: add, update: save } = listMutations({ create, update, remove: { mutateAsync: async () => undefined } }, input);
   return (
     <SettingsList
-      kind="CALENDAR_CATEGORY"
+      {...kind}
       nested
-      colorRequired
       title="Catégories d’agenda"
       description="Classent les évènements, en arborescence. Filtrer l’agenda sur une catégorie inclut ses sous-catégories."
       noun="la catégorie"
       items={items}
       loading={isPending}
       storageKey="calendar-categories"
-      schema={calendarCategoryFormSchema}
-      create={add}
-      update={save}
       remove={(id) => remove.mutateAsync(id)}
       move={(id, parentId, index) => move.mutateAsync({ id, parentId, index })}
       deleteMessage={(category, path) => {

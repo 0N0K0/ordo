@@ -1,7 +1,7 @@
-import { Menu } from '@mantine/core';
 import { shoppingItemSchema, type ShoppingItemInput } from '@ordo/shared';
 import { ListPlusIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { AddRowButton, AddRowField } from '../../../components/data-table/cells/AddRowField';
 
 /** Fields of a row added in a group (its category, store, way of keeping or person). */
@@ -43,18 +43,14 @@ export function AddShoppingRow({ label, onCreate, onPick, place, groupName }: Ad
     );
   }
   return (
-    <Menu position="bottom-start" shadow="md" withinPortal>
-      <Menu.Target>
-        <AddRowButton label="Ajouter" aria-label={`Ajouter dans ${groupName}`} />
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Item leftSection={<ListPlusIcon aria-hidden />} onClick={onPick}>
-          Depuis les références…
-        </Menu.Item>
-        <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => setTyping(true)}>
-          Hors références
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
+    <ActionsMenu
+      name={groupName}
+      position="bottom-start"
+      target={<AddRowButton label="Ajouter" aria-label={`Ajouter dans ${groupName}`} />}
+      items={[
+        { label: 'Depuis les références…', icon: <ListPlusIcon aria-hidden />, onClick: onPick },
+        { label: 'Hors références', icon: <PencilSimpleLineIcon aria-hidden />, onClick: () => setTyping(true) },
+      ]}
+    />
   );
 }

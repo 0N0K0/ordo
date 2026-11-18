@@ -9,6 +9,7 @@ import { builder } from '../builder';
 import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
+import { fromDecimal } from '../../services/core/decimal';
 
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
 export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
@@ -22,12 +23,12 @@ builder.prismaObject('AccountingLine', {
     kind: t.field({ type: LineKindEnum, resolve: (line) => line.kind }),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
-    quantity: t.float({ resolve: (line) => Number(line.quantity) }),
+    quantity: t.float({ resolve: (line) => fromDecimal(line.quantity) }),
     unit: t.field({ type: UnitEnum, resolve: (line) => line.unit }),
-    unitPrice: t.float({ resolve: (line) => Number(line.unitPrice) }),
-    vatRate: t.float({ resolve: (line) => Number(line.vatRate) }),
+    unitPrice: t.float({ resolve: (line) => fromDecimal(line.unitPrice) }),
+    vatRate: t.float({ resolve: (line) => fromDecimal(line.vatRate) }),
     discountType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (line) => line.discountType }),
-    discountValue: t.float({ nullable: true, resolve: (line) => (line.discountValue === null ? null : Number(line.discountValue)) }),
+    discountValue: t.float({ nullable: true, resolve: (line) => fromDecimal(line.discountValue) }),
     deductedDocumentId: t.exposeID('deductedDocumentId', { nullable: true, description: 'Deductions: deposit invoice whose amount the line takes off.' }),
   }),
 });
@@ -74,7 +75,7 @@ builder.prismaObject('AccountingDocument', {
     paymentMethods: t.exposeString('paymentMethods', { nullable: true }),
     lateInterest: t.exposeString('lateInterest', { nullable: true }),
     depositType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (document) => document.depositType }),
-    depositValue: t.float({ nullable: true, resolve: (document) => (document.depositValue === null ? null : Number(document.depositValue)) }),
+    depositValue: t.float({ nullable: true, resolve: (document) => fromDecimal(document.depositValue) }),
     billingSchedule: t.exposeString('billingSchedule', { nullable: true }),
     timeEntries: t.relation('timeEntries', { description: 'Tracked time billed on the document.', query: { orderBy: { startedAt: 'asc' } } }),
     otherMentions: t.exposeString('otherMentions', { nullable: true }),
@@ -82,11 +83,11 @@ builder.prismaObject('AccountingDocument', {
     vatApplicable: t.exposeBoolean('vatApplicable'),
     vatExemptionText: t.exposeString('vatExemptionText', { nullable: true }),
     globalDiscountType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (document) => document.globalDiscountType }),
-    globalDiscountValue: t.float({ nullable: true, resolve: (document) => (document.globalDiscountValue === null ? null : Number(document.globalDiscountValue)) }),
+    globalDiscountValue: t.float({ nullable: true, resolve: (document) => fromDecimal(document.globalDiscountValue) }),
     currency: t.exposeString('currency'),
-    totalNet: t.float({ resolve: (document) => Number(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => Number(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => Number(document.totalGross) }),
+    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
+    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
+    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
     invoicedNet: t.float({
       nullable: true,
       description: 'Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).',
@@ -137,9 +138,9 @@ builder.prismaObject('ImportedDocument', {
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
     title: t.exposeString('title', { nullable: true }),
-    totalNet: t.float({ resolve: (document) => Number(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => Number(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => Number(document.totalGross) }),
+    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
+    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
+    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
     currency: t.exposeString('currency'),
     note: t.exposeString('note', { nullable: true }),
     fileUrl: t.string({

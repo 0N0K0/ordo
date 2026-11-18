@@ -19,7 +19,7 @@ import {
 } from '@phosphor-icons/react';
 
 /** A page of the app: its address, its name (menu, header, page title) and its icon (menu). */
-export interface AppPage {
+interface AppPage {
   path: string;
   title: string;
   icon: Icon;

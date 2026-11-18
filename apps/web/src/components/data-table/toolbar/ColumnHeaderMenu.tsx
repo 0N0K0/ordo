@@ -1,4 +1,4 @@
-import { ActionIcon, Menu } from '@mantine/core';
+import { ActionIcon } from '@mantine/core';
 import {
   ArrowLeftIcon,
   ArrowLineLeftIcon,
@@ -13,6 +13,7 @@ import {
   SortDescendingIcon,
   XIcon,
 } from '@phosphor-icons/react';
+import { ActionsMenu } from '../../actions/ActionsMenu';
 
 /** Where a column is moved. */
 export type ColumnMove = 'start' | 'left' | 'right' | 'end';
@@ -48,8 +49,11 @@ interface ColumnHeaderMenuProps extends ColumnMenuExtras {
  */
 export function ColumnHeaderMenu({ label, sort, onSortBy, onSelect, onFilter, group, onHide, index, count, onMove }: ColumnHeaderMenuProps) {
   return (
-    <Menu position="bottom-start" withinPortal shadow="md" width={240}>
-      <Menu.Target>
+    <ActionsMenu
+      name={`la colonne ${label}`}
+      position="bottom-start"
+      width={240}
+      target={
         <ActionIcon
           variant="subtle"
           color="gray"
@@ -60,61 +64,23 @@ export function ColumnHeaderMenu({ label, sort, onSortBy, onSelect, onFilter, gr
         >
           <DotsThreeIcon weight="bold" aria-hidden />
         </ActionIcon>
-      </Menu.Target>
-      <Menu.Dropdown>
-        {onSelect && (
-          <>
-            <Menu.Item leftSection={<SelectionAllIcon aria-hidden />} onClick={onSelect}>
-              Sélectionner la colonne
-            </Menu.Item>
-            <Menu.Divider />
-          </>
-        )}
-        {sort !== undefined && (
-          <>
-            <Menu.Item leftSection={<SortAscendingIcon aria-hidden />} onClick={() => onSortBy(false)}>
-              Trier par ordre croissant
-            </Menu.Item>
-            <Menu.Item leftSection={<SortDescendingIcon aria-hidden />} onClick={() => onSortBy(true)}>
-              Trier par ordre décroissant
-            </Menu.Item>
-            {sort && (
-              <Menu.Item leftSection={<XIcon aria-hidden />} onClick={() => onSortBy(null)}>
-                Retirer ce tri
-              </Menu.Item>
-            )}
-          </>
-        )}
-        {onFilter && (
-          <Menu.Item leftSection={<FunnelIcon aria-hidden />} onClick={onFilter}>
-            Filtrer selon cette colonne
-          </Menu.Item>
-        )}
-        {group && (
-          <Menu.Item leftSection={<RowsIcon aria-hidden />} onClick={group.onToggle}>
-            {group.active ? 'Ne plus grouper' : 'Grouper selon les valeurs'}
-          </Menu.Item>
-        )}
-        {onHide && (
-          <Menu.Item leftSection={<EyeSlashIcon aria-hidden />} onClick={onHide}>
-            Masquer la colonne
-          </Menu.Item>
-        )}
-        <Menu.Divider />
-        <Menu.Label>Déplacer</Menu.Label>
-        <Menu.Item leftSection={<ArrowLineLeftIcon aria-hidden />} disabled={index <= 0} onClick={() => onMove('start')}>
-          Au début
-        </Menu.Item>
-        <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={index <= 0} onClick={() => onMove('left')}>
-          À gauche
-        </Menu.Item>
-        <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={index === count - 1} onClick={() => onMove('right')}>
-          À droite
-        </Menu.Item>
-        <Menu.Item leftSection={<ArrowLineRightIcon aria-hidden />} disabled={index === count - 1} onClick={() => onMove('end')}>
-          À la fin
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
+      }
+      items={[
+        onSelect && { label: 'Sélectionner la colonne', icon: <SelectionAllIcon aria-hidden />, onClick: onSelect },
+        onSelect && 'divider',
+        sort !== undefined && { label: 'Trier par ordre croissant', icon: <SortAscendingIcon aria-hidden />, onClick: () => onSortBy(false) },
+        sort !== undefined && { label: 'Trier par ordre décroissant', icon: <SortDescendingIcon aria-hidden />, onClick: () => onSortBy(true) },
+        sort && { label: 'Retirer ce tri', icon: <XIcon aria-hidden />, onClick: () => onSortBy(null) },
+        onFilter && { label: 'Filtrer selon cette colonne', icon: <FunnelIcon aria-hidden />, onClick: onFilter },
+        group && { label: group.active ? 'Ne plus grouper' : 'Grouper selon les valeurs', icon: <RowsIcon aria-hidden />, onClick: group.onToggle },
+        onHide && { label: 'Masquer la colonne', icon: <EyeSlashIcon aria-hidden />, onClick: onHide },
+        'divider',
+        { section: 'Déplacer' },
+        { label: 'Au début', icon: <ArrowLineLeftIcon aria-hidden />, disabled: index <= 0, onClick: () => onMove('start') },
+        { label: 'À gauche', icon: <ArrowLeftIcon aria-hidden />, disabled: index <= 0, onClick: () => onMove('left') },
+        { label: 'À droite', icon: <ArrowRightIcon aria-hidden />, disabled: index === count - 1, onClick: () => onMove('right') },
+        { label: 'À la fin', icon: <ArrowLineRightIcon aria-hidden />, disabled: index === count - 1, onClick: () => onMove('end') },
+      ]}
+    />
   );
 }

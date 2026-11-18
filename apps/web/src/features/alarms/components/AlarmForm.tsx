@@ -9,9 +9,7 @@ import { useAppForm, formCallbacks } from '../../../lib/form';
 import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { timeTasks } from '../../time/lib/time-tasks';
-import { legacyFields } from '../lib/alarm-labels';
-import * as fmt from '../../../lib/format';
-import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
+import { describeTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
 import { RepetitionEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
@@ -28,24 +26,6 @@ const TYPE_HELP: Record<AlarmType, string> = {
   NOT_TRACKING: 'Sonne aux dates et heures prévues, seulement si aucun chrono ne tourne (ex. « Lance ton chrono » à 9 h).',
   TRACKING_DURATION: 'Sonne après chaque durée de chrono (ex. une pause toutes les 50 minutes).',
 };
-
-/** Date, time and repetition of an alarm. */
-interface AlarmTiming {
-  startDate: string | null;
-  time: string | null;
-  recurrence: Recurrence | null;
-}
-
-/**
- * Date, time and repetition of an alarm as text: "Le 3 novembre 2026 à 09:00", "Tous les jours à 07:30".
- * @param {AlarmTiming} timing Timing.
- * @returns {string} Text.
- */
-function describeTiming(timing: AlarmTiming): string {
-  const at = timing.time ? ` à ${timing.time}` : '';
-  if (!timing.recurrence || !timing.startDate) return `Le ${timing.startDate ? fmt.day(timing.startDate) : '—'}${at}`;
-  return `${fmt.capitalize(describeRecurrence(timing.recurrence, timing.startDate))}${at}`;
-}
 
 interface AlarmFormValues extends Record<string, unknown> {
   title: string;

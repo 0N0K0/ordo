@@ -4,8 +4,9 @@ import { EditableDate, EditableNumber } from '../../../components/data-table/cel
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import * as fmt from '../../../lib/format';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useStockMutations, type StockItem, type StockLot } from '../api';
+import { localDay } from '../../../lib/dates';
 
 /**
  * Lots of an item of the stock, unfolded under it, in a table like every other: their quantity corrected and their
@@ -42,17 +43,16 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
       size: 130,
       sortValue: (lot) => lot.createdAt,
       text: (lot) => fmt.day(lot.createdAt),
-      filter: { kind: 'date', value: (lot) => lot.createdAt.slice(0, 10) },
+      filter: { kind: 'date', value: (lot) => localDay(lot.createdAt) },
     },
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });
-  const onError = { onError: onMutationError };
   // A change saves its lot, or every lot of the bulk selection of its column.
   const bulk = bulkSaver<StockLot, { quantity?: number; expiresAt?: string | null }>(view, (lot, change) => {
     // A quantity changed by hand is a correction.
     if (change.quantity !== undefined && change.quantity !== lot.quantity)
-      move.mutate({ itemId: item.id, kind: 'CORRECTION', quantity: change.quantity - lot.quantity, lotId: lot.id, expiresAt: null, note: null }, onError);
-    if (change.expiresAt !== undefined) setLotExpiry.mutate({ id: lot.id, expiresAt: change.expiresAt }, onError);
+      move.mutate({ itemId: item.id, kind: 'CORRECTION', quantity: change.quantity - lot.quantity, lotId: lot.id, expiresAt: null, note: null }, ON_ERROR);
+    if (change.expiresAt !== undefined) setLotExpiry.mutate({ id: lot.id, expiresAt: change.expiresAt }, ON_ERROR);
   });
   return (
     <DataTable

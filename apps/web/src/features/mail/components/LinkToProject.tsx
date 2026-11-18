@@ -1,8 +1,8 @@
+import { formCallbacks } from '../../../lib/form';
 import { Button, Popover, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { FolderSimplePlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useMailActions } from '../api';
@@ -45,14 +45,10 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
               projectId &&
               link.mutate(
                 { accountId, folder, uid, projectId },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Mail rattaché au projet : les réponses suivantes le seront aussi.');
-                    setProjectId(null);
-                    close();
-                  },
-                  onError: onMutationError,
-                },
+                formCallbacks(null, 'Mail rattaché au projet : les réponses suivantes le seront aussi.', () => {
+                  setProjectId(null);
+                  close();
+                }),
               )
             }
           >

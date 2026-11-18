@@ -28,10 +28,10 @@ const hasOwnTimes = (routine: Routine) => !routine.slotCondition && !(routine.ca
 
 /**
  * Parent routine cell: chosen in place (not itself nor one of its sub-routines).
- * @param {{ routine: Routine, routines: Routine[] }} props Component props.
+ * @param {{ routine: Routine, routines: Routine[], readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function ParentRoutineCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
+export function ParentRoutineCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, 'parent');
   // Neither the routine nor its sub-routines can be its parent.
   const below = subtreeOf(routines, routine.id);
@@ -41,8 +41,9 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
       variant="unstyled"
       size="xs"
       aria-label={`Routine parente de ${routine.title}`}
-      placeholder="—"
-      clearable
+      placeholder={readOnly ? undefined : '—'}
+      readOnly={readOnly}
+      clearable={!readOnly}
       searchable
       {...treeSelectProps(options)}
       value={routine.parentId ?? null}
@@ -55,11 +56,11 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
 }
 
 /**
- * Sub-routines cell: their names, and a button adding one.
- * @param {{ routine: Routine, routines: Routine[] }} props Component props.
+ * Sub-routines cell: their names, and a button adding one (none when read only).
+ * @param {{ routine: Routine, routines: Routine[], readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function SubRoutinesCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
+export function SubRoutinesCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
   return (
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
@@ -70,11 +71,13 @@ export function SubRoutinesCell({ routine, routines }: { routine: Routine; routi
           </Text>
         ))}
       </StackedValues>
-      <Tooltip label="Ajouter une sous-routine">
-        <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-routine à ${routine.title}`} onClick={() => openRoutineForm({ parent: routine })} style={{ flex: 'none' }}>
-          <PlusIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      {!readOnly && (
+        <Tooltip label="Ajouter une sous-routine">
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-routine à ${routine.title}`} onClick={() => openRoutineForm({ parent: routine })} style={{ flex: 'none' }}>
+            <PlusIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 }
@@ -82,10 +85,10 @@ export function SubRoutinesCell({ routine, routines }: { routine: Routine; routi
 /**
  * Time of the day cell (from, by): changed in place, for a routine of a single rule (not one of cases or of a
  * schedule).
- * @param {{ routine: Routine, field: 'fromTime' | 'dueTime' }} props Component props.
+ * @param {{ routine: Routine, field: 'fromTime' | 'dueTime', readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fromTime' | 'dueTime' }) {
+export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: Routine; field: 'fromTime' | 'dueTime'; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, field);
   const ownTimes = hasOwnTimes(routine);
   if (!ownTimes) {
@@ -99,6 +102,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
     <EditableTime
       label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
       value={routine[field] ?? ''}
+      readOnly={readOnly}
       onSave={(value) => apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
       clearable
     />
@@ -107,15 +111,15 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
 
 /**
  * Place cell: an address chosen in place (with its point on the map), or none.
- * @param {{ routine: Routine }} props Component props.
+ * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function LocationCell({ routine }: { routine: Routine }) {
+export function LocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, 'location');
   const [draft, setDraft] = useState<AddressValue | null>(null);
   const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
   return (
-    <EditablePopoverCell width={360} empty={!routine.location} truncate onClose={() => setDraft(null)} target={routine.location || '—'}>
+    <EditablePopoverCell width={360} empty={!routine.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={routine.location || '—'}>
       <AddressInput
         aria-label={`Lieu de ${routine.title}`}
         placeholder="Adresse ou lieu enregistré"
@@ -133,10 +137,10 @@ export function LocationCell({ routine }: { routine: Routine }) {
 
 /**
  * Travel cell: minutes to get there or back, changed in place.
- * @param {{ routine: Routine, field: 'travelBefore' | 'travelAfter' }} props Component props.
+ * @param {{ routine: Routine, field: 'travelBefore' | 'travelAfter', readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function TravelCell({ routine, field }: { routine: Routine; field: 'travelBefore' | 'travelAfter' }) {
+export function TravelCell({ routine, field, readOnly = false }: { routine: Routine; field: 'travelBefore' | 'travelAfter'; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, field);
   return (
     <EditableNumber
@@ -147,6 +151,7 @@ export function TravelCell({ routine, field }: { routine: Routine; field: 'trave
       suffix="min"
       nullable
       value={routine[field] || null}
+      readOnly={readOnly}
       onSave={(minutes) => apply({ [field]: minutes ?? 0 })}
     />
   );
@@ -154,16 +159,17 @@ export function TravelCell({ routine, field }: { routine: Routine; field: 'trave
 
 /**
  * Alerts cell: a bell with the alerts before its moment, chosen in place.
- * @param {{ routine: Routine }} props Component props.
+ * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function RemindersCell({ routine }: { routine: Routine }) {
+export function RemindersCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, 'alarms');
   const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <EditablePopoverCell
       width={280}
       label={`Alertes de ${routine.title}`}
+      readOnly={readOnly}
       target={
         <>
           {routine.reminders.length ? (
@@ -203,10 +209,10 @@ export function RemindersCell({ routine }: { routine: Routine }) {
 
 /**
  * « À partir du » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
- * @param {{ routine: Routine }} props Component props.
+ * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function OpensOnCell({ routine }: { routine: Routine }) {
+export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply } = useRoutineCellEdit(routine, 'opensOn');
   const frequency = ruleOf(routine)?.frequency;
   if ((routine.cases as unknown[] | null)?.length || !frequency) return null;
@@ -214,7 +220,7 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
   const words = opens ? opensText(opens, frequency) : '';
   const text = words ? fmt.capitalize(words) : '—';
   return (
-    <EditablePopoverCell width={320} empty={!words} target={text}>
+    <EditablePopoverCell width={320} empty={!words} target={text} readOnly={readOnly}>
       <OpensOnInput
         frequency={frequency}
         value={opens}
@@ -232,10 +238,10 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
 
 /**
  * « Bloque » cell: the routines waiting for this one, chosen in place (they then depend on it).
- * @param {{ routine: Routine, routines: Routine[] }} props Component props.
+ * @param {{ routine: Routine, routines: Routine[], readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function BlocksCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
+export function BlocksCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const { patch } = useRoutineMutations();
   const { targets } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
@@ -244,6 +250,7 @@ export function BlocksCell({ routine, routines }: { routine: Routine; routines: 
       label={`Routines qu’attend ${routine.title}`}
       {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
       value={waiting}
+      readOnly={readOnly}
       onSave={(next) => {
         // Those added here wait for this routine (and each one of the selection), those removed here no more.
         const { added, removed } = listDiff(waiting, next);

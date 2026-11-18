@@ -1,4 +1,4 @@
-import { Input, Stack } from '@mantine/core';
+import { Input, Stack, type MantineSpacing } from '@mantine/core';
 import { useId, type ReactNode } from 'react';
 
 interface LabeledFieldProps {
@@ -9,6 +9,8 @@ interface LabeledFieldProps {
   error?: ReactNode;
   /** Asterisk after the label. Optional. Default = false. */
   required?: boolean;
+  /** Space between the controls. Optional. Default = 4. */
+  gap?: MantineSpacing | number;
   /** Controls (a list of fields, buttons…), stacked. */
   children: ReactNode;
 }
@@ -19,11 +21,11 @@ interface LabeledFieldProps {
  * @param {LabeledFieldProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function LabeledField({ label, description, error, required = false, children }: LabeledFieldProps) {
+export function LabeledField({ label, description, error, required = false, gap = 4, children }: LabeledFieldProps) {
   const id = useId();
   return (
     <Input.Wrapper labelElement="div" label={label} labelProps={{ id }} description={description} error={error} required={required}>
-      <Stack gap={4} mt={4} role="group" aria-labelledby={id}>
+      <Stack gap={gap} mt={4} role="group" aria-labelledby={id}>
         {children}
       </Stack>
     </Input.Wrapper>

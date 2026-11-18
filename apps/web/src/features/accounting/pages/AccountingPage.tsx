@@ -1,3 +1,4 @@
+import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { PAGES } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
@@ -8,7 +9,6 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { recurrenceSchema } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -20,7 +20,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
 import { useOverdueInvoices } from '../api/tracking';
@@ -34,20 +34,19 @@ import { openRecurringForm } from '../lib/recurring-form';
 import { DocumentStatusSettings } from '../components/DocumentStatusSettings';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { useSetArchived } from '../../../lib/archive';
-import { archiveEntry } from '../lib/archive-entry';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'zip' | 'statuses' | 'company';
+const SETTINGS_TABS = ['zip', 'statuses', 'company'] as const;
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -148,13 +147,9 @@ function RecurringList() {
   const confirmDelete = (item: RecurringInvoice) => {
     confirmDestructive({
       title: 'Supprimer la facture récurrente',
-      risks: (
-        <>
-          <Text size="sm">« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</Text>
-        </>
-      ),
+      risks: <>« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</>,
       onConfirm: () => {
-        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: onMutationError });
+        remove.mutate(item.id, toastCallbacks('Facture récurrente supprimée.'));
       },
     });
   };
@@ -260,14 +255,12 @@ export function AccountingPage() {
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
-  const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({ key: 'ordo.accounting.settingsTab', defaultValue: 'zip' });
-  // A tab of the settings asked in the address (the former company settings): opened, then dropped from it.
+  const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
+  // The former parameter of the tab of the settings (links, bookmarks): the one of every page.
   useEffect(() => {
     const asked = params.get('settingsTab');
-    if (!asked) return;
-    if (asked === 'zip' || asked === 'statuses' || asked === 'company') setSettingsTab(asked);
-    setParams({ settingsTab: null });
-  }, [params, setParams, setSettingsTab]);
+    if (asked) setParams({ settingsTab: null, [SETTINGS_TAB_PARAM]: asked });
+  }, [params, setParams]);
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
   // Years of the documents, offered by the download of a period.

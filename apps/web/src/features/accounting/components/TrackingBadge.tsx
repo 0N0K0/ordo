@@ -1,8 +1,9 @@
-import { Badge, Group, Menu, UnstyledButton } from '@mantine/core';
+import { Badge, Group, UnstyledButton } from '@mantine/core';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import type { AccountingDocumentType } from '@ordo/shared';
-import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
+import { CaretDownIcon } from '@phosphor-icons/react';
 import { onMutationError } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary } from '../api/documents';
@@ -34,29 +35,29 @@ export function StatusMenu({ type, current, onSelect, pending, readOnly = false 
     (statuses ?? []).filter((status) => status.scope === (type === 'QUOTE' ? 'QUOTE' : 'INVOICE')),
     current?.id,
   );
-  if (readOnly) return <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" />;
+  // Nothing to choose (no status yet): the badge alone.
+  if (readOnly || scoped.length === 0) return <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" />;
   return (
-    <Menu position="bottom-start" withinPortal>
-      <Menu.Target>
+    <ActionsMenu
+      name="statut"
+      inRow
+      position="bottom-start"
+      target={
         <UnstyledButton aria-label={`Statut : ${current?.name ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
           <ItemBadge item={current ?? { name: 'Sans statut' }} size="sm" rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }} />
         </UnstyledButton>
-      </Menu.Target>
-      <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
-        <Menu.Label>Statut</Menu.Label>
-        {scoped.map((status) => (
-          <Menu.Item
-            key={status.id}
-            leftSection={<ItemAvatar name={status.name} iconUrl={status.iconUrl} color={status.color} />}
-            rightSection={status.id === current?.id ? <CheckIcon aria-hidden /> : undefined}
-            disabled={pending}
-            onClick={() => status.id !== current?.id && onSelect(status)}
-          >
-            {status.name}
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
+      }
+      items={[
+        { section: 'Statut' },
+        ...scoped.map((status) => ({
+          label: status.name,
+          icon: <ItemAvatar name={status.name} iconUrl={status.iconUrl} color={status.color} />,
+          checked: status.id === current?.id,
+          disabled: pending,
+          onClick: () => status.id !== current?.id && onSelect(status),
+        })),
+      ]}
+    />
   );
 }
 

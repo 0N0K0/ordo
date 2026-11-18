@@ -4,7 +4,7 @@ import { clientFormSchema, type ClientFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useCreateClient, useUpdateClient, type Client } from '../api';
-import { IconField, type IconValue } from './IconField';
+import { IconField, type IconValue } from '../../../components/inputs/IconField';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
 

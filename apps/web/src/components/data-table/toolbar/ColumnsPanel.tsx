@@ -1,6 +1,6 @@
 import { mapById } from '@ordo/shared';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import type { ColumnLayout } from '@ordo/shared';
@@ -9,7 +9,7 @@ import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } fro
 import { useDragSensors } from '../../../lib/drag';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DragHandle } from '../../actions/DragHandle';
-import { sortableStyle } from '../../actions/sortable-style';
+import { useSortableItem } from '../../actions/use-sortable-item';
 
 /** Column of the panel. */
 interface ColumnsListItem {
@@ -26,10 +26,10 @@ interface ColumnsListItem {
  * @returns {JSX.Element} Item.
  */
 function ColumnItem({ item, onToggle }: { item: ColumnsListItem; onToggle: (visible: boolean) => void }) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: item.id });
+  const { ref, style, handle } = useSortableItem(item.id);
   return (
-    <Group ref={setNodeRef} gap="xs" wrap="nowrap" style={{ ...sortableStyle({ transform, transition, isDragging }), opacity: isDragging ? 0.5 : 1 }}>
-      <DragHandle label={`Déplacer ${item.label}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
+    <Group ref={ref} gap="xs" wrap="nowrap" style={style}>
+      <DragHandle label={`Déplacer ${item.label}`} size="sm" {...handle} />
       <Checkbox size="xs" label={item.label} checked={item.visible} disabled={item.locked} onChange={(event) => onToggle(event.currentTarget.checked)} />
     </Group>
   );

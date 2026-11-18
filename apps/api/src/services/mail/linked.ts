@@ -9,7 +9,7 @@ import { withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
-import { assertExists } from '../core/lookup';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -96,8 +96,7 @@ export async function linkMessage(accountId: string, folder: string, uid: number
  * @returns {Promise<void>}
  */
 export async function unlinkMail(id: string): Promise<void> {
-  await assertExists(prisma.mailMessage, id, 'Mail');
-  await prisma.mailMessage.delete({ where: { id } });
+  await deleteOrNotFound(prisma.mailMessage, id, 'Mail');
 }
 
 /**

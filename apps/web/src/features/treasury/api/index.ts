@@ -493,7 +493,6 @@ export interface AccountValues {
   name: string;
   openingBalance: number;
   openingDate: string;
-  archived: boolean;
 }
 
 /**

@@ -1,10 +1,11 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { Button, Group, Text } from '@mantine/core';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
 import { useRunningTimer } from '../api';
 import { useStartTimer } from '../hooks/use-start-timer';
+import { TimerControls } from './TimerControls';
 
 /**
  * Time tracked on a task (its share of each time entry), and a button starting the timer on it.
@@ -21,22 +22,26 @@ export function TaskTime({ task }: { task: Task }) {
         <Text size="sm" c={task.trackedSeconds ? undefined : 'dimmed'}>
           {task.trackedSeconds ? formatDuration(task.trackedSeconds) : 'Aucun'}
         </Text>
-        {onThisTask ? (
-          <Text size="xs" c="red">
-            Chrono en cours
-          </Text>
+        {onThisTask && running.data ? (
+          <Group gap="xs" wrap="nowrap">
+            <Text size="xs" c="red">
+              Chrono en cours
+            </Text>
+            <TimerControls entry={running.data} size="sm" look="header" />
+          </Group>
         ) : (
-          <Button
-            size="compact-sm"
-            variant="default"
-            leftSection={<PlayIcon aria-hidden />}
-            loading={isPending}
-            disabled={task.archived}
-            title={running.data ? 'Arrête le chrono en cours et en démarre un sur cette tâche' : undefined}
-            onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
-          >
-            Démarrer le chrono
-          </Button>
+          <Tooltip label="Arrête le chrono en cours et en démarre un sur cette tâche" disabled={!running.data}>
+            <Button
+              size="compact-sm"
+              variant="default"
+              leftSection={<PlayIcon aria-hidden />}
+              loading={isPending}
+              disabled={task.archived}
+              onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
+            >
+              Démarrer le chrono
+            </Button>
+          </Tooltip>
         )}
       </Group>
     </LabeledField>

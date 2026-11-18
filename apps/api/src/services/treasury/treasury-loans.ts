@@ -1,5 +1,6 @@
 import { formatDay, fromCents, LEVEL, lineCents } from '@ordo/shared';
 import { prisma } from '../../db';
+import { fromDecimal } from '../core/decimal';
 
 /** A loan line: money lent or borrowed, or repaid, with a relation. */
 export interface LoanItem {
@@ -35,7 +36,7 @@ export async function relationLoans(): Promise<RelationLoans[]> {
   });
   const byRelation = new Map<string, RelationLoans>();
   for (const line of lines) {
-    const cents = lineCents(Number(line.entry.amount), { mode: line.mode, value: Number(line.value) });
+    const cents = lineCents(fromDecimal(line.entry.amount), { mode: line.mode, value: fromDecimal(line.value) });
     const loans = byRelation.get(line.relationId!) ?? { relationId: line.relationId!, balance: 0, out: 0, in: 0, items: [] };
     loans.balance -= cents;
     if (cents < 0) loans.out -= cents;

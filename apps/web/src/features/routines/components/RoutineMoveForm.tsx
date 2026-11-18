@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
@@ -7,7 +8,7 @@ import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIco
 import { useState } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { SubSection } from '../../../components/page/SubSection';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { localToday } from '../../../lib/dates';
@@ -201,17 +202,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
                   confirmLabel: 'Annuler l’occurrence',
                   confirmIcon: <CalendarXIcon aria-hidden />,
-                  onConfirm: () =>
-                    deleteOccurrence.mutate(
-                      { id: routine.id, date, scope: 'THIS' },
-                      {
-                        onSuccess: () => {
-                          notifySuccess(`Occurrence du ${fmt.dayLong(date)} annulée.`);
-                          onDone();
-                        },
-                        onError: onMutationError,
-                      },
-                    ),
+                  onConfirm: () => deleteOccurrence.mutate({ id: routine.id, date, scope: 'THIS' }, formCallbacks(null, `Occurrence du ${fmt.dayLong(date)} annulée.`, onDone)),
                 })
               }
             >

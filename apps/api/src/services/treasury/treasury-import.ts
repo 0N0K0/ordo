@@ -5,6 +5,7 @@ import { parseInput } from '../../graphql/errors';
 import { realizeForecast } from './treasury';
 import { assertNotArchived } from '../core/archive';
 import { assertExists } from '../core/lookup';
+import { toDecimal } from '../core/decimal';
 
 /**
  * Imports the operations of a bank statement into an account (chosen and checked in the preview): each one
@@ -29,7 +30,7 @@ export async function importStatement(input: StatementImportInput): Promise<{ cr
       continue;
     }
     await prisma.treasuryEntry.create({
-      data: { accountId: data.accountId, status: 'ACTUAL', date: parseDay(row.date), valueDate: parseDay(row.date), label: row.label, amount: new Prisma.Decimal(row.amount) },
+      data: { accountId: data.accountId, status: 'ACTUAL', date: parseDay(row.date), valueDate: parseDay(row.date), label: row.label, amount: toDecimal(row.amount) },
     });
     created += 1;
   }

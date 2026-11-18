@@ -366,8 +366,8 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
     <Stack gap="sm">
       {duplicates > 0 && (
         <NoticeAlert kind="warning">
-          {duplicates} {plural(duplicates, 'opération')} {plural(duplicates, 'semble', 'semblent')} déjà {plural(duplicates, 'saisie')} (même montant à {DUPLICATE_DAYS} jours près) : décochée
-          {duplicates > 1 ? 's' : ''}.
+          {duplicates} {plural(duplicates, 'opération')} {plural(duplicates, 'semble', 'semblent')} déjà {plural(duplicates, 'saisie')} (même montant à {DUPLICATE_DAYS} jours près) :{' '}
+          {plural(duplicates, 'décochée')}.
         </NoticeAlert>
       )}
       <DataTable

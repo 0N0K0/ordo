@@ -1,3 +1,4 @@
+import { countOf } from '../../../lib/text';
 import { Progress, Stack, Text } from '@mantine/core';
 import { MIN_PASSWORD_LENGTH, MIN_PASSWORD_SCORE } from '@ordo/shared';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
@@ -69,7 +70,7 @@ export function PasswordStrength({ value, userInputs = [] }: PasswordStrengthPro
   const tooShort = password.length < MIN_PASSWORD_LENGTH;
   const score = strength ? (tooShort ? Math.min(strength.score, 1) : strength.score) : null;
   const hint = tooShort
-    ? `Encore ${MIN_PASSWORD_LENGTH - password.length} caractère(s) au minimum.`
+    ? `Encore ${countOf(MIN_PASSWORD_LENGTH - password.length, 'caractère')} au minimum.`
     : strength && strength.score < MIN_PASSWORD_SCORE
       ? (strength.suggestions[0] ?? 'Ajoutez des mots ou des caractères peu courants.')
       : null;

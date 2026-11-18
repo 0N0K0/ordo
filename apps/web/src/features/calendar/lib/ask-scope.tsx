@@ -29,3 +29,13 @@ export function askScope(question: ScopeQuestion): Promise<CalendarEventScope | 
     );
   });
 }
+
+/**
+ * Occurrences of an event a change applies to: all of them for a single event, else asked (null when cancelled).
+ * @param {boolean} recurring The event repeats.
+ * @param {ScopeQuestion} question Question asked for a recurring event.
+ * @returns {Promise<CalendarEventScope | null>} Scope, or null when cancelled.
+ */
+export function chooseScope(recurring: boolean, question: ScopeQuestion): Promise<CalendarEventScope | null> {
+  return recurring ? askScope(question) : Promise.resolve('ALL');
+}

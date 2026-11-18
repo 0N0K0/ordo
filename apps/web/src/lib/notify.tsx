@@ -122,8 +122,20 @@ export function notifyError(message: string): void {
  */
 export const onMutationError = (error: Error): void => notifyError(error.message);
 
+/** Options of a mutation whose success needs no toast (or is told elsewhere): its error in an error toast. */
+export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutationError };
+
+/**
+ * Callbacks of a mutation without form: a toast once done, its error in an error toast.
+ * @param {string | ((result: T) => string)} message Success message (« Alarme supprimée. »), or made from what the mutation returned.
+ * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
+ */
+export function toastCallbacks<T = unknown>(message: string | ((result: T) => string)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
+  return { onSuccess: (result) => notifySuccess(typeof message === 'string' ? message : message(result)), onError: onMutationError };
+}
+
 /** Message of an error thrown without one (not an `Error`). */
-export const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
+const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 
 /**
  * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback.

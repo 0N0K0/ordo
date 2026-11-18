@@ -5,7 +5,7 @@ import { readSheetSources } from '@ordo/shared';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
+import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 import { fromDecimal } from '../../services/core/decimal';
 
@@ -238,48 +238,10 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: (_root, { id }) => done(shopping.deleteCategory(id)),
   }),
-  createShoppingStore: t.id({
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.shoppingStores.create(input)).id,
-  }),
-  updateShoppingStore: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.shoppingStores.update(id, input)),
-  }),
-  deleteShoppingStore: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.shoppingStores.remove(id)),
-  }),
-  createShoppingUnit: t.id({
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createUnit(input)).id,
-  }),
-  updateShoppingUnit: t.boolean({
-    description: 'Renames a unit; the products and items in it follow.',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateUnit(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
-  }),
-  deleteShoppingUnit: t.boolean({
-    description: 'Deletes a unit; the products and items in it are left without one.',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteUnit(id)),
-  }),
   moveShoppingProducts: t.int({
     description: 'Moves products to another base list (after its own); returns how many moved.',
     args: { ids: t.arg.idList({ required: true }), baseListId: t.arg.id({ required: true }) },
     resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids, baseListId),
-  }),
-  createShoppingStorage: t.id({
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.shoppingStorages.create(input)).id,
-  }),
-  updateShoppingStorage: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.shoppingStorages.update(id, input)),
-  }),
-  deleteShoppingStorage: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.shoppingStorages.remove(id)),
   }),
   createShoppingBaseList: t.id({
     args: { name: t.arg.string({ required: true }) },
@@ -369,3 +331,11 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(shopping.deleteItem(id)),
   }),
 }));
+
+const nameColor = { create: NameColorInput, update: NameColorPatch };
+labelMutations('ShoppingStore', shopping.shoppingStores, nameColor);
+labelMutations('ShoppingStorage', shopping.shoppingStorages, nameColor);
+labelMutations('ShoppingUnit', { create: shopping.createUnit, update: shopping.updateUnit, remove: shopping.deleteUnit }, nameColor, {
+  update: 'Renames a unit; the products and items in it follow.',
+  delete: 'Deletes a unit; the products and items in it are left without one.',
+});

@@ -1,11 +1,12 @@
-import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, toCents, daySchema } from '@ordo/shared';
+import { addDays, capitalize, formatDay, formatMoney, longDayText, mapById, monthText, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
-import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport } from '../core/pdf-report';
+import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport, writeHeading } from '../core/pdf-report';
+import { decimalCents, fromDecimal } from '../core/decimal';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -25,9 +26,6 @@ const COLORS = { ...PDF_TEXT, ...PDF_TABLE, month: PDF_TABLE.group, in: '#2b8a3e
 const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 7.5;
-
-const longDate = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Printed amount.
@@ -109,9 +107,9 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened during the period: their opening balance, that day.
   const openings = accounts
     .filter((account) => formatDay(account.openingDate) >= from && formatDay(account.openingDate) <= to)
-    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: toCents(Number(account.openingBalance)) }));
+    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: decimalCents(account.openingBalance) }));
 
-  const amounts = entries.map((entry) => toCents(Number(entry.amount)));
+  const amounts = entries.map((entry) => decimalCents(entry.amount));
   const incoming = amounts.filter((amount) => amount > 0).reduce((sum, amount) => sum + amount, 0);
   const outgoing = -amounts.filter((amount) => amount < 0).reduce((sum, amount) => sum + amount, 0);
   // Linked money in and out of the period offsetting each other.
@@ -143,15 +141,13 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   let y = top;
 
   // Title and summary.
-  doc.font('bold').fontSize(14).fillColor(COLORS.text).text('Relevé des mouvements', MARGIN, y, { width: pageWidth });
-  y = doc.y + 2;
   const scope = several ? 'Tous les comptes' : accounts[0].name;
-  doc
-    .font('regular')
-    .fontSize(8.5)
-    .fillColor(COLORS.muted)
-    .text([owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · '), MARGIN, y, { width: pageWidth });
-  y = doc.y + 8;
+  y =
+    writeHeading(
+      doc,
+      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') },
+      { x: MARGIN, y, width: pageWidth },
+    ) + 8;
   const figures = [
     { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },
@@ -242,8 +238,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => formatDay(other.date).slice(0, 7) === month);
       const monthIn = ofMonth.filter(({ amount }) => amount > 0).reduce((sum, { amount }) => sum + amount, 0);
       const monthOut = -ofMonth.filter(({ amount }) => amount < 0).reduce((sum, { amount }) => sum + amount, 0);
-      const title = monthFormat.format(parseDay(`${month}-01`));
-      band(title.charAt(0).toUpperCase() + title.slice(1), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
+      band(capitalize(monthText(month)), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
     }
     // Accounts opened by then.
     for (const account of pendingOpenings.filter((item) => item.day <= day)) {
@@ -311,8 +306,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     // Split: one muted row per line (and what they leave), under the entry, without balance.
     if (entry.lines.length) {
       const split = splitAmounts(
-        Number(entry.amount),
-        entry.lines.map((line) => ({ mode: line.mode, value: Number(line.value) })),
+        fromDecimal(entry.amount),
+        entry.lines.map((line) => ({ mode: line.mode, value: fromDecimal(line.value) })),
       );
       const parts = [
         ...entry.lines.map((line, lineIndex) => ({

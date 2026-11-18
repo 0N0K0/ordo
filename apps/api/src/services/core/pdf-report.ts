@@ -84,7 +84,7 @@ const FOOTER_HEIGHT = 18;
 export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
 /** Borders and fills of every PDF table: lines, cell backgrounds, group headings. */
 export const PDF_TABLE = { border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0' };
-const COLORS = { ...PDF_TEXT, border: '#d0d5dc' };
+const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border };
 
 const exportFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
 

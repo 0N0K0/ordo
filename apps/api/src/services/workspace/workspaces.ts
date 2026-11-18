@@ -6,6 +6,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import { BY_POSITION, moveInOrder } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { assertExists } from '../core/lookup';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
 import { resolveCalendarId } from '../calendar/calendars';
 import { ensureDocumentStatuses } from '../accounting/document-statuses';
@@ -172,7 +173,7 @@ export async function updateWorkspace(id: string, input: { name: string; kind: W
  * @returns {Promise<Workspace>} Workspace.
  */
 export async function setWorkspaceNotifications(id: string, sources: NotificationSource[]): Promise<Workspace> {
-  if (!(await unscopedPrisma.workspace.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Espace');
+  await assertExists(unscopedPrisma.workspace, id, 'Espace');
   return unscopedPrisma.workspace.update({ where: { id }, data: { notifyElsewhere: [...new Set(sources)] } });
 }
 
@@ -184,7 +185,7 @@ export async function setWorkspaceNotifications(id: string, sources: Notificatio
  */
 export async function setWorkspaceWeek(id: string, week: WeekSpan): Promise<Workspace> {
   const { start, end } = parseInput(weekSpanSchema, week);
-  if (!(await unscopedPrisma.workspace.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Espace');
+  await assertExists(unscopedPrisma.workspace, id, 'Espace');
   return unscopedPrisma.workspace.update({ where: { id }, data: { weekStart: start, weekEnd: end } });
 }
 

@@ -1,3 +1,4 @@
+import { PERIOD_STATES, periodState } from '../../../lib/periods';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
 
@@ -12,9 +13,9 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -151,7 +152,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
           const doneEffort = effortOf(done);
           const start = sprint.startDate;
           const end = sprint.endDate;
-          const state = end < today ? { label: 'Terminé', color: 'gray' } : start > today ? { label: 'À venir', color: 'blue' } : { label: 'En cours', color: 'green' };
+          const state = PERIOD_STATES[periodState(start, end, today)];
           const late = end < today && done.length < tasks.length;
           return (
             <Paper key={sprint.id} withBorder radius="md" p="md">
@@ -175,11 +176,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 actions={[
                   // Archived (or of an archived project): read only.
                   !sprint.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
-                  {
-                    label: sprint.archived ? 'Restaurer' : 'Archiver',
-                    icon: sprint.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                    onClick: () => void archiveWithUndo(setArchived, { ids: [sprint.id], archived: !sprint.archived, label: `Sprint « ${sprint.name} »` }),
-                  },
+                  archiveEntry({ archived: sprint.archived, label: `Sprint « ${sprint.name} »` }, setArchived, sprint.id),
                   { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
                 ]}
                 progress={

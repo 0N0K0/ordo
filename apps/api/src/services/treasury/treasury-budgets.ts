@@ -1,13 +1,13 @@
-import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, toCents, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
+import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
-import { Prisma } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
+import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
 /** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
 interface Key {
@@ -52,7 +52,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
     relationId: budget.relationId ?? null,
     contextId: budget.contextId,
     categoryId: budget.categoryId,
-    amount: new Prisma.Decimal(budget.amount),
+    amount: toDecimal(budget.amount),
     repeatEvery: budget.repeatEvery,
     repeatUntil: budget.repeatEvery && budget.repeatUntil ? parseDay(`${budget.repeatUntil}-01`) : null,
   };
@@ -126,7 +126,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     for (const month of months) {
       const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };
-      row.budget += toCents(Number(budget.amount));
+      row.budget += decimalCents(budget.amount);
       rows.set(keyOf(month, key), row);
     }
   }
@@ -175,8 +175,8 @@ export async function budgetReport(from: string, to: string, meId: string | null
     const rule = entry.status === 'FORECAST' ? storedRecurrence(entry.recurrence) : null;
     // Out of the range, an actual entry only counts by its lines of their own day (the check of `add`).
     const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDayOfMonth(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
-    const total = Number(entry.amount);
-    const lines = entry.lines.map((line) => ({ ...line, value: Number(line.value) }));
+    const total = fromDecimal(entry.amount);
+    const lines = entry.lines.map((line) => ({ ...line, value: fromDecimal(line.value) }));
     const { amounts, remainder } = splitAmounts(total, lines);
     const kind = entry.status === 'ACTUAL' ? 'actual' : 'forecast';
     for (const day of days) {

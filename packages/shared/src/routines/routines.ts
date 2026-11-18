@@ -1,4 +1,5 @@
-import { dayInMonth, daysInMonth, minutesToTime, timeToMinutes } from '@ordo/shared';
+import { dayInMonth, daysInMonth } from '../dates/months';
+import { minutesToTime, timeToMinutes } from '../dates/times';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';

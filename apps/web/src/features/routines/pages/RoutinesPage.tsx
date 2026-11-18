@@ -16,7 +16,7 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
@@ -145,24 +145,23 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const moved = byId.get(key);
     if (!moved || isDraftRoutine(moved)) return;
-    const onError = onMutationError;
     const categoryIds = groupedByCategory && groupKey !== undefined ? movedCategories(moved.categoryIds, fromGroupKey || null, groupKey || null) : null;
     const parent = parentKey !== undefined ? parentKey : (moved.parentId ?? null);
     const before = beforeKey ? byId.get(beforeKey) : undefined;
     if (before && before.id !== key && (before.parentId ?? null) === parent) {
-      move.mutate({ id: key, targetId: before.id, place: 'BEFORE', categoryIds }, { onError });
+      move.mutate({ id: key, targetId: before.id, place: 'BEFORE', categoryIds }, ON_ERROR);
       return;
     }
     if (parent) {
-      move.mutate({ id: key, targetId: parent, place: 'INSIDE', categoryIds }, { onError });
+      move.mutate({ id: key, targetId: parent, place: 'INSIDE', categoryIds }, ON_ERROR);
       return;
     }
     const last = routines
       .filter((routine) => routine.parentId === null && routine.id !== key)
       .sort(byPosition)
       .at(-1);
-    if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, { onError });
-    else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, { onError });
+    if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, ON_ERROR);
+    else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, ON_ERROR);
   };
 
   /**
@@ -199,16 +198,16 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       ),
       repetition: <RepetitionText routine={routine} />,
       estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
-      fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
-      dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
-      opensOn: <OpensOnCell routine={routine} />,
-      location: <LocationCell routine={routine} />,
-      travelBefore: <TravelCell routine={routine} field="travelBefore" />,
-      travelAfter: <TravelCell routine={routine} field="travelAfter" />,
-      alarms: <RemindersCell routine={routine} />,
-      blocks: <BlocksCell routine={routine} routines={routines} />,
-      parent: <ParentRoutineCell routine={routine} routines={routines} />,
-      subRoutines: <SubRoutinesCell routine={routine} routines={routines} />,
+      fromTime: <TimeOfDayCell routine={routine} field="fromTime" readOnly={readOnly} />,
+      dueTime: <TimeOfDayCell routine={routine} field="dueTime" readOnly={readOnly} />,
+      opensOn: <OpensOnCell routine={routine} readOnly={readOnly} />,
+      location: <LocationCell routine={routine} readOnly={readOnly} />,
+      travelBefore: <TravelCell routine={routine} field="travelBefore" readOnly={readOnly} />,
+      travelAfter: <TravelCell routine={routine} field="travelAfter" readOnly={readOnly} />,
+      alarms: <RemindersCell routine={routine} readOnly={readOnly} />,
+      blocks: <BlocksCell routine={routine} routines={routines} readOnly={readOnly} />,
+      parent: <ParentRoutineCell routine={routine} routines={routines} readOnly={readOnly} />,
+      subRoutines: <SubRoutinesCell routine={routine} routines={routines} readOnly={readOnly} />,
       trackedTime: <ChronoCell routine={routine} running={running} />,
       assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
       beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
@@ -217,7 +216,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
       comments: (
         <Text size="sm" c="dimmed" ta="right">
-          {commentTotal(comments, routine.id, routine.description) || ''}
+          {commentTotal(comments.get(routine.id), routine.description) || ''}
         </Text>
       ),
       lastDoneAt: routine.lastDoneAt ? (

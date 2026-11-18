@@ -1,6 +1,7 @@
 import { Group, NumberInput, Select } from '@mantine/core';
 import { ONE_DAY, type Duration, type DurationUnit } from '@ordo/shared';
 import { MONTHS } from './describe-recurrence';
+import { plural } from '../../lib/text';
 
 const UNIT_LABELS: Record<DurationUnit, string> = {
   DAYS: 'Pendant des jours',
@@ -47,7 +48,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
           w={130}
           min={1}
           max={366}
-          suffix={value.unit === 'DAYS' ? ' jour(s)' : value.unit === 'WEEKS' ? ' semaine(s)' : ' mois'}
+          suffix={` ${value.unit === 'DAYS' ? plural(value.count, 'jour') : value.unit === 'WEEKS' ? plural(value.count, 'semaine') : 'mois'}`}
           aria-label="Combien"
           value={value.count}
           onChange={(count) => onChange({ ...value, count: Math.min(366, Math.max(1, Number(count) || 1)) })}

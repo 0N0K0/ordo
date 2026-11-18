@@ -1,5 +1,5 @@
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../api';
 import { movableOccurrence } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
@@ -18,17 +18,16 @@ interface MovedTimes {
  */
 export function useRoutineMove() {
   const { moveOccurrence } = useRoutineMutations();
-  const onError = onMutationError;
   return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes) => {
     if (!date) return;
     const what = to === date ? 'à d’autres horaires' : `${to > date ? 'reportée' : 'avancée'} au ${fmt.dayLong(to)}${times ? ', à d’autres horaires' : ''}`;
     moveOccurrence.mutate(
       { id: routine.id, date, to, times: times?.times },
       {
-        onError,
+        onError: onMutationError,
         onSuccess: () => {
           onDone?.();
-          notifyWithUndo(`« ${routine.title} » ${what}.`, () => moveOccurrence.mutate({ id: routine.id, date: to, to: date, times: times?.previous }, { onError }));
+          notifyWithUndo(`« ${routine.title} » ${what}.`, () => moveOccurrence.mutate({ id: routine.id, date: to, to: date, times: times?.previous }, ON_ERROR));
         },
       },
     );

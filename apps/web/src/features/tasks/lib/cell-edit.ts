@@ -23,7 +23,8 @@ export function useCellEdit(task: Task, column: TaskColumn) {
   const undo = useBulkUndo();
   const { data } = useTasksData();
   return useEntityCellEdit<Task, TaskChange, BulkChanges>(task, column, {
-    rows: data?.tasks ?? [],
+    // Archived tasks are read only: left out of the changes made on a selection.
+    rows: (data?.tasks ?? []).filter((item) => !item.archived),
     save: (item, change) => updateTask.mutate({ id: item.id, input: change }, { onError: onMutationError }),
     // Snapshot taken before the change, for the undo.
     saveMany: (rows, changes) =>

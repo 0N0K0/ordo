@@ -14,14 +14,9 @@
       background-color: var(--mantine-color-default-hover);
     }
 
-    &[data-over] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-    }
-
     &[data-dragging] {
       /* Effets */
-      opacity: 0.4;
+      opacity: var(--onoko-dragging-opacity);
     }
 
     &[data-done] input {

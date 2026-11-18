@@ -2,7 +2,7 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
-import { addDays, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -11,7 +11,7 @@ import { DataTable, type RowMove } from '../../../components/data-table/table/Da
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, useTableViews, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { useTaskAlarmCounts } from '../../alarms/api';
@@ -29,21 +29,7 @@ import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTaskSelectionActions } from './BulkBar';
 import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './extra-cells';
-import {
-  AssigneesCell,
-  BlockedByCell,
-  DateCell,
-  EffortCell,
-  LabelCell,
-  MilestoneCell,
-  ParentCell,
-  SprintCell,
-  TagsCell,
-  TaskBeneficiariesCell,
-  TaskLinksCell,
-  TaskProjectCell,
-  TitleCell,
-} from './inline-cells';
+import { AssigneesCell, BlockedByCell, DateCell, EffortCell, LabelCell, MilestoneCell, ParentCell, SprintCell, TagsCell, TaskBeneficiariesCell, TaskLinksCell, TaskProjectCell, TitleCell } from './inline-cells';
 import { groupDefaults } from '../lib/new-task-defaults';
 import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
@@ -51,10 +37,10 @@ import { countOf, plural } from '../../../lib/text';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
-  thisWeek: 'Cette semaine',
-  nextWeek: 'La semaine prochaine',
-  thisMonth: 'Ce mois-ci',
-  nextMonth: 'Le mois prochain',
+  thisWeek: DATE_PERIOD_LABELS.thisWeek,
+  nextWeek: DATE_PERIOD_LABELS.nextWeek,
+  thisMonth: DATE_PERIOD_LABELS.thisMonth,
+  nextMonth: DATE_PERIOD_LABELS.nextMonth,
   'next:7': '7 prochains jours',
   'next:30': '30 prochains jours',
   'next:90': '90 prochains jours',
@@ -180,8 +166,8 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
    */
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const task = context?.taskById.get(key);
-    if (!task) return;
-    const onError = onMutationError;
+    // An archived task is read only: not moved.
+    if (!task || task.archived) return;
     const column = view.groupColumn?.id;
     if (groupKey !== undefined && column) {
       const to = groupKey || null;
@@ -202,11 +188,11 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                     : column === 'sprint'
                       ? { addSprintIds: to ? [to] : [], removeSprintIds: from ? [from] : task.sprintIds }
                       : null;
-      if (changes) bulkUpdate.mutate({ ids: [task.id], changes }, { onError });
+      if (changes) bulkUpdate.mutate({ ids: [task.id], changes }, ON_ERROR);
       return;
     }
     const before = beforeKey ? context?.taskById.get(beforeKey) : undefined;
-    moveTask.mutate({ id: task.id, beforeId: before?.id ?? null, ...(parentKey !== undefined && { parentId: parentKey }) }, { onError });
+    moveTask.mutate({ id: task.id, beforeId: before?.id ?? null, ...(parentKey !== undefined && { parentId: parentKey }) }, ON_ERROR);
   };
 
   /**
@@ -221,7 +207,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       const event = row.event;
       return {
         ...texts,
-        comments: <CommentCount count={commentTotal(eventComments, event.eventId, event.description)} />,
+        comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
         title: <EventTitleCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,
@@ -252,7 +238,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                 </Tooltip>
               )}
               {alarmCounts.has(task.id) && (
-                <Tooltip label={`${alarmCounts.get(task.id)} alerte(s) active(s)`}>
+                <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alerte')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
                   <AlarmIcon aria-label="Alertes" className={classes.recurring} />
                 </Tooltip>
               )}
@@ -285,7 +271,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       blockedBy: <BlockedByCell task={task} context={context} />,
       blocking: <TaskLinksCell task={task} context={context} kind="blocking" />,
       related: <TaskLinksCell task={task} context={context} kind="related" />,
-      comments: <CommentCount count={task.commentCount + (task.description?.trim() ? 1 : 0)} />,
+      comments: <CommentCount count={commentTotal(task.commentCount, task.description)} />,
     };
   };
 
@@ -303,7 +289,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         loading={isPending || tasksPending || !context}
         framed
         verticalSpacing={4}
-        className={classes.table}
         bar={{
           searchLabel: 'Rechercher (titre, numéro, description)',
           manualText: 'Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent.',
@@ -351,7 +336,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         readOnly={(row) => row.kind === 'event'}
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
-        rowProps={() => ({ className: classes.row })}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (
@@ -359,8 +343,10 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
               name={`la tâche ${taskName(row.task)}`}
               primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
               items={[
-                { label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) },
-                'divider',
+                // An archived task is read only: no sub-task added under it.
+                ...(row.task.archived
+                  ? []
+                  : [{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: row.task.projectId ?? undefined, parentId: row.task.id }) }, 'divider' as const]),
                 ...taskActions.menu(row.task),
               ]}
             />

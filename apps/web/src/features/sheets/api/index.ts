@@ -191,12 +191,16 @@ const UseSheet = graphql(`
 `);
 const CreateSheetCategory = graphql(`
   mutation CreateSheetCategory($input: NameColorInput!) {
-    createSheetCategory(input: $input)
+    createSheetCategory(input: $input) {
+      id
+    }
   }
 `);
 const UpdateSheetCategory = graphql(`
   mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {
-    updateSheetCategory(id: $id, input: $input)
+    updateSheetCategory(id: $id, input: $input) {
+      id
+    }
   }
 `);
 const DeleteSheetCategory = graphql(`

@@ -1,4 +1,5 @@
-import { groupBy, timeToMinutes } from '@ordo/shared';
+import { groupBy } from '../core/collections';
+import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';

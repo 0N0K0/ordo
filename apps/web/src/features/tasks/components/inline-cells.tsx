@@ -8,11 +8,10 @@ import { DatePickerInput } from '@mantine/dates';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { notifySuccess } from '../../../lib/notify';
 import { TaskSelect } from './task-ui';
 import { subtreeIds } from '../lib/task-links';
 import { linkableTasks } from '../lib/task-links';
@@ -24,7 +23,7 @@ import classes from '../../../components/data-table/cells/EditableCells.module.c
 
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, stopClick } from '../../../components/data-table/cells/cell-field';
+import { cellCombobox as sharedCombobox, cellLabel, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
@@ -42,11 +41,12 @@ const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
  * @returns {string} Label.
  */
 function fieldLabel(name: string, task: Task, count: number): string {
-  return count > 1 ? `${name} (appliqué aux ${count} cellules sélectionnées)` : `${name} de la tâche ${taskName(task)}`;
+  return cellLabel(name, `de la tâche ${taskName(task)}`, count);
 }
 
 /**
- * Title cell: clicking "#12 Title" opens the task; double-clicking elsewhere in the cell renames it in place.
+ * Title cell: clicking "#12 Title" opens the task; double-clicking elsewhere in the cell renames it in place (not an
+ * archived task: every cell of an archived task is read only).
  * @param {{ task: Task, context: TaskContext, prefix?: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -75,6 +75,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
           </Text>
         )
       }
+      readOnly={task.archived}
       onSave={(title) => apply({ title })}
     />
   );
@@ -114,6 +115,8 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
     combobox.closeDropdown();
   };
 
+  // An archived task is read only: its chip only.
+  if (task.archived) return current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>;
   return (
     <Combobox store={combobox} onOptionSubmit={choose} withinPortal position="bottom-start" width="max-content">
       <Combobox.Target>
@@ -159,7 +162,8 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
       data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
       onChange={(milestoneId) => apply({ milestoneId }, { milestoneId })}
-      placeholder="—"
+      placeholder={task.archived ? undefined : '—'}
+      readOnly={task.archived}
       nothingFoundMessage="Aucun jalon dans ce projet"
     />
   );
@@ -182,6 +186,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       })}
       {...listSelectProps(context.tags, undefined, task.tagIds)}
       value={task.tagIds}
+      readOnly={task.archived}
       onSave={(tagIds) => {
         const { added, removed } = listDiff(task.tagIds, tagIds);
         apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
@@ -209,6 +214,7 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
       })}
       data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
       value={task.sprintIds}
+      readOnly={task.archived}
       onSave={(sprintIds) => {
         const { added, removed } = listDiff(task.sprintIds, sprintIds);
         apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
@@ -234,6 +240,7 @@ export function AssigneesCell({ task, context }: { task: Task; context: TaskCont
       projectIds={targets.length > 1 ? targets.map((id) => context.taskById.get(id)?.projectId ?? null) : undefined}
       context={context}
       label={fieldLabel('Assignés', task, count)}
+      readOnly={task.archived}
       onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}
     />
   );
@@ -254,7 +261,6 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((id) => !candidates.some((candidate) => candidate.id === id))
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
-  const onError = { onError: onMutationError };
   const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
     <EditableMultiSelect
@@ -274,14 +280,15 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
       })}
       data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
       value={task.blockedByIds}
+      readOnly={task.archived}
       onSave={(ids) => {
         // On a selection, each selected task gets (or loses) the same blockers.
         for (const target of targets) {
           for (const id of ids.filter((item) => !task.blockedByIds.includes(item) && item !== target)) {
-            taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, onError);
+            taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, ON_ERROR);
           }
           for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
-            taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, onError);
+            taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, ON_ERROR);
           }
         }
       }}
@@ -297,7 +304,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
  */
 export function EffortCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'effort');
-  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} onSave={(effort) => apply({ effort }, { effort })} />;
+  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} readOnly={task.archived} onSave={(effort) => apply({ effort }, { effort })} />;
 }
 
 interface DateCellProps {
@@ -328,8 +335,9 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       minDate={column === 'endDate' && count < 2 ? (task.startDate ?? undefined) : undefined}
       maxDate={column === 'startDate' && count < 2 ? (task.endDate ?? undefined) : undefined}
       onChange={(date) => apply({ [column]: date }, { [column]: date })}
-      clearable
-      placeholder="—"
+      readOnly={task.archived}
+      clearable={!task.archived}
+      placeholder={task.archived ? undefined : '—'}
       popoverProps={{ withinPortal: true }}
       c={alert ? 'red' : undefined}
       fw={alert ? 600 : undefined}
@@ -349,6 +357,7 @@ export function TaskBeneficiariesCell({ task }: { task: Task }) {
     <BeneficiariesCell
       label={fieldLabel('Bénéficiaires', task, count)}
       value={task}
+      readOnly={task.archived}
       onSave={(beneficiaries) =>
         apply((target) => ({
           beneficiaryIds: applyDiff(target.beneficiaryIds, task.beneficiaryIds, beneficiaries.beneficiaryIds),
@@ -371,7 +380,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
-  const onError = { onError: onMutationError };
+  const ON_ERROR = { onError: onMutationError };
   const label =
     count > 1
       ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
@@ -386,8 +395,8 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
    */
   const link = (id: string, add: boolean) => {
     for (const target of targets.filter((item) => item !== id)) {
-      if (kind === 'blocking') taskBlock.mutate({ add, blockerId: target, blockedId: id }, onError);
-      else taskRelation.mutate({ add, taskId: target, otherId: id }, onError);
+      if (kind === 'blocking') taskBlock.mutate({ add, blockerId: target, blockedId: id }, ON_ERROR);
+      else taskRelation.mutate({ add, taskId: target, otherId: id }, ON_ERROR);
     }
   };
   return (
@@ -399,6 +408,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
       })}
       data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
       value={ids}
+      readOnly={task.archived}
       onSave={(next) => {
         for (const id of next.filter((item) => !ids.includes(item))) link(id, true);
         for (const id of ids.filter((item) => !next.includes(item))) link(id, false);
@@ -424,7 +434,9 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
       variant="unstyled"
       size="xs"
       aria-label={fieldLabel('Tâche parente', task, count)}
-      placeholder="—"
+      placeholder={task.archived ? undefined : '—'}
+      readOnly={task.archived}
+      clearable={!task.archived}
       value={task.parentId}
       // A task is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
@@ -454,10 +466,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     const transfer = () =>
       bulkTransfer.mutate(
         { ids: targets, projectId },
-        {
-          onSuccess: ({ removedLinks }) => notifySuccess(`${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
-          onError: onMutationError,
-        },
+        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
     const linked = (item: Task) =>
       item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
@@ -471,6 +480,6 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     });
   };
   return (
-    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" onSave={move} />
+    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />
   );
 }

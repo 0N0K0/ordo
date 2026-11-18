@@ -1,6 +1,7 @@
 import { colorSchema, labelNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
+import type { Prisma } from '../../generated/prisma/client';
 import { parseInput, rethrowUnique } from '../../graphql/errors';
 import { assertNotArchived } from './archive';
 import { assertExists, deleteOrNotFound } from './lookup';
@@ -22,6 +23,7 @@ interface LabelDelegate<T> {
   create(args: { data: Record<string, unknown> }): Promise<T>;
   update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<T>;
   findUnique(args: { where: { id: string }; select: { id: true } }): Promise<unknown>;
+  findUniqueOrThrow(args: { where: { id: string } }): Promise<T>;
   deleteMany(args: { where: { id: string } }): Promise<{ count: number }>;
 }
 
@@ -32,11 +34,13 @@ export interface LabelMessages {
   conflict: string;
 }
 
-export interface LabelOptions {
+export interface LabelOptions<T = Label> {
   /** Fields of an item. Optional. Default = a label name and a required color. */
   schema?: z.ZodObject;
   /** Extra fields of the table (e.g. status category), all optional. Optional. */
   extraSchema?: z.ZodObject;
+  /** Writes following an update, in its transaction (e.g. the records copying its name follow it). Optional. */
+  afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
 }
 
 /** Fields of a label when the table sets none. */
@@ -47,18 +51,20 @@ const LABEL_SCHEMA = z.object({ name: labelNameSchema, color: colorSchema });
  * unique name), an archived item is not changed.
  * @param {LabelModel} model Table.
  * @param {LabelMessages} messages Error messages.
- * @param {LabelOptions} [options] Fields of an item. Optional. Default = a label name and a required color.
+ * @param {LabelOptions<T>} [options] Fields of an item and update hook. Optional. Default = a label name and a required color.
  * @returns {object} Label service.
  */
-export function createLabelService<T extends { id: string } = Label>(model: LabelModel, messages: LabelMessages, options: LabelOptions = {}) {
+export function createLabelService<T extends { id: string } = Label>(model: LabelModel, messages: LabelMessages, options: LabelOptions<T> = {}) {
   const schema = (options.schema ?? LABEL_SCHEMA).extend(options.extraSchema?.shape ?? {});
   const patchSchema = schema.partial();
 
   /**
    * Delegate of the table (scoped to the current workspace, as every model).
+   * @param {object} [client] Client or transaction. Optional. Default = the scoped client.
    * @returns {LabelDelegate} Delegate.
    */
-  const delegate = () => (prisma as unknown as Record<LabelModel, LabelDelegate<T>>)[model];
+  const delegate = (client: object = prisma) => (client as Record<LabelModel, LabelDelegate<T>>)[model];
+  const { afterUpdate } = options;
 
   return {
     /**
@@ -89,7 +95,13 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
       const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? undefined]));
       const data = parseInput(patchSchema, changes);
       try {
-        return await delegate().update({ where: { id }, data });
+        if (!afterUpdate) return await delegate().update({ where: { id }, data });
+        return await prisma.$transaction(async (tx) => {
+          const before = await delegate(tx).findUniqueOrThrow({ where: { id } });
+          const after = await delegate(tx).update({ where: { id }, data });
+          await afterUpdate(tx, before, after);
+          return after;
+        });
       } catch (error) {
         rethrowUnique(error, messages.conflict);
       }

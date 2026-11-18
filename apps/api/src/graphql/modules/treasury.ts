@@ -16,6 +16,7 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { NameColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
+import { fromDecimal } from '../../services/core/decimal';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -54,7 +55,7 @@ builder.prismaObject('TreasuryEntryLine', {
     id: t.exposeID('id'),
     label: t.exposeString('label', { nullable: true }),
     mode: t.field({ type: LineModeEnum, resolve: (line) => line.mode }),
-    value: t.float({ description: 'Signed amount, or signed percentage of the entry amount.', resolve: (line) => Number(line.value) }),
+    value: t.float({ description: 'Signed amount, or signed percentage of the entry amount.', resolve: (line) => fromDecimal(line.value) }),
     memberId: t.exposeID('memberId', { nullable: true }),
     relationId: t.exposeID('relationId', { nullable: true, description: 'Relation it is for, instead of a member.' }),
     loan: t.exposeBoolean('loan', { description: 'Loan with the relation: money out lends (or repays), money in borrows (or is repaid).' }),
@@ -91,7 +92,7 @@ builder.prismaObject('TreasuryBudget', {
     relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId'),
-    amount: t.float({ resolve: (budget) => Number(budget.amount) }),
+    amount: t.float({ resolve: (budget) => fromDecimal(budget.amount) }),
     repeatEvery: t.exposeInt('repeatEvery', { nullable: true, description: 'Every n months; none: that month only.' }),
     repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? formatDay(budget.repeatUntil).slice(0, 7) : null) }),
   }),
@@ -194,7 +195,6 @@ builder.prismaObject('TreasuryCounterparty', {
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
-    archived: t.exposeBoolean('archived'),
     entryCount: t.relationCount('entries'),
   }),
 });
@@ -295,10 +295,10 @@ function linkedLine(line: {
   id: string;
   label: string | null;
   mode: 'AMOUNT' | 'PERCENT';
-  value: { toString(): string };
-  entry: { id: string; label: string; date: Date; amount: { toString(): string }; status: 'ACTUAL' | 'FORECAST' };
+  value: { toNumber(): number };
+  entry: { id: string; label: string; date: Date; amount: { toNumber(): number }; status: 'ACTUAL' | 'FORECAST' };
 }): LinkedLine {
-  const amount = fromCents(lineCents(Number(line.entry.amount), { mode: line.mode, value: Number(line.value) }));
+  const amount = fromCents(lineCents(fromDecimal(line.entry.amount), { mode: line.mode, value: fromDecimal(line.value) }));
   return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
 }
 
@@ -356,7 +356,7 @@ builder.prismaObject('DocumentReminder', {
 builder.prismaObject('TreasuryAllocation', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    amount: t.float({ resolve: (allocation) => Number(allocation.amount) }),
+    amount: t.float({ resolve: (allocation) => fromDecimal(allocation.amount) }),
     documentId: t.exposeID('documentId', { nullable: true }),
     importedDocumentId: t.exposeID('importedDocumentId', { nullable: true }),
     documentLabel: t.string({
@@ -376,7 +376,7 @@ builder.prismaObject('TreasuryEntry', {
     date: t.expose('date', { type: 'Date', description: 'Execution date.' }),
     valueDate: t.expose('valueDate', { type: 'Date' }),
     label: t.exposeString('label'),
-    amount: t.float({ resolve: (entry) => Number(entry.amount) }),
+    amount: t.float({ resolve: (entry) => fromDecimal(entry.amount) }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     methodId: t.exposeID('methodId', { nullable: true }),
     methodName: t.string({ nullable: true, select: { method: { select: { name: true } } }, resolve: (entry) => entry.method?.name ?? null }),
@@ -393,7 +393,7 @@ builder.prismaObject('TreasuryEntry', {
       select: { links: linkedSelect, linkedBy: linkedSelect },
       resolve: (entry) =>
         [...entry.links, ...entry.linkedBy]
-          .map((linked) => ({ ...linked, amount: Number(linked.amount) }))
+          .map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) }))
           .sort((a, b) => a.date.getTime() - b.date.getTime()),
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
@@ -441,7 +441,7 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
     type: [LinkedEntryRef],
     description: 'Whole entries (without lines) linked to this line.',
     select: { linkedEntries: linkedSelect },
-    resolve: (line) => line.linkedEntries.map((linked) => ({ ...linked, amount: Number(linked.amount) })),
+    resolve: (line) => line.linkedEntries.map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) })),
   }),
 }));
 
@@ -449,9 +449,8 @@ builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
-    openingBalance: t.float({ resolve: (account) => Number(account.openingBalance) }),
+    openingBalance: t.float({ resolve: (account) => fromDecimal(account.openingBalance) }),
     openingDate: t.expose('openingDate', { type: 'Date' }),
-    archived: t.exposeBoolean('archived'),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
     balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, parisToday())) }),
@@ -588,7 +587,6 @@ const AccountInput = builder.inputType('TreasuryAccountInput', {
     name: t.string({ required: true }),
     openingBalance: t.float({ required: true }),
     openingDate: t.field({ type: 'Date', required: true }),
-    archived: t.boolean({ required: true }),
   }),
 });
 
@@ -675,7 +673,6 @@ const CounterpartyInput = builder.inputType('TreasuryCounterpartyInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     note: t.string(),
-    archived: t.boolean({ required: true }),
   }),
 });
 
@@ -810,7 +807,7 @@ builder.queryFields((t) => ({
   }),
   treasuryAccounts: t.prismaField({
     type: ['TreasuryAccount'],
-    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archived: 'asc' }, ...BY_POSITION] }),
+    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, ...BY_POSITION] }),
   }),
   treasuryEntries: t.prismaField({
     type: ['TreasuryEntry'],
@@ -833,7 +830,7 @@ builder.queryFields((t) => ({
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
-    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, { position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryDocumentOptions: t.field({
     type: [EntryDocumentRef],

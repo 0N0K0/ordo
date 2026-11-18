@@ -1,6 +1,5 @@
-import { clientError, errorMessage } from '../../graphql/errors';
 import type { MailAccount } from '../../generated/prisma/client';
-import { createSmtpTransport, findActiveAccount } from './accounts';
+import { createSmtpTransport, findActiveAccount, rethrowSmtpError } from './accounts';
 import { buildMessage, type BuiltMessage, type MailFields } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
@@ -35,8 +34,7 @@ export async function deliverMessage(
       raw: message.raw,
     });
   } catch (error) {
-    const detail = errorMessage(error);
-    throw clientError('BAD_USER_INPUT', `Envoi impossible (${detail}).`);
+    rethrowSmtpError(error, 'Envoi impossible');
   }
 
   // The mail is sent: what follows is not an error for the user.

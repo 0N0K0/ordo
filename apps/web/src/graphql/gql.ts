@@ -15,6 +15,13 @@ import * as types from './graphql';
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
+    "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskViewDocument,
+    "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskViewDocument,
+    "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": typeof types.DuplicateTaskViewDocument,
+    "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": typeof types.DeleteTaskViewDocument,
+    "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": typeof types.SetDefaultTaskViewDocument,
+    "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": typeof types.MoveTaskViewDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": typeof types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": typeof types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": typeof types.CatalogItemsDocument,
@@ -105,7 +112,8 @@ type Documents = {
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      name\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
     "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": typeof types.SubscribedWorkSchedulesDocument,
-    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": typeof types.SaveScheduleTypeDocument,
+    "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateScheduleTypeDocument,
+    "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateScheduleTypeDocument,
     "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      name\n    }\n  }\n": typeof types.SaveDefaultScheduleKindDocument,
@@ -212,8 +220,8 @@ type Documents = {
     "\n  mutation CreateMailFolder($accountId: ID!, $parent: String, $name: String!) {\n    createMailFolder(accountId: $accountId, parent: $parent, name: $name)\n  }\n": typeof types.CreateMailFolderDocument,
     "\n  mutation RenameMailFolder($accountId: ID!, $path: String!, $name: String!) {\n    renameMailFolder(accountId: $accountId, path: $path, name: $name)\n  }\n": typeof types.RenameMailFolderDocument,
     "\n  mutation DeleteMailFolder($accountId: ID!, $path: String!) {\n    deleteMailFolder(accountId: $accountId, path: $path)\n  }\n": typeof types.DeleteMailFolderDocument,
-    "\n  mutation CreateMailLabel($name: String!, $color: String!) {\n    createMailLabel(name: $name, color: $color)\n  }\n": typeof types.CreateMailLabelDocument,
-    "\n  mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {\n    updateMailLabel(id: $id, name: $name, color: $color)\n  }\n": typeof types.UpdateMailLabelDocument,
+    "\n  mutation CreateMailLabel($input: NameColorInput!) {\n    createMailLabel(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMailLabelDocument,
+    "\n  mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {\n    updateMailLabel(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateMailLabelDocument,
     "\n  mutation DeleteMailLabel($id: ID!) {\n    deleteMailLabel(id: $id)\n  }\n": typeof types.DeleteMailLabelDocument,
     "\n  mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {\n    scheduleMail(input: $input, sendAt: $sendAt)\n  }\n": typeof types.ScheduleMailDocument,
     "\n  mutation SendScheduledMail($id: ID!) {\n    sendScheduledMail(id: $id)\n  }\n": typeof types.SendScheduledMailDocument,
@@ -260,8 +268,8 @@ type Documents = {
     "\n  mutation UpdateSheetItem($id: ID!, $input: SheetItemInput!) {\n    updateSheetItem(id: $id, input: $input)\n  }\n": typeof types.UpdateSheetItemDocument,
     "\n  mutation DeleteSheetItems($ids: [ID!]!) {\n    deleteSheetItems(ids: $ids)\n  }\n": typeof types.DeleteSheetItemsDocument,
     "\n  mutation UseSheet($id: ID!, $multiplier: Float!) {\n    useSheet(id: $id, multiplier: $multiplier) {\n      taken\n      short\n    }\n  }\n": typeof types.UseSheetDocument,
-    "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input)\n  }\n": typeof types.CreateSheetCategoryDocument,
-    "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateSheetCategoryDocument,
+    "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateSheetCategoryDocument,
+    "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateSheetCategoryDocument,
     "\n  mutation DeleteSheetCategory($id: ID!) {\n    deleteSheetCategory(id: $id)\n  }\n": typeof types.DeleteSheetCategoryDocument,
     "\n  mutation DuplicateSheet($id: ID!) {\n    duplicateSheet(id: $id)\n  }\n": typeof types.DuplicateSheetDocument,
     "\n  mutation DeleteSheet($id: ID!) {\n    deleteSheet(id: $id)\n  }\n": typeof types.DeleteSheetDocument,
@@ -280,16 +288,16 @@ type Documents = {
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": typeof types.DeleteShoppingCategoryDocument,
     "\n  mutation MoveShoppingCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveShoppingCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveShoppingCategoryDocument,
-    "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input)\n  }\n": typeof types.CreateShoppingUnitDocument,
-    "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingUnitDocument,
+    "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateShoppingUnitDocument,
+    "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateShoppingUnitDocument,
     "\n  mutation DeleteShoppingUnit($id: ID!) {\n    deleteShoppingUnit(id: $id)\n  }\n": typeof types.DeleteShoppingUnitDocument,
     "\n  mutation MoveShoppingProducts($ids: [ID!]!, $baseListId: ID!) {\n    moveShoppingProducts(ids: $ids, baseListId: $baseListId)\n  }\n": typeof types.MoveShoppingProductsDocument,
-    "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input)\n  }\n": typeof types.CreateShoppingStorageDocument,
-    "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStorageDocument,
+    "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateShoppingStorageDocument,
+    "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateShoppingStorageDocument,
     "\n  mutation DeleteShoppingStorage($id: ID!) {\n    deleteShoppingStorage(id: $id)\n  }\n": typeof types.DeleteShoppingStorageDocument,
     "\n  mutation DuplicateShoppingItem($id: ID!) {\n    duplicateShoppingItem(id: $id)\n  }\n": typeof types.DuplicateShoppingItemDocument,
-    "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input)\n  }\n": typeof types.CreateShoppingStoreDocument,
-    "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStoreDocument,
+    "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateShoppingStoreDocument,
+    "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": typeof types.DeleteShoppingStoreDocument,
     "\n  mutation CreateShoppingBaseList($name: String!) {\n    createShoppingBaseList(name: $name)\n  }\n": typeof types.CreateShoppingBaseListDocument,
     "\n  mutation RenameShoppingBaseList($id: ID!, $name: String!) {\n    renameShoppingBaseList(id: $id, name: $name)\n  }\n": typeof types.RenameShoppingBaseListDocument,
@@ -371,13 +379,6 @@ type Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
-    "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskViewDocument,
-    "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskViewDocument,
-    "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": typeof types.DuplicateTaskViewDocument,
-    "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": typeof types.DeleteTaskViewDocument,
-    "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": typeof types.SetDefaultTaskViewDocument,
-    "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": typeof types.MoveTaskViewDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": typeof types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
@@ -476,6 +477,13 @@ type Documents = {
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
 };
 const documents: Documents = {
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
+    "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskViewDocument,
+    "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskViewDocument,
+    "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": types.DuplicateTaskViewDocument,
+    "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": types.DeleteTaskViewDocument,
+    "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": types.SetDefaultTaskViewDocument,
+    "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": types.MoveTaskViewDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": types.CatalogItemsDocument,
@@ -566,7 +574,8 @@ const documents: Documents = {
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      name\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
     "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": types.SubscribedWorkSchedulesDocument,
-    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": types.SaveScheduleTypeDocument,
+    "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": types.CreateScheduleTypeDocument,
+    "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateScheduleTypeDocument,
     "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      name\n    }\n  }\n": types.SaveDefaultScheduleKindDocument,
@@ -673,8 +682,8 @@ const documents: Documents = {
     "\n  mutation CreateMailFolder($accountId: ID!, $parent: String, $name: String!) {\n    createMailFolder(accountId: $accountId, parent: $parent, name: $name)\n  }\n": types.CreateMailFolderDocument,
     "\n  mutation RenameMailFolder($accountId: ID!, $path: String!, $name: String!) {\n    renameMailFolder(accountId: $accountId, path: $path, name: $name)\n  }\n": types.RenameMailFolderDocument,
     "\n  mutation DeleteMailFolder($accountId: ID!, $path: String!) {\n    deleteMailFolder(accountId: $accountId, path: $path)\n  }\n": types.DeleteMailFolderDocument,
-    "\n  mutation CreateMailLabel($name: String!, $color: String!) {\n    createMailLabel(name: $name, color: $color)\n  }\n": types.CreateMailLabelDocument,
-    "\n  mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {\n    updateMailLabel(id: $id, name: $name, color: $color)\n  }\n": types.UpdateMailLabelDocument,
+    "\n  mutation CreateMailLabel($input: NameColorInput!) {\n    createMailLabel(input: $input) {\n      id\n    }\n  }\n": types.CreateMailLabelDocument,
+    "\n  mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {\n    updateMailLabel(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateMailLabelDocument,
     "\n  mutation DeleteMailLabel($id: ID!) {\n    deleteMailLabel(id: $id)\n  }\n": types.DeleteMailLabelDocument,
     "\n  mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {\n    scheduleMail(input: $input, sendAt: $sendAt)\n  }\n": types.ScheduleMailDocument,
     "\n  mutation SendScheduledMail($id: ID!) {\n    sendScheduledMail(id: $id)\n  }\n": types.SendScheduledMailDocument,
@@ -721,8 +730,8 @@ const documents: Documents = {
     "\n  mutation UpdateSheetItem($id: ID!, $input: SheetItemInput!) {\n    updateSheetItem(id: $id, input: $input)\n  }\n": types.UpdateSheetItemDocument,
     "\n  mutation DeleteSheetItems($ids: [ID!]!) {\n    deleteSheetItems(ids: $ids)\n  }\n": types.DeleteSheetItemsDocument,
     "\n  mutation UseSheet($id: ID!, $multiplier: Float!) {\n    useSheet(id: $id, multiplier: $multiplier) {\n      taken\n      short\n    }\n  }\n": types.UseSheetDocument,
-    "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input)\n  }\n": types.CreateSheetCategoryDocument,
-    "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input)\n  }\n": types.UpdateSheetCategoryDocument,
+    "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input) {\n      id\n    }\n  }\n": types.CreateSheetCategoryDocument,
+    "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateSheetCategoryDocument,
     "\n  mutation DeleteSheetCategory($id: ID!) {\n    deleteSheetCategory(id: $id)\n  }\n": types.DeleteSheetCategoryDocument,
     "\n  mutation DuplicateSheet($id: ID!) {\n    duplicateSheet(id: $id)\n  }\n": types.DuplicateSheetDocument,
     "\n  mutation DeleteSheet($id: ID!) {\n    deleteSheet(id: $id)\n  }\n": types.DeleteSheetDocument,
@@ -741,16 +750,16 @@ const documents: Documents = {
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": types.DeleteShoppingCategoryDocument,
     "\n  mutation MoveShoppingCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveShoppingCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveShoppingCategoryDocument,
-    "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input)\n  }\n": types.CreateShoppingUnitDocument,
-    "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input)\n  }\n": types.UpdateShoppingUnitDocument,
+    "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input) {\n      id\n    }\n  }\n": types.CreateShoppingUnitDocument,
+    "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateShoppingUnitDocument,
     "\n  mutation DeleteShoppingUnit($id: ID!) {\n    deleteShoppingUnit(id: $id)\n  }\n": types.DeleteShoppingUnitDocument,
     "\n  mutation MoveShoppingProducts($ids: [ID!]!, $baseListId: ID!) {\n    moveShoppingProducts(ids: $ids, baseListId: $baseListId)\n  }\n": types.MoveShoppingProductsDocument,
-    "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input)\n  }\n": types.CreateShoppingStorageDocument,
-    "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n": types.UpdateShoppingStorageDocument,
+    "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input) {\n      id\n    }\n  }\n": types.CreateShoppingStorageDocument,
+    "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateShoppingStorageDocument,
     "\n  mutation DeleteShoppingStorage($id: ID!) {\n    deleteShoppingStorage(id: $id)\n  }\n": types.DeleteShoppingStorageDocument,
     "\n  mutation DuplicateShoppingItem($id: ID!) {\n    duplicateShoppingItem(id: $id)\n  }\n": types.DuplicateShoppingItemDocument,
-    "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input)\n  }\n": types.CreateShoppingStoreDocument,
-    "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": types.UpdateShoppingStoreDocument,
+    "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input) {\n      id\n    }\n  }\n": types.CreateShoppingStoreDocument,
+    "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": types.DeleteShoppingStoreDocument,
     "\n  mutation CreateShoppingBaseList($name: String!) {\n    createShoppingBaseList(name: $name)\n  }\n": types.CreateShoppingBaseListDocument,
     "\n  mutation RenameShoppingBaseList($id: ID!, $name: String!) {\n    renameShoppingBaseList(id: $id, name: $name)\n  }\n": types.RenameShoppingBaseListDocument,
@@ -832,13 +841,6 @@ const documents: Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
-    "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskViewDocument,
-    "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskViewDocument,
-    "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": types.DuplicateTaskViewDocument,
-    "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": types.DeleteTaskViewDocument,
-    "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": types.SetDefaultTaskViewDocument,
-    "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": types.MoveTaskViewDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
@@ -937,6 +939,34 @@ const documents: Documents = {
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
 };
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n"): typeof import('./graphql').DuplicateTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n"): typeof import('./graphql').DeleteTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n"): typeof import('./graphql').SetDefaultTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveTaskViewDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1300,7 +1330,11 @@ export function graphql(source: "\n  query SubscribedWorkSchedules {\n    subscr
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveScheduleTypeDocument;
+export function graphql(source: "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateScheduleTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateScheduleTypeDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1728,11 +1762,11 @@ export function graphql(source: "\n  mutation DeleteMailFolder($accountId: ID!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateMailLabel($name: String!, $color: String!) {\n    createMailLabel(name: $name, color: $color)\n  }\n"): typeof import('./graphql').CreateMailLabelDocument;
+export function graphql(source: "\n  mutation CreateMailLabel($input: NameColorInput!) {\n    createMailLabel(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateMailLabelDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {\n    updateMailLabel(id: $id, name: $name, color: $color)\n  }\n"): typeof import('./graphql').UpdateMailLabelDocument;
+export function graphql(source: "\n  mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {\n    updateMailLabel(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateMailLabelDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1920,11 +1954,11 @@ export function graphql(source: "\n  mutation UseSheet($id: ID!, $multiplier: Fl
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input)\n  }\n"): typeof import('./graphql').CreateSheetCategoryDocument;
+export function graphql(source: "\n  mutation CreateSheetCategory($input: NameColorInput!) {\n    createSheetCategory(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateSheetCategoryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateSheetCategoryDocument;
+export function graphql(source: "\n  mutation UpdateSheetCategory($id: ID!, $input: NameColorPatch!) {\n    updateSheetCategory(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateSheetCategoryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2000,11 +2034,11 @@ export function graphql(source: "\n  mutation MoveShoppingCategory($id: ID!, $pa
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingUnitDocument;
+export function graphql(source: "\n  mutation CreateShoppingUnit($input: NameColorInput!) {\n    createShoppingUnit(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateShoppingUnitDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingUnitDocument;
+export function graphql(source: "\n  mutation UpdateShoppingUnit($id: ID!, $input: NameColorPatch!) {\n    updateShoppingUnit(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateShoppingUnitDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2016,11 +2050,11 @@ export function graphql(source: "\n  mutation MoveShoppingProducts($ids: [ID!]!,
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingStorageDocument;
+export function graphql(source: "\n  mutation CreateShoppingStorage($input: NameColorInput!) {\n    createShoppingStorage(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateShoppingStorageDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingStorageDocument;
+export function graphql(source: "\n  mutation UpdateShoppingStorage($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStorage(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateShoppingStorageDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2032,11 +2066,11 @@ export function graphql(source: "\n  mutation DuplicateShoppingItem($id: ID!) {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingStoreDocument;
+export function graphql(source: "\n  mutation CreateShoppingStore($input: NameColorInput!) {\n    createShoppingStore(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateShoppingStoreDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingStoreDocument;
+export function graphql(source: "\n  mutation UpdateShoppingStore($id: ID!, $input: NameColorPatch!) {\n    updateShoppingStore(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateShoppingStoreDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2361,34 +2395,6 @@ export function graphql(source: "\n  mutation SetTaskColumnDefaults($columnOrder
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n"): typeof import('./graphql').SetTasksClosedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateTaskViewDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTaskViewDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n"): typeof import('./graphql').DuplicateTaskViewDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n"): typeof import('./graphql').DeleteTaskViewDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n"): typeof import('./graphql').SetDefaultTaskViewDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveTaskViewDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

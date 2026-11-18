@@ -16,7 +16,7 @@ import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar'
 import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
@@ -51,11 +51,7 @@ const BASE_LIST_VIEWS: FirstTableView[] = [
 function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
   confirmDestructive({
     title: 'Retirer le produit',
-    risks: (
-      <>
-        <Text size="sm">« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
-      </>
-    ),
+    risks: <>« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</>,
     confirmLabel: 'Retirer',
     onConfirm: () => {
       onConfirm();
@@ -140,7 +136,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         size: 120,
         sortValue: (product) => product.lastPurchasedAt ?? null,
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
+        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
       {
         id: 'missing',
@@ -213,7 +209,6 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     first: BASE_LIST_VIEWS,
     bulkColumns: [{ id: 'missing', label: 'Manque' }],
   });
-  const onError = onMutationError;
   // Stock settings of the references, changed in place (and in bulk).
   const stockBulk = bulkSaver<ShoppingProduct, Partial<ProductStockInput>>(view, (product, change) =>
     stockMutations.setProductStock.mutate(
@@ -221,7 +216,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         id: product.id,
         input: { stockTracked: product.stockTracked, consumable: product.consumable, autoStock: product.autoStock, stockLocationId: product.stockLocationId ?? null, ...change },
       },
-      { onError },
+      ON_ERROR,
     ),
   );
 
@@ -300,15 +295,16 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
           }}
           label={`Produits de ${baseList.name}`}
-          onSave={(product, input) =>
-            !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })
-          }
+          onSave={(product, input) => !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, ON_ERROR)}
           toggle={MISSING_TOGGLE((ids, missing) => {
             const open = ids.filter((id) => !all.find((product) => product.id === id)?.archived);
-            if (open.length) mutations.setMissing.mutate({ ids: open, missing }, { onError });
+            if (open.length) mutations.setMissing.mutate({ ids: open, missing }, ON_ERROR);
           })}
           badge={(product) => product.archived && <ArchivedBadge size="xs" />}
-          summary={(items) => `${items.filter((product) => product.missing).length} manquant(s) sur ${items.length}`}
+          summary={(items) => {
+            const missing = items.filter((product) => product.missing).length;
+            return `${missing} ${plural(missing, 'manquant')} sur ${items.length}`;
+          }}
           extraCells={(product) => ({
             stockTracked: (
               <EditableCheck
@@ -375,7 +371,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
                   label: 'Retirer',
                   icon: <TrashIcon aria-hidden />,
                   danger: true,
-                  onClick: () => confirmDelete(product, () => mutations.deleteProduct.mutate({ id: product.id }, { onSuccess: () => notifySuccess('Produit retiré.'), onError })),
+                  onClick: () => confirmDelete(product, () => mutations.deleteProduct.mutate({ id: product.id }, toastCallbacks('Produit retiré.'))),
                 },
               ]}
             />
@@ -385,7 +381,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       {missing.length > 0 && !locked && (
         <Text size="xs" c="dimmed">
           Cocher un produit comme acheté sur une liste le retire des manquants.{' '}
-          <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, { onError })}>
+          <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, ON_ERROR)}>
             Tout décocher
           </Anchor>
         </Text>

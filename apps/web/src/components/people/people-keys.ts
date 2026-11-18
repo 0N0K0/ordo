@@ -7,7 +7,7 @@ const PREFIX: Record<PersonKind, string> = { contributor: 'c', member: 'm', rela
 const KIND = new Map(Object.entries(PREFIX).map(([kind, prefix]) => [prefix, kind as PersonKind]));
 
 /** People of a field, by kind. */
-export type People = Partial<Record<PersonKind, string[]>>;
+type People = Partial<Record<PersonKind, string[]>>;
 
 /**
  * Value of a person in a select mixing kinds: « c:<id> », « m:<id> », « r:<id> ».

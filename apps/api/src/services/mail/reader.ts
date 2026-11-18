@@ -224,8 +224,6 @@ interface MailSort {
   ascending: boolean;
 }
 
-const sortCollator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
-
 /**
  * UIDs of mails sorted on their sender, subject
  * (without "Re:" or "Fwd:") or size; latest first between equals.
@@ -249,7 +247,7 @@ async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Pro
   return [...uids].sort((a, b) => {
     const x = keys.get(a) ?? '';
     const y = keys.get(b) ?? '';
-    const order = typeof x === 'number' && typeof y === 'number' ? x - y : sortCollator.compare(String(x), String(y));
+    const order = typeof x === 'number' && typeof y === 'number' ? x - y : collator.compare(String(x), String(y));
     return order !== 0 ? order * direction : b - a;
   });
 }

@@ -4,6 +4,15 @@ import { z } from 'zod';
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
 export type TaskStatusCategory = (typeof TASK_STATUS_CATEGORIES)[number];
 
+/**
+ * Names of the status categories, agreed with the noun they qualify: `status` for a status or its category
+ * (« Terminé », « Annulé »), `task` for tasks counted or grouped by it (« Terminée », « Annulée »).
+ */
+export const TASK_STATUS_CATEGORY_LABELS: Record<'status' | 'task', Record<TaskStatusCategory, string>> = {
+  status: { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminé', CANCELLED: 'Annulé' },
+  task: { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminée', CANCELLED: 'Annulée' },
+};
+
 /** Columns of the task table (the number is shown before the title). */
 export const TASK_COLUMNS = [
   'title',
