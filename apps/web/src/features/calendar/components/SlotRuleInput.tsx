@@ -27,15 +27,19 @@ export function SlotRuleInput({ value, onChange, error, disabled }: SlotRuleInpu
   const fallback = describe(defaultRule) ?? 'partout';
 
   /**
-   * Options of the kinds, grouped by workspace, without those chosen in the other list.
+   * Options of the kinds, grouped by workspace, without those chosen in the other list nor the archived ones (but
+   * those chosen).
    * @param {readonly string[]} taken Kinds of the other list.
    * @returns {object[]} Options.
    */
-  const groups = (taken: readonly string[]) =>
-    [...new Set(kinds.map((kind) => kind.group))].map((group) => ({
+  const groups = (taken: readonly string[]) => {
+    const chosen = [...(value?.inside ?? []), ...(value?.outside ?? [])];
+    const offered = kinds.filter((kind) => !kind.archived || chosen.includes(kind.value));
+    return [...new Set(offered.map((kind) => kind.group))].map((group) => ({
       group,
-      items: kinds.filter((kind) => kind.group === group && !taken.includes(kind.value)).map(({ value: kind, label }) => ({ value: kind, label })),
+      items: offered.filter((kind) => kind.group === group && !taken.includes(kind.value)).map(({ value: kind, label }) => ({ value: kind, label })),
     }));
+  };
 
   return (
     <Stack gap="xs">

@@ -38,8 +38,10 @@ interface ShoppingTableProps<T extends ShoppingFields> {
   grouping: ShoppingGrouping;
   /** Accessible name of the table. */
   label: string;
-  /** Nothing can be changed (an archived list). */
+  /** Nothing can be changed (a closed or archived list). */
   readOnly?: boolean;
+  /** A row that cannot be changed (an archived product), shown dimmed. Optional. */
+  rowReadOnly?: (row: T) => boolean;
   /** Saves a row changed in place or moved to another category (or store). */
   onSave: (row: T, input: ShoppingItemInput) => void;
   /** State a click switches on a row (missing, or bought), before its fields; changed in bulk too. */
@@ -88,7 +90,8 @@ export function ShoppingTable<T extends ShoppingFields>({
   view,
   selectionActions,
   selectionLabel,
-  readOnly = false,
+  readOnly: tableReadOnly = false,
+  rowReadOnly,
   onSave,
   toggle,
   badge,
@@ -126,6 +129,7 @@ export function ShoppingTable<T extends ShoppingFields>({
   const handleMove = (move: RowMove) => {
     if (move.groupKey === undefined) return;
     const row = items.find((item) => item.id === move.key);
+    if (row && rowReadOnly?.(row)) return;
     const change = row ? moveToGroup(row, grouping, move.fromGroupKey || null, move.groupKey || null) : null;
     if (row && change) onSave(row, { ...inputOf(row), ...change });
   };
@@ -136,6 +140,7 @@ export function ShoppingTable<T extends ShoppingFields>({
    * @returns {Record<string, ReactNode>} Cells, by column.
    */
   const cells = (item: T): Record<string, ReactNode> => {
+    const readOnly = tableReadOnly || Boolean(rowReadOnly?.(item));
     /**
      * Saves some fields of the row (or of its bulk selection).
      * @param {string} column Column.
@@ -263,15 +268,24 @@ export function ShoppingTable<T extends ShoppingFields>({
       className={classes.table}
       groupTree={groupTree}
       groupSummary={summary}
-      onMoveRow={readOnly ? undefined : handleMove}
-      readOnly={readOnly ? () => true : undefined}
+      onMoveRow={tableReadOnly ? undefined : handleMove}
+      readOnly={tableReadOnly ? () => true : rowReadOnly}
+      isArchived={rowReadOnly}
       rowProps={(item) => ({ className: classes.itemRow, 'data-done': done?.(item) || undefined })}
       leading={{
         id: toggle.id,
         width: 36,
         header: null,
         cell: (item) => (
-          <ToggleCell on={toggle.value(item)} label={toggle.label(item)} hint={toggle.hint(item)} icon={toggle.icon} color={toggle.color} readOnly={readOnly} onSave={(on) => saveToggle(item, on)} />
+          <ToggleCell
+            on={toggle.value(item)}
+            label={toggle.label(item)}
+            hint={toggle.hint(item)}
+            icon={toggle.icon}
+            color={toggle.color}
+            readOnly={tableReadOnly || Boolean(rowReadOnly?.(item))}
+            onSave={(on) => saveToggle(item, on)}
+          />
         ),
       }}
       cells={cells}
@@ -280,7 +294,7 @@ export function ShoppingTable<T extends ShoppingFields>({
           {actions(item)}
         </Group>
       )}
-      addRow={add && !readOnly ? (group) => <AddShoppingRow {...add} place={placeInGroup(grouping, group?.key || null)} groupName={group?.label ?? NO_GROUP_NAME[grouping]} /> : undefined}
+      addRow={add && !tableReadOnly ? (group) => <AddShoppingRow {...add} place={placeInGroup(grouping, group?.key || null)} groupName={group?.label ?? NO_GROUP_NAME[grouping]} /> : undefined}
       selectionActions={selectionActions}
       selectionLabel={selectionLabel}
     />

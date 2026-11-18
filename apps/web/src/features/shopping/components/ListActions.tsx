@@ -5,7 +5,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
@@ -13,9 +13,10 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryEntrySearch } from '../../treasury/api';
-import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
+import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
 import { downloadShoppingPdf, shoppingText } from '../lib/export';
 import { openFormPanel } from '../../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from '../lib/shopping-format';
@@ -131,7 +132,8 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
 
 /**
  * Actions of a shopping list, from its page or from the table of the lists: rename and change its task, attach to or
- * detach from a treasury entry, duplicate, copy as text, export as PDF, archive or reopen, delete.
+ * detach from a treasury entry, duplicate, copy as text, export as PDF, close or reopen, archive or restore, delete. An
+ * archived list is read only: only its exports, « Restaurer » and « Supprimer ».
  * @param {ShoppingList} list List.
  * @param {ShoppingGrouping} grouping Grouping of the exports (as the list is shown).
  * @param {() => void} [onDeleted] After the list is deleted (leaves its page). Optional.
@@ -143,6 +145,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
   const { context } = useTaskContext();
   const people = usePeople();
   const mutations = useShoppingMutations();
+  const setArchived = useSetArchived('SHOPPING_LIST', [shoppingKey]);
   const closed = listClosed(list, context);
   // Closed along with its tasks (not by hand): reopened with one of them.
   const byTasks = closed && !list.closedAt;
@@ -162,6 +165,43 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
         people: people.byKey,
       },
     );
+
+  const archive: RowMenuEntry = {
+    label: list.archived ? 'Restaurer' : 'Archiver',
+    icon: list.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+    onClick: () => void archiveWithUndo(setArchived, { ids: [list.id], archived: !list.archived, label: `Liste « ${list.name} »`, feminine: true }),
+  };
+  const exports: RowMenuEntry[] = [
+    {
+      label: 'Copier en texte',
+      icon: <TextAlignLeftIcon aria-hidden />,
+      onClick: () =>
+        void navigator.clipboard.writeText(shoppingText(list, rows(), people)).then(
+          () => notifySuccess('Liste copiée : collez-la dans un message.'),
+          () => notifyError('La liste n’a pas pu être copiée.'),
+        ),
+    },
+    { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, onClick: () => void downloadShoppingPdf(list, rows(), people).catch(onError) },
+  ];
+  const remove: RowMenuEntry = {
+    label: 'Supprimer',
+    icon: <TrashIcon aria-hidden />,
+    danger: true,
+    onClick: () =>
+      confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
+          mutations.deleteList.mutate(
+            { id: list.id },
+            {
+              onSuccess: () => {
+                notifySuccess('Liste supprimée.');
+                onDeleted?.();
+              },
+              onError,
+            },
+          ) }),
+  };
+  // Archived: read only.
+  if (list.archived) return [...exports, 'divider', archive, remove];
 
   return [
     { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
@@ -188,16 +228,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
         ),
     },
     'divider',
-    {
-      label: 'Copier en texte',
-      icon: <TextAlignLeftIcon aria-hidden />,
-      onClick: () =>
-        void navigator.clipboard.writeText(shoppingText(list, rows(), people)).then(
-          () => notifySuccess('Liste copiée : collez-la dans un message.'),
-          () => notifyError('La liste n’a pas pu être copiée.'),
-        ),
-    },
-    { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, onClick: () => void downloadShoppingPdf(list, rows(), people).catch(onError) },
+    ...exports,
     'divider',
     closed
       ? {
@@ -207,24 +238,9 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           hint: byTasks ? 'Les tâches de la liste sont fermées : rouvrez-en une pour rouvrir la liste.' : undefined,
           onClick: () => mutations.setClosed.mutate({ id: list.id, closed: false }, { onSuccess: () => notifySuccess('Liste rouverte.'), onError }),
         }
-      : { label: 'Archiver', icon: <ArchiveIcon aria-hidden />, onClick: () => mutations.setClosed.mutate({ id: list.id, closed: true }, { onSuccess: () => notifySuccess('Liste archivée.'), onError }) },
-    {
-      label: 'Supprimer',
-      icon: <TrashIcon aria-hidden />,
-      danger: true,
-      onClick: () =>
-        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
-            mutations.deleteList.mutate(
-              { id: list.id },
-              {
-                onSuccess: () => {
-                  notifySuccess('Liste supprimée.');
-                  onDeleted?.();
-                },
-                onError,
-              },
-            ) }),
-    },
+      : { label: 'Clôturer', icon: <CheckCircleIcon aria-hidden />, onClick: () => mutations.setClosed.mutate({ id: list.id, closed: true }, { onSuccess: () => notifySuccess('Liste clôturée.'), onError }) },
+    archive,
+    remove,
   ];
 }
 

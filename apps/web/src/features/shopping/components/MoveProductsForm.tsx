@@ -5,6 +5,7 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { collator, countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 interface MoveProductsFormProps {
   /** Base list the products leave. */
@@ -25,8 +26,10 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
   const { moveProducts } = useShoppingMutations();
   const [ids, setIds] = useState(productIds);
   const [target, setTarget] = useState<string | null>(null);
-  const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
-  const targets = (data?.shoppingBaseLists ?? []).filter((list) => list.id !== baseList.id);
+  const products = unarchived(data?.shoppingProducts ?? [])
+    .filter((product) => product.baseListId === baseList.id)
+    .sort((a, b) => collator.compare(a.name, b.name));
+  const targets = unarchived(data?.shoppingBaseLists ?? []).filter((list) => list.id !== baseList.id);
   const targetName = targets.find((list) => list.id === target)?.name;
 
   /**

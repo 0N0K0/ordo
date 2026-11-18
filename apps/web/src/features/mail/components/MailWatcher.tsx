@@ -14,6 +14,7 @@ const WatchedMailAccountsDocument = graphql(`
   query WatchedMailAccounts {
     mailAccounts {
       id
+      archived
     }
   }
 `);
@@ -114,11 +115,14 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
       accounts
         .then(({ mailAccounts }) =>
           Promise.all(
-            mailAccounts.map(({ id: accountId }) =>
-              (workspaceId ? executeIn(workspaceId, WatchedUnreadMailsDocument, { accountId }) : execute(WatchedUnreadMailsDocument, { accountId }))
-                .then(({ mailMessages }) => announce(accountId, mailMessages.messages))
-                .catch(() => undefined),
-            ),
+            // An archived account is not watched anymore.
+            mailAccounts
+              .filter((account) => !account.archived)
+              .map(({ id: accountId }) =>
+                (workspaceId ? executeIn(workspaceId, WatchedUnreadMailsDocument, { accountId }) : execute(WatchedUnreadMailsDocument, { accountId }))
+                  .then(({ mailMessages }) => announce(accountId, mailMessages.messages))
+                  .catch(() => undefined),
+              ),
           ),
         )
         .catch(() => undefined);

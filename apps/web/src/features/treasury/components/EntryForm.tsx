@@ -143,12 +143,12 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
     (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)),
   );
 
-  // Documents it can settle: still due, or already settled by this entry.
+  // Documents it can settle: still due and not archived, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
   const settleable = [
     ...(documents ?? [])
       .filter((document) => document.status === 'FINAL' && document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
-      .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
+      .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
       .map((document) => ({
         value: `doc:${document.id}`,
         label: `${document.number} — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
@@ -156,7 +156,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       })),
     ...(imported ?? [])
       .filter((document) => document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
-      .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
+      .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
       .map((document) => ({
         value: `imp:${document.id}`,
         label: `${document.number} (importé) — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
@@ -193,7 +193,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
           />
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select label="Compte" required {...listSelectProps(open)} allowDeselect={false} {...form.getInputProps('accountId')} />
+            <Select label="Compte" required {...listSelectProps(open, undefined, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
             <DatePickerInput
               label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
               required
@@ -240,13 +240,19 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                   clearable
                   searchable
                   placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-                  {...treeSelectProps(categoryOptions(categories, values.direction))}
+                  {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
                   {...form.getInputProps('categoryId')}
                 />
               </WithCreate>
             )}
             <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
-              <Select label="Moyen de paiement" clearable placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'} {...listSelectProps(methods)} {...form.getInputProps('methodId')} />
+              <Select
+                label="Moyen de paiement"
+                clearable
+                placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
+                {...listSelectProps(methods, undefined, values.methodId)}
+                {...form.getInputProps('methodId')}
+              />
             </WithCreate>
           </SimpleGrid>
           <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>

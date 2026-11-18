@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import { type ProjectStatus } from '../../generated/prisma/client';
 import { notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Creates a status at the end of the list.
@@ -23,7 +24,7 @@ export async function createStatus(input: { name: string; color: string }): Prom
 }
 
 /**
- * Updates a status.
+ * Updates a status (refused when it is archived).
  * @param {string} id Status id.
  * @param {object} input Changes; omitted fields are left unchanged.
  * @param {string | null} [input.name] New name. Optional.
@@ -35,6 +36,7 @@ export async function updateStatus(
   input: { name?: string | null; color?: string | null },
 ): Promise<ProjectStatus> {
   await orNotFound(prisma.projectStatus.findUnique({ where: { id } }), 'Statut');
+  await assertNotArchived('projectStatus', id);
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,

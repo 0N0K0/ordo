@@ -8,6 +8,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryPaths, categoryTree } from '../../treasury/lib/categories';
 import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
+import { unarchived } from '../../../lib/archive';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 /** Filters of the records of a chart (or of one of its data sets), whatever its source. */
@@ -39,7 +40,8 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         label="Clients"
         placeholder="Tous"
         searchable
-        data={(workspace?.clients ?? []).map((client) => ({
+        // Archived ones are no longer offered, but those chosen stay.
+        data={unarchived(workspace?.clients ?? [], filter.clientIds).map((client) => ({
           value: client.id,
           label: client.name,
         }))}
@@ -49,7 +51,7 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
       <BatchMultiSelect
         label="Statuts de suivi"
         placeholder="Tous"
-        data={(statuses ?? []).map((status) => ({
+        data={unarchived(statuses ?? [], filter.statusIds).map((status) => ({
           value: status.id,
           label: `${status.name} (${status.scope === 'QUOTE' ? 'devis' : 'factures'})`,
         }))}
@@ -74,6 +76,9 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
   // By full path (a category also keeps the movements of its sub-categories), in tree order under Recettes and Dépenses.
   const all = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(all);
+  const filter = config.treasury;
+  // Archived categories are no longer offered, but those chosen stay (by path).
+  const archivedPaths = new Set(all.filter((category) => category.archived).map((category) => paths.get(category.id)));
   const categories = treeOptions(
     [
       { id: 'direction:IN', parentId: null, label: 'Recettes', pathless: true },
@@ -85,16 +90,15 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         color: category.color,
       })),
     ],
-    (id) => !id.startsWith('direction:'),
+    (id) => !id.startsWith('direction:') && (!archivedPaths.has(id) || filter.categories.includes(id)),
   );
-  const filter = config.treasury;
   const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
   return (
     <Stack gap="sm">
       <BatchMultiSelect
         label="Comptes"
         placeholder="Tous"
-        data={(accounts ?? []).map((account) => ({
+        data={unarchived(accounts ?? [], filter.accountIds).map((account) => ({
           value: account.id,
           label: account.name,
         }))}

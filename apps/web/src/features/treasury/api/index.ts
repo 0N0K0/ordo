@@ -43,6 +43,7 @@ export const treasurySettingsKey = [...treasuryKey, 'settings'];
 graphql(`
   fragment TreasuryEntryFields on TreasuryEntry {
     id
+    archived
     accountId
     accountName
     status
@@ -196,6 +197,7 @@ const ProjectionDocument = graphql(`
         importedDocumentId
         recurringInvoiceId
         accountId
+        archived
       }
     }
   }
@@ -205,6 +207,7 @@ const SettingsDocument = graphql(`
   query TreasurySettings {
     treasuryCategories {
       id
+      archived
       name
       color
       iconUrl
@@ -215,6 +218,7 @@ const SettingsDocument = graphql(`
     }
     treasuryPaymentMethods {
       id
+      archived
       name
       color
       iconUrl
@@ -242,6 +246,7 @@ const SettingsDocument = graphql(`
     }
     treasuryContexts {
       id
+      archived
       name
       color
       iconUrl
@@ -249,6 +254,7 @@ const SettingsDocument = graphql(`
     }
     treasuryRelations {
       id
+      archived
       name
       note
       contributorId
@@ -609,6 +615,7 @@ const BudgetsDocument = graphql(`
   query TreasuryBudgets($from: String!, $to: String!) {
     treasuryBudgets {
       id
+      archived
       month
       memberId
       relationId

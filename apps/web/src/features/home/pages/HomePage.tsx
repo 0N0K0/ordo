@@ -49,7 +49,7 @@ export function HomePage() {
   const in30 = addDays(today, 30);
   const at30 = projection.data ? [...projection.data.series].reverse().find((point) => point.date <= in30) : undefined;
   const accounts = useMailAccounts();
-  const hasMail = (accounts.data?.length ?? 0) > 0;
+  const hasMail = (accounts.data ?? []).some((account) => !account.archived);
   const unread = useUnreadMailCount(hasMail);
   const actions = useEntityActions();
   const { perso } = useActiveWorkspace();

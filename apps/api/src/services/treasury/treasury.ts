@@ -18,6 +18,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 import { assertAllExist, assertExists } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived } from '../core/archive';
 
 /**
  * Balance of an account at the end of a day: opening balance plus its actual entries since the opening date.
@@ -48,14 +49,15 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
 }
 
 /**
- * Updates an account (name, opening balance and date) or archives it.
+ * Updates an account (name, opening balance and date) or archives it; an archived one is only changed when restored by it.
  * @param {string} id Account id.
  * @param {TreasuryAccountInput & { archived: boolean }} input Account.
  * @returns {Promise<TreasuryAccount>} Account.
  */
 export async function updateAccount(id: string, input: TreasuryAccountInput & { archived: boolean }): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  await orNotFound(prisma.treasuryAccount.findUnique({ where: { id }, select: { id: true } }), 'Compte');
+  const current = await orNotFound(prisma.treasuryAccount.findUnique({ where: { id }, select: { archived: true } }), 'Compte');
+  if (current.archived && input.archived) await assertNotArchived('TREASURY_ACCOUNT', id);
   return prisma.treasuryAccount.update({
     where: { id },
     data: { name: data.name, openingBalance: new Prisma.Decimal(data.openingBalance), openingDate: parseDay(data.openingDate), archived: input.archived },
@@ -115,6 +117,54 @@ async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntr
 }
 
 type ParsedLine = ReturnType<typeof treasuryEntrySchema.parse>['lines'][number];
+
+/** Settings items, relations and documents an entry points to, as they were before a change. */
+interface EntryRefs {
+  accountId: string;
+  categoryId: string | null;
+  methodId: string | null;
+  counterpartyId: string | null;
+  lines: { categoryId: string | null; contextId: string | null; relationId: string | null }[];
+  allocations: { documentId: string | null; importedDocumentId: string | null }[];
+}
+
+/**
+ * Refuses an archived account, category, payment method, counterparty, context, relation or settled document newly given
+ * to an entry; those it had already stay valid.
+ * @param {ReturnType<typeof treasuryEntrySchema.parse>} entry Validated entry.
+ * @param {EntryRefs | null} previous What it pointed to before the change, null for a new entry.
+ * @returns {Promise<void>}
+ */
+async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.parse>, previous: EntryRefs | null): Promise<void> {
+  /**
+   * Ids given that the entry did not have.
+   * @param {(string | null | undefined)[]} ids Ids given.
+   * @param {(string | null | undefined)[]} before Ids it had.
+   * @returns {string[]} New ids.
+   */
+  const added = (ids: (string | null | undefined)[], before: (string | null | undefined)[]) => ids.filter((id): id is string => Boolean(id) && !before.includes(id));
+  const lines = previous?.lines ?? [];
+  const allocations = previous?.allocations ?? [];
+  await assertNoneArchived('TREASURY_ACCOUNT', added([entry.accountId], [previous?.accountId]));
+  await assertNoneArchived('TREASURY_CATEGORY', added([entry.categoryId, ...entry.lines.map((line) => line.categoryId)], [previous?.categoryId, ...lines.map((line) => line.categoryId)]));
+  await assertNoneArchived('TREASURY_PAYMENT_METHOD', added([entry.methodId], [previous?.methodId]));
+  await assertNoneArchived('TREASURY_COUNTERPARTY', added([entry.counterpartyId], [previous?.counterpartyId]));
+  await assertNoneArchived('TREASURY_CONTEXT', added(entry.lines.map((line) => line.contextId), lines.map((line) => line.contextId)));
+  await assertNoneArchived('TREASURY_RELATION', added(entry.lines.map((line) => line.relationId), lines.map((line) => line.relationId)));
+  // Settling an archived document changes it: refused (an allocation it had stays).
+  await assertNoneArchived('ACCOUNTING_DOCUMENT', added(entry.allocations.map((allocation) => allocation.documentId), allocations.map((allocation) => allocation.documentId)));
+  await assertNoneArchived('IMPORTED_DOCUMENT', added(entry.allocations.map((allocation) => allocation.importedDocumentId), allocations.map((allocation) => allocation.importedDocumentId)));
+}
+
+/** What `assertNoNewArchived` reads of a stored entry. */
+const ENTRY_REFS = {
+  accountId: true,
+  categoryId: true,
+  methodId: true,
+  counterpartyId: true,
+  lines: { select: { categoryId: true, contextId: true, relationId: true } },
+  allocations: { select: { documentId: true, importedDocumentId: true } },
+} as const;
 
 /**
  * Fields of a line row (relations apart).
@@ -184,12 +234,15 @@ async function saveLines(tx: Prisma.TransactionClient, entryId: string, lines: r
 
 /**
  * Validates an entry and the account, project and documents it points to. Money in settles invoices,
- * money out refunds credit notes.
+ * money out refunds credit notes. Archived items newly given are refused (see `assertNoNewArchived`).
  * @param {TreasuryEntryInput} input Entry.
+ * @param {string | null} [id] Entry changed. Optional. Default = a new entry.
+ * @param {EntryRefs | null} [previous] What the entry (or the forecast it realizes) pointed to. Optional. Default = nothing.
  * @returns {Promise<ReturnType<typeof treasuryEntrySchema.parse>>} Entry.
  */
-async function parseEntry(input: TreasuryEntryInput, id: string | null = null) {
+async function parseEntry(input: TreasuryEntryInput, id: string | null = null, previous: EntryRefs | null = null) {
   const entry = parseInput(treasuryEntrySchema, input);
+  await assertNoNewArchived(entry, previous);
   await orNotFound(prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }), 'Compte');
   await assertExists(prisma.project, entry.projectId, 'Projet');
   await assertExists(prisma.client, entry.clientId, 'Client');
@@ -311,8 +364,9 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
  * @returns {Promise<TreasuryEntry>} Entry.
  */
 export async function updateEntry(id: string, input: TreasuryEntryInput): Promise<TreasuryEntry> {
-  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } }), 'Mouvement');
-  const entry = await parseEntry(input, id);
+  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, select: ENTRY_REFS }), 'Mouvement');
+  await assertNotArchived('TREASURY_ENTRY', id);
+  const entry = await parseEntry(input, id, previous);
   if (entry.linkedEntryIds.includes(id)) throw fieldError('linkedEntryIds', 'Un mouvement ne peut pas être lié à lui-même.', 'Retirez ce mouvement de ses liens.');
   const updated = await prisma.$transaction(async (tx) => {
     const saved = await tx.treasuryEntry.update({
@@ -359,8 +413,10 @@ export async function deleteEntry(id: string): Promise<void> {
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
   const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } } });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
+  await assertNotArchived('TREASURY_ENTRY', id);
   const rule = storedRecurrence(forecast.recurrence);
-  const entry = await parseEntry({
+  const entry = await parseEntry(
+    {
     accountId: forecast.accountId,
     status: 'ACTUAL',
     date: actual.date,
@@ -394,7 +450,11 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
       projectResourceIds: line.projectResources.map((document) => document.id),
       // The links of the forecast stay with it.
     })),
-  });
+    },
+    null,
+    // Its own items stay valid, archived or not.
+    { ...forecast, allocations: [] },
+  );
   return prisma.$transaction(async (tx) => {
     if (rule) {
       await tx.treasuryEntry.update({ where: { id }, data: { recurrence: { ...rule, exceptions: [...new Set([...rule.exceptions, occurrence])] } } });
@@ -421,6 +481,8 @@ export interface ProjectionItem {
   importedDocumentId: string | null;
   recurringInvoiceId: string | null;
   accountId: string | null;
+  /** Its entry or document is archived: it still counts (real money), its row is hidden unless asked. */
+  archived: boolean;
 }
 
 export interface Projection {
@@ -445,7 +507,7 @@ export async function treasuryProjection(today: string, from: string, until: str
   const accountIds = accounts.map((account) => account.id);
   const expected = (date: string) => (date < today ? today : date);
   const items: ProjectionItem[] = [];
-  const base = { entryId: null, documentId: null, importedDocumentId: null, recurringInvoiceId: null, accountId: null };
+  const base = { entryId: null, documentId: null, importedDocumentId: null, recurringInvoiceId: null, accountId: null, archived: false };
 
   // Actual entries dated after today, and forecasts.
   const upcoming = await prisma.treasuryEntry.findMany({
@@ -468,6 +530,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         overdue: date < today,
         entryId: entry.id,
         accountId: entry.accountId,
+        archived: entry.archivedAt !== null,
       });
     }
   }
@@ -476,7 +539,7 @@ export async function treasuryProjection(today: string, from: string, until: str
   const balances = await documentBalances();
   const due = await prisma.accountingDocument.findMany({
     where: { id: { in: [...balances.entries()].filter(([, item]) => item.balance > 0).map(([id]) => id) } },
-    select: { id: true, type: true, number: true, issueDate: true, dueDate: true, client: { select: { name: true } } },
+    select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, client: { select: { name: true } } },
   });
   for (const document of due) {
     const date = formatDay(document.dueDate ?? document.issueDate);
@@ -491,12 +554,13 @@ export async function treasuryProjection(today: string, from: string, until: str
       kind: credit ? 'CREDIT_NOTE' : 'INVOICE',
       overdue: date < today,
       documentId: document.id,
+      archived: document.archivedAt !== null,
     });
   }
   const importedDue = await importedBalances();
   const imported = await prisma.importedDocument.findMany({
     where: { id: { in: [...importedDue.entries()].filter(([, item]) => item.balance > 0).map(([id]) => id) } },
-    select: { id: true, type: true, number: true, issueDate: true, dueDate: true, clientName: true, client: { select: { name: true } } },
+    select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, clientName: true, client: { select: { name: true } } },
   });
   for (const document of imported) {
     const date = formatDay(document.dueDate ?? document.issueDate);
@@ -511,11 +575,12 @@ export async function treasuryProjection(today: string, from: string, until: str
       kind: 'IMPORTED',
       overdue: date < today,
       importedDocumentId: document.id,
+      archived: document.archivedAt !== null,
     });
   }
 
   // Coming recurring invoices, paid after the same delay as their model.
-  const recurring = await prisma.recurringInvoice.findMany({ where: { active: true, nextDate: { not: null } }, include: { template: { include: { client: { select: { name: true } } } } } });
+  const recurring = await prisma.recurringInvoice.findMany({ where: { active: true, archivedAt: null, nextDate: { not: null } }, include: { template: { include: { client: { select: { name: true } } } } } });
   for (const schedule of recurring) {
     const rule = storedRecurrence(schedule.recurrence);
     if (!rule || !schedule.nextDate) continue;

@@ -29,7 +29,11 @@ import { useWorkspace } from '../../workspace/api';
 import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
-import { deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { useSetArchived } from '../../../lib/archive';
+import { archiveEntry } from '../lib/archive-entry';
+import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
@@ -245,7 +249,7 @@ const scopeOf = (type: string): StatusChoice['scope'] => (type === 'QUOTE' ? 'QU
 function ImportedTracking({ document, onSelect }: { document: ImportedDocument; onSelect: (status: { id: string; category: string }) => void }) {
   return (
     <Group gap={4} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-      <StatusMenu type={document.type} current={document.trackingStatus} onSelect={onSelect} />
+      <StatusMenu type={document.type} current={document.trackingStatus} onSelect={onSelect} readOnly={document.archived} />
       {document.type !== 'QUOTE' && (
         <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
           {document.balance ? `Reste ${fmt.money(document.balance, document.currency)}` : 'Réglée'}
@@ -256,17 +260,20 @@ function ImportedTracking({ document, onSelect }: { document: ImportedDocument; 
 }
 
 /**
- * Actions of a document made in Ordo: a payment (refund) while still due, a draft copy (then opened), its PDF.
+ * Actions of a document made in Ordo: a payment (refund) while still due, a draft copy (then opened), its PDF,
+ * archive / restore (an archived one keeps its PDF only).
  * @param {{ document: AccountingDocumentSummary, onDuplicated: (id: string) => void }} props Component props.
  * @returns {JSX.Element} Actions.
  */
 function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentSummary; onDuplicated: (id: string) => void }) {
   const { duplicate } = useDocumentMutations();
+  const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   return (
     <RowActions
       name={document.number ?? 'le brouillon'}
       // An invoice still due takes a payment, a credit note still to refund a refund.
       primary={
+        !document.archived &&
         document.status === 'FINAL' &&
         document.type !== 'QUOTE' &&
         (document.balance ?? 0) > 0 && {
@@ -276,7 +283,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         }
       }
       items={[
-        {
+        !document.archived && {
           label: 'Dupliquer en brouillon',
           icon: <CopyIcon aria-hidden />,
           disabled: duplicate.isPending,
@@ -294,6 +301,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         },
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
+        archiveEntry({ archived: document.archived, label: `« ${document.number ?? document.title ?? 'Brouillon'} »` }, setArchived, document.id),
       ]}
     />
   );
@@ -329,6 +337,8 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const { remove } = importedMutations;
   const documentMutations = useDocumentMutations();
   const tracking = useTrackingMutations();
+  const archiveOrdo = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
+  const archiveImported = useSetArchived('IMPORTED_DOCUMENT', [accountingQueryKey]);
   const onError = { onError: onMutationError };
   const ordoComments = useCommentCounts(
     'DOCUMENT',
@@ -358,7 +368,8 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       (row) => (row.kind === 'imported' ? row.document.note : null),
     ),
   ];
-  const view = useDataView({ tableKey, getKey: rowKey, projectId, columns, rows, title, first });
+  // Archived documents are hidden unless the view includes them (« Inclure les archivées »).
+  const view = useDataView({ tableKey, getKey: rowKey, projectId, columns, rows, title, first, archived: (row) => row.document.archived });
 
   /**
    * Sets a status on documents of its scope (final ones of Ordo, imported ones); a "sent" one asks once when and how.
@@ -367,7 +378,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    * @returns {void}
    */
   const setTracking = (targets: Row[], { status, scope }: StatusChoice) => {
-    const kept = targets.filter((row) => scopeOf(row.document.type) === scope && (row.kind === 'imported' || row.document.status === 'FINAL'));
+    const kept = targets.filter((row) => !row.document.archived && scopeOf(row.document.type) === scope && (row.kind === 'imported' || row.document.status === 'FINAL'));
     if (!kept.length) return;
     if (status.category !== 'SENT') {
       for (const row of kept) (row.kind === 'ordo' ? tracking.setStatus : importedMutations.setStatus).mutate({ id: row.document.id, statusId: status.id }, onError);
@@ -393,12 +404,13 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     (row, choice) => setTracking([row], choice),
     (targets, choiceFor) => setTracking(targets, choiceFor(targets[0])),
   )('tracking');
-  const bulkProject = bulkSaver<Row, string | null>(view, (row, projectId) =>
-    (row.kind === 'ordo' ? documentMutations.setProject : importedMutations.setProject).mutate({ id: row.document.id, projectId }, onError),
-  )('project');
+  // An archived document is read only: left out of the changes of several rows.
+  const bulkProject = bulkSaver<Row, string | null>(view, (row, projectId) => {
+    if (!row.document.archived) (row.kind === 'ordo' ? documentMutations.setProject : importedMutations.setProject).mutate({ id: row.document.id, projectId }, onError);
+  })('project');
   // Files join the documents of Ordo (an imported one has its single file).
   const bulkFiles = bulkSaver<Row, File[]>(view, (row, files) => {
-    if (row.kind === 'ordo') documentMutations.addAttachments.mutate({ id: row.document.id, files }, onError);
+    if (row.kind === 'ordo' && !row.document.archived) documentMutations.addAttachments.mutate({ id: row.document.id, files }, onError);
   })('attachments');
 
   /**
@@ -449,6 +461,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             </Badge>
           )}
           {document.recurringId && <ArrowsClockwiseIcon aria-label="Issue d’une facture récurrente" />}
+          {document.archived && <ArchivedBadge size="xs" />}
         </Group>
       </UnstyledButton>
     ),
@@ -504,6 +517,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         <Badge size="xs" variant="light" color="cyan">
           Importé
         </Badge>
+        {document.archived && <ArchivedBadge size="xs" />}
       </Group>
     ),
     title: (
@@ -528,14 +542,25 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       selectionActions={(rows, clear) => {
         const ordo = rows.flatMap((row) => (row.kind === 'ordo' ? [row.document] : []));
         const importedRows = rows.flatMap((row) => (row.kind === 'ordo' ? [] : [row.document]));
+        // An archived document is not copied.
+        const copied = ordo.filter((document) => !document.archived);
+        const ids = (documents: { id: string }[]) => documents.map((document) => document.id);
         return [
+          archiveRowsAction({
+            archived: rows.every((row) => row.document.archived),
+            apply: (archived) =>
+              Promise.all([ordo.length && archiveOrdo.mutateAsync({ ids: ids(ordo), archived }), importedRows.length && archiveImported.mutateAsync({ ids: ids(importedRows), archived })]),
+            label: countOf(rows.length, 'document'),
+            count: rows.length,
+            clear,
+          }),
           {
-            ...duplicateRowsAction(ordo, {
+            ...duplicateRowsAction(copied, {
               label: 'Dupliquer en brouillon',
               duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
-              done: `${countOf(ordo.length, 'document')} ${plural(ordo.length, 'dupliqué')} en brouillon.`,
+              done: `${countOf(copied.length, 'document')} ${plural(copied.length, 'dupliqué')} en brouillon.`,
             }),
-            disabled: ordo.length === 0,
+            disabled: copied.length === 0,
           },
           {
             ...deleteRowsAction(importedRows, {
@@ -588,14 +613,16 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
               }
               items={[
                 row.document.fileUrl && { label: 'Télécharger le fichier', icon: <DownloadSimpleIcon aria-hidden />, href: downloadUrl(row.document.fileUrl), download: true },
-                row.document.type === 'QUOTE' && {
-                  label: 'Facture d’acompte',
-                  icon: <HandCoinsIcon aria-hidden />,
-                  disabled: !row.document.clientId,
-                  hint: row.document.clientId ? undefined : 'Rattachez le devis à un client pour facturer un acompte',
-                  onClick: () => openDepositForm({ importedQuoteId: row.document.id }),
-                },
-                { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(row.document as ImportedDocument) },
+                !row.document.archived &&
+                  row.document.type === 'QUOTE' && {
+                    label: 'Facture d’acompte',
+                    icon: <HandCoinsIcon aria-hidden />,
+                    disabled: !row.document.clientId,
+                    hint: row.document.clientId ? undefined : 'Rattachez le devis à un client pour facturer un acompte',
+                    onClick: () => openDepositForm({ importedQuoteId: row.document.id }),
+                  },
+                !row.document.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(row.document as ImportedDocument) },
+                archiveEntry({ archived: row.document.archived, label: `« ${row.document.number} »` }, archiveImported, row.document.id),
                 { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(row.document as ImportedDocument) },
               ]}
             />

@@ -4,6 +4,7 @@ import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/c
 import { orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { assertExists } from '../core/lookup';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Loads a dashboard or throws NOT_FOUND.
@@ -13,6 +14,28 @@ import { assertExists } from '../core/lookup';
 async function findDashboard(id: string): Promise<Dashboard> {
   const dashboard = await orNotFound(prisma.dashboard.findUnique({ where: { id } }), 'Tableau de bord');
   return dashboard;
+}
+
+/**
+ * Loads a dashboard that can be changed (not archived) or throws.
+ * @param {string} id Dashboard id.
+ * @returns {Promise<Dashboard>} Dashboard.
+ */
+async function findWritableDashboard(id: string): Promise<Dashboard> {
+  const dashboard = await findDashboard(id);
+  await assertNotArchived('dashboard', id);
+  return dashboard;
+}
+
+/**
+ * Loads a chart of a dashboard that can be changed (not archived) or throws.
+ * @param {string} id Chart id.
+ * @returns {Promise<DashboardChart>} Chart.
+ */
+async function findWritableChart(id: string): Promise<DashboardChart> {
+  const chart = await findChart(id);
+  await assertNotArchived('dashboard', chart.dashboardId);
+  return chart;
 }
 
 /**
@@ -44,7 +67,7 @@ export async function createDashboard(name: string, projectId: string | null): P
  * @returns {Promise<Dashboard>} Dashboard.
  */
 export async function renameDashboard(id: string, name: string): Promise<Dashboard> {
-  await findDashboard(id);
+  await findWritableDashboard(id);
   return prisma.dashboard.update({ where: { id }, data: { name: parseInput(dashboardNameSchema, name) } });
 }
 
@@ -65,7 +88,7 @@ export async function deleteDashboard(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveDashboard(id: string, index: number): Promise<void> {
-  const dashboard = await findDashboard(id);
+  const dashboard = await findWritableDashboard(id);
   await moveInList('dashboard', id, index, { projectId: dashboard.projectId });
 }
 
@@ -92,7 +115,7 @@ function chartData(input: ChartInput) {
  * @returns {Promise<DashboardChart>} Chart.
  */
 export async function createChart(dashboardId: string, input: ChartInput): Promise<DashboardChart> {
-  await findDashboard(dashboardId);
+  await findWritableDashboard(dashboardId);
   const position = await nextPositionIn('dashboardChart', { dashboardId });
   return prisma.dashboardChart.create({ data: { ...chartData(input), dashboardId, position } });
 }
@@ -104,7 +127,7 @@ export async function createChart(dashboardId: string, input: ChartInput): Promi
  * @returns {Promise<DashboardChart>} Chart.
  */
 export async function updateChart(id: string, input: ChartInput): Promise<DashboardChart> {
-  await findChart(id);
+  await findWritableChart(id);
   return prisma.dashboardChart.update({ where: { id }, data: chartData(input) });
 }
 
@@ -114,7 +137,7 @@ export async function updateChart(id: string, input: ChartInput): Promise<Dashbo
  * @returns {Promise<DashboardChart>} Copy.
  */
 export async function duplicateChart(id: string): Promise<DashboardChart> {
-  const chart = await findChart(id);
+  const chart = await findWritableChart(id);
   const copy = await createChart(chart.dashboardId, { title: `${chart.title} (copie)`.slice(0, 120), config: chart.config, wide: chart.wide });
   const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
   await moveChart(copy.id, siblings.findIndex((item) => item.id === id) + 1);
@@ -127,7 +150,7 @@ export async function duplicateChart(id: string): Promise<DashboardChart> {
  * @returns {Promise<void>}
  */
 export async function deleteChart(id: string): Promise<void> {
-  await findChart(id);
+  await findWritableChart(id);
   await prisma.dashboardChart.delete({ where: { id } });
 }
 
@@ -138,7 +161,7 @@ export async function deleteChart(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveChart(id: string, index: number): Promise<void> {
-  const chart = await findChart(id);
+  const chart = await findWritableChart(id);
   await moveInList('dashboardChart', id, index, { dashboardId: chart.dashboardId });
 }
 
@@ -150,12 +173,13 @@ export async function moveChart(id: string, index: number): Promise<void> {
  * @returns {Promise<Dashboard>} Dashboard the chart is now on.
  */
 export async function transferChart(id: string, target: { dashboardId: string | null; projectId: string | null }): Promise<Dashboard> {
-  const chart = await findChart(id);
+  const chart = await findWritableChart(id);
   let dashboard: Dashboard | null;
-  if (target.dashboardId) dashboard = await findDashboard(target.dashboardId);
+  if (target.dashboardId) dashboard = await findWritableDashboard(target.dashboardId);
   else {
     await assertExists(prisma.project, target.projectId, 'Projet');
-    dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
+    // An archived dashboard takes no chart.
+    dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId, archivedAt: null }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }
   if (dashboard.id === chart.dashboardId) return dashboard;
   const position = await nextPositionIn('dashboardChart', { dashboardId: dashboard.id });

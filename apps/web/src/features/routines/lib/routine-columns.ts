@@ -1,7 +1,7 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentTotal } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
@@ -25,7 +25,8 @@ const dayText = (date: string | null) => (date ? fmt.weekday(date) : '');
 export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const { context, byId, categories } = env;
   const routines = [...byId.values()];
-  const routineOptions = routineTreeOptions(routines);
+  // Archived values keep their labels, the filters offer them only while in them.
+  const routineOptions = withArchived(routineTreeOptions(routines), routines);
   const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
   const categoryName = categoryPaths(categories);
   const categoryRank = new Map(categoryTree(categories).map((item, index) => [item.category.id, index]));
@@ -180,7 +181,14 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       bulk: true,
       sortValue: (routine) => routine.assigneeIds.map((id) => contributorName.get(id) ?? '').sort()[0] ?? null,
       text: (routine) => routine.assigneeIds.map((id) => contributorName.get(id) ?? '').join(', '),
-      filter: { kind: 'choices', value: (routine) => routine.assigneeIds, options: [...contributorName].map(([value, label]) => ({ value, label })) },
+      filter: {
+        kind: 'choices',
+        value: (routine) => routine.assigneeIds,
+        options: withArchived(
+          [...contributorName].map(([value, label]) => ({ value, label })),
+          context.contributors,
+        ),
+      },
     },
     {
       id: 'beneficiaries',
@@ -201,7 +209,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       bulk: true,
       sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? Infinity)) : null),
       text: (routine) => routine.categoryIds.map((id) => categoryName.get(id) ?? '').join(', '),
-      filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: categoryOptions(categories) },
+      filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: withArchived(categoryOptions(categories), categories) },
       groupTree: categories.map((category) => ({ key: category.id, label: category.name, color: category.color, parentKey: category.parentId })),
     },
     {

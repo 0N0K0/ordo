@@ -47,7 +47,11 @@ import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { useSetArchived } from '../../../lib/archive';
+import { archiveEntry } from '../lib/archive-entry';
+import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -115,12 +119,13 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
 ];
 
 /**
- * Recurring invoices: schedule, next issue, model; edit or delete.
+ * Recurring invoices: schedule, next issue, model; edit, archive (no invoice issued any more, read only) or delete.
  * @returns {JSX.Element} List.
  */
 function RecurringList() {
   const { data: recurring, isPending } = useRecurringInvoices();
   const { remove, update } = useRecurringMutations();
+  const setArchived = useSetArchived('RECURRING_INVOICE', [accountingQueryKey]);
 
   /**
    * Saves fields of a recurring invoice changed in their cells.
@@ -133,8 +138,16 @@ function RecurringList() {
       { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
       { onError: onMutationError },
     );
-  const view = useDataView({ tableKey: 'recurring-invoices', getKey: (item) => item.id, columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
-  const bulk = bulkSaver(view, saveRecurring);
+  const view = useDataView({
+    tableKey: 'recurring-invoices',
+    getKey: (item) => item.id,
+    columns: RECURRING_COLUMNS,
+    rows: recurring ?? [],
+    title: 'Factures récurrentes',
+    archived: (item) => item.archived,
+  });
+  // An archived one is read only: left out of the changes of several rows.
+  const bulk = bulkSaver(view, (item: RecurringInvoice, change: Partial<RecurringSettings>) => !item.archived && saveRecurring(item, change));
   if (isPending) return <TableSkeleton rows={3} />;
 
   /**
@@ -161,7 +174,16 @@ function RecurringList() {
       framed
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['facture récurrente', 'factures récurrentes'])}
+      isArchived={(item) => item.archived}
       selectionActions={(rows, clear) => [
+        archiveRowsAction({
+          archived: rows.every((item) => item.archived),
+          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
+          label: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')}`,
+          count: rows.length,
+          feminine: true,
+          clear,
+        }),
         deleteRowsAction(rows, {
           title: 'Supprimer les factures récurrentes',
           risks: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
@@ -178,7 +200,8 @@ function RecurringList() {
           name: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.name} label={`Nom de ${item.name}`} strong onSave={(name) => name && bulk('name')(item, { name })} />
+                <EditableText value={item.name} label={`Nom de ${item.name}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { name })} />
+                {item.archived && <ArchivedBadge feminine size="xs" />}
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
                     En pause
@@ -202,6 +225,7 @@ function RecurringList() {
             <EditableSelect
               value={item.active ? 'active' : 'paused'}
               label={`État de ${item.name}`}
+              readOnly={item.archived}
               data={[
                 { value: 'active', label: 'Active' },
                 { value: 'paused', label: 'En pause' },
@@ -216,9 +240,10 @@ function RecurringList() {
       actions={(item) => (
         <RowActions
           name={item.name}
-          primary={{ label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
+          primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
             { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
+            archiveEntry({ archived: item.archived, label: `« ${item.name} »`, feminine: true }, setArchived, item.id),
             { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
           ]}
         />
@@ -260,8 +285,9 @@ export function AccountingPage() {
   const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
     .sort()
     .reverse();
-  const toSend = (documents ?? []).filter((document) => document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
-  const importedToSend = (imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
+  // Archived ones are not to do any more.
+  const toSend = (documents ?? []).filter((document) => !document.archived && document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
+  const importedToSend = (imported.data ?? []).filter((document) => !document.archived && document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
   /**
    * Changes a parameter of the address, the others kept.

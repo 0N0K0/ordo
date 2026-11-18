@@ -29,6 +29,7 @@ import { MailAccountsManager } from '../components/MailAccountsManager';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SETTINGS_PARAM, useSettingsOpened } from '../../../app/layout/page-settings';
+import { unarchived } from '../../../lib/archive';
 
 
 
@@ -48,7 +49,11 @@ export function MailPage() {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [debouncedSearch] = useDebouncedValue(search, 400);
 
-  const accountId = params.get('account') ?? accounts?.[0]?.id ?? null;
+  // The archived accounts are left out of the page (restored from its settings).
+  const active = useMemo(() => unarchived(accounts ?? []), [accounts]);
+  // An archived account asked in the URL: the first active one instead.
+  const requested = params.get('account');
+  const accountId = (requested && !(accounts ?? []).some((account) => account.id === requested && account.archived) ? requested : null) ?? active[0]?.id ?? null;
   const folder = params.get('folder') ?? 'INBOX';
   const uid = params.get('uid') ? Number(params.get('uid')) : null;
   const page = Math.max(1, Number(params.get('page') ?? 1));
@@ -102,11 +107,11 @@ export function MailPage() {
    */
   const update = (changes: Record<string, string | null>) => setParams(changes);
 
-  if (!isPending && accounts?.length === 0) {
+  if (!isPending && active.length === 0) {
     return (
       <Stack gap="lg">
         <PageHeader title="Mails" />
-        <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée : ajoutez-en une." />
+        <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'} />
         <MailAccountsManager />
       </Stack>
     );
@@ -153,7 +158,7 @@ export function MailPage() {
             {isPending ? (
               <ListSkeleton items={5} dense avatar />
             ) : (
-              accounts?.map((account) => (
+              active.map((account) => (
                 <AccountFolders
                   key={account.id}
                   account={account}

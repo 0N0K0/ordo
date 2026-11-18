@@ -22,7 +22,7 @@ export function AddTaskRow({ context, defaults, projectId, onOpenForm }: AddTask
   const createTask = useCreateTask();
   const setClosed = useSetTasksClosed();
   const targetProject = defaults.projectId ?? projectId;
-  const firstTodo = context.statuses.find((status) => status.category === 'TODO');
+  const firstTodo = context.statuses.find((status) => status.category === 'TODO' && !status.archived);
   if (!targetProject) return <AddRowButton label="Ajouter une tâche" onClick={() => onOpenForm(defaults)} />;
   const { closed, ...values } = defaults;
   return (

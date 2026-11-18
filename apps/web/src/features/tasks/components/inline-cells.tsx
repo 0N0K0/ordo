@@ -9,6 +9,7 @@ import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
+import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess } from '../../../lib/notify';
@@ -100,6 +101,8 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const field = LABEL_FIELDS[column];
   const current = labels.find((label) => label.id === task[field]);
+  // Archived labels are not offered, except the current one.
+  const offered = unarchived(labels, task[field]);
 
   /**
    * Saves the chosen label (or clears it when it is the current one).
@@ -131,8 +134,8 @@ export function LabelCell({ task, column, labels }: LabelCellProps) {
       </Combobox.Target>
       <Combobox.Dropdown onClick={stopClick}>
         <Combobox.Options>
-          {labels.length === 0 && <Combobox.Empty>Aucune valeur définie dans les paramètres</Combobox.Empty>}
-          {labels.map((label) => (
+          {offered.length === 0 && <Combobox.Empty>Aucune valeur définie dans les paramètres</Combobox.Empty>}
+          {offered.map((label) => (
             <Combobox.Option key={label.id} value={label.id} active={label.id === current?.id}>
               <ItemBadge item={label} />
             </Combobox.Option>
@@ -154,7 +157,7 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
     <Select
       {...cellCombobox}
       aria-label={fieldLabel('Jalon', task, count)}
-      data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
+      data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
       onChange={(milestoneId) => apply({ milestoneId }, { milestoneId })}
       placeholder="—"
@@ -182,7 +185,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Étiquettes', task, count)}
-          {...listSelectProps(context.tags)}
+          {...listSelectProps(context.tags, undefined, task.tagIds)}
           value={task.tagIds}
           onChange={(tagIds) => {
             const { added, removed } = listDiff(task.tagIds, tagIds);
@@ -206,7 +209,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
  */
 export function SprintCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'sprint');
-  const sprints = context.sprintsFor(task.projectId);
+  const sprints = context.sprintsFor(task.projectId, task.sprintIds);
   return (
     <StackedMultiCell
       label={fieldLabel('Sprints', task, count)}

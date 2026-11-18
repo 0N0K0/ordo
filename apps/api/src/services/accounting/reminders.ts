@@ -48,6 +48,10 @@ export async function sendReminders(input: { accountId: string; documentIds: str
       result.error = 'Ce n’est pas une facture validée.';
       continue;
     }
+    if (document.archivedAt) {
+      result.error = 'Facture archivée.';
+      continue;
+    }
     if (balance <= 0) {
       result.error = 'Déjà réglée.';
       continue;

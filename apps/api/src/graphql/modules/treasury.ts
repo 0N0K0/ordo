@@ -563,6 +563,7 @@ const ProjectionItem = builder.objectRef<treasury.ProjectionItem>('TreasuryProje
     importedDocumentId: t.exposeID('importedDocumentId', { nullable: true }),
     recurringInvoiceId: t.exposeID('recurringInvoiceId', { nullable: true }),
     accountId: t.exposeID('accountId', { nullable: true }),
+    archived: t.exposeBoolean('archived', { description: 'Its entry or document is archived (it still counts in the balances).' }),
   }),
 });
 

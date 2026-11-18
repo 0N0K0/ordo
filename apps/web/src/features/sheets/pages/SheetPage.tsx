@@ -1,14 +1,14 @@
 import { listSelectProps } from '../../../components/settings/item-look';
 import { Anchor, Button, Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowLeftIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -26,7 +26,9 @@ import { Comments } from '../../comments/components/Comments';
 import { useShoppingData } from '../../shopping/api';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
+import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
+import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { SheetsSettings } from '../components/SheetsSettings';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
@@ -51,9 +53,11 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
   const { addProducts } = useSheetMutations();
   const [ids, setIds] = useState<string[]>([]);
   const baseNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
-  const groups = [...new Set((data?.shoppingProducts ?? []).map((product) => product.baseListId))].map((baseListId) => ({
+  // The archived references are not offered.
+  const products = unarchived(data?.shoppingProducts ?? []);
+  const groups = [...new Set(products.map((product) => product.baseListId))].map((baseListId) => ({
     group: baseNames.get(baseListId) ?? '',
-    items: (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.name })),
+    items: products.filter((product) => product.baseListId === baseListId).map((product) => ({ value: product.id, label: product.name })),
   }));
   return (
     <Stack gap="md">
@@ -81,7 +85,8 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
 }
 
 /**
- * Name, project, categories and note of a sheet, saved as they change (the text when leaving its field).
+ * Name, project, categories and note of a sheet, saved as they change (the text when leaving its field); read only
+ * when it is archived.
  * @param {{ sheet: SheetDetail }} props Sheet.
  * @returns {JSX.Element} Fields.
  */
@@ -99,6 +104,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
           <TextInput
             label="Nom"
             required
+            readOnly={sheet.archived}
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
             onBlur={() => (name.trim() && name.trim() !== sheet.name ? save({ name: name.trim() }) : setName(sheet.name))}
@@ -108,7 +114,8 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
               context={context}
               label="Projet"
               placeholder="Aucun : fiche de l’espace"
-              clearable
+              clearable={!sheet.archived}
+              readOnly={sheet.archived}
               value={sheet.projectId ?? null}
               onChange={(projectId) => projectId !== (sheet.projectId ?? null) && save({ projectId: projectId || null })}
             />
@@ -117,7 +124,8 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
             label="Catégories"
             placeholder={sheet.categoryIds.length ? undefined : 'Aucune'}
             searchable
-            {...listSelectProps(categories ?? [])}
+            readOnly={sheet.archived}
+            {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
             value={sheet.categoryIds}
             onChange={(categoryIds) => save({ categoryIds })}
           />
@@ -127,6 +135,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
           autosize
           minRows={1}
           maxRows={8}
+          readOnly={sheet.archived}
           value={note}
           onChange={(event) => setNote(event.currentTarget.value)}
           onBlur={() => note !== (sheet.note ?? '') && save({ note: note || null })}
@@ -138,7 +147,8 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
 
 /**
  * Page of a sheet: its fields, and its items in a table like every other (each field changed in place, and in bulk;
- * their comments); items added by their label, or from the references.
+ * their comments); items added by their label, or from the references. Archived, it is read only (« Restaurer »,
+ * « Supprimer »).
  * @returns {JSX.Element} Page.
  */
 export function SheetPage() {
@@ -147,8 +157,11 @@ export function SheetPage() {
   const { data: sheet, isPending } = useSheet(id);
   const { data: shopping } = useShoppingData();
   const mutations = useSheetMutations();
+  const setArchived = useSetArchived('SHEET', [sheetsKey]);
   const [label, setLabel] = useState('');
   const products = shopping?.shoppingProducts ?? [];
+  // The archived references are not offered (but the current one).
+  const offeredProducts = unarchived(products);
   const productName = new Map(products.map((product) => [product.id, product.name]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
   const people = usePeople();
@@ -177,7 +190,14 @@ export function SheetPage() {
       bulk: true,
       sortValue: (item) => categoryName(item) || null,
       text: categoryName,
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: [...paths].map(([value, name]) => ({ value, label: name })) },
+      filter: {
+        kind: 'choice',
+        value: (item) => item.categoryId ?? null,
+        options: withArchived(
+          [...paths].map(([value, name]) => ({ value, label: name })),
+          shoppingCategories,
+        ),
+      },
       groupable: true,
     },
     {
@@ -221,7 +241,7 @@ export function SheetPage() {
   const onError = { onError: onMutationError };
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
-    (item, change) => Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, onError),
+    (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, onError),
   );
 
   if (isPending) return <DetailSkeleton />;
@@ -238,40 +258,68 @@ export function SheetPage() {
       />
     );
 
+  const locked = sheet.archived;
+  const remove = {
+    label: 'Supprimer',
+    icon: <TrashIcon aria-hidden />,
+    danger: true,
+    onClick: () =>
+      confirmDestructive({
+        title: 'Supprimer la fiche',
+        risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
+        onConfirm: () => mutations.remove.mutate(sheet.id, { onSuccess: () => (notifySuccess('Fiche supprimée.'), navigate('/sheets')), ...onError }),
+      }),
+  };
+
   return (
     <Stack gap="lg">
       <Anchor component={Link} to="/sheets" size="sm">
         <ArrowLeftIcon aria-hidden style={{ verticalAlign: 'middle' }} /> Fiches
       </Anchor>
       <PageHeader
-        title={sheet.name}
+        title={
+          sheet.archived ? (
+            <Group gap="xs" component="span">
+              {sheet.name}
+              <ArchivedBadge feminine />
+            </Group>
+          ) : (
+            sheet.name
+          )
+        }
         description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
         actions={
-          <ActionButton
-            priority="secondary"
-            icon={<CookingPotIcon aria-hidden />}
-            onClick={() => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />)}
-            menu={[
-              {
-                label: 'Dupliquer',
-                icon: <CopyIcon aria-hidden />,
-                onClick: () => mutations.duplicate.mutate(sheet.id, { onSuccess: (copy) => (notifySuccess('Fiche dupliquée.'), navigate(`/sheets/${copy}`)), ...onError }),
-              },
-              {
-                label: 'Supprimer',
-                icon: <TrashIcon aria-hidden />,
-                danger: true,
-                onClick: () =>
-                  confirmDestructive({
-                    title: 'Supprimer la fiche',
-                    risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-                    onConfirm: () => mutations.remove.mutate(sheet.id, { onSuccess: () => (notifySuccess('Fiche supprimée.'), navigate('/sheets')), ...onError }),
-                  }),
-              },
-            ]}
-          >
-            Utiliser cette fiche
-          </ActionButton>
+          sheet.archived ? (
+            <ActionButton
+              priority="secondary"
+              icon={<ArrowCounterClockwiseIcon aria-hidden />}
+              onClick={() => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: false, label: `Fiche « ${sheet.name} »`, feminine: true })}
+              menu={[remove]}
+            >
+              Restaurer
+            </ActionButton>
+          ) : (
+            <ActionButton
+              priority="secondary"
+              icon={<CookingPotIcon aria-hidden />}
+              onClick={() => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />)}
+              menu={[
+                {
+                  label: 'Dupliquer',
+                  icon: <CopyIcon aria-hidden />,
+                  onClick: () => mutations.duplicate.mutate(sheet.id, { onSuccess: (copy) => (notifySuccess('Fiche dupliquée.'), navigate(`/sheets/${copy}`)), ...onError }),
+                },
+                {
+                  label: 'Archiver',
+                  icon: <ArchiveIcon aria-hidden />,
+                  onClick: () => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: true, label: `Fiche « ${sheet.name} »`, feminine: true }),
+                },
+                remove,
+              ]}
+            >
+              Utiliser cette fiche
+            </ActionButton>
+          )
         }
       />
       {/* Made again once saved (its texts are those of the sheet). */}
@@ -280,16 +328,21 @@ export function SheetPage() {
         framed
         view={view}
         selectionLabel={(count) => selectedLabel(count, ['élément', 'éléments'], false)}
-        selectionActions={(rows, clear) => [
-          deleteRowsAction([rows], {
-            label: 'Retirer',
-            title: 'Retirer les éléments',
-            risks: `${countOf(rows.length, 'élément')} seront retirés de la fiche.`,
-            remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
-            done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
-            clear,
-          }),
-        ]}
+        readOnly={locked ? () => true : undefined}
+        selectionActions={
+          locked
+            ? undefined
+            : (rows, clear) => [
+                deleteRowsAction([rows], {
+                  label: 'Retirer',
+                  title: 'Retirer les éléments',
+                  risks: `${countOf(rows.length, 'élément')} seront retirés de la fiche.`,
+                  remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
+                  done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
+                  clear,
+                }),
+              ]
+        }
         verticalSpacing="xs"
         bar={{
           searchLabel: 'Rechercher (élément, description)',
@@ -297,6 +350,7 @@ export function SheetPage() {
             <ActionButton
               icon={<ListPlusIcon aria-hidden />}
               priority="secondary"
+              disabled={locked}
               onClick={() => openFormPanel('Ajouter des produits des références', (close) => <SheetProductsForm sheetId={sheet.id} onDone={close} />)}
             >
               Depuis les références
@@ -306,34 +360,47 @@ export function SheetPage() {
         empty={<EmptyState icon={<ClipboardTextIcon aria-hidden />} message="Aucun élément : tapez-en un ci-dessous, ou ajoutez des produits des références." />}
         getKey={(item) => item.id}
         cells={(item) => ({
-          label: <EditableText value={item.label} label={`Libellé de ${item.label}`} strong onSave={(next) => next && bulk('label')(item, { label: next })} />,
+          label: <EditableText value={item.label} readOnly={locked} label={`Libellé de ${item.label}`} strong onSave={(next) => next && bulk('label')(item, { label: next })} />,
           product: (
             <EditableSelect
               value={item.productId ?? null}
+              readOnly={locked}
               label={`Référence de ${item.label}`}
               nullable
-              data={products.map((product) => ({ value: product.id, label: product.name }))}
+              data={unarchived(products, item.productId).map((product) => ({ value: product.id, label: product.name }))}
               onSave={(productId) => bulk('product')(item, { productId })}
             />
           ),
           category: (
             <EditableSelect
               value={item.categoryId ?? null}
+              readOnly={locked}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(categoryOptions(shoppingCategories))}
+              {...treeSelectProps(categoryOptions(shoppingCategories, undefined, unarchivedOffered(shoppingCategories, item.categoryId)))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),
-          quantity: <EditableNumber value={item.quantity ?? null} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />,
-          unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
-          consumable: <EditableCheck value={item.consumable} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
-          store: <StoreCell value={item.storeId ?? null} stores={shopping?.shoppingStores ?? []} label={`Magasin de ${item.label}`} onSave={(storeId) => bulk('store')(item, { storeId })} />,
+          quantity: (
+            <EditableNumber value={item.quantity ?? null} readOnly={locked} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />
+          ),
+          unit: <EditableText value={item.unit ?? null} readOnly={locked} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
+          consumable: <EditableCheck value={item.consumable} readOnly={locked} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
+          store: (
+            <StoreCell
+              value={item.storeId ?? null}
+              stores={shopping?.shoppingStores ?? []}
+              readOnly={locked}
+              label={`Magasin de ${item.label}`}
+              onSave={(storeId) => bulk('store')(item, { storeId })}
+            />
+          ),
           conservation: (
             <ConservationCell
               perishable={item.perishable}
               storageId={item.storageId ?? null}
               storages={shopping?.shoppingStorages ?? []}
+              readOnly={locked}
               label={`Conservation de ${item.label}`}
               onSave={(conservation) => bulk('conservation')(item, conservation)}
             />
@@ -342,6 +409,7 @@ export function SheetPage() {
             <PeopleCell
               memberIds={item.memberIds}
               relationIds={item.relationIds}
+              readOnly={locked}
               label={`Bénéficiaires de ${item.label}`}
               onSave={(chosen) =>
                 bulk('people')(item, (target) => ({
@@ -352,17 +420,25 @@ export function SheetPage() {
             />
           ),
           url: (
-            <EditableText link value={item.url ?? null} label={`Lien vers ${item.label}`} placeholder="https://…" schema={shoppingItemSchema.shape.url} onSave={(url) => bulk('url')(item, { url })} />
+            <EditableText
+              link
+              value={item.url ?? null}
+              readOnly={locked}
+              label={`Lien vers ${item.label}`}
+              placeholder="https://…"
+              schema={shoppingItemSchema.shape.url}
+              onSave={(url) => bulk('url')(item, { url })}
+            />
           ),
-          optional: <EditableCheck value={item.optional} label={`${item.label} facultatif`} onSave={(optional) => bulk('optional')(item, { optional })} />,
-          note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          optional: <EditableCheck value={item.optional} readOnly={locked} label={`${item.label} facultatif`} onSave={(optional) => bulk('optional')(item, { optional })} />,
+          note: <EditableText value={item.note ?? null} readOnly={locked} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
         })}
         actions={(item) => (
           <RowActions
             name={item.label}
             primary={{ label: 'Commentaires', icon: <PlusIcon aria-hidden />, onClick: () => openFormPanel(`Commentaires · ${item.label}`, () => <Comments target="SHEET_ITEM" id={item.id} />) }}
             items={[
-              {
+              !locked && {
                 label: 'Retirer',
                 icon: <TrashIcon aria-hidden />,
                 danger: true,
@@ -377,37 +453,39 @@ export function SheetPage() {
           />
         )}
       />
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          const text = label.trim();
-          if (!text) return;
-          // A label that is a reference becomes it (its category and unit with it).
-          const product = products.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
-          mutations.addItem.mutate(
-            {
-              sheetId: sheet.id,
-              input: {
-                productId: product?.id ?? null,
-                label: product?.name ?? text,
-                categoryId: product?.categoryId ?? null,
-                quantity: null,
-                unit: product?.unit ?? null,
-                note: null,
-                consumable: product?.consumable ?? true,
+      {!locked && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const text = label.trim();
+            if (!text) return;
+            // A label that is a reference becomes it (its category and unit with it).
+            const product = offeredProducts.find((other) => other.name.toLocaleLowerCase('fr') === text.toLocaleLowerCase('fr'));
+            mutations.addItem.mutate(
+              {
+                sheetId: sheet.id,
+                input: {
+                  productId: product?.id ?? null,
+                  label: product?.name ?? text,
+                  categoryId: product?.categoryId ?? null,
+                  quantity: null,
+                  unit: product?.unit ?? null,
+                  note: null,
+                  consumable: product?.consumable ?? true,
+                },
               },
-            },
-            { onSuccess: () => setLabel(''), ...onError },
-          );
-        }}
-      >
-        <Group gap="xs" wrap="nowrap">
-          <TextInput style={{ flex: 1 }} aria-label="Ajouter un élément" placeholder="Ajouter un élément (Entrée)" value={label} onChange={(event) => setLabel(event.currentTarget.value)} />
-          <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!label.trim()} loading={mutations.addItem.isPending}>
-            Ajouter
-          </Button>
-        </Group>
-      </form>
+              { onSuccess: () => setLabel(''), ...onError },
+            );
+          }}
+        >
+          <Group gap="xs" wrap="nowrap">
+            <TextInput style={{ flex: 1 }} aria-label="Ajouter un élément" placeholder="Ajouter un élément (Entrée)" value={label} onChange={(event) => setLabel(event.currentTarget.value)} />
+            <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!label.trim()} loading={mutations.addItem.isPending}>
+              Ajouter
+            </Button>
+          </Group>
+        </form>
+      )}
       <SheetsSettings />
     </Stack>
   );

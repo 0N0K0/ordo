@@ -6,6 +6,7 @@ import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
 import { githubToken } from './client';
 import { currentWorkspaceId } from '../../workspace-context';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Saves the personal access token after checking it on GitHub.
@@ -182,6 +183,7 @@ export async function setContributorGithubLogin(id: string, login: string | null
   const value = login?.trim().replace(/^@/, '') || null;
   if (value && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(value)) throw clientError('BAD_USER_INPUT', 'Login GitHub invalide.');
   await orNotFound(prisma.contributor.findUnique({ where: { id }, select: { id: true } }), 'Contributeur');
+  await assertNotArchived('contributor', id);
   const taken = value ? await prisma.contributor.findFirst({ where: { githubLogin: { equals: value, mode: 'insensitive' }, id: { not: id } }, select: { name: true } }) : null;
   if (taken) throw clientError('CONFLICT', `Ce login GitHub est déjà celui de ${taken.name}.`);
   await prisma.contributor.update({ where: { id }, data: { githubLogin: value } });

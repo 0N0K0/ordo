@@ -8,6 +8,7 @@ import { createDocument, editableFields, finalizeDocument, findDocument } from '
 import { storedRecurrence } from '../calendar/calendar-events';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { requirePro } from '../workspace/workspaces';
+import { assertNotArchived } from '../core/archive';
 
 const settingsSchema = z.object({
   name: requiredText(200),
@@ -41,6 +42,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
   const settings = parseInput(settingsSchema, input);
   const source = await findDocument(documentId);
   if (source.type !== 'INVOICE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut être rendue récurrente.');
+  await assertNotArchived('ACCOUNTING_DOCUMENT', documentId);
   const template = await createDocument('INVOICE', await editableFields(source), { status: 'TEMPLATE' });
   return prisma.recurringInvoice.create({
     data: {
@@ -67,6 +69,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
  */
 export async function updateRecurringInvoice(id: string, input: RecurringSettings, today: string): Promise<RecurringInvoice> {
   await orNotFound(prisma.recurringInvoice.findUnique({ where: { id } }), 'Facture récurrente');
+  await assertNotArchived('RECURRING_INVOICE', id);
   const settings = parseInput(settingsSchema, input);
   const next = nextIssueDate(settings.recurrence, settings.startDate, today > settings.startDate ? today : settings.startDate);
   return prisma.recurringInvoice.update({
@@ -86,13 +89,30 @@ export async function deleteRecurringInvoice(id: string): Promise<void> {
 }
 
 /**
+ * Moves the schedules of the archived recurring invoices past today without issuing anything: restored, they go on
+ * from their next date to come rather than catching up the dates missed while archived.
+ * @param {string} today Today.
+ * @returns {Promise<void>}
+ */
+async function skipArchivedDates(today: string): Promise<void> {
+  const archived = await prisma.recurringInvoice.findMany({ where: { archivedAt: { not: null }, nextDate: { lte: parseDay(today) } } });
+  for (const recurring of archived) {
+    const rule = storedRecurrence(recurring.recurrence);
+    if (!rule) continue;
+    const next = nextIssueDate(rule, formatDay(recurring.startDate), addDays(today, 1));
+    await prisma.recurringInvoice.update({ where: { id: recurring.id }, data: { nextDate: next ? parseDay(next) : null } });
+  }
+}
+
+/**
  * Issues the invoices that are due: one per past issue date not issued yet (catching up after a stop), as
- * drafts or final invoices. Dates of the invoice follow the issue date.
+ * drafts or final invoices. Dates of the invoice follow the issue date. An archived recurring invoice issues none.
  * @param {string} today Today.
  * @returns {Promise<number>} Invoices issued.
  */
 export async function issueDueInvoices(today: string): Promise<number> {
-  const due = await prisma.recurringInvoice.findMany({ where: { active: true, nextDate: { lte: parseDay(today) } } });
+  await skipArchivedDates(today);
+  const due = await prisma.recurringInvoice.findMany({ where: { active: true, archivedAt: null, nextDate: { lte: parseDay(today) } } });
   let issued = 0;
   for (const recurring of due) {
     const rule = storedRecurrence(recurring.recurrence);

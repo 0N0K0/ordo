@@ -11,7 +11,11 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
-import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
@@ -82,17 +86,22 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
 
 /**
  * Sprints of a project: dates, state (coming, running, over), progress of their tasks in number and effort,
- * goal; create, edit, delete. A new sprint follows the last one, for as long.
+ * goal; create, edit, archive (hidden until « Afficher les archivés », read only), delete. A new sprint follows the last
+ * one, for as long.
  * @param {{ projectId: string }} props Component props.
  * @returns {JSX.Element} Panel.
  */
 export function SprintsPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, update } = useSprintMutations();
+  const setArchived = useSetArchived('SPRINT');
+  const [showArchived, setShowArchived] = useState(false);
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
+  // Every sprint of the project (a new one follows the last, archived or not); those shown.
   const sprints = context.sprints.filter((sprint) => sprint.projectId === projectId);
+  const shown = visibleItems(sprints, showArchived);
 
   /**
    * Opens the sprint form.
@@ -128,12 +137,17 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     <Stack gap="md">
       <SectionHeader
         description="Les sprints sont utilisables par les tâches du projet et de ses sous-projets."
-        actions={<ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>}
+        actions={
+          <>
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={sprints.filter((sprint) => sprint.archived).length} />
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>
+          </>
+        }
       />
-      {sprints.length === 0 ? (
+      {shown.length === 0 ? (
         <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." />
       ) : (
-        sprints.map((sprint) => {
+        shown.map((sprint) => {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
           const done = tasks.filter((task) => context.isClosed(task));
           // Effort of the tasks without sub-tasks (a parent's effort is its sub-tasks').
@@ -152,6 +166,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 title={sprint.name}
                 badges={
                   <>
+                    {sprint.archived && <ArchivedBadge size="sm" />}
                     <Badge size="sm" variant="light" color={state.color}>
                       {state.label}
                     </Badge>
@@ -164,7 +179,13 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 }
                 dates={`Du ${fmt.day(start)} au ${fmt.day(end)}`}
                 actions={[
-                  { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
+                  // Archived (or of an archived project): read only.
+                  !sprint.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(sprint) },
+                  {
+                    label: sprint.archived ? 'Restaurer' : 'Archiver',
+                    icon: sprint.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                    onClick: () => void archiveWithUndo(setArchived, { ids: [sprint.id], archived: !sprint.archived, label: `Sprint « ${sprint.name} »` }),
+                  },
                   { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(sprint, tasks.length) },
                 ]}
                 progress={
@@ -177,7 +198,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 }
                 description={sprint.goal}
                 targets={context.targetsFor(sprint.projectId)}
-                onDescription={(goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } }, { onError: onMutationError })}
+                onDescription={sprint.archived || project?.archived ? undefined : (goal) => update.mutate({ id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } }, { onError: onMutationError })}
               />
             </Paper>
           );

@@ -32,6 +32,7 @@ graphql(`
 graphql(`
   fragment LabelFields on ProjectCategory {
     id
+    archived
     name
     color
     position
@@ -42,6 +43,7 @@ graphql(`
 graphql(`
   fragment ProjectStatusFields on ProjectStatus {
     id
+    archived
     name
     color
     iconUrl

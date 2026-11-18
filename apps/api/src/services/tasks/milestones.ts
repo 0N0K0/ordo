@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 
 /**
  * Loads a milestone or throws NOT_FOUND.
@@ -12,6 +13,18 @@ import { moveInList, nextPositionIn } from '../core/ordering';
  */
 async function findMilestone(id: string): Promise<Milestone> {
   const milestone = await orNotFound(prisma.milestone.findUnique({ where: { id } }), 'Jalon');
+  return milestone;
+}
+
+/**
+ * Loads a milestone that can be changed: neither it nor its project is archived (BAD_USER_INPUT « Élément archivé… »).
+ * @param {string} id Milestone id.
+ * @returns {Promise<Milestone>} Milestone.
+ */
+async function findEditableMilestone(id: string): Promise<Milestone> {
+  const milestone = await findMilestone(id);
+  await assertNotArchived('milestone', id);
+  await assertNotArchived('project', milestone.projectId);
   return milestone;
 }
 
@@ -68,7 +81,7 @@ export async function updateMilestone(
   id: string,
   input: { title?: string | null; description?: string | null; dueDate?: string | null },
 ): Promise<Milestone> {
-  await findMilestone(id);
+  await findEditableMilestone(id);
   const fields = parseInput(fieldsSchema, {
     title: input.title ?? undefined,
     description: input.description,
@@ -97,6 +110,6 @@ export async function deleteMilestone(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveMilestone(id: string, index: number): Promise<void> {
-  const milestone = await findMilestone(id);
+  const milestone = await findEditableMilestone(id);
   await moveInList('milestone', id, index, { projectId: milestone.projectId });
 }

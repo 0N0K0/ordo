@@ -7,6 +7,7 @@ import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
+import { unarchivedOffered } from '../../../lib/archive';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
 import { useWorkSchedules } from '../../calendar/api';
@@ -104,7 +105,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Catégories', routine, count)}
-          {...treeSelectProps(categoryOptions(categories))}
+          {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, routine.categoryIds)))}
           value={routine.categoryIds}
           onChange={(categoryIds) => {
             const { added, removed } = listDiff(routine.categoryIds, categoryIds);

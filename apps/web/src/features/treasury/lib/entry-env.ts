@@ -27,6 +27,8 @@ export type EntryDocument = TreasuryEntry['documents'][number];
 export interface Choice {
   value: string;
   label: string;
+  /** Archived (column filters offer it only while in them). Optional. */
+  archived?: boolean;
 }
 
 /** What the cells and columns of the treasury tables are named and filled from. */
@@ -60,8 +62,8 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
   const { data: documentOptions } = useTreasuryDocumentOptions();
   return useMemo(() => {
     const payers = [
-      { group: 'Clients', items: (workspace?.clients ?? []).map((client) => ({ value: `client:${client.id}`, label: client.name })) },
-      { group: 'Tiers', items: (settings?.treasuryCounterparties ?? []).map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name })) },
+      { group: 'Clients', items: (workspace?.clients ?? []).map((client) => ({ value: `client:${client.id}`, label: client.name, archived: client.archived })) },
+      { group: 'Tiers', items: (settings?.treasuryCounterparties ?? []).map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name, archived: counterparty.archived })) },
     ].filter((group) => group.items.length);
     const groups = new Map<string, Choice[]>();
     for (const document of [...(documentOptions ?? [])].sort((a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY'))) {

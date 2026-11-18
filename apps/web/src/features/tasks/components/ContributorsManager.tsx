@@ -4,7 +4,11 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
@@ -33,6 +37,9 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   // Contributor → name of the relation they are.
   const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
   const { remove } = useContributorMutations();
+  const setArchived = useSetArchived('CONTRIBUTOR');
+  const [showArchived, setShowArchived] = useState(false);
+  const shown = visibleItems(contributors, showArchived);
   const openForm = useContributorForm();
   const { data: workspace } = useWorkspace();
 
@@ -85,17 +92,18 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
       }
       actions={
         <>
+          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={contributors.filter((contributor) => contributor.archived).length} />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
             Nouveau contributeur
           </ActionButton>
         </>
       }
     >
-      {contributors.length === 0 ? (
+      {shown.length === 0 ? (
         <EmptyState compact icon={<UsersIcon aria-hidden />} message="Aucun contributeur pour le moment." />
       ) : (
         <Stack gap="xs">
-          {contributors.map((contributor) => (
+          {shown.map((contributor) => (
             <Group key={contributor.id} gap="sm" wrap="nowrap">
               <PersonRow
 
@@ -125,6 +133,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                       </Badge>
                     </Tooltip>
                   )}
+                  {contributor.archived && <ArchivedBadge size="xs" />}
 
                   </>
 
@@ -150,8 +159,14 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
               <InlineActions
                 name={contributor.name}
                 items={[
-                  { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
-                  // The user's own profile cannot be deleted.
+                  // Archived: read only (restored to be edited).
+                  !contributor.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
+                  // The user's own profile can be neither archived nor deleted.
+                  !contributor.isMe && {
+                    label: contributor.archived ? 'Restaurer' : 'Archiver',
+                    icon: contributor.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+                    onClick: () => void archiveWithUndo(setArchived, { ids: [contributor.id], archived: !contributor.archived, label: contributor.name }),
+                  },
                   !contributor.isMe && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(contributor) },
                 ]}
               />

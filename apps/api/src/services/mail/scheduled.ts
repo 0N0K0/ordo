@@ -1,7 +1,7 @@
 import { prisma } from '../../db';
 import type { ScheduledMail } from '../../generated/prisma/client';
 import { errorMessage, fieldError, notFound } from '../../graphql/errors';
-import { findAccount } from './accounts';
+import { findActiveAccount } from './accounts';
 import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
@@ -20,7 +20,7 @@ export async function scheduleMail(input: SendMailInput, sendAt: Date): Promise<
   if (Number.isNaN(sendAt.getTime()) || sendAt.getTime() < Date.now() + 30_000) {
     throw fieldError('sendAt', 'Choisissez un moment à venir.');
   }
-  const account = await findAccount(input.accountId);
+  const account = await findActiveAccount(input.accountId);
   const message = await buildMessage(account, input, { date: sendAt });
   const scheduled = await prisma.scheduledMail.create({
     data: {
@@ -49,7 +49,7 @@ export async function sendScheduled(id: string): Promise<void> {
   if (!count) throw notFound('Envoi programmé');
   const scheduled = await prisma.scheduledMail.findUniqueOrThrow({ where: { id } });
   try {
-    const account = await findAccount(scheduled.accountId);
+    const account = await findActiveAccount(scheduled.accountId);
     await deliverMessage(account, { raw: Buffer.from(scheduled.raw), copy: Buffer.from(scheduled.copy), recipients: scheduled.recipients, references: scheduled.references }, scheduled.projectId);
     await prisma.scheduledMail.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
   } catch (error) {
@@ -75,11 +75,11 @@ export async function cancelScheduled(id: string): Promise<void> {
 }
 
 /**
- * Sends the scheduled mails whose time has come.
+ * Sends the scheduled mails whose time has come (those of an archived account wait until it is restored).
  * @returns {Promise<void>}
  */
 async function sendDueMails(): Promise<void> {
-  const due = await prisma.scheduledMail.findMany({ where: { status: 'PENDING', sendAt: { lte: new Date() } }, select: { id: true }, orderBy: { sendAt: 'asc' } });
+  const due = await prisma.scheduledMail.findMany({ where: { status: 'PENDING', sendAt: { lte: new Date() }, account: { archivedAt: null } }, select: { id: true }, orderBy: { sendAt: 'asc' } });
   for (const { id } of due) await sendScheduled(id).catch((error: unknown) => console.warn('Envoi programmé en échec.', error));
 }
 

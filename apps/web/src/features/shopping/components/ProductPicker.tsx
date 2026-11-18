@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
 import { collator, countOf, plural } from '../../../lib/text';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Products of the base lists to add to a list: searched, filtered by base list or missing, checked then added in one go
@@ -23,12 +24,17 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
   const [search, setSearch] = useState('');
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const baseLists = data?.shoppingBaseLists ?? [];
+  // The archived base lists and products are not offered.
+  const baseLists = unarchived(data?.shoppingBaseLists ?? []);
+  const offeredLists = new Set(baseLists.map((baseList) => baseList.id));
   const inList = new Set(list.items.map((item) => item.productId).filter(Boolean));
   const pathOf = categoryPaths(data?.shoppingCategories ?? []);
   const needle = normalize(search.trim());
-  const products = (data?.shoppingProducts ?? [])
-    .filter((product) => (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || normalize(product.name).includes(needle)))
+  const products = unarchived(data?.shoppingProducts ?? [])
+    .filter(
+      (product) =>
+        offeredLists.has(product.baseListId) && (!baseListId || product.baseListId === baseListId) && (!onlyMissing || product.missing) && (!needle || normalize(product.name).includes(needle)),
+    )
     .sort((a, b) => collator.compare(a.name, b.name));
   const addable = products.filter((product) => !inList.has(product.id));
   const groups = baseLists.map((baseList) => ({ baseList, products: products.filter((product) => product.baseListId === baseList.id) })).filter((group) => group.products.length > 0);

@@ -1,4 +1,5 @@
 import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { unarchived } from '../../../lib/archive';
 import { plural, countOf } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
@@ -81,7 +82,7 @@ const LIST_VIEWS: FirstTableView[] = [
 /**
  * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
  * follow), products of the base list or other items added, the estimated total; its task and the treasury entry
- * paying it; copy, export, store mode, archive and deletion.
+ * paying it; copy, export, store mode, closing, archive and deletion. Closed or archived, it is read only.
  * @returns {JSX.Element} Page.
  */
 export function ShoppingListPage() {
@@ -211,8 +212,9 @@ export function ShoppingListPage() {
   }
 
   const tasks = listTasks(list, context);
-  const closed = listClosed(list, context);
-  const baseLists = data?.shoppingBaseLists ?? [];
+  // Closed (by hand or with its tasks) or archived: read only.
+  const closed = listClosed(list, context) || list.archived;
+  const baseLists = unarchived(data?.shoppingBaseLists ?? []);
   const total = shoppingTotal(list.items);
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
   // Its required items (the optional ones apart).
@@ -234,7 +236,15 @@ export function ShoppingListPage() {
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}
             </Title>
-            {closed && <ArchivedBadge feminine />}
+            {list.archived ? (
+              <ArchivedBadge feminine />
+            ) : (
+              closed && (
+                <Badge variant="light" color="gray" tt="none">
+                  Clôturée
+                </Badge>
+              )
+            )}
           </Group>
           <Group gap="md">
             {tasks.map((task) => (
@@ -298,10 +308,10 @@ export function ShoppingListPage() {
                 Ajouter un produit
               </ActionButton>
             )}
-            <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
+            <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} disabled={list.archived} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
               {list.remote ? `Commande · ${list.deliveries.filter((delivery) => !delivery.receivedAt).length} livraison(s) en cours` : 'Commande à distance'}
             </ActionButton>
-            <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
+            <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
             <ListActionsMenu
@@ -399,7 +409,7 @@ export function ShoppingListPage() {
               name={item.name}
               primary={!closed && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }}
               items={[
-                ...(!item.productId
+                ...(!item.productId && !closed
                   ? baseLists.map((baseList) => ({
                       label: `Ajouter à « ${baseList.name} »`,
                       icon: <ListPlusIcon aria-hidden />,

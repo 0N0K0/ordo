@@ -18,6 +18,7 @@ import { MailSearchList } from './MailSearchFolders';
 import { openSearchForm } from '../lib/open-search-form';
 import panel from './ProjectMailsPanel.module.css';
 import { useMailComposer } from '../hooks/use-mail-composer';
+import { unarchived } from '../../../lib/archive';
 
 type SortBy = 'date' | 'correspondent' | 'subject';
 
@@ -43,7 +44,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
   const [sortBy, direction] = sortParam.split('-') as [SortBy, string];
   // The mails of the project, in every folder (the sent ones too); the advanced criteria narrow them.
   const criteria: MailSearchCriteria = advanced ? { ...advanced, projectId } : { ...EMPTY_MAIL_SEARCH, scope: 'all', state: doneFilter, text: debouncedSearch, projectId };
-  const firstAccount = accounts?.[0]?.id;
+  const firstAccount = unarchived(accounts ?? [])[0]?.id;
   // Flags are managed in the settings of the page Mails.
   const manageLabels = () => void navigate('/mail?settings=1');
 
@@ -204,7 +205,7 @@ export function ProjectMailsPanel({ projectId }: { projectId: string }) {
                 Relever
               </ActionButton>
             </Tooltip>
-            <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!accounts?.length} onClick={() => compose({ projectId })}>
+            <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!unarchived(accounts ?? []).length} onClick={() => compose({ projectId })}>
               Nouveau mail
             </ActionButton>
           </>

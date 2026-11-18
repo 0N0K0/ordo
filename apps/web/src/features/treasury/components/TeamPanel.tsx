@@ -13,14 +13,17 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { ActionIcon, Avatar, Badge, Button, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
-import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../api';
+import { treasuryKey, useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../api';
 import * as fmt from '../../../lib/format';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -37,7 +40,8 @@ const formatDay = (day: unknown) => fmt.day(String(day));
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
- * contributor (an existing one, or a new one created with their name). A member removed stays a contributor.
+ * contributor (an existing one, or a new one created with their name). A member removed stays a contributor. An
+ * archived member is hidden unless asked, and archived contributors are not offered as new members.
  * @returns {JSX.Element} Section.
  */
 export function TeamMembers() {
@@ -46,23 +50,34 @@ export function TeamMembers() {
   const { perso } = useActiveWorkspace();
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
+  const setArchived = useSetArchived('CONTRIBUTOR');
+  const [showArchived, setShowArchived] = useState(false);
   // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
   const contributorById = mapById(context?.contributors ?? []);
   const members = (settings?.treasuryMembers ?? [])
     .filter((member) => !context || contributorById.has(member.id))
-    .map((member) => ({ ...member, ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}) }));
+    .map((member) => ({
+      ...member,
+      archived: contributorById.get(member.id)?.archived ?? false,
+      ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}),
+    }));
   const memberIds = new Set(members.map((member) => member.id));
+  const shownMembers = visibleItems(members, showArchived);
   // A relation is not a member too.
   const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
-  const others = (context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
+  const others = unarchived(context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
   const onError = onMutationError;
   const team = perso ? 'Foyer' : 'Équipe';
 
   return (
-    <SettingsSection title={team} description="Les mouvements se répartissent entre les membres. Chaque membre est aussi un contributeur (tâches, projets, agenda) ; retiré, il le reste.">
+    <SettingsSection
+      title={team}
+      description="Les mouvements se répartissent entre les membres. Chaque membre est aussi un contributeur (tâches, projets, agenda) ; retiré, il le reste."
+      actions={<ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={members.filter((member) => member.archived).length} />}
+    >
       <Table verticalSpacing={4}>
         <Table.Tbody>
-          {members.map((member) => (
+          {shownMembers.map((member) => (
             <Table.Tr key={member.id}>
               <Table.Td>
                 <Group gap="xs" wrap="nowrap">
@@ -73,21 +88,34 @@ export function TeamMembers() {
                       Moi
                     </Badge>
                   )}
+                  {member.archived && <ArchivedBadge size="xs" />}
                 </Group>
               </Table.Td>
               <Table.Td w={1}>
                 {!member.isMe && (
-                  <Tooltip label={`Retirer du ${team.toLowerCase()} (reste contributeur)`}>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      aria-label={`Retirer ${member.name}`}
-                      loading={removeMember.isPending && removeMember.variables === member.id}
-                      onClick={() => removeMember.mutate(member.id, { onSuccess: () => notifySuccess(`${member.name} n’est plus membre.`), onError })}
-                    >
-                      <UserMinusIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
+                  <Group gap={4} wrap="nowrap">
+                    <Tooltip label={member.archived ? 'Restaurer le contributeur' : 'Archiver le contributeur'}>
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label={member.archived ? `Restaurer ${member.name}` : `Archiver ${member.name}`}
+                        onClick={() => void archiveWithUndo(setArchived, { ids: [member.id], archived: !member.archived, label: member.name })}
+                      >
+                        {member.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label={`Retirer du ${team.toLowerCase()} (reste contributeur)`}>
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label={`Retirer ${member.name}`}
+                        loading={removeMember.isPending && removeMember.variables === member.id}
+                        onClick={() => removeMember.mutate(member.id, { onSuccess: () => notifySuccess(`${member.name} n’est plus membre.`), onError })}
+                      >
+                        <UserMinusIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
                 )}
               </Table.Td>
             </Table.Tr>
@@ -173,7 +201,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
   const { saveContextPeriod } = useTreasuryTeamMutations();
   const form = useAppForm<{ contextId: string; startDate: string; endDate: string; note: string | null }>({
     initialValues: {
-      contextId: period?.contextId ?? contexts[0]?.id ?? '',
+      contextId: period?.contextId ?? unarchived(contexts)[0]?.id ?? '',
       startDate: period ? String(period.startDate) : '',
       endDate: period ? String(period.endDate) : '',
       note: period?.note ?? null,
@@ -191,7 +219,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
       )}
     >
       <Stack gap="sm">
-        <Select label="Contexte" required allowDeselect={false} {...listSelectProps(contexts)} {...form.getInputProps('contextId')} />
+        <Select label="Contexte" required allowDeselect={false} {...listSelectProps(contexts, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
         <SimpleGrid cols={2} spacing="sm">
           <DatePickerInput
             label="Du"
@@ -211,15 +239,19 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
 
 /**
  * Contexts of spending (not in a tree; a line without context is everyday spending) and the periods they are
- * planned for: the lines of the entries dated in a period get its context proposed.
+ * planned for: the lines of the entries dated in a period get its context proposed. The periods of an archived context
+ * are hidden (and read only) unless the archived ones are shown.
  * @returns {JSX.Element} Sections.
  */
 function Contexts() {
   const { data: settings } = useTreasurySettings();
   const { saveContext, deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
   const contexts = settings?.treasuryContexts ?? [];
-  const periods = settings?.treasuryContextPeriods ?? [];
   const contextById = mapById(contexts);
+  const [showArchived, setShowArchived] = useState(false);
+  const allPeriods = settings?.treasuryContextPeriods ?? [];
+  const archivedPeriod = (period: TreasuryContextPeriod) => Boolean(contextById.get(period.contextId)?.archived);
+  const periods = allPeriods.filter((period) => showArchived || !archivedPeriod(period));
   const onError = onMutationError;
   /**
    * Opens the form of a new or changed period.
@@ -252,7 +284,8 @@ function Contexts() {
         title="Contextes planifiés"
         actions={
           <>
-            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => openPeriod()}>
+            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={allPeriods.filter(archivedPeriod).length} label="Afficher les archivées" />
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!unarchived(contexts).length} onClick={() => openPeriod()}>
               Nouvelle période
             </ActionButton>
           </>
@@ -279,6 +312,7 @@ function Contexts() {
                       <Group gap="xs" wrap="nowrap">
                         {item && <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} />}
                         <Text size="sm">{item?.name}</Text>
+                        {item?.archived && <ArchivedBadge size="xs" />}
                       </Group>
                       {period.note && (
                         <Text size="xs" c="dimmed">
@@ -292,25 +326,28 @@ function Contexts() {
                       </Text>
                     </Table.Td>
                     <Table.Td w={1}>
-                      <Group gap={2} wrap="nowrap">
-                        <Button size="compact-xs" variant="subtle" onClick={() => openPeriod(period)}>
-                          Modifier
-                        </Button>
-                        <Button
-                          size="compact-xs"
-                          variant="subtle"
-                          color="red"
-                          onClick={() =>
-                            confirmDestructive({
-                              title: 'Supprimer la période',
-                              risks: `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                              onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
-                            })
-                          }
-                        >
-                          Supprimer
-                        </Button>
-                      </Group>
+                      {/* A period is part of its context: read only while it is archived. */}
+                      {!item?.archived && (
+                        <Group gap={2} wrap="nowrap">
+                          <Button size="compact-xs" variant="subtle" onClick={() => openPeriod(period)}>
+                            Modifier
+                          </Button>
+                          <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="red"
+                            onClick={() =>
+                              confirmDestructive({
+                                title: 'Supprimer la période',
+                                risks: `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                                onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
+                              })
+                            }
+                          >
+                            Supprimer
+                          </Button>
+                        </Group>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 );
@@ -352,7 +389,8 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
   // Contributors that are no member nor another relation already.
   const members = new Set((settings?.treasuryMembers ?? []).map((member) => member.id));
   const taken = new Set((settings?.treasuryRelations ?? []).filter((item) => item.id !== relation?.id).map((item) => item.contributorId));
-  const contributors = (context?.contributors ?? []).filter((contributor) => !members.has(contributor.id) && !taken.has(contributor.id));
+  // Archived contributors are not offered (the current one stays).
+  const contributors = unarchived(context?.contributors ?? [], form.values.contributorId).filter((contributor) => !members.has(contributor.id) && !taken.has(contributor.id));
   return (
     <form
       noValidate
@@ -394,12 +432,15 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
 
 /**
  * Relations: people out of the team or household (friends, family, partners…) lines and budgets can be for, to
- * follow loans, gifts… One may also be a contributor (not a member); organizations stay counterparties.
+ * follow loans, gifts… One may also be a contributor (not a member); organizations stay counterparties. An archived
+ * relation is hidden (from the list unless asked, and from the pickers) and read only.
  * @returns {JSX.Element} Section.
  */
 export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
+  const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey]);
+  const [showArchived, setShowArchived] = useState(false);
   /**
    * Opens the form of a new or changed relation.
    * @param {TreasuryRelation} [relation] Relation changed. Optional.
@@ -408,7 +449,8 @@ export function TeamRelations() {
   const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? 'Modifier la relation' : 'Nouvelle relation', (close) => <RelationForm relation={relation} onDone={close} />);
   const { context } = useTaskContext();
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
-  const relations = settings?.treasuryRelations ?? [];
+  const allRelations = settings?.treasuryRelations ?? [];
+  const relations = visibleItems(allRelations, showArchived);
   const uses = (relation: TreasuryRelation) =>
     [relation.lineCount ? countOf(relation.lineCount, 'ligne') : '', relation.budgetCount ? countOf(relation.budgetCount, 'budget') : ''].filter(Boolean).join(', ');
 
@@ -417,6 +459,7 @@ export function TeamRelations() {
       title="Relations"
       actions={
         <>
+          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={allRelations.filter((relation) => relation.archived).length} label="Afficher les archivées" />
           <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openRelation()}>
             Nouvelle relation
           </ActionButton>
@@ -436,6 +479,7 @@ export function TeamRelations() {
                 <Table.Td>
                   <Group gap={6}>
                     <Text size="sm">{relation.name}</Text>
+                    {relation.archived && <ArchivedBadge feminine size="xs" />}
                     {relation.contributorId && (
                       <Badge size="xs" variant="light" color="gray">
                         Contributeur
@@ -452,8 +496,18 @@ export function TeamRelations() {
                 </Table.Td>
                 <Table.Td w={1}>
                   <Group gap={2} wrap="nowrap">
-                    <Button size="compact-xs" variant="subtle" onClick={() => openRelation(relation)}>
-                      Modifier
+                    {!relation.archived && (
+                      <Button size="compact-xs" variant="subtle" onClick={() => openRelation(relation)}>
+                        Modifier
+                      </Button>
+                    )}
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      leftSection={relation.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
+                      onClick={() => void archiveWithUndo(setArchived, { ids: [relation.id], archived: !relation.archived, label: `« ${relation.name} »`, feminine: true })}
+                    >
+                      {relation.archived ? 'Restaurer' : 'Archiver'}
                     </Button>
                     <Button
                       size="compact-xs"

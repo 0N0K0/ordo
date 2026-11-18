@@ -1,6 +1,6 @@
 import { clientError, errorMessage } from '../../graphql/errors';
 import type { MailAccount } from '../../generated/prisma/client';
-import { createSmtpTransport, findAccount } from './accounts';
+import { createSmtpTransport, findActiveAccount } from './accounts';
 import { buildMessage, type BuiltMessage, type MailFields } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
@@ -57,7 +57,7 @@ export async function deliverMessage(
  * @returns {Promise<{ projectIds: string[] }>} Projects the sent mail was linked to.
  */
 export async function sendMail(input: SendMailInput): Promise<{ projectIds: string[] }> {
-  const account = await findAccount(input.accountId);
+  const account = await findActiveAccount(input.accountId);
   const message = await buildMessage(account, input);
   const projectIds = await deliverMessage(account, message, input.projectId ?? null);
   if (input.draft) await deleteDraft(input.draft.accountId, input.draft.folder, input.draft.uid).catch(() => undefined);

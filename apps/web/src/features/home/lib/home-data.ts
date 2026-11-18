@@ -43,6 +43,7 @@ export interface BillingSummary {
 
 /**
  * Invoicing at a glance, from the Ordo documents; the revenue counts the imported invoices and credit notes too.
+ * Archived documents are left out.
  * @param {AccountingDocumentSummary[]} documents Documents.
  * @param {string} today Today.
  * @param {ImportedDocument[]} [imported] Imported documents. Optional.
@@ -50,7 +51,9 @@ export interface BillingSummary {
  */
 export function billingSummary(documents: AccountingDocumentSummary[], today: string, imported: ImportedDocument[] = []): BillingSummary {
   const summary: BillingSummary = { receivable: 0, overdue: 0, overdueCount: 0, monthNet: 0, yearNet: 0, pendingQuotes: [], pendingQuotesNet: 0, drafts: 0 };
+  // Archived documents are left out (hidden from the day-to-day views).
   for (const document of documents) {
+    if (document.archived) continue;
     if (document.status === 'DRAFT') {
       summary.drafts += 1;
       continue;
@@ -75,7 +78,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
   }
   // Imported invoices and credit notes are revenue of their date too (quotes are not).
   for (const document of imported) {
-    if (document.type === 'QUOTE') continue;
+    if (document.type === 'QUOTE' || document.archived) continue;
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
     const date = String(document.issueDate);
     if (date.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;

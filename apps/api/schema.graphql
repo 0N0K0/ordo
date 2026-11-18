@@ -7,6 +7,9 @@ type AccountingAttachment {
 
 type AccountingDocument {
   acceptedAt: Date
+
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   attachments: [AccountingAttachment!]!
 
   """
@@ -261,6 +264,55 @@ enum AlarmType {
   TRACKING_DURATION
 }
 
+"""
+Kind of element archived or restored by `setArchived`: main elements of the features and every settings list (clients, projects, tasks and routines have their own mutations).
+"""
+enum ArchivableKind {
+  ACCOUNTING_DOCUMENT
+  CALENDAR
+  CALENDAR_CATEGORY
+  CALENDAR_EVENT
+  CATALOG_ITEM
+  CONTRIBUTOR
+  DASHBOARD
+  DOCUMENT_STATUS
+  IMPORTED_DOCUMENT
+  MAIL_ACCOUNT
+  MAIL_LABEL
+  MILESTONE
+  PLACE
+  PROJECT_CATEGORY
+  PROJECT_STATUS
+  RECURRING_INVOICE
+  ROUTINE_CATEGORY
+  SCHEDULE_TYPE
+  SHEET
+  SHEET_CATEGORY
+  SHOPPING_BASE_LIST
+  SHOPPING_CATEGORY
+  SHOPPING_LIST
+  SHOPPING_PRODUCT
+  SHOPPING_STORAGE
+  SHOPPING_STORE
+  SHOPPING_UNIT
+  SPRINT
+  STOCK_ITEM
+  STOCK_LOCATION
+  TASK_PRIORITY
+  TASK_STATUS
+  TASK_TAG
+  TASK_TYPE
+  TREASURY_ACCOUNT
+  TREASURY_BUDGET
+  TREASURY_CATEGORY
+  TREASURY_CONTEXT
+  TREASURY_COUNTERPARTY
+  TREASURY_ENTRY
+  TREASURY_PAYMENT_METHOD
+  TREASURY_RELATION
+  WORK_SCHEDULE
+}
+
 type Attachment {
   id: ID!
 
@@ -292,6 +344,8 @@ input BulkTaskInput {
 
 """Calendar of the workspace: every event belongs to one."""
 type Calendar {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -302,6 +356,8 @@ type Calendar {
 }
 
 type CalendarCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -372,6 +428,9 @@ input CalendarEventInput {
 """One occurrence of an event in a period."""
 type CalendarEventOccurrence {
   allDay: Boolean!
+
+  """The event (its series) is archived: hidden by default, read only."""
+  archived: Boolean!
 
   """« Bénéficiaires »: contributors the event is for."""
   beneficiaryIds: [ID!]!
@@ -723,6 +782,8 @@ input CompanyProfileInput {
 }
 
 type Contributor {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   avatarUrl: String
   handle: String!
   id: ID!
@@ -763,6 +824,8 @@ input ContributorUpdateInput {
 
 """Dashboard of charts on the tasks, global or of a project tree."""
 type Dashboard {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   charts: [DashboardChart!]!
   id: ID!
   name: String!
@@ -867,6 +930,8 @@ type DocumentSequence {
 }
 
 type DocumentStatus {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   category: DocumentStatusCategory!
   color: String!
   documentCount: Int!
@@ -1084,6 +1149,9 @@ type GithubSyncSummary {
 
 """Quote or invoice issued before Ordo: main information and file."""
 type ImportedDocument {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """Still due (by or to the client); 0 once settled."""
   balance: Float
   clientId: ID
@@ -1191,6 +1259,8 @@ type LinkedMailAttachment {
 
 """Mailbox settings (passwords are never returned)."""
 type MailAccount {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   displayName: String
   email: String!
   id: ID!
@@ -1282,6 +1352,8 @@ type MailFolder {
 
 """Flag of mails (name, color)."""
 type MailLabel {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -1401,6 +1473,8 @@ type MailView {
 }
 
 type Milestone {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   description: String
   dueDate: Date
   id: ID!
@@ -1935,6 +2009,11 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
+  Archives (hidden by default, read only) or restores elements of a kind, all at once.
+  """
+  setArchived(archived: Boolean!, ids: [ID!]!, kind: ArchivableKind!): Boolean!
+
+  """
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
   setCalendarEventCalledOff(calledOff: Boolean!, id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
@@ -2178,6 +2257,7 @@ Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one 
 type Place {
   """Its address, or that of the place a zone is in."""
   address: String!
+  archived: Boolean!
   color: String
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -2239,6 +2319,8 @@ type Project {
 }
 
 type ProjectCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -2282,6 +2364,8 @@ enum ProjectResourceKind {
 }
 
 type ProjectStatus {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -2657,6 +2741,9 @@ type Query {
 
 type RecurringInvoice {
   active: Boolean!
+
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   autoFinalize: Boolean!
   id: ID!
   issuedCount: Int!
@@ -2841,6 +2928,8 @@ input RoutineBulkChanges {
 
 """Category of the routines, in a tree."""
 type RoutineCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3058,6 +3147,8 @@ input ScheduleSubscriptionLookInput {
 Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.
 """
 type ScheduleType {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """A bar at the top of the week and the day on each day with slots."""
@@ -3164,6 +3255,8 @@ enum SettingsListKind {
 Sheet: products and items used together (a recipe, a suitcase…), added to shopping lists or made a checklist of.
 """
 type Sheet {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   categoryIds: [ID!]!
   createdAt: DateTime!
   id: ID!
@@ -3180,6 +3273,8 @@ type Sheet {
 
 """Category of the sheets (flat, set in the settings)."""
 type SheetCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3271,6 +3366,8 @@ type SheetUse {
 
 """Base list ("liste type"): products usually bought together."""
 type ShoppingBaseList {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3282,6 +3379,9 @@ type ShoppingBaseList {
 
 """Category of the shopping products, in a tree."""
 type ShoppingCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """
   Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
   """
@@ -3393,6 +3493,9 @@ input ShoppingItemInput {
 Shopping list, possibly attached to some tasks and to the treasury entry paying it.
 """
 type ShoppingList {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """Closed by hand, or along with its tasks (all of them closed)."""
   closed: Boolean!
   closedAt: DateTime
@@ -3423,6 +3526,9 @@ input ShoppingOrderInput {
 
 """Product of a base list: what is usually bought, marked when missing."""
 type ShoppingProduct {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """Added to the stock by itself once bought (else proposed)."""
   autoStock: Boolean!
   baseListId: ID!
@@ -3476,6 +3582,8 @@ input ShoppingProductInput {
 
 """Storage mode of perishable products (fresh, frozen…)."""
 type ShoppingStorage {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3487,6 +3595,8 @@ type ShoppingStorage {
 
 """Store (or supplier) a product is bought at."""
 type ShoppingStore {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3500,6 +3610,9 @@ type ShoppingStore {
 Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.
 """
 type ShoppingUnit {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """Unused."""
   color: String!
 
@@ -3512,6 +3625,8 @@ type ShoppingUnit {
 
 """Period of a project the tasks of its project tree are planned in."""
 type Sprint {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   endDate: Date!
   goal: String
   id: ID!
@@ -3559,6 +3674,8 @@ input StockCountLineInput {
 Item of the stock: a reference followed in stock, or an item of its own; its quantity is that of its lots.
 """
 type StockItem {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   categoryId: ID
 
   """Used up: that of its reference (an item of its own is)."""
@@ -3601,6 +3718,8 @@ input StockItemInput {
 
 """Place things are kept (Frigo, Congélateur…), in a tree."""
 type StockLocation {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3820,6 +3939,8 @@ input TaskLabelUpdateInput {
 }
 
 type TaskPriority {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3830,6 +3951,8 @@ type TaskPriority {
 }
 
 type TaskStatus {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   category: TaskStatusCategory!
   color: String!
 
@@ -3851,6 +3974,8 @@ enum TaskStatusCategory {
 }
 
 type TaskTag {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -3866,6 +3991,8 @@ type TaskTransferResult {
 }
 
 type TaskType {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -4077,6 +4204,9 @@ Budget of a month (possibly repeated) for a member (none: the app user), a conte
 """
 type TreasuryBudget {
   amount: Float!
+
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   categoryId: ID!
   contextId: ID
   id: ID!
@@ -4133,6 +4263,8 @@ type TreasuryBudgetReportRow {
 }
 
 type TreasuryCategory {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String
   direction: TreasuryDirection!
   entryCount: Int!
@@ -4159,6 +4291,8 @@ input TreasuryCategoryInput {
 Context of spending (not in a tree); a line without context is everyday spending.
 """
 type TreasuryContext {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String!
 
   """Image shown as its avatar (none: its initials on its color)."""
@@ -4215,6 +4349,9 @@ type TreasuryEntry {
   accountName: String!
   allocations: [TreasuryAllocation!]!
   amount: Float!
+
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   categoryId: ID
   clientId: ID
   counterpartyId: ID
@@ -4395,6 +4532,8 @@ type TreasuryLoanItem {
 }
 
 type TreasuryPaymentMethod {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   color: String
   entryCount: Int!
 
@@ -4423,6 +4562,9 @@ type TreasuryProjectionItem {
   accountId: ID
   amount: Float!
 
+  """Its entry or document is archived (it still counts in the balances)."""
+  archived: Boolean!
+
   """Expected date, YYYY-MM-DD (overdue items: today)."""
   date: String!
   documentId: ID
@@ -4440,6 +4582,8 @@ type TreasuryProjectionItem {
 Person out of the team or household (friend, family, partner…) lines and budgets can be for.
 """
 type TreasuryRelation {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   budgetCount: Int!
 
   """Contributor this person also is."""
@@ -4503,6 +4647,9 @@ enum ViewKind {
 Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).
 """
 type WorkSchedule {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+
   """Cases (shared schedule case shape)."""
   cases: JSON!
   endDate: Date

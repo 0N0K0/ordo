@@ -48,9 +48,10 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
   const [choice, setChoice] = useState<string | null>(quoteId ? `ordo:${quoteId}` : importedQuoteId ? `imported:${importedQuoteId}` : null);
   const [percent, setPercent] = useState<number | null>(null);
 
+  // An archived quote is read only: no deposit invoiced from it.
   const quotes: QuoteChoice[] = [
     ...(documents.data ?? [])
-      .filter((document) => document.type === 'QUOTE' && document.status === 'FINAL')
+      .filter((document) => !document.archived && document.type === 'QUOTE' && document.status === 'FINAL')
       .map((document) => ({
         value: `ordo:${document.id}`,
         label: `${document.number} — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,
@@ -62,7 +63,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
         percent: document.depositType === 'PERCENT' ? (document.depositValue ?? null) : null,
       })),
     ...(imported.data ?? [])
-      .filter((document) => document.type === 'QUOTE' && document.clientId)
+      .filter((document) => !document.archived && document.type === 'QUOTE' && document.clientId)
       .map((document) => ({
         value: `imported:${document.id}`,
         label: `${document.number} (importé) — ${document.clientName}${document.title ? ` — ${document.title}` : ''}`,

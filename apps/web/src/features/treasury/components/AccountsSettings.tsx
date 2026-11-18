@@ -1,4 +1,3 @@
-import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { Checkbox, SimpleGrid, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryAccountSchema } from '@ordo/shared';
@@ -60,7 +59,6 @@ export function AccountsSettings() {
       undeletable={(account) => (account.entryCount > 0 ? 'A des mouvements : archivez-le' : null)}
       renderBadges={(account) => (
         <>
-          {account.archived && <ArchivedBadge size="xs" />}
           <Text size="xs" c="dimmed">
             <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
               {fmt.money(account.balance)}

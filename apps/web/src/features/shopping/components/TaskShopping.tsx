@@ -21,8 +21,9 @@ import * as fmt from '../../../lib/format';
 export function TaskShopping({ task }: { task: Task }) {
   const { data: lists } = useShoppingLists();
   const { updateList } = useShoppingMutations();
-  const own = (lists ?? []).filter((list) => list.taskIds.includes(task.id));
-  const free = (lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed);
+  // The archived lists are hidden.
+  const own = (lists ?? []).filter((list) => list.taskIds.includes(task.id) && !list.archived);
+  const free = (lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed && !list.archived);
 
   return (
     <SubSection

@@ -14,35 +14,44 @@ import { openFormPanel } from '../../../components/panels/panels';
 
 import { Badge, Group, Stack, Text } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
-import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
-
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { z } from 'zod';
+import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
+import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { BaseList } from './BaseList';
 
 const schema = z.object({ name: shoppingBaseListNameSchema });
 
 /**
  * Base lists ("références": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
- * deleted from the menu of its tab, reordered by drag and drop; the products of the one chosen below.
+ * deleted from the menu of its tab, reordered by drag and drop; the products of the one chosen below. An archived one
+ * is hidden until « Afficher les archivées », read only.
  * @returns {JSX.Element} Base lists.
  */
 export function BaseLists() {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
+  const setArchived = useSetArchived('SHOPPING_BASE_LIST', [shoppingKey]);
+  const [showArchived, setShowArchived] = useState(false);
   const baseLists = data?.shoppingBaseLists ?? [];
-  const [current, select] = useTabParam('base', baseLists);
+  const tabs = [...visibleItems(baseLists, showArchived)];
+  const [current, select] = useTabParam('base', tabs);
 
   /**
    * Moves a base list among the others.
    * @param {string} id Base list id.
-   * @param {number} target Target index.
+   * @param {number} target Target index among the tabs shown.
    * @returns {void}
    */
   const move = (id: string, target: number) => {
-    const order = moveToIndex(baseLists, id, target);
-    if (order) mutations.moveBaseList.mutate({ id, index: target, ids: order.map((baseList) => baseList.id) }, { onError: onMutationError });
+    // The index among every base list, the archived ones hidden included.
+    const index = baseLists.findIndex((baseList) => baseList.id === tabs[target]?.id);
+    const order = moveToIndex(baseLists, id, index);
+    if (order) mutations.moveBaseList.mutate({ id, index, ids: order.map((baseList) => baseList.id) }, { onError: onMutationError });
   };
 
   /**
@@ -113,6 +122,7 @@ export function BaseLists() {
     return (
       <Stack gap="md">
         <ActionsRow>
+          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={baseLists.filter((baseList) => baseList.archived).length} label="Afficher les archivées" />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
             Nouvelle référence
           </ActionButton>
@@ -127,8 +137,9 @@ export function BaseLists() {
 
   return (
     <Stack gap="md">
+      <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={baseLists.filter((baseList) => baseList.archived).length} label="Afficher les archivées" />
       <SortableTabs
-        items={baseLists}
+        items={tabs}
         value={current.id}
         onChange={select}
         onMove={move}
@@ -139,6 +150,7 @@ export function BaseLists() {
           return (
             <Group gap={6} wrap="nowrap">
               {baseList.name}
+              {baseList.archived && <ArchivedBadge feminine size="xs" />}
               {missing > 0 && (
                 <Badge size="xs" variant="light" color="orange" aria-label={`${countOf(missing, 'manquant')}`}>
                   {missing}
@@ -147,7 +159,15 @@ export function BaseLists() {
             </Group>
           );
         }}
-        actions={(baseList) => [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]}
+        actions={(baseList) => [
+          // Archived: read only.
+          ...(baseList.archived ? [] : [{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(baseList) }]),
+          {
+            label: baseList.archived ? 'Restaurer' : 'Archiver',
+            icon: baseList.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+            onClick: () => void archiveWithUndo(setArchived, { ids: [baseList.id], archived: !baseList.archived, label: `Référence « ${baseList.name} »`, feminine: true }),
+          },
+        ]}
         onDelete={confirmDelete}
         add={{ label: 'Nouvelle référence', onClick: () => openForm() }}
       />

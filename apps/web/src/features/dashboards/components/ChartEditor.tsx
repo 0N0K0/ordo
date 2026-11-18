@@ -1,4 +1,5 @@
 import * as fmt from '../../../lib/format';
+import { unarchived } from '../../../lib/archive';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Alert, Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
@@ -82,7 +83,8 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
   // The balance of the treasury: its cash at each date, not a sum of movements.
   const treasuryBalance = source === 'treasury' && config.measure === 'balance';
   const validation = chartConfigSchema.safeParse(config);
-  const sprints = scope.projectId ? context.sprintsFor(scope.projectId) : context.sprints;
+  // Archived sprints are no longer offered, but the one of the chart stays.
+  const sprints = unarchived(scope.projectId ? context.sprintsFor(scope.projectId, config.sprintId ? [config.sprintId] : []) : context.sprints, config.sprintId);
 
   /**
    * Saves the chart.

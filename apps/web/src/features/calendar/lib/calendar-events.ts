@@ -20,6 +20,26 @@ export function occurrenceSpan(occurrence: { allDay: boolean; startDate: string;
   };
 }
 
+/**
+ * Whether an occurrence is archived for the day-to-day views: its event (its series) is, or its calendar (the calendar
+ * is its container).
+ * @param {{ archived: boolean, calendarId: string }} occurrence Occurrence.
+ * @param {ReadonlySet<string>} archivedCalendarIds Archived calendars of the workspace.
+ * @returns {boolean} Archived.
+ */
+export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId: string }, archivedCalendarIds: ReadonlySet<string>): boolean {
+  return occurrence.archived || archivedCalendarIds.has(occurrence.calendarId);
+}
+
+/**
+ * Ids of the archived calendars.
+ * @param {readonly { id: string, archived: boolean }[] | undefined} calendars Calendars of the workspace.
+ * @returns {Set<string>} Ids.
+ */
+export function archivedCalendarIds(calendars: readonly { id: string; archived: boolean }[] | undefined): Set<string> {
+  return new Set((calendars ?? []).filter((calendar) => calendar.archived).map((calendar) => calendar.id));
+}
+
 /** Schedule shown as slots: its rule, the color of its kind, its name, whether of another workspace, and its display. */
 export interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;

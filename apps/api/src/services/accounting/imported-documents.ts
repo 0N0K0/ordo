@@ -7,6 +7,7 @@ import { scopeOf } from './document-statuses';
 import { sendingData, sentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
 import { assertExists } from '../core/lookup';
+import { assertNotArchived } from '../core/archive';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
 
@@ -74,6 +75,7 @@ export async function importDocument(input: ImportedDocumentInput, file: File | 
  */
 export async function updateImportedDocument(id: string, input: ImportedDocumentInput, file: File | null): Promise<ImportedDocument> {
   const current = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
+  await assertNotArchived('IMPORTED_DOCUMENT', id);
   const data = parseInput(importSchema, input);
   await assertRefs(data);
   const attachmentId = file ? await storeFile(file) : current.attachmentId;
@@ -95,6 +97,7 @@ export async function updateImportedDocument(id: string, input: ImportedDocument
  */
 export async function setImportedProject(id: string, projectId: string | null): Promise<ImportedDocument> {
   await orNotFound(prisma.importedDocument.findUnique({ where: { id }, select: { id: true } }), 'Document importé');
+  await assertNotArchived('IMPORTED_DOCUMENT', id);
   await assertExists(prisma.project, projectId, 'Projet');
   return prisma.importedDocument.update({ where: { id }, data: { projectId } });
 }
@@ -119,9 +122,12 @@ export async function deleteImportedDocument(id: string): Promise<void> {
 export async function setImportedTrackingStatus(id: string, statusId: string | null): Promise<ImportedDocument> {
   requirePro('facturation');
   const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
+  await assertNotArchived('IMPORTED_DOCUMENT', id);
   if (statusId) {
     const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
     if (!status || status.scope !== scopeOf(document.type)) throw notFound('Statut');
+    // An archived status stays the one of its documents, but is not given any more.
+    if (statusId !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', statusId);
   }
   return prisma.importedDocument.update({ where: { id }, data: { trackingStatusId: statusId } });
 }
@@ -136,6 +142,8 @@ export async function setImportedTrackingStatus(id: string, statusId: string | n
 export async function markImportedSent(id: string, options: { date?: string | null; via?: string | null; statusId: string }): Promise<ImportedDocument> {
   requirePro('facturation');
   const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
+  await assertNotArchived('IMPORTED_DOCUMENT', id);
   const status = await sentStatus(options.statusId, document.type);
+  if (status.id !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', status.id);
   return prisma.importedDocument.update({ where: { id }, data: { ...sendingData(options), trackingStatusId: status.id } });
 }

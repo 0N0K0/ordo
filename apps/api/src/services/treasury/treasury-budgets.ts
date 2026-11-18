@@ -7,6 +7,7 @@ import { notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 import { assertExists } from '../core/lookup';
+import { assertNotArchived } from '../core/archive';
 
 /** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
 interface Key {
@@ -31,16 +32,20 @@ export interface BudgetReportRow extends Key {
 }
 
 /**
- * Validated budget data.
+ * Validated budget data. An archived category, relation or context is refused unless it is the budget's already.
  * @param {TreasuryBudgetInput} input Budget.
+ * @param {TreasuryBudget | null} previous Budget changed, or null for a new one.
  * @returns {Promise<object>} Data.
  */
-async function budgetData(input: TreasuryBudgetInput) {
+async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget | null) {
   const budget = parseInput(treasuryBudgetSchema, input);
   await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }), 'Catégorie');
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
   await assertExists(prisma.treasuryRelation, budget.relationId, 'Relation');
   await assertExists(prisma.treasuryContext, budget.contextId, 'Contexte');
+  if (budget.categoryId !== previous?.categoryId) await assertNotArchived('TREASURY_CATEGORY', budget.categoryId);
+  if (budget.relationId !== previous?.relationId) await assertNotArchived('TREASURY_RELATION', budget.relationId);
+  if (budget.contextId !== previous?.contextId) await assertNotArchived('TREASURY_CONTEXT', budget.contextId);
   return {
     month: parseDay(`${budget.month}-01`),
     memberId: budget.relationId ? null : budget.memberId,
@@ -60,10 +65,10 @@ async function budgetData(input: TreasuryBudgetInput) {
  * @returns {Promise<TreasuryBudget>} Budget.
  */
 export async function saveBudget(id: string | null, input: TreasuryBudgetInput): Promise<TreasuryBudget> {
-  const data = await budgetData(input);
-  if (!id) return prisma.treasuryBudget.create({ data });
-  await orNotFound(prisma.treasuryBudget.findUnique({ where: { id }, select: { id: true } }), 'Budget');
-  return prisma.treasuryBudget.update({ where: { id }, data });
+  if (!id) return prisma.treasuryBudget.create({ data: await budgetData(input, null) });
+  const previous = await orNotFound(prisma.treasuryBudget.findUnique({ where: { id } }), 'Budget');
+  await assertNotArchived('TREASURY_BUDGET', id);
+  return prisma.treasuryBudget.update({ where: { id }, data: await budgetData(input, previous) });
 }
 
 /**
@@ -88,7 +93,8 @@ const monthOf = (day: string) => day.slice(0, 7);
  * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
  * category or the closest parent category that has one; without one, it is out of budget. What is expected of
- * the invoices and credit notes counts as forecast in the categories set for them (invoicing settings).
+ * the invoices and credit notes counts as forecast in the categories set for them (invoicing settings). Archived
+ * budgets are left out (their movements are out of budget); archived movements count (real money).
  * @param {string} from First month (YYYY-MM).
  * @param {string} to Last month (YYYY-MM).
  * @param {string | null} meId Contributor of the app user.
@@ -97,7 +103,7 @@ const monthOf = (day: string) => day.slice(0, 7);
 export async function budgetReport(from: string, to: string, meId: string | null, today: string = parisToday()): Promise<BudgetReportRow[]> {
   const me = meId ?? 'me';
   const [budgets, categories, periods] = await Promise.all([
-    prisma.treasuryBudget.findMany({ where: { month: { lte: parseDay(`${to}-01`) } } }),
+    prisma.treasuryBudget.findMany({ where: { archivedAt: null, month: { lte: parseDay(`${to}-01`) } } }),
     prisma.treasuryCategory.findMany({ select: { id: true, parentId: true } }),
     prisma.treasuryContextPeriod.findMany(),
   ]);

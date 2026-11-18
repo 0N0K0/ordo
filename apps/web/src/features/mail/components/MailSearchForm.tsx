@@ -7,6 +7,7 @@ import { notifySuccess } from '../../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Search folder: name, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
@@ -60,7 +61,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
         <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}
-          data={(accounts ?? []).map((account) => ({ value: account.id, label: `${account.name} (${account.email})` }))}
+          data={unarchived(accounts ?? [], values.accountIds).map((account) => ({ value: account.id, label: `${account.name} (${account.email})` }))}
           clearable
           {...form.getInputProps('accountIds')}
         />
@@ -96,7 +97,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           label="Drapeaux"
           description="Les mails ayant l’un de ces drapeaux."
           placeholder={values.labelIds.length ? undefined : 'Peu importe'}
-          {...listSelectProps(labels ?? [])}
+          {...listSelectProps(labels ?? [], undefined, values.labelIds)}
           clearable
           {...form.getInputProps('labelIds')}
         />

@@ -6,6 +6,7 @@ import { moveInOrder, nextPositionIn } from './ordering';
 import { type Place } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { assertExists } from './lookup';
+import { assertNotArchived } from './archive';
 
 /** Address found by a search: its label and point. */
 export interface AddressSuggestion {
@@ -149,6 +150,8 @@ export interface PlaceView {
   iconId: string | null;
   /** Manual order among its siblings. */
   position: number;
+  /** Archived: hidden by default, read only. */
+  archived: boolean;
 }
 
 /**
@@ -176,13 +179,14 @@ export async function places(): Promise<PlaceView[]> {
         color: row.color,
         iconId: row.iconId,
         position: row.position,
+        archived: row.archivedAt !== null,
       },
     ];
   });
 }
 
 /**
- * Saves a place.
+ * Saves a place (refused when archived, or under a new parent archived).
  * @param {string | null} id Place to change, or null to create one.
  * @param {PlaceInput} input Name, address and point.
  * @returns {Promise<Place>} Place.
@@ -190,6 +194,9 @@ export async function places(): Promise<PlaceView[]> {
 export async function savePlace(id: string | null, input: PlaceInput): Promise<Place> {
   const data = parseInput(placeSchema, input);
   await assertExists(prisma.place, id, 'Lieu');
+  await assertNotArchived('place', id);
+  const currentParentId = id ? (await prisma.place.findUnique({ where: { id }, select: { parentId: true } }))?.parentId : undefined;
+  if (data.parentId !== currentParentId) await assertNotArchived('place', data.parentId);
   if (data.parentId) {
     // A zone is in a saved place, never in itself nor in one of its zones.
     await assertTreeParent('place', data.parentId, id, { missing: 'Lieu', loop: 'Une zone ne peut pas être dans elle-même.' });
@@ -233,6 +240,8 @@ export async function movePlace(id: string, parentId: string | null, index: numb
   const all = await prisma.place.findMany({ select: { id: true, parentId: true, name: true, position: true }, orderBy: [{ position: 'asc' }, { name: 'asc' }] });
   const place = all.find((item) => item.id === id);
   if (!place) throw notFound('Lieu');
+  await assertNotArchived('place', id);
+  if (parentId !== place.parentId) await assertNotArchived('place', parentId);
   if ((place.parentId === null) !== (parentId === null)) {
     throw clientError('BAD_USER_INPUT', place.parentId === null ? 'Un lieu garde son adresse : il ne peut pas devenir une zone.' : 'Une zone n’a pas d’adresse : elle ne peut pas devenir un lieu.');
   }

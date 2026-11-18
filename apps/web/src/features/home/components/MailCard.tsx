@@ -19,7 +19,8 @@ const MAX_ROWS = 6;
  */
 export function MailCard({ today }: { today: string }) {
   const accounts = useMailAccounts();
-  const accountIds = accounts.data?.map((account) => account.id) ?? [];
+  // The archived accounts apart.
+  const accountIds = accounts.data?.filter((account) => !account.archived).map((account) => account.id) ?? [];
   const unread = useUnreadMails(accountIds);
   const loading = accounts.isPending || (accountIds.length > 0 && !unread.data);
   const several = accountIds.length > 1;

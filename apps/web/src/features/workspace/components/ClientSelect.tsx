@@ -11,14 +11,14 @@ import { useWorkspace } from '../api';
  */
 export function ClientSelect({ value, ...props }: Omit<SelectProps, 'data'>) {
   const { data: workspace } = useWorkspace();
-  const clients = (workspace?.clients ?? []).filter((client) => !client.archived || client.id === value);
+  const clients = workspace?.clients ?? [];
   const current = clients.find((client) => client.id === value);
   return (
     <Select
       label="Client"
       searchable
       nothingFoundMessage="Aucun client"
-      {...listSelectProps(clients)}
+      {...listSelectProps(clients, undefined, value)}
       leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
       value={value}
       {...props}

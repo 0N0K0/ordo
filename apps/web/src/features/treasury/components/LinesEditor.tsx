@@ -1,4 +1,5 @@
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
+import { unarchived } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
@@ -52,7 +53,11 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const members = settings?.treasuryMembers ?? [];
   const contexts = settings?.treasuryContexts ?? [];
   const categories = settings?.treasuryCategories ?? [];
-  const periods = (settings?.treasuryContextPeriods ?? []).map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
+  // An archived context is not proposed any more.
+  const archivedContexts = new Set(contexts.filter((context) => context.archived).map((context) => context.id));
+  const periods = (settings?.treasuryContextPeriods ?? [])
+    .filter((period) => !archivedContexts.has(period.contextId))
+    .map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
   const planned = plannedContext(periods, date);
   // Amounts relative to the entry (positive: its direction), in cents.
   const { amounts, remainder } = splitAmounts(amount, lines);
@@ -99,9 +104,20 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     );
   };
 
-  const contextSelect = listSelectProps(contexts);
+  // Archived contexts and relations are offered only where a line has them already.
+  const contextSelect = listSelectProps(
+    contexts,
+    undefined,
+    lines.map((line) => line.contextId),
+  );
   // For whom: a member (none: me), or a relation (loan, gift…).
-  const whomOptions = memberRelationOptions(members, settings?.treasuryRelations ?? []);
+  const whomOptions = memberRelationOptions(
+    members,
+    unarchived(
+      settings?.treasuryRelations ?? [],
+      lines.map((line) => line.relationId),
+    ),
+  );
 
   return (
     <Stack gap="xs">
@@ -180,7 +196,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         placeholder="Sans catégorie"
                         clearable
                         searchable
-                        {...treeSelectProps(categoryOptions(categories, relative * sign >= 0 ? 'IN' : 'OUT'))}
+                        {...treeSelectProps(categoryOptions(categories, relative * sign >= 0 ? 'IN' : 'OUT', undefined, line.categoryId))}
                         value={line.categoryId}
                         onChange={(id) => change(index, { categoryId: id })}
                         error={error('categoryId')}

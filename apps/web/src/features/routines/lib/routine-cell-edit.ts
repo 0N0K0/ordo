@@ -75,7 +75,8 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   const { data } = useRoutinesData();
   const applyBulk = useBulkRoutineChanges();
   return useEntityCellEdit<Routine, RoutinePatchValues, RoutineBulkChanges>(routine, TABLE_COLUMNS[column] ?? column, {
-    rows: data?.routines ?? [],
+    // Archived routines are read only: left out of the changes made on a selection.
+    rows: (data?.routines ?? []).filter((item) => !item.archived),
     save: (item, change) => patch.mutate({ id: item.id, input: change }, { onError: onMutationError }),
     saveMany: (rows, changes) =>
       applyBulk(

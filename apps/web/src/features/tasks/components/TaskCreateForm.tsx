@@ -13,6 +13,7 @@ import { taskName, type TaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { unarchived } from '../../../lib/archive';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -33,7 +34,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
   const createTask = useCreateTask();
   const link = useTaskLink();
   const parent = defaults?.parentId ? context.taskById.get(defaults.parentId) : undefined;
-  const firstStatus = context.statuses.find((status) => status.category === 'TODO') ?? context.statuses[0];
+  const statuses = unarchived(context.statuses);
+  const firstStatus = statuses.find((status) => status.category === 'TODO') ?? statuses[0];
 
   const form = useAppForm<TaskFormValues>({
     initialValues: {
@@ -127,7 +129,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           label="Jalon"
           placeholder={form.values.projectId ? 'Aucun' : 'Aucun (tâche sans projet)'}
           disabled={!form.values.projectId}
-          data={(form.values.projectId ? context.milestonesFor(form.values.projectId) : []).map((milestone) => ({
+          data={(form.values.projectId ? context.milestonesFor(form.values.projectId, form.values.milestoneId) : []).map((milestone) => ({
             value: milestone.id,
             label: context.milestoneLabel(milestone),
           }))}
@@ -140,7 +142,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           label="Sprints"
           placeholder={!form.values.projectId ? 'Aucun (tâche sans projet)' : form.values.sprintIds.length ? undefined : 'Aucun'}
           disabled={!form.values.projectId}
-          data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
+          data={(form.values.projectId ? context.sprintsFor(form.values.projectId, form.values.sprintIds) : []).map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
           clearable
           searchable
           nothingFoundMessage="Aucun sprint dans ce projet"
@@ -162,7 +164,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         </SimpleGrid>
         <AssigneesSelect
           contributors={
-            form.values.projectId ? context.assignableFor([form.values.projectId], form.values.assigneeIds) : context.contributors
+            context.assignableFor([form.values.projectId || null], form.values.assigneeIds)
           }
           value={form.values.assigneeIds}
           onChange={(assigneeIds) => form.setFieldValue('assigneeIds', assigneeIds)}

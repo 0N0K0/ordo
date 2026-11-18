@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
+import { assertNotArchived } from '../core/archive';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -62,15 +63,17 @@ export async function ensureDocumentStatuses(client: Client = prisma): Promise<v
 }
 
 /**
- * First status of a category in a scope (the one automatic changes give); a category left without any gets its
- * default status back rather than blocking the tracking.
+ * First status of a category in a scope (the one automatic changes give), an archived one only when the category has
+ * no other; a category left without any gets its default status back rather than blocking the tracking.
  * @param {DocumentStatusScope} scope Scope.
  * @param {DocumentStatusCategory} category Category.
  * @param {Client} [client] Prisma client or transaction. Optional.
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
-  const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION });
+  const status =
+    (await client.documentStatus.findFirst({ where: { scope, category, archivedAt: null }, orderBy: BY_POSITION })) ??
+    (await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION }));
   return status ?? createDefaultStatus(scope, category, client);
 }
 
@@ -130,6 +133,7 @@ export async function updateDocumentStatus(
   input: { name?: string | null; color?: string | null; category?: DocumentStatusCategory | null },
 ): Promise<DocumentStatus> {
   const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
+  await assertNotArchived('DOCUMENT_STATUS', id);
   const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
     name: input.name ?? undefined,
     color: input.color ?? undefined,

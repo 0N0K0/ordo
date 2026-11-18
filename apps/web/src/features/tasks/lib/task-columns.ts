@@ -125,7 +125,8 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
   const withParents = (projectId: string | null) => lineageOf(context.projectById, projectId).map((project) => project.id);
   const projectChoices = context.projectOptions(context.projects);
   const taskChoices = context.taskOptions(context.tasks);
-  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))];
+  // Archived values keep their labels, the filter offers them only while in it (ColumnChoice.archived).
+  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name, archived: contributor.archived }))];
   /**
    * People of a row, with « Moi » for the user.
    * @param {string[]} ids Contributors.
@@ -146,22 +147,34 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return {
           kind: 'choice',
           value: (row) => task(row)?.statusId ?? null,
-          options: context.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color, iconUrl: status.iconUrl })),
+          options: context.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color, iconUrl: status.iconUrl, archived: status.archived })),
         };
       case 'priority':
         return {
           kind: 'choice',
           value: (row) => task(row)?.priorityId ?? null,
-          options: context.priorities.map((priority) => ({ value: priority.id, label: priority.name, color: priority.color, iconUrl: priority.iconUrl })),
+          options: context.priorities.map((priority) => ({ value: priority.id, label: priority.name, color: priority.color, iconUrl: priority.iconUrl, archived: priority.archived })),
         };
       case 'type':
-        return { kind: 'choice', value: (row) => task(row)?.typeId ?? null, options: context.types.map((type) => ({ value: type.id, label: type.name, color: type.color, iconUrl: type.iconUrl })) };
+        return {
+          kind: 'choice',
+          value: (row) => task(row)?.typeId ?? null,
+          options: context.types.map((type) => ({ value: type.id, label: type.name, color: type.color, iconUrl: type.iconUrl, archived: type.archived })),
+        };
       case 'assignees':
         return { kind: 'choices', value: (row) => withMe(row.kind === 'task' ? row.task.assigneeIds : row.event.contributorIds), options: people };
       case 'tags':
-        return { kind: 'choices', value: (row) => task(row)?.tagIds ?? [], options: context.tags.map((tag) => ({ value: tag.id, label: tag.name, color: tag.color, iconUrl: tag.iconUrl })) };
+        return {
+          kind: 'choices',
+          value: (row) => task(row)?.tagIds ?? [],
+          options: context.tags.map((tag) => ({ value: tag.id, label: tag.name, color: tag.color, iconUrl: tag.iconUrl, archived: tag.archived })),
+        };
       case 'milestone':
-        return { kind: 'choice', value: (row) => task(row)?.milestoneId ?? null, options: context.milestones.map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) })) };
+        return {
+          kind: 'choice',
+          value: (row) => task(row)?.milestoneId ?? null,
+          options: context.milestones.map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone), archived: milestone.archived })),
+        };
       case 'sprint':
         return {
           kind: 'choices',
@@ -169,7 +182,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
             const ids = task(row)?.sprintIds ?? [];
             return [...ids, ...Object.entries(relative).flatMap(([token, set]) => (ids.some((sprintId) => set.has(sprintId)) ? [token] : []))];
           },
-          options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))],
+          options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint), archived: sprint.archived }))],
         };
       case 'parent':
         // Its parent and those above it: a filter on a task keeps its sub-tasks at every level.
@@ -188,7 +201,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return {
           kind: 'choices',
           value: (row) => beneficiaryKeys(row.kind === 'task' ? row.task : row.event),
-          options: context.contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributor.name })),
+          options: context.contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributor.name, archived: contributor.archived })),
         };
       case 'effort':
         return { kind: 'number', value: (row) => task(row)?.effort ?? null };

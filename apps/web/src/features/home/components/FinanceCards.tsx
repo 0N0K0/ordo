@@ -119,7 +119,8 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
     const at30 = [...forecast].reverse().find((point) => point.date <= in30);
     const lowest = forecast.reduce<(typeof forecast)[number] | null>((low, point) => (!low || point.balance < low.balance ? point : low), null);
     const coming = projection.items
-      .filter((item) => item.kind !== 'ACTUAL' && item.date <= in30)
+      // Archived ones still count in the balances, their rows are hidden.
+      .filter((item) => item.kind !== 'ACTUAL' && !item.archived && item.date <= in30)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, MAX_ROWS);
     return { forecast, at30, lowest, coming };

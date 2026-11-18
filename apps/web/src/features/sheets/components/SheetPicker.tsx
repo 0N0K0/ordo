@@ -6,6 +6,7 @@ import { useSheets } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { unarchived } from '../../../lib/archive';
 
 interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
@@ -18,12 +19,15 @@ interface SheetPickerProps {
 
 /**
  * Sheet added to a list (shopping list or checklist), times a multiplier: its items summed with those of the list of
- * the same product (or same label and unit); the sheets of the list taken out of it.
+ * the same product (or same label and unit); the sheets of the list taken out of it. The archived sheets are not
+ * offered.
  * @param {SheetPickerProps} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPickerProps) {
-  const { data: sheets } = useSheets();
+  // An archived sheet does not fill lists.
+  const { data: all } = useSheets();
+  const sheets = all && unarchived(all);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [multiplier, setMultiplier] = useState<number>(1);
   const [pending, setPending] = useState(false);

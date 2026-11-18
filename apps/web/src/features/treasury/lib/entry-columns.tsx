@@ -1,5 +1,5 @@
 import { Text } from '@mantine/core';
-import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
+import { listSelectProps, itemChoices } from '../../../components/settings/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -7,7 +7,7 @@ import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { categoryOptions } from './categories';
+import { categoryChoices, categoryOptions } from './categories';
 import { DocumentsCell, LinksCell, PayerCell, ProjectCell, RecurrenceCell } from '../components/entry-cells';
 import { entryLinks, payerKey, recurrenceText, type AnyEntry, type EntryEnv, type EntrySave } from './entry-env';
 
@@ -71,7 +71,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choice',
         value: (row) => entryOf(row)?.accountId ?? null,
-        options: itemOptions(env.accounts),
+        options: itemChoices(env.accounts),
       },
       groupable: true,
     },
@@ -122,7 +122,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choices',
         value: (row) => entryCategories(entryOf(row)),
-        options: [...categoryOptions(env.settings?.treasuryCategories ?? [], 'OUT'), ...categoryOptions(env.settings?.treasuryCategories ?? [], 'IN')],
+        options: categoryChoices(env.settings?.treasuryCategories ?? []),
       },
       groupable: true,
     },
@@ -137,7 +137,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choice',
         value: (row) => entryOf(row)?.methodId ?? null,
-        options: itemOptions(env.settings?.treasuryPaymentMethods ?? []),
+        options: itemChoices(env.settings?.treasuryPaymentMethods ?? []),
       },
       groupable: true,
     },
@@ -237,7 +237,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       <EditableSelect
         value={entry.accountId}
         label={`Compte de ${entry.label}`}
-        {...listSelectProps(env.accounts.filter((account) => !account.archived || account.id === entry.accountId))}
+        {...listSelectProps(env.accounts, undefined, entry.accountId)}
         onSave={(accountId) => accountId && save('account')(entry, { accountId })}
       />
     ),
@@ -250,7 +250,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
         value={entry.categoryId ?? null}
         label={`Catégorie de ${entry.label}`}
         nullable
-        {...treeSelectProps(categoryOptions(categories, direction(entry)))}
+        {...treeSelectProps(categoryOptions(categories, direction(entry), undefined, entry.categoryId))}
         // A category of money out goes to money out only (and in to in).
         onSave={(categoryId) =>
           save('category')(entry, (row) => (row.lines.length || (categoryId && categories.find((item) => item.id === categoryId)?.direction !== direction(row)) ? {} : { categoryId }))
@@ -262,7 +262,11 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
         value={entry.methodId ?? null}
         label={`Moyen de paiement de ${entry.label}`}
         nullable
-        {...listSelectProps(methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId))}
+        {...listSelectProps(
+          methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId),
+          undefined,
+          entry.methodId,
+        )}
         onSave={(methodId) =>
           save('method')(entry, (row) => {
             const method = methods.find((item) => item.id === methodId);

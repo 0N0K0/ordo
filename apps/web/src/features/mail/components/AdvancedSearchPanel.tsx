@@ -78,7 +78,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             size="xs"
             label="Drapeaux (l’un d’eux)"
             placeholder={criteria.labelIds.length ? undefined : 'Peu importe'}
-            {...listSelectProps(labels ?? [])}
+            {...listSelectProps(labels ?? [], undefined, criteria.labelIds)}
             value={criteria.labelIds}
             onChange={(labelIds) => set({ labelIds })}
             clearable

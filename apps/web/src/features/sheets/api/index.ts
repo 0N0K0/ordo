@@ -18,7 +18,7 @@ export type ChecklistItem = Checklist['items'][number];
 /** Owner of sheets and checklists: a routine or an event (an occurrence for its checklist), or a task. */
 export type SheetOwner = { routineId: string } | { eventId: string } | { taskId: string };
 
-const sheetsKey = ['sheets'] as const;
+export const sheetsKey = ['sheets'] as const;
 
 /**
  * Variables of an owner: one of a routine, an event and a task.
@@ -35,6 +35,7 @@ const SheetsDocument = graphql(`
   query Sheets($projectId: ID) {
     sheets(projectId: $projectId) {
       id
+      archived
       name
       note
       projectId
@@ -69,6 +70,7 @@ const SheetDocument = graphql(`
   query Sheet($id: ID!) {
     sheet(id: $id) {
       id
+      archived
       name
       note
       projectId
@@ -101,6 +103,7 @@ const SheetCategoriesDocument = graphql(`
   query SheetCategories {
     sheetCategories {
       id
+      archived
       name
       color
       iconUrl

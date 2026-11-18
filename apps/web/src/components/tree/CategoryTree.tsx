@@ -20,6 +20,8 @@ interface CategoryRowProps<C extends TreeCategory> {
   onToggle: () => void;
   /** A tree (else a flat list: no folding). */
   nested: boolean;
+  /** Not moved (read only): no drag handle. Optional. */
+  locked?: boolean;
 }
 
 /**
@@ -27,9 +29,9 @@ interface CategoryRowProps<C extends TreeCategory> {
  * @param {CategoryRowProps<C>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, drop, folded, onToggle, nested }: CategoryRowProps<C>) {
+function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, drop, folded, onToggle, nested, locked = false }: CategoryRowProps<C>) {
   const { category, depth, path, color } = placed;
-  const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: category.id });
+  const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: category.id, disabled: locked });
   const { setNodeRef: setDropRef } = useDroppable({ id: category.id });
   return (
     <Table.Tr
@@ -42,9 +44,11 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       data-dragging={isDragging || undefined}
     >
       <Table.Td w={32} px={4}>
-        <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${path}`} className={classes.handle} {...attributes} {...listeners}>
-          <DotsSixVerticalIcon weight="bold" aria-hidden />
-        </ActionIcon>
+        {!locked && (
+          <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${path}`} className={classes.handle} {...attributes} {...listeners}>
+            <DotsSixVerticalIcon weight="bold" aria-hidden />
+          </ActionIcon>
+        )}
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
@@ -89,6 +93,8 @@ interface CategoryTreeProps<C extends TreeCategory> {
   nested?: boolean;
   /** Whether a row may go under a parent (null: the top level); refused drops are not shown. Optional. */
   canMove?: (id: string, parentId: string | null) => boolean;
+  /** Whether a row is read only (an archived item): not moved, no drag handle. Optional. */
+  locked?: (category: C) => boolean;
 }
 
 /**
@@ -98,7 +104,7 @@ interface CategoryTreeProps<C extends TreeCategory> {
  * @param {CategoryTreeProps<C>} props Component props.
  * @returns {JSX.Element} Tree.
  */
-export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true, canMove }: CategoryTreeProps<C>) {
+export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true, canMove, locked }: CategoryTreeProps<C>) {
   const tree = categoryTree(categories);
   const [folded, toggle] = useFolded(storageKey);
   const [dragged, setDragged] = useState<string | null>(null);
@@ -189,6 +195,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
                 folded={parents.has(id) ? folded.has(id) : undefined}
                 onToggle={() => toggle(id)}
                 nested={nested}
+                locked={locked?.(placed.category)}
               />
             );
           })}

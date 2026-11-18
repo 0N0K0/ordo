@@ -5,6 +5,7 @@ import { type Contributor } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { assertAllExist } from '../core/lookup';
+import { ARCHIVED_MESSAGE, assertNotArchived } from '../core/archive';
 
 /**
  * Creates a contributor.
@@ -56,6 +57,8 @@ export async function updateContributor(
   },
 ): Promise<Contributor> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id } }), 'Contributeur');
+  // Read only when archived.
+  await assertNotArchived('contributor', id);
   if (input.projectIds) await assertProjects(input.projectIds);
   const data = parseInput(z.object({ name: contributorNameSchema.optional(), handle: handleSchema.optional() }), {
     name: input.name ?? undefined,
@@ -97,14 +100,42 @@ async function assertProjects(projectIds: string[]): Promise<void> {
 }
 
 /**
- * Sets the contributors directly attached to a project. Tasks keep their assignees.
+ * Refuses contributors newly chosen (not among those already chosen) when one of them is archived.
+ * @param {string[]} ids Contributors chosen.
+ * @param {string[]} keep Contributors already chosen (they stay, archived or not).
+ * @param {string} field Field of the error.
+ * @returns {Promise<void>}
+ */
+export async function assertActiveContributors(ids: readonly string[], keep: readonly string[], field: string): Promise<void> {
+  const added = [...new Set(ids.filter((id) => !keep.includes(id)))];
+  if (added.length && (await prisma.contributor.count({ where: { id: { in: added }, archivedAt: { not: null } } })) > 0) throw fieldError(field, ARCHIVED_MESSAGE);
+}
+
+/**
+ * Refuses treasury relations newly chosen (beneficiaries…) when one of them is archived.
+ * @param {string[]} ids Relations chosen.
+ * @param {string[]} keep Relations already chosen (they stay, archived or not).
+ * @param {string} field Field of the error.
+ * @returns {Promise<void>}
+ */
+export async function assertActiveRelations(ids: readonly string[], keep: readonly string[], field: string): Promise<void> {
+  const added = [...new Set(ids.filter((id) => !keep.includes(id)))];
+  if (added.length && (await prisma.treasuryRelation.count({ where: { id: { in: added }, archivedAt: { not: null } } })) > 0) throw fieldError(field, ARCHIVED_MESSAGE);
+}
+
+/**
+ * Sets the contributors directly attached to a project (not an archived project; an archived contributor is not
+ * attached anew). Tasks keep their assignees.
  * @param {string} projectId Project id.
  * @param {string[]} contributorIds Contributors.
  * @returns {Promise<void>}
  */
 export async function setProjectContributors(projectId: string, contributorIds: string[]): Promise<void> {
   await assertProjects([projectId]);
+  await assertNotArchived('project', projectId);
   await assertAllExist(prisma.contributor, contributorIds, 'Contributeur');
+  const current = await prisma.contributor.findMany({ where: { projects: { some: { id: projectId } } }, select: { id: true } });
+  await assertActiveContributors(contributorIds, current.map((contributor) => contributor.id), 'contributorIds');
   await prisma.project.update({
     where: { id: projectId },
     data: { contributors: { set: contributorIds.map((contributorId) => ({ id: contributorId })) } },
@@ -121,7 +152,8 @@ export async function attachAssignees(assignments: { projectId: string; contribu
   const ids = [...new Set(assignments.flatMap((assignment) => assignment.contributorIds))];
   if (ids.length === 0) return;
   const contributors = await prisma.contributor.findMany({
-    where: { id: { in: ids }, user: { is: null } },
+    // Archived ones are read only: not attached.
+    where: { id: { in: ids }, user: { is: null }, archivedAt: null },
     select: { id: true, projects: { select: { id: true } } },
   });
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
@@ -147,7 +179,8 @@ export async function attachAssignees(assignments: { projectId: string; contribu
 
 /**
  * Checks that contributors may be chosen on an item of a project (routine, event…): "Moi", those attached to the
- * project or to one of its parents, and the ones already chosen (they stay). Anyone without project.
+ * project or to one of its parents, and the ones already chosen (they stay). Anyone without project. An archived
+ * contributor is not chosen anew.
  * @param {string | null} projectId Project of the item; none: no restriction.
  * @param {string[]} ids Contributors chosen.
  * @param {string[]} keep Contributors already chosen on the item.
@@ -156,6 +189,7 @@ export async function attachAssignees(assignments: { projectId: string; contribu
  */
 export async function assertProjectContributors(projectId: string | null, ids: string[], keep: string[], field: string): Promise<void> {
   const added = ids.filter((id) => !keep.includes(id));
+  await assertActiveContributors(added, [], field);
   if (!projectId || added.length === 0) return;
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
   const scope = lineageOf(new Map(projects.map((project) => [project.id, project])), projectId).map((project) => project.id);
