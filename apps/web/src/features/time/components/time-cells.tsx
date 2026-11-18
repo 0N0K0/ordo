@@ -86,7 +86,7 @@ export function TimeDurationCell({ entry, readOnly, save }: { entry: TimeEntry; 
  */
 export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
   const { data } = useRoutinesData();
-  if (readOnly) return <>{entry.routineTitle}</>;
+  if (readOnly) return <>{entry.routineLabel}</>;
   return (
     <Select
       variant="unstyled"
@@ -110,7 +110,7 @@ export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; r
  * @returns {JSX.Element} Cell.
  */
 export function TimeTasksCell({ entry, context, readOnly, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; save: Save }) {
-  const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: `${taskRef(task)}${task.title}` }));
+  const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: `${taskRef(task)}${task.label}` }));
   return (
     <EditableMultiSelect
       label="Tâches de ce temps"
@@ -133,10 +133,10 @@ export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; rea
   const { data: events } = useCalendarEvents(opened ? { from: day, to: day } : null);
   const current = entryEventKey(entry);
   const options = dayEventOptions(events ?? [], day);
-  if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: entry.calendarEventTitle ?? 'Évènement' });
-  if (readOnly) return <>{entry.calendarEventTitle}</>;
+  if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: entry.calendarEventLabel ?? 'Évènement' });
+  if (readOnly) return <>{entry.calendarEventLabel}</>;
   return (
-    <EditablePopoverCell width={320} empty={!entry.calendarEventTitle} truncate opened={opened} onOpenedChange={setOpened} target={entry.calendarEventTitle ?? '—'}>
+    <EditablePopoverCell width={320} empty={!entry.calendarEventLabel} truncate opened={opened} onOpenedChange={setOpened} target={entry.calendarEventLabel ?? '—'}>
       <Select
         label="Évènement du jour"
         placeholder="Aucun"

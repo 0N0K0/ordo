@@ -25,6 +25,7 @@ interface DragHandleProps {
  */
 export function DragHandle({ label, activator, attributes, listeners, dragging, size, className, reveal }: DragHandleProps) {
   return (
+    // eslint-disable-next-line no-restricted-syntax -- the one drag handle (dragged, not clicked).
     <ActionIcon
       ref={activator}
       variant="subtle"

@@ -1,4 +1,4 @@
-import { MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { clipText, MAX_ATTACHMENT_BYTES, safeFilename } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Attachment } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -13,6 +13,21 @@ export const INLINE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp
  */
 export function isPdf(data: Uint8Array): boolean {
   return Buffer.from(data.subarray(0, 5)).toString('latin1') === '%PDF-';
+}
+
+/** Name of a file in its link when it has none. */
+const FALLBACK_FILENAME = 'fichier';
+
+/**
+ * Link of a stored file, the same everywhere: its name encoded, parentheses included (markdown links need it).
+ * @param {{ id: string, filename?: string | null } | null | undefined} attachment Stored file (its name: « fichier » without one).
+ * @returns {string} Link « /api/attachments/{id}/{name} ».
+ */
+export function attachmentUrl(attachment: { id: string; filename?: string | null } | null | undefined): string {
+  const name = encodeURIComponent(attachment?.filename || FALLBACK_FILENAME)
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29');
+  return `/api/attachments/${attachment?.id ?? ''}/${name}`;
 }
 
 /**
@@ -42,12 +57,12 @@ function sniffImage(buffer: Buffer): string | null {
  * Stored form of a file: recognized images and PDFs keep their type, the rest is served as a plain download.
  * @param {string} name File name.
  * @param {Buffer} buffer Content.
- * @returns {{ name: string, mimeType: string, size: number, data: Uint8Array<ArrayBuffer> }} Attachment data.
+ * @returns {{ filename: string, mimeType: string, size: number, data: Uint8Array<ArrayBuffer> }} Attachment data.
  */
 export function attachmentData(name: string, buffer: Buffer) {
   return {
-    name: name.replace(/[\\/\0]/g, '_').slice(0, 200) || 'fichier',
-    mimeType: sniffImage(buffer) ?? (buffer.toString('ascii', 0, 5) === '%PDF-' ? 'application/pdf' : 'application/octet-stream'),
+    filename: safeFilename(clipText(name, 200)),
+    mimeType: sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream'),
     size: buffer.length,
     data: new Uint8Array(buffer),
   };

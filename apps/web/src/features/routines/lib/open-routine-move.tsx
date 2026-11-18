@@ -8,5 +8,5 @@ import { RoutineMoveForm } from '../components/RoutineMoveForm';
  * @returns {void}
  */
 export function openRoutineMove(routine: Routine): void {
-  openFormPanel(`Reporter ou annuler « ${routine.title} »`, (close) => <RoutineMoveForm routineId={routine.id} onDone={close} />);
+  openFormPanel(`Reporter ou annuler « ${routine.label} »`, (close) => <RoutineMoveForm routineId={routine.id} onDone={close} />);
 }

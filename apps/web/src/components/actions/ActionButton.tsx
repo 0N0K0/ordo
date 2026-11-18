@@ -15,6 +15,10 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
   icon: ReactNode;
   /** Page of the app it opens. Optional. */
   to?: string;
+  /** File or outside page it opens (a download with `download`). Optional. */
+  href?: string;
+  /** Downloads `href` (under this name when a string). Optional. */
+  download?: boolean | string;
   /**
    * Other ways of the same action (a forecast besides an entry…), in a menu attached to the button: opened by the
    * button itself without `onClick`/`to`, by its caret otherwise. Optional.
@@ -28,10 +32,10 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
  * @param {ActionButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */
-export function ActionButton({ children, priority = 'primary', icon, to, menu, onClick, ...props }: ActionButtonProps) {
+export function ActionButton({ children, priority = 'primary', icon, to, href, download, menu, onClick, ...props }: ActionButtonProps) {
   const variant = priority === 'primary' ? 'filled' : 'default';
-  const link = to ? ({ component: Link, to } as object) : {};
-  if (menu && !onClick && !to) {
+  const link = to ? ({ component: Link, to } as object) : href ? ({ component: 'a', href, download } as object) : {};
+  if (menu && !onClick && !to && !href) {
     return (
       <ActionsMenu
         name={String(children)}

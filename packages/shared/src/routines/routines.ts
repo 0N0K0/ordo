@@ -2,17 +2,18 @@ import { dayInMonth, daysInMonth } from '../dates/months';
 import { minutesToTime, timeToMinutes } from '../dates/times';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
-import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
+import { endAfter, requiredText } from '../core/rules';
+import { locatedFields } from '../core/geo';
+import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
+import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
-import { weekdayOfDate } from '../dates/weeks';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
-import { slotConditionSchema } from './routine-times';
+import { slotConditionSchema, type SlotCondition } from './routine-times';
 import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
-  name: requiredText(100),
+  label: requiredText(100),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -33,7 +34,7 @@ export const routineSlotSchema = z
     /** Not needed for the day to be done ("2 to 3 times a day": the third one). */
     optional: z.boolean().default(false),
   })
-  .refine((slot) => !slot.fromTime || !slot.dueTime || slot.fromTime < slot.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' });
+  .refine(...endAfter('fromTime', 'dueTime', true));
 export type RoutineSlot = z.infer<typeof routineSlotSchema>;
 
 const dayNumber = z.number().int().min(1).max(31);
@@ -109,10 +110,13 @@ export const routineCaseSchema = z
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
+/** Longest label of a routine. */
+export const ROUTINE_LABEL_MAX = 200;
+
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    title: requiredText(200, 'Le titre est requis.'),
+    label: requiredText(ROUTINE_LABEL_MAX),
     description: z
       .string()
       .max(4000, '4 000 caractères maximum.')
@@ -154,7 +158,7 @@ export const routineSchema = z
           .min(0)
           .max(24 * 60),
       )
-      .max(10, '10 alertes maximum.')
+      .max(10, '10 rappels maximum.')
       .default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: z
@@ -164,21 +168,8 @@ export const routineSchema = z
       .transform((value) => value || null)
       .nullable()
       .default(null),
-    locationLat: z.number().min(-90).max(90).nullable().default(null),
-    locationLon: z.number().min(-180).max(180).nullable().default(null),
-    /** Travel time to the place and back from it, in minutes. */
-    travelBefore: z
-      .number()
-      .int()
-      .min(0, 'Durée positive attendue.')
-      .max(24 * 60, '24 h maximum.')
-      .default(0),
-    travelAfter: z
-      .number()
-      .int()
-      .min(0, 'Durée positive attendue.')
-      .max(24 * 60, '24 h maximum.')
-      .default(0),
+    /** Point of the place, and travel time to it and back from it, in minutes. */
+    ...locatedFields,
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
     /** « Bénéficiaires »: whom the routine is for (contributors, relations). */
@@ -191,7 +182,7 @@ export const routineSchema = z
     /** Slots (by kind) it is done on or out of; null: the default of the workspace. */
     slotRule: slotRuleSchema.nullable().default(null),
   })
-  .refine((routine) => !routine.fromTime || !routine.dueTime || routine.fromTime < routine.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' })
+  .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
   .refine((routine) => !routine.opensOn || (!routine.cases.length && opensFits(routine.opensOn, routine.recurrence.frequency)), { path: ['opensOn'], message: OPENS_MISFIT });
 export type RoutineInput = z.input<typeof routineSchema>;
@@ -239,8 +230,8 @@ function isoWeekDate(year: number, week: number, weekday: number): string {
 export function routineOpenDate(due: string, opens: RoutineOpens | null, frequency: Recurrence['frequency']): string {
   if (!opens || !opensFits(opens, frequency)) return due;
   if (opens.mode === 'BEFORE') return addDays(due, -opens.days);
-  const year = Number(due.slice(0, 4));
-  const month = Number(due.slice(5, 7));
+  const year = yearOfDay(due);
+  const month = monthOfYear(due);
   let open: string;
   if (frequency === 'MONTHLY') {
     open = opensInMonth(opens, year, month);
@@ -489,4 +480,27 @@ export function withMove(moves: readonly RoutineMove[], date: string, to: string
   const others = moves.filter((move) => move.from !== from);
   const kept = to === null ? null : times === undefined ? (current?.times ?? null) : times && times.some(Boolean) ? times : null;
   return from === to && !kept ? others : [...others, { from, to, times: kept }].sort((a, b) => a.from.localeCompare(b.from));
+}
+
+/** Same changes for several routines: values set (null: none, undefined: unchanged), or ids added to and removed from their lists. */
+export interface RoutineBulkChanges {
+  addCategoryIds?: string[];
+  removeCategoryIds?: string[];
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+  addRequiredIds?: string[];
+  removeRequiredIds?: string[];
+  /** Minutes. */
+  estimate?: number | null;
+  projectId?: string | null;
+  /** Null: no limit. */
+  fromTime?: string | null;
+  dueTime?: string | null;
+  startDate?: string;
+  recurrence?: Recurrence;
+  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « à partir du ». */
+  cases?: RoutineCaseInput[];
+  moments?: RoutineSlot[];
+  slotCondition?: SlotCondition | null;
+  opensOn?: RoutineOpens | null;
 }

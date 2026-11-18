@@ -39,19 +39,8 @@ function UsernameForm({ user }: { user: AccountUser }) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput
-          label="Identifiant"
-          description="3 à 32 caractères : lettres, chiffres, « . », « _ » et « - »."
-          autoComplete="username"
-          required
-          {...form.getInputProps('username')}
-        />
-        <PasswordInput
-          label="Mot de passe actuel"
-          autoComplete="current-password"
-          required
-          {...form.getInputProps('currentPassword')}
-        />
+        <TextInput label="Identifiant" description="3 à 32 caractères : lettres, chiffres, « . », « _ » et « - »." autoComplete="username" required {...form.getInputProps('username')} />
+        <PasswordInput label="Mot de passe actuel" autoComplete="current-password" required {...form.getInputProps('currentPassword')} />
         <FormActions submitLabel="Modifier l’identifiant" submitIcon={<FloppyDiskIcon aria-hidden />} loading={changeUsername.isPending} />
       </Stack>
     </form>
@@ -73,7 +62,10 @@ function EmailForm({ user }: { user: AccountUser }) {
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    requestEmailChange.mutate(values, formCallbacks(form, 'Un lien de confirmation a été envoyé à la nouvelle adresse.', () => form.reset()));
+    requestEmailChange.mutate(
+      values,
+      formCallbacks(form, 'Un lien de confirmation a été envoyé à la nouvelle adresse.', () => form.reset()),
+    );
   });
 
   /**
@@ -93,8 +85,7 @@ function EmailForm({ user }: { user: AccountUser }) {
         <NoticeAlert kind="info" title="Confirmation en attente">
           <Stack gap="xs" align="flex-start">
             <Text size="sm">
-              Un lien a été envoyé à <strong>{user.pendingEmail}</strong>. L’adresse sera remplacée une fois le lien
-              ouvert.
+              Un lien a été envoyé à <strong>{user.pendingEmail}</strong>. L’adresse sera remplacée une fois le lien ouvert.
             </Text>
             <Button variant="subtle" size="xs" leftSection={<XIcon aria-hidden />} onClick={handleCancel} loading={cancelEmailChange.isPending}>
               Annuler le changement
@@ -105,12 +96,7 @@ function EmailForm({ user }: { user: AccountUser }) {
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
           <TextInput label="Nouvelle adresse email" type="email" autoComplete="email" required {...form.getInputProps('email')} />
-          <PasswordInput
-            label="Mot de passe actuel"
-            autoComplete="current-password"
-            required
-            {...form.getInputProps('currentPassword')}
-          />
+          <PasswordInput label="Mot de passe actuel" autoComplete="current-password" required {...form.getInputProps('currentPassword')} />
           <FormActions submitLabel="Changer d’adresse" submitIcon={<EnvelopeSimpleIcon aria-hidden />} loading={requestEmailChange.isPending} />
         </Stack>
       </form>
@@ -142,12 +128,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <PasswordInput
-          label="Mot de passe actuel"
-          autoComplete="current-password"
-          required
-          {...form.getInputProps('currentPassword')}
-        />
+        <PasswordInput label="Mot de passe actuel" autoComplete="current-password" required {...form.getInputProps('currentPassword')} />
         <NewPasswordFields form={form} userInputs={userInputs} />
         <FormActions submitLabel="Modifier le mot de passe" submitIcon={<FloppyDiskIcon aria-hidden />} loading={changePassword.isPending} />
       </Stack>

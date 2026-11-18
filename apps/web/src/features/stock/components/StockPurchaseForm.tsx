@@ -1,16 +1,18 @@
-import { categoryOptions } from '../../../components/tree/category-tree';
+import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
+import { useLocationSelect } from '../hooks/use-location-select';
+
 import { ClockIcon } from '@phosphor-icons/react';
 import { mapById } from '@ordo/shared';
-import { Paper, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
-import { treeSelectProps } from '../../../components/tree/tree-select';
+
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { useShoppingData, type ShoppingItem } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
-import { unarchivedOffered } from '../../../lib/archive';
+import { unarchived } from '../../../lib/archive';
 
 /** Item bought; its place is undefined until chosen (its default then). */
 type Line = { item: ShoppingItem; quantity: number; locationId?: string | null; expiresAt: string | null };
@@ -24,6 +26,7 @@ type Line = { item: ShoppingItem; quantity: number; locationId?: string | null; 
 export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; onDone: () => void }) {
   const { data } = useShoppingData();
   const { data: locations } = useStockLocations();
+  const locationSelect = useLocationSelect();
   const { addPurchase } = useStockMutations();
   const products = mapById(data?.shoppingProducts ?? []);
   const [lines, setLines] = useState<Line[]>(() =>
@@ -42,7 +45,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
     if (line.locationId !== undefined) return line.locationId;
     const preferred = (line.item.productId ? products.get(line.item.productId)?.stockLocationId : null) ?? null;
     const location = preferred ? locations?.find((item) => item.id === preferred) : undefined;
-    return location?.archived ? (locations?.find((item) => !item.archived)?.id ?? null) : preferred;
+    return location?.archived ? (unarchived(locations ?? [])[0]?.id ?? null) : preferred;
   };
   const { run: add, loading } = useAsyncAction(
     () =>
@@ -63,17 +66,24 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
         <Paper key={line.item.id} withBorder radius="sm" p="xs">
           <Stack gap={6}>
             <Text size="sm" fw={600}>
-              {line.item.name}
+              {line.item.label}
             </Text>
             <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
-              <QuantityInput size="xs" label="Quantité" min={0.001} unit={line.item.unit} value={line.quantity} onChange={(value) => change(index, { quantity: Number(value) || 0 })} />
-              <Select
+              <QuantityInput
+                size="xs"
+                label="Quantité"
+                min={0.001}
+                unit={line.item.unit}
+                value={line.quantity}
+                onChange={(value) => change(index, { quantity: typeof value === 'number' ? value : 0 })}
+              />
+              <CreatableSelect
                 size="xs"
                 label="Emplacement"
                 placeholder="Aucun"
                 clearable
                 searchable
-                {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], locationOf(line))))}
+                {...locationSelect(locationOf(line))}
                 value={locationOf(line)}
                 onChange={(locationId) => change(index, { locationId })}
               />

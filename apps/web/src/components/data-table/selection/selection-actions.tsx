@@ -1,10 +1,12 @@
 import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
+import type { ArchiveMutation } from '../../../lib/archive';
 import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import type { RowMenuEntry } from '../../actions/ActionsMenu';
 import type { SelectionAction } from './SelectionBar';
+import { capitalize } from '../../../lib/format';
 
 /**
  * Runs an action on rows one after the other (their order kept), then tells how it went: the success, or the first
@@ -78,6 +80,71 @@ export function deleteRowsAction<R>(
     destructive: { title, risks, confirmLabel: label },
     onClick: () => void run().then((all) => all && clear()),
   };
+}
+
+/**
+ * Label of a row, as `deleteItemsAction` names it (inside the quotes).
+ * @param {{ label: string }} row Row.
+ * @returns {string} Its label.
+ */
+export const rowLabel = (row: { label: string }): string => row.label;
+
+/**
+ * « Supprimer » of rows of a kind, the same texts on one row (its menu: `rowMenuEntry(deleteItemsAction([row], …))`)
+ * and on a selection: « Supprimer l’article » / « Supprimer les articles », « Article supprimé. » / « 3 articles
+ * supprimés. ».
+ * @param {readonly R[]} rows Rows.
+ * @param {object} options Options.
+ * @param {string} options.noun Noun of one row (« article »).
+ * @param {string} [options.many] Noun of several, when not the noun with an « s ». Optional.
+ * @param {boolean} [options.feminine] Named in the feminine (« supprimée »). Optional. Default = false.
+ * @param {string} options.the The noun with its article, for the title of one (« l’article »).
+ * @param {(row: R) => string} [options.name] Name of a row (inside the quotes); without it, one row is « Ce budget ». Optional.
+ * @param {(subject: string, one: boolean, rows: readonly R[]) => ReactNode} options.risks Risks, given what is deleted (« « Riz » » or « 3 articles ») and whether it is one row.
+ * @param {(row: R) => Promise<unknown>} [options.remove] Deletes a row. Optional (or removeAll).
+ * @param {(rows: readonly R[]) => Promise<unknown>} [options.removeAll] Deletes every row at once. Optional (or remove).
+ * @param {() => void} [options.clear] Clears the selection once done. Optional.
+ * @param {boolean} [options.loading] Running. Optional.
+ * @returns {SelectionAction} Action.
+ */
+export function deleteItemsAction<R>(
+  rows: readonly R[],
+  {
+    noun,
+    many,
+    feminine = false,
+    the,
+    name,
+    risks,
+    remove,
+    removeAll,
+    clear = () => {},
+    loading,
+  }: {
+    noun: string;
+    many?: string;
+    feminine?: boolean;
+    the: string;
+    name?: (row: R) => string;
+    risks: (subject: string, one: boolean, rows: readonly R[]) => ReactNode;
+    remove?: (row: R) => Promise<unknown>;
+    removeAll?: (rows: readonly R[]) => Promise<unknown>;
+    clear?: () => void;
+    loading?: boolean;
+  },
+): SelectionAction {
+  const one = rows.length === 1;
+  const removed = feminine ? 'supprimée' : 'supprimé';
+  const counted = countOf(rows.length, noun, many);
+  return deleteRowsAction(rows, {
+    title: one ? `Supprimer ${the}` : `Supprimer les ${many ?? `${noun}s`}`,
+    risks: risks(one ? (name ? `« ${name(rows[0])} »` : `${feminine ? 'Cette' : 'Ce'} ${noun}`) : counted, one, rows),
+    remove,
+    removeAll,
+    done: one ? `${capitalize(noun)} ${removed}.` : `${counted} ${plural(rows.length, removed)}.`,
+    clear,
+    loading,
+  });
 }
 
 /**
@@ -167,6 +234,33 @@ export function archiveRowsAction({
     apply,
     done: (on) => `${label} ${plural(count, `${on ? 'archivé' : 'restauré'}${ending}`)}.`,
     undo,
+    clear,
+  });
+}
+
+/**
+ * « Archiver » / « Restaurer » of the elements checked, with the archive mutation of their kind (`useSetArchived`):
+ * archives them unless all are, then restores them; « 3 fiches archivées. » told with its undo.
+ * @param {readonly T[]} rows Elements checked.
+ * @param {ArchiveMutation} mutation Archive mutation of their kind.
+ * @param {object} options Options.
+ * @param {string} options.noun Noun of one element, for the message (« fiche »).
+ * @param {boolean} [options.feminine] Named in the feminine (« archivées »). Optional. Default = false.
+ * @param {string} [options.many] Noun of several, when not the noun with an « s » (« factures récurrentes »). Optional.
+ * @param {() => void} [options.clear] Clears the selection once done. Optional.
+ * @returns {SelectionAction} Action.
+ */
+export function archiveItemsAction<T extends { id: string; archived?: boolean | null }>(
+  rows: readonly T[],
+  mutation: ArchiveMutation,
+  { noun, many, feminine, clear }: { noun: string; many?: string; feminine?: boolean; clear?: () => void },
+): SelectionAction {
+  return archiveRowsAction({
+    archived: rows.every((row) => row.archived),
+    apply: (archived) => mutation.mutateAsync({ ids: rows.map((row) => row.id), archived }),
+    label: countOf(rows.length, noun, many),
+    count: rows.length,
+    feminine,
     clear,
   });
 }

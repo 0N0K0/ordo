@@ -1,6 +1,7 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
-import { DragHandle } from '../../../components/actions/DragHandle';
+import { planCardActions } from '../lib/plan-card-actions';
+import { DragHandle } from '../../../components/dnd/DragHandle';
 
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
@@ -9,21 +10,21 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
-import { SortableArea } from '../../../components/actions/sortable';
-import { useSortableItem } from '../../../components/actions/use-sortable-item';
+import { SortableArea } from '../../../components/dnd/sortable';
+import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+import { FlagIcon, PlusIcon } from '@phosphor-icons/react';
+
+import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useMilestoneMutations, type Milestone } from '../api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
@@ -47,7 +48,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   const { create, update } = useMilestoneMutations();
   const form = useAppForm<MilestoneFormValues>({
     initialValues: {
-      title: milestone?.title ?? '',
+      label: milestone?.label ?? '',
       dueDate: milestone?.dueDate ?? null,
       description: milestone?.description ?? '',
     },
@@ -55,7 +56,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    const input = { title: values.title, dueDate: values.dueDate, description: values.description || null };
+    const input = { label: values.label, dueDate: values.dueDate, description: values.description || null };
     const callbacks = formCallbacks(form, milestone ? 'Jalon modifié.' : 'Jalon créé.', onDone);
     if (milestone) update.mutate({ id: milestone.id, input }, callbacks);
     else create.mutate({ ...input, projectId }, callbacks);
@@ -64,7 +65,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
         <MarkdownEditor
           label="Description"
@@ -97,9 +98,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
   return (
     <Paper ref={ref} withBorder radius="md" p="md" shadow={dragging ? 'md' : undefined} style={style}>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        {sortable && (
-          <DragHandle label={`Déplacer le jalon ${milestone.title}`} {...handle} />
-        )}
+        {sortable && <DragHandle label={`Déplacer le jalon ${milestone.label}`} {...handle} />}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
     </Paper>
@@ -117,14 +116,13 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move, update } = useMilestoneMutations();
   const setArchived = useSetArchived('MILESTONE');
-  const [showArchived, setShowArchived] = useState(false);
   const [order, setOrder] = useMilestoneOrder();
   const today = localToday();
+  // Already in the chosen order.
+  const all = (context?.milestones ?? []).filter((milestone) => milestone.projectId === projectId);
+  const { shown: milestones, toggle: archivedToggle } = useArchivedToggle(all);
   if (!context) return null;
   const project = context.projectById.get(projectId);
-  // Already in the chosen order.
-  const all = context.milestones.filter((milestone) => milestone.projectId === projectId);
-  const milestones = visibleItems(all, showArchived);
   const sortable = order === 'manual' && !project?.archived;
 
   /**
@@ -145,7 +143,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (milestone: Milestone, count: number) => {
     confirmPlanDelete({
       title: 'Supprimer le jalon',
-      what: `Le jalon « ${milestone.title} »`,
+      what: `Le jalon « ${milestone.label} »`,
       count,
       link: 'qui l’utilisent',
       done: 'Jalon supprimé.',
@@ -159,9 +157,11 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         description="Les jalons sont utilisables par les tâches du projet et de ses sous-projets."
         actions={
           <>
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((milestone) => milestone.archived).length} />
+            <ShowArchivedSwitch {...archivedToggle} />
             <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
-            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
+              Nouveau jalon
+            </ActionButton>
           </>
         }
       />
@@ -169,33 +169,34 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         <EmptyState icon={<FlagIcon aria-hidden />} message="Aucun jalon pour ce projet." />
       ) : (
         // Manual order: the dropped milestone moves to its new place.
-        <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, { onError: onMutationError })}>
-            {milestones.map((milestone) => {
-              const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
-              const done = tasks.filter((task) => context.isClosed(task)).length;
-              const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
-              return (
-                <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
-                  <PlanCard
-                    icon={<FlagIcon aria-hidden />}
-                    title={milestone.title}
-                    badges={milestone.archived && <ArchivedBadge size="sm" />}
-                    dates={`${milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}${late ? ' — en retard' : ''}`}
-                    datesColor={late ? 'red' : undefined}
-                    actions={[
-                      // Archived (or of an archived project): read only.
-                      !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                      archiveEntry({ archived: milestone.archived, label: `Jalon « ${milestone.title} »` }, setArchived, milestone.id),
-                      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
-                    ]}
-                    progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
-                    description={milestone.description}
-                    targets={context.targetsFor(milestone.projectId)}
-                    onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}
-                  />
-                </SortableMilestone>
-              );
-            })}
+        <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, ON_ERROR)}>
+          {milestones.map((milestone) => {
+            const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
+            const done = tasks.filter((task) => context.isClosed(task)).length;
+            const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
+            return (
+              <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable && !milestone.archived}>
+                <PlanCard
+                  icon={<FlagIcon aria-hidden />}
+                  title={milestone.label}
+                  archived={milestone.archived}
+                  late={late ? tasks.length - done : 0}
+                  dates={milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}
+                  actions={planCardActions(milestone, {
+                    type: 'Jalon',
+                    locked: Boolean(project?.archived),
+                    setArchived,
+                    onEdit: () => openForm(milestone),
+                    onDelete: () => confirmDelete(milestone, tasks.length),
+                  })}
+                  progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.label}`} />}
+                  description={milestone.description}
+                  targets={context.targetsFor(milestone.projectId)}
+                  onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, ON_ERROR)}
+                />
+              </SortableMilestone>
+            );
+          })}
         </SortableArea>
       )}
     </Stack>

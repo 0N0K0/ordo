@@ -1,11 +1,13 @@
 import {
-  formatDay,
+  formatOptionalDay,
   mapById,
   type NewStockItemInput,
   newStockItemSchema,
-  parseDay,
+  parseOptionalDay,
+  productKey,
   type ProductStockInput,
   productStockSchema,
+  roundQuantity,
   sheetMultiplierSchema,
   type ShoppingDeliveryInput,
   shoppingDeliverySchema,
@@ -21,7 +23,7 @@ import {
   stockMoveSchema,
   type StockPurchaseInput,
   stockPurchaseSchema,
-  roundQuantity,
+  sumOf,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { prisma } from '../../db';
@@ -38,19 +40,12 @@ import { fromDecimal, toDecimal } from '../core/decimal';
 type Tx = Prisma.TransactionClient;
 
 /**
- * Calendar date of a day.
- * @param {string | null} day YYYY-MM-DD.
- * @returns {Date | null} Date.
- */
-const dayOf = (day: string | null) => (day ? parseDay(day) : null);
-
-/**
  * Quantity of an item: the sum of its lots.
  * @param {{ quantity: Prisma.Decimal }[]} lots Lots of the item.
  * @returns {number} Quantity, rounded to the thousandth.
  */
 export function lotsQuantity(lots: { quantity: Prisma.Decimal }[]): number {
-  return roundQuantity(lots.reduce((sum, lot) => sum + fromDecimal(lot.quantity), 0));
+  return roundQuantity(sumOf(lots, (lot) => fromDecimal(lot.quantity)));
 }
 
 // Places ---------------------------------------------------------------------------------------------------------
@@ -61,7 +56,7 @@ const locations = treeListService<StockLocation, StockLocationInput>(
   { notFound: 'Emplacement', missingParent: 'Emplacement parent', loop: 'Un emplacement ne peut pas être rangé sous lui-même.' },
   {
     parse: (input) => parseInput(stockLocationSchema, input),
-    moveInput: (place, parentId) => ({ name: place.name, color: place.color, parentId }),
+    moveInput: (place, parentId) => ({ label: place.label, color: place.color, parentId }),
   },
 );
 
@@ -219,7 +214,7 @@ interface MoveSource {
  * @returns {Promise<void>}
  */
 async function addIn(tx: Tx, item: StockItem, quantity: number, expiresAt: string | null, lotId: string | null, source: MoveSource): Promise<void> {
-  const date = item.perishable ? dayOf(expiresAt) : null;
+  const date = item.perishable ? parseOptionalDay(expiresAt) : null;
   const lot = lotId
     ? await tx.stockLot.findFirst({ where: { id: lotId, itemId: item.id } })
     : await tx.stockLot.findFirst({ where: { itemId: item.id, ...(item.perishable ? { expiresAt: date } : {}) }, orderBy: { createdAt: 'asc' } });
@@ -286,7 +281,7 @@ export async function moveStock(input: StockMoveInput): Promise<number> {
 export async function setLotExpiry(id: string, expiresAt: string | null): Promise<void> {
   const lot = await orNotFound(prisma.stockLot.findUnique({ where: { id }, select: { itemId: true } }), 'Lot');
   await assertNotArchived('STOCK_ITEM', lot.itemId);
-  await prisma.stockLot.update({ where: { id }, data: { expiresAt: dayOf(expiresAt) } });
+  await prisma.stockLot.update({ where: { id }, data: { expiresAt: parseOptionalDay(expiresAt) } });
 }
 
 /**
@@ -298,7 +293,7 @@ export async function setLotExpiry(id: string, expiresAt: string | null): Promis
 export async function recordCount(input: StockCountInput): Promise<StockCount> {
   const data = parseInput(stockCountSchema, input);
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId);
+  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
   await assertNoneArchived(
@@ -316,7 +311,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
       // More than expected: into the latest lot (a new one without date when there is none).
       if (difference > 0) {
         const latest = [...item.lots].sort((a, b) => (b.expiresAt?.getTime() ?? Infinity) - (a.expiresAt?.getTime() ?? Infinity))[0];
-        await addIn(tx, item, difference, latest?.expiresAt ? formatDay(latest.expiresAt) : null, latest?.id ?? null, source);
+        await addIn(tx, item, difference, formatOptionalDay(latest?.expiresAt ?? null), latest?.id ?? null, source);
       } else if (difference < 0) await takeOut(tx, item.id, -difference, null, source);
     }
     return count;
@@ -336,7 +331,7 @@ export async function setProductStock(id: string, input: ProductStockInput): Pro
   const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true } }), 'Référence');
   await assertNotArchived('SHOPPING_PRODUCT', id);
   await assertExists(prisma.stockLocation, data.stockLocationId, 'Emplacement');
-  if (data.stockLocationId !== product.stockLocationId) await assertNotArchived('STOCK_LOCATION', data.stockLocationId);
+  await assertNotArchived('STOCK_LOCATION', data.stockLocationId, { keep: product.stockLocationId, field: 'stockLocationId' });
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });
 }
 
@@ -355,13 +350,9 @@ async function itemFor(
 ): Promise<StockItem> {
   const same = source.productId
     ? await tx.stockItem.findMany({ where: { productId: source.productId, archivedAt: null }, orderBy: { position: 'asc' } })
-    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter(
-        (item) =>
-          item.label.trim().toLocaleLowerCase('fr') === source.label.trim().toLocaleLowerCase('fr') && (item.unit ?? '').toLocaleLowerCase('fr') === (source.unit ?? '').toLocaleLowerCase('fr'),
-      );
+    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter((item) => productKey(item) === productKey(source));
   const found = same.find((item) => item.locationId === locationId) ?? (locationId ? undefined : same[0]);
   if (found) return found;
-  const { _max } = await tx.stockItem.aggregate({ _max: { position: true } });
   return tx.stockItem.create({
     data: {
       productId: source.productId,
@@ -370,7 +361,7 @@ async function itemFor(
       categoryId: source.categoryId,
       locationId,
       perishable: source.perishable,
-      position: (_max.position ?? -1) + 1,
+      position: await nextPositionIn('stockItem', {}, tx),
       members: { connect: connectIds(source.memberIds) },
       relations: { connect: connectIds(source.relationIds) },
     },
@@ -385,7 +376,7 @@ async function itemFor(
 export async function addPurchase(input: StockPurchaseInput): Promise<void> {
   const data = parseInput(stockPurchaseSchema, input);
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId);
+  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
   await prisma.$transaction((tx) => storePurchase(tx, data.shoppingItemId, data.quantity, data.locationId, data.expiresAt));
 }
 
@@ -399,13 +390,12 @@ export async function addPurchase(input: StockPurchaseInput): Promise<void> {
  * @returns {Promise<void>}
  */
 async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, locationId: string | null, expiresAt: string | null): Promise<void> {
-  const bought = await tx.shoppingItem.findUnique({ where: { id: shoppingItemId }, include: { members: { select: { id: true } }, relations: { select: { id: true } } } });
-  if (!bought) throw notFound('Élément');
+  const bought = await orNotFound(tx.shoppingItem.findUnique({ where: { id: shoppingItemId }, include: { members: { select: { id: true } }, relations: { select: { id: true } } } }), 'Élément');
   const item = await itemFor(
     tx,
     {
       productId: bought.productId,
-      label: bought.name,
+      label: bought.label,
       unit: bought.unit,
       categoryId: bought.categoryId,
       perishable: bought.perishable,
@@ -413,7 +403,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
     },
     locationId,
   );
-  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? formatDay(bought.expiresAt) : null), null, { kind: 'PURCHASE', shoppingItemId });
+  await addIn(tx, item, quantity, expiresAt ?? formatOptionalDay(bought.expiresAt), null, { kind: 'PURCHASE', shoppingItemId });
 }
 
 /**
@@ -552,8 +542,8 @@ const deliveryFields = (data: ShoppingDeliveryInput) => ({
   label: data.label || null,
   trackingUrl: data.trackingUrl || null,
   pickup: data.pickup,
-  windowFrom: dayOf(data.windowFrom),
-  windowTo: dayOf(data.windowTo),
+  windowFrom: parseOptionalDay(data.windowFrom),
+  windowTo: parseOptionalDay(data.windowTo),
   address: data.address || null,
   lat: data.address ? data.lat : null,
   lon: data.address ? data.lon : null,

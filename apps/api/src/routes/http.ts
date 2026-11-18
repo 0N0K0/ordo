@@ -23,6 +23,30 @@ export function queryText(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * Flag of a query parameter: on for « 1 » or « true » only (« ?paid=0 », a missing or repeated one: off).
+ * @param {unknown} value Value of `req.query.<name>`.
+ * @returns {boolean} The flag.
+ */
+export function queryFlag(value: unknown): boolean {
+  return value === '1' || value === 'true';
+}
+
+/** Cache-Control of a file that never changes at its URL (attachments, icons: a new file gets a new id). */
+// eslint-disable-next-line no-restricted-syntax -- the constant itself.
+export const IMMUTABLE_CACHE = 'private, max-age=31536000, immutable';
+
+/**
+ * Whether a file is shown in place rather than downloaded: a file the browser can show, unless ?download=1 asks for it.
+ * @param {Request} req Request.
+ * @param {boolean} viewable The browser can show the file (an image, a PDF).
+ * @returns {boolean} Shown in place.
+ */
+export function shownInPlace(req: Request, viewable: boolean): boolean {
+  // eslint-disable-next-line no-restricted-syntax -- shownInPlace itself.
+  return viewable && !queryFlag(req.query.download);
+}
+
 /** How a file is sent by `sendDownload`. */
 type DownloadOptions = {
   /** Content-Type. */
@@ -99,7 +123,7 @@ type Download = DownloadOptions & {
  * Route sending a file to a signed-in user: 401 without a session, the file produced from the request, or the error of
  * its service (see `sendServiceError`).
  * @param {(req: Request) => Promise<Download>} produce Produces the file and how it is sent.
- * @param {string} context What failed, for the log.
+ * @param {string} context What failed, for the log, as a sentence (« PDF impossible. »).
  * @returns {RequestHandler} Route handler.
  */
 export function downloadRoute(produce: (req: Request) => Promise<Download>, context: string): RequestHandler {

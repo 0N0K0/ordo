@@ -1,10 +1,8 @@
-import { ActionIcon } from '@mantine/core';
 import {
   ArrowLeftIcon,
   ArrowLineLeftIcon,
   ArrowLineRightIcon,
   ArrowRightIcon,
-  DotsThreeIcon,
   EyeSlashIcon,
   FunnelIcon,
   RowsIcon,
@@ -53,18 +51,8 @@ export function ColumnHeaderMenu({ label, sort, onSortBy, onSelect, onFilter, gr
       name={`la colonne ${label}`}
       position="bottom-start"
       width={240}
-      target={
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="xs"
-          aria-label={`Options de la colonne ${label}`}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <DotsThreeIcon weight="bold" aria-hidden />
-        </ActionIcon>
-      }
+      inRow
+      size="xs"
       items={[
         onSelect && { label: 'Sélectionner la colonne', icon: <SelectionAllIcon aria-hidden />, onClick: onSelect },
         onSelect && 'divider',

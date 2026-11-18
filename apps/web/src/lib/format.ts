@@ -6,12 +6,14 @@
  * a time, timestamp), shown in the user's time zone.
  */
 
-import { capitalize as capitalizeText, dateStyle, formatMoney, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
-
-const LOCALE = 'fr-FR';
+// eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
+import { capitalize as capitalizeText, countOf, dateStyle, daysBetween, formatMoney, formatNumber, formatPercent, LOCALE, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
+
+/** « 13 novembre 2026 »: a date in a sentence, its weekday left out (the end of a repetition…). */
+export const dayInWords = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
 
 /** « 13 nov. »: a date of the year around, a chart axis. */
 export const dayShort = dateStyle({ day: 'numeric', month: 'short' });
@@ -89,22 +91,13 @@ export const moneyCompact = (amount: number, currency = 'EUR') => moneyFormat(cu
  */
 export const moneyRound = (amount: number, currency = 'EUR') => moneyFormat(currency, { maximumFractionDigits: 0 }).format(amount);
 
-const numberFormats = new Map<number, Intl.NumberFormat>();
-
 /**
  * « 1 234,5 »: a number, with at most some decimals.
  * @param {number} value Number.
  * @param {number} [decimals=2] Most decimals. Optional. Default = 2.
  * @returns {string} Text.
  */
-export function number(value: number, decimals = 2): string {
-  let format = numberFormats.get(decimals);
-  if (!format) {
-    format = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: decimals });
-    numberFormats.set(decimals, format);
-  }
-  return format.format(value);
-}
+export const number = formatNumber;
 
 /**
  * « 6 », « 250 g », « 1,5 kg »: a quantity (3 decimals at most) and its unit; the unit alone without quantity, nothing
@@ -120,7 +113,7 @@ export const quantity = ({ quantity: value, unit }: { quantity?: number | null; 
  * @param {number} [decimals=2] Most decimals. Optional. Default = 2.
  * @returns {string} Text.
  */
-export const percent = (value: number, decimals = 2) => `${number(value, decimals)} %`;
+export const percent = formatPercent;
 
 /**
  * « 12 Ko » / « 1,5 Mo »: a file size (1 Ko at least).
@@ -140,3 +133,48 @@ export const PICKER_FORMATS = {
   month: 'MMMM YYYY',
   year: 'YYYY',
 } as const;
+
+/** Relative times, the nearest unit first. */
+// eslint-disable-next-line no-restricted-syntax -- the relative time format of lib/format.
+const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 365 * 24 * 3600],
+  ['month', 30 * 24 * 3600],
+  ['week', 7 * 24 * 3600],
+  ['day', 24 * 3600],
+  ['hour', 3600],
+  ['minute', 60],
+];
+
+/**
+ * « aujourd’hui », « il y a 3 jours »: how many days ago (a sending, a reminder).
+ * @param {number} days Days since.
+ * @returns {string} Text.
+ */
+export function daysAgo(days: number): string {
+  return days === 0 ? 'aujourd’hui' : `il y a ${countOf(days, 'jour')}`;
+}
+
+/**
+ * « 3 j de retard »: how late something due is.
+ * @param {string} due Day it was due (YYYY-MM-DD).
+ * @param {string} today Today (YYYY-MM-DD).
+ * @returns {string} Text.
+ */
+export function daysLate(due: string, today: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- fmt.daysLate itself.
+  return `${daysBetween(due, today)} j de retard`;
+}
+
+/**
+ * « il y a 3 heures », « hier »…: how long ago (a comment), or how soon.
+ * @param {string} date ISO instant.
+ * @returns {string} Relative time.
+ */
+export function fromNow(date: string): string {
+  const seconds = (Date.parse(date) - Date.now()) / 1000;
+  for (const [unit, size] of UNITS) {
+    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
+  }
+  return 'à l’instant';
+}

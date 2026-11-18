@@ -22,6 +22,8 @@ import { useEntityActions } from '../../workspace/hooks/use-entity-actions';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
+import { PAGES } from '../../../app/pages';
+import { unarchived } from '../../../lib/archive';
 
 type CardId = 'tasks' | 'routines' | 'agenda' | 'chrono' | 'shopping' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'time';
 const DEFAULT_ORDER: CardId[] = ['tasks', 'routines', 'agenda', 'chrono', 'shopping', 'billing', 'quotes', 'treasury', 'mail', 'time'];
@@ -49,7 +51,7 @@ export function HomePage() {
   const in30 = addDays(today, 30);
   const at30 = projection.data ? [...projection.data.series].reverse().find((point) => point.date <= in30) : undefined;
   const accounts = useMailAccounts();
-  const hasMail = (accounts.data ?? []).some((account) => !account.archived);
+  const hasMail = unarchived(accounts.data ?? []).length > 0;
   const unread = useUnreadMailCount(hasMail);
   const actions = useEntityActions();
   const { perso } = useActiveWorkspace();
@@ -78,9 +80,13 @@ export function HomePage() {
         actions={
           <>
             {!perso && (
-              <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>Nouveau client</ActionButton>
+              <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+                Nouveau client
+              </ActionButton>
             )}
-            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>Nouveau projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+              Nouveau projet
+            </ActionButton>
           </>
         }
       />
@@ -91,15 +97,15 @@ export function HomePage() {
           value={myTasks.tasks?.length ?? 0}
           hint={myTasks.overdue > 0 ? `${myTasks.overdue} en retard` : 'Aucune en retard'}
           hintColor={myTasks.overdue > 0 ? 'red' : 'dimmed'}
-          to="/tasks"
+          to={PAGES.tasks.path}
           loading={!myTasks.tasks}
         />
-        <StatTile label="Temps cette semaine" value={formatDuration(time?.week ?? 0)} hint={`Aujourd’hui : ${formatDuration(time?.today ?? 0)}`} to="/time" loading={!time} />
+        <StatTile label="Temps cette semaine" value={formatDuration(time?.week ?? 0)} hint={`Aujourd’hui : ${formatDuration(time?.today ?? 0)}`} to={PAGES.time.path} loading={!time} />
         <StatTile
           label="Mails non lus"
           value={hasMail ? (unread.data ?? '—') : '—'}
           hint={hasMail ? 'Boîte de réception' : 'Aucune boîte configurée'}
-          to="/mail"
+          to={PAGES.mail.path}
           loading={accounts.isPending || (hasMail && unread.isPending)}
         />
         {!perso && (
@@ -112,7 +118,7 @@ export function HomePage() {
               to="/accounting?tab=overdue"
               loading={!summary}
             />
-            <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${fmt.money(summary?.pendingQuotesNet ?? 0)} HT`} to="/accounting" loading={!summary} />
+            <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${fmt.money(summary?.pendingQuotesNet ?? 0)} HT`} to={PAGES.accounting.path} loading={!summary} />
           </>
         )}
         <StatTile
@@ -120,7 +126,7 @@ export function HomePage() {
           value={fmt.money(projection.data?.balance ?? 0)}
           hint={at30 ? `Dans 30 jours : ${fmt.money(at30.balance)}` : undefined}
           hintColor={at30 && at30.balance < 0 ? 'red' : 'dimmed'}
-          to="/treasury"
+          to={PAGES.treasury.path}
           loading={!projection.data}
         />
       </SimpleGrid>

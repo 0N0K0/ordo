@@ -1,4 +1,3 @@
-import { cellLabel } from '../../../components/data-table/cells/cell-field';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
@@ -14,7 +13,7 @@ import { useWorkSchedules } from '../../calendar/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
-import { routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
+import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
@@ -26,15 +25,6 @@ import { EditableMultiSelect, EditableNumber } from '../../../components/data-ta
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../../tasks/components/context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
-
-/**
- * Accessible label of a cell, mentioning the bulk edit of a selection.
- * @param {string} field Field name.
- * @param {Routine} routine Routine.
- * @param {number} count Routines changed by an edit.
- * @returns {string} Label.
- */
-const fieldLabel = (field: string, routine: Routine, count: number) => cellLabel(field, `de ${routine.title}`, count);
 
 interface CellProps {
   routine: Routine;
@@ -51,12 +41,13 @@ export function TitleCell({ routine, readOnly = false }: CellProps) {
   const { apply } = useRoutineCellEdit(routine, 'title');
   return (
     <EditableTitle
-      value={routine.title}
-      label={`Titre de ${routine.title}`}
-      schema={routineSchema.shape.title}
-      onOpen={() => openRoutineForm({ routine })}
+      value={routine.label}
+      label={`Libellé de ${routine.label}`}
+      schema={routineSchema.shape.label}
+      // Not opened when read only (archived or being created): the form would change it.
+      onOpen={readOnly ? undefined : () => openRoutineForm({ routine })}
       readOnly={readOnly}
-      onSave={(title) => apply({ title })}
+      onSave={(label) => apply({ label })}
     />
   );
 }
@@ -72,7 +63,7 @@ export function EstimateCell({ routine, readOnly = false }: CellProps) {
   return (
     <EditableNumber
       value={routine.estimate}
-      label={fieldLabel('Temps à consacrer', routine, count)}
+      label={routineCellLabel('Temps à consacrer', routine, count)}
       decimals={0}
       min={1}
       max={24 * 60}
@@ -96,11 +87,11 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
   const placed = categoryTree(categories);
   return (
     <EditableMultiSelect
-      label={fieldLabel('Catégories', routine, count)}
+      label={routineCellLabel('Catégories', routine, count)}
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
-        .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.name} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
+        .map((item) => ({ id: item.category.id, label: item.path, icon: <ItemAvatar name={item.category.label} iconUrl={item.category.iconUrl} color={item.color} size={14} /> }))}
       {...treeSelectProps(categoryOptions(categories, undefined, unarchivedOffered(categories, routine.categoryIds)))}
       value={routine.categoryIds}
       onSave={(categoryIds) => {
@@ -129,7 +120,7 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
       projectId={routine.projectId ?? null}
       projectIds={targets.length > 1 ? targets.map((id) => routineById.get(id)?.projectId ?? null) : undefined}
       context={context}
-      label={fieldLabel('Assignés', routine, count)}
+      label={routineCellLabel('Assignés', routine, count)}
       readOnly={readOnly}
       onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}
     />
@@ -149,7 +140,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
   const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
     <EditableMultiSelect
-      label={fieldLabel('Dépendances', routine, count)}
+      label={routineCellLabel('Dépendances', routine, count)}
       readOnly={readOnly}
       items={routine.requiredIds.flatMap((id) => {
         const required = byId.get(id);
@@ -185,7 +176,7 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
     <SharedProjectCell
       value={routine.projectId ?? null}
       context={context}
-      label={fieldLabel('Projet', routine, count)}
+      label={routineCellLabel('Projet', routine, count)}
       readOnly={readOnly}
       onSave={(projectId) => apply({ projectId }, { projectId })}
     />
@@ -225,7 +216,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
   const [opened, setOpened] = useState(false);
   return (
     <>
-      <UnstyledButton onClick={() => setOpened(true)} disabled={readOnly} aria-label={fieldLabel('Modifier la répétition', routine, count)}>
+      <UnstyledButton onClick={() => setOpened(true)} disabled={readOnly} aria-label={routineCellLabel('Modifier la répétition', routine, count)}>
         {children}
       </UnstyledButton>
       {/* Mounted when opened: its draft starts from the routine as it is then. */}
@@ -258,7 +249,7 @@ export function RoutineBeneficiariesCell({ routine, readOnly = false }: CellProp
   // On a selection, those added here are added to each routine, those removed here removed.
   return (
     <BeneficiariesCell
-      label={fieldLabel('Bénéficiaires', routine, count)}
+      label={routineCellLabel('Bénéficiaires', routine, count)}
       value={routine}
       readOnly={readOnly}
       onSave={(beneficiaries) =>

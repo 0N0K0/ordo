@@ -1,11 +1,13 @@
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Group, Tabs, Tooltip, type TabsTabProps } from '@mantine/core';
-import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+
+import { Group, Tabs, type TabsTabProps } from '@mantine/core';
+import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
 import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
+import { IconAction } from '../actions/IconAction';
+import { sortableStyle } from '../dnd/sortable-style';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).
@@ -20,7 +22,7 @@ function SortableTab(props: TabsTabProps & { value: string }) {
       ref={setNodeRef}
       {...props}
       {...listeners}
-      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
+      style={{ ...sortableStyle({ transform: transform && { ...transform, y: 0 }, transition, isDragging }), cursor: isDragging ? 'grabbing' : undefined }}
     />
   );
 }
@@ -39,7 +41,7 @@ interface SortableTabsProps<T extends { id: string }> {
   label: (item: T) => ReactNode;
   /** Before the content of a tab (avatar, default star…). Optional. */
   leftSection?: (item: T) => ReactNode;
-  /** Name of a tab for its menu button (« Actions sur … »). */
+  /** Name of a tab for its menu button (« Actions de … »). */
   name: (item: T) => string;
   /** First entries of the menu of the selected tab (edit, duplicate…), before the moves. */
   actions: (item: T) => readonly RowMenuEntry[];
@@ -73,9 +75,9 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
   };
 
   const addButton = (
-    <ActionIcon variant="subtle" color="gray" ml="xs" aria-label={add.label} onClick={add.onClick}>
+    <IconAction label={add.label} ml="xs" onClick={add.onClick}>
       <PlusIcon aria-hidden />
-    </ActionIcon>
+    </IconAction>
   );
 
   return (
@@ -93,11 +95,8 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
                     item.id === value ? (
                       <ActionsMenu
                         name={name(item)}
-                        target={
-                          <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions sur ${name(item)}`} onClick={(event) => event.stopPropagation()}>
-                            <CaretDownIcon aria-hidden />
-                          </ActionIcon>
-                        }
+                        nested
+                        size="xs"
                         items={[
                           ...actions(item),
                           { label: 'Déplacer à gauche', icon: <ArrowLeftIcon aria-hidden />, disabled: index === 0, onClick: () => onMove(item.id, index - 1) },
@@ -115,11 +114,7 @@ export function SortableTabs<T extends { id: string }>({ items, value, onChange,
           </SortableContext>
         </DndContext>
       </Tabs>
-      {add.menu ? (
-        <ActionsMenu name={add.label} position="bottom-start" target={<Tooltip label={add.label}>{addButton}</Tooltip>} items={add.menu} />
-      ) : (
-        <Tooltip label={add.label}>{addButton}</Tooltip>
-      )}
+      {add.menu ? <ActionsMenu name={add.label} position="bottom-start" target={addButton} items={add.menu} /> : addButton}
     </Group>
   );
 }

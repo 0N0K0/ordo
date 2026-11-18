@@ -1,5 +1,6 @@
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { Group, Stack, Title } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -14,15 +15,7 @@ import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-enti
  * @param {ReactNode} [props.extraActions] Additional buttons. Optional.
  * @returns {JSX.Element} Header.
  */
-export function EntityHeader({
-  entity,
-  subtitle,
-  extraActions,
-}: {
-  entity: EntityRef;
-  subtitle?: ReactNode;
-  extraActions?: ReactNode;
-}) {
+export function EntityHeader({ entity, subtitle, extraActions }: { entity: EntityRef; subtitle?: ReactNode; extraActions?: ReactNode }) {
   const actions = useEntityActions();
   const { item } = entity;
   const label = entityLabel(entity);
@@ -36,27 +29,23 @@ export function EntityHeader({
             <Title order={1} size="h2">
               {label}
             </Title>
-            {item.archived && (
-              <ArchivedBadge />
-            )}
+            {item.archived && <ArchivedBadge />}
           </Group>
           {subtitle}
         </Stack>
       </Group>
       <Group gap="xs">
         {!item.archived && (
-          <Tooltip label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
-            <ActionIcon
-              variant={item.favorite ? 'light' : 'default'}
-              color={item.favorite ? 'yellow' : undefined}
-              size="input-sm"
-              aria-label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              aria-pressed={item.favorite}
-              onClick={() => actions.setFavorite(entity, !item.favorite)}
-            >
-              <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <IconAction
+            label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            variant={item.favorite ? 'light' : 'default'}
+            color={item.favorite ? 'yellow' : undefined}
+            size="input-sm"
+            aria-pressed={item.favorite}
+            onClick={() => actions.setFavorite(entity, !item.favorite)}
+          >
+            <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
+          </IconAction>
         )}
         {extraActions}
       </Group>

@@ -1,5 +1,6 @@
 import { useSearchParam } from '../../lib/search-params';
 import { createContext, useContext } from 'react';
+import { SETTINGS_PARAM } from '../pages';
 
 /** Settings of the page shown, in the sidebar on the right: their title, and where they are drawn. */
 interface PageSettingsState {
@@ -11,9 +12,6 @@ interface PageSettingsState {
 }
 
 export const PageSettingsContext = createContext<PageSettingsState>({ title: null, setTitle: () => undefined, container: null });
-
-/** Parameter of the address opening the settings of a page (closed without it). */
-export const SETTINGS_PARAM = 'settings';
 
 /**
  * Whether the settings of the page are open (kept in the address: closed by default, a link may open them), and

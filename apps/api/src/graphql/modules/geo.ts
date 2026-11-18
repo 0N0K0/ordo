@@ -8,12 +8,12 @@ const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
   description: 'Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one (a room of the house), with its point.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     address: t.exposeString('address', { description: 'Its address, or that of the place a zone is in.' }),
     parentId: t.exposeID('parentId', { nullable: true, description: 'Place a zone is in; null: a place with its own address.' }),
     lat: t.exposeFloat('lat'),
     lon: t.exposeFloat('lon'),
-    path: t.exposeString('path', { description: 'Full name (« Maison › Cuisine »).' }),
+    path: t.exposeString('path', { description: 'Full label (« Maison › Cuisine »).' }),
     color: t.exposeString('color', { nullable: true }),
     iconUrl: t.string({ nullable: true, description: 'Image shown as its avatar (none: its initials on its color).', resolve: (place) => iconUrl(place.iconId) }),
     position: t.exposeInt('position'),
@@ -23,7 +23,7 @@ const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
 
 const PlaceInput = builder.inputType('PlaceInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     address: t.string(),
     lat: t.float({ description: 'None for a zone.' }),
     lon: t.float({ description: 'None for a zone.' }),
@@ -40,8 +40,8 @@ const TravelModeEnum = builder.enumType('TravelMode', { values: TRAVEL_MODES });
 const AddressSuggestionRef = builder.objectRef<geo.AddressSuggestion>('AddressSuggestion').implement({
   description: 'Address found by a search (OpenStreetMap).',
   fields: (t) => ({
-    label: t.exposeString('label'),
-    name: t.exposeString('name', { nullable: true, description: 'Name of the place, when it has one (a station, a shop…).' }),
+    address: t.exposeString('address'),
+    label: t.exposeString('label', { nullable: true, description: 'Label of the place, when it has one (a station, a shop…).' }),
     lat: t.exposeFloat('lat'),
     lon: t.exposeFloat('lon'),
   }),
@@ -78,8 +78,7 @@ builder.mutationFields((t) => ({
   savePlace: t.id({
     args: { id: t.arg.id(), input: t.arg({ type: PlaceInput, required: true }) },
     resolve: async (_root, { id, input }) =>
-      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId || null }))
-        .id,
+      (await geo.savePlace(id ?? null, { label: input.label, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId || null })).id,
   }),
   movePlace: t.boolean({
     description: 'Moves a place among the places, or a zone under another place or zone, at an index among its siblings.',

@@ -1,13 +1,16 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
+
+/** Subject shown for a mail without one. */
+export const NO_SUBJECT = '(sans objet)';
 
 const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(255);
 const portSchema = z.number({ error: 'Port attendu.' }).int().min(1, 'Port invalide.').max(65_535, 'Port invalide.');
 
 /** Mail account settings. Passwords may be left empty on edition to keep the saved ones. */
 export const mailAccountFormSchema = z.object({
-  name: requiredText(80),
+  label: requiredText(80),
   email: z.email({ error: 'Adresse email invalide.' }),
   displayName: z.string().trim().max(120, '120 caractères maximum.'),
   imapHost: hostSchema,
@@ -60,12 +63,12 @@ export const mailSearchCriteriaSchema = z
     if (criteria.scope === 'folder' && (!criteria.folder || criteria.accountIds.length !== 1)) {
       context.addIssue({ code: 'custom', path: ['folder'], message: 'Choisissez le dossier (d’une seule boîte).' });
     }
-    if (criteria.since && criteria.until && criteria.until < criteria.since) context.addIssue({ code: 'custom', path: ['until'], message: 'La fin doit suivre le début.' });
+    if (!endsAfter(criteria.since, criteria.until)) context.addIssue({ code: 'custom', path: ['until'], message: END_AFTER_START });
   });
 export type MailSearchCriteria = z.infer<typeof mailSearchCriteriaSchema>;
 
-/** Search folder: a name and its criteria, kept in Ordo. */
-export const mailSearchSchema = z.object({ name: requiredText(60) }).and(mailSearchCriteriaSchema);
+/** Search folder: a label and its criteria, kept in Ordo. */
+export const mailSearchSchema = z.object({ label: requiredText(60) }).and(mailSearchCriteriaSchema);
 export type MailSearchInput = z.input<typeof mailSearchSchema>;
 
 /** Criteria of a new search (every account, inboxes, to do). */

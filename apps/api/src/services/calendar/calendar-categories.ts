@@ -9,7 +9,7 @@ const categories = treeListService<CalendarCategory, CalendarCategoryFormValues>
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories.' },
   {
     parse: (input) => parseInput(calendarCategoryFormSchema, input),
-    moveInput: (category, parentId) => ({ name: category.name, color: category.color, parentId }),
+    moveInput: (category, parentId) => ({ label: category.label, color: category.color, parentId }),
   },
 );
 

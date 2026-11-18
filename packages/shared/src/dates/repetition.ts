@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { addDays, maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, spanEnd, type Recurrence, type Span } from './recurrence';
+import { addDays } from './days';
+import { maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, spanEnd, type Recurrence, type Span } from './recurrence';
 import { daySchema } from './times';
+import { endAfter } from '../core/rules';
 
 /** Fields common to the cases of every repetition: its period and its rule (with how long each occurrence lasts). */
 const repetitionCaseFields = {
@@ -21,7 +23,7 @@ const repetitionCaseFields = {
  * @returns {z.ZodObject} Schema.
  */
 export function repetitionCaseSchema<T extends z.ZodType>(times: T) {
-  return z.object({ ...repetitionCaseFields, times }).refine((item) => !item.since || !item.until || item.until >= item.since, { path: ['until'], message: 'La fin doit suivre le début.' });
+  return z.object({ ...repetitionCaseFields, times }).refine(...endAfter('since', 'until'));
 }
 
 /** Case of a repetition, its times apart. */

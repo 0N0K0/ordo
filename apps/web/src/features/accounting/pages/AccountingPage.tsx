@@ -1,16 +1,17 @@
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
-import { PAGES } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
+import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
-import { plural, countOf } from '../../../lib/text';
+import { plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { Badge, Group, Stack, Text } from '@mantine/core';
 import { recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -19,8 +20,8 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
-import { localToday } from '../../../lib/dates';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { localToday, yearOfDay } from '../../../lib/dates';
+import { ON_ERROR } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
 import { useOverdueInvoices } from '../api/tracking';
@@ -35,11 +36,10 @@ import { DocumentStatusSettings } from '../components/DocumentStatusSettings';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
@@ -55,6 +55,12 @@ const TABS = [
   { value: 'CREDIT_NOTE', label: 'Avoirs' },
 ] as const;
 
+/** Tabs of the page: the documents by type, then the others. */
+const PAGE_TABS = [...TABS.map((item) => item.value), 'toSend', 'overdue', 'recurring', 'catalog'] as const;
+
+/** Former tabs of the page: the tracking statuses, in the settings sidebar. */
+const MOVED_TABS = { tracking: { changes: { [SETTINGS_PARAM]: '1' } } };
+
 /**
  * Repetition of a recurring invoice, as a sentence.
  * @param {RecurringInvoice} item Recurring invoice.
@@ -67,7 +73,7 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Nom', size: 280, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
+  { id: 'name', label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
@@ -123,10 +129,7 @@ function RecurringList() {
    * @returns {void}
    */
   const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
-    update.mutate(
-      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } },
-      { onError: onMutationError },
-    );
+    update.mutate({ id: item.id, input: { label: item.label, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } }, ON_ERROR);
   const view = useDataView({
     tableKey: 'recurring-invoices',
     getKey: (item) => item.id,
@@ -140,19 +143,22 @@ function RecurringList() {
   if (isPending) return <TableSkeleton rows={3} />;
 
   /**
-   * Asks for confirmation before deleting a schedule.
-   * @param {RecurringInvoice} item Schedule.
-   * @returns {void}
+   * « Supprimer » of recurring invoices, on a row as on a selection.
+   * @param {RecurringInvoice[]} rows Recurring invoices.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
    */
-  const confirmDelete = (item: RecurringInvoice) => {
-    confirmDestructive({
-      title: 'Supprimer la facture récurrente',
-      risks: <>« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</>,
-      onConfirm: () => {
-        remove.mutate(item.id, toastCallbacks('Facture récurrente supprimée.'));
-      },
+  const deleteRecurring = (rows: RecurringInvoice[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'facture récurrente',
+      many: 'factures récurrentes',
+      feminine: true,
+      the: 'la facture récurrente',
+      name: rowLabel,
+      risks: (subject, one) => `${subject} et ${one ? 'son modèle' : 'leurs modèles'} seront supprimés définitivement ; les factures déjà émises sont conservées.`,
+      remove: (item) => remove.mutateAsync(item.id),
+      clear,
     });
-  };
 
   return (
     <DataTable
@@ -160,23 +166,7 @@ function RecurringList() {
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['facture récurrente', 'factures récurrentes'])}
       isArchived={(item) => item.archived}
-      selectionActions={(rows, clear) => [
-        archiveRowsAction({
-          archived: rows.every((item) => item.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
-          label: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')}`,
-          count: rows.length,
-          feminine: true,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les factures récurrentes',
-          risks: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
-          remove: (item) => remove.mutateAsync(item.id),
-          done: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} ${plural(rows.length, 'supprimée')}.`,
-          clear,
-        }),
-      ]}
+      selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'facture récurrente', many: 'factures récurrentes', feminine: true, clear }), deleteRecurring(rows, clear)]}
       verticalSpacing="xs"
       empty={<EmptyState compact message="Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente »." />}
       getKey={(item) => item.id}
@@ -185,7 +175,7 @@ function RecurringList() {
           name: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.name} label={`Nom de ${item.name}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { name })} />
+                <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { label: name })} />
                 {item.archived && <ArchivedBadge feminine size="xs" />}
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
@@ -209,7 +199,7 @@ function RecurringList() {
           state: (
             <EditableSelect
               value={item.active ? 'active' : 'paused'}
-              label={`État de ${item.name}`}
+              label={`État de ${item.label}`}
               readOnly={item.archived}
               data={[
                 { value: 'active', label: 'Active' },
@@ -224,12 +214,12 @@ function RecurringList() {
       }}
       actions={(item) => (
         <RowActions
-          name={item.name}
+          name={item.label}
           primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
-            { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
-            archiveEntry({ archived: item.archived, label: `« ${item.name} »`, feminine: true }, setArchived, item.id),
-            { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
+            { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: documentPath(item.templateId) },
+            archiveEntry({ archived: item.archived, type: 'Facture récurrente', label: item.label, feminine: true }, setArchived, item.id),
+            rowMenuEntry(deleteRecurring([item])),
           ]}
         />
       )}
@@ -246,12 +236,9 @@ function RecurringList() {
 export function AccountingPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
-  // Imported documents are now listed with their type.
-  const tab = params.get('tab') && params.get('tab') !== 'imported' ? params.get('tab')! : 'QUOTE';
+  // Imported documents are now listed with their type (the former tab shows the quotes).
   // The old tab of the tracking statuses: its settings, in the sidebar.
-  useEffect(() => {
-    if (params.get('tab') === 'tracking') setParams({ tab: null, [SETTINGS_PARAM]: '1' });
-  }, [params, setParams]);
+  const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', MOVED_TABS);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -264,21 +251,14 @@ export function AccountingPage() {
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
   // Years of the documents, offered by the download of a period.
-  const yearOf = (date: string) => date.slice(0, 4);
-  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
+  const yearOf = (date: string) => String(yearOfDay(date));
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(localToday())])]
     .sort()
     .reverse();
   // Archived ones are not to do any more.
   const toSend = (documents ?? []).filter((document) => !document.archived && document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
-  const importedToSend = (imported.data ?? []).filter((document) => !document.archived && document.trackingStatus?.category === 'TO_SEND');
+  const importedToSend = unarchived(imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
-  /**
-   * Changes a parameter of the address, the others kept.
-   * @param {string} key Parameter.
-   * @param {string | null} value Value; none removes it.
-   * @returns {void}
-   */
-  const setParam = (key: string, value: string | null) => setParams({ [key]: value });
 
   return (
     <Stack gap="lg">
@@ -290,7 +270,7 @@ export function AccountingPage() {
           </ActionButton>
         }
       />
-      <PageTabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           {TABS.map((item) => (
             <PageTabs.Tab key={item.value} value={item.value}>
@@ -332,7 +312,7 @@ export function AccountingPage() {
             <DocumentsTable
               tableKey="documents-to-send"
               title="Documents à envoyer"
-              first={[{ name: 'À envoyer' }]}
+              first={[{ label: 'À envoyer' }]}
               documents={toSend}
               imported={importedToSend}
               showType

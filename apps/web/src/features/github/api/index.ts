@@ -1,3 +1,4 @@
+import type { GithubLinkInput } from '@ordo/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -54,7 +55,7 @@ const LinkDocument = graphql(`
       id
       projectId
       url
-      title
+      label
       statusFieldId
       priorityFieldId
       iterationFieldId
@@ -164,28 +165,8 @@ function useGithubMutation<TVariables, TResult>(mutationFn: (variables: TVariabl
   return useInvalidatingMutation(mutationFn, { invalidate: [githubKey, tasksQueryKey] });
 }
 
-export interface LinkValues {
-  url: string;
-  statusFieldId: string | null;
-  priorityFieldId: string | null;
-  iterationFieldId: string | null;
-  startFieldId: string | null;
-  endFieldId: string | null;
-  effortFieldId: string | null;
-  deadlineFieldId: string | null;
-  timeSpentFieldId: string | null;
-  /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization) or null. */
-  typeSource: 'FIELD' | 'ISSUE_TYPE' | null;
-  typeFieldId: string | null;
-  statusOptions: Record<string, string>;
-  priorityOptions: Record<string, string>;
-  typeOptions: Record<string, string>;
-  syncAssignees: boolean;
-  syncLabels: boolean;
-  repositoryName: string | null;
-  pushExisting: boolean;
-  enabled: boolean;
-}
+/** Settings of the link of a project with a GitHub board (the shared input of the API). */
+export type LinkValues = GithubLinkInput;
 
 /**
  * GitHub connection, links and sync.

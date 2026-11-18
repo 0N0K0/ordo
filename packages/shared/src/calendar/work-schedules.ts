@@ -1,16 +1,16 @@
-import { groupBy } from '../core/collections';
+import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
-import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
+import { END_AFTER_START, endAfter, endsAfter, requiredText } from '../core/rules';
+import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
+import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
-import { weekdayOfDate } from '../dates/weeks';
 import { timeOfDaySchema, daySchema } from '../dates/times';
-import { daysInMonth, monthFromIndex, monthIndex } from '../dates/months';
+import { daysInMonth, monthIndex, shiftMonth } from '../dates/months';
 
 /** Hours of a day of a case, in local time. */
-const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
+const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
 type TimeRange = z.infer<typeof timeRangeSchema>;
 
 /** Which days a case is on: every day of its period, weekdays (every n weeks), every n days, a day of the month
@@ -58,7 +58,7 @@ const scheduleCaseSchema = z
     until: daySchema().nullable().default(null),
   })
   .superRefine((item, context) => {
-    if (item.since && item.until && item.until < item.since) context.addIssue({ code: 'custom', path: ['until'], message: 'La fin doit suivre le début.' });
+    if (!endsAfter(item.since, item.until)) context.addIssue({ code: 'custom', path: ['until'], message: END_AFTER_START });
     if (item.pattern !== 'YEARLY' && (item.monthlyMode === 'WEEK' || item.monthlyMode === 'MONTH'))
       context.addIssue({ code: 'custom', path: ['monthlyMode'], message: 'Semaine ou mois : chaque année seulement.' });
     if (item.pattern === 'WEEKLY' && !item.weekdays.length) context.addIssue({ code: 'custom', path: ['weekdays'], message: 'Choisissez au moins un jour.' });
@@ -98,15 +98,16 @@ const exceptionFields = {
 };
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
-const scheduleExceptionSchema = z
-  .object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) })
-  .refine((exception) => exception.to >= exception.from, { path: ['to'], message: 'La fin doit suivre le début.' });
+const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
-/** Planned time slots: a name, a kind, a period, its cases, and exceptions (periods with cases of their own). */
+/** Longest label of planned time slots. */
+export const WORK_SCHEDULE_LABEL_MAX = 100;
+
+/** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    name: requiredText(100),
+    label: requiredText(WORK_SCHEDULE_LABEL_MAX),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
@@ -115,14 +116,14 @@ export const workScheduleSchema = z
     typeId: z.string().nullish(),
   })
   .superRefine((schedule, context) => {
-    if (schedule.endDate && schedule.endDate < schedule.startDate) context.addIssue({ code: 'custom', path: ['endDate'], message: 'La fin doit suivre le début.' });
+    if (!endsAfter(schedule.startDate, schedule.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
   });
 export type WorkScheduleInput = z.input<typeof workScheduleSchema>;
 
 /** Stored schedule, as the functions below read it. */
 export interface WorkScheduleRule {
   id: string;
-  name: string;
+  label: string;
   startDate: string;
   endDate: string | null;
   cases: readonly ScheduleCase[];
@@ -147,7 +148,7 @@ interface PlannedPause {
   to: string;
   label: string;
   scheduleId: string;
-  scheduleName: string;
+  scheduleLabel: string;
 }
 
 /**
@@ -169,22 +170,12 @@ function mondayOf(date: string): string {
 }
 
 /**
- * ISO week number of a date (1 to 53).
- * @param {string} date YYYY-MM-DD.
- * @returns {number} Week number.
- */
-export function isoWeek(date: string): number {
-  const thursday = addDays(date, 4 - weekdayOf(date));
-  return Math.floor(daysBetween(`${thursday.slice(0, 4)}-01-01`, thursday) / 7) + 1;
-}
-
-/**
  * Year an ISO week belongs to (that of its Thursday).
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Year.
  */
 export function isoWeekYear(date: string): number {
-  return Number(addDays(date, 4 - weekdayOf(date)).slice(0, 4));
+  return yearOfDay(addDays(date, 4 - weekdayOf(date)));
 }
 
 /**
@@ -197,13 +188,13 @@ export function isoWeekYear(date: string): number {
 function caseAnchor(item: LegacyScheduleCase, periodStart: string): string {
   const anchor = item.from ?? periodStart;
   if (item.pattern === 'EVERY_N_DAYS') return anchor;
-  if (item.pattern === 'MONTHLY') return `${anchor.slice(0, 7)}-01`;
+  if (item.pattern === 'MONTHLY') return `${monthOfDay(anchor)}-01`;
   if (item.pattern === 'YEARLY' && item.monthlyMode === 'WEEK') {
     // Monday of the first ISO week of its ISO year.
     const year = isoWeekYear(anchor);
     return mondayOf(`${year}-01-04`);
   }
-  if (item.pattern === 'YEARLY') return `${anchor.slice(0, 4)}-01-01`;
+  if (item.pattern === 'YEARLY') return `${yearOfDay(anchor)}-01-01`;
   // Every day, weeks: the Monday of a week of its rhythm early enough for an occurrence started before the period to
   // cover its first days.
   const monday = mondayOf(anchor);
@@ -327,7 +318,7 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
   return schedules.flatMap((schedule) =>
     schedule.exceptions
       .filter((exception) => !exception.cases.length && exception.from <= to && exception.to >= from)
-      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleName: schedule.name })),
+      .map((exception) => ({ from: exception.from, to: exception.to, label: exception.label, scheduleId: schedule.id, scheduleLabel: schedule.label })),
   );
 }
 
@@ -337,7 +328,10 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
  * @returns {number} Minutes.
  */
 export function slotMinutes(slots: readonly { start: string; end: string; allDay?: boolean }[]): number {
-  return slots.filter((slot) => !slot.allDay).reduce((sum, slot) => sum + timeToMinutes(slot.end) - timeToMinutes(slot.start), 0);
+  return sumOf(
+    slots.filter((slot) => !slot.allDay),
+    (slot) => timeToMinutes(slot.end) - timeToMinutes(slot.start),
+  );
 }
 
 /**
@@ -465,17 +459,17 @@ const scheduleDisplayFields = {
 
 /** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
-  name: requiredText(60),
+  label: requiredText(60),
   color: colorSchema,
   ...scheduleDisplayFields,
 });
 
-/** Name of the schedules without kind, unless the workspace names them. */
-export const DEFAULT_SCHEDULE_KIND_NAME = 'Travail';
+/** Label of the schedules without kind, unless the workspace labels them. */
+export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';
 
-/** Schedules without kind of a workspace: their name (empty: "Travail"), color (none: the green of working hours) and display. */
+/** Schedules without kind of a workspace: their label (empty: "Travail"), color (none: the green of working hours) and display. */
 export const defaultScheduleKindSchema = z.object({
-  name: z.string().trim().max(60, '60 caractères maximum.'),
+  label: z.string().trim().max(60, '60 caractères maximum.'),
   color: colorSchema.nullable(),
   ...scheduleDisplayFields,
 });
@@ -559,16 +553,6 @@ const daySlots = (schedule: WorkScheduleRule, date: string): ScheduleSlotTime[] 
 const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.allDay && (a.allDay || (a.start === b.start && a.end === b.end));
 
 /**
- * First day of a month shifted from the month of a date.
- * @param {string} date YYYY-MM-DD.
- * @param {number} months Months added.
- * @returns {string} YYYY-MM-01.
- */
-function shiftMonth(date: string, months: number): string {
-  return `${monthFromIndex(monthIndex(date) + months)}-01`;
-}
-
-/**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
  * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
  * @param {ScheduleCase} item Case of the slot.
@@ -588,9 +572,9 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
   const day = Number(to.slice(8, 10));
-  const lastDay = daysInMonth(Number(to.slice(0, 4)), Number(to.slice(5, 7)));
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
   const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  const values = { monthDay: day, weekday: weekdayOf(to), position, month: Number(to.slice(5, 7)), week: isoWeek(to) };
+  const values = { monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };
   if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
   if (rule.frequency === 'DAILY') return { ...result, anchor };
   return { ...result, anchor, rule: { ...rule, ...values } };
@@ -612,7 +596,7 @@ export function changedScheduleSlot(
   change: ScheduleSlotTime | null,
   scope: ScheduleSlotScope,
 ): { cases: ScheduleCase[]; exceptions: ScheduleException[] } {
-  if (change && !change.allDay && change.end <= change.start) throw new Error('La fin doit suivre le début.');
+  if (change && !change.allDay && change.end <= change.start) throw new Error(END_AFTER_START);
   if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période de la plage.');
   if (scope === 'THIS') {
     const others = daySlots(schedule, slot.date);

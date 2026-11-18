@@ -1,4 +1,25 @@
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, percentOf, printedDay, toCents } from '@ordo/shared';
+import {
+  type AccountingDocumentInput,
+  accountingDocumentInputSchema,
+  type AccountingDocumentType,
+  type AccountingLineInput,
+  addDays,
+  byPosition,
+  computeTotals,
+  documentNumber,
+  dueDateForTerms,
+  formatDay,
+  formatMoney,
+  formatOptionalDay,
+  formatPercent,
+  fromCents,
+  parseDay,
+  parseOptionalDay,
+  percentOf,
+  printedDay,
+  sumOf,
+  toCents,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
@@ -22,7 +43,7 @@ export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] }
 export function lineInput(line: AccountingLine): AccountingLineInput {
   return {
     kind: line.kind,
-    title: line.title,
+    label: line.label,
     description: line.description,
     quantity: fromDecimal(line.quantity),
     unit: line.unit,
@@ -196,13 +217,12 @@ function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineUnchecked
 function documentData(input: ReturnType<typeof accountingDocumentInputSchema.parse>) {
   const { lines, issueDate, dueDate, serviceStart, serviceEnd, globalDiscountValue, depositValue, timeEntryIds: _timeEntryIds, ...rest } = input;
   const totals = computeTotals({ lines, globalDiscountType: input.globalDiscountType, globalDiscountValue, vatApplicable: input.vatApplicable });
-  const day = (value: string | null) => (value ? parseDay(value) : null);
   return {
     ...rest,
     issueDate: parseDay(issueDate),
-    dueDate: day(dueDate),
-    serviceStart: day(serviceStart),
-    serviceEnd: day(serviceEnd),
+    dueDate: parseOptionalDay(dueDate),
+    serviceStart: parseOptionalDay(serviceStart),
+    serviceEnd: parseOptionalDay(serviceEnd),
     globalDiscountValue: toDecimal(globalDiscountValue),
     depositType: depositValue ? input.depositType : null,
     depositValue: depositValue && input.depositType ? toDecimal(depositValue) : null,
@@ -229,14 +249,10 @@ export async function defaultFields(type: AccountingDocumentType, clientId: stri
     contactId: null,
     projectId: null,
     issueDate,
-    dueDate: isCreditNote
-      ? null
-      : isQuote
-        ? addDays(issueDate, company.quoteValidityDays)
-        : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
+    dueDate: isCreditNote ? null : isQuote ? addDays(issueDate, company.quoteValidityDays) : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
     serviceStart: null,
     serviceEnd: null,
-    title: null,
+    label: null,
     introduction: null,
     referenceLabel: company.referenceLabel,
     referenceValue: null,
@@ -371,7 +387,7 @@ export async function buyerSnapshot(document: AccountingDocument) {
     siren: client.siren,
     siret: client.siret,
     activityCode: client.activityCode,
-    service: service ? { name: service.name, email: service.email, phones: service.phones } : null,
+    service: service ? { label: service.label, email: service.email, phones: service.phones } : null,
     contact: contact ? { firstName: contact.firstName, lastName: contact.lastName, email: contact.email, jobTitle: contact.jobTitle } : null,
   };
 }
@@ -453,7 +469,7 @@ async function invoicedOnQuote(quoteId: string) {
  * @returns {Promise<number>} Amount.
  */
 export async function invoicedAmount(quoteId: string): Promise<number> {
-  return (await invoicedOnQuote(quoteId)).reduce((sum, item) => sum + [...item.rates.values()].reduce((total, base) => total + base, 0), 0);
+  return sumOf(await invoicedOnQuote(quoteId), (item) => sumOf([...item.rates.values()], (base) => base));
 }
 
 /**
@@ -466,25 +482,19 @@ export async function invoicedAmount(quoteId: string): Promise<number> {
  * @param {string} [options.issueDate] Date of the new document. Optional.
  * @returns {Promise<AccountingDocument>} Draft.
  */
-export async function createFromDocument(
-  sourceId: string,
-  type: AccountingDocumentType,
-  options: { depositPercent?: number | null; issueDate: string },
-): Promise<AccountingDocument> {
+export async function createFromDocument(sourceId: string, type: AccountingDocumentType, options: { depositPercent?: number | null; issueDate: string }): Promise<AccountingDocument> {
   requirePro('facturation');
   const source = await findDocument(sourceId);
   if (source.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Validez d’abord le document d’origine.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', sourceId);
-  const allowed =
-    (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) ||
-    ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
+  const allowed = (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) || ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
   if (!allowed) throw clientError('BAD_USER_INPUT', 'Ce document ne peut pas être créé à partir de celui-ci.');
   if (type === 'DEPOSIT_INVOICE') return createDepositInvoice({ quoteId: source.id, percent: options.depositPercent ?? 30, issueDate: options.issueDate });
 
   const defaults = await defaultFields(type, source.clientId, options.issueDate);
   const sourceLines = source.lines.map(lineInput);
   let lines: AccountingLineInput[];
-  let title = source.title;
+  let label = source.label;
 
   if (type === 'INVOICE') {
     const deductions: AccountingLineInput[] = (await invoicedOnQuote(source.id)).flatMap(({ id, type: invoicedType, number, rates }) =>
@@ -492,7 +502,7 @@ export async function createFromDocument(
         .filter(([, base]) => base !== 0)
         .map(([rate, base]) => ({
           kind: 'DEDUCTION' as const,
-          title: `Déjà facturé : ${number}`,
+          label: `Déjà facturé : ${number}`,
           description: null,
           quantity: 1,
           unit: 'FLAT' as const,
@@ -507,7 +517,7 @@ export async function createFromDocument(
     lines = [...sourceLines.filter((line) => line.kind !== 'DEDUCTION'), ...deductions];
   } else {
     lines = sourceLines;
-    title = `Avoir sur la facture ${source.number}`;
+    label = `Avoir sur la facture ${source.number}`;
   }
 
   // An invoice keeps the terms agreed on its quote.
@@ -526,9 +536,9 @@ export async function createFromDocument(
       serviceId: source.serviceId,
       contactId: source.contactId,
       projectId: source.projectId,
-      serviceStart: source.serviceStart ? formatDay(source.serviceStart) : null,
-      serviceEnd: source.serviceEnd ? formatDay(source.serviceEnd) : null,
-      title,
+      serviceStart: formatOptionalDay(source.serviceStart),
+      serviceEnd: formatOptionalDay(source.serviceEnd),
+      label,
       referenceLabel: source.referenceLabel,
       referenceValue: source.referenceValue,
       vatApplicable: source.vatApplicable,
@@ -552,7 +562,7 @@ function depositLine(percent: number, quote: { number: string | null; totalNet: 
   const day = printedDay(quote.issueDate);
   return {
     kind: 'ITEM',
-    title: `Acompte de ${percent.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
+    label: `Acompte de ${formatPercent(percent)} pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
     description: null,
     quantity: 1,
     unit: 'DEPOSIT',
@@ -592,7 +602,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
     const lines =
       bases.length <= 1
         ? [depositLine(percent, reference, percentOf(totals.totalNet, percent), bases[0]?.rate ?? 0)]
-        : bases.map((item) => ({ ...depositLine(percent, reference, percentOf(item.base, percent), item.rate), description: `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` }));
+        : bases.map((item) => ({ ...depositLine(percent, reference, percentOf(item.base, percent), item.rate), description: `Part soumise à la TVA à ${formatPercent(item.rate, 3)}` }));
     const defaults = await defaultFields('DEPOSIT_INVOICE', quote.clientId, issueDate);
     // A deposit keeps the terms agreed on its quote.
     const paymentTerms = quote.paymentTerms ?? defaults.paymentTerms;
@@ -607,7 +617,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
         serviceId: quote.serviceId,
         contactId: quote.contactId,
         projectId: quote.projectId,
-        title: quote.title ?? `Acompte — devis ${quote.number}`,
+        label: quote.label ?? `Acompte — devis ${quote.number}`,
         referenceLabel: quote.referenceLabel,
         referenceValue: quote.referenceValue,
         vatApplicable: quote.vatApplicable,
@@ -633,7 +643,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
     {
       ...defaults,
       projectId: imported.projectId,
-      title: imported.title ?? `Acompte — devis ${imported.number}`,
+      label: imported.label ?? `Acompte — devis ${imported.number}`,
       vatApplicable: totalVat > 0,
       lines: [depositLine(percent, { number: imported.number, totalNet, currency: imported.currency, issueDate: imported.issueDate }, percentOf(totalNet, percent), totalVat > 0 ? vatRate : 0)],
     },
@@ -665,17 +675,16 @@ export async function duplicateDocument(id: string, issueDate: string): Promise<
  * @returns {Promise<AccountingDocumentInput>} Fields.
  */
 export async function editableFields(document: DocumentWithLines): Promise<AccountingDocumentInput> {
-  const day = (value: Date | null) => (value ? formatDay(value) : null);
   return {
     clientId: document.clientId,
     serviceId: document.serviceId,
     contactId: document.contactId,
     projectId: document.projectId,
     issueDate: formatDay(document.issueDate),
-    dueDate: day(document.dueDate),
-    serviceStart: day(document.serviceStart),
-    serviceEnd: day(document.serviceEnd),
-    title: document.title,
+    dueDate: formatOptionalDay(document.dueDate),
+    serviceStart: formatOptionalDay(document.serviceStart),
+    serviceEnd: formatOptionalDay(document.serviceEnd),
+    label: document.label,
     introduction: document.introduction,
     referenceLabel: document.referenceLabel,
     referenceValue: document.referenceValue,

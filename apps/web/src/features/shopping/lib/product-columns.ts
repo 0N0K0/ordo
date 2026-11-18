@@ -18,7 +18,7 @@ export function quantityColumn<T extends { quantity?: number | null }>(options: 
     numeric: true,
     bulk: true,
     sortValue: (item) => item.quantity ?? null,
-    text: (item) => (item.quantity == null ? '' : fmt.number(item.quantity, 3)),
+    text: (item) => fmt.quantity({ quantity: item.quantity }),
     filter: { kind: 'number', value: (item) => item.quantity ?? null },
     ...options,
   };

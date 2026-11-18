@@ -2,7 +2,7 @@ import { Anchor, Stack, Text } from '@mantine/core';
 import { isTaskCases, taskRepetitionSchema, type RepetitionCase, type TaskRepetition } from '@ordo/shared';
 import { Link } from 'react-router';
 import * as fmt from '../../../lib/format';
-import { describeCase, formatLongDate } from '../../../components/recurrence/describe-recurrence';
+import { describeCase } from '../../../components/recurrence/describe-recurrence';
 import { RepetitionEditor, type RepetitionModeValue } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { DeletedDates } from '../../../components/recurrence/DeletedDates';
@@ -35,7 +35,7 @@ function draftOf(task: Task): TaskDraft {
  * @param {TaskDraft} draft Draft.
  * @returns {TaskRepetition | null} Repetition.
  */
-function repetitionOf(draft: TaskDraft): TaskRepetition | null {
+function draftRepetition(draft: TaskDraft): TaskRepetition | null {
   if (draft.mode === 'CASES') return { cases: draft.cases, exceptions: draft.exceptions };
   return draft.cases[0]?.rule ?? null;
 }
@@ -58,15 +58,17 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
         editable={Boolean(start) && !task.archived}
         description={start ? undefined : 'Donnez une date à la tâche pour la répéter.'}
         describe={(draft) => {
-          if (!start || !repetitionOf(draft)) return [];
+          if (!start || !draftRepetition(draft)) return [];
           return draft.cases.map((item, index) => `${draft.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start))}`);
         }}
         valid={(draft) => draft.mode !== 'CASES' || draft.cases.length > 0}
-        onChange={(draft) => setRecurrence.mutate({ id: first.id, recurrence: repetitionOf(draft) }, toastCallbacks(repetitionOf(draft) ? 'Répétition enregistrée.' : 'La tâche ne se répète plus.'))}
+        onChange={(draft) =>
+          setRecurrence.mutate({ id: first.id, recurrence: draftRepetition(draft) }, toastCallbacks(draftRepetition(draft) ? 'Répétition enregistrée.' : 'La tâche ne se répète plus.'))
+        }
         editor={(draft, setDraft) => (
           <Stack gap="sm">
             <Text size="sm" c="dimmed">
-              La tâche se répète à partir du {start ? formatLongDate(start) : '—'}. Ses occurrences sont créées quand l’agenda affiche leur semaine ou leur mois : elles copient la tâche (titre,
+              La tâche se répète à partir du {start ? fmt.dayInWords(start) : '—'}. Ses occurrences sont créées quand l’agenda affiche leur semaine ou leur mois : elles copient la tâche (titre,
               description, assignés, effort…) avec des dates décalées.
             </Text>
             <RepetitionEditor<null>
@@ -83,7 +85,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
       />
       {series && (
         <Text size="xs" c="dimmed">
-          Occurrence du {task.occurrenceDate ? formatLongDate(task.occurrenceDate) : '—'} de{' '}
+          Occurrence du {task.occurrenceDate ? fmt.dayInWords(task.occurrenceDate) : '—'} de{' '}
           <Anchor component={Link} to={link.to(series.id)} size="xs">
             {taskRef(series).trim()}
           </Anchor>

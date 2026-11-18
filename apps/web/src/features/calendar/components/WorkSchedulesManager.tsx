@@ -9,15 +9,16 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   mapById,
-  DEFAULT_SCHEDULE_KIND_NAME,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   readScheduleCases,
   readScheduleExceptions,
   type ScheduleCase,
   type ScheduleException,
   type WorkScheduleInput,
   workScheduleSchema,
+  WORK_SCHEDULE_LABEL_MAX,
 } from '@ordo/shared';
-import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -26,28 +27,29 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifyError, onMutationError } from '../../../lib/notify';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+import { notifyError, ON_ERROR } from '../../../lib/notify';
+
 import { openFormPanel } from '../../../components/panels/panels';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
-import { describeScheduleCase, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
+import { describeScheduleCase, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { followBounds } from '../../../components/inputs/date-range';
 
 interface ScheduleValues extends Record<string, unknown> {
-  name: string;
+  label: string;
   startDate: string;
   endDate: string | null;
   cases: ScheduleCase[];
@@ -56,7 +58,7 @@ interface ScheduleValues extends Record<string, unknown> {
 }
 
 /**
- * Schedule form: name, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
+ * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
  * A copy starts with the cases and the kind of its schedule, without dates nor exceptions, saved as a new one.
  * @param {{ schedule?: WorkSchedule, copyOf?: WorkSchedule, onDone: () => void }} props Component props.
@@ -69,7 +71,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      name: schedule?.name ?? (copyOf ? copyName(copyOf.name) : 'Semaine type'),
+      label: schedule?.label ?? (copyOf ? copyName(copyOf.label, WORK_SCHEDULE_LABEL_MAX) : 'Semaine type'),
       // A copy has no dates: to choose.
       startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? schedule.endDate : null,
@@ -100,14 +102,14 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
         <Stack gap="md">
           {copyOf && (
             <Text size="sm" c="dimmed">
-              Copie de « {copyOf.name} », sans ses dates ni ses exceptions : choisissez ses dates.
+              Copie de « {copyOf.label} », sans ses dates ni ses exceptions : choisissez ses dates.
             </Text>
           )}
           <Group grow align="flex-start">
-            <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+            <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
             <CreatableSelect
               label="Type"
-              placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
+              placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
               clearable
               searchable
               onCreate={itemCreator('Nouveau type de plage', typeItems)}
@@ -124,7 +126,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
           <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
-      {schedule && <Comments target="SCHEDULE" id={schedule.id} />}
+      {schedule && <Comments target="SCHEDULE" id={schedule.id} readOnly={schedule.archived} />}
     </Stack>
   );
 }
@@ -149,8 +151,21 @@ const NO_KIND = 'none';
  * @param {string} today YYYY-MM-DD.
  * @returns {ScheduleState} State.
  */
-function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
+function scheduleState(schedule: WorkSchedule, today: string): ScheduleState {
   return STATE_OF[periodState(schedule.startDate, schedule.endDate ?? null, today)];
+}
+
+/**
+ * Hours of a schedule, one line per case.
+ * @param {{ schedule: { cases: unknown, startDate: string } }} props Component props.
+ * @returns {JSX.Element[]} Lines.
+ */
+function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: string } }) {
+  return readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
+    <Text key={index} size="xs">
+      {describeScheduleCase(item, schedule.startDate)}
+    </Text>
+  ));
 }
 
 /**
@@ -178,7 +193,7 @@ export function WorkSchedulesManager() {
     // Archived: read only (a bulk change skips it).
     if (schedule.archived) return;
     const input = {
-      name: schedule.name,
+      label: schedule.label,
       startDate: schedule.startDate,
       endDate: schedule.endDate ? schedule.endDate : null,
       cases: readScheduleCases(schedule.cases, schedule.startDate),
@@ -191,7 +206,7 @@ export function WorkSchedulesManager() {
       notifyError(`${result.error.issues[0]?.message ?? 'Valeur invalide.'} Rien n’a été modifié.`);
       return;
     }
-    update.mutate({ id: schedule.id, input }, { onError: onMutationError });
+    update.mutate({ id: schedule.id, input }, ON_ERROR);
   };
   const { perso } = useActiveWorkspace();
   /**
@@ -201,44 +216,49 @@ export function WorkSchedulesManager() {
    */
   const openForm = ({ schedule, copyOf }: { schedule?: WorkSchedule; copyOf?: WorkSchedule } = {}) => {
     openFormPanel(
-      schedule ? `Modifier « ${schedule.name} »` : copyOf ? `Dupliquer « ${copyOf.name} »` : 'Nouvelles plages',
+      schedule ? `Modifier « ${schedule.label} »` : copyOf ? `Dupliquer « ${copyOf.label} »` : 'Nouvelles plages',
       (close) => <ScheduleForm schedule={schedule} copyOf={copyOf} onDone={close} />,
       'lg',
     );
   };
   /**
-   * Deletes a schedule, once confirmed.
-   * @param {WorkSchedule} schedule Schedule.
-   * @returns {void}
+   * « Supprimer » of schedules, on a row as on a selection.
+   * @param {ScheduleRow[]} rows Schedules.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
    */
-  const confirmDelete = (schedule: WorkSchedule) =>
-    confirmDestructive({
-      title: `Supprimer « ${schedule.name} »`,
-      risks: `Ces plages et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
-      run: () => remove.mutateAsync(schedule.id),
-      done: 'Plages supprimées.',
+  const deleteSchedules = (rows: ScheduleRow[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'plage',
+      feminine: true,
+      the: 'la plage',
+      name: ({ schedule }) => schedule.label,
+      risks: (subject, one) =>
+        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimées définitivement${perso ? '' : ` : ${one ? 'elle ne comptera' : 'elles ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'la' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
+      remove: ({ schedule }) => remove.mutateAsync(schedule.id),
+      clear,
     });
   const typeById = mapById(types ?? []);
-  const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
+  const defaultLabel = defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL;
   const today = localToday();
-  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  const kindLabel = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultLabel);
   const scheduleComments = useCommentCounts(
     'SCHEDULE',
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'name', label: 'Nom', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
+    { id: 'name', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
       bulk: true,
       label: 'Type',
       size: 160,
-      sortValue: ({ schedule }) => kindName(schedule),
-      text: ({ schedule }) => kindName(schedule),
+      sortValue: ({ schedule }) => kindLabel(schedule),
+      text: ({ schedule }) => kindLabel(schedule),
       filter: {
         kind: 'choice',
         value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [{ value: NO_KIND, label: defaultName }, ...itemChoices(types ?? [])],
+        options: [{ value: NO_KIND, label: defaultLabel }, ...itemChoices(types ?? [])],
       },
       groupable: true,
     },
@@ -280,15 +300,15 @@ export function WorkSchedulesManager() {
     },
     commentColumn<ScheduleRow>(scheduleComments, ({ schedule }) => schedule.id),
   ];
-  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
+  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({
     tableKey: 'work-schedules',
     getKey: ({ schedule }) => schedule.id,
     columns,
     rows,
     archived: ({ schedule }) => schedule.archived,
-    title: perso ? 'Plages' : 'Horaires de travail',
-    first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
+    title: schedulesTitle(perso),
+    first: [{ label: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
   const bulk = bulkSaver<ScheduleRow, Partial<WorkScheduleInput>>(view, (row, change) => Object.keys(change).length > 0 && saveSchedule(row.schedule, change));
 
@@ -298,7 +318,7 @@ export function WorkSchedulesManager() {
         description={
           perso
             ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
-            : 'Vos horaires de travail prévus : affichés dans l’agenda, comparés au temps chronométré, et signalés quand un évènement tombe en dehors.'
+            : 'Vos plages de travail prévues : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
         }
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
@@ -311,7 +331,7 @@ export function WorkSchedulesManager() {
       ) : (
         <DataTable
           view={view}
-          bar={{ searchLabel: 'Rechercher (nom, type, exception)…' }}
+          bar={{ searchLabel: 'Rechercher (libellé, type, exception)…' }}
           selectionLabel={(count) => selectedLabel(count, ['plage', 'plages'])}
           isArchived={({ schedule }) => schedule.archived}
           selectionActions={(rows, clear) => [
@@ -324,13 +344,7 @@ export function WorkSchedulesManager() {
               loading: setArchived.isPending,
               clear,
             }),
-            deleteRowsAction(rows, {
-              title: 'Supprimer les plages',
-              risks: `${countOf(rows.length, 'plage')} et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
-              remove: ({ schedule }) => remove.mutateAsync(schedule.id),
-              done: `${countOf(rows.length, 'plage')} ${plural(rows.length, 'supprimée')}.`,
-              clear,
-            }),
+            deleteSchedules(rows, clear),
           ]}
           highlightOnHover
           verticalSpacing="xs"
@@ -339,35 +353,27 @@ export function WorkSchedulesManager() {
             const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
-            const kindName = type?.name ?? defaultName;
+            const typeLabel = type?.label ?? defaultLabel;
             // Archived: read only.
             if (schedule.archived) {
               return {
                 name: (
                   <Group gap="xs" wrap="nowrap">
                     <Text size="sm" fw={600}>
-                      {schedule.name}
+                      {schedule.label}
                     </Text>
                     <ArchivedBadge feminine size="xs" />
                   </Group>
                 ),
                 type: (
                   <Group gap="xs" wrap="nowrap">
-                    <ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />
-                    <Text size="sm">{kindName}</Text>
+                    <ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />
+                    <Text size="sm">{typeLabel}</Text>
                   </Group>
                 ),
                 start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
                 end: <Text size="sm">{schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'}</Text>,
-                hours: (
-                  <Stack gap={0}>
-                    {readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
-                      <Text key={index} size="xs">
-                        {describeScheduleCase(item, schedule.startDate)}
-                      </Text>
-                    ))}
-                  </Stack>
-                ),
+                hours: <ScheduleHours schedule={schedule} />,
                 state: (
                   <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
                     {STATE_LABELS[rowState]}
@@ -376,40 +382,41 @@ export function WorkSchedulesManager() {
               };
             }
             return {
-              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && bulk('name')(row, { name })} />,
+              name: <EditableText value={schedule.label} label={`Libellé de ${schedule.label}`} strong onSave={(label) => label && bulk('name')(row, { label })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
-                  label={`Type de ${schedule.name}`}
-                  leftSection={<ItemAvatar name={kindName} iconUrl={type?.iconUrl} color={color} />}
-                  {...listSelectProps([{ id: NO_KIND, name: defaultName, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
+                  label={`Type de ${schedule.label}`}
+                  leftSection={<ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />}
+                  {...listSelectProps([{ id: NO_KIND, label: defaultLabel, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
               start: (
                 <EditableDate
                   value={schedule.startDate}
-                  label={`Début de ${schedule.name}`}
-                  onSave={(startDate) => startDate && bulk('start')(row, (target) => (target.schedule.endDate && target.schedule.endDate < startDate ? {} : { startDate }))}
+                  label={`Début de ${schedule.label}`}
+                  // A start set after the end moves the end to it (decision Q).
+                  onSave={(startDate) =>
+                    startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))
+                  }
                 />
               ),
               end: (
                 <EditableDate
                   value={schedule.endDate ? schedule.endDate : null}
-                  label={`Fin de ${schedule.name}`}
+                  label={`Fin de ${schedule.label}`}
                   nullable
                   minDate={schedule.startDate}
-                  onSave={(endDate) => bulk('end')(row, (target) => (endDate && endDate < target.schedule.startDate ? {} : { endDate }))}
+                  onSave={(endDate) =>
+                    bulk('end')(row, (target) => ({ startDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'end', endDate)[0] ?? target.schedule.startDate, endDate }))
+                  }
                 />
               ),
               hours: (
                 <>
                   <Stack gap={0}>
-                    {readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
-                      <Text key={index} size="xs">
-                        {describeScheduleCase(item, schedule.startDate)}
-                      </Text>
-                    ))}
+                    <ScheduleHours schedule={schedule} />
                     {exceptions.length > 0 && (
                       <Tooltip
                         multiline
@@ -438,17 +445,20 @@ export function WorkSchedulesManager() {
               ),
             };
           }}
-          actions={({ schedule }) => (
-            <RowActions
-              name={schedule.name}
-              primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
-              items={[
-                !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                archiveEntry({ archived: schedule.archived, label: `« ${schedule.name} »`, feminine: true }, setArchived, schedule.id),
-                { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(schedule) },
-              ]}
-            />
-          )}
+          actions={(row) => {
+            const { schedule } = row;
+            return (
+              <RowActions
+                name={schedule.label}
+                primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
+                items={[
+                  !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
+                  archiveEntry({ archived: schedule.archived, type: 'Plage', label: schedule.label, feminine: true }, setArchived, schedule.id),
+                  rowMenuEntry(deleteSchedules([row])),
+                ]}
+              />
+            );
+          }}
         />
       )}
     </Stack>

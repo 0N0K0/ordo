@@ -6,18 +6,19 @@ import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
-import { occurrenceSpan, scheduleSources } from '../../calendar/lib/calendar-events';
+import { occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -52,7 +53,7 @@ const STATES: Record<ItemState, { color: string; text: string }> = {
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {ItemState} State.
  */
-const stateOf = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
+const historyItemState = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
 
 /**
  * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
@@ -81,7 +82,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const [time, setTime] = useState(() => proposedTime(item, today));
   // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
   const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.date > today ? today : item.date));
-  const state = stateOf(item, today);
+  const state = historyItemState(item, today);
   const at = localInstant(day, time || '00:00');
   // Now when the form opened: a later hour is refused.
   const now = useNow(false);
@@ -117,18 +118,18 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
         </Text>
       </Text>
       <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(value)} />
-      <TimeInput
+      <TimePicker
         label={item.check ? 'Faite à' : 'Faite à (heure prévue par défaut)'}
         value={time}
-        onChange={(event) => setTime(event.currentTarget.value)}
+        onChange={setTime}
         error={future ? 'Cette heure n’est pas encore passée.' : undefined}
         data-autofocus
       />
       <Group justify="flex-end" gap="sm">
         {item.check && routine && (
-          <Button variant="default" color="red" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
+          <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save(false)} loading={setDone.isPending}>
             Décocher
-          </Button>
+          </ActionButton>
         )}
         <Button leftSection={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
@@ -172,8 +173,8 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const events: EventInput[] = [];
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
-  const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind, { kindNames: true }).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, name } of slotSources) {
+  const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
+  for (const { schedule, rule, color, label: name, foreign } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
@@ -182,10 +183,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       allDay: true,
       start: day,
       end: addDays(day, 1),
-      backgroundColor: color ?? 'var(--mantine-color-green-light)',
-      borderColor: color ?? 'var(--mantine-color-green-light)',
-      textColor: 'var(--mantine-color-text)',
-      classNames: [calendarClasses.slotBar],
+      ...slotBarLook({ color, foreign }),
     });
     for (const slot of slots) {
       events.push({
@@ -206,7 +204,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const color = calendarColor.get(occurrence.calendarId) ?? subscriptionColor.get(occurrence.calendarId) ?? 'var(--mantine-primary-color-filled)';
     events.push({
       id: `event:${occurrence.key}`,
-      title: occurrence.title,
+      title: occurrence.label,
       ...occurrenceSpan(occurrence),
       backgroundColor: color,
       borderColor: color,
@@ -218,7 +216,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // hour they were done, else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
-    const state = stateOf(item, today);
+    const state = historyItemState(item, today);
     const { color, text } = STATES[state];
     const minutes = routine?.estimate ?? 30;
     const doneAt = item.check ? new Date(item.check.doneAt) : null;
@@ -235,7 +233,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: `routine:${item.key}`,
-      title: `${routine?.title ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
+      title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,
       end: timed ? `${day}T${end}:00` : addDays(day, 1),
@@ -257,7 +255,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const item: HistoryItem | undefined = event.extendedProps.item;
     if (!item) return;
     const routine = byId.get(item.routineId);
-    openFormPanel(routine?.title ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
+    openFormPanel(routine?.label ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
   };
 
   return (

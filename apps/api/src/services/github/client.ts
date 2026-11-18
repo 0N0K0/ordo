@@ -46,10 +46,7 @@ export async function githubRequest<T>(token: string, query: string, variables: 
   const body = (await response.json().catch(() => ({}))) as GraphqlResponse<T>;
   if (body.errors?.length) {
     const forbidden = body.errors.some((error) => error.type === 'FORBIDDEN' || error.type === 'INSUFFICIENT_SCOPES');
-    throw clientError(
-      'BAD_USER_INPUT',
-      forbidden ? `Le jeton GitHub n’a pas les droits nécessaires (projets, issues) : ${body.errors[0].message}` : `GitHub : ${body.errors[0].message}`,
-    );
+    throw clientError('BAD_USER_INPUT', forbidden ? `Le jeton GitHub n’a pas les droits nécessaires (projets, issues) : ${body.errors[0].message}` : `GitHub : ${body.errors[0].message}`);
   }
   if (!response.ok || !body.data) throw clientError('BAD_USER_INPUT', `GitHub a répondu ${response.status}.`);
   return body.data;

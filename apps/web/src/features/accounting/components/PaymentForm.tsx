@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -12,6 +13,7 @@ import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type Tr
 import { useTrackingMutations } from '../api/tracking';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { PAGES } from '../../../app/pages';
 
 /** Document a payment (or refund) is recorded on: what the form needs of it. */
 export interface PayableDocument {
@@ -60,14 +62,14 @@ interface PaymentFieldsProps {
  */
 function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsProps) {
   const { recordPayment } = useTrackingMutations();
-  const open = accounts.filter((account) => !account.archived);
+  const open = unarchived(accounts);
   const form = useAppForm<PaymentValues>({
     initialValues: {
       accountId: open[0]?.id ?? '',
       date: localToday(),
       amount: document.balance ?? 0,
       // The first method named in the payment terms of the document.
-      methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.name.toLowerCase()))?.id ?? null,
+      methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.label.toLowerCase()))?.id ?? null,
     },
     schema: documentPaymentSchema,
   });
@@ -75,7 +77,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
     return (
       <NoticeAlert kind="info">
         Créez d’abord un compte dans la{' '}
-        <Anchor component={Link} to="/treasury" onClick={onDone}>
+        <Anchor component={Link} to={PAGES.treasury.path} onClick={onDone}>
           trésorerie
         </Anchor>
         .

@@ -1,4 +1,17 @@
-import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
+import {
+  budgetMonths,
+  formatDay,
+  lastDayOfMonth,
+  monthOfDate,
+  monthOfDay,
+  occurrenceDates,
+  parseDay,
+  parseOptionalDay,
+  plannedContext,
+  splitAmounts,
+  type TreasuryBudgetInput,
+  treasuryBudgetSchema,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
@@ -43,9 +56,9 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
   await assertExists(prisma.treasuryRelation, budget.relationId, 'Relation');
   await assertExists(prisma.treasuryContext, budget.contextId, 'Contexte');
-  if (budget.categoryId !== previous?.categoryId) await assertNotArchived('TREASURY_CATEGORY', budget.categoryId);
-  if (budget.relationId !== previous?.relationId) await assertNotArchived('TREASURY_RELATION', budget.relationId);
-  if (budget.contextId !== previous?.contextId) await assertNotArchived('TREASURY_CONTEXT', budget.contextId);
+  await assertNotArchived('TREASURY_CATEGORY', budget.categoryId, { keep: previous?.categoryId, field: 'categoryId' });
+  await assertNotArchived('TREASURY_RELATION', budget.relationId, { keep: previous?.relationId, field: 'relationId' });
+  await assertNotArchived('TREASURY_CONTEXT', budget.contextId, { keep: previous?.contextId, field: 'contextId' });
   return {
     month: parseDay(`${budget.month}-01`),
     memberId: budget.relationId ? null : budget.memberId,
@@ -54,7 +67,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
     categoryId: budget.categoryId,
     amount: toDecimal(budget.amount),
     repeatEvery: budget.repeatEvery,
-    repeatUntil: budget.repeatEvery && budget.repeatUntil ? parseDay(`${budget.repeatUntil}-01`) : null,
+    repeatUntil: parseOptionalDay(budget.repeatEvery && budget.repeatUntil ? `${budget.repeatUntil}-01` : null),
   };
 }
 
@@ -85,7 +98,6 @@ export async function deleteBudget(id: string): Promise<void> {
  * @param {string} day YYYY-MM-DD.
  * @returns {string} Month.
  */
-const monthOf = (day: string) => day.slice(0, 7);
 
 /**
  * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
@@ -118,11 +130,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
 
   const rows = new Map<string, BudgetReportRow>();
   for (const budget of budgets) {
-    const months = budgetMonths(
-      { month: monthOf(formatDay(budget.month)), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOf(formatDay(budget.repeatUntil)) : null },
-      from,
-      to,
-    );
+    const months = budgetMonths({ month: monthOfDate(budget.month), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOfDate(budget.repeatUntil) : null }, from, to);
     for (const month of months) {
       const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };
@@ -140,7 +148,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
    * @returns {void}
    */
   const add = (day: string, key: Key, amount: number, kind: 'actual' | 'forecast') => {
-    const month = monthOf(day);
+    const month = monthOfDay(day);
     // A line of its own day may fall out of the range (an entry of the range for purchases of the month before).
     if (!amount || month < from || month > to) return;
     const seen = new Set<string>();

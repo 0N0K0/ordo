@@ -34,17 +34,7 @@ function ProjectBranch({ node, depth, section, keyPrefix, isExpanded, onToggle }
       />
       {hasChildren &&
         expanded &&
-        node.children.map((child) => (
-          <ProjectBranch
-            key={child.project.id}
-            node={child}
-            depth={depth + 1}
-            section={section}
-            keyPrefix={keyPrefix}
-            isExpanded={isExpanded}
-            onToggle={onToggle}
-          />
-        ))}
+        node.children.map((child) => <ProjectBranch key={child.project.id} node={child} depth={depth + 1} section={section} keyPrefix={keyPrefix} isExpanded={isExpanded} onToggle={onToggle} />)}
     </>
   );
 }
@@ -80,21 +70,15 @@ export function StaticTree({ section, label, keyPrefix, isExpanded, onToggle }: 
               aria-level={1}
               aria-expanded={projects.length > 0 ? expanded : undefined}
             />
-            {expanded &&
-              projects.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
+            {expanded && projects.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
           </div>
         );
       })}
 
       {section.orphans.length > 0 && (
         <>
-          <NoClientRow
-            expanded={isExpanded(`${keyPrefix}${NO_CLIENT}`)}
-            onToggle={() => onToggle(`${keyPrefix}${NO_CLIENT}`)}
-            hasChildren
-          />
-          {isExpanded(`${keyPrefix}${NO_CLIENT}`) &&
-            section.orphans.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
+          <NoClientRow expanded={isExpanded(`${keyPrefix}${NO_CLIENT}`)} onToggle={() => onToggle(`${keyPrefix}${NO_CLIENT}`)} hasChildren />
+          {isExpanded(`${keyPrefix}${NO_CLIENT}`) && section.orphans.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
         </>
       )}
     </div>

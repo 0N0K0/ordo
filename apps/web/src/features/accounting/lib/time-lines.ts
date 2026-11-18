@@ -22,8 +22,8 @@ interface TimeLineOptions {
   hoursPerDay: number;
   unitPrice: number;
   vatRate: number;
-  /** Title of the lines (or of the lines without task). */
-  title: string;
+  /** Label of the lines (or of the lines without task). */
+  label: string;
   /** Rounds each line up to the quarter hour. */
   roundQuarter: boolean;
 }
@@ -54,30 +54,30 @@ function doneList(items: (string | null)[]): string | null {
  * Lines billing tracked time: one line overall, per day, per task or per entry, at a price per hour or per
  * day; the descriptions of the time make the description of the lines.
  * @param {BillableTime[]} entries Time to bill.
- * @param {TimeLineOptions} options Grouping, unit, price, VAT, title, rounding.
+ * @param {TimeLineOptions} options Grouping, unit, price, VAT, label, rounding.
  * @returns {AccountingLineInput[]} Lines (empty groups left out).
  */
 export function timeLines(entries: BillableTime[], options: TimeLineOptions): AccountingLineInput[] {
   const sorted = [...entries].sort((a, b) => a.day.localeCompare(b.day));
-  const groups = new Map<string, { title: string; seconds: number; descriptions: (string | null)[] }>();
-  const add = (key: string, title: string, seconds: number, description: string | null) => {
-    const group = groups.get(key) ?? { title, seconds: 0, descriptions: [] };
+  const groups = new Map<string, { label: string; seconds: number; descriptions: (string | null)[] }>();
+  const add = (key: string, label: string, seconds: number, description: string | null) => {
+    const group = groups.get(key) ?? { label, seconds: 0, descriptions: [] };
     group.seconds += seconds;
     group.descriptions.push(description);
     groups.set(key, group);
   };
   for (const entry of sorted) {
-    if (options.grouping === 'TOTAL') add('total', options.title, entry.seconds, entry.description && `${fmt.day(entry.day)} : ${entry.description}`);
-    else if (options.grouping === 'DAY') add(entry.day, `${options.title} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
-    else if (options.grouping === 'ENTRY') add(entry.id, `${options.title} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
-    else if (entry.tasks.length === 0) add('', options.title, entry.seconds, entry.description);
+    if (options.grouping === 'TOTAL') add('total', options.label, entry.seconds, entry.description && `${fmt.day(entry.day)} : ${entry.description}`);
+    else if (options.grouping === 'DAY') add(entry.day, `${options.label} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
+    else if (options.grouping === 'ENTRY') add(entry.id, `${options.label} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
+    else if (entry.tasks.length === 0) add('', options.label, entry.seconds, entry.description);
     else for (const task of entry.tasks) add(`task:${task}`, task, entry.seconds / entry.tasks.length, entry.description);
   }
   return [...groups.values()]
     .filter((group) => group.seconds > 0)
     .map((group) => ({
       kind: 'ITEM',
-      title: group.title,
+      label: group.label,
       description: doneList(group.descriptions),
       quantity: quantityOf(group.seconds, options),
       unit: options.unit,

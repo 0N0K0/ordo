@@ -6,11 +6,11 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Group, Stack, Text, ThemeIcon } from '@mantine/core';
 
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+
+import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { toastCallbacks } from '../../../lib/notify';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
@@ -26,8 +26,7 @@ export function MailAccountsManager() {
   const { data: accounts, isPending } = useMailAccounts();
   const { remove } = useMailAccountMutations();
   const setArchived = useSetArchived('MAIL_ACCOUNT');
-  const [showArchived, setShowArchived] = useState(false);
-  const shown = visibleItems(accounts ?? [], showArchived);
+  const { shown, toggle: archivedToggle } = useArchivedToggle(accounts ?? []);
 
   /**
    * Opens a modal whose content receives a close callback.
@@ -45,12 +44,18 @@ export function MailAccountsManager() {
    * @returns {void}
    */
   const confirmDelete = (account: MailAccount) => {
-    confirmDestructive({ title: 'Retirer la boîte mail', risks: (
-<>
-            {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés.
-            Les mails restent sur le serveur, et ceux rattachés à des projets restent dans Ordo. Cette action est irréversible.
-          </>
-), confirmLabel: 'Retirer', onConfirm: () => { remove.mutate(account.id, toastCallbacks('Boîte mail retirée.')); } });
+    confirmDestructive({
+      title: 'Retirer la boîte mail',
+      risks: (
+        <>
+          {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés. Les mails restent sur le serveur, et ceux rattachés à des projets restent
+          dans Ordo.
+        </>
+      ),
+      confirmLabel: 'Retirer',
+      run: () => remove.mutateAsync(account.id),
+      done: 'Boîte mail retirée.',
+    });
   };
 
   return (
@@ -59,7 +64,7 @@ export function MailAccountsManager() {
       description={<>Lues en direct sur le serveur (IMAP) et utilisées pour l’envoi (SMTP). Seuls les mails rattachés à un projet sont copiés dans Ordo.</>}
       actions={
         <>
-          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(accounts ?? []).filter((account) => account.archived).length} label="Afficher les archivées" />
+          <ShowArchivedSwitch {...archivedToggle} label="Afficher les archivées" />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => open('Nouvelle boîte mail', (close) => <MailAccountForm onDone={close} />)}>
             Ajouter
           </ActionButton>
@@ -80,7 +85,7 @@ export function MailAccountsManager() {
               <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" wrap="nowrap">
                   <Text size="sm" fw={500} truncate>
-                    {account.name}
+                    {account.label}
                   </Text>
                   {account.archived && <ArchivedBadge feminine size="xs" />}
                 </Group>
@@ -90,16 +95,24 @@ export function MailAccountsManager() {
                 </Text>
               </Stack>
               <InlineActions
-                name={account.name}
+                name={account.label}
                 items={[
                   // Archived: read only.
-                  !account.archived && { label: 'Signature', icon: <SignatureIcon aria-hidden />, onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />) },
-                  !account.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />) },
-                  archiveEntry({ archived: account.archived, label: `Boîte « ${account.name} »`, feminine: true }, setArchived, account.id),
+                  !account.archived && {
+                    label: 'Signature',
+                    icon: <SignatureIcon aria-hidden />,
+                    onClick: () => open(`Signature — ${account.label}`, (close) => <SignatureForm account={account} onDone={close} />),
+                  },
+                  !account.archived && {
+                    label: 'Modifier',
+                    icon: <PencilSimpleIcon aria-hidden />,
+                    onClick: () => open(`Modifier — ${account.label}`, (close) => <MailAccountForm account={account} onDone={close} />),
+                  },
+                  archiveEntry({ archived: account.archived, type: 'Boîte', label: account.label, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />
-              </Group>
+            </Group>
           ))}
         </Stack>
       )}

@@ -1,18 +1,22 @@
-import { Group, Stack, Text, Title } from '@mantine/core';
+import { Badge, Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { plural } from '../../../lib/text';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import type { ReferenceTargets } from '../../../components/markdown/remark-references';
 
 interface PlanCardProps {
   icon: ReactNode;
   title: string;
-  /** Badges after the title (state, lateness). Optional. */
+  /** Archived: its badge after the title. */
+  archived: boolean;
+  /** Badges after the title (its state). Optional. */
   badges?: ReactNode;
+  /** Past its end with tasks left: how many, in a red badge (decision AF). Optional. Default = not late. */
+  late?: number;
   /** Line of its dates, under the title. */
   dates: ReactNode;
-  /** Color of the dates line (red: late). Optional. Default = dimmed. */
-  datesColor?: string;
   /** Its menu: edit, delete. */
   actions: readonly RowMenuEntry[];
   /** Progress of its tasks. */
@@ -25,12 +29,12 @@ interface PlanCardProps {
 }
 
 /**
- * Content of the card of a milestone or a sprint: icon, title and badges, dates, its menu, the progress of its tasks
- * and its description.
+ * Content of the card of a milestone or a sprint: icon, title and badges (archived, state, lateness in red), dates, its
+ * menu, the progress of its tasks and its description.
  * @param {PlanCardProps} props Component props.
  * @returns {JSX.Element} Card content.
  */
-export function PlanCard({ icon, title, badges, dates, datesColor = 'dimmed', actions, progress, description, targets, onDescription }: PlanCardProps) {
+export function PlanCard({ icon, title, archived, badges, late = 0, dates, actions, progress, description, targets, onDescription }: PlanCardProps) {
   return (
     <Stack gap="sm">
       <Group justify="space-between" wrap="nowrap" align="flex-start">
@@ -40,9 +44,15 @@ export function PlanCard({ icon, title, badges, dates, datesColor = 'dimmed', ac
             <Title order={3} size="h5">
               {title}
             </Title>
+            {archived && <ArchivedBadge size="sm" />}
             {badges}
+            {late > 0 && (
+              <Badge size="sm" variant="light" color="red">
+                {late} {plural(late, 'tâche')} non {plural(late, 'terminée')}
+              </Badge>
+            )}
           </Group>
-          <Text size="sm" c={datesColor} fw={datesColor === 'red' ? 600 : undefined}>
+          <Text size="sm" c="dimmed">
             {dates}
           </Text>
         </Stack>

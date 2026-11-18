@@ -26,7 +26,7 @@ export async function createContext({ req, res }: ServerContext): Promise<Contex
  * @param {Context} ctx GraphQL context.
  * @returns {SessionInfo} Current session.
  */
-export function requireSession(ctx: Context): SessionInfo {
+export function signedInSession(ctx: Context): SessionInfo {
   if (!ctx.session) throw unauthenticated();
   return ctx.session;
 }

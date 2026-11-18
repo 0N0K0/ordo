@@ -9,11 +9,12 @@ import { useMemo } from 'react';
 
 import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
-import { Figure, HomeCard } from './HomeCard';
+import { CardFigure, HomeCard } from './HomeCard';
 import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
 import { dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
+import { documentPath, PAGES } from '../../../app/pages';
 
 /**
  * Revenue of the month and of the year, drafts to finish, and the overdue invoices to follow up.
@@ -27,9 +28,9 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
       {summary && overdue.data && (
         <Stack gap="sm">
           <SimpleGrid cols={3}>
-            <Figure label="CA HT du mois" value={fmt.money(summary.monthNet)} />
-            <Figure label="CA HT de l’année" value={fmt.money(summary.yearNet)} />
-            <Figure label="Brouillons" value={summary.drafts} />
+            <CardFigure label="CA HT du mois" value={fmt.money(summary.monthNet)} />
+            <CardFigure label="CA HT de l’année" value={fmt.money(summary.yearNet)} />
+            <CardFigure label="Brouillons" value={summary.drafts} />
           </SimpleGrid>
           {overdue.data.length === 0 ? (
             <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucune facture en retard." />
@@ -40,9 +41,9 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                 render={(invoice) => (
                   <HomeRow
                     key={invoice.id}
-                    to={`/accounting/${invoice.id}`}
-                    title={invoice.clientName ?? 'Client inconnu'}
-                    subtitle={`${invoice.number} · ${daysBetween(invoice.dueDate ?? today, today)} j de retard${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
+                    to={documentPath(invoice.id)}
+                    label={invoice.clientName ?? 'Client inconnu'}
+                    subtitle={`${invoice.number} · ${fmt.daysLate(invoice.dueDate ?? today, today)}${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
                     value={
                       <Text size="sm" fw={600} c="red">
                         {fmt.money(invoice.balance ?? 0)}
@@ -66,7 +67,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
  */
 export function QuotesCard({ summary, today }: { summary: BillingSummary | null; today: string }) {
   return (
-    <HomeCard title="Devis en attente" icon={<FileTextIcon aria-hidden />} to="/accounting" loading={!summary}>
+    <HomeCard title="Devis en attente" icon={<FileTextIcon aria-hidden />} to={PAGES.accounting.path} loading={!summary}>
       {summary && summary.pendingQuotes.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun devis en attente de réponse." />}
       {summary && summary.pendingQuotes.length > 0 && (
         <HomeList
@@ -76,9 +77,9 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
             return (
               <HomeRow
                 key={quote.id}
-                to={`/accounting/${quote.id}`}
-                title={`${quote.clientName ?? 'Client inconnu'}${quote.title ? ` · ${quote.title}` : ''}`}
-                subtitle={`${quote.number} · envoyé il y a ${daysBetween(sent, today)} j`}
+                to={documentPath(quote.id)}
+                label={`${quote.clientName ?? 'Client inconnu'}${quote.label ? ` · ${quote.label}` : ''}`}
+                subtitle={`${quote.number} · envoyé ${fmt.daysAgo(daysBetween(sent, today))}`}
                 value={
                   <Text size="sm" fw={600}>
                     {fmt.money(quote.totalNet)}
@@ -114,13 +115,13 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
   }, [projection, today]);
 
   return (
-    <HomeCard title="Trésorerie" icon={<BankIcon aria-hidden />} to="/treasury" loading={!data || !projection}>
+    <HomeCard title="Trésorerie" icon={<BankIcon aria-hidden />} to={PAGES.treasury.path} loading={!data || !projection}>
       {data && projection && (
         <Stack gap="sm">
           <SimpleGrid cols={3}>
-            <Figure label="Aujourd’hui" value={fmt.money(projection.balance)} />
-            <Figure label="Dans 30 jours" value={data.at30 ? fmt.money(data.at30.balance) : '—'} />
-            <Figure label="Point bas (3 mois)" value={data.lowest ? fmt.money(data.lowest.balance) : '—'} color={data.lowest && data.lowest.balance < 0 ? 'red' : undefined} />
+            <CardFigure label="Aujourd’hui" value={fmt.money(projection.balance)} />
+            <CardFigure label="Dans 30 jours" value={data.at30 ? fmt.money(data.at30.balance) : '—'} />
+            <CardFigure label="Point bas (3 mois)" value={data.lowest ? fmt.money(data.lowest.balance) : '—'} color={data.lowest && data.lowest.balance < 0 ? 'red' : undefined} />
           </SimpleGrid>
           {data.forecast.length > 1 && (
             <Sparkline

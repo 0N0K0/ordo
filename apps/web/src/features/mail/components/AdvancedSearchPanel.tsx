@@ -1,11 +1,13 @@
-import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, type GroupProps } from '@mantine/core';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
-import { FloppyDiskIcon, MagnifyingGlassIcon, EraserIcon } from '@phosphor-icons/react';
+import { FloppyDiskIcon, MagnifyingGlassIcon, EraserIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useMailLabels } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
+import { dateRangeProps } from '../../../components/inputs/date-range';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Where an advanced search looks: the folder shown, every folder of its account, or every account. */
 type Where = 'folder' | 'account' | 'everywhere';
@@ -32,6 +34,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
   const [criteria, setCriteria] = useState<MailSearchCriteria>(value ?? { ...EMPTY_MAIL_SEARCH, accountIds: [accountId], scope: 'folder', folder });
   const where: Where = criteria.scope === 'folder' ? 'folder' : criteria.accountIds.length ? 'account' : 'everywhere';
   const set = (changes: Partial<MailSearchCriteria>) => setCriteria((current) => ({ ...current, ...changes }));
+  const received = dateRangeProps({ value: [criteria.since, criteria.until], onChange: ([since, until]) => set({ since, until }) });
 
   /**
    * Changes where the search looks.
@@ -71,8 +74,8 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             <TextInput size="xs" label="À" placeholder="Nom ou adresse" value={criteria.to} onChange={(event) => set({ to: event.currentTarget.value })} />
             <TextInput size="xs" label="Objet" value={criteria.subject} onChange={(event) => set({ subject: event.currentTarget.value })} />
             <TextInput size="xs" label="Corps" value={criteria.body} onChange={(event) => set({ body: event.currentTarget.value })} />
-            <DatePickerInput size="xs" label="Du" clearable placeholder="—" value={criteria.since} onChange={(since) => set({ since })} />
-            <DatePickerInput size="xs" label="Au" clearable placeholder="—" minDate={criteria.since ?? undefined} value={criteria.until} onChange={(until) => set({ until })} />
+            <DatePickerInput size="xs" label="Du" clearable placeholder="—" {...received.start} />
+            <DatePickerInput size="xs" label="Au" clearable placeholder="—" {...received.end} />
           </SimpleGrid>
           <BatchMultiSelect
             size="xs"
@@ -106,9 +109,9 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
               Enregistrer en dossier de recherche
             </Button>
             <Group gap="xs">
-              <Button size="xs" variant="default" leftSection={<EraserIcon aria-hidden />} onClick={onClear}>
+              <ActionButton priority="secondary" size="xs" icon={<EraserIcon aria-hidden />} onClick={onClear}>
                 Effacer
-              </Button>
+              </ActionButton>
               <Button size="xs" type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />}>
                 Rechercher
               </Button>
@@ -117,5 +120,37 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
         </Stack>
       </form>
     </Paper>
+  );
+}
+
+interface AdvancedSearchHeaderProps extends Omit<GroupProps, 'children'> {
+  /** The criteria are shown. */
+  open: boolean;
+  /** Shows or hides the criteria. */
+  onToggle: () => void;
+  /** Leaves the advanced search. */
+  onQuit: () => void;
+}
+
+/**
+ * Header of the results of an advanced search: its title, « Modifier » / « Masquer les critères » and « Quitter ».
+ * @param {AdvancedSearchHeaderProps} props Component props (and those of its group).
+ * @returns {JSX.Element} Header.
+ */
+export function AdvancedSearchHeader({ open, onToggle, onQuit, ...props }: AdvancedSearchHeaderProps) {
+  return (
+    <Group justify="space-between" gap="xs" {...props}>
+      <Text size="sm" fw={600}>
+        Recherche avancée
+      </Text>
+      <Group gap={4}>
+        <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={onToggle}>
+          {open ? 'Masquer les critères' : 'Modifier'}
+        </Button>
+        <Button size="compact-xs" variant="subtle" color="gray" leftSection={<XIcon aria-hidden />} onClick={onQuit}>
+          Quitter
+        </Button>
+      </Group>
+    </Group>
   );
 }

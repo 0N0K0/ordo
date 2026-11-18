@@ -1,4 +1,5 @@
-import { ActionIcon, Collapse, Paper, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Collapse, Paper } from '@mantine/core';
 import { SlidersHorizontalIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 
@@ -18,11 +19,9 @@ interface LookToggleProps {
  */
 export function LookToggle({ label, ariaLabel, opened, onToggle }: LookToggleProps) {
   return (
-    <Tooltip label={label}>
-      <ActionIcon variant={opened ? 'light' : 'subtle'} color="gray" aria-label={ariaLabel} aria-expanded={opened} onClick={onToggle}>
-        <SlidersHorizontalIcon aria-hidden />
-      </ActionIcon>
-    </Tooltip>
+    <IconAction label={label} variant={opened ? 'light' : 'subtle'} aria-label={ariaLabel} aria-expanded={opened} onClick={onToggle}>
+      <SlidersHorizontalIcon aria-hidden />
+    </IconAction>
   );
 }
 

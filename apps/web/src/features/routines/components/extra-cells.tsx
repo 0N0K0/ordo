@@ -1,23 +1,26 @@
-import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Badge, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { BellIcon, PlusIcon } from '@phosphor-icons/react';
+import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
+
+import { cellPicker } from '../../../components/data-table/cells/cell-field';
+import { Badge, Select, Stack, Text } from '@mantine/core';
+import { BellIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
 import { useRoutineMutations, type Routine } from '../api';
-import { useRoutineCellEdit } from '../lib/routine-cell-edit';
+import { routineCellLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { EditableMultiSelect, EditableNumber, EditablePopoverCell, EditableTime } from '../../../components/data-table/cells/EditableCells';
-import { StackedValues } from '../../../components/data-table/cells/StackedValues';
+
 import { openRoutineForm } from '../lib/open-routine-form';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { ROUTINE_REMINDERS, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { routineTreeOptions, ruleOf } from '../lib/routine-format';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
+import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
 
 /**
  * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
@@ -32,25 +35,19 @@ const hasOwnTimes = (routine: Routine) => !routine.slotCondition && !(routine.ca
  * @returns {JSX.Element} Cell.
  */
 export function ParentRoutineCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'parent');
+  const { apply, count } = useRoutineCellEdit(routine, 'parent');
   // Neither the routine nor its sub-routines can be its parent.
   const below = subtreeOf(routines, routine.id);
   const options = routineTreeOptions(routines, (other) => !below.has(other.id));
   return (
     <Select
-      variant="unstyled"
-      size="xs"
-      aria-label={`Routine parente de ${routine.title}`}
-      placeholder={readOnly ? undefined : '—'}
-      readOnly={readOnly}
-      clearable={!readOnly}
+      {...cellPicker(readOnly)}
+      aria-label={routineCellLabel('Routine parente', routine, count)}
       searchable
       {...treeSelectProps(options)}
       value={routine.parentId ?? null}
       // A routine is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
-      onClick={stopClick}
-      comboboxProps={{ withinPortal: true }}
     />
   );
 }
@@ -63,22 +60,13 @@ export function ParentRoutineCell({ routine, routines, readOnly = false }: { rou
 export function SubRoutinesCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
-      <StackedValues>
-        {children.map((child) => (
-          <Text key={child.id} size="sm" truncate>
-            {child.title}
-          </Text>
-        ))}
-      </StackedValues>
-      {!readOnly && (
-        <Tooltip label="Ajouter une sous-routine">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-routine à ${routine.title}`} onClick={() => openRoutineForm({ parent: routine })} style={{ flex: 'none' }}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </Group>
+    <ChildrenCell add={!readOnly && { label: 'Ajouter une sous-routine', name: routine.label, onClick: () => openRoutineForm({ parent: routine }) }}>
+      {children.map((child) => (
+        <Text key={child.id} size="sm" truncate>
+          {child.label}
+        </Text>
+      ))}
+    </ChildrenCell>
   );
 }
 
@@ -89,7 +77,7 @@ export function SubRoutinesCell({ routine, routines, readOnly = false }: { routi
  * @returns {JSX.Element} Cell.
  */
 export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: Routine; field: 'fromTime' | 'dueTime'; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, field);
+  const { apply, count } = useRoutineCellEdit(routine, field);
   const ownTimes = hasOwnTimes(routine);
   if (!ownTimes) {
     return (
@@ -100,7 +88,7 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
   }
   return (
     <EditableTime
-      label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
+      label={routineCellLabel(field === 'fromTime' ? 'À partir de' : 'Avant', routine, count)}
       value={routine[field] ?? ''}
       readOnly={readOnly}
       onSave={(value) => apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
@@ -115,13 +103,13 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
  * @returns {JSX.Element} Cell.
  */
 export function LocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'location');
+  const { apply, count } = useRoutineCellEdit(routine, 'location');
   const [draft, setDraft] = useState<AddressValue | null>(null);
   const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
   return (
     <EditablePopoverCell width={360} empty={!routine.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={routine.location || '—'}>
       <AddressInput
-        aria-label={`Lieu de ${routine.title}`}
+        aria-label={routineCellLabel('Lieu', routine, count)}
         placeholder="Adresse ou lieu enregistré"
         withinPortal={false}
         value={draft ?? current}
@@ -141,10 +129,10 @@ export function LocationCell({ routine, readOnly = false }: { routine: Routine; 
  * @returns {JSX.Element} Cell.
  */
 export function TravelCell({ routine, field, readOnly = false }: { routine: Routine; field: 'travelBefore' | 'travelAfter'; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, field);
+  const { apply, count } = useRoutineCellEdit(routine, field);
   return (
     <EditableNumber
-      label={`${field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour'} (${routine.title})`}
+      label={routineCellLabel(field === 'travelBefore' ? 'Trajet aller' : 'Trajet retour', routine, count)}
       min={0}
       max={24 * 60}
       decimals={0}
@@ -163,17 +151,17 @@ export function TravelCell({ routine, field, readOnly = false }: { routine: Rout
  * @returns {JSX.Element} Cell.
  */
 export function RemindersCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
-  const { apply } = useRoutineCellEdit(routine, 'alarms');
+  const { apply, count } = useRoutineCellEdit(routine, 'alarms');
   const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <EditablePopoverCell
       width={280}
-      label={`Alertes de ${routine.title}`}
+      label={routineCellLabel('Rappels', routine, count)}
       readOnly={readOnly}
       target={
         <>
           {routine.reminders.length ? (
-            <Badge size="sm" variant="light" color="teal" leftSection={<BellIcon aria-hidden />} tt="none">
+            <Badge size="sm" variant="light" color="teal" leftSection={<BellIcon aria-hidden />}>
               {routine.reminders.length}
             </Badge>
           ) : (
@@ -186,7 +174,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
     >
       <Stack gap="xs">
         <RemindersSelect
-          label="Alertes"
+          label="Rappels"
           presets={ROUTINE_REMINDERS}
           value={routine.reminders}
           // On a selection, those added here are added to each routine, those removed here removed.
@@ -200,7 +188,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
           comboboxProps={{ withinPortal: false }}
         />
         <Text size="xs" c="dimmed">
-          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucune alerte.'}
+          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucun rappel.'}
         </Text>
       </Stack>
     </EditablePopoverCell>
@@ -243,11 +231,11 @@ export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; r
  */
 export function BlocksCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
   const { patch } = useRoutineMutations();
-  const { targets } = useRoutineCellEdit(routine, 'blocks');
+  const { targets, count } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   return (
     <EditableMultiSelect
-      label={`Routines qu’attend ${routine.title}`}
+      label={routineCellLabel('Routines en attente', routine, count)}
       {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
       value={waiting}
       readOnly={readOnly}
@@ -259,7 +247,7 @@ export function BlocksCell({ routine, routines, readOnly = false }: { routine: R
           if (added.includes(other.id)) required = [...new Set([...required, ...targets.filter((id) => id !== other.id)])];
           if (removed.includes(other.id)) required = required.filter((id) => !targets.includes(id));
           if (required.length !== other.requiredIds.length || required.some((id) => !other.requiredIds.includes(id))) {
-            patch.mutate({ id: other.id, input: { requiredIds: required } }, { onError: onMutationError });
+            patch.mutate({ id: other.id, input: { requiredIds: required } }, ON_ERROR);
           }
         }
       }}

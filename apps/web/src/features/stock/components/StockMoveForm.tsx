@@ -36,7 +36,7 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
         En stock : {fmt.quantity(item)}.
       </Text>
       <SegmentedControl data={KINDS} value={kind} onChange={(value) => setKind(value as Kind)} />
-      <QuantityInput label="Quantité" min={0.001} value={quantity} onChange={(value) => setQuantity(Number(value) || 0)} unit={item.unit} data-autofocus />
+      <QuantityInput label="Quantité" min={0.001} value={quantity} onChange={(value) => setQuantity(typeof value === 'number' ? value : 0)} unit={item.unit} data-autofocus />
       {(lots.length > 1 || (adding && lots.length > 0)) && (
         <Select
           label="Lot"

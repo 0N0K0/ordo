@@ -1,4 +1,5 @@
-import { addDays } from '@ordo/shared';
+import { relativeDay, TIME_ZONE } from './factories';
+import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
 import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
@@ -19,7 +20,7 @@ export interface SeededTeam {
   memberIds: string[];
   /** Relations out of the team. */
   relationIds: string[];
-  /** Contexts of spending, by name. */
+  /** Contexts of spending, by label. */
   contextIds: Map<string, string>;
 }
 
@@ -34,12 +35,8 @@ export interface SeededTeam {
  * @returns {Promise<SeededTeam>} Members, relations and contexts.
  */
 export async function seedTeam({ contributors, today, monday }: { contributors: Contributor[]; today: string; monday: string }): Promise<SeededTeam> {
-  const day = (offset: number) => addDays(today, offset);
-  const month = (offset: number) => {
-    const date = new Date(`${today.slice(0, 7)}-01T12:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() + offset);
-    return date.toISOString().slice(0, 7);
-  };
+  const day = relativeDay(today);
+  const month = (offset: number) => monthOfDay(shiftMonth(today, offset));
 
   // --- Members and relations ------------------------------------------------------------------------
   const members = [];
@@ -55,22 +52,22 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     ['Salon', '#be4bdb'],
     ['Séminaire', '#fd7e14'],
   ] as const) {
-    contextIds.set(name, (await saveContext(null, { name, color })).id);
+    contextIds.set(name, (await saveContext(null, { label: name, color })).id);
   }
   await saveContextPeriod(null, { contextId: contextIds.get('Salon')!, startDate: addDays(monday, 10), endDate: addDays(monday, 12), note: 'Salon professionnel' });
   await saveContextPeriod(null, { contextId: contextIds.get('Séminaire')!, startDate: addDays(monday, -9), endDate: addDays(monday, -8), note: 'Séminaire d’équipe' });
   await saveContextPeriod(null, { contextId: contextIds.get('Déplacement')!, startDate: day(-96), endDate: day(-95), note: 'Rendez-vous client à Paris' });
 
   // --- Budgets ---------------------------------------------------------------------------------------
-  const account = await prisma.treasuryAccount.findFirst({ where: { name: 'Compte courant pro' } });
-  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, name: true, direction: true } });
-  const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.name === name && item.direction === direction)?.id ?? null;
+  const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
+  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
+  const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === name && item.direction === direction)?.id ?? null;
   const budget = (
-    categoryName: string,
+    categoryLabel: string,
     amount: number,
     changes: { memberId?: string | null; relationId?: string | null; contextId?: string | null; repeatEvery?: number | null; month?: string; repeatUntil?: string | null },
   ) => {
-    const categoryId = category(categoryName);
+    const categoryId = category(categoryLabel);
     if (!categoryId) return null;
     return saveBudget(null, { month: month(-3), memberId: null, contextId: null, repeatEvery: 1, repeatUntil: null, ...changes, categoryId, amount });
   };
@@ -78,7 +75,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   await budget('Repas', 150, {});
   await budget('Matériel', 300, { memberId: members[0]?.id ?? null, repeatEvery: 3 });
   await budget('Déplacements', 250, { contextId: contextIds.get('Déplacement') ?? null });
-  await budget('Repas', 400, { contextId: contextIds.get('Salon') ?? null, repeatEvery: null, month: addDays(monday, 10).slice(0, 7) });
+  await budget('Repas', 400, { contextId: contextIds.get('Salon') ?? null, repeatEvery: null, month: monthOfDay(addDays(monday, 10)) });
   await budget('Divers', 200, { relationId: friend.id, repeatEvery: 6, repeatUntil: month(9) });
 
   // Money in: the expected sales, every month.
@@ -87,7 +84,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
 
   // --- An event with a relation (not a contributor), at an address with travel times ---------------------
   await createCalendarEvent({
-    title: 'Déjeuner avec Julien',
+    label: 'Déjeuner avec Julien',
     description: null,
     location: 'Les Halles Paul Bocuse, 102 cours Lafayette, 69003 Lyon',
     locationLat: 45.7629,
@@ -100,7 +97,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     startTime: '12:30',
     endDate: addDays(monday, 3),
     endTime: '14:00',
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timeZone: TIME_ZONE,
     recurrence: null,
     reminders: [30],
     projectId: null,
@@ -124,7 +121,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
       linkedEntryIds: [],
       libraryDocumentIds: [],
       projectResourceIds: [],
-      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { name: 'Carte' } }))?.id ?? null,
+      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Carte' } }))?.id ?? null,
     };
     const line = (
       value: number,
@@ -192,7 +189,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     });
     await createEntry({
       ...base,
-      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { name: 'Virement' } }))?.id ?? null,
+      methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Virement' } }))?.id ?? null,
       status: 'ACTUAL',
       date: day(-30),
       label: 'Julien rembourse la moitié du prêt',

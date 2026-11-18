@@ -3,6 +3,8 @@ import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
+import { LOCALE } from '@ordo/shared';
+import { PARIS } from '../../today';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -25,7 +27,7 @@ export function createPdf({ title, author, ...options }: PdfOptions): { doc: Doc
   const doc: Doc = new PDFDocument({
     bufferPages: true,
     font: FONTS.regular,
-    lang: 'fr-FR',
+    lang: LOCALE,
     displayTitle: true,
     ...options,
     info: { Title: title, ...(author === undefined ? {} : { Author: author }), Creator: 'Ordo', Producer: 'Ordo' },
@@ -86,7 +88,8 @@ export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
 export const PDF_TABLE = { border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0' };
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border };
 
-const exportFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
+// eslint-disable-next-line no-restricted-syntax -- the date of an export, in Paris.
+const exportFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeStyle: 'short', timeZone: PARIS });
 
 export interface Report {
   doc: Doc;
@@ -114,7 +117,7 @@ async function issuer(): Promise<{ name: string; logo: Buffer | null }> {
  */
 export async function issuerName(): Promise<string> {
   const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
-  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name || 'Ordo';
+  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { label: true } }))?.label || 'Ordo';
 }
 
 /**

@@ -1,3 +1,4 @@
+import { DEFAULT_LABEL_COLOR } from '@ordo/shared';
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
 import { personName, usePeopleOptions } from '../../../components/people/people-options';
 import { mapById, byPosition, lineageOf } from '@ordo/shared';
@@ -12,19 +13,19 @@ import * as fmt from '../../../lib/format';
 /**
  * Units of quantity offered (those of the shopping settings), with the current one even when it is no longer among
  * them.
- * @param {readonly { name: string }[]} units Units of the settings, in their order.
+ * @param {readonly { label: string }[]} units Units of the settings, in their order.
  * @param {string | null | undefined} [current] Unit of the product or item. Optional.
  * @returns {string[]} Units.
  */
-export const unitOptions = (units: readonly { name: string }[], current?: string | null) => {
-  const names = units.map((unit) => unit.name);
+export const unitOptions = (units: readonly { label: string }[], current?: string | null) => {
+  const names = units.map((unit) => unit.label);
   return current && !names.includes(current) ? [current, ...names] : names;
 };
 
 /** Fields shared by a product of a base list and an item of a list, as shown in a table. */
 export interface ShoppingFields {
   id: string;
-  name: string;
+  label: string;
   categoryId?: string | null;
   storeId?: string | null;
   url?: string | null;
@@ -46,7 +47,7 @@ export interface ShoppingFields {
  * @returns {ShoppingItemInput} Input.
  */
 export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
-  name: row.name,
+  label: row.label,
   categoryId: row.categoryId ?? null,
   storeId: row.storeId ?? null,
   url: row.url ?? null,
@@ -81,13 +82,13 @@ export function shoppingProgress(items: readonly { purchasedAt?: unknown; option
 }
 
 /**
- * Input of a new product or item with only a name, in a category (or store).
- * @param {string} name Name.
+ * Input of a new product or item with only a label, in a category (or store).
+ * @param {string} label Label.
  * @param {{ categoryId: string | null, storeId: string | null }} place Category and store.
  * @returns {ShoppingItemInput} Input.
  */
-export const blankInput = (name: string, place: Partial<Omit<ShoppingItemInput, 'name'>>): ShoppingItemInput => ({
-  name,
+export const blankInput = (label: string, place: Partial<Omit<ShoppingItemInput, 'label'>>): ShoppingItemInput => ({
+  label,
   categoryId: null,
   storeId: null,
   url: null,
@@ -220,7 +221,7 @@ interface ShoppingGroupLabels {
   categories: ShoppingCategory[];
   stores: ShoppingStore[];
   /** Ways of keeping. Optional (needed to group by them). */
-  storages?: { id: string; name: string; color?: string | null; position?: number }[];
+  storages?: { id: string; label: string; color?: string | null; position?: number }[];
   /** People by key ("m:id", "r:id"). Optional (needed to group by them). */
   people?: ReadonlyMap<string, string>;
 }
@@ -231,7 +232,7 @@ export type ShoppingRow<T> =
       kind: 'group';
       /** Category or store id, null for the rows without one. */
       id: string | null;
-      name: string;
+      label: string;
       color: string | null;
       depth: number;
       /** Ids of the categories above it. */
@@ -270,14 +271,14 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
 ): ShoppingRow<T>[] {
   const groups =
     grouping === 'category'
-      ? categoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
+      ? categoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, label: category.label, color, depth, parentId: category.parentId ?? null }))
       : grouping === 'store'
-        ? [...labels.stores].sort(byPosition).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }))
+        ? [...labels.stores].sort(byPosition).map((store) => ({ id: store.id, label: store.label, color: store.color, depth: 0, parentId: null }))
         : grouping === 'storage'
           ? [...(labels.storages ?? [])]
               .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-              .map((storage) => ({ id: storage.id, name: storage.name, color: storage.color ?? null, depth: 0, parentId: null }))
-          : [...(labels.people ?? [])].map(([id, name]) => ({ id, name, color: null, depth: 0, parentId: null }));
+              .map((storage) => ({ id: storage.id, label: storage.label, color: storage.color ?? null, depth: 0, parentId: null }))
+          : [...(labels.people ?? [])].map(([id, label]) => ({ id, label, color: null, depth: 0, parentId: null }));
   const known = new Set(groups.map((group) => group.id));
   const parentOf = new Map(groups.map((group) => [group.id, group.parentId && known.has(group.parentId) ? group.parentId : null]));
   /**
@@ -301,12 +302,12 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
     const subtree = inSubtree.get(group.id) ?? [];
     if (!showEmpty && subtree.length === 0) continue;
     const parents = chain(group.id).slice(0, -1);
-    rows.push({ kind: 'group', id: group.id, name: group.name, color: group.color, depth: group.depth, parents, items: subtree });
+    rows.push({ kind: 'group', id: group.id, label: group.label, color: group.color, depth: group.depth, parents, items: subtree });
     for (const item of items) if (keysOf.get(item)?.includes(group.id)) rows.push({ kind: 'item', item, depth: group.depth + 1, groupId: group.id, parents: [...parents, group.id] });
   }
   const others = items.filter((item) => !keysOf.get(item)?.length);
   if (others.length || showEmpty) {
-    rows.push({ kind: 'group', id: null, name: NO_GROUP_NAME[grouping], color: null, depth: 0, parents: [], items: others });
+    rows.push({ kind: 'group', id: null, label: NO_GROUP_NAME[grouping], color: null, depth: 0, parents: [], items: others });
     for (const item of others) rows.push({ kind: 'item', item, depth: 1, groupId: null, parents: [NO_GROUP] });
   }
   return rows;
@@ -351,7 +352,7 @@ export function usePeople() {
  */
 export function taskChoices(context: TaskContext | null) {
   const tasks = (context?.tasks ?? []).filter((task) => !task.closed && !task.archived);
-  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `${taskRef(task)}${task.title}`;
+  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`;
   return { tasks, labelOf };
 }
 
@@ -409,11 +410,11 @@ export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], con
 }
 
 /** Color of the units (they show none: the color rule asks for one). */
-export const UNIT_COLOR = '#868e96';
+export const UNIT_COLOR = DEFAULT_LABEL_COLOR;
 
 /**
  * « Gâteau · 1,5 »: a sheet an item of a list comes from, with its share (none: its name alone).
  * @param {{ name: string, quantity: number | null }} source Sheet and share.
  * @returns {string} Text.
  */
-export const sheetSourceText = (source: { name: string; quantity: number | null }) => (source.quantity !== null ? `${source.name} · ${fmt.number(source.quantity, 3)}` : source.name);
+export const sheetSourceText = (source: { label: string; quantity: number | null }) => (source.quantity !== null ? `${source.label} · ${fmt.quantity({ quantity: source.quantity })}` : source.label);

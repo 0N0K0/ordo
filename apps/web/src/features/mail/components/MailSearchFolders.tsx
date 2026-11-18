@@ -8,7 +8,6 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Badge, Box, Group, NavLink, Text } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
 import { EnvelopeSimpleIcon, FunnelIcon, MagnifyingGlassPlusIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
 import { MailListItem } from './MailListItem';
@@ -16,6 +15,7 @@ import { MailListPane } from './MailListPane';
 import { groupMails } from '../lib/mail-groups';
 import { MailSelectionBar } from './MailOrganizeActions';
 import { openSearchForm } from '../lib/open-search-form';
+import { selectionFlags, usePageSelection } from '../hooks/use-page-selection';
 
 /**
  * Search folders in the navigation: open one, create, edit, delete.
@@ -34,7 +34,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
   const askDelete = (search: MailSearch) => {
     confirmDestructive({
       title: 'Supprimer le dossier de recherche',
-      risks: <>Le dossier de recherche « {search.name} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
+      risks: <>Le dossier de recherche « {search.label} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
       onConfirm: () => {
         remove.mutate(
           search.id,
@@ -54,7 +54,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
           component="div"
           role="button"
           tabIndex={0}
-          label={search.name}
+          label={search.label}
           leftSection={<FunnelIcon aria-hidden />}
           active={selectedId === search.id}
           onClick={() => onSelect(search.id)}
@@ -66,7 +66,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
           }}
           rightSection={
             <ActionsMenu
-              name={search.name}
+              name={search.label}
               size="xs"
               inRow
               items={[
@@ -116,9 +116,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   const results = useMailSearchResults({ ...query, page: page - 1 });
   // Ticked mails, for the page of results shown.
   const pageKey = `${JSON.stringify(query)}|${page}`;
-  const [selection, setSelection] = useState<{ key: string; mails: string[] }>({ key: '', mails: [] });
-  const selected = selection.key === pageKey ? selection.mails : [];
-  const setSelected = (mails: string[]) => setSelection({ key: pageKey, mails });
+  const { selected, setSelected, tick } = usePageSelection<string>(pageKey);
   const { data: labels } = useMailLabels();
   const { data: accounts } = useMailAccounts();
   const several = (accounts?.length ?? 0) > 1;
@@ -150,8 +148,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
           {selected.length > 0 ? (
             <MailSelectionBar
               groups={groupMails(selectedMessages)}
-              done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
-              labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
+              {...selectionFlags(selectedMessages, labels)}
               onGone={() => {
                 if (open && selected.includes(mailKey(open))) onOpenGone();
                 setSelected([]);
@@ -183,12 +180,12 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
             ownAddresses={ownAddresses}
             active={open?.accountId === message.accountId && open.folder === message.folder && open.uid === message.uid}
             ticked={ticked}
-            onTick={(checked) => setSelected(checked ? [...selected, key] : selected.filter((item) => item !== key))}
+            onTick={(checked) => tick(key, checked)}
             onOpen={() => onOpen(message)}
             footer={
               <Box>
                 <Badge size="xs" variant="light" color="gray">
-                  {several ? `${accounts?.find((account) => account.id === message.accountId)?.name ?? ''} · ` : ''}
+                  {several ? `${accounts?.find((account) => account.id === message.accountId)?.label ?? ''} · ` : ''}
                   {message.folderName}
                 </Badge>
               </Box>

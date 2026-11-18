@@ -15,7 +15,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
   const { deleteCategory, moveCategory } = useShoppingMutations();
   const kind = useShoppingCategoryItems();
   const { data } = useShoppingData();
-  const baseListNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
+  const baseListNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.label]));
   return (
     <SettingsList
       {...kind}
@@ -30,7 +30,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
       move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
       renderBadges={(category) =>
         category.baseListIds.map((id) => (
-          <Badge key={id} size="xs" variant="light" color="gray" tt="none">
+          <Badge key={id} size="xs" variant="light" color="gray">
             {baseListNames.get(id)}
           </Badge>
         ))

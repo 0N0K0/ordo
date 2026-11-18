@@ -1,3 +1,5 @@
+import { toggledIn } from '../../../lib/sets';
+import { unarchived } from '../../../lib/archive';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { formCallbacks } from '../../../lib/form';
 import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
@@ -97,7 +99,7 @@ interface StatementImportProps {
  * @returns {JSX.Element} Form.
  */
 export function StatementImport({ accounts, onDone }: StatementImportProps) {
-  const open = accounts.filter((account) => !account.archived);
+  const open = unarchived(accounts);
   const [accountId, setAccountId] = useState<string | null>(open[0]?.id ?? null);
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState('');
@@ -264,7 +266,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           withColumnBorders
           fz="xs"
           verticalSpacing={2}
-          rowProps={(row) => ({ opacity: row.index < mapping.skipRows ? 0.4 : 1 })}
+          isDone={(row) => row.index < mapping.skipRows}
           cells={(row) => Object.fromEntries(Array.from({ length: columns }, (_, index) => [`c${index}`, row.cells[index] ?? '']))}
           actions={() => null}
           actionsWidth={8}
@@ -376,7 +378,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         toolbar={false}
         maxHeight="55vh"
         verticalSpacing={4}
-        rowProps={(row) => ({ opacity: ticked(row) ? 1 : 0.5 })}
+        isDone={(row) => !ticked(row)}
         leading={{
           width: 36,
           header: (
@@ -392,21 +394,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
               }
             />
           ),
-          cell: (row) => (
-            <Checkbox
-              size="xs"
-              aria-label={`Importer ${row.label}`}
-              checked={ticked(row)}
-              onChange={() =>
-                setExcluded((current) => {
-                  const next = new Set(current);
-                  if (next.has(row.key)) next.delete(row.key);
-                  else next.add(row.key);
-                  return next;
-                })
-              }
-            />
-          ),
+          cell: (row) => <Checkbox size="xs" aria-label={`Importer ${row.label}`} checked={ticked(row)} onChange={() => setExcluded((current) => toggledIn(current, row.key))} />,
         }}
         cells={(row) => ({
           date: <span style={{ whiteSpace: 'nowrap' }}>{fmt.day(row.date)}</span>,
@@ -424,14 +412,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
                   mt={4}
                   label={`Réalise la prévision « ${row.forecast.label} » du ${fmt.day(row.forecast.occurrence)}`}
                   checked={!notRealized.has(row.key)}
-                  onChange={() =>
-                    setNotRealized((current) => {
-                      const next = new Set(current);
-                      if (next.has(row.key)) next.delete(row.key);
-                      else next.add(row.key);
-                      return next;
-                    })
-                  }
+                  onChange={() => setNotRealized((current) => toggledIn(current, row.key))}
                 />
               )}
             </>

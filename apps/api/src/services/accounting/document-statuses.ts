@@ -1,10 +1,9 @@
-import { colorSchema, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE, type DocumentStatusCategory, type DocumentStatusScope } from '@ordo/shared';
-import { z } from 'zod';
+import { DEFAULT_LABEL_COLOR, type DocumentStatusCategory, type DocumentStatusScope, labelFormSchema, STATUS_CATEGORIES_BY_SCOPE } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, firstActive } from '../core/archive';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -29,20 +28,18 @@ export async function scopedStatus(statusId: string, type: AccountingDocumentTyp
   return status;
 }
 
-/** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */
-const DEFAULT_DOCUMENT_STATUSES = [
-  { scope: 'QUOTE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
-  { scope: 'QUOTE', name: 'Envoyé', color: '#228be6', category: 'SENT' },
-  { scope: 'QUOTE', name: 'Accepté', color: '#40c057', category: 'ACCEPTED' },
-  { scope: 'QUOTE', name: 'Refusé', color: '#fa5252', category: 'REFUSED' },
-  { scope: 'INVOICE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
-  { scope: 'INVOICE', name: 'Envoyée', color: '#228be6', category: 'SENT' },
-  { scope: 'INVOICE', name: 'Payée', color: '#40c057', category: 'PAID' },
-  { scope: 'INVOICE', name: 'Avoir à créer', color: '#fd7e14', category: 'CREDIT_DUE' },
-] as const satisfies readonly { scope: DocumentStatusScope; name: string; color: string; category: DocumentStatusCategory }[];
+/** Colors of the tracking statuses a professional workspace starts with (one per category of each scope, labelled as the category). */
+const DEFAULT_STATUS_COLORS: Record<DocumentStatusCategory, string> = {
+  TO_SEND: DEFAULT_LABEL_COLOR,
+  SENT: '#228be6',
+  ACCEPTED: '#40c057',
+  REFUSED: '#fa5252',
+  PAID: '#40c057',
+  CREDIT_DUE: '#fd7e14',
+};
 
 /**
- * Creates the default status of a category missing from a scope, at its end (its name taken by a status of
+ * Creates the default status of a category missing from a scope, at its end (its label taken by a status of
  * another category: numbered).
  * @param {DocumentStatusScope} scope Scope.
  * @param {DocumentStatusCategory} category Category.
@@ -50,13 +47,12 @@ const DEFAULT_DOCUMENT_STATUSES = [
  * @returns {Promise<DocumentStatus>} Status.
  */
 async function createDefaultStatus(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client): Promise<DocumentStatus> {
-  const preset = DEFAULT_DOCUMENT_STATUSES.find((item) => item.scope === scope && item.category === category);
-  const label = preset?.name ?? STATUS_CATEGORIES_BY_SCOPE[scope].find((item) => item.value === category)?.label ?? category;
-  const taken = new Set((await client.documentStatus.findMany({ where: { scope }, select: { name: true } })).map((item) => item.name));
-  let name = label;
-  for (let index = 2; taken.has(name); index += 1) name = `${label} (${index})`;
-  const { _max } = await client.documentStatus.aggregate({ where: { scope }, _max: { position: true } });
-  return client.documentStatus.create({ data: { scope, category, name, color: preset?.color ?? '#868e96', position: (_max.position ?? -1) + 1 } });
+  // A category of the scope (assertCategory, ensureDocumentStatuses): always listed.
+  const base = STATUS_CATEGORIES_BY_SCOPE[scope].find((item) => item.value === category)!.label;
+  const taken = new Set((await client.documentStatus.findMany({ where: { scope }, select: { label: true } })).map((item) => item.label));
+  let label = base;
+  for (let index = 2; taken.has(label); index += 1) label = `${base} (${index})`;
+  return client.documentStatus.create({ data: { scope, category, label, color: DEFAULT_STATUS_COLORS[category], position: await nextPositionIn('documentStatus', { scope }, client) } });
 }
 
 /**
@@ -83,9 +79,7 @@ export async function ensureDocumentStatuses(client: Client = prisma): Promise<v
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
-  const status =
-    (await client.documentStatus.findFirst({ where: { scope, category, archivedAt: null }, orderBy: BY_POSITION })) ??
-    (await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION }));
+  const status = await firstActive(client.documentStatus, { scope, category });
   return status ?? createDefaultStatus(scope, category, client);
 }
 
@@ -115,19 +109,19 @@ async function assertNotLast(status: DocumentStatus): Promise<void> {
  * Creates a status at the end of its scope.
  * @param {object} input Status.
  * @param {DocumentStatusScope} input.scope Scope.
- * @param {string} input.name Name.
+ * @param {string} input.label Label.
  * @param {string} input.color Color.
  * @param {DocumentStatusCategory} input.category Category.
  * @returns {Promise<DocumentStatus>} Status.
  */
-export async function createDocumentStatus(input: { scope: DocumentStatusScope; name: string; color: string; category: DocumentStatusCategory }): Promise<DocumentStatus> {
-  const data = parseInput(z.object({ name: labelNameSchema, color: colorSchema }), input);
+export async function createDocumentStatus(input: { scope: DocumentStatusScope; label: string; color: string; category: DocumentStatusCategory }): Promise<DocumentStatus> {
+  const data = parseInput(labelFormSchema, input);
   assertCategory(input.scope, input.category);
   const position = await nextPositionIn('documentStatus', { scope: input.scope });
   try {
     return await prisma.documentStatus.create({ data: { ...data, scope: input.scope, category: input.category, position } });
   } catch (error) {
-    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
+    return rethrowUnique(error, 'Un statut porte déjà ce libellé.');
   }
 }
 
@@ -135,19 +129,16 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
  * Renames, recolors or recategorizes a status.
  * @param {string} id Status id.
  * @param {object} input Changes (null: unchanged).
- * @param {string | null} [input.name] Name.
+ * @param {string | null} [input.label] Label.
  * @param {string | null} [input.color] Color.
  * @param {DocumentStatusCategory | null} [input.category] Category.
  * @returns {Promise<DocumentStatus>} Status.
  */
-export async function updateDocumentStatus(
-  id: string,
-  input: { name?: string | null; color?: string | null; category?: DocumentStatusCategory | null },
-): Promise<DocumentStatus> {
+export async function updateDocumentStatus(id: string, input: { label?: string | null; color?: string | null; category?: DocumentStatusCategory | null }): Promise<DocumentStatus> {
   const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
   await assertNotArchived('DOCUMENT_STATUS', id);
-  const data = parseInput(z.object({ name: labelNameSchema.optional(), color: colorSchema.optional() }), {
-    name: input.name ?? undefined,
+  const data = parseInput(labelFormSchema.partial(), {
+    label: input.label ?? undefined,
     color: input.color ?? undefined,
   });
   if (input.category && input.category !== status.category) {
@@ -157,7 +148,7 @@ export async function updateDocumentStatus(
   try {
     return await prisma.documentStatus.update({ where: { id }, data: { ...data, category: input.category ?? undefined } });
   } catch (error) {
-    return rethrowUnique(error, 'Un statut porte déjà ce nom.');
+    return rethrowUnique(error, 'Un statut porte déjà ce libellé.');
   }
 }
 
@@ -179,4 +170,3 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
     await tx.documentStatus.delete({ where: { id } });
   });
 }
-

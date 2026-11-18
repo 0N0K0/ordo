@@ -12,6 +12,7 @@ import { taskOptions } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
+import { shoppingListPath } from '../../../app/pages';
 
 const schema = shoppingListFormSchema.extend({ baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -45,7 +46,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   const { createList } = useShoppingMutations();
   const navigate = useNavigate();
   const form = useAppForm<Values>({
-    initialValues: { name: `${perso ? 'Achats' : 'Consommables'} du ${fmt.dayShort(new Date())}`, taskIds, baseListIds },
+    initialValues: { label: `${perso ? 'Achats' : 'Consommables'} du ${fmt.dayShort(new Date())}`, taskIds, baseListIds },
     schema: projectIds ? schema.extend({ taskIds: z.array(z.string()).min(1, 'Choisissez une tâche du projet : la liste y apparaît par ses tâches.') }) : schema,
   });
   // From a project: its tasks only (and those already chosen).
@@ -57,15 +58,15 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
 
   const handleSubmit = form.onSubmit((values) =>
     createList.mutate(
-      { name: values.name, taskIds: values.taskIds, baseListIds: values.baseListIds.filter((id) => missingOf(id) > 0) },
-      formCallbacks(form, 'Liste créée.', onDone, { then: (id: string) => navigate(`/shopping/${id}`) }),
+      { label: values.label, taskIds: values.taskIds, baseListIds: values.baseListIds.filter((id) => missingOf(id) > 0) },
+      formCallbacks(form, 'Liste créée.', onDone, { then: (id: string) => navigate(shoppingListPath(id)) }),
     ),
   );
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <BatchMultiSelect
           label="Tâches"
           required={Boolean(projectIds)}
@@ -85,7 +86,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
                   key={baseList.id}
                   value={baseList.id}
                   disabled={missingOf(baseList.id) === 0}
-                  label={`${baseList.name} (${missingOf(baseList.id)} ${plural(missingOf(baseList.id), 'manquant')})`}
+                  label={`${baseList.label} (${missingOf(baseList.id)} ${plural(missingOf(baseList.id), 'manquant')})`}
                 />
               ))}
             </Stack>

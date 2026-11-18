@@ -1,4 +1,4 @@
-import { normalize } from '@ordo/shared';
+import { sameName, normalize } from '../../lib/text';
 import type { ComboboxData, ComboboxItem, ComboboxItemGroup, ComboboxParsedItem, OptionsFilter } from '@mantine/core';
 
 /** Value of the option creating what was typed. */
@@ -17,14 +17,14 @@ function labelsOf(data: ComboboxData | undefined): string[] {
 
 /**
  * Options of a select that creates what is typed: those given, and « Créer « … » » when the text typed is none of
- * them (same name, whatever the case).
+ * them (same name, whatever the case and accents: sameName).
  * @param {ComboboxData | undefined} data Options.
  * @param {string} search Text typed.
  * @returns {ComboboxData | undefined} Options.
  */
 export function withCreate(data: ComboboxData | undefined, search: string): ComboboxData | undefined {
   const typed = search.trim();
-  if (!typed || labelsOf(data).some((label) => label.toLocaleLowerCase('fr') === typed.toLocaleLowerCase('fr'))) return data;
+  if (!typed || labelsOf(data).some((label) => sameName(label, typed))) return data;
   return [...((data ?? []) as ComboboxItem[]), { value: CREATE_VALUE, label: `Créer « ${typed} »` }] as ComboboxData;
 }
 

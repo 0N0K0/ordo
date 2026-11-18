@@ -37,7 +37,7 @@ export function EntryLinkSelect({ entryId, links, lines = true, withAccount = fa
       // Filtered by the server.
       filter={({ options }) => options}
       nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-      data={candidates.map((link) => ({ value: linkKey(link), label: withAccount ? `${describeLink(link)} · ${link.accountName}` : describeLink(link) }))}
+      data={candidates.map((link) => ({ value: linkKey(link), label: withAccount ? `${describeLink(link)} · ${link.accountLabel}` : describeLink(link) }))}
       value={null}
       onChange={(key) => {
         const link = candidates.find((item) => linkKey(item) === key);
@@ -76,7 +76,6 @@ export function LinkBadge({ link, onUnlink, variant = 'light', size, children, w
       color={link.amount < 0 ? 'red' : 'green'}
       leftSection={<LinkIcon aria-hidden />}
       rightSection={onUnlink && <RemoveButton variant="field" size="xs" label="Délier" aria-label={`Délier ${describeLink(link)}`} onClick={onUnlink} />}
-      tt="none"
     >
       {children ?? describeLink(link)}
     </Badge>

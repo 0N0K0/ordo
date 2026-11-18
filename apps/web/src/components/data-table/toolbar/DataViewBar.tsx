@@ -1,5 +1,5 @@
-import { Button, Group, Select, Switch } from '@mantine/core';
-import { GROUP_PERIODS, type GroupPeriod } from '@ordo/shared';
+import { Group, Select, Switch } from '@mantine/core';
+import { GROUP_PERIODS, SCALE_LABELS, type GroupPeriod } from '@ordo/shared';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
 import { BulkHint } from '../selection/BulkHint';
 import { useState, type ReactNode } from 'react';
@@ -13,9 +13,11 @@ import { columnFilter, groupableColumns, tableFilterFields } from '../table/tabl
 import { downloadTableCsv, downloadTablePdf, type TableExport } from '../table/table-export';
 import { TableOptions, TableToolbar, ToolbarFilter, ToolbarSort } from './TableToolbar';
 import type { DataView } from '../views/use-data-view';
+import { ActionButton } from '../../actions/ActionButton';
+import { ShowArchivedSwitch } from '../../filters/ShowArchivedSwitch';
 
 /** Names of the periods of a grouping on a date. */
-const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: 'Jour', WEEK: 'Semaine', MONTH: 'Mois', QUARTER: 'Trimestre', YEAR: 'Année' };
+const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: SCALE_LABELS.day, WEEK: SCALE_LABELS.week, MONTH: SCALE_LABELS.month, QUARTER: SCALE_LABELS.quarter, YEAR: SCALE_LABELS.year };
 
 /**
  * CSV and PDF buttons of the exports of a table.
@@ -26,12 +28,12 @@ function ExportButtons<R>({ table, disabled = false }: { table: () => TableExpor
   const [exporting, setExporting] = useState(false);
   return (
     <Group gap="xs" grow>
-      <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} disabled={disabled} onClick={() => downloadTableCsv(table())}>
+      <ActionButton priority="secondary" icon={<FileCsvIcon aria-hidden />} disabled={disabled} onClick={() => downloadTableCsv(table())}>
         CSV
-      </Button>
-      <Button
-        variant="default"
-        leftSection={<FilePdfIcon aria-hidden />}
+      </ActionButton>
+      <ActionButton
+        priority="secondary"
+        icon={<FilePdfIcon aria-hidden />}
         disabled={disabled}
         loading={exporting}
         onClick={() => {
@@ -42,7 +44,7 @@ function ExportButtons<R>({ table, disabled = false }: { table: () => TableExpor
         }}
       >
         PDF
-      </Button>
+      </ActionButton>
     </Group>
   );
 }
@@ -56,7 +58,7 @@ function TableExportButtons<R>({ view, subtitle }: { view: DataView<R>; subtitle
   return (
     <ExportButtons
       disabled={view.rows.length === 0}
-      table={() => ({ title: view.title, subtitle: subtitle ?? view.views.current?.name ?? '', columns: view.shown, groups: view.groups, grouped: Boolean(view.groupColumn) })}
+      table={() => ({ title: view.title, subtitle: subtitle ?? view.views.current?.label ?? '', columns: view.shown, groups: view.groups, grouped: Boolean(view.groupColumn) })}
     />
   );
 }
@@ -107,6 +109,7 @@ export function DataViewBar<R>({
         <div style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs state={views} />
         </div>
+        {view.archivedToggle && <ShowArchivedSwitch {...view.archivedToggle} />}
         {actions}
       </Group>
       {config && (
@@ -142,13 +145,6 @@ export function DataViewBar<R>({
                     />
                   )}
                   {tree && <Switch label="Sous-éléments à plat" checked={config.flat} onChange={(event) => view.change((current) => ({ ...current, flat: event.currentTarget.checked }))} />}
-                  {view.hasArchived && (
-                    <Switch
-                      label="Inclure les archivées"
-                      checked={config.includeArchived}
-                      onChange={(event) => view.change((current) => ({ ...current, includeArchived: event.currentTarget.checked }))}
-                    />
-                  )}
                   {displayOptions}
                 </>
               }

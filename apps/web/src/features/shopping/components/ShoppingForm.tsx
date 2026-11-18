@@ -20,6 +20,8 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from './ProductFields';
+import { plural } from '../../../lib/text';
+import { PAGES } from '../../../app/pages';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -56,7 +58,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const people = usePeople();
   const form = useAppForm<FormValues>({
     initialValues: {
-      name: current?.name ?? '',
+      label: current?.label ?? '',
       categoryId: current?.categoryId ?? null,
       storeId: current?.storeId ?? null,
       url: current?.url ?? '',
@@ -95,11 +97,11 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
     <Stack gap="lg">
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
-          <TextInput label="Label" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Label" required data-autofocus {...form.getInputProps('label')} />
           {target.kind === 'item' && target.item && target.item.sheetSources.length > 0 && (
             <Text size="xs" c="dimmed">
-              Vient {target.item.sheetSources.length > 1 ? 'des fiches' : 'de la fiche'}{' '}
-              <Anchor component={Link} to="/sheets" size="xs">
+              Vient {plural(target.item.sheetSources.length, 'de la fiche', 'des fiches')}{' '}
+              <Anchor component={Link} to={PAGES.sheets.path} size="xs">
                 {target.item.sheetSources.map(sheetSourceText).join(', ')}
               </Anchor>
               .
@@ -184,7 +186,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           <FormActions onCancel={onDone} submitLabel={current ? 'Enregistrer' : 'Ajouter'} loading={pending} />
         </Stack>
       </form>
-      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} />}
+      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} readOnly={target.product.archived} />}
       {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} />}
     </Stack>
   );

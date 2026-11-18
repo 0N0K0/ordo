@@ -16,7 +16,7 @@ const NotificationSource = builder.enumType('NotificationSource', {
 builder.prismaObject('Workspace', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     kind: t.expose('kind', { type: WorkspaceKind }),
     position: t.exposeInt('position'),
     notifyElsewhere: t.field({
@@ -31,7 +31,7 @@ builder.prismaObject('Workspace', {
 
 const WorkspaceInput = builder.inputType('WorkspaceInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     kind: t.field({ type: WorkspaceKind, required: true }),
   }),
 });

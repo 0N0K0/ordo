@@ -1,8 +1,9 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PersonOption, PersonRow } from '../../../components/people/PersonOption';
+import { PersonRow } from '../../../components/people/people-rows';
 import { listSelectProps } from '../../../components/items/item-look';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { createdId } from '../../../components/settings/settings-api';
@@ -10,13 +11,13 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { ActionIcon, Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { archiveEntry, archiveWithUndo, unarchived, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, unarchived, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { toastCallbacks } from '../../../lib/notify';
@@ -31,6 +32,8 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -45,7 +48,6 @@ export function TeamMembers() {
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
   const setArchived = useSetArchived('CONTRIBUTOR');
-  const [showArchived, setShowArchived] = useState(false);
   // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
   const contributorById = mapById(context?.contributors ?? []);
   const members = (settings?.treasuryMembers ?? [])
@@ -56,7 +58,7 @@ export function TeamMembers() {
       ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}),
     }));
   const memberIds = new Set(members.map((member) => member.id));
-  const shownMembers = visibleItems(members, showArchived);
+  const { shown: shownMembers, toggle: membersToggle } = useArchivedToggle(members);
   // A relation is not a member too.
   const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
   const others = unarchived(context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
@@ -66,7 +68,7 @@ export function TeamMembers() {
     <SettingsSection
       title={team}
       description="Les mouvements se répartissent entre les membres. Chaque membre est aussi un contributeur (tâches, projets, agenda) ; retiré, il le reste."
-      actions={<ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={members.filter((member) => member.archived).length} />}
+      actions={<ShowArchivedSwitch {...membersToggle} />}
     >
       <Table verticalSpacing={4}>
         <Table.Tbody>
@@ -92,29 +94,18 @@ export function TeamMembers() {
               </Table.Td>
               <Table.Td w={1}>
                 {!member.isMe && (
-                  <Group gap={4} wrap="nowrap">
-                    <Tooltip label={member.archived ? 'Restaurer le contributeur' : 'Archiver le contributeur'}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label={member.archived ? `Restaurer ${member.name}` : `Archiver ${member.name}`}
-                        onClick={() => void archiveWithUndo(setArchived, { ids: [member.id], archived: !member.archived, label: member.name })}
-                      >
-                        {member.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label={`Retirer du ${team.toLowerCase()} (reste contributeur)`}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label={`Retirer ${member.name}`}
-                        loading={removeMember.isPending && removeMember.variables === member.id}
-                        onClick={() => removeMember.mutate(member.id, toastCallbacks(`${member.name} n’est plus membre.`))}
-                      >
-                        <UserMinusIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
+                  <InlineActions
+                    name={member.name}
+                    items={[
+                      archiveEntry({ archived: member.archived, type: 'Membre', label: member.name }, setArchived, member.id),
+                      {
+                        label: 'Retirer',
+                        hint: `Retirer du ${team.toLowerCase()} (reste contributeur)`,
+                        icon: <UserMinusIcon aria-hidden />,
+                        onClick: () => removeMember.mutate(member.id, toastCallbacks(`${member.name} n’est plus membre.`)),
+                      },
+                    ]}
+                  />
                 )}
               </Table.Td>
             </Table.Tr>
@@ -129,10 +120,7 @@ export function TeamMembers() {
           disabled={!others.length}
           searchable
           data={others.map((item) => ({ value: item.id, label: item.name }))}
-          renderOption={({ option }) => {
-            const contributor = contributorById.get(option.value);
-            return <PersonOption name={option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
-          }}
+          renderOption={personOptionRenderer(contributorById)}
           value={null}
           onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, toastCallbacks('Membre ajouté.'))}
         />
@@ -148,11 +136,17 @@ export function TeamMembers() {
         >
           <Group gap={4} wrap="nowrap">
             <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom d’un nouveau membre" placeholder="Ou un nouveau membre…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            <Tooltip label="Ajouter (crée le contributeur)">
-              <ActionIcon type="submit" variant="light" size="input-xs" aria-label="Ajouter le nouveau membre" disabled={!name.trim()} loading={addMember.isPending}>
-                <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <IconAction
+              label="Ajouter (crée le contributeur)"
+              type="submit"
+              variant="light"
+              size="input-xs"
+              aria-label="Ajouter le nouveau membre"
+              disabled={!name.trim()}
+              loading={addMember.isPending}
+            >
+              <PlusIcon aria-hidden />
+            </IconAction>
           </Group>
         </form>
       </SimpleGrid>
@@ -161,14 +155,14 @@ export function TeamMembers() {
 }
 
 /**
- * Context form: name and color.
- * @param {{ context?: TreasuryContext, onDone: (createdId?: string) => void }} props Component props; the form closes with the id of the context created.
+ * Context form: label and color.
+ * @param {{ context?: TreasuryContext, label?: string, onDone: (createdId?: string) => void }} props Component props (the label typed in a select, for a new one); the form closes with the id of the context created.
  * @returns {JSX.Element} Form.
  */
-export function ContextForm({ context, onDone }: { context?: TreasuryContext; onDone: (createdId?: string) => void }) {
+export function ContextForm({ context, label = '', onDone }: { context?: TreasuryContext; label?: string; onDone: (createdId?: string) => void }) {
   const { saveContext } = useTreasuryTeamMutations();
   const swatches = useColorSwatches();
-  const form = useAppForm<{ name: string; color: string }>({ initialValues: { name: context?.name ?? '', color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
+  const form = useAppForm<{ label: string; color: string }>({ initialValues: { label: context?.label ?? label, color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
   return (
     <form
       noValidate
@@ -180,7 +174,7 @@ export function ContextForm({ context, onDone }: { context?: TreasuryContext; on
       )}
     >
       <Stack gap="sm">
-        <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
+        <TextInput label="Libellé" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
         <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
@@ -204,6 +198,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
     },
     schema: treasuryContextPeriodSchema,
   });
+  const days = dateRangeProps(formRange(form, 'startDate', 'endDate'));
   return (
     <form
       noValidate
@@ -214,14 +209,8 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
       <Stack gap="sm">
         <Select label="Contexte" required allowDeselect={false} {...listSelectProps(contexts, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
         <SimpleGrid cols={2} spacing="sm">
-          <DatePickerInput
-            label="Du"
-            required
-            {...form.getInputProps('startDate')}
-            // The end follows a start set after it.
-            onChange={(date) => form.setValues({ startDate: date ?? '', ...(date && (!form.values.endDate || form.values.endDate < date) ? { endDate: date } : {}) })}
-          />
-          <DatePickerInput label="Au" required minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Du" required {...days.start} />
+          <DatePickerInput label="Au" required {...days.end} />
         </SimpleGrid>
         <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
         <FormActions onCancel={onDone} loading={saveContextPeriod.isPending} />
@@ -241,10 +230,8 @@ function Contexts() {
   const { saveContext, deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
   const contexts = settings?.treasuryContexts ?? [];
   const contextById = mapById(contexts);
-  const [showArchived, setShowArchived] = useState(false);
-  const allPeriods = settings?.treasuryContextPeriods ?? [];
   const archivedPeriod = (period: TreasuryContextPeriod) => Boolean(contextById.get(period.contextId)?.archived);
-  const periods = allPeriods.filter((period) => showArchived || !archivedPeriod(period));
+  const { shown: periods, toggle: periodsToggle } = useArchivedToggle(settings?.treasuryContextPeriods ?? [], archivedPeriod);
   /**
    * Opens the form of a new or changed period.
    * @param {TreasuryContextPeriod} [period] Period changed. Optional.
@@ -262,12 +249,12 @@ function Contexts() {
         noun="le contexte"
         items={contexts}
         schema={treasuryContextSchema}
-        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { name: values.name, color: values.color } }))}
-        update={(id, values) => saveContext.mutateAsync({ id, input: { name: values.name, color: values.color } })}
+        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { label: values.label, color: values.color } }))}
+        update={(id, values) => saveContext.mutateAsync({ id, input: { label: values.label, color: values.color } })}
         remove={(id) => deleteContext.mutateAsync(id)}
         deleteMessage={(item) => (
           <>
-            « {item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ». Cette action est irréversible.
+            « {item.label} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ».
           </>
         )}
       />
@@ -276,7 +263,7 @@ function Contexts() {
         title="Contextes planifiés"
         actions={
           <>
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={allPeriods.filter(archivedPeriod).length} label="Afficher les archivées" />
+            <ShowArchivedSwitch {...periodsToggle} label="Afficher les archivées" />
             <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!unarchived(contexts).length} onClick={() => openPeriod()}>
               Nouvelle période
             </ActionButton>
@@ -295,8 +282,8 @@ function Contexts() {
                   <Table.Tr key={period.id}>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
-                        {item && <ItemAvatar name={item.name} iconUrl={item.iconUrl} color={item.color} />}
-                        <Text size="sm">{item?.name}</Text>
+                        {item && <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} />}
+                        <Text size="sm">{item?.label}</Text>
                         {item?.archived && <ArchivedBadge size="xs" />}
                       </Group>
                       {period.note && (
@@ -314,7 +301,7 @@ function Contexts() {
                       {/* A period is part of its context: read only while it is archived. */}
                       {!item?.archived && (
                         <InlineActions
-                          name={`la période ${item?.name ?? ''} du ${fmt.day(period.startDate)}`}
+                          name={`${item?.label ?? ''} du ${fmt.day(period.startDate)}`}
                           items={[
                             { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openPeriod(period) },
                             {
@@ -324,8 +311,9 @@ function Contexts() {
                               onClick: () =>
                                 confirmDestructive({
                                   title: 'Supprimer la période',
-                                  risks: `La période « ${item?.name ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                                  onConfirm: () => deleteContextPeriod.mutate(period.id, toastCallbacks('Période supprimée.')),
+                                  risks: `La période « ${item?.label ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                                  run: () => deleteContextPeriod.mutateAsync(period.id),
+                                  done: 'Période supprimée.',
                                 }),
                             },
                           ]}
@@ -358,15 +346,15 @@ export function TeamPanel() {
 
 /**
  * Relation form: name and note.
- * @param {{ relation?: TreasuryRelation, onDone: (createdId?: string) => void }} props Component props; the form closes with the id of the relation created.
+ * @param {{ relation?: TreasuryRelation, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the relation created.
  * @returns {JSX.Element} Form.
  */
-export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation; onDone: (createdId?: string) => void }) {
+export function RelationForm({ relation, name = '', onDone }: { relation?: TreasuryRelation; name?: string; onDone: (createdId?: string) => void }) {
   const { saveRelation } = useTreasuryTeamMutations();
   const { data: settings } = useTreasurySettings();
   const { context } = useTaskContext();
   const form = useAppForm<{ name: string; note: string | null; contributorId: string | null }>({
-    initialValues: { name: relation?.name ?? '', note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
+    initialValues: { name: relation?.name ?? name, note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
     schema: treasuryRelationSchema,
   });
   // Contributors that are no member nor another relation already.
@@ -417,7 +405,6 @@ export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
   const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey]);
-  const [showArchived, setShowArchived] = useState(false);
   /**
    * Opens the form of a new or changed relation.
    * @param {TreasuryRelation} [relation] Relation changed. Optional.
@@ -426,8 +413,7 @@ export function TeamRelations() {
   const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? 'Modifier la relation' : 'Nouvelle relation', (close) => <RelationForm relation={relation} onDone={close} />);
   const { context } = useTaskContext();
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
-  const allRelations = settings?.treasuryRelations ?? [];
-  const relations = visibleItems(allRelations, showArchived);
+  const { shown: relations, toggle: relationsToggle } = useArchivedToggle(settings?.treasuryRelations ?? []);
   const uses = (relation: TreasuryRelation) =>
     [relation.lineCount ? countOf(relation.lineCount, 'ligne') : '', relation.budgetCount ? countOf(relation.budgetCount, 'budget') : ''].filter(Boolean).join(', ');
 
@@ -436,7 +422,7 @@ export function TeamRelations() {
       title="Relations"
       actions={
         <>
-          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={allRelations.filter((relation) => relation.archived).length} label="Afficher les archivées" />
+          <ShowArchivedSwitch {...relationsToggle} label="Afficher les archivées" />
           <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openRelation()}>
             Nouvelle relation
           </ActionButton>
@@ -474,7 +460,7 @@ export function TeamRelations() {
                     name={relation.name}
                     items={[
                       !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
-                      archiveEntry({ archived: relation.archived, label: `« ${relation.name} »`, feminine: true }, setArchived, relation.id),
+                      archiveEntry({ archived: relation.archived, type: 'Relation', label: relation.name, feminine: true }, setArchived, relation.id),
                       {
                         label: 'Supprimer',
                         icon: <TrashIcon aria-hidden />,
@@ -483,7 +469,8 @@ export function TeamRelations() {
                           confirmDestructive({
                             title: 'Supprimer la relation',
                             risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                            onConfirm: () => deleteRelation.mutate(relation.id, toastCallbacks('Relation supprimée.')),
+                            run: () => deleteRelation.mutateAsync(relation.id),
+                            done: 'Relation supprimée.',
                           }),
                       },
                     ]}

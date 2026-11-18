@@ -1,7 +1,7 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { PAGES } from '../../../app/pages';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { BackLink } from '../../../components/page/BackLink';
+import { PAGES, SHOPPING_LISTS_PATH } from '../../../app/pages';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+
 import { unarchived } from '../../../lib/archive';
 import { countOf, plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
@@ -10,13 +10,12 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+
 import {
   ArchiveIcon,
   BankIcon,
   CalendarPlusIcon,
-  DotsThreeVerticalIcon,
   ListPlusIcon,
   PencilSimpleIcon,
   PencilSimpleLineIcon,
@@ -45,9 +44,9 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { ProductPicker } from '../components/ProductPicker';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
-import { blankInput, EMPTY_GROUPS_LABEL, listClosed, listTasks, usePeople, type ShoppingGrouping, shoppingProgress } from '../lib/shopping-format';
+import { blankInput, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
 import { ShoppingSettings } from '../components/ShoppingSettings';
-import { GroupingControl } from '../components/GroupingControl';
+import { GroupingOptions } from '../components/GroupingControl';
 import { itemColumns, optionalColumn } from '../lib/shopping-columns';
 import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
@@ -62,6 +61,8 @@ import * as fmt from '../../../lib/format';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { Comments } from '../../comments/components/Comments';
+import { DetailHeader } from '../../../components/page/DetailHeader';
+import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -71,13 +72,13 @@ type ShoppingItem = ShoppingList['items'][number];
  * @returns {{ sheetId: string, name: string }[]} Sheets.
  */
 const listSheets = (items: ShoppingItem[]) => [
-  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, name: source.name }] as const))).values(),
+  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, label: source.label }] as const))).values(),
 ];
 
 /** Views made the first time a list is shown: every item (opened first), what is left to buy. */
 const LIST_VIEWS: FirstTableView[] = [
-  { name: 'Tout' },
-  { name: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
+  { label: 'Tout' },
+  { label: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
 ];
 
 /**
@@ -93,9 +94,9 @@ export function ShoppingListPage() {
   const { data } = useShoppingData();
   const { context } = useTaskContext();
   const mutations = useShoppingMutations();
-  const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
+  const groupingOptions = useShoppingGrouping('list');
+  const { grouping, showEmpty } = groupingOptions;
   const [storeMode, setStoreMode] = useState(false);
-  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const list = lists?.find((item) => item.id === id);
   // Projects of the list, through its tasks: their contributors are the members offered.
   const people = usePeople();
@@ -139,7 +140,7 @@ export function ShoppingListPage() {
         size: 100,
         numeric: true,
         sortValue: (item) => (item.productId && inStock.has(item.productId) ? inStock.get(item.productId)! : null),
-        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.number(inStock.get(item.productId)!, 3) : ''),
+        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.quantity({ quantity: inStock.get(item.productId) }) : ''),
         filter: { kind: 'number', value: (item) => (item.productId ? (inStock.get(item.productId) ?? null) : null) },
       },
       {
@@ -157,12 +158,12 @@ export function ShoppingListPage() {
         id: 'sheets',
         label: 'Fiches',
         size: 180,
-        sortValue: (item) => item.sheetSources.map((source) => source.name).join(', ') || null,
-        text: (item) => item.sheetSources.map((source) => source.name).join(', '),
+        sortValue: (item) => item.sheetSources.map((source) => source.label).join(', ') || null,
+        text: (item) => item.sheetSources.map((source) => source.label).join(', '),
         filter: {
           kind: 'choices',
           value: (item) => item.sheetSources.map((source) => source.sheetId),
-          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.name })),
+          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.label })),
         },
       },
       commentColumn<ShoppingItem>(
@@ -177,7 +178,7 @@ export function ShoppingListPage() {
     getKey: (item) => item.id,
     columns,
     rows: [...(list?.items ?? [])].sort(byPosition),
-    title: list?.name ?? 'Liste d’achats',
+    title: list?.label ?? 'Liste d’achats',
     first: LIST_VIEWS,
     bulkColumns: [{ id: 'bought', label: 'Acheté' }],
   });
@@ -206,7 +207,7 @@ export function ShoppingListPage() {
     return <TableSkeleton rows={4} />;
   }
   if (!list) {
-    return <DetailNotFound what="Cette liste" feminine backTo="/shopping?tab=lists" backLabel="Listes d’achats" />;
+    return <DetailNotFound what="Cette liste" feminine backTo={SHOPPING_LISTS_PATH} backLabel="Listes d’achats" />;
   }
 
   const tasks = listTasks(list, context);
@@ -221,24 +222,22 @@ export function ShoppingListPage() {
   return (
     <Stack gap="lg">
       <ShoppingSettings />
-      <Group gap="sm" align="flex-start" wrap="nowrap">
-        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <BackLink to="/shopping?tab=lists">Listes d’achats</BackLink>
-          <PageHeader title={PAGES.shopping.title} />
-          <Group gap="xs">
-            <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
-              {list.name}
-            </Title>
-            {list.archived ? (
-              <ArchivedBadge feminine />
-            ) : (
-              closed && (
-                <Badge variant="light" color="gray" tt="none">
-                  Clôturée
-                </Badge>
-              )
-            )}
-          </Group>
+      <DetailHeader
+        back={{ to: SHOPPING_LISTS_PATH, label: 'Listes d’achats' }}
+        page={<PageHeader title={PAGES.shopping.title} />}
+        title={list.label}
+        badges={
+          list.archived ? (
+            <ArchivedBadge feminine />
+          ) : (
+            closed && (
+              <Badge variant="light" color="gray">
+                Clôturée
+              </Badge>
+            )
+          )
+        }
+        subtitle={
           <Group gap="md">
             {tasks.map((task) => (
               <TaskRef key={task.id} task={task} blocked={context?.isBlocked(task)} />
@@ -246,7 +245,7 @@ export function ShoppingListPage() {
             {list.entry && (
               <Group gap={4} wrap="nowrap">
                 <BankIcon aria-hidden size={14} />
-                <Anchor component={Link} to="/treasury" size="sm">
+                <Anchor component={Link} to={PAGES.treasury.path} size="sm">
                   {list.entry.label} · {fmt.money(list.entry.amount)} · {fmt.day(list.entry.date)}
                 </Anchor>
               </Group>
@@ -256,19 +255,14 @@ export function ShoppingListPage() {
               {total > 0 && ` · ${fmt.money(spent)} sur ${fmt.money(total)} estimés`}
             </Text>
           </Group>
-        </Stack>
-      </Group>
+        }
+      />
 
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
         manualText="Sans tri : l’ordre de la liste, dans ses catégories."
-        displayOptions={
-          <>
-            <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-          </>
-        }
+        displayOptions={<GroupingOptions {...groupingOptions} />}
         actions={
           <Group gap="sm" ml="auto" wrap="wrap">
             {!closed && (
@@ -307,16 +301,7 @@ export function ShoppingListPage() {
             <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
-            <ListActionsMenu
-              list={list}
-              grouping={grouping}
-              onDeleted={() => navigate('/shopping?tab=lists')}
-              target={
-                <ActionIcon variant="default" size="input-sm" aria-label={`Actions de la liste ${list.name}`}>
-                  <DotsThreeVerticalIcon aria-hidden />
-                </ActionIcon>
-              }
-            />
+            <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />
           </Group>
         }
       />
@@ -333,7 +318,7 @@ export function ShoppingListPage() {
               ...deleteRowsAction(rows, {
                 label: 'Retirer de la liste',
                 title: 'Retirer les éléments',
-                risks: `${countOf(rows.length, 'élément')} seront retirés de la liste ; ceux qui ne sont dans aucune référence seront supprimés définitivement.`,
+                risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la liste ; ${plural(rows.length, 's’il n’est dans aucune référence, il sera supprimé', 'ceux qui ne sont dans aucune référence seront supprimés')} définitivement.`,
                 remove: (item) => mutations.deleteItem.mutateAsync({ id: item.id }),
                 done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
                 clear,
@@ -343,7 +328,7 @@ export function ShoppingListPage() {
           ]}
           items={[...list.items].sort(byPosition)}
           grouping={grouping}
-          label={`Éléments de ${list.name}`}
+          label={`Éléments de ${list.label}`}
           readOnly={closed}
           showEmpty={showEmpty}
           add={
@@ -359,13 +344,13 @@ export function ShoppingListPage() {
           extraCells={(item) => ({
             inStock: item.productId && inStock.has(item.productId) && (
               <Text span size="sm" c="dimmed" ff="monospace">
-                {fmt.number(inStock.get(item.productId)!, 3)}
+                {fmt.quantity({ quantity: inStock.get(item.productId) })}
               </Text>
             ),
             delivery: list.remote && (
               <EditableSelect
                 value={item.deliveryId ?? null}
-                label={`Livraison de ${item.name}`}
+                label={`Livraison de ${item.label}`}
                 nullable
                 data={deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) }))}
                 onSave={(deliveryId) => bulkDelivery(item, deliveryId)}
@@ -377,7 +362,7 @@ export function ShoppingListPage() {
             id: 'bought',
             name: 'Acheté',
             value: (item) => Boolean(item.purchasedAt),
-            label: (item) => `${item.name} acheté`,
+            label: (item) => `${item.label} acheté`,
             hint: (item) => (item.purchasedAt ? 'Acheté (cliquer : pas encore acheté)' : 'À acheter (cliquer : acheté)'),
             icon: <CheckIcon aria-hidden />,
             color: 'green',
@@ -391,7 +376,7 @@ export function ShoppingListPage() {
           }}
           badge={(item) =>
             !item.productId && (
-              <Badge size="xs" variant="outline" color="gray" tt="none" style={{ flex: 'none' }}>
+              <Badge size="xs" variant="outline" color="gray" style={{ flex: 'none' }}>
                 hors liste
               </Badge>
             )
@@ -399,14 +384,14 @@ export function ShoppingListPage() {
           summary={(items) => `${items.filter((item) => item.purchasedAt).length} / ${items.length}`}
           actions={(item) => (
             <RowActions
-              name={item.name}
+              name={item.label}
               primary={!closed && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }}
               items={[
                 ...(!item.productId && !closed
                   ? baseLists.map((baseList) => ({
-                      label: `Ajouter à « ${baseList.name} »`,
+                      label: `Ajouter à « ${baseList.label} »`,
                       icon: <ListPlusIcon aria-hidden />,
-                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, toastCallbacks(`Ajouté à « ${baseList.name} ».`)),
+                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, toastCallbacks(`Ajouté à « ${baseList.label} ».`)),
                     }))
                   : []),
                 item.perishable && {
@@ -429,7 +414,7 @@ export function ShoppingListPage() {
                     else
                       confirmDestructive({
                         title: 'Retirer l’élément',
-                        risks: `« ${item.name} » n’est dans aucune référence : il sera supprimé définitivement. Cette action est irréversible.`,
+                        risks: `« ${item.label} » n’est dans aucune référence : il sera supprimé définitivement.`,
                         confirmLabel: 'Retirer',
                         onConfirm: remove,
                       });
@@ -447,7 +432,7 @@ export function ShoppingListPage() {
           </Text>
         </Group>
       )}
-      <Comments target="SHOPPING_LIST" id={list.id} />
+      <Comments target="SHOPPING_LIST" id={list.id} readOnly={list.archived} />
       {storeMode && <StoreMode list={list} onClose={() => setStoreMode(false)} />}
     </Stack>
   );

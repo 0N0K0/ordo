@@ -2,15 +2,7 @@ import { GraphQLError } from 'graphql';
 import type { z } from 'zod';
 import { Prisma } from '../generated/prisma/client';
 
-type ErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'BAD_USER_INPUT'
-  | 'INVALID_CREDENTIALS'
-  | 'INVALID_TOKEN'
-  | 'CONFLICT'
-  | 'NOT_FOUND'
-  | 'TOO_MANY_REQUESTS'
-  | 'SERVICE_UNAVAILABLE';
+type ErrorCode = 'UNAUTHENTICATED' | 'BAD_USER_INPUT' | 'INVALID_CREDENTIALS' | 'INVALID_TOKEN' | 'CONFLICT' | 'NOT_FOUND' | 'TOO_MANY_REQUESTS' | 'SERVICE_UNAVAILABLE';
 
 /**
  * Error thrown when a requested record does not exist.
@@ -33,11 +25,11 @@ export function isUniqueConflict(error: unknown): error is Prisma.PrismaClientKn
 /**
  * Rethrows a caught error, a unique constraint violation turned into an error of the field taken.
  * @param {unknown} error Caught error.
- * @param {string} message Message (« Un statut porte déjà ce nom. »).
- * @param {string} [field] Field taken. Optional. Default = « name ».
+ * @param {string} message Message (« Un statut porte déjà ce libellé. »).
+ * @param {string} [field] Field taken. Optional. Default = « label ».
  * @returns {never}
  */
-export function rethrowUnique(error: unknown, message: string, field = 'name'): never {
+export function rethrowUnique(error: unknown, message: string, field = 'label'): never {
   if (isUniqueConflict(error)) throw clientError('CONFLICT', message, { fields: { [field]: message } });
   throw error;
 }
@@ -129,4 +121,18 @@ export async function done(work: Promise<unknown>): Promise<true> {
  */
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Message of a caught error that the user may read: that of an error of a service (a GraphQLError, written for them),
+ * else the fallback, the error itself logged (a bug, a crash: its raw text is not for the user).
+ * @param {unknown} error Caught error.
+ * @param {string} fallback Message shown for any other error.
+ * @param {string} context What failed, for the log.
+ * @returns {string} Message.
+ */
+export function userErrorMessage(error: unknown, fallback: string, context: string): string {
+  if (error instanceof GraphQLError) return error.message;
+  console.error(context, error);
+  return fallback;
 }

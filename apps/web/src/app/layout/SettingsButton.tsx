@@ -1,4 +1,4 @@
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconAction } from '../../components/actions/IconAction';
 import { GearSixIcon } from '@phosphor-icons/react';
 import { usePageSettings, useSettingsOpened } from './page-settings';
 
@@ -12,10 +12,8 @@ export function SettingsButton() {
   const { opened, setOpened } = useSettingsOpened();
   if (!title) return null;
   return (
-    <Tooltip label={opened ? `Fermer : ${title}` : title}>
-      <ActionIcon size="input-xs" variant={opened ? 'filled' : 'light'} aria-label={title} aria-pressed={opened} onClick={() => setOpened(!opened)}>
-        <GearSixIcon aria-hidden />
-      </ActionIcon>
-    </Tooltip>
+    <IconAction label={opened ? 'Fermer' : title} item={opened ? title : undefined} size="input-xs" variant={opened ? 'filled' : 'light'} aria-pressed={opened} onClick={() => setOpened(!opened)}>
+      <GearSixIcon aria-hidden />
+    </IconAction>
   );
 }

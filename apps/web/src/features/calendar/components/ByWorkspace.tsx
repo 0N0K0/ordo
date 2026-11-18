@@ -2,15 +2,15 @@ import { Group, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { WorkspaceKindIcon } from '../../workspaces/components/WorkspaceKindIcon';
 
-/** Workspace an item comes from: its id, its name and, when known, its kind (its icon). */
+/** Workspace an item comes from: its id, its label and, when known, its kind (its icon). */
 interface ItemWorkspace {
   id: string;
-  name: string;
+  label: string;
   kind?: string;
 }
 
 /**
- * Items of the other workspaces (calendars, kinds of slots… to subscribe to), grouped by workspace under its name, in
+ * Items of the other workspaces (calendars, kinds of slots… to subscribe to), grouped by workspace under its label, in
  * the order of the items.
  * @param {{ items: readonly T[], workspaceOf: (item: T) => ItemWorkspace, children: (item: T) => ReactNode }} props Items, their workspace, and the row of an item.
  * @returns {JSX.Element} Groups.
@@ -28,7 +28,7 @@ export function ByWorkspace<T>({ items, workspaceOf, children }: { items: readon
           <Group gap="xs">
             {workspace.kind && <WorkspaceKindIcon kind={workspace.kind as 'PRO' | 'PERSO'} />}
             <Text size="sm" fw={600}>
-              {workspace.name}
+              {workspace.label}
             </Text>
           </Group>
           {own.map(children)}

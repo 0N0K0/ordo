@@ -37,7 +37,7 @@ export function AddRowField({ label, where, hint, schema, onCreate, onCancel, au
   const submit = () => {
     const result = schema.safeParse(name);
     if (!result.success) {
-      if (name.trim()) notifyError(result.error.issues[0]?.message ?? 'Nom invalide.');
+      if (name.trim()) notifyError(result.error.issues[0]?.message ?? 'Libellé invalide.');
       return;
     }
     setName('');

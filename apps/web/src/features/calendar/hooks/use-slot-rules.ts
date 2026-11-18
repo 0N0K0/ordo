@@ -3,7 +3,9 @@ import {
   addDays,
   allowedAt,
   blockingEvent,
+  type BusyEvent,
   busyUntil,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   DEFAULT_SLOT_KIND,
   effectiveSlotRule,
   foreignSlotKind,
@@ -13,7 +15,6 @@ import {
   ownSlotKind,
   readSlotRule,
   scheduleKinds,
-  type BusyEvent,
   type SlotRule,
 } from '@ordo/shared';
 import { useMemo } from 'react';
@@ -134,11 +135,11 @@ export function useSlotRules(): SlotRules {
     const ruleOf = (value: unknown) => knownSlotRule(effectiveSlotRule(readSlotRule(value), perso), known);
 
     const kinds: SlotKindOption[] = [
-      { value: DEFAULT_SLOT_KIND, label: defaultKind?.name ?? 'Travail', group: 'Cet espace' },
-      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.name, group: 'Cet espace', archived: type.archived })),
+      { value: DEFAULT_SLOT_KIND, label: defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL, group: 'Cet espace' },
+      ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.label, group: 'Cet espace', archived: type.archived })),
       ...(foreignKinds ?? [])
         .filter((kind) => kind.subscribed)
-        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.name} (${kind.workspaceName})`, group: kind.workspaceName })),
+        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.label} (${kind.workspaceLabel})`, group: kind.workspaceLabel })),
     ];
     const labelOf = new Map(kinds.map((kind) => [kind.value, kind.label]));
     /**

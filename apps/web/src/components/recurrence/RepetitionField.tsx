@@ -1,7 +1,8 @@
-import { Button, Group, Input, Modal, Stack, Text } from '@mantine/core';
+import { Group, Input, Modal, Stack, Text } from '@mantine/core';
 import { PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { FormActions } from '../dialogs/FormActions';
+import { ActionButton } from '../actions/ActionButton';
 
 interface RepetitionFieldProps<V> {
   value: V;
@@ -52,10 +53,10 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
           )}
         </Stack>
         {editable && (
-          <Button
-            variant="default"
+          <ActionButton
+            priority="secondary"
             size="xs"
-            leftSection={<PencilSimpleIcon aria-hidden />}
+            icon={<PencilSimpleIcon aria-hidden />}
             style={{ flex: 'none' }}
             onClick={() => {
               setDraft(value);
@@ -63,7 +64,7 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
             }}
           >
             Modifier
-          </Button>
+          </ActionButton>
         )}
       </Group>
       <RepetitionModal opened={opened} onClose={() => setOpened(false)} title={label} draft={draft} setDraft={setDraft} editor={editor} valid={valid} onApply={onChange} />

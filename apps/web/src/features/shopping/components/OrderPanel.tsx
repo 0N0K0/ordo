@@ -1,7 +1,8 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { SubSection } from '../../../components/page/SubSection';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Paper, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Checkbox, Group, Paper, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { shoppingDeliverySchema, type ShoppingDeliveryInput } from '@ordo/shared';
 import { ArrowSquareOutIcon, CheckIcon, PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
@@ -19,6 +20,8 @@ import { useShoppingLists, type ShoppingList } from '../api';
 import { deliveryWindow } from '../lib/delivery-format';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -45,6 +48,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     schema: shoppingDeliverySchema,
   });
   const values = form.getValues();
+  const expected = dateRangeProps(formRange(form, 'expectedFrom', 'expectedTo'));
   const address: AddressValue = { text: values.address ?? '', point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null };
   const handleSubmit = form.onSubmit((input) => {
     const callbacks = formCallbacks(form, delivery ? 'Livraison modifiée.' : 'Livraison ajoutée.', onDone);
@@ -55,7 +59,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput
-          label="Nom"
+          label="Libellé"
           placeholder="Colis 1, Drive, Pharmacie…"
           data-autofocus
           value={values.label ?? ''}
@@ -71,8 +75,8 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
         />
         <Checkbox label="À retirer" description="Point relais, retrait en magasin, consigne… plutôt que livré." {...form.getInputProps('pickup', { type: 'checkbox' })} />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-          <DatePickerInput label={values.pickup ? 'À retirer à partir du' : 'Attendue à partir du'} placeholder="—" clearable {...form.getInputProps('windowFrom')} />
-          <DatePickerInput label={values.pickup ? 'Jusqu’au' : 'Au plus tard le'} placeholder="—" clearable minDate={values.windowFrom ?? undefined} {...form.getInputProps('windowTo')} />
+          <DatePickerInput label={values.pickup ? 'À retirer à partir du' : 'Attendue à partir du'} placeholder="—" clearable {...expected.start} />
+          <DatePickerInput label={values.pickup ? 'Jusqu’au' : 'Au plus tard le'} placeholder="—" clearable {...expected.end} />
         </SimpleGrid>
         <AddressInput
           label={values.pickup ? 'Lieu de retrait' : 'Lieu de livraison'}
@@ -81,7 +85,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           value={address}
           onChange={(next) => form.setValues({ address: next.text || null, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
         />
-        <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.name }))} searchable clearable {...form.getInputProps('itemIds')} />
+        <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.label }))} searchable clearable {...form.getInputProps('itemIds')} />
         <FormActions onCancel={onDone} submitLabel={delivery ? 'Enregistrer' : 'Ajouter'} loading={createDelivery.isPending || updateDelivery.isPending} />
       </Stack>
     </form>
@@ -133,9 +137,9 @@ function OrderFields({ list }: { list: ShoppingList }) {
             title="Livraisons"
             gap="md"
             action={
-              <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouvelle livraison', (close) => <DeliveryForm list={list} onDone={close} />)}>
+              <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouvelle livraison', (close) => <DeliveryForm list={list} onDone={close} />)}>
                 Ajouter une livraison
-              </Button>
+              </ActionButton>
             }
           >
             {list.deliveries.length === 0 && <EmptyState compact icon={<PackageIcon aria-hidden />} message="Aucune livraison : ajoutez-en une par colis (ou par retrait)." />}
@@ -151,12 +155,12 @@ function OrderFields({ list }: { list: ShoppingList }) {
                           {delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
                         </Text>
                         {delivery.pickup && (
-                          <Badge size="xs" variant="light" tt="none">
+                          <Badge size="xs" variant="light">
                             à retirer
                           </Badge>
                         )}
                         {delivery.receivedAt && (
-                          <Badge size="xs" variant="light" color="green" tt="none">
+                          <Badge size="xs" variant="light" color="green">
                             réceptionnée le {fmt.day(delivery.receivedAt)}
                           </Badge>
                         )}
@@ -171,42 +175,41 @@ function OrderFields({ list }: { list: ShoppingList }) {
                       )}
                     </Stack>
                     <Group gap={2} wrap="nowrap">
-                      <Tooltip label={delivery.receivedAt ? 'Pas encore réceptionnée' : 'Réceptionnée (ses éléments achetés)'}>
-                        <ActionIcon
-                          variant={delivery.receivedAt ? 'light' : 'subtle'}
-                          color={delivery.receivedAt ? 'green' : 'gray'}
-                          aria-label={`Réceptionnée : ${delivery.label || 'livraison'}`}
-                          onClick={() =>
-                            setDeliveryReceived.mutate(
-                              { id: delivery.id, received: !delivery.receivedAt },
-                              {
-                                onSuccess: (ids) => {
-                                  if (!delivery.receivedAt) notifySuccess('Livraison réceptionnée.');
-                                  propose(list.items.filter((item) => ids.includes(item.id)));
-                                },
-                                ...ON_ERROR,
+                      <IconAction
+                        label={delivery.receivedAt ? 'Pas encore réceptionnée' : 'Réceptionnée (ses éléments achetés)'}
+                        variant={delivery.receivedAt ? 'light' : 'subtle'}
+                        color={delivery.receivedAt ? 'green' : 'gray'}
+                        aria-label={`Réceptionnée : ${delivery.label || 'livraison'}`}
+                        onClick={() =>
+                          setDeliveryReceived.mutate(
+                            { id: delivery.id, received: !delivery.receivedAt },
+                            {
+                              onSuccess: (ids) => {
+                                if (!delivery.receivedAt) notifySuccess('Livraison réceptionnée.');
+                                propose(list.items.filter((item) => ids.includes(item.id)));
                               },
-                            )
-                          }
-                        >
-                          <CheckIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
+                              ...ON_ERROR,
+                            },
+                          )
+                        }
+                      >
+                        <CheckIcon aria-hidden />
+                      </IconAction>
+                      <IconAction
+                        label="Modifier"
                         aria-label="Modifier la livraison"
                         onClick={() => openFormPanel('Modifier la livraison', (close) => <DeliveryForm list={list} delivery={delivery} onDone={close} />)}
                       >
                         <PencilSimpleIcon aria-hidden />
-                      </ActionIcon>
+                      </IconAction>
                       <RemoveButton
-                        label="Supprimer la livraison"
+                        label="Supprimer"
+                        aria-label="Supprimer la livraison"
                         onClick={() =>
                           confirmDestructive({
                             title: 'Supprimer la livraison',
-                            risks: 'La livraison sera supprimée ; ses éléments restent sur la liste, sans livraison. Cette action est irréversible.',
-                            onConfirm: () => deleteDelivery.mutate(delivery.id, ON_ERROR),
+                            risks: 'La livraison sera supprimée ; ses éléments restent sur la liste, sans livraison.',
+                            run: () => deleteDelivery.mutateAsync(delivery.id),
                           })
                         }
                       />

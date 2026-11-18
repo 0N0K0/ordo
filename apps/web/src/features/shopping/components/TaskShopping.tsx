@@ -11,6 +11,7 @@ import { shoppingTotal } from '../lib/export';
 import { openNewList } from '../lib/open-new-list';
 import { shoppingProgress } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
+import { shoppingListPath } from '../../../app/pages';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -46,8 +47,8 @@ export function TaskShopping({ task }: { task: Task }) {
           const total = shoppingTotal(list.items);
           return (
             <Group key={list.id} gap="xs" wrap="nowrap">
-              <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate style={{ flex: 1 }}>
-                {list.name}
+              <Anchor component={Link} to={shoppingListPath(list.id)} size="sm" truncate style={{ flex: 1 }}>
+                {list.label}
               </Anchor>
               <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
                 {bought} / {required}
@@ -66,11 +67,11 @@ export function TaskShopping({ task }: { task: Task }) {
           size="xs"
           placeholder="Rattacher une liste existante"
           searchable
-          data={free.map((list) => ({ value: list.id, label: list.name }))}
+          data={free.map((list) => ({ value: list.id, label: list.label }))}
           value={null}
           onChange={(id) => {
             const list = free.find((item) => item.id === id);
-            if (list) updateList.mutate({ id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] }, toastCallbacks('Liste rattachée à la tâche.'));
+            if (list) updateList.mutate({ id: list.id, label: list.label, taskIds: [...list.taskIds, task.id] }, toastCallbacks('Liste rattachée à la tâche.'));
           }}
           aria-label="Rattacher une liste d’achats existante"
         />

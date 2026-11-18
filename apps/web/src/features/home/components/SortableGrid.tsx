@@ -2,8 +2,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { SimpleGrid } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { DragHandleContext } from '../lib/drag-handle';
-import { SortableArea } from '../../../components/actions/sortable';
-import { useSortableItem } from '../../../components/actions/use-sortable-item';
+import { SortableArea } from '../../../components/dnd/sortable';
+import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 
 interface SortableItemProps {
   id: string;

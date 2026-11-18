@@ -1,9 +1,9 @@
+import { modelDelegate } from './delegate';
 import { colorSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
-import { nextPositionIn, type OrderedModel } from './ordering';
 
 /**
  * Settings lists sharing the same look (color, image, name) and manual order, by their kind: the Prisma model of each.
@@ -50,7 +50,7 @@ interface ListDelegate {
  * @param {SettingsListKind} kind List.
  * @returns {ListDelegate} Its Prisma delegate (scoped to the current workspace, as every model).
  */
-const delegate = (kind: SettingsListKind) => (prisma as unknown as Record<string, ListDelegate>)[SETTINGS_LISTS[kind]];
+const delegate = (kind: SettingsListKind) => modelDelegate<ListDelegate>(SETTINGS_LISTS[kind]);
 
 /**
  * Changes the look of an item of a settings list: its color and / or its image (replaced or removed).
@@ -91,13 +91,4 @@ export async function setLook(kind: SettingsListKind, id: string, input: { color
 export async function reorder(kind: SettingsListKind, ids: string[]): Promise<void> {
   const model = delegate(kind);
   await prisma.$transaction(ids.map((id, position) => model.update({ where: { id }, data: { position } })));
-}
-
-/**
- * Position of an item added at the end of a flat settings list.
- * @param {SettingsListKind} kind List.
- * @returns {Promise<number>} Position after the last one.
- */
-export async function nextPosition(kind: SettingsListKind): Promise<number> {
-  return nextPositionIn(SETTINGS_LISTS[kind] as OrderedModel);
 }

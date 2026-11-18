@@ -1,6 +1,7 @@
-import { ActionIcon, TextInput } from '@mantine/core';
-import { entityNameSchema, projectTitleSchema } from '@ordo/shared';
-import { CaretRightIcon } from '@phosphor-icons/react';
+import { clientPath, projectPath } from '../../../app/pages';
+import { TextInput } from '@mantine/core';
+import { entityNameSchema, projectLabelSchema } from '@ordo/shared';
+
 import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router';
 import { notifyError } from '../../../lib/notify';
@@ -8,6 +9,7 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { EntityMenu } from './EntityMenu';
 import classes from './TreeRow.module.css';
+import { FoldButton } from '../../../components/actions/FoldButton';
 
 interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
   entity: EntityRef;
@@ -29,10 +31,7 @@ interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
  * @param {TreeRowProps} props Component props (extra props and ref go to the row, for drag and drop).
  * @returns {JSX.Element} Row.
  */
-export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow(
-  { entity, depth = 0, subtitle, muted, expansion, draggable, dragging, style, className, ...rest },
-  ref,
-) {
+export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow({ entity, depth = 0, subtitle, muted, expansion, draggable, dragging, style, className, ...rest }, ref) {
   const { item } = entity;
   const actions = useEntityActions();
   const { pathname } = useLocation();
@@ -42,7 +41,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
   const isProject = entity.type === 'project';
   const [draft, setDraft] = useState(label);
   const [error, setError] = useState<string | null>(null);
-  const href = entity.type === 'client' ? `/clients/${item.id}` : `/projects/${item.id}`;
+  const href = entity.type === 'client' ? clientPath(item.id) : projectPath(item.id);
 
   /**
    * Starts the inline rename.
@@ -55,16 +54,16 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
   };
 
   /**
-   * Validates and saves the new name (client) or title (project).
+   * Validates and saves the new name (client) or label (project).
    * @param {boolean} fromBlur Whether focus left the field (an invalid value is then dropped).
    * @returns {void}
    */
   const commit = (fromBlur: boolean) => {
-    const result = (isProject ? projectTitleSchema : entityNameSchema).safeParse(draft);
+    const result = (isProject ? projectLabelSchema : entityNameSchema).safeParse(draft);
     if (!result.success) {
       const message = result.error.issues[0]?.message ?? 'Valeur invalide.';
       if (fromBlur) {
-        notifyError(`${message} ${isProject ? 'Le titre' : 'Le nom'} n’a pas été modifié.`);
+        notifyError(`${message} ${isProject ? 'Le libellé' : 'Le nom'} n’a pas été modifié.`);
         setEditing(false);
       } else {
         setError(message);
@@ -107,21 +106,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
         setMenuOpened(true);
       }}
     >
-      {expansion ? (
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={expansion.expanded ? 'Replier' : 'Déplier'}
-          aria-expanded={expansion.expanded}
-          onClick={expansion.onToggle}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <CaretRightIcon className={classes.chevron} data-expanded={expansion.expanded || undefined} aria-hidden />
-        </ActionIcon>
-      ) : (
-        <span className={classes.spacer} />
-      )}
+      {expansion ? <FoldButton expanded={expansion.expanded} item={label} onToggle={expansion.onToggle} inRow /> : <span className={classes.spacer} />}
 
       {editing ? (
         <TextInput
@@ -137,7 +122,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
           onKeyDown={handleKeyDown}
           onBlur={() => commit(true)}
           onPointerDown={(event) => event.stopPropagation()}
-          aria-label={isProject ? 'Nouveau titre' : 'Nouveau nom'}
+          aria-label={isProject ? 'Nouveau libellé' : 'Nouveau nom'}
           style={{ flex: 1 }}
         />
       ) : (

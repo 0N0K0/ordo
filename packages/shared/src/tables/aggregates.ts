@@ -1,3 +1,4 @@
+import { sumOf } from '../core/collections';
 /** Totals a footer shows under a column: the rows with a value, the sum, average or median of the numbers. */
 export const TABLE_AGGREGATES = ['count', 'sum', 'avg', 'median'] as const;
 export type TableAggregate = (typeof TABLE_AGGREGATES)[number];
@@ -12,7 +13,7 @@ export function aggregateValues(aggregate: TableAggregate, values: readonly (num
   if (aggregate === 'count') return values.filter((value) => value !== null && value !== undefined && value !== '').length;
   const numbers = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   if (numbers.length === 0) return null;
-  const sum = numbers.reduce((total, value) => total + value, 0);
+  const sum = sumOf(numbers, (value) => value);
   if (aggregate === 'sum') return sum;
   if (aggregate === 'avg') return sum / numbers.length;
   const sorted = [...numbers].sort((a, b) => a - b);

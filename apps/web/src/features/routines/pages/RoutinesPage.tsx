@@ -1,4 +1,5 @@
-import { PAGES } from '../../../app/pages';
+import { PAGES, routineHistoryPath } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
@@ -6,8 +7,8 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
-import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, HourglassMediumIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { Group, Stack, Text } from '@mantine/core';
+import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
@@ -41,22 +42,15 @@ import { useRoutineRowsActions, useRoutineSelectionActions } from '../components
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
+import { WaitingIcon } from '../components/WaitingIcon';
 
-/** Views made the first time: those to do, all, the archived ones; grouped by category. */
+/** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
   {
-    name: 'À faire',
+    label: 'À faire',
     config: { groupBy: 'categories', filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'todo', field: 'state', operator: 'in', value: ['late', 'due'] }] } },
   },
-  { name: 'Toutes', config: { groupBy: 'categories' } },
-  {
-    name: 'Archivées',
-    config: {
-      groupBy: 'categories',
-      includeArchived: true,
-      filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
-    },
-  },
+  { label: 'Toutes', config: { groupBy: 'categories' } },
 ];
 
 /**
@@ -131,6 +125,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     first: ROUTINE_VIEWS,
     getKey: (routine) => routine.id,
     archived: (routine) => routine.archived,
+    archivedLabel: 'Afficher les archivées',
     // One being created shows at once (its occurrences, computed once saved, may then take it out of the view).
     alwaysKept: isDraftRoutine,
   });
@@ -184,11 +179,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             <TitleCell routine={routine} readOnly={readOnly} />
             <RepetitionText routine={routine} />
           </Stack>
-          {waiting.length > 0 && !done && (
-            <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
-              <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
-            </Tooltip>
-          )}
+          {!done && <WaitingIcon waiting={waiting} />}
         </Group>
       ),
       currentDate: (
@@ -238,7 +229,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     const rowActions = rowActionsOf([routine]);
     return (
       <RowActions
-        name={routine.title}
+        name={routine.label}
         primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
         items={[
           !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
@@ -247,7 +238,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
           !readOnly && rowMenuEntry(rowActions.duplicate),
-          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
+          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),
         ]}
@@ -263,7 +254,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       verticalSpacing={4}
       className={classes.table}
       bar={{
-        searchLabel: 'Rechercher (label, description, lieu)',
+        searchLabel: 'Rechercher (libellé, description, lieu)',
         actions: (
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
             Nouvelle routine
@@ -289,6 +280,9 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   );
 }
 
+/** Tabs of the routines page. */
+const ROUTINE_TABS = ['routines', 'history'] as const;
+
 /**
  * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence, and the history of
  * what was ticked on which day; the settings hold the categories.
@@ -297,13 +291,13 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
 export function RoutinesPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
-  const tab = params.get('tab') === 'history' ? 'history' : 'routines';
+  const [tab, setTab] = usePageTab(ROUTINE_TABS);
 
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.routines.title} />
       <RoutineSettings />
-      <PageTabs value={tab} onChange={(value) => setParams({ routine: null, tab: value === 'history' ? 'history' : null })} keepMounted={false}>
+      <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines

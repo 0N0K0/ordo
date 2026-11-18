@@ -1,26 +1,26 @@
 import { formCallbacks } from '../../../lib/form';
-import { PAGES } from '../../../app/pages';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
+import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
-import { useSetParams } from '../../../lib/search-params';
 import { countOf, plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { useEntryCellSave } from '../lib/entry-values';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
-import { useEffect, useState } from 'react';
+import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar, sumOf } from '@ordo/shared';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -28,7 +28,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { toastCallbacks } from '../../../lib/notify';
+
 import {
   treasuryKey,
   useForecastEntries,
@@ -40,7 +40,6 @@ import {
   type TreasuryAccount,
   type TreasuryEntry,
 } from '../api';
-import { CHART_SCALES } from '../lib/chart-period';
 import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
@@ -57,14 +56,14 @@ import { BudgetsPanel } from '../components/BudgetsPanel';
 import { LoansPanel } from '../components/LoansPanel';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { useDeleteEntries } from '../hooks/use-delete-entries';
 
 /**
  * Amount in euros, from currency units.
@@ -175,11 +174,17 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
  * @param {{ label: string, value: number, hint?: string, color?: string }} props Component props.
  * @returns {JSX.Element} Tile.
  */
-function Figure({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
+function AmountTile({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
   return <StatTile label={label} value={fmt.money(value)} hint={hint} valueColor={color ?? (value < 0 ? 'red' : undefined)} />;
 }
 
 type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
+
+/** Tabs of the treasury page. */
+const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
+
+/** Former tabs of the page: the settings and the accounts, in the settings sidebar. */
+const MOVED_TABS = { settings: { changes: { [SETTINGS_PARAM]: '1' }, only: true }, accounts: { changes: { [SETTINGS_PARAM]: '1' }, only: true } };
 
 /**
  * Treasury: balance of the accounts, balance curve (actual, then forecast) over a month, a quarter or a
@@ -190,14 +195,8 @@ type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: '
 export function TreasuryPage() {
   const today = localToday();
   const [params] = useSearchParams();
-  const setParams = useSetParams();
   // The old settings and accounts tabs: in the settings sidebar.
-  const asked = params.get('tab') ?? 'forecast';
-  const moved = asked === 'settings' || asked === 'accounts';
-  const tab = moved ? 'forecast' : asked;
-  useEffect(() => {
-    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { only: true });
-  }, [moved, setParams]);
+  const [tab, setTab] = usePageTab(TREASURY_TABS, TREASURY_TABS[0], MOVED_TABS);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<CalendarScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
@@ -209,7 +208,7 @@ export function TreasuryPage() {
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
-  const { deleteEntry } = useTreasuryMutations();
+  const deleteEntries = useDeleteEntries();
   const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
 
@@ -324,7 +323,10 @@ export function TreasuryPage() {
   }
 
   const items = projection?.items ?? [];
-  const receivable = items.filter((item) => item.amount > 0 && (item.kind === 'INVOICE' || item.kind === 'IMPORTED')).reduce((sum, item) => sum + item.amount, 0);
+  const receivable = sumOf(
+    items.filter((item) => item.amount > 0 && (item.kind === 'INVOICE' || item.kind === 'IMPORTED')),
+    (item) => item.amount,
+  );
   const late = items.filter((item) => item.overdue && item.amount > 0 && item.kind !== 'FORECAST');
   const forecastSeries = (projection?.series ?? []).filter((point) => point.forecast && point.date >= from && point.date <= periodLast);
   const lowest = forecastSeries.reduce<(typeof forecastSeries)[number] | null>((low, point) => (!low || point.balance < low.balance ? point : low), null);
@@ -343,15 +345,15 @@ export function TreasuryPage() {
     <Stack gap="md">
       {header}
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
-        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(accounts.filter((account) => !account.archived).length, 'compte')} />
-        <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
-        <Figure
+        <AmountTile label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(unarchived(accounts).length, 'compte')} />
+        <AmountTile label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
+        <AmountTile
           label="En retard"
-          value={late.reduce((sum, item) => sum + item.amount, 0)}
+          value={sumOf(late, (item) => item.amount)}
           hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
           color={late.length ? 'red' : undefined}
         />
-        <Figure
+        <AmountTile
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
           value={end?.balance ?? 0}
           hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${fmt.day(lowest.date)}` : undefined}
@@ -399,7 +401,7 @@ export function TreasuryPage() {
             <SegmentedControl
               size="xs"
               aria-label="Durée de la période"
-              data={CHART_SCALES}
+              data={CALENDAR_SCALE_OPTIONS}
               value={scale}
               // The new period contains the first day of the previous one.
               onChange={(value) => {
@@ -437,7 +439,7 @@ export function TreasuryPage() {
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
-          setParams({ [SETTINGS_PARAM]: params.get(SETTINGS_PARAM), tab: value && value !== 'forecast' ? value : null }, { only: true })
+          setTab(value, { [SETTINGS_PARAM]: params.get(SETTINGS_PARAM) }, { only: true })
         }
         keepMounted={false}
       >
@@ -465,24 +467,11 @@ export function TreasuryPage() {
               ];
               return [
                 {
-                  ...archiveRowsAction({
-                    archived: entries.every((entry) => entry.archived),
-                    apply: (archived) => setArchived.mutateAsync({ ids: entries.map((entry) => entry.id), archived }),
-                    label: countOf(entries.length, 'prévision'),
-                    count: entries.length,
-                    feminine: true,
-                    clear,
-                  }),
+                  ...archiveItemsAction(entries, setArchived, { noun: 'prévision', feminine: true, clear }),
                   disabled: entries.length === 0,
                 },
                 {
-                  ...deleteRowsAction(entries, {
-                    title: 'Supprimer les prévisions',
-                    risks: `${countOf(entries.length, 'prévision')} et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
-                    remove: (entry) => deleteEntry.mutateAsync(entry.id),
-                    done: `${countOf(entries.length, 'prévision')} ${plural(entries.length, 'supprimée')}.`,
-                    clear,
-                  }),
+                  ...deleteEntries.forecasts(entries, clear, entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''),
                   disabled: entries.length === 0,
                 },
               ];
@@ -545,7 +534,7 @@ export function TreasuryPage() {
                   <>
                     {item.documentId ? (
                       <Group gap={4} wrap="nowrap">
-                        <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
+                        <Anchor component={Link} to={documentPath(item.documentId)} size="sm">
                           {item.label}
                         </Anchor>
                         {item.archived && <ArchivedBadge size="xs" />}
@@ -589,13 +578,13 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
-              const archiveItem = archiveEntry({ archived: entry.archived, label: `« ${entry.label} »`, feminine: forecast }, setArchived, entry.id);
+              const archiveItem = archiveEntry({ archived: entry.archived, type: forecast ? 'Prévision' : 'Mouvement', label: entry.label, feminine: forecast }, setArchived, entry.id);
               return (
                 <RowActions
                   name={item.label}
                   primary={
                     entry.archived
-                      ? archiveItem
+                      ? undefined
                       : forecast
                         ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
                         : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
@@ -607,24 +596,8 @@ export function TreasuryPage() {
                       icon: <CopyIcon aria-hidden />,
                       onClick: () => openDialog({ kind: 'entry', entry, copy: true }),
                     },
-                    !entry.archived && archiveItem,
-                    {
-                      label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
-                      icon: <TrashIcon aria-hidden />,
-                      danger: true,
-                      onClick: () =>
-                        forecast
-                          ? confirmDestructive({
-                              title: 'Supprimer la prévision',
-                              risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Prévision supprimée.')),
-                            })
-                          : confirmDestructive({
-                              title: 'Supprimer le mouvement',
-                              risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
-                            }),
-                    },
+                    archiveItem,
+                    rowMenuEntry(forecast ? deleteEntries.forecasts([entry]) : deleteEntries.movements([entry])),
                   ]}
                 />
               );

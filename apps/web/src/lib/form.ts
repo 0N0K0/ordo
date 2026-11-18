@@ -12,13 +12,7 @@ type Schema = Parameters<typeof schemaResolver>[0];
  * @param {Schema} options.schema Standard schema (zod) validating the values.
  * @returns {UseFormReturnType<Values>} Mantine form.
  */
-export function useAppForm<Values extends Record<string, unknown>>({
-  initialValues,
-  schema,
-}: {
-  initialValues: Values;
-  schema: Schema;
-}): UseFormReturnType<Values> {
+export function useAppForm<Values extends Record<string, unknown>>({ initialValues, schema }: { initialValues: Values; schema: Schema }): UseFormReturnType<Values> {
   const formRef = useRef<UseFormReturnType<Values> | null>(null);
 
   const form = useForm<Values>({
@@ -44,13 +38,14 @@ export function useAppForm<Values extends Record<string, unknown>>({
 }
 
 /**
- * Shows an API error: per-field messages on the form, otherwise a toast.
+ * Shows an API error: per-field messages on the form (when one of the fields is in it), otherwise a toast.
  * @param {UseFormReturnType<Values>} form Form to annotate.
  * @param {unknown} error Error raised by the mutation.
  * @returns {void}
  */
 export function showFormError<Values>(form: UseFormReturnType<Values>, error: unknown): void {
-  if (error instanceof GraphQLRequestError && Object.keys(error.fields).length > 0) {
+  const values = form.getValues() as Record<string, unknown>;
+  if (error instanceof GraphQLRequestError && Object.keys(error.fields).some((field) => field.split('.')[0] in values)) {
     form.setErrors(error.fields);
     return;
   }
@@ -81,6 +76,7 @@ export function formCallbacks<Values, T = unknown>(
 ): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
   return {
     onSuccess: (result) => {
+      // eslint-disable-next-line no-restricted-syntax -- formCallbacks itself.
       notifySuccess(typeof message === 'string' ? message : message(result));
       onDone?.(result);
       options.then?.(result);

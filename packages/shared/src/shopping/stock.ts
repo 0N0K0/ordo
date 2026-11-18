@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { endAfter, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 import { optionalColorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
 export const stockLocationSchema = z.object({
-  name: requiredText(80),
+  label: requiredText(80),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -15,7 +15,7 @@ export type StockLocationInput = z.infer<typeof stockLocationSchema>;
 /** Item of the stock: a reference followed in stock, or an item of its own. */
 export const stockItemSchema = z.object({
   productId: z.string().nullable(),
-  label: requiredText(200, 'Le libellé est requis.'),
+  label: requiredText(200),
   categoryId: z.string().nullable(),
   unit: unitSchema,
   locationId: z.string().nullable(),
@@ -121,5 +121,5 @@ export const shoppingDeliverySchema = z
     /** Items of the list it brings. */
     itemIds: z.array(z.string()).max(500),
   })
-  .refine((delivery) => !delivery.windowFrom || !delivery.windowTo || delivery.windowTo >= delivery.windowFrom, { path: ['windowTo'], message: 'La fin doit suivre le début.' });
+  .refine(...endAfter('windowFrom', 'windowTo'));
 export type ShoppingDeliveryInput = z.infer<typeof shoppingDeliverySchema>;

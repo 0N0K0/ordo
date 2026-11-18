@@ -4,10 +4,9 @@ import { useRef, type CSSProperties } from 'react';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import type { SettingsItemValues } from '../../../components/settings/SettingsItemForm';
-import { notifyFailure } from '../../../lib/notify';
 import { useFillHeight } from '../../../lib/fill-height';
 import { AddressInput } from './AddressInput';
-import { reverseAddress, usePlaceMutations, usePlaces, type Place } from '../api';
+import { pickedAddress, usePlaceMutations, usePlaces, type Place } from '../api';
 import { PlaceMap } from './PlaceMap';
 import classes from './PlacesManager.module.css';
 
@@ -22,7 +21,7 @@ interface PlaceAddressValues {
  * Saved places ("Maison", "Bureau"…), as every settings list: on a map and in a tree. A place has one address (found
  * by its search, or picked with a click on the map, its address then looked up) and possibly several zones without
  * an address of their own (kitchen, bathroom… for the cleaning): they take the point of their place. Each one has a
- * name, a color and an image; places are reordered, zones put under another place or zone, by drag and drop (a place
+ * label, a color and an image; places are reordered, zones put under another place or zone, by drag and drop (a place
  * never becomes a zone, nor a zone a place). They locate events and routines and are the starts and ends of their
  * travel times.
  * @returns {JSX.Element} Section.
@@ -40,14 +39,8 @@ export function PlacesManager() {
    * @returns {Promise<void>}
    */
   const pick = async (point: GeoPoint) => {
-    const fallback = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
-    try {
-      const found = await reverseAddress(point);
-      adderRef.current?.({ name: found?.name ?? '', address: found?.label ?? fallback, lat: point.lat, lon: point.lon, parentId: null });
-    } catch (error) {
-      notifyFailure(error);
-      adderRef.current?.({ address: fallback, lat: point.lat, lon: point.lon, parentId: null });
-    }
+    const found = await pickedAddress(point);
+    adderRef.current?.({ ...(found.label ? { label: found.label } : {}), address: found.address, lat: point.lat, lon: point.lon, parentId: null });
   };
 
   /**
@@ -56,10 +49,10 @@ export function PlacesManager() {
    * @returns {object} Input.
    */
   const input = (values: SettingsItemValues<PlaceAddressValues>) =>
-    values.parentId ? { name: values.name, parentId: values.parentId } : { name: values.name, address: values.address, lat: values.lat, lon: values.lon };
+    values.parentId ? { label: values.label, parentId: values.parentId } : { label: values.label, address: values.address, lat: values.lat, lon: values.lon };
 
   // The zones share the point of their place.
-  const points = (places ?? []).filter((place) => !place.parentId).map((place) => ({ id: place.id, label: place.name, lat: place.lat, lon: place.lon }));
+  const points = (places ?? []).filter((place) => !place.parentId).map((place) => ({ id: place.id, label: place.label, lat: place.lat, lon: place.lon }));
 
   return (
     <div ref={fillRef} className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
@@ -123,7 +116,7 @@ export function PlacesManager() {
             deleteMessage={(place, path) => (
               <>
                 {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera supprimé{place.parentId ? 'e' : ''} définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il
-                ne sera plus proposé. Cette action est irréversible.
+                ne sera plus proposé.
               </>
             )}
           />

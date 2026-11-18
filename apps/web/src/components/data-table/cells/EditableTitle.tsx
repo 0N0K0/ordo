@@ -6,7 +6,7 @@ import { checked, stopClick, type CellSchema } from './cell-field';
 
 interface EditableTitleProps {
   value: string;
-  /** Accessible name of the field when renamed (« Titre de la tâche #12 »). */
+  /** Accessible name of the field when renamed (« Libellé de la tâche #12 »). */
   label: string;
   /** Rule of the title (checks and normalizes it). */
   schema: CellSchema<string>;
@@ -18,7 +18,7 @@ interface EditableTitleProps {
   before?: ReactNode;
   /** After the title (sub-items done…). Optional. */
   after?: ReactNode;
-  /** Not renamed, nor opened. Optional. Default = false. */
+  /** Not renamed (an archived row): a click still opens it, with `to` or `onOpen`. Optional. Default = false. */
   readOnly?: boolean;
   onSave: (value: string) => void;
 }
@@ -39,7 +39,7 @@ export function EditableTitle({ value, label, schema, to, onOpen, before, after,
   const save = () => {
     if (draft === null) return;
     setDraft(null);
-    const result = checked(schema, draft, 'Titre invalide.');
+    const result = checked(schema, draft, 'Libellé invalide.');
     if (result && result.value !== value) onSave(result.value);
   };
 
@@ -63,29 +63,28 @@ export function EditableTitle({ value, label, schema, to, onOpen, before, after,
     );
   }
 
-  const title =
-    to && !readOnly ? (
-      <Text component={Link} to={to} size="sm" fw={500} c="inherit" onClick={stopClick} truncate className={classes.titleLink}>
-        {value}
-      </Text>
-    ) : onOpen && !readOnly ? (
-      <UnstyledButton
-        onClick={(event) => {
-          stopClick(event);
-          onOpen();
-        }}
-        className={classes.titleLink}
-        style={{ minWidth: 0 }}
-      >
-        <Text size="sm" fw={500} truncate>
-          {value}
-        </Text>
-      </UnstyledButton>
-    ) : (
+  const title = to ? (
+    <Text component={Link} to={to} size="sm" fw={500} c="inherit" onClick={stopClick} truncate className={classes.titleLink}>
+      {value}
+    </Text>
+  ) : onOpen ? (
+    <UnstyledButton
+      onClick={(event) => {
+        stopClick(event);
+        onOpen();
+      }}
+      className={classes.titleLink}
+      style={{ minWidth: 0 }}
+    >
       <Text size="sm" fw={500} truncate>
         {value}
       </Text>
-    );
+    </UnstyledButton>
+  ) : (
+    <Text size="sm" fw={500} truncate>
+      {value}
+    </Text>
+  );
 
   return (
     // The group fills the cell so a double-click on its empty part starts renaming.

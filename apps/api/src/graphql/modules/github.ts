@@ -38,7 +38,7 @@ builder.prismaObject('GithubProjectLink', {
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
     url: t.exposeString('url'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     statusFieldId: t.exposeString('statusFieldId', { nullable: true }),
     priorityFieldId: t.exposeString('priorityFieldId', { nullable: true }),
     iterationFieldId: t.exposeString('iterationFieldId', { nullable: true }),
@@ -134,9 +134,11 @@ builder.queryFields((t) => ({
     resolve: (query, _root, { projectId }) => prisma.githubProjectLink.findUnique({ ...query, where: { projectId } }),
   }),
   githubContributors: t.field({
-    type: [builder.objectRef<{ id: string; name: string; githubLogin: string | null }>('GithubContributor').implement({
-      fields: (f) => ({ id: f.exposeID('id'), name: f.exposeString('name'), githubLogin: f.exposeString('githubLogin', { nullable: true }) }),
-    })],
+    type: [
+      builder.objectRef<{ id: string; name: string; githubLogin: string | null }>('GithubContributor').implement({
+        fields: (f) => ({ id: f.exposeID('id'), name: f.exposeString('name'), githubLogin: f.exposeString('githubLogin', { nullable: true }) }),
+      }),
+    ],
     // Archived contributors are read only: not offered to be paired.
     resolve: () => prisma.contributor.findMany({ where: { archivedAt: null }, select: { id: true, name: true, githubLogin: true }, orderBy: { name: 'asc' } }),
   }),
@@ -154,30 +156,30 @@ builder.mutationFields((t) => ({
   saveGithubLink: t.boolean({
     description: 'Links a project to a board, or changes the settings of its link.',
     args: { projectId: t.arg.id({ required: true }), input: t.arg({ type: LinkInput, required: true }) },
-    resolve: async (_root, { projectId, input }) => {
-      await admin.saveGithubLink(projectId, {
-        url: input.url,
-        statusFieldId: input.statusFieldId ?? null,
-        priorityFieldId: input.priorityFieldId ?? null,
-        iterationFieldId: input.iterationFieldId ?? null,
-        startFieldId: input.startFieldId ?? null,
-        endFieldId: input.endFieldId ?? null,
-        effortFieldId: input.effortFieldId ?? null,
-        deadlineFieldId: input.deadlineFieldId ?? null,
-        timeSpentFieldId: input.timeSpentFieldId ?? null,
-        typeSource: input.typeSource === 'FIELD' || input.typeSource === 'ISSUE_TYPE' ? input.typeSource : null,
-        typeFieldId: input.typeFieldId ?? null,
-        statusOptions: mapping(input.statusOptions),
-        priorityOptions: mapping(input.priorityOptions),
-        typeOptions: mapping(input.typeOptions),
-        syncAssignees: input.syncAssignees,
-        syncLabels: input.syncLabels,
-        repositoryName: input.repositoryName ?? null,
-        pushExisting: input.pushExisting,
-        enabled: input.enabled,
-      });
-      return true;
-    },
+    resolve: (_root, { projectId, input }) =>
+      done(
+        admin.saveGithubLink(projectId, {
+          url: input.url,
+          statusFieldId: input.statusFieldId ?? null,
+          priorityFieldId: input.priorityFieldId ?? null,
+          iterationFieldId: input.iterationFieldId ?? null,
+          startFieldId: input.startFieldId ?? null,
+          endFieldId: input.endFieldId ?? null,
+          effortFieldId: input.effortFieldId ?? null,
+          deadlineFieldId: input.deadlineFieldId ?? null,
+          timeSpentFieldId: input.timeSpentFieldId ?? null,
+          typeSource: input.typeSource === 'FIELD' || input.typeSource === 'ISSUE_TYPE' ? input.typeSource : null,
+          typeFieldId: input.typeFieldId ?? null,
+          statusOptions: mapping(input.statusOptions),
+          priorityOptions: mapping(input.priorityOptions),
+          typeOptions: mapping(input.typeOptions),
+          syncAssignees: input.syncAssignees,
+          syncLabels: input.syncLabels,
+          repositoryName: input.repositoryName ?? null,
+          pushExisting: input.pushExisting,
+          enabled: input.enabled,
+        }),
+      ),
   }),
   unlinkGithubProject: t.boolean({
     args: { projectId: t.arg.id({ required: true }) },

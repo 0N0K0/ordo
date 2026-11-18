@@ -3,8 +3,8 @@ import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
-import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
+import { Badge, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { readWeek, WEEKDAY_LABELS, weekLength, WORKSPACE_LABEL_MAX } from '@ordo/shared';
 import { ArrowSquareOutIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, ON_ERROR, onMutationError } from '../../../lib/notify';
@@ -14,6 +14,7 @@ import { switchWorkspace } from '../lib/switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
@@ -38,27 +39,27 @@ interface WorkspaceRowProps {
 }
 
 /**
- * One workspace: name (saved when left) and kind, order, opening, deletion after confirmation.
+ * One workspace: label (saved when left) and kind, order, opening, deletion after confirmation.
  * @param {WorkspaceRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
   const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
   const week = readWeek(workspace);
-  const [name, setName] = useState(workspace.name);
+  const [label, setLabel] = useState(workspace.label);
 
   /**
-   * Saves the name or the kind when they changed.
-   * @param {{ name?: string, kind?: WorkspaceKind }} changes Changes.
+   * Saves the label or the kind when they changed.
+   * @param {{ label?: string, kind?: WorkspaceKind }} changes Changes.
    * @returns {void}
    */
-  const save = (changes: { name?: string; kind?: WorkspaceKind }) => {
-    const input = { name: (changes.name ?? name).trim(), kind: changes.kind ?? workspace.kind };
-    if (!input.name) {
-      setName(workspace.name);
+  const save = (changes: { label?: string; kind?: WorkspaceKind }) => {
+    const input = { label: (changes.label ?? label).trim(), kind: changes.kind ?? workspace.kind };
+    if (!input.label) {
+      setLabel(workspace.label);
       return;
     }
-    if (input.name === workspace.name && input.kind === workspace.kind) return;
+    if (input.label === workspace.label && input.kind === workspace.kind) return;
     update.mutate(
       { id: workspace.id, input },
       {
@@ -73,12 +74,12 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
       <Group gap="xs" wrap="nowrap">
         <WorkspaceKindIcon kind={workspace.kind} />
         <TextInput
-          aria-label="Nom de l’espace"
+          aria-label={`Libellé de « ${workspace.label} »`}
           style={{ flex: 1 }}
-          value={name}
-          maxLength={60}
-          onChange={(event) => setName(event.currentTarget.value)}
-          onBlur={() => save({ name })}
+          value={label}
+          maxLength={WORKSPACE_LABEL_MAX}
+          onChange={(event) => setLabel(event.currentTarget.value)}
+          onBlur={() => save({ label })}
           rightSection={
             current ? (
               <Badge size="xs" variant="light">
@@ -90,7 +91,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         />
         <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
         <InlineActions
-          name={workspace.name}
+          name={workspace.label}
           items={[
             ...moveEntries(index, count, (to) => move.mutate({ id: workspace.id, index: to }, ON_ERROR)),
             { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
@@ -98,12 +99,12 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         />
         <RemoveButton
           label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}
-          aria-label={`Supprimer ${workspace.name}`}
+          aria-label={`Supprimer ${workspace.label}`}
           disabled={count === 1}
           onClick={() =>
             confirmDestructive({
               title: 'Supprimer l’espace',
-              risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.`,
+              risks: `L’espace « ${workspace.label} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur.`,
               onConfirm: () =>
                 remove.mutate(
                   workspace.id,
@@ -168,7 +169,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
 export function WorkspacesManager() {
   const { data } = useWorkspaces();
   const { create } = useWorkspaceMutations();
-  const [name, setName] = useState('');
+  const [label, setLabel] = useState('');
   const [kind, setKind] = useState<WorkspaceKind>('PERSO');
   const workspaces = data?.workspaces ?? [];
 
@@ -177,10 +178,10 @@ export function WorkspacesManager() {
    * @returns {void}
    */
   const add = () => {
-    if (!name.trim()) return;
+    if (!label.trim()) return;
     create.mutate(
-      { name: name.trim(), kind },
-      formCallbacks(null, 'Espace créé.', () => setName('')),
+      { label: label.trim(), kind },
+      formCallbacks(null, 'Espace créé.', () => setLabel('')),
     );
   };
 
@@ -214,11 +215,11 @@ export function WorkspacesManager() {
           }}
         >
           <Group gap="xs" wrap="nowrap" align="flex-end">
-            <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
+            <TextInput label="Libellé" placeholder="Libellé de l’espace" style={{ flex: 1 }} value={label} maxLength={WORKSPACE_LABEL_MAX} onChange={(event) => setLabel(event.currentTarget.value)} />
             <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
-            <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
+            <ActionButton priority="secondary" type="submit" icon={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!label.trim()}>
               Ajouter
-            </Button>
+            </ActionButton>
           </Group>
         </form>
       </SettingsSection>

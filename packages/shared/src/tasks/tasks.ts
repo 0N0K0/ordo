@@ -1,11 +1,14 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { endAfter, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
-import { slotRuleSchema } from '../calendar/slot-rules';
+import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
-export const taskTitleSchema = requiredText(256, 'Le titre est requis.');
+/** Longest label of a task. */
+export const TASK_LABEL_MAX = 256;
+
+export const taskLabelSchema = requiredText(TASK_LABEL_MAX);
 
 /** Markdown text (description, comment); empty becomes null. */
 export const markdownSchema = z
@@ -14,11 +17,7 @@ export const markdownSchema = z
   .transform((value) => (value.trim() ? value : null))
   .nullable();
 
-export const effortSchema = z
-  .number({ error: 'Nombre attendu.' })
-  .min(0, 'L’effort ne peut pas être négatif.')
-  .max(1_000_000, 'Valeur trop grande.')
-  .nullable();
+export const effortSchema = z.number({ error: 'Nombre attendu.' }).min(0, 'L’effort ne peut pas être négatif.').max(1_000_000, 'Valeur trop grande.').nullable();
 
 export const commentBodySchema = z
   .string()
@@ -34,7 +33,7 @@ export const handleSchema = z
   .max(39, '39 caractères maximum.')
   .regex(/^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/, 'Lettres, chiffres, « - » et « _ » ; ni au début ni à la fin pour « - » et « _ ».');
 
-export const contributorNameSchema = requiredText(120);
+export const contributorNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
 
 /**
  * Suggests a mention handle from a name ("Noémie Koelblen" → "noemie-koelblen").
@@ -56,7 +55,7 @@ export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 
 export const taskFormSchema = z
   .object({
-    title: taskTitleSchema,
+    label: taskLabelSchema,
     /** Empty: a task of no project. */
     projectId: z.string().transform((value) => value || null),
     description: z.string(),
@@ -65,7 +64,10 @@ export const taskFormSchema = z
     typeId: z.string().nullable(),
     assigneeIds: z.array(z.string()),
     tagIds: z.array(z.string()),
-    effort: z.union([z.number(), z.literal('')]).transform((value) => (value === '' ? null : value)).pipe(effortSchema),
+    effort: z
+      .union([z.number(), z.literal('')])
+      .transform((value) => (value === '' ? null : value))
+      .pipe(effortSchema),
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,
@@ -80,33 +82,61 @@ export const taskFormSchema = z
     /** Slots it is done on or out of; null: the default of the workspace. */
     slotRule: slotRuleSchema.nullable().default(null),
   })
-  .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
-    path: ['endDate'],
-    error: 'La date de fin doit suivre la date de début.',
-  });
+  .refine(...endAfter('startDate', 'endDate'))
+  .refine(...endAfter('minDate', 'deadline'));
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-export const milestoneTitleSchema = requiredText(120, 'Le titre est requis.');
+/** Longest label of a milestone. */
+export const MILESTONE_LABEL_MAX = 120;
+
+export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX);
 
 export const milestoneFormSchema = z.object({
-  title: milestoneTitleSchema,
+  label: milestoneLabelSchema,
   dueDate: dateSchema,
   description: z.string(),
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-export const sprintNameSchema = requiredText(120);
+/** Longest label of a sprint. */
+export const SPRINT_LABEL_MAX = 120;
+
+export const sprintLabelSchema = requiredText(SPRINT_LABEL_MAX);
 
 /**
- * Schema of a sprint: its name, its days (the end not before the start) and its goal.
+ * Schema of a sprint: its label, its days (the end not before the start) and its goal.
  * @param {G} goal Schema of the goal (plain text in the form, markdown for the API).
  * @returns {z.ZodObject} Schema.
  */
 export function sprintSchema<G extends z.ZodType>(goal: G) {
-  return z
-    .object({ name: sprintNameSchema, startDate: startDaySchema, endDate: endDaySchema, goal })
-    .refine((values) => values.endDate >= values.startDate, { path: ['endDate'], error: 'La fin doit suivre le début.' });
+  return z.object({ label: sprintLabelSchema, startDate: startDaySchema, endDate: endDaySchema, goal }).refine(...endAfter('startDate', 'endDate'));
 }
 
 export const sprintFormSchema = sprintSchema(z.string());
 export type SprintFormValues = z.input<typeof sprintFormSchema>;
+
+/** Fields of a task sent to create or change it: undefined leaves a field unchanged, null clears it. */
+export interface TaskInput {
+  label?: string | null;
+  description?: string | null;
+  projectId?: string | null;
+  statusId?: string | null;
+  priorityId?: string | null;
+  typeId?: string | null;
+  assigneeIds?: string[] | null;
+  tagIds?: string[] | null;
+  effort?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  deadline?: string | null;
+  /** « Date min »: not to be done before. */
+  minDate?: string | null;
+  parentId?: string | null;
+  milestoneId?: string | null;
+  sprintIds?: string[] | null;
+  /** « Bénéficiaires »: contributors and relations the task is for. */
+  beneficiaryIds?: string[] | null;
+  beneficiaryRelationIds?: string[] | null;
+  /** Slots the task is done on or out of; null: the default of the workspace. */
+  slotRule?: SlotRule | null;
+}

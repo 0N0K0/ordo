@@ -10,7 +10,27 @@ import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
+import { attachmentUrl } from '../../services/core/attachments';
 
+/** Totals of a document, as stored. */
+interface DocumentTotals {
+  totalNet: { toNumber(): number };
+  totalVat: { toNumber(): number };
+  totalGross: { toNumber(): number };
+}
+
+/**
+ * Total fields of a document (issued or imported): excluding VAT, VAT, including VAT.
+ * @param {{ float: Function }} t Field builder of the document type.
+ * @returns {object} Fields.
+ */
+function documentTotalFields<Field>(t: { float: (options: { resolve: (document: DocumentTotals) => number }) => Field }) {
+  return {
+    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
+    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
+    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+  };
+}
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
 export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
 export const UnitEnum = builder.enumType('AccountingUnit', { values: ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const });
@@ -21,7 +41,7 @@ builder.prismaObject('AccountingLine', {
     id: t.exposeID('id'),
     position: t.exposeInt('position'),
     kind: t.field({ type: LineKindEnum, resolve: (line) => line.kind }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     quantity: t.float({ resolve: (line) => fromDecimal(line.quantity) }),
     unit: t.field({ type: UnitEnum, resolve: (line) => line.unit }),
@@ -33,16 +53,14 @@ builder.prismaObject('AccountingLine', {
   }),
 });
 
-const DocumentAttachment = builder
-  .objectRef<{ id: string; name: string; size: number }>('AccountingAttachment')
-  .implement({
-    fields: (t) => ({
-      id: t.exposeID('id'),
-      name: t.exposeString('name'),
-      size: t.exposeInt('size'),
-      url: t.string({ resolve: (attachment) => `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name)}` }),
-    }),
-  });
+const DocumentAttachment = builder.objectRef<{ id: string; filename: string; size: number }>('AccountingAttachment').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    filename: t.exposeString('filename'),
+    size: t.exposeInt('size'),
+    url: t.string({ resolve: (attachment) => attachmentUrl(attachment) }),
+  }),
+});
 
 builder.prismaObject('AccountingDocument', {
   fields: (t) => ({
@@ -66,7 +84,7 @@ builder.prismaObject('AccountingDocument', {
     derived: t.relation('derived', { query: { where: { status: { not: 'TEMPLATE' } }, orderBy: { issueDate: 'asc' } } }),
     seller: t.field({ type: 'JSON', nullable: true, resolve: (document) => document.seller }),
     buyer: t.field({ type: 'JSON', nullable: true, resolve: (document) => document.buyer }),
-    title: t.exposeString('title', { nullable: true }),
+    label: t.exposeString('label', { nullable: true }),
     introduction: t.exposeString('introduction', { nullable: true }),
     referenceLabel: t.exposeString('referenceLabel', { nullable: true }),
     referenceValue: t.exposeString('referenceValue', { nullable: true }),
@@ -85,9 +103,7 @@ builder.prismaObject('AccountingDocument', {
     globalDiscountType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (document) => document.globalDiscountType }),
     globalDiscountValue: t.float({ nullable: true, resolve: (document) => fromDecimal(document.globalDiscountValue) }),
     currency: t.exposeString('currency'),
-    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+    ...documentTotalFields(t),
     invoicedNet: t.float({
       nullable: true,
       description: 'Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).',
@@ -97,7 +113,7 @@ builder.prismaObject('AccountingDocument', {
     lines: t.relation('lines', { query: { orderBy: { position: 'asc' } } }),
     attachments: t.field({
       type: [DocumentAttachment],
-      select: { attachments: { select: { id: true, name: true, size: true }, orderBy: { createdAt: 'asc' } } },
+      select: { attachments: { select: { id: true, filename: true, size: true }, orderBy: { createdAt: 'asc' } } },
       resolve: (document) => document.attachments,
     }),
     finalizedAt: t.expose('finalizedAt', { type: 'DateTime', nullable: true }),
@@ -108,7 +124,7 @@ builder.prismaObject('AccountingDocument', {
 builder.prismaObject('RecurringInvoice', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     templateId: t.exposeID('templateId'),
     template: t.relation('template'),
     recurrence: t.field({ type: 'JSON', resolve: (item) => item.recurrence }),
@@ -137,18 +153,16 @@ builder.prismaObject('ImportedDocument', {
       resolve: (document) => document.client?.name ?? document.clientName ?? '',
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
-    title: t.exposeString('title', { nullable: true }),
-    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+    label: t.exposeString('label', { nullable: true }),
+    ...documentTotalFields(t),
     currency: t.exposeString('currency'),
     note: t.exposeString('note', { nullable: true }),
     fileUrl: t.string({
       nullable: true,
-      select: { attachment: { select: { id: true, name: true } } },
-      resolve: (document) => (document.attachment ? `/api/attachments/${document.attachment.id}/${encodeURIComponent(document.attachment.name)}` : null),
+      select: { attachment: { select: { id: true, filename: true } } },
+      resolve: (document) => (document.attachment ? attachmentUrl(document.attachment) : null),
     }),
-    fileName: t.string({ nullable: true, select: { attachment: { select: { name: true } } }, resolve: (document) => document.attachment?.name ?? null }),
+    filename: t.string({ nullable: true, select: { attachment: { select: { filename: true } } }, resolve: (document) => document.attachment?.filename ?? null }),
     fileMimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
   }),
 });
@@ -162,7 +176,7 @@ const ImportedDocumentInput = builder.inputType('ImportedDocumentInput', {
     clientId: t.id(),
     clientName: t.string(),
     projectId: t.id(),
-    title: t.string(),
+    label: t.string(),
     totalNet: t.float({ required: true }),
     totalVat: t.float({ required: true }),
     totalGross: t.float({ required: true }),
@@ -183,7 +197,7 @@ const importedInput = (input: typeof ImportedDocumentInput.$inferInput): importe
   clientId: input.clientId ?? null,
   clientName: input.clientName ?? null,
   projectId: input.projectId ?? null,
-  title: input.title ?? null,
+  label: input.label ?? null,
   note: input.note ?? null,
 });
 
@@ -194,12 +208,11 @@ builder.prismaObject('ProjectResource', {
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
     kind: t.field({ type: ResourceKindEnum, resolve: (resource) => resource.kind }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     note: t.exposeString('note', { nullable: true }),
     url: t.string({
-      select: { attachment: { select: { id: true, name: true } } },
-      resolve: (resource) =>
-        resource.kind === 'LINK' ? (resource.url ?? '') : `/api/attachments/${resource.attachment?.id}/${encodeURIComponent(resource.attachment?.name ?? 'fichier')}`,
+      select: { attachment: { select: { id: true, filename: true } } },
+      resolve: (resource) => (resource.kind === 'LINK' ? (resource.url ?? '') : attachmentUrl(resource.attachment)),
     }),
     size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
@@ -209,7 +222,7 @@ builder.prismaObject('ProjectResource', {
 const LineInput = builder.inputType('AccountingLineInput', {
   fields: (t) => ({
     kind: t.field({ type: LineKindEnum, required: true }),
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     quantity: t.float({ required: true }),
     unit: t.field({ type: UnitEnum, required: true }),
@@ -231,7 +244,7 @@ const DocumentInput = builder.inputType('AccountingDocumentInput', {
     dueDate: t.field({ type: 'Date' }),
     serviceStart: t.field({ type: 'Date' }),
     serviceEnd: t.field({ type: 'Date' }),
-    title: t.string(),
+    label: t.string(),
     introduction: t.string(),
     referenceLabel: t.string(),
     referenceValue: t.string(),
@@ -254,7 +267,7 @@ const DocumentInput = builder.inputType('AccountingDocumentInput', {
 
 const RecurringInput = builder.inputType('RecurringInvoiceInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     autoFinalize: t.boolean({ required: true }),
@@ -275,7 +288,7 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
   dueDate: input.dueDate ?? null,
   serviceStart: input.serviceStart ?? null,
   serviceEnd: input.serviceEnd ?? null,
-  title: input.title ?? null,
+  label: input.label ?? null,
   introduction: input.introduction ?? null,
   referenceLabel: input.referenceLabel ?? null,
   referenceValue: input.referenceValue ?? null,
@@ -461,8 +474,7 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RecurringInput, required: true }) },
     resolve: async (_root, { id, input }) => {
       await recurring.updateRecurringInvoice(id, input as recurring.RecurringSettings, parisToday());
-      await recurring.issueDueInvoices(parisToday());
-      return true;
+      return done(recurring.issueDueInvoices(parisToday()));
     },
   }),
   deleteRecurringInvoice: t.boolean({
@@ -497,16 +509,16 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(imported.deleteImportedDocument(id)),
   }),
   addProjectLink: t.boolean({
-    args: { projectId: t.arg.id({ required: true }), title: t.arg.string({ required: true }), url: t.arg.string({ required: true }), note: t.arg.string() },
-    resolve: (_root, { projectId, title, url, note }) => done(resources.addProjectLink(projectId, { title, url, note: note ?? null })),
+    args: { projectId: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string({ required: true }), note: t.arg.string() },
+    resolve: (_root, { projectId, label, url, note }) => done(resources.addProjectLink(projectId, { label, url, note: note ?? null })),
   }),
   addProjectFiles: t.boolean({
     args: { projectId: t.arg.id({ required: true }), files: t.arg({ type: ['File'], required: true }) },
     resolve: (_root, { projectId, files }) => done(resources.addProjectFiles(projectId, files)),
   }),
   updateProjectResource: t.boolean({
-    args: { id: t.arg.id({ required: true }), title: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string() },
-    resolve: (_root, { id, title, url, note }) => done(resources.updateProjectResource(id, { title, url, note })),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string() },
+    resolve: (_root, { id, label, url, note }) => done(resources.updateProjectResource(id, { label, url, note })),
   }),
   deleteProjectResource: t.boolean({
     args: { id: t.arg.id({ required: true }) },

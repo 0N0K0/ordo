@@ -5,8 +5,8 @@ import { withArchived, type DataColumn } from '../../../components/data-table/ta
 import * as fmt from '../../../lib/format';
 import { commentTotal } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
-import { isDone, routineTreeOptions, stateOf, waitingFor } from './routine-format';
-import { opensWords, REPETITION_LABELS, repetitionOf, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
+import { isDone, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
+import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 
 /**
@@ -28,21 +28,21 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   // Archived values keep their labels, the filters offer them only while in them.
   const routineOptions = withArchived(routineTreeOptions(routines), routines);
   const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, context.contributorName(contributor)]));
-  const categoryName = categoryPaths(categories);
+  const categoryLabel = categoryPaths(categories);
   const categoryRank = new Map(categoryTree(categories).map((item, index) => [item.category.id, index]));
-  const scheduleName = new Map((env.slotKinds ?? []).map((kind) => [kind.value, kind.label]));
+  const scheduleLabel = new Map((env.slotKinds ?? []).map((kind) => [kind.value, kind.label]));
   const beneficiaryName = new Map((env.beneficiaries ?? []).map((person) => [person.value, person.label]));
   const comments = env.comments ?? new Map<string, number>();
-  const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.title ?? '').filter(Boolean);
+  const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.label ?? '').filter(Boolean);
   const slotIds = (routine: Routine) => [
     ...conditionScheduleIds(readSlotCondition(routine.slotCondition)),
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),
   ];
   const blockers = (routine: Routine) => routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
-  const state = (routine: Routine) => stateOf(routine, env.today, env.doable(routine));
+  const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   return [
-    { id: 'title', label: 'Label', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.title, text: (routine) => routine.title },
+    { id: 'title', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
     {
       id: 'currentDate',
       label: 'Échéance',
@@ -93,9 +93,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 200,
       hiddenByDefault: true,
       bulk: true,
-      sortValue: (routine) => ROUTINE_REPETITIONS.indexOf(repetitionOf(routine)),
-      text: (routine) => REPETITION_LABELS[repetitionOf(routine)],
-      filter: { kind: 'choice', value: repetitionOf, options: ROUTINE_REPETITIONS.map((value) => ({ value, label: REPETITION_LABELS[value] })) },
+      sortValue: (routine) => ROUTINE_REPETITIONS.indexOf(routineFrequency(routine)),
+      text: (routine) => REPETITION_LABELS[routineFrequency(routine)],
+      filter: { kind: 'choice', value: routineFrequency, options: ROUTINE_REPETITIONS.map((value) => ({ value, label: REPETITION_LABELS[value] })) },
     },
     {
       id: 'estimate',
@@ -136,7 +136,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'alarms',
-      label: 'Alertes',
+      label: 'Rappels',
       size: 100,
       hiddenByDefault: true,
       bulk: true,
@@ -151,7 +151,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       hiddenByDefault: true,
       text: (routine) =>
         slotIds(routine)
-          .map((id) => scheduleName.get(id) ?? '')
+          .map((id) => scheduleLabel.get(id) ?? '')
           .filter(Boolean)
           .join(', '),
       filter: { kind: 'choices', value: slotIds, options: env.slotKinds ?? [] },
@@ -208,9 +208,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 180,
       bulk: true,
       sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? Infinity)) : null),
-      text: (routine) => routine.categoryIds.map((id) => categoryName.get(id) ?? '').join(', '),
+      text: (routine) => routine.categoryIds.map((id) => categoryLabel.get(id) ?? '').join(', '),
       filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: withArchived(categoryOptions(categories), categories) },
-      groupTree: categories.map((category) => ({ key: category.id, label: category.name, color: category.color, parentKey: category.parentId })),
+      groupTree: categories.map((category) => ({ key: category.id, label: category.label, color: category.color, parentKey: category.parentId })),
     },
     {
       id: 'requires',
@@ -235,7 +235,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 200,
       hiddenByDefault: true,
       bulk: true,
-      text: (routine) => (routine.parentId ? (byId.get(routine.parentId)?.title ?? '') : ''),
+      text: (routine) => (routine.parentId ? (byId.get(routine.parentId)?.label ?? '') : ''),
       filter: { kind: 'choice', value: (routine) => routine.parentId ?? null, options: routineOptions },
     },
     {
@@ -266,7 +266,6 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'boolean', value: (routine) => waitingFor(routine, byId).length > 0 },
     },
     { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
-    { id: 'archived', label: 'Archivée', size: 100, hiddenByDefault: true, text: (routine) => (routine.archived ? 'Oui' : ''), filter: { kind: 'boolean', value: (routine) => routine.archived } },
     {
       id: 'comments',
       label: 'Commentaires',

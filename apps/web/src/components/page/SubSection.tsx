@@ -1,10 +1,11 @@
-import { Group, Stack, Text, type MantineSpacing } from '@mantine/core';
+import { Group, Stack, type MantineSpacing } from '@mantine/core';
 import type { ReactNode } from 'react';
+import { Caption } from './Caption';
 
 interface SubSectionProps {
   /** Title, in small capitals. */
   title: ReactNode;
-  /** Action on the right of the title (« Nouvelle alerte »). Optional. */
+  /** Action on the right of the title (« Nouvelle alarme »). Optional. */
   action?: ReactNode;
   /** Space between the title and the content. Optional. Default = 4. */
   gap?: MantineSpacing | number;
@@ -18,11 +19,7 @@ interface SubSectionProps {
  * @returns {JSX.Element} Section.
  */
 export function SubSection({ title, action, gap = 4, children }: SubSectionProps) {
-  const caption = (
-    <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-      {title}
-    </Text>
-  );
+  const caption = <Caption>{title}</Caption>;
   return (
     <Stack gap={gap}>
       {action ? (

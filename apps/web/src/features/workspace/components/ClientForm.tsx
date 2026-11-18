@@ -37,10 +37,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
     const callbacks = formCallbacks(form, client ? 'Client modifié.' : 'Client créé.', onDone && (() => onDone()));
 
     if (client) {
-      updateClient.mutate(
-        { id: client.id, input: { name: values.name, color, icon: icon.file, removeIcon: icon.remove } },
-        callbacks,
-      );
+      updateClient.mutate({ id: client.id, input: { name: values.name, color, icon: icon.file, removeIcon: icon.remove } }, callbacks);
     } else {
       createClient.mutate({ name: values.name, color, icon: icon.file }, callbacks);
     }
@@ -50,9 +47,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
-        <ColorField
-          placeholder="Aucune"
-          {...form.getInputProps('color')} />
+        <ColorField placeholder="Aucune" {...form.getInputProps('color')} />
         <IconField
           value={icon}
           onChange={setIcon}

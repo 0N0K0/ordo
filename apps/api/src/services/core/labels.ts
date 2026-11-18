@@ -1,4 +1,4 @@
-import { colorSchema, labelNameSchema } from '@ordo/shared';
+import { labelFormSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -10,12 +10,12 @@ import type { SETTINGS_LISTS } from './settings-lists';
 
 export interface Label {
   id: string;
-  name: string;
+  label: string;
   color: string;
   position: number;
 }
 
-/** Model of a list of items with a name, a color and a manual position (task statuses, stores, mail flags…). */
+/** Model of a list of items with a label, a color and a manual position (task statuses, stores, mail flags…). */
 export type LabelModel = (typeof SETTINGS_LISTS)[keyof typeof SETTINGS_LISTS];
 
 /** Prisma delegate subset shared by the label tables. */
@@ -30,32 +30,29 @@ interface LabelDelegate<T> {
 export interface LabelMessages {
   /** "Statut", "Priorité"… */
   notFound: string;
-  /** "Un statut porte déjà ce nom." */
+  /** "Un statut porte déjà ce libellé." */
   conflict: string;
 }
 
 export interface LabelOptions<T = Label> {
-  /** Fields of an item. Optional. Default = a label name and a required color. */
+  /** Fields of an item. Optional. Default = a label and a required color. */
   schema?: z.ZodObject;
   /** Extra fields of the table (e.g. status category), all optional. Optional. */
   extraSchema?: z.ZodObject;
-  /** Writes following an update, in its transaction (e.g. the records copying its name follow it). Optional. */
+  /** Writes following an update, in its transaction (e.g. the records copying its label follow it). Optional. */
   afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
 }
 
-/** Fields of a label when the table sets none. */
-const LABEL_SCHEMA = z.object({ name: labelNameSchema, color: colorSchema });
-
 /**
- * CRUD of a list of items with a name and a color, in a manual order: a name taken is a CONFLICT (the tables have a
- * unique name), an archived item is not changed.
+ * CRUD of a list of items with a label and a color, in a manual order: a label taken is a CONFLICT (the tables have a
+ * unique label), an archived item is not changed.
  * @param {LabelModel} model Table.
  * @param {LabelMessages} messages Error messages.
- * @param {LabelOptions<T>} [options] Fields of an item and update hook. Optional. Default = a label name and a required color.
+ * @param {LabelOptions<T>} [options] Fields of an item and update hook. Optional. Default = a label and a required color.
  * @returns {object} Label service.
  */
 export function createLabelService<T extends { id: string } = Label>(model: LabelModel, messages: LabelMessages, options: LabelOptions<T> = {}) {
-  const schema = (options.schema ?? LABEL_SCHEMA).extend(options.extraSchema?.shape ?? {});
+  const schema = (options.schema ?? labelFormSchema).extend(options.extraSchema?.shape ?? {});
   const patchSchema = schema.partial();
 
   /**

@@ -1,18 +1,37 @@
+import { clientPath, projectPath, SETTINGS_PARAM } from '../../../app/pages';
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
+import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { SubSection } from '../../../components/page/SubSection';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { useSetParams } from '../../../lib/search-params';
-import { ancestorsOf, mapById } from '@ordo/shared';
+import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
-import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
+import {
+  ArrowsClockwiseIcon,
+  BasketIcon,
+  CheckSquareOffsetIcon,
+  ClipboardTextIcon,
+  GithubLogoIcon,
+  ClockIcon,
+  EnvelopeSimpleIcon,
+  FlagIcon,
+  FolderPlusIcon,
+  InfoIcon,
+  PaperclipIcon,
+  PencilSimpleIcon,
+  ReceiptIcon,
+  TimerIcon,
+  UsersIcon,
+  ListChecksIcon,
+} from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
@@ -38,7 +57,6 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ProjectList } from '../components/ProjectList';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -49,6 +67,9 @@ import * as fmt from '../../../lib/format';
 function formatDate(date: string | null): string {
   return date ? fmt.day(date) : '—';
 }
+
+/** Tabs of a project page. */
+const PROJECT_TABS = ['overview', 'tasks', 'routines', 'shopping', 'sheets', 'time', 'billing', 'mail', 'resources'] as const;
 
 /** Sections of the settings tab of a project. */
 const SETTINGS_SECTIONS = ['taskSettings', 'milestones', 'sprints', 'contributors', 'github', 'project'] as const;
@@ -114,10 +135,10 @@ export function ProjectPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
   // The former tabs of the settings (links, bookmarks) open their section.
-  const requested = params.get('tab') ?? 'overview';
+  // The dashboards are in the overview; no billing in a personal workspace.
+  const [tab, setTab, asked] = usePageTab(perso ? PROJECT_TABS.filter((item) => item !== 'billing') : PROJECT_TABS);
+  const requested = asked ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
-  // The dashboards are in the overview.
-  const tab = legacy || requested === 'settings' || requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   // From the tasks tab, the settings open on those of the tasks.
   const [askedSection, setSection] = useSettingsTab(SETTINGS_SECTIONS, tab === 'tasks' ? 'taskSettings' : 'milestones');
   const section: SettingsSection = legacy ? (requested as SettingsSection) : askedSection;
@@ -138,7 +159,7 @@ export function ProjectPage() {
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.
-  const tree = new Set([project.id, ...subtree]);
+  const tree = subtreeOf(data.projects, project.id);
   const canAddSubProject = !project.archived && canHaveChildren(data.projects, project.id);
 
   return (
@@ -148,7 +169,7 @@ export function ProjectPage() {
         subtitle={
           <Breadcrumbs separator="›" separatorMargin={6} fz="sm">
             {client ? (
-              <Anchor component={Link} to={`/clients/${client.id}`} size="sm">
+              <Anchor component={Link} to={clientPath(client.id)} size="sm">
                 {client.name}
               </Anchor>
             ) : (
@@ -159,18 +180,17 @@ export function ProjectPage() {
               )
             )}
             {ancestors.map((ancestor) => (
-              <Anchor key={ancestor.id} component={Link} to={`/projects/${ancestor.id}`} size="sm">
-                {ancestor.title}
+              <Anchor key={ancestor.id} component={Link} to={projectPath(ancestor.id)} size="sm">
+                {ancestor.label}
               </Anchor>
             ))}
           </Breadcrumbs>
         }
         extraActions={
           canAddSubProject && (
-            <ActionButton
-              icon={<FolderPlusIcon aria-hidden />}
-              onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}
-            >Nouveau sous-projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}>
+              Nouveau sous-projet
+            </ActionButton>
           )
         }
       />
@@ -180,7 +200,7 @@ export function ProjectPage() {
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
           const settings = params.get(SETTINGS_PARAM);
-          setParams({ [SETTINGS_PARAM]: settings, [SETTINGS_TAB_PARAM]: settings ? section : null, tab: value && value !== 'overview' ? value : null }, { only: true });
+          setTab(value, { [SETTINGS_PARAM]: settings, [SETTINGS_TAB_PARAM]: settings ? section : null }, { only: true });
         }}
         keepMounted={false}
       >
@@ -217,45 +237,45 @@ export function ProjectPage() {
         </PageTabs.List>
         <PageTabs.Panel value="overview">
           <Stack gap="xl">
-              <Paper withBorder p="lg" radius="md">
-                <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
-                  <SubSection title="Statut">
-                    <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
-                  </SubSection>
-                  <SubSection title="Catégories">
-                    {project.categories.length > 0 ? (
-                      <Group gap={4}>
-                        {project.categories.map((category) => (
-                          <ItemBadge key={category.id} item={category} />
-                        ))}
-                      </Group>
-                    ) : (
-                      <Text size="sm">—</Text>
-                    )}
-                  </SubSection>
-                  <SubSection title="Début">
-                    <Text size="sm">{formatDate(project.startDate)}</Text>
-                  </SubSection>
-                  <SubSection title="Fin">
-                    <Text size="sm">{formatDate(project.endDate)}</Text>
-                  </SubSection>
-                </SimpleGrid>
-              </Paper>
+            <Paper withBorder p="lg" radius="md">
+              <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
+                <SubSection title="Statut">
+                  <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
+                </SubSection>
+                <SubSection title="Catégories">
+                  {project.categories.length > 0 ? (
+                    <Group gap={4}>
+                      {project.categories.map((category) => (
+                        <ItemBadge key={category.id} item={category} />
+                      ))}
+                    </Group>
+                  ) : (
+                    <Text size="sm">—</Text>
+                  )}
+                </SubSection>
+                <SubSection title="Début">
+                  <Text size="sm">{formatDate(project.startDate)}</Text>
+                </SubSection>
+                <SubSection title="Fin">
+                  <Text size="sm">{formatDate(project.endDate)}</Text>
+                </SubSection>
+              </SimpleGrid>
+            </Paper>
 
-              {subProjects.length > 0 && (
-                <Stack gap="sm">
-                  <SectionHeader title="Sous-projets" />
-                  <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
-                </Stack>
-              )}
+            {subProjects.length > 0 && (
+              <Stack gap="sm">
+                <SectionHeader title="Sous-projets" />
+                <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
+              </Stack>
+            )}
 
-              <SubSection title="Description" gap="xs">
-                <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
-                  {project.description}
-                </MarkdownView>
-              </SubSection>
+            <SubSection title="Description" gap="xs">
+              <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
+                {project.description}
+              </MarkdownView>
+            </SubSection>
 
-              <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
+            <DashboardBoard key={project.id} projectId={project.id} title={project.label} />
           </Stack>
         </PageTabs.Panel>
         <PageTabs.Panel value="tasks">
@@ -263,7 +283,7 @@ export function ProjectPage() {
             key={project.id}
             projectId={project.id}
             projectIds={tree}
-            title={project.title}
+            title={project.label}
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
@@ -292,11 +312,7 @@ export function ProjectPage() {
       </PageTabs>
       {/* Milestones, sprints, contributors, GitHub and the project itself: in the settings sidebar. */}
       <PageSettings title="Paramètres du projet">
-        <ProjectSettings
-          project={project}
-          section={section}
-          onSection={setSection}
-        />
+        <ProjectSettings project={project} section={section} onSection={setSection} />
       </PageSettings>
     </Stack>
   );

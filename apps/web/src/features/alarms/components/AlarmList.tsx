@@ -3,13 +3,13 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { describeAlarm, nextRing } from '../lib/alarm-labels';
 import { useAlarmMutations, type Alarm } from '../api';
 import type { AlarmFormOpener } from '../hooks/use-alarm-form';
 import * as fmt from '../../../lib/format';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath } from '../../../app/pages';
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -18,8 +18,8 @@ import { taskPath } from '../../tasks/lib/task-links';
  * @returns {object} Alarm input.
  */
 function toAlarmInput(alarm: Alarm, changes: Partial<Alarm>) {
-  const { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
-  return { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence: recurrence ?? null, minutes, projectId, taskId, enabled };
+  const { label, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
+  return { label, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence: recurrence ?? null, minutes, projectId, taskId, enabled };
 }
 
 interface AlarmListProps {
@@ -51,7 +51,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
   const confirmDelete = (alarm: Alarm) => {
     confirmDestructive({
       title: 'Supprimer l’alarme',
-      risks: `L’alarme « ${alarm.title} » sera supprimée définitivement et ne sonnera plus. Cette action est irréversible.`,
+      risks: `L’alarme « ${alarm.label} » sera supprimée définitivement et ne sonnera plus.`,
       run: () => remove.mutateAsync(alarm.id),
       done: 'Alarme supprimée.',
     });
@@ -64,11 +64,11 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
         const task = showTarget && alarm.taskId ? context.taskById.get(alarm.taskId) : undefined;
         const project = showTarget && alarm.projectId ? context.projectById.get(alarm.projectId) : undefined;
         return (
-          <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? 1 : 0.6 }}>
+          <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? undefined : 'var(--onoko-muted-opacity)' }}>
             <Group justify="space-between" wrap="nowrap" align="flex-start">
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Group gap="xs">
-                  <Text fw={600}>{alarm.title}</Text>
+                  <Text fw={600}>{alarm.label}</Text>
                   {alarm.enabled && alarm.type !== 'TRACKING_DURATION' && !next && (
                     <Badge size="sm" color="gray" variant="light">
                       Terminée
@@ -82,8 +82,8 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   </Text>
                 )}
                 {(task ?? project) && (
-                  <Anchor component={Link} to={task ? taskPath(task) : `/projects/${project!.id}`} size="xs">
-                    {task ? context.taskLabel(task) : project!.title}
+                  <Anchor component={Link} to={task ? taskPath(task) : projectPath(project!.id)} size="xs">
+                    {task ? context.taskLabel(task) : project!.label}
                   </Anchor>
                 )}
                 {alarm.note && (
@@ -94,12 +94,12 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
               </Stack>
               <Group gap="xs" wrap="nowrap">
                 <Switch
-                  aria-label={alarm.enabled ? `Désactiver ${alarm.title}` : `Activer ${alarm.title}`}
+                  aria-label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
                   checked={alarm.enabled}
-                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, { onError: onMutationError })}
+                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, ON_ERROR)}
                 />
                 <InlineActions
-                  name={alarm.title}
+                  name={alarm.label}
                   items={[
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(alarm) },
                     { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openForm(alarm, { copy: true }) },

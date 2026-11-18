@@ -36,7 +36,7 @@
 
     /* Effets */
     &[data-muted] .name {
-      opacity: 0.6;
+      opacity: var(--onoko-muted-opacity);
     }
 
     &[data-dragging] {
@@ -44,7 +44,7 @@
     }
 
     /* Animation */
-    transition: background-color 120ms ease;
+    transition: background-color var(--onoko-transition);
 
     /* Interaction */
     cursor: pointer;
@@ -54,21 +54,6 @@
     &[data-draggable] {
       cursor: grab;
     }
-  }
-
-  .chevron {
-    /* Agencement */
-    flex: none;
-
-    /* Effets */
-    transform: rotate(0deg);
-
-    &[data-expanded] {
-      transform: rotate(90deg);
-    }
-
-    /* Animation */
-    transition: transform 150ms ease;
   }
 
   /* Same box as the size="sm" chevron ActionIcon, so names stay aligned with or without chevron. */

@@ -1,15 +1,16 @@
-import { ActionIcon, Group, Tooltip, type ActionIconProps } from '@mantine/core';
-import { PauseIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Group, type ActionIconProps } from '@mantine/core';
+import { PauseIcon, PlayIcon } from '@phosphor-icons/react';
 import { ON_ERROR } from '../../../lib/notify';
 import { useTimeMutations, type TimeEntry } from '../api';
-import { useStopTimer } from '../hooks/use-stop-timer';
+import { StopTimerButton } from './TimerStop';
 
 interface TimerControlsProps {
   /** Running timer. */
   entry: TimeEntry;
   /** Size of the buttons. Optional. */
   size?: ActionIconProps['size'];
-  /** Look: `header` (subtle, in the app header) or `card` (pause light, stop filled). Optional. Default = card. */
+  /** Look of the pause: `header` (subtle, in the app header) or `card` (light); the stop is the same everywhere. Optional. Default = card. */
   look?: 'header' | 'card';
 }
 
@@ -20,27 +21,21 @@ interface TimerControlsProps {
  */
 export function TimerControls({ entry, size, look = 'card' }: TimerControlsProps) {
   const { setPaused } = useTimeMutations();
-  const { stopTimer, isPending: stopping } = useStopTimer();
   const paused = entry.pausedAt !== null;
   const header = look === 'header';
   return (
     <Group gap={header ? 4 : 'xs'} wrap="nowrap">
-      <Tooltip label={paused ? 'Reprendre' : 'Pause'}>
-        <ActionIcon
-          size={size}
-          variant={header ? 'subtle' : 'light'}
-          aria-label={paused ? 'Reprendre le chrono' : 'Mettre le chrono en pause'}
-          loading={setPaused.isPending}
-          onClick={() => setPaused.mutate(!paused, ON_ERROR)}
-        >
-          {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Arrêter et enregistrer">
-        <ActionIcon size={size} variant={header ? 'subtle' : 'filled'} aria-label="Arrêter le chrono et enregistrer" loading={stopping} onClick={() => stopTimer(entry)}>
-          <StopIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <IconAction
+        label={paused ? 'Reprendre' : 'Pause'}
+        size={size}
+        variant={header ? 'subtle' : 'light'}
+        aria-label={paused ? 'Reprendre le chrono' : 'Mettre le chrono en pause'}
+        loading={setPaused.isPending}
+        onClick={() => setPaused.mutate(!paused, ON_ERROR)}
+      >
+        {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
+      </IconAction>
+      <StopTimerButton entry={entry} size={size} />
     </Group>
   );
 }

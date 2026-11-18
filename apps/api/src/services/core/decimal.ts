@@ -20,6 +20,7 @@ export function toDecimal(value: number | null): Prisma.Decimal | null {
 export function fromDecimal(value: { toNumber(): number }): number;
 export function fromDecimal(value: { toNumber(): number } | null): number | null;
 export function fromDecimal(value: { toNumber(): number } | null): number | null {
+  // eslint-disable-next-line no-restricted-syntax -- fromDecimal itself.
   return value === null ? null : value.toNumber();
 }
 
@@ -29,5 +30,6 @@ export function fromDecimal(value: { toNumber(): number } | null): number | null
  * @returns {number} Cents.
  */
 export function decimalCents(value: { toNumber(): number } | null): number {
+  // eslint-disable-next-line no-restricted-syntax -- the cents of a decimal, read once.
   return value === null ? 0 : toCents(value.toNumber());
 }

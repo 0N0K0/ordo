@@ -3,18 +3,15 @@
   .row {
     /* Animation */
     transition:
-      background-color 150ms ease,
-      box-shadow 150ms ease;
+      background-color var(--onoko-transition),
+      box-shadow var(--onoko-transition);
 
     &:hover {
       /* Arrière-Plan */
       background-color: var(--mantine-color-default-hover);
     }
 
-    &[data-drop='INSIDE'] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-    }
+    /* Future parent of the dragged item ([data-drop='INSIDE']): styles/drop.css. */
 
     &[data-drop='BEFORE'] {
       /* Effets */

@@ -1,7 +1,7 @@
 import type { EventOccurrence } from '../../calendar/api';
 
 /** Event a time was spent on, as the API takes it. */
-export interface TimeEvent {
+interface TimeEvent {
   eventId: string;
   occurrenceDate: string | null;
 }
@@ -13,7 +13,7 @@ export interface TimeEvent {
  * @param {string | null | undefined} occurrenceDate Day of the occurrence (recurring events). Optional.
  * @returns {string} Key.
  */
-export const eventKey = (eventId: string, occurrenceDate?: string | null): string => `${eventId}|${occurrenceDate ?? ''}`;
+export const eventOccurrenceKey = (eventId: string, occurrenceDate?: string | null): string => `${eventId}|${occurrenceDate ?? ''}`;
 
 /**
  * Key of the event a time was spent on, if any.
@@ -21,7 +21,7 @@ export const eventKey = (eventId: string, occurrenceDate?: string | null): strin
  * @returns {string | null} Key.
  */
 export const entryEventKey = (entry: { calendarEventId?: string | null; calendarOccurrenceDate?: string | null }): string | null =>
-  entry.calendarEventId ? eventKey(entry.calendarEventId, entry.calendarOccurrenceDate || null) : null;
+  entry.calendarEventId ? eventOccurrenceKey(entry.calendarEventId, entry.calendarOccurrenceDate || null) : null;
 
 /**
  * Event of a key (none without key).
@@ -45,7 +45,7 @@ export function dayEventOptions(events: readonly EventOccurrence[], day: string)
   return events
     .filter((occurrence) => !occurrence.allDay || occurrence.startDate <= day)
     .map((occurrence) => ({
-      value: eventKey(occurrence.eventId, occurrence.occurrenceDate),
-      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.title}${occurrence.calledOff ? ' (annulé)' : ''}`,
+      value: eventOccurrenceKey(occurrence.eventId, occurrence.occurrenceDate),
+      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.label}${occurrence.calledOff ? ' (annulé)' : ''}`,
     }));
 }

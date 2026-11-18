@@ -147,10 +147,7 @@ export async function deleteFolder(id: string): Promise<void> {
   await assertFolder(id);
   const tree = await folderTree(id);
   const files = await prisma.libraryDocument.findMany({ where: { folderId: { in: tree }, attachmentId: { not: null } }, select: { attachmentId: true } });
-  await prisma.$transaction([
-    prisma.attachment.deleteMany({ where: { id: { in: files.map((file) => file.attachmentId!) } } }),
-    prisma.documentFolder.delete({ where: { id } }),
-  ]);
+  await prisma.$transaction([prisma.attachment.deleteMany({ where: { id: { in: files.map((file) => file.attachmentId!) } } }), prisma.documentFolder.delete({ where: { id } })]);
 }
 
 /**
@@ -169,10 +166,8 @@ export async function addFiles(folderId: string | null, files: File[]): Promise<
   for (const file of files) {
     const attachment = await prisma.attachment.create({ data: attachmentData(file.name, Buffer.from(await file.arrayBuffer())) });
     // The title is the name without its extension.
-    const title = attachment.name.replace(/\.[^.]{1,8}$/, '') || attachment.name;
-    created.push(
-      await prisma.libraryDocument.create({ data: { kind: 'FILE', title: title.slice(0, 200), attachmentId: attachment.id, folderId, position: await nextDocumentPosition(folderId) } }),
-    );
+    const title = attachment.filename.replace(/\.[^.]{1,8}$/, '') || attachment.filename;
+    created.push(await prisma.libraryDocument.create({ data: { kind: 'FILE', title: title.slice(0, 200), attachmentId: attachment.id, folderId, position: await nextDocumentPosition(folderId) } }));
   }
   return created;
 }
@@ -282,7 +277,7 @@ export async function libraryZip(scope: { folderId?: string | null; ids?: string
   };
   const used = new Set<string>();
   const files = documents.map((document) => {
-    const base = document.attachment ? safe(document.attachment.name) : `${safe(document.title)}.url`;
+    const base = document.attachment ? safe(document.attachment.filename) : `${safe(document.title)}.url`;
     let name = `${pathOf(document.folderId)}${base}`;
     for (let copy = 2; used.has(name); copy += 1) name = `${pathOf(document.folderId)}${base.replace(/(\.[^.]+)?$/, ` (${copy})$1`)}`;
     used.add(name);

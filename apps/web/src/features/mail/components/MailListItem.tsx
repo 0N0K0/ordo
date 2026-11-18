@@ -17,8 +17,8 @@ interface MailListMessage {
 
 interface MailListItemProps {
   message: MailListMessage;
-  /** Its flags (name and color). */
-  labels: readonly { id: string; name: string; color: string }[];
+  /** Its flags (label and color). */
+  labels: readonly { id: string; label: string; color: string }[];
   /** Addresses of the accounts: a mail sent from one of them shows its recipients. */
   ownAddresses: ReadonlySet<string>;
   /** The mail is open in the reader. */
@@ -77,8 +77,8 @@ export function MailListItem({ message, labels, ownAddresses, active, ticked, on
             </Group>
             <Group gap={4} wrap="nowrap">
               {labels.map((label) => (
-                <Tooltip key={label.id} label={label.name}>
-                  <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau ${label.name}`} />
+                <Tooltip key={label.id} label={label.label}>
+                  <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau ${label.label}`} />
                 </Tooltip>
               ))}
               {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}

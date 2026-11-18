@@ -1,6 +1,5 @@
 import { Group, NumberInput, Select, Stack } from '@mantine/core';
-import type { Recurrence, RoutineOpens, RoutineOpensMode } from '@ordo/shared';
-import { MONTH_NAMES, POSITION_NAMES, WEEKDAY_NAMES } from '../lib/opens-format';
+import { monthOptions, positionOptions, weekdayOptions, type Recurrence, type RoutineOpens, type RoutineOpensMode } from '@ordo/shared';
 
 interface OpensOnInputProps {
   /** Frequency of the rule it belongs to: a day of the month or of the year only for a monthly or yearly one. */
@@ -49,10 +48,6 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
   }
 }
 
-const weekdayData = WEEKDAY_NAMES.map((label, index) => ({ value: String(index + 1), label }));
-const monthData = MONTH_NAMES.map((label, index) => ({ value: String(index + 1), label }));
-const positionData = [1, 2, 3, 4, -1].map((position) => ({ value: String(position), label: POSITION_NAMES[position] }));
-
 /**
  * « À partir du »: day each occurrence can be done from, before its due day: a day number, a weekday of the month (the
  * 2nd Tuesday), the weekday of a week (of the month, or ISO week of the year), in its period (a monthly or yearly
@@ -77,10 +72,10 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
    */
   const number = (next: string | null) => Number(next ?? 1);
   const monthSelect = value && (value.mode === 'DAY' || value.mode === 'WEEKDAY') && yearly && (
-    <Select label="Mois" data={monthData} value={String(value.month ?? 1)} onChange={(next) => change({ month: number(next) })} allowDeselect={false} />
+    <Select label="Mois" data={monthOptions} value={String(value.month ?? 1)} onChange={(next) => change({ month: number(next) })} allowDeselect={false} />
   );
   const weekdaySelect = value && (value.mode === 'WEEKDAY' || value.mode === 'WEEK') && (
-    <Select label="Jour" data={weekdayData} value={String(value.weekday)} onChange={(next) => change({ weekday: number(next) })} allowDeselect={false} />
+    <Select label="Jour" data={weekdayOptions} value={String(value.weekday)} onChange={(next) => change({ weekday: number(next) })} allowDeselect={false} />
   );
   return (
     <Stack gap="xs">
@@ -101,7 +96,7 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
       )}
       {value?.mode === 'WEEKDAY' && mode === 'WEEKDAY' && (
         <Group gap="sm" align="flex-start" grow>
-          <Select label="Le" data={positionData} value={String(value.position)} onChange={(next) => change({ position: number(next) })} allowDeselect={false} />
+          <Select label="Le" data={positionOptions} value={String(value.position)} onChange={(next) => change({ position: number(next) })} allowDeselect={false} />
           {weekdaySelect}
           {monthSelect}
         </Group>

@@ -1,4 +1,4 @@
-import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableSort, type TableViewConfig } from '@ordo/shared';
+import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableFilterGroup, type TableSort, type TableViewConfig } from '@ordo/shared';
 import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../selection/bulk-selection';
 import { newConditionFor } from '../../filters/filter-meta';
@@ -7,12 +7,26 @@ import { localToday } from '../../../lib/dates';
 import { useSavedViews, type SavedViewsState } from './use-saved-views';
 import { shownColumns, sortRows, type DataColumn, type ShownColumn } from '../table/data-table';
 import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from '../table/table-engine';
+import { useArchivedToggle, type ArchivedToggle } from '../../../lib/archive';
 
-/** First view of a table: its name and what it starts with. */
+/** First view of a table: its label and what it starts with. */
 export interface FirstTableView {
-  name: string;
+  label: string;
   config?: Partial<TableViewConfig>;
 }
+
+/**
+ * Filter of a first view: the rows whose date field is within a period (« thisMonth », « lastYear »…).
+ * @param {string} field Date field (its condition has the same id).
+ * @param {string} period Period token.
+ * @returns {TableFilterGroup} Filter.
+ */
+export const withinFilter = (field: string, period: string): TableFilterGroup => ({
+  type: 'group',
+  id: 'root',
+  combinator: 'and',
+  children: [{ type: 'condition', id: field, field, operator: 'within', value: period }],
+});
 
 /** Rows checked of a table (their check boxes): every field of each edited at once. */
 export interface RowSelection {
@@ -41,8 +55,10 @@ interface DataViewOptions<R> {
   getKey?: (row: R) => string;
   /** Cells of their own (out of the columns: a toggle before them…) also edited in bulk, with their name. Optional. */
   bulkColumns?: readonly { id: string; label: string }[];
-  /** The row is archived: left out unless the view includes them (its option « Inclure les archivées »). Optional. */
+  /** The row is archived: left out until « Afficher les archivés » is on (decision AH). Optional. */
   archived?: (row: R) => boolean;
+  /** Label of that switch (« Afficher les archivées »). Optional. Default = « Afficher les archivés ». */
+  archivedLabel?: string;
   /** The row is shown whatever the search and the filter (one being created…). Optional. */
   alwaysKept?: (row: R) => boolean;
   /** Its views, read before its rows (useTableViews). Optional. */
@@ -64,8 +80,8 @@ export interface DataView<R> {
   rows: R[];
   /** Number of rows before the search and the filter. */
   total: number;
-  /** The table has archived rows to include or not (its option). */
-  hasArchived: boolean;
+  /** « Afficher les archivés » switch of the table, when its rows can be archived (`ShowArchivedSwitch` props). */
+  archivedToggle: (ArchivedToggle & { label?: string }) | null;
   /** Groups of the rows (one of every row, without heading, when not grouped). */
   groups: RowGroup<R>[];
   /** Column the rows are grouped by. */
@@ -127,8 +143,8 @@ export function useTableViews({
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
     () =>
-      ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ name: 'Toutes' }]).map((view) => ({
-        name: view.name,
+      ((JSON.parse(firstKey) as FirstTableView[] | null) ?? [{ label: 'Toutes' }]).map((view) => ({
+        label: view.label,
         config: tableViewConfig({ ...(JSON.parse(defaultsKey) as Partial<TableViewConfig>), ...view.config }),
       })),
     [firstKey, defaultsKey],
@@ -137,20 +153,39 @@ export function useTableViews({
 }
 
 /**
+ * Archived test of a table whose rows cannot be archived.
+ * @returns {boolean} Never archived.
+ */
+const NEVER_ARCHIVED = (): boolean => false;
+
+/**
  * Saved views of a table, as those of the tasks (tabs, unsaved changes, default one), and the current one applied to
  * its rows: search and filter on its columns, sorts, groups, columns shown, their order and widths.
  * @param {DataViewOptions<R>} options Table.
  * @returns {DataView<R>} View.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [], archived, alwaysKept, views: given }: DataViewOptions<R>): DataView<R> {
+export function useDataView<R>({
+  tableKey,
+  projectId = null,
+  columns,
+  rows,
+  title,
+  first,
+  getKey,
+  bulkColumns = [],
+  archived,
+  archivedLabel,
+  alwaysKept,
+  views: given,
+}: DataViewOptions<R>): DataView<R> {
   // Its own views, unless read before by the table (useTableViews).
   const own = useTableViews({ tableKey, projectId, first, ready: !given });
   const views = given ?? own;
   const { config } = views;
   const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
   const sorting = config?.sorting ?? [];
-  // The archived rows, unless the view includes them.
-  const pool = archived && !config?.includeArchived ? rows.filter((row) => !archived(row)) : rows;
+  // The archived rows, once asked.
+  const { shown: pool, toggle } = useArchivedToggle(rows, archived ?? NEVER_ARCHIVED);
   const matched = config ? filterRows(pool, columns, config, localToday()) : [];
   const forced = alwaysKept ? new Set(matched) : null;
   const kept = config ? sortRows(forced ? pool.filter((row) => forced.has(row) || alwaysKept!(row)) : matched, sorting, columns) : [];
@@ -170,7 +205,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     sorting,
     rows: kept,
     total: rows.length,
-    hasArchived: Boolean(archived),
+    archivedToggle: archived ? { ...toggle, label: archivedLabel } : null,
     groups: groupColumn ? groupRows(kept, groupColumn, sorting, config?.groupPeriod) : [{ key: '', label: '', rows: kept }],
     groupColumn,
     change: views.change,

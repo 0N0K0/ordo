@@ -5,7 +5,8 @@ import { downloadUrl, viewableKind } from '../lib/viewable';
 
 interface FileLinkProps extends AnchorProps {
   url: string;
-  name: string;
+  /** Name of the file (its extension tells how it opens). */
+  filename: string;
   mimeType?: string | null;
   children: ReactNode;
 }
@@ -15,10 +16,10 @@ interface FileLinkProps extends AnchorProps {
  * @param {FileLinkProps} props Component props.
  * @returns {JSX.Element} Link.
  */
-export function FileLink({ url, name, mimeType, children, ...props }: FileLinkProps) {
-  const kind = viewableKind({ url, name, mimeType });
+export function FileLink({ url, filename, mimeType, children, ...props }: FileLinkProps) {
+  const kind = viewableKind({ url, filename, mimeType });
   return (
-    <Anchor {...props} href={kind ? url : downloadUrl(url)} target={kind ? '_blank' : undefined} rel="noopener" onClick={(event) => handleFileClick(event, { url, name, mimeType })}>
+    <Anchor {...props} href={kind ? url : downloadUrl(url)} target={kind ? '_blank' : undefined} rel="noopener" onClick={(event) => handleFileClick(event, { url, filename, mimeType })}>
       {children}
     </Anchor>
   );

@@ -1,12 +1,16 @@
+import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
+import { createInPanel } from '../../../components/settings/create-settings-item';
+import { useCategoryCreators } from '../hooks/use-settings-items';
+import { ContextForm, RelationForm } from './TeamPanel';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
-import { unarchived } from '../../../lib/archive';
+import { unarchived, archivedIds } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/items/item-look';
-import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { Button, Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
-import { PaperclipIcon, PlusIcon, UsersThreeIcon } from '@phosphor-icons/react';
+import { PaperclipIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from '../api';
 import { categoryOptions } from '../lib/categories';
@@ -18,6 +22,7 @@ import { AmountInput } from '../../../components/inputs/AmountInput';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { meName } from '../../../components/people/people-options';
+import { IconAction } from '../../../components/actions/IconAction';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -29,10 +34,6 @@ interface LinesEditorProps {
   date: string;
   settings: TreasurySettings | undefined;
   errors: Record<string, unknown>;
-  /** Opens the creation of a context for a line (it takes the context created). */
-  onCreateContext: (index: number) => void;
-  /** Opens the creation of a relation for a line (it is then for it). */
-  onCreateRelation: (index: number) => void;
   /** Entry edited, null for a new one. */
   entryId: string | null;
   projects: TreeOption[];
@@ -49,7 +50,7 @@ interface LinesEditorProps {
  * @param {LinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, onCreateContext, onCreateRelation, entryId, projects, documentGroups }: LinesEditorProps) {
+export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups }: LinesEditorProps) {
   // Line whose attachments are edited.
   const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
@@ -57,8 +58,15 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const members = settings?.treasuryMembers ?? [];
   const contexts = settings?.treasuryContexts ?? [];
   const categories = settings?.treasuryCategories ?? [];
+  // A relation or a context created from a line, with its own form (the name typed filled in).
+  const createRelation = async (name: string) => {
+    const id = await createInPanel('Nouvelle relation', (done) => <RelationForm name={name} onDone={done} />);
+    return id && memberOrRelationKey({ relationId: id });
+  };
+  const createCategory = useCategoryCreators(categories);
+  const createContext = (name: string) => createInPanel('Nouveau contexte', (done) => <ContextForm label={name} onDone={done} />);
   // An archived context is not proposed any more.
-  const archivedContexts = new Set(contexts.filter((context) => context.archived).map((context) => context.id));
+  const archivedContexts = archivedIds(contexts);
   const periods = (settings?.treasuryContextPeriods ?? [])
     .filter((period) => !archivedContexts.has(period.contextId))
     .map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
@@ -168,36 +176,30 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Group gap={4} wrap="nowrap">
-                        <Select
-                          size="xs"
-                          style={{ flex: 1, minWidth: 0 }}
-                          aria-label={`Bénéficiaire de la ligne ${index + 1}`}
-                          placeholder={meName(me)}
-                          clearable
-                          searchable
-                          data={whomOptions}
-                          value={memberOrRelationKey(line)}
-                          onChange={(key) =>
-                            // A loan is with a relation only.
-                            change(index, {
-                              ...memberOrRelation(key),
-                              loan: parsePersonKey(key)?.kind === 'relation' ? line.loan : false,
-                            })
-                          }
-                          error={error('memberId') ?? error('relationId')}
-                        />
-                        <Tooltip label="Nouvelle relation (ami, famille…)">
-                          <ActionIcon variant="default" size="input-xs" aria-label={`Nouvelle relation pour la ligne ${index + 1}`} onClick={() => onCreateRelation(index)}>
-                            <PlusIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
+                      <CreatableSelect
+                        size="xs"
+                        aria-label={`Bénéficiaire de la ligne ${index + 1}`}
+                        onCreate={createRelation}
+                        placeholder={meName(me)}
+                        clearable
+                        searchable
+                        data={whomOptions}
+                        value={memberOrRelationKey(line)}
+                        onChange={(key) =>
+                          // A loan is with a relation only.
+                          change(index, {
+                            ...memberOrRelation(key),
+                            loan: parsePersonKey(key)?.kind === 'relation' ? line.loan : false,
+                          })
+                        }
+                        error={error('memberId') ?? error('relationId')}
+                      />
                     </Table.Td>
                     <Table.Td>
-                      <Select
+                      <CreatableSelect
                         size="xs"
                         aria-label={`Catégorie de la ligne ${index + 1}`}
+                        onCreate={createCategory[relative * sign >= 0 ? 'IN' : 'OUT']}
                         placeholder="Sans catégorie"
                         clearable
                         searchable
@@ -208,25 +210,18 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Group gap={4} wrap="nowrap">
-                        <Select
-                          size="xs"
-                          style={{ flex: 1, minWidth: 0 }}
-                          aria-label={`Contexte de la ligne ${index + 1}`}
-                          placeholder={EVERYDAY_CONTEXT}
-                          clearable
-                          searchable
-                          {...contextSelect}
-                          value={line.contextId}
-                          onChange={(contextId) => change(index, { contextId })}
-                          error={error('contextId')}
-                        />
-                        <Tooltip label="Nouveau contexte">
-                          <ActionIcon variant="default" size="input-xs" aria-label={`Nouveau contexte pour la ligne ${index + 1}`} onClick={() => onCreateContext(index)}>
-                            <PlusIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
+                      <CreatableSelect
+                        size="xs"
+                        aria-label={`Contexte de la ligne ${index + 1}`}
+                        onCreate={createContext}
+                        placeholder={EVERYDAY_CONTEXT}
+                        clearable
+                        searchable
+                        {...contextSelect}
+                        value={line.contextId}
+                        onChange={(contextId) => change(index, { contextId })}
+                        error={error('contextId')}
+                      />
                     </Table.Td>
                     <Table.Td>
                       <SegmentedControl
@@ -256,19 +251,22 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Tooltip label="Projet, pièces justificatives, liens">
-                        <Indicator label={attachmentCount(line)} size={16} disabled={!attachmentCount(line)} offset={4}>
-                          <ActionIcon variant={attachmentCount(line) ? 'light' : 'subtle'} color="gray" aria-label={`Rattachements de la ligne ${index + 1}`} onClick={() => setAttaching(index)}>
-                            <PaperclipIcon aria-hidden />
-                          </ActionIcon>
-                        </Indicator>
-                      </Tooltip>
+                      <IconAction
+                        label="Rattacher"
+                        hint="Projet, pièces justificatives, liens"
+                        aria-label={`Rattachements de la ligne ${index + 1}`}
+                        variant={attachmentCount(line) ? 'light' : 'subtle'}
+                        indicator={attachmentCount(line)}
+                        onClick={() => setAttaching(index)}
+                      >
+                        <PaperclipIcon aria-hidden />
+                      </IconAction>
                     </Table.Td>
                     <Table.Td ta="right">
                       <SignedAmount value={relative * sign} aria-label={`Montant de la ligne ${index + 1}`} />
                     </Table.Td>
                     <Table.Td>
-                      <RemoveButton label="Retirer la ligne" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))} />
+                      <RemoveButton label="Retirer" aria-label={`Retirer la ligne ${index + 1}`} onClick={() => onChange(lines.filter((_, position) => position !== index))} />
                     </Table.Td>
                   </Table.Tr>
                 );

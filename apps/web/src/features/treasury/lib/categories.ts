@@ -66,5 +66,5 @@ export function categoryPathLineage(byId: ReadonlyMap<string, TreasuryCategory>,
  * @returns {string[]} Names.
  */
 export function categoryLineage(byId: ReadonlyMap<string, TreasuryCategory>, id: string | null): string[] {
-  return lineageOf(byId, id).map((category) => category.name);
+  return lineageOf(byId, id).map((category) => category.label);
 }

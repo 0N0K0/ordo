@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { ColorField } from '../../../components/inputs/ColorField';
-import { ActionIcon, Button, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
+import { Button, Group, Popover, Select, Stack, TextInput } from '@mantine/core';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { byPosition, labelFormSchema, type LabelFormValues } from '@ordo/shared';
@@ -29,7 +30,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
   const createStatus = useCreateProjectStatus();
   const mutation = kind === 'category' ? createCategory : createStatus;
   const form = useAppForm<LabelFormValues>({
-    initialValues: { name: '', color: swatches[0] },
+    initialValues: { label: '', color: swatches[0] },
     schema: labelFormSchema,
   });
   const label = kind === 'category' ? 'Nouvelle catégorie' : 'Nouveau statut';
@@ -48,16 +49,14 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-end" withArrow trapFocus shadow="md">
       <Popover.Target>
-        <Tooltip label={label}>
-          <ActionIcon variant="default" size="input-sm" aria-label={label} onClick={() => setOpened((open) => !open)}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label={label} variant="default" size="input-sm" onClick={() => setOpened((open) => !open)}>
+          <PlusIcon aria-hidden />
+        </IconAction>
       </Popover.Target>
       <Popover.Dropdown>
         {/* Not a nested <form>: the popover renders inside the project form. */}
         <Stack gap="sm" w={240}>
-          <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
           <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
             <Button size="xs" leftSection={<PlusIcon aria-hidden />} loading={mutation.isPending} onClick={() => handleSubmit()}>
@@ -121,7 +120,7 @@ export function StatusInput({ statuses, value, onChange, error }: StatusInputPro
         label="Statut"
         placeholder="Aucun"
         {...listSelectProps([...statuses].sort(byPosition), undefined, value)}
-        leftSection={current ? <ItemAvatar name={current.name} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+        leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
         value={value}
         onChange={onChange}
         error={error}

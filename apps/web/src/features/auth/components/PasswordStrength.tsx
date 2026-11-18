@@ -60,10 +60,7 @@ export function PasswordStrength({ value, userInputs = [] }: PasswordStrengthPro
   const checker = useStrengthChecker();
   const password = useDeferredValue(value);
   const inputsKey = userInputs.join('\n');
-  const strength = useMemo(
-    () => (checker && password ? checker(password, inputsKey ? inputsKey.split('\n') : []) : null),
-    [checker, password, inputsKey],
-  );
+  const strength = useMemo(() => (checker && password ? checker(password, inputsKey ? inputsKey.split('\n') : []) : null), [checker, password, inputsKey]);
 
   if (!password) return null;
 
@@ -77,12 +74,7 @@ export function PasswordStrength({ value, userInputs = [] }: PasswordStrengthPro
 
   return (
     <Stack gap={4} aria-live="polite">
-      <Progress
-        value={score === null ? 0 : ((score + 1) / LABELS.length) * 100}
-        color={score === null ? 'gray' : COLORS[score]}
-        size="sm"
-        aria-label="Robustesse du mot de passe"
-      />
+      <Progress value={score === null ? 0 : ((score + 1) / LABELS.length) * 100} color={score === null ? 'gray' : COLORS[score]} size="sm" aria-label="Robustesse du mot de passe" />
       <Text size="xs" c="dimmed">
         {score === null ? 'Analyse de la robustesse…' : LABELS[score]}
         {hint && ` — ${hint}`}

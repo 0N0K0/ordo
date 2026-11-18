@@ -1,8 +1,8 @@
 import { DatesProvider } from '@mantine/dates';
 import { readWeek } from '@ordo/shared';
 import type { ReactNode } from 'react';
-import { useActiveWorkspace } from '../../features/workspaces/api';
-import { pickerFirstDay } from '../../lib/week';
+import { useActiveWorkspace } from '../features/workspaces/api';
+import { pickerFirstDay } from '../lib/week';
 
 /**
  * Date pickers in French, their weeks starting on the first day of those of the workspace.

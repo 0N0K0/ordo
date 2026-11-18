@@ -1,10 +1,10 @@
-import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2 } from '@ordo/shared';
+import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2, sumOf } from '@ordo/shared';
 import { MEASURE_LABELS, PALETTE, type ChartData, type ChartSeries } from './aggregate';
 
 /** A data set of a chart, as a configuration of its own. */
 interface DatasetPart {
   id: string;
-  name: string;
+  label: string;
   config: ChartConfig;
   /** How it is drawn, when not like the chart. */
   type: 'bar' | 'line' | 'area' | null;
@@ -21,7 +21,7 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
   const several = config.datasets.length > 0 || config.comparisons.length > 0;
   const main: DatasetPart = {
     id: MAIN_DATASET,
-    name: config.name || MEASURE_LABELS[config.measure],
+    label: config.label || MEASURE_LABELS[config.measure],
     config: several ? { ...config, datasets: [], comparisons: [] } : config,
     type: null,
   };
@@ -29,7 +29,7 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
     main,
     ...config.datasets.map((dataset) => ({
       id: dataset.id,
-      name: dataset.name,
+      label: dataset.label,
       type: dataset.type,
       config: {
         ...config,
@@ -89,7 +89,7 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     // Each data set has its own type (that of the chart by default); its bars stack in stacked bars, its areas when split.
     const kind = part.type ?? chartKind;
     const stacked = (kind === 'bar' && config.type === 'stackedBar') || (kind === 'area' && split);
-    const names = new Map(data.series.map((serie) => [serie.name, unique(split ? `${part.name} · ${serie.name}` : part.name)]));
+    const names = new Map(data.series.map((serie) => [serie.name, unique(split ? `${part.label} · ${serie.name}` : part.label)]));
     for (const serie of data.series) {
       series.push({ name: names.get(serie.name)!, color: PALETTE[series.length % PALETTE.length], type: kind, ...(stacked && { stackId: part.id }) });
     }
@@ -114,7 +114,7 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     const a = totals.get(comparison.a);
     const b = totals.get(comparison.b);
     if (!a || !b) continue;
-    const name = unique(comparison.name);
+    const name = unique(comparison.label);
     for (const [x, row] of rows) row[name] = compare(comparison.kind, a.get(x) ?? 0, b.get(x) ?? 0);
     series.push({
       name,
@@ -128,7 +128,7 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     rows: order.map((x) => rows.get(x)!),
     series,
     slices: [],
-    taskCount: results.reduce((sum, { data }) => sum + data.taskCount, 0),
+    taskCount: sumOf(results, ({ data }) => data.taskCount),
     empty: results.every(({ data }) => data.empty),
     mixed: true,
     percentAxis: config.comparisons.some((comparison) => comparison.kind === 'ratio'),

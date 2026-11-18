@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
@@ -86,10 +86,7 @@ export function formatClock(seconds: number): string {
  * @param {number} [now] Current time in ms. Optional. Default = Date.now().
  * @returns {number} Seconds.
  */
-export function entrySeconds(
-  entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null },
-  now = Date.now(),
-): number {
+export function entrySeconds(entry: { startedAt: string; endedAt: string | null; pausedAt: string | null; pausedSeconds: number; duration: number | null }, now = Date.now()): number {
   if (entry.duration !== null) return entry.duration;
   const end = entry.pausedAt ? Date.parse(entry.pausedAt) : entry.endedAt ? Date.parse(entry.endedAt) : now;
   return Math.max(0, Math.floor((end - Date.parse(entry.startedAt)) / 1000) - entry.pausedSeconds);
@@ -102,10 +99,13 @@ export type AlarmType = (typeof ALARM_TYPES)[number];
 export const ALARM_FREQUENCIES = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY'] as const;
 export type AlarmFrequency = (typeof ALARM_FREQUENCIES)[number];
 
+/** Longest label of an alarm. */
+export const ALARM_LABEL_MAX = 200;
+
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    title: requiredText(200, 'Le titre est requis.'),
+    label: requiredText(ALARM_LABEL_MAX),
     note: z
       .string()
       .max(4000, '4 000 caractères maximum.')
@@ -120,7 +120,12 @@ export const alarmInputSchema = z
     endDate: dateSchema,
     /** Repetition in the common form; none: the former fields above (ONCE: rings once). */
     recurrence: recurrenceSchema.nullable().optional(),
-    minutes: z.number().int().min(1, 'Au moins 1 minute.').max(24 * 60, '24 heures maximum.').nullable(),
+    minutes: z
+      .number()
+      .int()
+      .min(1, 'Au moins 1 minute.')
+      .max(24 * 60, '24 heures maximum.')
+      .nullable(),
     projectId: z.string().nullable(),
     taskId: z.string().nullable(),
     enabled: z.boolean(),
@@ -132,9 +137,7 @@ export const alarmInputSchema = z
     }
     if (!alarm.startDate) context.addIssue({ code: 'custom', path: ['startDate'], message: 'La date est requise.' });
     if (!alarm.time) context.addIssue({ code: 'custom', path: ['time'], message: 'L’heure est requise.' });
-    if (alarm.startDate && alarm.endDate && alarm.endDate < alarm.startDate) {
-      context.addIssue({ code: 'custom', path: ['endDate'], message: 'La date de fin doit suivre la date de début.' });
-    }
+    if (!endsAfter(alarm.startDate, alarm.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
   });
 export type AlarmInput = z.input<typeof alarmInputSchema>;
 
@@ -159,7 +162,13 @@ export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
   const stored = recurrenceSchema.safeParse(schedule.recurrence);
   if (stored.success) return stored.data;
   if (schedule.frequency === 'ONCE') return null;
-  return { ...DEFAULT_RECURRENCE, frequency: schedule.frequency, interval: Math.max(1, schedule.interval), weekdays: schedule.frequency === 'WEEKLY' ? schedule.weekdays : [], until: schedule.endDate };
+  return {
+    ...DEFAULT_RECURRENCE,
+    frequency: schedule.frequency,
+    interval: Math.max(1, schedule.interval),
+    weekdays: schedule.frequency === 'WEEKLY' ? schedule.weekdays : [],
+    until: schedule.endDate,
+  };
 }
 
 /**

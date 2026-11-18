@@ -1,3 +1,4 @@
+import { DAY_MS } from '@ordo/shared';
 import { parseCookie } from 'cookie';
 import type { Request, Response } from 'express';
 import { prisma } from '../db';
@@ -6,11 +7,10 @@ import { generateToken, hashToken } from './crypto';
 
 const SESSION_COOKIE = 'ordo_session';
 
-const DAY = 24 * 60 * 60 * 1000;
 /** Idle timeout: the session expires after this long without activity. */
-const SESSION_TTL = 14 * DAY;
+const SESSION_TTL = 14 * DAY_MS;
 /** Sliding expiry is persisted at most once per interval to limit writes. */
-const TOUCH_INTERVAL = DAY;
+const TOUCH_INTERVAL = DAY_MS;
 
 export interface SessionInfo {
   id: string;

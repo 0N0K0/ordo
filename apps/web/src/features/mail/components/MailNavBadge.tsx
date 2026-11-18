@@ -1,6 +1,7 @@
 import { Group } from '@mantine/core';
 import { useMailAccounts, useTodoMailCount, useUnreadMailCount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Counts on the "Mails" entry of the sidebar: mails to do (every folder but drafts, sent, archive, junk and
@@ -9,7 +10,7 @@ import { MailCountBadges } from './MailCountBadges';
  */
 export function MailNavBadge() {
   const { data: accounts } = useMailAccounts();
-  const enabled = (accounts ?? []).some((account) => !account.archived);
+  const enabled = unarchived(accounts ?? []).length > 0;
   const { data: unread } = useUnreadMailCount(enabled);
   const { data: todo } = useTodoMailCount(enabled);
   if (!unread && !todo) return null;

@@ -6,6 +6,7 @@ import { useAsyncAction } from '../../../lib/use-async-action';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { travelTime, usePlaces } from '../api';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Start or end chosen: a saved place, another address, or (for the way back) the start. */
 const OTHER = 'other';
@@ -40,7 +41,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
 
   // Places with an address (their zones share their point), the archived ones left out.
   const addressed = (places ?? []).filter((place) => !place.parentId && !place.archived);
-  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.name }));
+  const placeOptions = addressed.map((place) => ({ value: place.id, label: place.label }));
   /**
    * Point of a choice.
    * @param {string | null} choice Place id, OTHER or SAME.
@@ -77,9 +78,9 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   });
 
   const button = (
-    <Button variant="default" size="xs" leftSection={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
+    <ActionButton priority="secondary" size="xs" icon={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
       Calculer les trajets
-    </Button>
+    </ActionButton>
   );
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-start" width={380} shadow="md" withinPortal trapFocus>

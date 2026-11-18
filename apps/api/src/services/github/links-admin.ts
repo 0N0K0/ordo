@@ -1,4 +1,4 @@
-import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, type GithubLinkInput, mapById, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound } from '../../graphql/errors';
@@ -40,32 +40,6 @@ export async function previewBoard(url: string): Promise<Board> {
   return resolveBoard(await githubToken(), url);
 }
 
-export interface LinkInput {
-  url: string;
-  statusFieldId: string | null;
-  priorityFieldId: string | null;
-  iterationFieldId: string | null;
-  startFieldId: string | null;
-  endFieldId: string | null;
-  effortFieldId: string | null;
-  deadlineFieldId: string | null;
-  timeSpentFieldId: string | null;
-  /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization) or null. */
-  typeSource: 'FIELD' | 'ISSUE_TYPE' | null;
-  typeFieldId: string | null;
-  /** { [ordoStatusId]: optionId } */
-  statusOptions: Record<string, string>;
-  priorityOptions: Record<string, string>;
-  /** { [ordoTypeId]: optionId or issue type id } */
-  typeOptions: Record<string, string>;
-  syncAssignees: boolean;
-  syncLabels: boolean;
-  /** "owner/name", or null for draft issues. */
-  repositoryName: string | null;
-  pushExisting: boolean;
-  enabled: boolean;
-}
-
 /**
  * Ancestors and descendants of a project.
  * @param {string} projectId Project.
@@ -81,18 +55,18 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
  * Links a project (and its sub-projects) to a GitHub board, or changes its settings. The fields must be of the
  * board and of the right kind; a project tree has one board.
  * @param {string} projectId Project.
- * @param {LinkInput} input Settings.
+ * @param {GithubLinkInput} input Settings.
  * @returns {Promise<GithubProjectLink>} Link.
  */
-export async function saveGithubLink(projectId: string, input: LinkInput): Promise<GithubProjectLink> {
+export async function saveGithubLink(projectId: string, input: GithubLinkInput): Promise<GithubProjectLink> {
   await assertExists(prisma.project, projectId, 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
-  const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { title: true } } } });
-  if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.title} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
+  const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { label: true } } } });
+  if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.label} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
   const token = await githubToken();
   const board = await resolveBoard(token, input.url);
-  const other = await prisma.githubProjectLink.findFirst({ where: { githubProjectId: board.id, projectId: { not: projectId } }, include: { project: { select: { title: true } } } });
-  if (other) throw clientError('BAD_USER_INPUT', `Ce tableau est déjà lié au projet « ${other.project.title} ».`);
+  const other = await prisma.githubProjectLink.findFirst({ where: { githubProjectId: board.id, projectId: { not: projectId } }, include: { project: { select: { label: true } } } });
+  if (other) throw clientError('BAD_USER_INPUT', `Ce tableau est déjà lié au projet « ${other.project.label} ».`);
 
   const check = (fieldId: string | null, types: string[], label: string) => {
     if (!fieldId) return null;
@@ -121,7 +95,7 @@ export async function saveGithubLink(projectId: string, input: LinkInput): Promi
   const data = {
     githubProjectId: board.id,
     url: board.url,
-    title: board.title,
+    label: board.title,
     statusFieldId: input.statusFieldId,
     priorityFieldId: input.priorityFieldId,
     iterationFieldId: input.iterationFieldId,

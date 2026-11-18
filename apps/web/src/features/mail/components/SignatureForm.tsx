@@ -16,16 +16,15 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
-        Ajoutée aux nouveaux mails de {account.email}. Le bouton « &lt;/&gt; » de la barre d’outils permet de coller ou de
-        modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails.
+        Ajoutée aux nouveaux mails de {account.email}. Le bouton « &lt;/&gt; » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées
+        aux mails.
       </Text>
       <RichEditor value={html} onChange={setHtml} sourceCode minHeight={160} />
-      <FormActions onCancel={onDone} loading={setSignature.isPending} onSubmit={() =>
-            setSignature.mutate(
-              { id: account.id, signature: html === '<p></p>' ? '' : html },
-              formCallbacks(null, 'Signature enregistrée.', onDone),
-            )
-          } />
+      <FormActions
+        onCancel={onDone}
+        loading={setSignature.isPending}
+        onSubmit={() => setSignature.mutate({ id: account.id, signature: html === '<p></p>' ? '' : html }, formCallbacks(null, 'Signature enregistrée.', onDone))}
+      />
     </Stack>
   );
 }

@@ -26,10 +26,7 @@ export const identifierSchema = z.string().trim().toLowerCase().min(1, REQUIRED)
  * New password length rule. The zxcvbn score is checked by `strongPasswordSchema`
  * (`@ordo/shared/password-strength`), kept out of this entry because of its size.
  */
-export const passwordSchema = z
-  .string()
-  .min(MIN_PASSWORD_LENGTH, `Au moins ${MIN_PASSWORD_LENGTH} caractères.`)
-  .max(MAX_PASSWORD_LENGTH, `${MAX_PASSWORD_LENGTH} caractères maximum.`);
+export const passwordSchema = z.string().min(MIN_PASSWORD_LENGTH, `Au moins ${MIN_PASSWORD_LENGTH} caractères.`).max(MAX_PASSWORD_LENGTH, `${MAX_PASSWORD_LENGTH} caractères maximum.`);
 
 const currentPasswordSchema = z.string().min(1, REQUIRED);
 
@@ -38,9 +35,7 @@ const currentPasswordSchema = z.string().min(1, REQUIRED);
  * @param {T} schema Object schema holding `password` and `confirmation`.
  * @returns {T} Schema rejecting a mismatched confirmation.
  */
-function withConfirmation<T extends z.ZodObject<{ password: z.ZodType<string>; confirmation: z.ZodString }>>(
-  schema: T,
-) {
+function withConfirmation<T extends z.ZodObject<{ password: z.ZodType<string>; confirmation: z.ZodString }>>(schema: T) {
   return schema.refine((values) => values.password === values.confirmation, {
     path: ['confirmation'],
     error: 'Les mots de passe ne correspondent pas.',

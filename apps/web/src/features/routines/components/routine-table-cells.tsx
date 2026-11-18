@@ -8,7 +8,7 @@ import { TimerToggle } from '../../time/components/TimerToggle';
 import type { TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useRoutineMutations, type Routine } from '../api';
-import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from '../lib/routine-format';
+import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
 import classes from './Routines.module.css';
 
 /**
@@ -23,21 +23,21 @@ function DueBadge({ routine }: { routine: Routine }) {
   const { leaveAt } = scheduleOf(routine);
   if (dueTime && now > dueTime) {
     return (
-      <Badge variant="light" color="red" tt="none">
+      <Badge variant="light" color="red">
         Après {dueTime}
       </Badge>
     );
   }
   if (leaveAt && now >= leaveAt) {
     return (
-      <Badge variant="filled" color="orange" tt="none">
+      <Badge variant="filled" color="orange">
         Partir maintenant
       </Badge>
     );
   }
   const window = windowText({ fromTime, dueTime });
   return (
-    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined} tt="none">
+    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined}>
       Aujourd’hui{window ? ` ${window}` : ''}
     </Badge>
   );
@@ -49,7 +49,7 @@ function DueBadge({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Badge or text.
  */
 export function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
-  const state = stateOf(routine, today, doable);
+  const state = currentRoutineState(routine, today, doable);
   const next = routine.nextDate ? `Prochaine fois : ${fmt.weekday(routine.nextDate)}` : 'Plus d’occurrence à venir';
   // The occurrence shown comes from another day (an exception).
   const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
@@ -59,13 +59,13 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
       <span className={classes.nowrap}>
         {moved && <ArrowBendUpRightIcon aria-label={moved.to > moved.from ? 'Reportée' : 'Avancée'} style={{ verticalAlign: 'middle', marginRight: 4 }} />}
         {state === 'done' && (
-          <Badge variant="light" color="green" tt="none">
+          <Badge variant="light" color="green">
             Fait
           </Badge>
         )}
         {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
-          <Badge variant="light" color="orange" tt="none">
+          <Badge variant="light" color="orange">
             Depuis {fmt.weekday(routine.currentDate!)}
           </Badge>
         )}
@@ -89,7 +89,7 @@ export function ChronoCell({ routine, running }: { routine: Routine; running: Ti
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap">
-      <TimerToggle name={routine.title} mine={mine} othersRunning={Boolean(running) && !mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
+      <TimerToggle name={routine.label} mine={mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
       </Text>
@@ -111,10 +111,10 @@ export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId
       label="Ajouter une routine"
       where={`dans ${groupName}`}
       hint="tous les jours"
-      schema={routineSchema.shape.title}
-      onCreate={(title) =>
+      schema={routineSchema.shape.label}
+      onCreate={(label) =>
         create.mutateAsync({
-          title,
+          label,
           description: null,
           categoryIds: categoryId ? [categoryId] : [],
           parentId: null,

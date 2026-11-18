@@ -1,4 +1,5 @@
-import { ActionIcon, AppShell, Group, ScrollArea, Title, Tooltip } from '@mantine/core';
+import { IconAction } from '../../components/actions/IconAction';
+import { AppShell, Group, ScrollArea, Title } from '@mantine/core';
 import { XIcon } from '@phosphor-icons/react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ResizeHandle } from './ResizeHandle';
@@ -32,11 +33,9 @@ export function SettingsAside({ onContainer, resize }: SettingsAsideProps) {
         <Title order={2} size="h4">
           {title ?? 'Paramètres'}
         </Title>
-        <Tooltip label="Fermer">
-          <ActionIcon variant="subtle" color="gray" aria-label="Fermer les paramètres" onClick={() => setOpened(false)}>
-            <XIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label="Fermer" aria-label="Fermer les paramètres" onClick={() => setOpened(false)}>
+          <XIcon aria-hidden />
+        </IconAction>
       </Group>
       <ScrollArea type="auto" className={classes.body}>
         <div ref={onContainer} className={classes.content} />

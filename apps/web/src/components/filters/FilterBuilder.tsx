@@ -1,9 +1,10 @@
+import { AddItemButton } from '../actions/AddItemButton';
 import { DestructiveButton } from '../dialogs/DestructiveActions';
-import { Button, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 import type { ComponentProps } from 'react';
-import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FolderSimplePlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { localToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
@@ -42,17 +43,7 @@ function DayValue({ value, onChange }: DayValueProps) {
         ]}
         value={mode}
         allowDeselect={false}
-        onChange={(next) =>
-          onChange(
-            next === 'today'
-              ? 'today'
-              : next === 'past'
-                ? `today-${days}`
-                : next === 'future'
-                  ? `today+${days}`
-                  : localToday(),
-          )
-        }
+        onChange={(next) => onChange(next === 'today' ? 'today' : next === 'past' ? `today-${days}` : next === 'future' ? `today+${days}` : localToday())}
         w={140}
       />
       {(mode === 'past' || mode === 'future') && (
@@ -66,9 +57,7 @@ function DayValue({ value, onChange }: DayValueProps) {
           w={80}
         />
       )}
-      {mode === 'date' && (
-        <DatePickerInput popoverProps={INLINE} size="xs" aria-label="Date" value={value} onChange={(next) => next && onChange(next)} w={150} />
-      )}
+      {mode === 'date' && <DatePickerInput popoverProps={INLINE} size="xs" aria-label="Date" value={value} onChange={(next) => next && onChange(next)} w={150} />}
     </Group>
   );
 }
@@ -98,17 +87,7 @@ function PeriodValue({ value, onChange }: DayValueProps) {
         onChange={(next) => next && onChange(next === 'past' || next === 'next' ? `${next}:${days}` : next)}
         w={180}
       />
-      {rolling && (
-        <NumberInput
-          size="xs"
-          aria-label="Nombre de jours"
-          min={1}
-          max={3650}
-          value={days}
-          onChange={(next) => onChange(`${rolling[1]}:${Math.max(1, Number(next) || 1)}`)}
-          w={80}
-        />
-      )}
+      {rolling && <NumberInput size="xs" aria-label="Nombre de jours" min={1} max={3650} value={days} onChange={(next) => onChange(`${rolling[1]}:${Math.max(1, Number(next) || 1)}`)} w={80} />}
     </Group>
   );
 }
@@ -155,15 +134,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
   let editor = null;
   if (needsValue) {
     if (kind === 'text') {
-      editor = (
-        <TextInput
-          size="xs"
-          aria-label="Valeur"
-          value={typeof condition.value === 'string' ? condition.value : ''}
-          onChange={(event) => set(event.currentTarget.value)}
-          w={200}
-        />
-      );
+      editor = <TextInput size="xs" aria-label="Valeur" value={typeof condition.value === 'string' ? condition.value : ''} onChange={(event) => set(event.currentTarget.value)} w={200} />;
     } else if (kind === 'number') {
       editor = (
         <NumberInput
@@ -224,17 +195,17 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         comboboxProps={INLINE}
         size="xs"
         aria-label="Opérateur"
-        data={(fields.operators?.(condition.field) ?? operatorsFor(fields.kinds, condition.field)).map((item) => ({ value: item, label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item }))}
+        data={(fields.operators?.(condition.field) ?? operatorsFor(fields.kinds, condition.field)).map((item) => ({
+          value: item,
+          label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item,
+        }))}
         value={operator}
         allowDeselect={false}
         onChange={(next) => {
           if (!next) return;
           const nextOperator = next as FilterOperator;
           // Keep the value when it still fits (e.g. "est" → "n'est pas").
-          const keep =
-            !VALUELESS_OPERATORS.includes(nextOperator) &&
-            needsValue &&
-            (kind !== 'date' || (nextOperator === 'within') === (operator === 'within'));
+          const keep = !VALUELESS_OPERATORS.includes(nextOperator) && needsValue && (kind !== 'date' || (nextOperator === 'within') === (operator === 'within'));
           onChange({
             ...condition,
             operator: nextOperator,
@@ -244,7 +215,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         w={190}
       />
       {editor}
-      <RemoveButton label="Retirer la condition" size="input-xs" onClick={onRemove} />
+      <RemoveButton label="Retirer" aria-label="Retirer la condition" size="input-xs" onClick={onRemove} />
     </Group>
   );
 }
@@ -312,49 +283,26 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
               </Text>
             )}
             {child.type === 'condition' ? (
-              <ConditionEditor
-                condition={child}
-                fields={fields}
-                onChange={(next) => setChild(index, next)}
-                onRemove={() => setChild(index, null)}
-              />
+              <ConditionEditor condition={child} fields={fields} onChange={(next) => setChild(index, next)} onRemove={() => setChild(index, null)} />
             ) : (
-              <GroupEditor
-                group={child}
-                depth={depth + 1}
-                fields={fields}
-                onChange={(next) => setChild(index, next)}
-                onRemove={() => setChild(index, null)}
-              />
+              <GroupEditor group={child} depth={depth + 1} fields={fields} onChange={(next) => setChild(index, next)} onRemove={() => setChild(index, null)} />
             )}
           </div>
         ))}
         <Group gap="xs">
-          <Button
-            size="compact-sm"
-            variant="subtle"
-            leftSection={<PlusIcon aria-hidden />}
-            onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}
-          >
-            Condition
-          </Button>
+          <AddItemButton onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}>Ajouter une condition</AddItemButton>
           {depth < MAX_FILTER_DEPTH && (
-            <Button
-              size="compact-sm"
-              variant="subtle"
-              leftSection={<FolderSimplePlusIcon aria-hidden />}
+            <AddItemButton
+              icon={<FolderSimplePlusIcon aria-hidden />}
               onClick={() =>
                 onChange({
                   ...group,
-                  children: [
-                    ...group.children,
-                    { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newConditionFor(fields.kinds, fields.first)] },
-                  ],
+                  children: [...group.children, { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newConditionFor(fields.kinds, fields.first)] }],
                 })
               }
             >
-              Groupe
-            </Button>
+              Ajouter un groupe
+            </AddItemButton>
           )}
           {onRemove && (
             <DestructiveButton size="compact-sm" leftSection={<TrashIcon aria-hidden />} onClick={onRemove}>

@@ -1,7 +1,8 @@
 import { useMediaQuery } from '@mantine/hooks';
+import breakpoints from '../styles/breakpoints.json';
 
-/** Below the tablet breakpoint (48em, Mantine's sm; `$tablet-breakpoint` in the CSS): a phone. */
-export const PHONE_QUERY = '(max-width: 47.99em)';
+/** Below the tablet breakpoint (Mantine's sm; `$tablet-breakpoint` and `$phone-max` in the CSS): a phone. */
+export const PHONE_QUERY = `(max-width: ${parseFloat(breakpoints.tablet) - 0.01}em)`;
 
 /**
  * Whether the window is as narrow as a phone (below the tablet breakpoint, the same as the CSS).

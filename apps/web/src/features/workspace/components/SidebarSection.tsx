@@ -1,5 +1,6 @@
-import { ActionIcon, Badge, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
-import { CaretRightIcon, DotsThreeIcon } from '@phosphor-icons/react';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { Badge, Collapse, Group, UnstyledButton } from '@mantine/core';
+import { Caption } from '../../../components/page/Caption';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { foldEntries } from '../lib/fold-entries';
@@ -29,24 +30,14 @@ interface SidebarSectionProps {
  * @param {ReactNode} props.children Section content.
  * @returns {JSX.Element} Section.
  */
-export function SidebarSection({
-  title,
-  count,
-  opened,
-  onToggle,
-  onSetAllExpanded,
-  actions,
-  children,
-}: SidebarSectionProps) {
+export function SidebarSection({ title, count, opened, onToggle, onSetAllExpanded, actions, children }: SidebarSectionProps) {
   return (
     <section className={classes.section}>
       <div className={classes.header}>
         <UnstyledButton className={classes.toggle} onClick={onToggle} aria-expanded={opened}>
           <Group gap={6} wrap="nowrap">
-            <CaretRightIcon className={classes.chevron} data-opened={opened || undefined} aria-hidden />
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              {title}
-            </Text>
+            <FoldChevron expanded={opened} />
+            <Caption>{title}</Caption>
           </Group>
           {count > 0 && (
             <Badge size="xs" variant="light" color="gray">
@@ -54,15 +45,7 @@ export function SidebarSection({
             </Badge>
           )}
         </UnstyledButton>
-        <ActionsMenu
-          name={`la section ${title}`}
-          target={
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions sur la section ${title}`}>
-              <DotsThreeIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          }
-          items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]}
-        />
+        <ActionsMenu name={`la section ${title}`} size="sm" items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]} />
       </div>
       <Collapse expanded={opened} transitionDuration={150}>
         {children}

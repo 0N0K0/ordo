@@ -1,9 +1,11 @@
 import {
-  DEFAULT_SCHEDULE_KIND_NAME,
+  DEFAULT_SCHEDULE_KIND_LABEL,
   defaultScheduleKindSchema,
   formatDay,
+  formatOptionalDay,
   fromLegacySchedule,
   parseDay,
+  parseOptionalDay,
   readScheduleDisplay,
   readScheduleCases,
   readScheduleExceptions,
@@ -16,19 +18,15 @@ import {
   type ScheduleTypeInput,
   type WorkScheduleInput,
   type WorkScheduleRule,
-} from "@ordo/shared";
+} from '@ordo/shared';
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
-import { prisma, unscopedPrisma } from "../../db";
-import {
-  Prisma,
-  type ScheduleType,
-  type WorkSchedule,
-} from "../../generated/prisma/client";
-import { clientError, notFound, orNotFound, parseInput } from "../../graphql/errors";
-import { currentWorkspaceId } from "../../workspace-context";
+import { prisma, unscopedPrisma } from '../../db';
+import { Prisma, type ScheduleType, type WorkSchedule } from '../../generated/prisma/client';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { currentWorkspaceId } from '../../workspace-context';
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
@@ -43,9 +41,9 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
   const current = cases.length ? { cases, exceptions: readScheduleExceptions(schedule.exceptions) } : null;
   return {
     id: schedule.id,
-    name: schedule.name,
+    label: schedule.label,
     startDate,
-    endDate: schedule.endDate ? formatDay(schedule.endDate) : null,
+    endDate: formatOptionalDay(schedule.endDate),
     ...(current ??
       fromLegacySchedule({
         startDate,
@@ -66,17 +64,15 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  */
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
-  await assertExists(prisma.scheduleType, schedule.typeId, "Type de plage");
-  if (schedule.typeId !== currentTypeId) await assertNotArchived('scheduleType', schedule.typeId);
+  await assertExists(prisma.scheduleType, schedule.typeId, 'Type de plage');
+  await assertNotArchived('scheduleType', schedule.typeId, { keep: currentTypeId, field: 'typeId' });
   return {
     typeId: schedule.typeId ?? null,
-    name: schedule.name,
+    label: schedule.label,
     startDate: parseDay(schedule.startDate),
-    endDate: schedule.endDate ? parseDay(schedule.endDate) : null,
+    endDate: parseOptionalDay(schedule.endDate),
     cases: schedule.cases as Prisma.InputJsonValue,
-    exceptions: [...schedule.exceptions].sort((a, b) =>
-      a.from.localeCompare(b.from),
-    ) as Prisma.InputJsonValue,
+    exceptions: [...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from)) as Prisma.InputJsonValue,
     intervalWeeks: 1,
     slots: [],
     pauses: [],
@@ -88,9 +84,7 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
  * @param {WorkScheduleInput} input Schedule.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function createWorkSchedule(
-  input: WorkScheduleInput,
-): Promise<WorkSchedule> {
+export async function createWorkSchedule(input: WorkScheduleInput): Promise<WorkSchedule> {
   return prisma.workSchedule.create({ data: await scheduleData(input) });
 }
 
@@ -100,14 +94,8 @@ export async function createWorkSchedule(
  * @param {WorkScheduleInput} input Schedule.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function updateWorkSchedule(
-  id: string,
-  input: WorkScheduleInput,
-): Promise<WorkSchedule> {
-  const current = await orNotFound(
-    prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true } }),
-    "Plage de travail",
-  );
+export async function updateWorkSchedule(id: string, input: WorkScheduleInput): Promise<WorkSchedule> {
+  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true } }), 'Plage de travail');
   await assertNotArchived('workSchedule', id);
   const data = await scheduleData(input, current.typeId);
   return prisma.workSchedule.update({ where: { id }, data });
@@ -119,40 +107,37 @@ export async function updateWorkSchedule(
  * @returns {Promise<void>}
  */
 export async function deleteWorkSchedule(id: string): Promise<void> {
-  await deleteOrNotFound(prisma.workSchedule, id, "Plage de travail");
+  await deleteOrNotFound(prisma.workSchedule, id, 'Plage de travail');
 }
 
-/** Kinds of time slots (name, color and display, checked here); the schedules of a deleted one stay, without kind. */
-export const scheduleTypes = createLabelService<ScheduleType>("scheduleType", { notFound: "Type de plage", conflict: "Un type porte déjà ce nom." }, { schema: scheduleTypeSchema });
+/** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
+export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
  * @param {string | null} id Kind to change, or null to create one.
- * @param {ScheduleTypeInput} input Name, color and display.
+ * @param {ScheduleTypeInput} input Label, color and display.
  * @returns {Promise<ScheduleType>} Kind.
  */
-export function saveScheduleType(
-  id: string | null,
-  input: ScheduleTypeInput,
-): Promise<ScheduleType> {
+export function saveScheduleType(id: string | null, input: ScheduleTypeInput): Promise<ScheduleType> {
   return id ? scheduleTypes.update(id, input) : scheduleTypes.create(input);
 }
 
 /** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */
 export interface ForeignSchedule {
   rule: WorkScheduleRule;
-  typeName: string | null;
+  typeLabel: string | null;
   color: string | null;
   display: ScheduleDisplay;
-  workspace: { id: string; name: string };
+  workspace: { id: string; label: string };
 }
 
 /** Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it. */
 export interface ForeignScheduleKind {
-  workspace: { id: string; name: string };
+  workspace: { id: string; label: string };
   /** None: the schedules without kind (working hours). */
   typeId: string | null;
-  name: string;
+  label: string;
   /** Color in this workspace: the subscription's, or the kind's. */
   color: string | null;
   /** Color of the kind in its workspace. */
@@ -202,46 +187,40 @@ function lookOf(
       dayBar: look?.dayBar ?? own.dayBar,
       monthDisplay: look?.monthDisplay ?? own.monthDisplay,
     }),
-    customized: Boolean(
-      look &&
-      (look.color !== null ||
-        look.dayDisplay !== null ||
-        look.dayBar !== null ||
-        look.monthDisplay !== null),
-    ),
+    customized: Boolean(look && (look.color !== null || look.dayDisplay !== null || look.dayBar !== null || look.monthDisplay !== null)),
   };
 }
 
 /** Default kind of a workspace as stored on it: its schedules without kind. */
 const defaultKindSelect = {
-  scheduleName: true,
+  scheduleLabel: true,
   scheduleColor: true,
   scheduleDayDisplay: true,
   scheduleDayBar: true,
   scheduleMonthDisplay: true,
 } as const;
 
-/** Default kind of a workspace: name, color and display of its schedules without kind. */
+/** Default kind of a workspace: label, color and display of its schedules without kind. */
 export interface DefaultScheduleKind {
-  name: string;
+  label: string;
   color: string | null;
   display: ScheduleDisplay;
 }
 
 /**
  * Default kind of a workspace read from its columns.
- * @param {{ scheduleName: string | null, scheduleColor: string | null, scheduleDayDisplay: string, scheduleDayBar: boolean, scheduleMonthDisplay: string }} workspace Workspace.
+ * @param {{ scheduleLabel: string | null, scheduleColor: string | null, scheduleDayDisplay: string, scheduleDayBar: boolean, scheduleMonthDisplay: string }} workspace Workspace.
  * @returns {DefaultScheduleKind} Kind.
  */
 function defaultKindOf(workspace: {
-  scheduleName: string | null;
+  scheduleLabel: string | null;
   scheduleColor: string | null;
   scheduleDayDisplay: string;
   scheduleDayBar: boolean;
   scheduleMonthDisplay: string;
 }): DefaultScheduleKind {
   return {
-    name: workspace.scheduleName || DEFAULT_SCHEDULE_KIND_NAME,
+    label: workspace.scheduleLabel || DEFAULT_SCHEDULE_KIND_LABEL,
     color: workspace.scheduleColor,
     display: readScheduleDisplay({
       dayDisplay: workspace.scheduleDayDisplay,
@@ -256,28 +235,22 @@ function defaultKindOf(workspace: {
  * @returns {Promise<DefaultScheduleKind>} Kind.
  */
 export async function defaultScheduleKind(): Promise<DefaultScheduleKind> {
-  const workspace = await unscopedPrisma.workspace.findUnique({
-    where: { id: currentWorkspaceId() },
-    select: defaultKindSelect,
-  });
-  if (!workspace) throw notFound("Espace");
+  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: defaultKindSelect }), 'Espace');
   return defaultKindOf(workspace);
 }
 
 /**
- * Saves the default kind of this workspace: name (empty: "Travail"), color (none: the green of working hours) and
+ * Saves the default kind of this workspace: label (empty: 'Travail'), color (none: the green of working hours) and
  * display of its schedules without kind.
- * @param {DefaultScheduleKindInput} input Name, color and display.
+ * @param {DefaultScheduleKindInput} input Label, color and display.
  * @returns {Promise<DefaultScheduleKind>} Kind.
  */
-export async function saveDefaultScheduleKind(
-  input: DefaultScheduleKindInput,
-): Promise<DefaultScheduleKind> {
+export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): Promise<DefaultScheduleKind> {
   const data = parseInput(defaultScheduleKindSchema, input);
   const workspace = await unscopedPrisma.workspace.update({
     where: { id: currentWorkspaceId() },
     data: {
-      scheduleName: data.name || null,
+      scheduleLabel: data.label || null,
       scheduleColor: data.color,
       scheduleDayDisplay: data.dayDisplay,
       scheduleDayBar: data.dayBar,
@@ -307,24 +280,19 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
   const subscriptions = await prisma.workScheduleSubscription.findMany({
     select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
   });
-  const subscribed = new Map(
-    subscriptions.map((item) => [
-      `${item.sourceWorkspaceId}|${item.typeId ?? ""}`,
-      item,
-    ]),
-  );
+  const subscribed = new Map(subscriptions.map((item) => [`${item.sourceWorkspaceId}|${item.typeId ?? ''}`, item]));
   const workspaces = await unscopedPrisma.workspace.findMany({
     where: { id: { not: currentWorkspaceId() } },
     orderBy: BY_POSITION,
     select: {
       id: true,
-      name: true,
+      label: true,
       ...defaultKindSelect,
       scheduleTypes: {
         orderBy: BY_POSITION,
         select: {
           id: true,
-          name: true,
+          label: true,
           color: true,
           dayDisplay: true,
           dayBar: true,
@@ -341,9 +309,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
       ...(workspace.workSchedules.length
         ? [
             {
-              workspace: { id: workspace.id, name: workspace.name },
+              workspace: { id: workspace.id, label: workspace.label },
               typeId: null,
-              name: untyped.name,
+              label: untyped.label,
               sourceColor: untyped.color,
               ...lookOf(subscribed.get(`${workspace.id}|`), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
@@ -352,9 +320,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
           ]
         : []),
       ...workspace.scheduleTypes.map((type) => ({
-        workspace: { id: workspace.id, name: workspace.name },
+        workspace: { id: workspace.id, label: workspace.label },
         typeId: type.id,
-        name: type.name,
+        label: type.label,
         sourceColor: type.color,
         ...lookOf(subscribed.get(`${workspace.id}|${type.id}`), type),
         scheduleCount: type._count.schedules,
@@ -373,12 +341,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
   });
   if (!subscriptions.length) return [];
-  const lookByKind = new Map(
-    subscriptions.map((item) => [
-      `${item.sourceWorkspaceId}|${item.typeId ?? ""}`,
-      item,
-    ]),
-  );
+  const lookByKind = new Map(subscriptions.map((item) => [`${item.sourceWorkspaceId}|${item.typeId ?? ''}`, item]));
   const schedules = await unscopedPrisma.workSchedule.findMany({
     where: {
       OR: subscriptions.map((item) => ({
@@ -389,28 +352,25 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     include: {
       type: {
         select: {
-          name: true,
+          label: true,
           color: true,
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
         },
       },
-      workspace: { select: { id: true, name: true, ...defaultKindSelect } },
+      workspace: { select: { id: true, label: true, ...defaultKindSelect } },
     },
   });
   return schedules.map((schedule) => {
     const untyped = defaultKindOf(schedule.workspace);
-    const { color, display } = lookOf(
-      lookByKind.get(`${schedule.workspaceId}|${schedule.typeId ?? ""}`),
-      schedule.type ?? asKind(untyped),
-    );
+    const { color, display } = lookOf(lookByKind.get(`${schedule.workspaceId}|${schedule.typeId ?? ''}`), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
-      typeName: schedule.type?.name ?? untyped.name,
+      typeLabel: schedule.type?.label ?? untyped.label,
       color,
       display,
-      workspace: { id: schedule.workspace.id, name: schedule.workspace.name },
+      workspace: { id: schedule.workspace.id, label: schedule.workspace.label },
     };
   });
 }
@@ -422,17 +382,13 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
  * @param {ScheduleSubscriptionLook} input Color and display.
  * @returns {Promise<void>}
  */
-export async function setScheduleSubscriptionLook(
-  sourceWorkspaceId: string,
-  typeId: string | null,
-  input: ScheduleSubscriptionLook,
-): Promise<void> {
+export async function setScheduleSubscriptionLook(sourceWorkspaceId: string, typeId: string | null, input: ScheduleSubscriptionLook): Promise<void> {
   const data = parseInput(scheduleSubscriptionLookSchema, input);
   const { count } = await prisma.workScheduleSubscription.updateMany({
     where: { sourceWorkspaceId, typeId },
     data,
   });
-  if (!count) throw notFound("Abonnement");
+  if (!count) throw notFound('Abonnement');
 }
 
 /**
@@ -441,16 +397,9 @@ export async function setScheduleSubscriptionLook(
  * @param {string | null} typeId Kind; none: the schedules without kind.
  * @returns {Promise<void>}
  */
-export async function subscribeScheduleKind(
-  sourceWorkspaceId: string,
-  typeId: string | null,
-): Promise<void> {
-  if (sourceWorkspaceId === currentWorkspaceId())
-    throw clientError(
-      "BAD_USER_INPUT",
-      "Ces plages appartiennent déjà à cet espace.",
-    );
-  await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, "Espace");
+export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
+  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces plages appartiennent déjà à cet espace.');
+  await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, 'Espace');
   if (
     typeId &&
     !(await unscopedPrisma.scheduleType.findFirst({
@@ -458,7 +407,7 @@ export async function subscribeScheduleKind(
       select: { id: true },
     }))
   )
-    throw notFound("Type de plage");
+    throw notFound('Type de plage');
   // A null kind is not unique for the database: checked here.
   if (
     await prisma.workScheduleSubscription.findFirst({
@@ -478,10 +427,7 @@ export async function subscribeScheduleKind(
  * @param {string | null} typeId Kind; none: the schedules without kind.
  * @returns {Promise<void>}
  */
-export async function unsubscribeScheduleKind(
-  sourceWorkspaceId: string,
-  typeId: string | null,
-): Promise<void> {
+export async function unsubscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
   await prisma.workScheduleSubscription.deleteMany({
     where: { sourceWorkspaceId, typeId },
   });

@@ -4,7 +4,7 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { Button, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { AlarmIcon, PlusIcon, BellIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -21,37 +21,28 @@ import classes from './AlarmsPage.module.css';
 export function AlarmsPage() {
   const { data: alarms, isPending } = useAlarms();
   const { context } = useTaskContext();
-  const [permission, setPermission] = useState(() =>
-    'Notification' in window ? Notification.permission : 'denied',
-  );
+  const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'denied'));
 
   const openForm = useAlarmForm(context);
 
   return (
     <Stack gap="lg" className={classes.root}>
-      <PageHeader title={PAGES.alarms.title} actions={<ActionButton
-          icon={<PlusIcon aria-hidden />}
-          onClick={() => openForm()}
-          disabled={!context}
-        >Nouvelle alarme</ActionButton>} />
+      <PageHeader
+        title={PAGES.alarms.title}
+        actions={
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
+            Nouvelle alarme
+          </ActionButton>
+        }
+      />
 
       {permission === 'default' && (
         <NoticeAlert kind="info" title="Notifications du navigateur">
           <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo
-              n’est pas au premier plan.
-            </Text>
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={<BellIcon aria-hidden />}
-              onClick={() =>
-                void Notification.requestPermission().then(setPermission)
-              }
-            >
+            <Text size="sm">Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo n’est pas au premier plan.</Text>
+            <ActionButton priority="secondary" size="xs" icon={<BellIcon aria-hidden />} onClick={() => void Notification.requestPermission().then(setPermission)}>
               Autoriser les notifications
-            </Button>
+            </ActionButton>
           </Stack>
         </NoticeAlert>
       )}

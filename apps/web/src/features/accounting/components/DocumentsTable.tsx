@@ -1,10 +1,10 @@
 import { formCallbacks } from '../../../lib/form';
 import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
-import { type TableFilterGroup } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+
+import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -12,12 +12,12 @@ import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { useTrackingMutations } from '../api/tracking';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
 import { openDepositForm } from '../lib/new-document';
 import { openFile } from '../../files/lib/open-file';
 import { downloadUrl } from '../../files/lib/viewable';
@@ -30,14 +30,15 @@ import { useWorkspace } from '../../workspace/api';
 import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
-import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveRowsAction, deleteItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { documentPath } from '../../../app/pages';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -53,17 +54,17 @@ const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
  * @param {Row} row Row.
  * @returns {string} Text.
  */
-const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
+const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.label ?? ''));
 
 /**
  * Columns of the documents (type and client only where they vary).
- * @param {{ rows: Row[], projectNames: Map<string, string>, projects: TreeOption[] }} env Rows (their clients and statuses offered by the filters), names of the projects, projects as their tree.
+ * @param {{ rows: Row[], projectLabels: Map<string, string>, projects: TreeOption[] }} env Rows (their clients and statuses offered by the filters), labels of the projects, projects as their tree.
  * @returns {DataColumn<Row>[]} Columns.
  */
-function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projectNames: Map<string, string>; projects: TreeOption[] }): DataColumn<Row>[] {
+function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; projectLabels: Map<string, string>; projects: TreeOption[] }): DataColumn<Row>[] {
   const clients = new Map(rows.flatMap((row) => (row.document.clientId ? [[row.document.clientId, row.document.clientName ?? ''] as const] : [])));
   const statuses = new Map(rows.map((row) => [trackingText(row), trackingText(row)] as const).filter(([name]) => name));
-  const projectOf = (row: Row) => (row.document.projectId ? (projectNames.get(row.document.projectId) ?? '') : '');
+  const projectOf = (row: Row) => (row.document.projectId ? (projectLabels.get(row.document.projectId) ?? '') : '');
   const money = (amount: number) => fmt.money(amount);
   return [
     { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => row.document.number ?? 'Brouillon' },
@@ -114,7 +115,7 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: projects },
       groupable: true,
     },
-    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
+    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.label ?? null, text: (row) => row.document.label ?? '' },
     {
       id: 'tracking',
       bulk: true,
@@ -179,29 +180,17 @@ function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projec
       label: 'Pièces jointes',
       size: 220,
       hiddenByDefault: true,
-      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.name).join(', ') : (row.document.fileName ?? '')),
+      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.filename).join(', ') : (row.document.filename ?? '')),
       filter: { kind: 'boolean', value: (row) => (row.kind === 'ordo' ? row.document.attachments.length > 0 : Boolean(row.document.fileUrl)) },
     },
   ];
 }
 
-/**
- * Filter of the documents issued within a period.
- * @param {string} period Period token.
- * @returns {TableFilterGroup} Filter.
- */
-const issuedWithin = (period: string): TableFilterGroup => ({
-  type: 'group',
-  id: 'root',
-  combinator: 'and',
-  children: [{ type: 'condition', id: 'date', field: 'date', operator: 'within', value: period }],
-});
-
 /** Views made the first time a table of documents is shown: this year (opened first), last year, all, latest first. */
 const DOCUMENT_VIEWS: FirstTableView[] = [
-  { name: 'Cette année', config: { filter: issuedWithin('thisYear') } },
-  { name: 'L’année dernière', config: { filter: issuedWithin('lastYear') } },
-  { name: 'Tous' },
+  { label: 'Cette année', config: { filter: withinFilter('date', 'thisYear') } },
+  { label: 'L’année dernière', config: { filter: withinFilter('date', 'lastYear') } },
+  { label: 'Tous' },
 ];
 
 /** Status chosen in a cell, with the scope of its statuses (quotes, or invoices). */
@@ -271,7 +260,11 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         },
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
-        archiveEntry({ archived: document.archived, label: `« ${document.number ?? document.title ?? 'Brouillon'} »` }, setArchived, document.id),
+        archiveEntry(
+          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+          setArchived,
+          document.id,
+        ),
       ]}
     />
   );
@@ -318,17 +311,14 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     imported.map((document) => document.id),
   );
   const { data: workspace } = useWorkspace();
-  const projectNames = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
-  const projects = projectOptions(
-    workspace,
-    (workspace?.projects ?? []).filter((project) => !project.archived),
-  );
+  const projectLabels = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
+  const projects = projectOptions(workspace, unarchived(workspace?.projects ?? []));
   // Latest first, before any sort.
   const rows = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
     b.document.issueDate.localeCompare(a.document.issueDate),
   ) as Row[];
   const columns = [
-    ...documentColumns({ rows, projectNames, projects: projectOptions(workspace, workspace?.projects ?? []) }).filter(
+    ...documentColumns({ rows, projectLabels, projects: projectOptions(workspace, workspace?.projects ?? []) }).filter(
       (column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient),
     ),
     commentColumn<Row>(
@@ -337,7 +327,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       (row) => (row.kind === 'imported' ? row.document.note : null),
     ),
   ];
-  // Archived documents are hidden unless the view includes them (« Inclure les archivées »).
+  // Archived documents are hidden until « Afficher les archivés » is on.
   const view = useDataView({ tableKey, getKey: rowKey, projectId, columns, rows, title, first, archived: (row) => row.document.archived });
 
   /**
@@ -383,26 +373,29 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   })('attachments');
 
   /**
-   * Asks for confirmation before deleting an imported document.
-   * @param {ImportedDocument} document Document.
-   * @returns {void}
+   * « Supprimer » of imported documents, on a row as on a selection.
+   * @param {{ id: string, number: string }[]} rows Imported documents.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @param {string} [note] Said after the risks (the documents of Ordo checked are not deleted). Optional.
+   * @returns {SelectionAction} Action.
    */
-  const confirmDelete = (document: ImportedDocument) => {
-    confirmDestructive({
-      title: 'Supprimer le document importé',
-      risks: <>Le document importé {document.number} et son fichier seront supprimés définitivement d’Ordo. Cette action est irréversible.</>,
-      onConfirm: () => {
-        remove.mutate(document.id, toastCallbacks('Document importé supprimé.'));
-      },
+  const deleteImported = <D extends { id: string; number: string }>(rows: D[], clear?: () => void, note = '') =>
+    deleteItemsAction(rows, {
+      noun: 'document importé',
+      many: 'documents importés',
+      the: 'le document importé',
+      name: (document) => document.number,
+      risks: (subject, one) => `${subject} et ${one ? 'son fichier' : 'leur fichier'} seront supprimés définitivement d’Ordo${note}.`,
+      remove: (document) => remove.mutateAsync(document.id),
+      clear,
     });
-  };
 
   /**
    * Page of a document.
    * @param {Row} row Row.
    * @returns {string} Path.
    */
-  const pathOf = (row: Row) => (row.kind === 'ordo' ? `/accounting/${row.document.id}` : `/accounting/imported/${row.document.id}`);
+  const pathOf = (row: Row) => documentPath(row.document.id, row.kind !== 'ordo');
 
   /**
    * Cells of a document made in Ordo.
@@ -411,7 +404,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    */
   const ordoCells = (document: AccountingDocumentSummary): Record<string, ReactNode> => ({
     number: (
-      <UnstyledButton onClick={() => navigate(`/accounting/${document.id}`)} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
+      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
         <Group gap={6} wrap="nowrap">
           {document.number ? (
             <Text size="sm" ff="monospace" fw={600}>
@@ -430,7 +423,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     title: (
       <Stack gap={0}>
         <Text size="sm" truncate>
-          {document.title ?? '—'}
+          {document.label ?? '—'}
         </Text>
         {document.type === 'QUOTE' && document.invoicedNet != null && document.totalNet > 0 && (
           <Text size="xs" c="dimmed">
@@ -471,7 +464,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const importedCells = (document: ImportedDocument): Record<string, ReactNode> => ({
     number: (
       <Group gap={6} wrap="nowrap">
-        <UnstyledButton onClick={() => navigate(`/accounting/imported/${document.id}`)} aria-label={`Ouvrir ${document.number}`}>
+        <UnstyledButton onClick={() => navigate(documentPath(document.id, true))} aria-label={`Ouvrir ${document.number}`}>
           <Text size="sm" ff="monospace" fw={600}>
             {document.number}
           </Text>
@@ -484,7 +477,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     ),
     title: (
       <Text size="sm" truncate>
-        {document.title ?? '—'}
+        {document.label ?? '—'}
       </Text>
     ),
     tracking: <ImportedTracking document={document} onSelect={(status) => bulkTracking({ kind: 'imported', document }, { status, scope: scopeOf(document.type) })} />,
@@ -505,7 +498,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         const ordo = rows.flatMap((row) => (row.kind === 'ordo' ? [row.document] : []));
         const importedRows = rows.flatMap((row) => (row.kind === 'ordo' ? [] : [row.document]));
         // An archived document is not copied.
-        const copied = ordo.filter((document) => !document.archived);
+        const copied = unarchived(ordo);
         const ids = (documents: { id: string }[]) => documents.map((document) => document.id);
         return [
           archiveRowsAction({
@@ -525,13 +518,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             disabled: copied.length === 0,
           },
           {
-            ...deleteRowsAction(importedRows, {
-              title: 'Supprimer les documents importés',
-              risks: `${countOf(importedRows.length, 'document')} ${plural(importedRows.length, 'importé')} et leur fichier seront supprimés définitivement d’Ordo (les documents d’Ordo sélectionnés ne le sont pas). Cette action est irréversible.`,
-              remove: (document) => remove.mutateAsync(document.id),
-              done: `${countOf(importedRows.length, 'document')} ${plural(importedRows.length, 'importé')} ${plural(importedRows.length, 'supprimé')}.`,
-              clear,
-            }),
+            ...deleteImported(importedRows, clear, importedRows.length < rows.length ? ' (les documents d’Ordo sélectionnés ne le sont pas)' : ''),
             disabled: importedRows.length === 0,
           },
         ];
@@ -562,7 +549,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         // Not opening the row: the menu is rendered in a portal, its clicks still reach the row.
         <div onClick={(event) => event.stopPropagation()}>
           {row.kind === 'ordo' ? (
-            <OrdoActions document={row.document} onDuplicated={(id) => void navigate(`/accounting/${id}`)} />
+            <OrdoActions document={row.document} onDuplicated={(id) => void navigate(documentPath(id))} />
           ) : (
             <RowActions
               name={row.document.number}
@@ -570,7 +557,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
                 row.document.fileUrl && {
                   label: 'Voir le fichier',
                   icon: <FilePdfIcon aria-hidden />,
-                  onClick: () => openFile({ url: row.document.fileUrl!, name: row.document.fileName ?? row.document.number, mimeType: row.document.fileMimeType }),
+                  onClick: () => openFile({ url: row.document.fileUrl!, filename: row.document.filename ?? row.document.number, mimeType: row.document.fileMimeType }),
                 }
               }
               items={[
@@ -584,8 +571,12 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
                     onClick: () => openDepositForm({ importedQuoteId: row.document.id }),
                   },
                 !row.document.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(row.document as ImportedDocument) },
-                archiveEntry({ archived: row.document.archived, label: `« ${row.document.number} »` }, archiveImported, row.document.id),
-                { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(row.document as ImportedDocument) },
+                archiveEntry(
+                  { archived: row.document.archived, type: DOCUMENT_TYPE_LABELS[row.document.type], label: row.document.number, feminine: isFeminineDocumentType(row.document.type) },
+                  archiveImported,
+                  row.document.id,
+                ),
+                rowMenuEntry(deleteImported([row.document as ImportedDocument])),
               ]}
             />
           )}

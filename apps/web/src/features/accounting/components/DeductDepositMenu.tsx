@@ -1,9 +1,9 @@
-import { Button } from '@mantine/core';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { type AccountingLineInput, toCents } from '@ordo/shared';
+import { type AccountingLineInput, toCents, sumOf } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 interface DeductDepositMenuProps {
   clientId: string | null;
@@ -40,15 +40,15 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
       name="acompte"
       position="bottom-start"
       target={
-        <Button size="xs" variant="default" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
+        <ActionButton priority="secondary" size="xs" icon={<MinusCircleIcon aria-hidden />}>
           Déduire un acompte
-        </Button>
+        </ActionButton>
       }
       items={[
         { section: 'Factures d’acompte du client' },
         ...offered.map((deposit) => {
           const date = fmt.day(deposit.issueDate);
-          const left = deposit.remaining.reduce((sum, item) => sum + item.cents, 0);
+          const left = sumOf(deposit.remaining, (item) => item.cents);
           return {
             label: `${deposit.number} du ${date}`,
             description: `Reste à déduire ${fmt.moneyCents(left, currency)} HT sur ${fmt.money(deposit.totalGross, currency)} TTC`,
@@ -56,7 +56,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
               onAdd(
                 deposit.remaining.map((item) => ({
                   kind: 'DEDUCTION' as const,
-                  title: `Acompte ${deposit.number} du ${date}`,
+                  label: `Acompte ${deposit.number} du ${date}`,
                   description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
                   quantity: 1,
                   unit: 'FLAT' as const,

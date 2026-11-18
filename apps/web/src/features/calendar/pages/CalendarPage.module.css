@@ -114,7 +114,7 @@
 
   .closed {
     /* Effets */
-    opacity: 0.55;
+    opacity: var(--onoko-muted-opacity);
 
     /* Typographie */
     text-decoration: line-through;
@@ -128,7 +128,7 @@
   /* Archived event (or of an archived calendar), shown on demand: read only, faded. */
   .archived {
     /* Effets */
-    opacity: 0.45;
+    opacity: var(--onoko-muted-opacity);
     filter: grayscale(0.6);
   }
 

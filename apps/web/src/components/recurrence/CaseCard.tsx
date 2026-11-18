@@ -1,9 +1,9 @@
-import { DragHandle } from '../actions/DragHandle';
-import { useSortableItem } from '../actions/use-sortable-item';
+import { DragHandle } from '../dnd/DragHandle';
+import { useSortableItem } from '../dnd/use-sortable-item';
 import { Collapse, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { RemoveButton } from '../actions/RemoveButton';
+import { FoldChevron } from '../actions/FoldChevron';
 
 interface CaseCardProps {
   /** Number of the case, from 1. */
@@ -34,7 +34,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
   const shown = !collapsible || opened;
   const heading = (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-      {collapsible && (shown ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />)}
+      {collapsible && <FoldChevron expanded={shown} />}
       <Text size="xs" c="dimmed" truncate={!shown}>
         Cas {index} · {summary}
       </Text>
@@ -52,7 +52,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
           ) : (
             heading
           )}
-          {onRemove && <RemoveButton label="Retirer le cas" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
+          {onRemove && <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le cas ${index}`} onClick={onRemove} />}
         </Group>
         <Collapse expanded={shown}>
           <Stack gap="xs">{children}</Stack>

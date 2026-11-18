@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, monthOfDate, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -14,9 +14,10 @@ import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, labelObject } from '../label-inputs';
+import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
+import { attachmentUrl } from '../../services/core/attachments';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -87,14 +88,14 @@ builder.prismaObject('TreasuryBudget', {
   description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => formatDay(budget.month).slice(0, 7) }),
+    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => monthOfDate(budget.month) }),
     memberId: t.exposeID('memberId', { nullable: true }),
     relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId'),
     amount: t.float({ resolve: (budget) => fromDecimal(budget.amount) }),
     repeatEvery: t.exposeInt('repeatEvery', { nullable: true, description: 'Every n months; none: that month only.' }),
-    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? formatDay(budget.repeatUntil).slice(0, 7) : null) }),
+    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? monthOfDate(budget.repeatUntil) : null) }),
   }),
 });
 
@@ -171,7 +172,7 @@ builder.prismaObject('TreasuryContextPeriod', {
 builder.prismaObject('TreasuryCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color', { nullable: true }),
     direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
     parentId: t.exposeID('parentId', { nullable: true }),
@@ -183,7 +184,7 @@ builder.prismaObject('TreasuryCategory', {
 builder.prismaObject('TreasuryPaymentMethod', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     incoming: t.exposeBoolean('incoming'),
     outgoing: t.exposeBoolean('outgoing'),
     entryCount: t.relationCount('entries'),
@@ -223,7 +224,7 @@ interface EntryDocument {
   id: string;
   source: 'LIBRARY' | 'PROJECT';
   kind: string;
-  title: string;
+  label: string;
   url: string;
   projectId: string | null;
   /** Library folder, or project, it belongs to. */
@@ -236,7 +237,7 @@ const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument
     id: t.exposeID('id'),
     source: t.exposeString('source', { description: 'LIBRARY or PROJECT.' }),
     kind: t.exposeString('kind', { description: 'FILE or LINK.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     url: t.exposeString('url'),
     projectId: t.exposeID('projectId', { nullable: true }),
     place: t.exposeString('place'),
@@ -244,16 +245,16 @@ const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument
 });
 
 const documentSelect = {
-  select: { id: true, kind: true, title: true, url: true, attachment: { select: { id: true, name: true } } },
+  select: { id: true, kind: true, url: true, attachment: { select: { id: true, filename: true } } },
 } as const;
 
 /**
  * Address of a file or link document.
- * @param {{ kind: string, url: string | null, attachment: { id: string, name: string } | null }} document Document.
+ * @param {{ kind: string, url: string | null, attachment: { id: string, filename: string } | null }} document Document.
  * @returns {string} URL.
  */
-const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; name: string } | null }) =>
-  document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`;
+const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; filename: string } | null }) =>
+  document.kind === 'LINK' ? (document.url ?? '') : attachmentUrl(document.attachment);
 
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
@@ -302,6 +303,12 @@ function linkedLine(line: {
   return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
 }
 
+/** Selections of the supporting documents of an entry or a line: of the library (its folder), of projects (its project). */
+const SUPPORTING_DOCUMENTS = {
+  library: { select: { ...documentSelect.select, title: true, folder: { select: { name: true } } } },
+  project: { select: { ...documentSelect.select, label: true, project: { select: { id: true, label: true } } } },
+};
+
 /**
  * Supporting documents of an entry or a line: of the library, then of projects.
  * @param {object} owner Entry or line with its documents.
@@ -309,14 +316,14 @@ function linkedLine(line: {
  */
 function supportingDocuments(owner: {
   libraryDocuments: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
-  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; project: { id: string; title: string } })[];
+  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; label: string; project: { id: string; label: string } })[];
 }): EntryDocument[] {
   return [
     ...owner.libraryDocuments.map((document) => ({
       id: document.id,
       source: 'LIBRARY' as const,
       kind: document.kind,
-      title: document.title,
+      label: document.title,
       url: documentUrl(document),
       projectId: null,
       place: document.folder?.name ?? 'Documents',
@@ -325,10 +332,10 @@ function supportingDocuments(owner: {
       id: resource.id,
       source: 'PROJECT' as const,
       kind: resource.kind,
-      title: resource.title,
+      label: resource.label,
       url: documentUrl(resource),
       projectId: resource.project.id,
-      place: resource.project.title,
+      place: resource.project.label,
     })),
   ];
 }
@@ -337,7 +344,7 @@ builder.prismaObject('DocumentStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
     scope: t.field({ type: ScopeEnum, resolve: (status) => status.scope }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     category: t.field({ type: CategoryEnum, resolve: (status) => status.category }),
     position: t.exposeInt('position'),
@@ -371,7 +378,7 @@ builder.prismaObject('TreasuryEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
     accountId: t.exposeID('accountId'),
-    accountName: t.string({ select: { account: { select: { name: true } } }, resolve: (entry) => entry.account.name }),
+    accountLabel: t.string({ select: { account: { select: { label: true } } }, resolve: (entry) => entry.account.label }),
     status: t.field({ type: EntryStatusEnum, resolve: (entry) => entry.status }),
     date: t.expose('date', { type: 'Date', description: 'Execution date.' }),
     valueDate: t.expose('valueDate', { type: 'Date' }),
@@ -379,7 +386,7 @@ builder.prismaObject('TreasuryEntry', {
     amount: t.float({ resolve: (entry) => fromDecimal(entry.amount) }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     methodId: t.exposeID('methodId', { nullable: true }),
-    methodName: t.string({ nullable: true, select: { method: { select: { name: true } } }, resolve: (entry) => entry.method?.name ?? null }),
+    methodLabel: t.string({ nullable: true, select: { method: { select: { label: true } } }, resolve: (entry) => entry.method?.label ?? null }),
     clientId: t.exposeID('clientId', { nullable: true }),
     counterpartyId: t.exposeID('counterpartyId', { nullable: true }),
     payerName: t.string({
@@ -391,10 +398,7 @@ builder.prismaObject('TreasuryEntry', {
     linkedEntries: t.field({
       type: [LinkedEntryRef],
       select: { links: linkedSelect, linkedBy: linkedSelect },
-      resolve: (entry) =>
-        [...entry.links, ...entry.linkedBy]
-          .map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) }))
-          .sort((a, b) => a.date.getTime() - b.date.getTime()),
+      resolve: (entry) => [...entry.links, ...entry.linkedBy].map((linked) => ({ ...linked, amount: fromDecimal(linked.amount) })).sort((a, b) => a.date.getTime() - b.date.getTime()),
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
@@ -406,8 +410,8 @@ builder.prismaObject('TreasuryEntry', {
       type: [EntryDocumentRef],
       description: 'Supporting documents: of the library, then of projects.',
       select: {
-        libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
-        projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+        libraryDocuments: SUPPORTING_DOCUMENTS.library,
+        projectResources: SUPPORTING_DOCUMENTS.project,
       },
       resolve: (entry) => supportingDocuments(entry),
     }),
@@ -426,8 +430,8 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
     type: [EntryDocumentRef],
     description: 'Supporting documents: of the library, then of projects.',
     select: {
-      libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
-      projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+      libraryDocuments: SUPPORTING_DOCUMENTS.library,
+      projectResources: SUPPORTING_DOCUMENTS.project,
     },
     resolve: (line) => supportingDocuments(line),
   }),
@@ -448,7 +452,7 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
 builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     openingBalance: t.float({ resolve: (account) => fromDecimal(account.openingBalance) }),
     openingDate: t.expose('openingDate', { type: 'Date' }),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
@@ -464,10 +468,10 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
   acceptedAt: t.expose('acceptedAt', { type: 'Date', nullable: true }),
   signedFileUrl: t.string({
     nullable: true,
-    select: { signedAttachment: { select: { id: true, name: true } } },
-    resolve: (document) => (document.signedAttachment ? `/api/attachments/${document.signedAttachment.id}/${encodeURIComponent(document.signedAttachment.name)}` : null),
+    select: { signedAttachment: { select: { id: true, filename: true } } },
+    resolve: (document) => (document.signedAttachment ? attachmentUrl(document.signedAttachment) : null),
   }),
-  signedFileName: t.string({ nullable: true, select: { signedAttachment: { select: { name: true } } }, resolve: (document) => document.signedAttachment?.name ?? null }),
+  signedFilename: t.string({ nullable: true, select: { signedAttachment: { select: { filename: true } } }, resolve: (document) => document.signedAttachment?.filename ?? null }),
   paid: t.float({
     nullable: true,
     description: 'Final invoices: paid by the client; credit notes: refunded.',
@@ -584,7 +588,7 @@ const Projection = builder.objectRef<treasury.Projection>('TreasuryProjection').
 
 const AccountInput = builder.inputType('TreasuryAccountInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     openingBalance: t.float({ required: true }),
     openingDate: t.field({ type: 'Date', required: true }),
   }),
@@ -617,7 +621,6 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
     linkedEntryIds: t.idList({ description: 'Other entries, without lines.' }),
   }),
 });
-
 
 const ContextPeriodInput = builder.inputType('TreasuryContextPeriodInput', {
   fields: (t) => ({
@@ -654,7 +657,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
 
 const CategoryInput = builder.inputType('TreasuryCategoryInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     color: t.string({ description: 'Hex color; empty clears it, omitted leaves it.' }),
     direction: t.field({ type: DirectionEnum, required: true }),
     parentId: t.id(),
@@ -663,7 +666,7 @@ const CategoryInput = builder.inputType('TreasuryCategoryInput', {
 
 const PaymentMethodInput = builder.inputType('TreasuryPaymentMethodInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     incoming: t.boolean({ required: true }),
     outgoing: t.boolean({ required: true }),
   }),
@@ -822,11 +825,11 @@ builder.queryFields((t) => ({
   }),
   treasuryCategories: t.prismaField({
     type: ['TreasuryCategory'],
-    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { label: 'asc' }] }),
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
-    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
@@ -837,32 +840,13 @@ builder.queryFields((t) => ({
     description: 'Documents of the app that can support an entry: the library, then the documents of the projects.',
     resolve: async () => {
       const [documents, resources] = await Promise.all([
-        prisma.libraryDocument.findMany({ select: { ...documentSelect.select, folder: { select: { name: true } } }, orderBy: { title: 'asc' } }),
+        prisma.libraryDocument.findMany({ ...SUPPORTING_DOCUMENTS.library, orderBy: { title: 'asc' } }),
         prisma.projectResource.findMany({
-          select: { ...documentSelect.select, project: { select: { id: true, title: true } } },
-          orderBy: [{ project: { title: 'asc' } }, { position: 'asc' }],
+          ...SUPPORTING_DOCUMENTS.project,
+          orderBy: [{ project: { label: 'asc' } }, { position: 'asc' }],
         }),
       ]);
-      return [
-        ...documents.map((document) => ({
-          id: document.id,
-          source: 'LIBRARY' as const,
-          kind: document.kind,
-          title: document.title,
-          url: documentUrl(document),
-          projectId: null,
-          place: document.folder?.name ?? 'Documents',
-        })),
-        ...resources.map((resource) => ({
-          id: resource.id,
-          source: 'PROJECT' as const,
-          kind: resource.kind,
-          title: resource.title,
-          url: documentUrl(resource),
-          projectId: resource.project.id,
-          place: resource.project.title,
-        })),
-      ];
+      return supportingDocuments({ libraryDocuments: documents, projectResources: resources });
     },
   }),
   treasuryEntrySearch: t.prismaField({
@@ -931,7 +915,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { name: input.name, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
   }),
   deleteTreasuryRelation: t.boolean({
-    description: 'Deletes a relation: its budgets go with it, its lines become the app user\'s.',
+    description: "Deletes a relation: its budgets go with it, its lines become the app user's.",
     args: { id: t.arg.id({ required: true }) },
     resolve: (_root, { id }) => done(team.deleteRelation(id)),
   }),
@@ -948,7 +932,7 @@ builder.mutationFields((t) => ({
   }),
   saveTreasuryContext: t.id({
     description: 'Creates a context (without id) or changes one.',
-    args: { id: t.arg.id(), input: t.arg({ type: NameColorInput, required: true }) },
+    args: { id: t.arg.id(), input: t.arg({ type: LabelColorInput, required: true }) },
     resolve: async (_root, { id, input }) => (await team.saveContext(id ?? null, input)).id,
   }),
   deleteTreasuryContext: t.boolean({
@@ -966,11 +950,16 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(team.deleteContextPeriod(id)),
   }),
   createDocumentStatus: t.id({
-    args: { scope: t.arg({ type: ScopeEnum, required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }), category: t.arg({ type: CategoryEnum, required: true }) },
+    args: {
+      scope: t.arg({ type: ScopeEnum, required: true }),
+      label: t.arg.string({ required: true }),
+      color: t.arg.string({ required: true }),
+      category: t.arg({ type: CategoryEnum, required: true }),
+    },
     resolve: async (_root, args) => (await statuses.createDocumentStatus(args)).id,
   }),
   updateDocumentStatus: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string(), color: t.arg.string(), category: t.arg({ type: CategoryEnum }) },
+    args: { id: t.arg.id({ required: true }), label: t.arg.string(), color: t.arg.string(), category: t.arg({ type: CategoryEnum }) },
     resolve: (_root, { id, ...input }) => done(statuses.updateDocumentStatus(id, input)),
   }),
   deleteDocumentStatus: t.boolean({
@@ -1027,7 +1016,8 @@ builder.mutationFields((t) => ({
   setInvoiceTreasuryCategories: t.boolean({
     description: 'Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.',
     args: { invoiceCategoryId: t.arg.id(), creditNoteCategoryId: t.arg.id() },
-    resolve: (_root, { invoiceCategoryId, creditNoteCategoryId }) => done(settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null })),
+    resolve: (_root, { invoiceCategoryId, creditNoteCategoryId }) =>
+      done(settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null })),
   }),
   createTreasuryCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },

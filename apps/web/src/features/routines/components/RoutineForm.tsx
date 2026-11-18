@@ -1,13 +1,25 @@
 import { copyName } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
-import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
+import {
+  opensFits,
+  readOpens,
+  readSlotCondition,
+  type Recurrence,
+  type RoutineCase,
+  type RoutineOpens,
+  routineSchema,
+  type RoutineSlot,
+  type SlotCondition,
+  subtreeOf,
+  ROUTINE_LABEL_MAX,
+} from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
@@ -24,7 +36,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { SubSection } from '../../../components/page/SubSection';
 
 interface RoutineFormValues extends Record<string, unknown> {
-  title: string;
+  label: string;
   description: string;
   categoryIds: string[];
   parentId: string | null;
@@ -80,7 +92,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
     initialValues: {
-      title: routine ? (copy ? copyName(routine.title) : routine.title) : '',
+      label: routine ? (copy ? copyName(routine.label, ROUTINE_LABEL_MAX) : routine.label) : '',
       description: routine?.description ?? '',
       categoryIds: routine ? routine.categoryIds : (parent?.categoryIds ?? (categoryId ? [categoryId] : [])),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
@@ -123,7 +135,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     const callbacks = formCallbacks(form, copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.', (created: unknown) => {
       // A copy takes the sub-routines of the routine with it, under itself.
       if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
-        copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: onMutationError });
+        copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);
       }
       onDone();
     });
@@ -134,7 +146,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="lg">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
         <Grid gap="xl">
           <Grid.Col span={{ base: 12, md: 8 }}>
@@ -149,8 +161,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
-              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? routine.currentDate : null} name={routine.title} />}
-              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
+              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? routine.currentDate : null} name={routine.label} />}
+              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} readOnly={routine.archived} />}
             </Stack>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
@@ -182,7 +194,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 searchable
                 // Archived categories are no longer offered, but those of the routine stay.
                 {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
-                nothingFoundMessage="Aucune catégorie : tapez son nom pour la créer"
+                nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
                 {...form.getInputProps('categoryIds')}
               />
               {context && (

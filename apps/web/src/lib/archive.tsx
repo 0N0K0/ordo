@@ -1,5 +1,6 @@
 import { ArchiveIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import type { QueryKey } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { graphql } from '../graphql';
 import type { ArchivableKind } from '../graphql/graphql';
 import { execute } from './graphql-client';
@@ -54,40 +55,87 @@ const keptIds = (keep: string | readonly (string | null | undefined)[] | null | 
   new Set((typeof keep === 'string' ? [keep] : (keep ?? [])).filter((id): id is string => Boolean(id)));
 
 /**
- * Elements offered by a picker (a select, an autocomplete, a filter): those not archived, and the current value(s) even
- * when archived.
+ * Elements not archived, as a picker offers them (a select, an autocomplete, a filter) or an action takes them: the
+ * archived ones left out, except the current value(s).
  * @param {readonly T[]} items Elements, in their order.
  * @param {string | readonly (string | null | undefined)[] | null} [keep] Current value(s), kept when archived. Optional.
+ * @param {(item: T) => string} [idOf] Id of an element, compared with `keep`. Optional. Default = its `id`.
  * @returns {T[]} Elements offered.
  */
-export function unarchived<T extends MaybeArchived>(items: readonly T[], keep?: string | readonly (string | null | undefined)[] | null): T[] {
+export function unarchived<T extends { archived?: boolean | null }>(
+  items: readonly T[],
+  keep?: string | readonly (string | null | undefined)[] | null,
+  idOf: (item: T) => string = (item) => (item as unknown as MaybeArchived).id,
+): T[] {
   const kept = keptIds(keep);
-  return items.filter((item) => !item.archived || kept.has(item.id));
+  // eslint-disable-next-line no-restricted-syntax -- the archived filter itself.
+  return items.filter((item) => !item.archived || kept.has(idOf(item)));
+}
+
+/** Props of the « Afficher les archivés » switch (`ShowArchivedSwitch`), as `useArchivedToggle` gives them. */
+export interface ArchivedToggle {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  /** Number of archived elements (none: the switch is not shown). */
+  count: number;
 }
 
 /**
- * Elements shown by a list, a table, a board: the archived ones only when asked (« Afficher les archivés »).
- * @param {readonly T[]} items Elements.
- * @param {boolean} showArchived Archived ones shown too.
- * @returns {readonly T[]} Elements shown.
+ * Whether an element is archived (its `archived` field).
+ * @param {unknown} item Element.
+ * @returns {boolean} Archived.
  */
-export function visibleItems<T extends MaybeArchived>(items: readonly T[], showArchived: boolean): readonly T[] {
-  return showArchived ? items : items.filter((item) => !item.archived);
+const isArchivedItem = (item: unknown): boolean => Boolean((item as MaybeArchived).archived);
+
+/** What `useArchivedToggle` gives. */
+interface ArchivedToggleState<T> {
+  /** Elements shown: the archived ones only when asked. */
+  shown: T[];
+  /** Archived elements shown. */
+  showArchived: boolean;
+  /** Props of the switch: `<ShowArchivedSwitch {...toggle} />`. */
+  toggle: ArchivedToggle;
+}
+
+export function useArchivedToggle<T extends { archived?: boolean | null }>(items: readonly T[]): ArchivedToggleState<T>;
+export function useArchivedToggle<T>(items: readonly T[], isArchived: (item: T) => boolean): ArchivedToggleState<T>;
+/**
+ * « Afficher les archivés » of a list, a table, a board: the elements shown (the archived ones hidden until asked)
+ * and the props of its switch (`ShowArchivedSwitch`), with the number of archived elements.
+ * @param {readonly T[]} items Every element.
+ * @param {(item: T) => boolean} [isArchived] Whether an element is archived. Optional. Default = its `archived` field.
+ * @returns {ArchivedToggleState<T>} Elements shown, state and switch props.
+ */
+export function useArchivedToggle<T>(items: readonly T[], isArchived: (item: T) => boolean = isArchivedItem): ArchivedToggleState<T> {
+  const [showArchived, setShowArchived] = useState(false);
+  const shown = useMemo(() => (showArchived ? [...items] : items.filter((item) => !isArchived(item))), [items, showArchived, isArchived]);
+  const count = useMemo(() => items.filter(isArchived).length, [items, isArchived]);
+  return { shown, showArchived, toggle: { checked: showArchived, onChange: setShowArchived, count } };
+}
+
+/** How the success of an archive or a restore is told. */
+interface ArchivedMessageOptions {
+  /** Named in the feminine (« archivée »). Optional. Default = false. */
+  feminine?: boolean;
+  /** Number of elements. Optional. Default = 1. */
+  count?: number;
+  /** What is archived along, told after an archive (« avec ses projets »). Optional. Default = none. */
+  cascade?: string;
 }
 
 /**
  * Message of the success of an archive or a restore: « « Courses » archivée. », « 3 listes restaurées. ».
  * @param {string} label What is changed (« « Courses » », « 3 listes »).
  * @param {boolean} archived Archived (else restored).
- * @param {{ feminine?: boolean, count?: number }} [options] Agreement: feminine noun, number of elements. Optional. Default = masculine, one.
+ * @param {ArchivedMessageOptions} [options] Agreement and cascade. Optional. Default = masculine, one, no cascade.
  * @returns {string} Message.
  */
-function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1 }: { feminine?: boolean; count?: number } = {}): string {
-  return `${label} ${plural(count, `${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}`)}.`;
+function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1, cascade }: ArchivedMessageOptions = {}): string {
+  return `${label} ${plural(count, `${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}`)}${archived && cascade ? ` ${cascade}` : ''}.`;
 }
 
 /** Mutation archiving or restoring, as `useSetArchived` gives it (only its promise is used). */
-interface ArchiveMutation {
+export interface ArchiveMutation {
   mutateAsync: (variables: { ids: readonly string[]; archived: boolean }) => Promise<unknown>;
 }
 
@@ -99,11 +147,12 @@ interface ArchiveMutation {
  * @param {boolean} options.archived Archives (else restores).
  * @param {string} options.label What is changed, for the message (« « Courses » », « 3 listes »).
  * @param {boolean} [options.feminine] Named in the feminine (« archivée »). Optional. Default = false.
+ * @param {string} [options.cascade] What is archived along (« avec ses projets »). Optional.
  * @returns {Promise<void>}
  */
 export async function archiveWithUndo(
   mutation: ArchiveMutation,
-  { ids, archived, label, feminine = false }: { ids: readonly string[]; archived: boolean; label: string; feminine?: boolean },
+  { ids, archived, label, feminine = false, cascade }: { ids: readonly string[]; archived: boolean; label: string; feminine?: boolean; cascade?: string },
 ): Promise<void> {
   try {
     await mutation.mutateAsync({ ids, archived });
@@ -111,21 +160,28 @@ export async function archiveWithUndo(
     notifyFailure(error);
     return;
   }
-  notifyWithUndo(archivedMessage(label, archived, { feminine, count: ids.length }), () => void mutation.mutateAsync({ ids, archived: !archived }).catch(onMutationError));
+  notifyWithUndo(archivedMessage(label, archived, { feminine, count: ids.length, cascade }), () => void mutation.mutateAsync({ ids, archived: !archived }).catch(onMutationError));
 }
 
 /**
  * « Archiver » / « Restaurer » entry of the menu of an element (hidden from the lists, read only), told with its undo.
- * @param {{ archived?: boolean | null, label: string, feminine?: boolean }} element Element: archived, its name in the message (« « Courses » »), named in the feminine (optional).
+ * @param {{ archived?: boolean | null, type: string, label: string, feminine?: boolean, cascade?: string }} element Element: archived, its type and its label, told « <Type> « libellé » » in the message (« Liste « Courses » archivée. »), its type in the feminine (optional), what is archived along (optional).
  * @param {ArchiveMutation} mutation Archive mutation of its kind (`useSetArchived(kind)`).
  * @param {string} id Element.
- * @returns {{ label: string, icon: JSX.Element, onClick: () => void }} Menu entry.
+ * @param {() => void} [onDone] Called once archived or restored (closes its form…). Optional.
+ * @returns {{ label: string, icon: JSX.Element, onClick: () => void, inMenu: true }} Menu entry, never a button (decision R).
  */
-export function archiveEntry({ archived, label, feminine }: { archived?: boolean | null; label: string; feminine?: boolean }, mutation: ArchiveMutation, id: string) {
+export function archiveEntry(
+  { archived, type, label, feminine, cascade }: { archived?: boolean | null; type: string; label: string; feminine?: boolean; cascade?: string },
+  mutation: ArchiveMutation,
+  id: string,
+  onDone?: () => void,
+) {
   return {
     label: archived ? 'Restaurer' : 'Archiver',
     icon: archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-    onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label, feminine }),
+    onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label: `${type} « ${label} »`, feminine, cascade }).then(onDone),
+    inMenu: true as const,
   };
 }
 
@@ -139,4 +195,24 @@ export function archiveEntry({ archived, label, feminine }: { archived?: boolean
 export function unarchivedOffered(items: readonly MaybeArchived[], keep?: string | readonly (string | null | undefined)[] | null): (id: string) => boolean {
   const offered = new Set(unarchived(items, keep).map((item) => item.id));
   return (id) => offered.has(id);
+}
+
+/**
+ * Ids of the archived items of a list.
+ * @param {readonly MaybeArchived[] | null | undefined} items Items (none while loading).
+ * @returns {Set<string>} Archived ids.
+ */
+export function archivedIds(items: readonly MaybeArchived[] | null | undefined): Set<string> {
+  // eslint-disable-next-line no-restricted-syntax -- the archived set itself.
+  return new Set((items ?? []).filter((item) => item.archived).map((item) => item.id));
+}
+
+/**
+ * Label of an item in a choice, « (archivé) » or « (archivée) » after an archived one.
+ * @param {{ label: string, archived?: boolean | null }} item Item.
+ * @param {boolean} [feminine] Whether the item is feminine (« archivée »). Optional. Default = false.
+ * @returns {string} Label.
+ */
+export function archivedLabel(item: { label: string; archived?: boolean | null }, feminine = false): string {
+  return item.archived ? `${item.label} (${feminine ? 'archivée' : 'archivé'})` : item.label;
 }

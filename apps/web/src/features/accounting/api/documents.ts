@@ -32,7 +32,7 @@ graphql(`
     clientId
     clientName
     projectId
-    title
+    label
     totalNet
     totalGross
     currency
@@ -42,7 +42,7 @@ graphql(`
     trackingStatus {
       id
       archived
-      name
+      label
       color
       category
     }
@@ -57,7 +57,7 @@ graphql(`
     depositValue
     attachments {
       id
-      name
+      filename
       url
     }
   }
@@ -112,7 +112,7 @@ graphql(`
     sentVia
     acceptedAt
     signedFileUrl
-    signedFileName
+    signedFilename
     paid
     credited
     reminders {
@@ -126,14 +126,14 @@ graphql(`
       entry {
         id
         date
-        accountName
-        methodName
+        accountLabel
+        methodLabel
       }
     }
     lines {
       id
       kind
-      title
+      label
       description
       quantity
       unit
@@ -145,7 +145,7 @@ graphql(`
     }
     attachments {
       id
-      name
+      filename
       size
       url
     }
@@ -179,7 +179,7 @@ const RecurringInvoicesDocument = graphql(`
     recurringInvoices {
       id
       archived
-      name
+      label
       templateId
       recurrence
       startDate
@@ -201,7 +201,7 @@ const ProjectResourcesDocument = graphql(`
     projectResources(projectId: $projectId) {
       id
       kind
-      title
+      label
       note
       url
       size
@@ -302,8 +302,8 @@ const DeleteRecurring = graphql(`
   }
 `);
 const AddProjectLink = graphql(`
-  mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {
-    addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)
+  mutation AddProjectLink($projectId: ID!, $label: String!, $url: String!, $note: String) {
+    addProjectLink(projectId: $projectId, label: $label, url: $url, note: $note)
   }
 `);
 const AddProjectFiles = graphql(`
@@ -312,8 +312,8 @@ const AddProjectFiles = graphql(`
   }
 `);
 const UpdateProjectResource = graphql(`
-  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {
-    updateProjectResource(id: $id, title: $title, url: $url, note: $note)
+  mutation UpdateProjectResource($id: ID!, $label: String!, $url: String, $note: String) {
+    updateProjectResource(id: $id, label: $label, url: $url, note: $note)
   }
 `);
 const DeleteProjectResource = graphql(`
@@ -425,10 +425,7 @@ function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVar
 export function useDocumentMutations() {
   const queryClient = useQueryClient();
   return {
-    create: useAccountingMutation(
-      async (variables: { type: AccountingDocumentType; input: AccountingDocumentInput }) =>
-        (await execute(CreateDocument, variables as never)).createAccountingDocument,
-    ),
+    create: useAccountingMutation(async (variables: { type: AccountingDocumentType; input: AccountingDocumentInput }) => (await execute(CreateDocument, variables as never)).createAccountingDocument),
     // The time billed changes with the draft.
     update: useInvalidatingMutation(async (variables: { id: string; input: AccountingDocumentInput }) => (await execute(UpdateDocument, variables as never)).updateAccountingDocument, {
       invalidate: [accountingQueryKey, timeQueryKey],
@@ -436,17 +433,14 @@ export function useDocumentMutations() {
     remove: useMutation<boolean, Error, string>({
       mutationFn: async (id) => (await execute(DeleteDocument, { id })).deleteAccountingDocument,
       // The deleted document is not fetched again: its page would show « introuvable » before leaving.
-      onSettled: (_result, _error, id) =>
-        queryClient.invalidateQueries({ queryKey: accountingQueryKey, predicate: (query) => !(query.queryKey[1] === 'document' && query.queryKey[2] === id) }),
+      onSettled: (_result, _error, id) => queryClient.invalidateQueries({ queryKey: accountingQueryKey, predicate: (query) => !(query.queryKey[1] === 'document' && query.queryKey[2] === id) }),
     }),
     finalize: useAccountingMutation(async (id: string) => (await execute(FinalizeDocument, { id })).finalizeAccountingDocument),
     createFrom: useAccountingMutation(
-      async (variables: { sourceId: string; type: AccountingDocumentType; depositPercent?: number | null; issueDate: string }) =>
-        (await execute(CreateFromDocument, variables)).createDocumentFrom,
+      async (variables: { sourceId: string; type: AccountingDocumentType; depositPercent?: number | null; issueDate: string }) => (await execute(CreateFromDocument, variables)).createDocumentFrom,
     ),
     createDeposit: useAccountingMutation(
-      async (variables: { quoteId?: string | null; importedQuoteId?: string | null; percent: number; issueDate: string }) =>
-        (await execute(CreateDepositInvoice, variables)).createDepositInvoice,
+      async (variables: { quoteId?: string | null; importedQuoteId?: string | null; percent: number; issueDate: string }) => (await execute(CreateDepositInvoice, variables)).createDepositInvoice,
     ),
     duplicate: useAccountingMutation(async (variables: { id: string; issueDate: string }) => (await execute(DuplicateDocument, variables)).duplicateAccountingDocument),
     addAttachments: useAccountingMutation(async (variables: { id: string; files: File[] }) => (await execute(AddAttachments, variables)).addAccountingAttachments),
@@ -456,7 +450,7 @@ export function useDocumentMutations() {
 }
 
 export interface RecurringSettings {
-  name: string;
+  label: string;
   recurrence: unknown;
   startDate: string;
   autoFinalize: boolean;
@@ -481,18 +475,15 @@ export function useRecurringMutations() {
  */
 export function useProjectResourceMutations() {
   return {
-    addLink: useAccountingMutation(
-      async (variables: { projectId: string; title: string; url: string; note?: string | null }) => (await execute(AddProjectLink, variables)).addProjectLink,
-    ),
+    addLink: useAccountingMutation(async (variables: { projectId: string; label: string; url: string; note?: string | null }) => (await execute(AddProjectLink, variables)).addProjectLink),
     addFiles: useAccountingMutation(async (variables: { projectId: string; files: File[] }) => (await execute(AddProjectFiles, variables)).addProjectFiles),
     update: useAccountingMutation(
-      async (variables: { id: string; title: string; url?: string | null; note?: string | null }) => (await execute(UpdateProjectResource, variables)).updateProjectResource,
+      async (variables: { id: string; label: string; url?: string | null; note?: string | null }) => (await execute(UpdateProjectResource, variables)).updateProjectResource,
     ),
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteProjectResource, { id })).deleteProjectResource),
     move: useAccountingMutation(async (variables: { id: string; index: number }) => (await execute(MoveProjectResource, variables)).moveProjectResource),
   };
 }
-
 
 graphql(`
   fragment ImportedDocumentFields on ImportedDocument {
@@ -505,21 +496,21 @@ graphql(`
     clientId
     clientName
     projectId
-    title
+    label
     totalNet
     totalVat
     totalGross
     currency
     note
     fileUrl
-    fileName
+    filename
     settled
     paid
     balance
     trackingStatus {
       id
       archived
-      name
+      label
       color
       category
     }
@@ -603,16 +594,10 @@ export function useImportedDocuments(filter: { clientId?: string; projectId?: st
 export function useImportedDocumentMutations() {
   return {
     create: useAccountingMutation(async (variables: { input: ImportedDocumentInput; file: File | null }) => (await execute(ImportDocument, variables)).importDocument),
-    update: useAccountingMutation(
-      async (variables: { id: string; input: ImportedDocumentInput; file: File | null }) => (await execute(UpdateImportedDocument, variables)).updateImportedDocument,
-    ),
+    update: useAccountingMutation(async (variables: { id: string; input: ImportedDocumentInput; file: File | null }) => (await execute(UpdateImportedDocument, variables)).updateImportedDocument),
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteImportedDocument, { id })).deleteImportedDocument),
-    setStatus: useAccountingMutation(
-      async (variables: { id: string; statusId: string | null }) => (await execute(SetImportedTrackingStatus, variables)).setImportedDocumentTrackingStatus,
-    ),
-    markSent: useAccountingMutation(
-      async (variables: { id: string; date: string; via: string; statusId: string }) => (await execute(MarkImportedSent, variables)).markImportedDocumentSent,
-    ),
+    setStatus: useAccountingMutation(async (variables: { id: string; statusId: string | null }) => (await execute(SetImportedTrackingStatus, variables)).setImportedDocumentTrackingStatus),
+    markSent: useAccountingMutation(async (variables: { id: string; date: string; via: string; statusId: string }) => (await execute(MarkImportedSent, variables)).markImportedDocumentSent),
     setProject: useAccountingMutation(async (variables: { id: string; projectId: string | null }) => (await execute(SetImportedProject, variables)).setImportedDocumentProject),
   };
 }

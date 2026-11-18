@@ -116,8 +116,7 @@ function useSetMe(): (user: AccountUser | null) => void {
 export function useLogin() {
   const setMe = useSetMe();
   return useMutation({
-    mutationFn: async (variables: { identifier: string; password: string }) =>
-      (await execute(LoginMutation, variables)).login,
+    mutationFn: async (variables: { identifier: string; password: string }) => (await execute(LoginMutation, variables)).login,
     onSuccess: setMe,
   });
 }
@@ -144,8 +143,7 @@ export function useLogout() {
  */
 export function useRequestPasswordReset() {
   return useMutation({
-    mutationFn: async (variables: { identifier: string }) =>
-      (await execute(RequestPasswordResetMutation, variables)).requestPasswordReset,
+    mutationFn: async (variables: { identifier: string }) => (await execute(RequestPasswordResetMutation, variables)).requestPasswordReset,
   });
 }
 
@@ -156,8 +154,7 @@ export function useRequestPasswordReset() {
 export function useResetPassword() {
   const setMe = useSetMe();
   return useMutation({
-    mutationFn: async (variables: { token: string; password: string }) =>
-      (await execute(ResetPasswordMutation, variables)).resetPassword,
+    mutationFn: async (variables: { token: string; password: string }) => (await execute(ResetPasswordMutation, variables)).resetPassword,
     // Every session is closed by the server.
     onSuccess: () => setMe(null),
   });
@@ -170,8 +167,7 @@ export function useResetPassword() {
 export function useConfirmEmailChange() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (variables: { token: string }) =>
-      (await execute(ConfirmEmailChangeMutation, variables)).confirmEmailChange,
+    mutationFn: async (variables: { token: string }) => (await execute(ConfirmEmailChangeMutation, variables)).confirmEmailChange,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: meQueryKey }),
   });
 }
@@ -182,8 +178,7 @@ export function useConfirmEmailChange() {
  */
 export function useChangePassword() {
   return useMutation({
-    mutationFn: async (variables: { currentPassword: string; password: string }) =>
-      (await execute(ChangePasswordMutation, variables)).changePassword,
+    mutationFn: async (variables: { currentPassword: string; password: string }) => (await execute(ChangePasswordMutation, variables)).changePassword,
   });
 }
 
@@ -194,8 +189,7 @@ export function useChangePassword() {
 export function useChangeUsername() {
   const setMe = useSetMe();
   return useMutation({
-    mutationFn: async (variables: { currentPassword: string; username: string }) =>
-      (await execute(ChangeUsernameMutation, variables)).changeUsername,
+    mutationFn: async (variables: { currentPassword: string; username: string }) => (await execute(ChangeUsernameMutation, variables)).changeUsername,
     onSuccess: setMe,
   });
 }
@@ -207,8 +201,7 @@ export function useChangeUsername() {
 export function useRequestEmailChange() {
   const setMe = useSetMe();
   return useMutation({
-    mutationFn: async (variables: { currentPassword: string; email: string }) =>
-      (await execute(RequestEmailChangeMutation, variables)).requestEmailChange,
+    mutationFn: async (variables: { currentPassword: string; email: string }) => (await execute(RequestEmailChangeMutation, variables)).requestEmailChange,
     onSuccess: setMe,
   });
 }

@@ -1,8 +1,9 @@
-import { Button, CloseButton, Group, Paper, Text } from '@mantine/core';
+import { CloseButton, Group, Paper, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { DestructiveButton } from '../../dialogs/DestructiveActions';
 import classes from './SelectionBar.module.css';
+import { ActionButton } from '../../actions/ActionButton';
 
 /** Action on the rows selected that a column cannot do (close, clone, archive, delete…). */
 export interface SelectionAction {
@@ -32,7 +33,7 @@ interface SelectionBarProps {
  */
 export function SelectionBar({ label, actions, onClear }: SelectionBarProps) {
   return (
-    <Paper shadow="md" withBorder radius="md" className={classes.bar} role="region" aria-label="Actions sur la sélection">
+    <Paper shadow="md" withBorder radius="md" className={classes.bar} role="region" aria-label="Actions de la sélection">
       <Group gap="xs" wrap="wrap">
         <Text size="sm" fw={600}>
           {label}
@@ -50,9 +51,9 @@ export function SelectionBar({ label, actions, onClear }: SelectionBarProps) {
               {action.label}
             </DestructiveButton>
           ) : (
-            <Button key={action.label} size="xs" variant="default" leftSection={action.icon} loading={action.loading} disabled={action.disabled} onClick={action.onClick}>
+            <ActionButton priority="secondary" key={action.label} size="xs" icon={action.icon} loading={action.loading} disabled={action.disabled} onClick={action.onClick}>
               {action.label}
-            </Button>
+            </ActionButton>
           ),
         )}
         <CloseButton aria-label="Désélectionner" onClick={onClear} />

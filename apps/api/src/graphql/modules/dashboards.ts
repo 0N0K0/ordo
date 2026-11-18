@@ -9,7 +9,7 @@ builder.prismaObject('Dashboard', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId', { nullable: true }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     position: t.exposeInt('position'),
     charts: t.relation('charts', { query: { orderBy: BY_POSITION } }),
   }),
@@ -19,7 +19,7 @@ builder.prismaObject('DashboardChart', {
   fields: (t) => ({
     id: t.exposeID('id'),
     dashboardId: t.exposeID('dashboardId'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     config: t.field({ type: 'JSON', description: 'Chart configuration (shared chartConfigSchema).', resolve: (chart) => chart.config }),
     wide: t.exposeBoolean('wide'),
     position: t.exposeInt('position'),
@@ -28,7 +28,7 @@ builder.prismaObject('DashboardChart', {
 
 const ChartInput = builder.inputType('DashboardChartInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     config: t.field({ type: 'JSON', required: true }),
     wide: t.boolean({ required: true }),
   }),
@@ -39,19 +39,18 @@ builder.queryFields((t) => ({
     type: ['Dashboard'],
     description: 'Dashboards of a project, or the global ones.',
     args: { projectId: t.arg.id() },
-    resolve: (query, _root, { projectId }) =>
-      prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: BY_POSITION }),
+    resolve: (query, _root, { projectId }) => prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: BY_POSITION }),
   }),
 }));
 
 builder.mutationFields((t) => ({
   createDashboard: t.id({
-    args: { name: t.arg.string({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { name, projectId }) => (await dashboards.createDashboard(name, projectId ?? null)).id,
+    args: { label: t.arg.string({ required: true }), projectId: t.arg.id() },
+    resolve: async (_root, { label, projectId }) => (await dashboards.createDashboard(label, projectId ?? null)).id,
   }),
   renameDashboard: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: (_root, { id, name }) => done(dashboards.renameDashboard(id, name)),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }) },
+    resolve: (_root, { id, label }) => done(dashboards.renameDashboard(id, label)),
   }),
   deleteDashboard: t.boolean({
     args: { id: t.arg.id({ required: true }) },

@@ -1,7 +1,7 @@
 import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
-import { storeAttachment } from '../../services/core/attachments';
+import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/workspace/contributors';
 import * as milestones from '../../services/tasks/milestones';
 import * as sprints from '../../services/tasks/sprints';
@@ -10,13 +10,14 @@ import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../service
 import * as taskViews from '../../services/tasks/task-views';
 import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
-import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
+import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES } from '@ordo/shared';
 import * as workspaces from '../../services/workspace/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
+import { reloaded } from '../reload';
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -39,16 +40,15 @@ builder.prismaObject('Contributor', {
 
 builder.prismaObject('Attachment', {
   // Never loads the file content.
-  select: { id: true, name: true, size: true, mimeType: true },
+  select: { id: true, filename: true, size: true, mimeType: true },
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    filename: t.exposeString('filename'),
     size: t.exposeInt('size'),
     isImage: t.boolean({ description: 'Shown in place in markdown.', resolve: (attachment) => attachment.mimeType.startsWith('image/') }),
     url: t.string({
       // Parentheses are escaped too: the URL goes inside a markdown link.
-      resolve: (attachment) =>
-        `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
+      resolve: (attachment) => attachmentUrl(attachment),
     }),
   }),
 });
@@ -57,7 +57,7 @@ builder.prismaObject('Milestone', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     dueDate: t.expose('dueDate', { type: 'Date', nullable: true }),
     position: t.exposeInt('position'),
@@ -67,7 +67,7 @@ builder.prismaObject('Milestone', {
 const MilestoneInput = builder.inputType('MilestoneInput', {
   fields: (t) => ({
     projectId: t.id({ required: true }),
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
@@ -76,7 +76,7 @@ const MilestoneInput = builder.inputType('MilestoneInput', {
 const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
   description: 'Omitted fields are left unchanged; null clears a field.',
   fields: (t) => ({
-    title: t.string(),
+    label: t.string(),
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
@@ -97,7 +97,7 @@ builder.prismaObject('Sprint', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     goal: t.exposeString('goal', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
     endDate: t.expose('endDate', { type: 'Date' }),
@@ -106,7 +106,7 @@ builder.prismaObject('Sprint', {
 
 const SprintInput = builder.inputType('SprintInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     goal: t.string(),
     startDate: t.field({ type: 'Date', required: true }),
     endDate: t.field({ type: 'Date', required: true }),
@@ -121,7 +121,7 @@ const TaskStatusCategory = builder.enumType('TaskStatusCategory', {
 builder.prismaObject('TaskStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     color: t.exposeString('color'),
     category: t.expose('category', { type: TaskStatusCategory }),
     position: t.exposeInt('position'),
@@ -130,7 +130,10 @@ builder.prismaObject('TaskStatus', {
 
 for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) labelObject(name);
 
-const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const, description: 'What a saved view lists (TABLE: any other table, named by its key).' });
+const ViewKindEnum = builder.enumType('ViewKind', {
+  values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const,
+  description: 'What a saved view lists (TABLE: any other table, named by its key).',
+});
 
 builder.prismaObject('TaskView', {
   description: 'Saved view of the tasks or of the routines.',
@@ -138,7 +141,7 @@ builder.prismaObject('TaskView', {
     id: t.exposeID('id'),
     kind: t.field({ type: ViewKindEnum, resolve: (view) => view.kind }),
     tableKey: t.exposeString('tableKey', { nullable: true, description: 'Table of a view of kind TABLE.' }),
-    name: t.exposeString('name'),
+    label: t.exposeString('label'),
     config: t.expose('config', { type: 'JSON' }),
     isDefault: t.exposeBoolean('isDefault'),
     position: t.exposeInt('position'),
@@ -158,7 +161,7 @@ builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
     number: t.exposeInt('number', { nullable: true, description: 'Number within its project (#12); none without project. Links use the id.' }),
-    title: t.exposeString('title'),
+    label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true, description: 'None: a task of no project.' }),
     statusId: t.exposeID('statusId', { nullable: true }),
@@ -197,10 +200,7 @@ builder.prismaObject('Task', {
     }),
     relatedIds: t.idList({
       select: { relationsA: { select: { taskBId: true } }, relationsB: { select: { taskAId: true } } },
-      resolve: (task) => [
-        ...task.relationsA.map((link) => link.taskBId),
-        ...task.relationsB.map((link) => link.taskAId),
-      ],
+      resolve: (task) => [...task.relationsA.map((link) => link.taskBId), ...task.relationsB.map((link) => link.taskAId)],
     }),
     commentCount: t.relationCount('comments'),
     recurrence: t.field({
@@ -214,59 +214,57 @@ builder.prismaObject('Task', {
     trackedSeconds: t.int({
       description: 'Tracked time in seconds: each finished time entry is shared equally between its tasks.',
       select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } } },
-      resolve: (task) =>
-        Math.round(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0)),
+      resolve: (task) => Math.round(sumOf(task.timeEntries, (entry) => (entry.duration ?? 0) / Math.max(1, entry._count.tasks))),
     }),
     comments: t.relation('comments', { query: { orderBy: { createdAt: 'asc' } } }),
   }),
 });
 
+/**
+ * Effort and dates of a task, for one task and for several.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const planningFields = (t: InputFields) => ({
+  effort: t.float(),
+  startDate: t.field({ type: 'Date' }),
+  endDate: t.field({ type: 'Date' }),
+  deadline: t.field({ type: 'Date' }),
+  minDate: t.field({ type: 'Date' }),
+});
+
+/**
+ * Fields of a task a creation and an update both take (its label and project aside).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const taskFields = (t: InputFields) => ({
+  description: t.string(),
+  statusId: t.id(),
+  priorityId: t.id(),
+  typeId: t.id(),
+  assigneeIds: t.idList(),
+  beneficiaryIds: t.idList(),
+  beneficiaryRelationIds: t.idList(),
+  tagIds: t.idList(),
+  ...planningFields(t),
+  parentId: t.id(),
+  milestoneId: t.id(),
+  sprintIds: t.idList(),
+  slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
+});
+
 const TaskInput = builder.inputType('TaskInput', {
   fields: (t) => ({
-    title: t.string({ required: true }),
+    label: t.string({ required: true }),
     projectId: t.id({ description: 'None: a task of no project (no number, sprint, milestone nor GitHub item).' }),
-    description: t.string(),
-    statusId: t.id(),
-    priorityId: t.id(),
-    typeId: t.id(),
-    assigneeIds: t.idList(),
-    beneficiaryIds: t.idList(),
-    beneficiaryRelationIds: t.idList(),
-    tagIds: t.idList(),
-    effort: t.float(),
-    startDate: t.field({ type: 'Date' }),
-    endDate: t.field({ type: 'Date' }),
-    deadline: t.field({ type: 'Date' }),
-    minDate: t.field({ type: 'Date' }),
-    parentId: t.id(),
-    milestoneId: t.id(),
-    sprintIds: t.idList(),
-    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
+    ...taskFields(t),
   }),
 });
 
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
   description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
-  fields: (t) => ({
-    title: t.string(),
-    description: t.string(),
-    statusId: t.id(),
-    priorityId: t.id(),
-    typeId: t.id(),
-    assigneeIds: t.idList(),
-    beneficiaryIds: t.idList(),
-    beneficiaryRelationIds: t.idList(),
-    tagIds: t.idList(),
-    effort: t.float(),
-    startDate: t.field({ type: 'Date' }),
-    endDate: t.field({ type: 'Date' }),
-    deadline: t.field({ type: 'Date' }),
-    minDate: t.field({ type: 'Date' }),
-    parentId: t.id(),
-    milestoneId: t.id(),
-    sprintIds: t.idList(),
-    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
-  }),
+  fields: (t) => ({ label: t.string(), ...taskFields(t) }),
 });
 
 const ContributorInput = builder.inputType('ContributorInput', {
@@ -290,7 +288,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
 
 const LabelInput = builder.inputType('TaskLabelInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     color: t.string({ required: true }),
     category: t.field({ type: TaskStatusCategory, description: 'Statuses only; defaults to TODO.' }),
   }),
@@ -298,7 +296,7 @@ const LabelInput = builder.inputType('TaskLabelInput', {
 
 const LabelUpdateInput = builder.inputType('TaskLabelUpdateInput', {
   fields: (t) => ({
-    name: t.string(),
+    label: t.string(),
     color: t.string(),
     category: t.field({ type: TaskStatusCategory, description: 'Statuses only.' }),
   }),
@@ -313,11 +311,7 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     milestoneId: t.id(),
     addSprintIds: t.idList(),
     removeSprintIds: t.idList(),
-    effort: t.float(),
-    startDate: t.field({ type: 'Date' }),
-    endDate: t.field({ type: 'Date' }),
-    deadline: t.field({ type: 'Date' }),
-    minDate: t.field({ type: 'Date' }),
+    ...planningFields(t),
     addAssigneeIds: t.idList(),
     removeAssigneeIds: t.idList(),
     addTagIds: t.idList(),
@@ -327,7 +321,7 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
 
 const TaskViewInput = builder.inputType('TaskViewInput', {
   fields: (t) => ({
-    name: t.string({ required: true }),
+    label: t.string({ required: true }),
     projectId: t.id({ description: 'Project of the view; omitted or null for the home page.' }),
     kind: t.field({ type: ViewKindEnum, description: 'Tasks (default), routines, shopping lists or another table.' }),
     tableKey: t.string({ description: 'Table of a view of kind TABLE (required for it).' }),
@@ -337,7 +331,7 @@ const TaskViewInput = builder.inputType('TaskViewInput', {
 
 const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
   fields: (t) => ({
-    name: t.string(),
+    label: t.string(),
     config: t.field({ type: 'JSON' }),
   }),
 });
@@ -347,16 +341,6 @@ const TransferResult = builder.objectRef<{ removedLinks: number }>('TaskTransfer
     removedLinks: t.exposeInt('removedLinks', { description: 'Links removed because they left the project tree.' }),
   }),
 });
-
-/**
- * Reloads a task with the fields requested by the query.
- * @param {object} query Pothos Prisma selection.
- * @param {string} id Task id.
- * @returns {Promise<object>} Task.
- */
-function reloadTask(query: object, id: string) {
-  return prisma.task.findUniqueOrThrow({ ...query, where: { id } });
-}
 
 const TaskColumnDefaultsRef = builder.objectRef<{ columnOrder: string[]; hiddenColumns: string[] }>('TaskColumnDefaults').implement({
   description: 'Columns new task views of the workspace start with.',
@@ -379,8 +363,7 @@ builder.mutationFields((t) => ({
     type: TaskColumnDefaultsRef,
     description: 'Chooses the columns new task views start with; without columns, gives back the app’s.',
     args: { columnOrder: t.arg.stringList(), hiddenColumns: t.arg.stringList() },
-    resolve: (_root, { columnOrder, hiddenColumns }) =>
-      workspaces.setTaskColumnDefaults(columnOrder ? ({ columnOrder, hiddenColumns: hiddenColumns ?? [] } as never) : null),
+    resolve: (_root, { columnOrder, hiddenColumns }) => workspaces.setTaskColumnDefaults(columnOrder ? ({ columnOrder, hiddenColumns: hiddenColumns ?? [] } as never) : null),
   }),
 }));
 
@@ -404,7 +387,7 @@ builder.queryFields((t) => ({
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
-    description: 'Views of the tasks (or routines, by kind) of a project\'s tab, or of their page when projectId is omitted.',
+    description: "Views of the tasks (or routines, by kind) of a project's tab, or of their page when projectId is omitted.",
     args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }), tableKey: t.arg.string({ description: 'Table of the views of kind TABLE.' }) },
     resolve: (query, _root, { projectId, kind, tableKey }) =>
       prisma.taskView.findMany({ ...query, where: taskViews.viewScope(projectId ?? null, kind ?? 'TASKS', tableKey ?? null), orderBy: BY_POSITION }),
@@ -450,23 +433,20 @@ builder.mutationFields((t) => ({
   createTask: t.prismaField({
     type: 'Task',
     args: { input: t.arg({ type: TaskInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadTask(query, (await tasks.createTask(input)).id),
+    resolve: async (query, _root, { input }) => reloaded(prisma.task, query, tasks.createTask(input)),
   }),
   updateTask: t.prismaField({
     type: 'Task',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloadTask(query, (await tasks.updateTask(id, input)).id),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.task, query, tasks.updateTask(id, input)),
   }),
   cloneTask: t.prismaField({
     type: 'Task',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, includeSubtasks }) =>
-      reloadTask(query, (await tasks.cloneTask(id, includeSubtasks)).id),
+    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.cloneTask(id, includeSubtasks)),
   }),
   moveTask: t.boolean({
-    description:
-      'Places a task before another one in the manual order (at the end when beforeId is null), and under ' +
-      'parentId when given (null: top-level task; omitted: parent unchanged).',
+    description: 'Places a task before another one in the manual order (at the end when beforeId is null), and under ' + 'parentId when given (null: top-level task; omitted: parent unchanged).',
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
     resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
   }),
@@ -474,7 +454,7 @@ builder.mutationFields((t) => ({
     type: 'Task',
     description: 'Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.',
     args: { id: t.arg.id({ required: true }), recurrence: t.arg({ type: 'JSON' }) },
-    resolve: async (query, _root, { id, recurrence }) => reloadTask(query, (await taskRecurrence.setTaskRecurrence(id, recurrence ?? null)).id),
+    resolve: async (query, _root, { id, recurrence }) => reloaded(prisma.task, query, taskRecurrence.setTaskRecurrence(id, recurrence ?? null)),
   }),
   materializeTaskOccurrences: t.int({
     description: 'Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.',
@@ -487,7 +467,11 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, closed }) => done(tasks.setTasksClosed(ids, closed)),
   }),
   bulkUpdateTasks: t.boolean({
-    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: BulkTaskInput, required: true }), restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }) },
+    args: {
+      ids: t.arg.idList({ required: true }),
+      changes: t.arg({ type: BulkTaskInput, required: true }),
+      restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+    },
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
@@ -514,20 +498,18 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) =>
       prisma.taskView.findUniqueOrThrow({
         ...query,
-        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
+        where: { id: (await taskViews.createView({ label: input.label, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
       }),
   }),
   updateTaskView: t.prismaField({
     type: 'TaskView',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskViewUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      prisma.taskView.findUniqueOrThrow({ ...query, where: { id: (await taskViews.updateView(id, input)).id } }),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.taskView, query, taskViews.updateView(id, input)),
   }),
   duplicateTaskView: t.prismaField({
     type: 'TaskView',
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, name }) =>
-      prisma.taskView.findUniqueOrThrow({ ...query, where: { id: (await taskViews.duplicateView(id, name)).id } }),
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }) },
+    resolve: async (query, _root, { id, label }) => reloaded(prisma.taskView, query, taskViews.duplicateView(id, label)),
   }),
   deleteTaskView: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -556,14 +538,12 @@ builder.mutationFields((t) => ({
   createMilestone: t.prismaField({
     type: 'Milestone',
     args: { input: t.arg({ type: MilestoneInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      prisma.milestone.findUniqueOrThrow({ ...query, where: { id: (await milestones.createMilestone(input)).id } }),
+    resolve: async (query, _root, { input }) => reloaded(prisma.milestone, query, milestones.createMilestone(input)),
   }),
   updateMilestone: t.prismaField({
     type: 'Milestone',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: MilestoneUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      prisma.milestone.findUniqueOrThrow({ ...query, where: { id: (await milestones.updateMilestone(id, input)).id } }),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.milestone, query, milestones.updateMilestone(id, input)),
   }),
   deleteMilestone: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -593,14 +573,12 @@ builder.mutationFields((t) => ({
   addTaskComment: t.prismaField({
     type: 'TaskComment',
     args: { taskId: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { taskId, body }) =>
-      prisma.taskComment.findUniqueOrThrow({ ...query, where: { id: (await tasks.addComment(taskId, body)).id } }),
+    resolve: async (query, _root, { taskId, body }) => reloaded(prisma.taskComment, query, tasks.addComment(taskId, body)),
   }),
   updateTaskComment: t.prismaField({
     type: 'TaskComment',
     args: { id: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, body }) =>
-      prisma.taskComment.findUniqueOrThrow({ ...query, where: { id: (await tasks.updateComment(id, body)).id } }),
+    resolve: async (query, _root, { id, body }) => reloaded(prisma.taskComment, query, tasks.updateComment(id, body)),
   }),
   deleteTaskComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -620,8 +598,7 @@ builder.mutationFields((t) => ({
     type: 'Attachment',
     description: 'Stores a file to link from a markdown text (10 MB maximum).',
     args: { file: t.arg({ type: 'File', required: true }) },
-    resolve: async (query, _root, { file }) =>
-      prisma.attachment.findUniqueOrThrow({ ...query, where: { id: (await storeAttachment(file)).id } }),
+    resolve: async (query, _root, { file }) => reloaded(prisma.attachment, query, storeAttachment(file)),
   }),
   setProjectContributors: t.boolean({
     description: 'Sets the contributors directly attached to a project; tasks keep their assignees.',

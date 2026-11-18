@@ -1,4 +1,4 @@
-import { countOf } from '../../../lib/text';
+import { countWith } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -6,7 +6,7 @@ import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -24,6 +24,7 @@ import classes from './Shopping.module.css';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmount } from '../../../components/money/SignedAmount';
+import { shoppingListPath } from '../../../app/pages';
 
 const listSchema = shoppingListFormSchema;
 
@@ -35,19 +36,11 @@ const listSchema = shoppingListFormSchema;
 function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) {
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
-  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { name: list.name, taskIds: list.taskIds }, schema: listSchema });
+  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { label: list.label, taskIds: list.taskIds }, schema: listSchema });
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((values) =>
-        updateList.mutate(
-          { id: list.id, name: values.name, taskIds: values.taskIds },
-          formCallbacks(form, 'Liste modifiée.', onDone),
-        ),
-      )}
-    >
+    <form noValidate onSubmit={form.onSubmit((values) => updateList.mutate({ id: list.id, label: values.label, taskIds: values.taskIds }, formCallbacks(form, 'Liste modifiée.', onDone)))}>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* The tasks of the list stay offered, even closed. */}
         <BatchMultiSelect
           label="Tâches"
@@ -84,24 +77,17 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
       <TextInput label="Mouvement ou prévision" placeholder="Rechercher par libellé (2 caractères au moins)" data-autofocus value={text} onChange={(event) => setText(event.currentTarget.value)} />
       <Stack gap={4}>
         {isFetching && <ListSkeleton items={2} lines={2} />}
-        {!isFetching && debounced.trim().length >= 2 && !entries?.length && (
-          <EmptyState compact message="Aucun mouvement trouvé." />
-        )}
+        {!isFetching && debounced.trim().length >= 2 && !entries?.length && <EmptyState compact message="Aucun mouvement trouvé." />}
         {entries?.map((entry) => (
           <UnstyledButton
             key={entry.id}
             className={classes.storeRow}
-            onClick={() =>
-              attachEntry.mutate(
-                { id: list.id, entryId: entry.id },
-                formCallbacks(null, 'Liste rattachée : la répartition a été ajoutée au mouvement.', onDone),
-              )
-            }
+            onClick={() => attachEntry.mutate({ id: list.id, entryId: entry.id }, formCallbacks(null, 'Liste rattachée : la répartition a été ajoutée au mouvement.', onDone))}
           >
             <Stack gap={0} style={{ flex: 1 }}>
               <Text size="sm">{entry.label}</Text>
               <Text size="xs" c="dimmed">
-                {fmt.day(entry.date)} · {entry.accountName}
+                {fmt.day(entry.date)} · {entry.accountLabel}
                 {entry.status === 'FORECAST' ? ' · prévision' : ''}
               </Text>
             </Stack>
@@ -138,18 +124,14 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
    * @returns {ReturnType<typeof shoppingRows>} Rows.
    */
   const rows = () =>
-    shoppingRows(
-      [...list.items].sort(byPosition),
-      grouping,
-      {
-        categories: data?.shoppingCategories ?? [],
-        stores: data?.shoppingStores ?? [],
-        storages: data?.shoppingStorages ?? [],
-        people: people.byKey,
-      },
-    );
+    shoppingRows([...list.items].sort(byPosition), grouping, {
+      categories: data?.shoppingCategories ?? [],
+      stores: data?.shoppingStores ?? [],
+      storages: data?.shoppingStorages ?? [],
+      people: people.byKey,
+    });
 
-  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, label: `Liste « ${list.name} »`, feminine: true }, setArchived, list.id);
+  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, type: 'Liste', label: list.label, feminine: true }, setArchived, list.id);
   const exports: RowMenuEntry[] = [
     {
       label: 'Copier en texte',
@@ -167,11 +149,15 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     icon: <TrashIcon aria-hidden />,
     danger: true,
     onClick: () =>
-      confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
+      confirmDestructive({
+        title: 'Supprimer la liste',
+        risks: `« ${list.label} » et ${countWith(list.items.length, 'élément', ['son', 'ses'])} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
+        onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },
             formCallbacks(null, 'Liste supprimée.', () => onDeleted?.()),
-          ) }),
+          ),
+      }),
   };
   // Archived: read only.
   if (list.archived) return [...exports, 'divider', archive, remove];
@@ -184,20 +170,18 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           icon: <BankIcon aria-hidden />,
           onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, toastCallbacks('Liste détachée du mouvement (sa répartition reste).')),
         }
-      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
+      : {
+          label: 'Rattacher à un mouvement',
+          icon: <BankIcon aria-hidden />,
+          onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />),
+        },
     {
       label: 'Dupliquer',
       icon: <CopyIcon aria-hidden />,
       onClick: () =>
         mutations.duplicateList.mutate(
           { id: list.id },
-          {
-            onSuccess: (copyId) => {
-              notifySuccess('Liste dupliquée.');
-              navigate(`/shopping/${copyId}`);
-            },
-            onError: onMutationError,
-          },
+          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(shoppingListPath(copyId))),
         ),
     },
     'divider',
@@ -221,8 +205,8 @@ interface ListActionsMenuProps {
   list: ShoppingList;
   /** Grouping of the exports (as the list is shown). */
   grouping: ShoppingGrouping;
-  /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
-  target?: ReactNode;
+  /** In the header of the list's page, next to its buttons (a bordered button). Optional. Default = false. */
+  header?: boolean;
   /** After the list is deleted (leaves its page). Optional. */
   onDeleted?: () => void;
 }
@@ -232,6 +216,6 @@ interface ListActionsMenuProps {
  * @param {ListActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu.
  */
-export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActionsMenuProps) {
-  return <ActionsMenu name={`la liste ${list.name}`} items={useListActions(list, grouping, onDeleted)} target={target} />;
+export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
+  return <ActionsMenu name={`la liste ${list.label}`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
 }

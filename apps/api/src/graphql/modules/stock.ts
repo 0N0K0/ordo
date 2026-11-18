@@ -5,19 +5,12 @@ import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
 import { fromDecimal } from '../../services/core/decimal';
+import { productInput, productInputFields } from '../product-inputs';
+import { treeItemObject } from '../label-inputs';
 
 const StockMovementKindEnum = builder.enumType('StockMovementKind', { values: STOCK_MOVEMENT_KINDS, description: 'Why a quantity of the stock changed.' });
 
-builder.prismaObject('StockLocation', {
-  description: 'Place things are kept (Frigo, Congélateur…), in a tree.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
-    parentId: t.exposeID('parentId', { nullable: true }),
-    position: t.exposeInt('position'),
-  }),
-});
+treeItemObject('StockLocation', { description: 'Place things are kept (Frigo, Congélateur…), in a tree.' });
 
 builder.prismaObject('StockLot', {
   description: 'Lot of an item of the stock: a quantity and its date.',
@@ -74,12 +67,12 @@ builder.prismaObject('StockMovement', {
     source: t.string({
       nullable: true,
       description: 'What it comes from: the shopping list, the sheet, the checklist, the inventory.',
-      select: { shoppingItem: { select: { list: { select: { name: true } } } }, sheet: { select: { name: true } }, checklistItem: { select: { label: true } }, count: { select: { date: true } } },
+      select: { shoppingItem: { select: { list: { select: { label: true } } } }, sheet: { select: { label: true } }, checklistItem: { select: { label: true } }, count: { select: { date: true } } },
       resolve: (movement) =>
         movement.shoppingItem
-          ? `Liste « ${movement.shoppingItem.list.name} »`
+          ? `Liste « ${movement.shoppingItem.list.label} »`
           : movement.sheet
-            ? `Fiche « ${movement.sheet.name} »`
+            ? `Fiche « ${movement.sheet.label} »`
             : movement.checklistItem
               ? 'Liste à cocher'
               : movement.count
@@ -126,18 +119,13 @@ const ProductStockRef = builder.objectRef<{ productId: string; quantity: number 
   fields: (t) => ({ productId: t.exposeID('productId'), quantity: t.exposeFloat('quantity') }),
 });
 
-const LocationInput = builder.inputType('StockLocationInput', { fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }) });
+const LocationInput = builder.inputType('StockLocationInput', { fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }) });
 const ItemInput = builder.inputType('StockItemInput', {
   fields: (t) => ({
     productId: t.id(),
     label: t.string({ required: true }),
-    categoryId: t.id(),
-    unit: t.string(),
+    ...productInputFields(t, { people: true, perishable: true }),
     locationId: t.id(),
-    note: t.string(),
-    perishable: t.boolean({ required: true }),
-    memberIds: t.idList({ required: true }),
-    relationIds: t.idList({ required: true }),
     quantity: t.float({ description: 'New item: its quantity to start with.' }),
     expiresAt: t.field({ type: 'Date', description: 'New item: the date of its first lot.' }),
   }),
@@ -187,14 +175,8 @@ const DeliveryInput = builder.inputType('ShoppingDeliveryInput', {
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
   productId: input.productId || null,
   label: input.label,
-  categoryId: input.categoryId || null,
-  unit: input.unit ?? null,
+  ...productInput(input),
   locationId: input.locationId || null,
-  note: input.note ?? null,
-  perishable: input.perishable,
-  memberIds: input.memberIds,
-  relationIds: input.relationIds,
-  quantity: input.quantity ?? null,
   expiresAt: input.expiresAt ?? null,
 });
 
@@ -218,7 +200,7 @@ const deliveryInput = (input: typeof DeliveryInput.$inferInput) => ({
 builder.queryFields((t) => ({
   stockLocations: t.prismaField({
     type: ['StockLocation'],
-    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
   }),
   stockItems: t.prismaField({
     type: ['StockItem'],
@@ -246,11 +228,11 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createStockLocation: t.id({
     args: { input: t.arg({ type: LocationInput, required: true }) },
-    resolve: async (_root, { input }) => (await stock.createLocation({ name: input.name, color: input.color ?? null, parentId: input.parentId || null })).id,
+    resolve: async (_root, { input }) => (await stock.createLocation({ label: input.label, color: input.color ?? null, parentId: input.parentId || null })).id,
   }),
   updateStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: LocationInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.updateLocation(id, { name: input.name, color: input.color ?? null, parentId: input.parentId || null })),
+    resolve: (_root, { id, input }) => done(stock.updateLocation(id, { label: input.label, color: input.color ?? null, parentId: input.parentId || null })),
   }),
   moveStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
@@ -299,13 +281,13 @@ builder.mutationFields((t) => ({
     description: 'Adds an item bought on a shopping list to the stock.',
     args: { input: t.arg({ type: PurchaseInput, required: true }) },
     resolve: (_root, { input }) =>
-      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: input.expiresAt ?? null }),
-      ),
+      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: input.expiresAt ?? null })),
   }),
   setShoppingOrder: t.boolean({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: OrderInput, required: true }) },
     resolve: (_root, { listId, input }) =>
-      done(stock.setShoppingOrder(listId, {
+      done(
+        stock.setShoppingOrder(listId, {
           remote: input.remote,
           deliveryAddress: input.deliveryAddress ?? null,
           deliveryLat: input.deliveryLat ?? null,

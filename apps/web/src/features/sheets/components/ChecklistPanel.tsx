@@ -16,7 +16,7 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
 import * as fmt from '../../../lib/format';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from '../api';
 import { SheetLinksField } from './SheetLinksField';
@@ -28,6 +28,7 @@ import { itemGroupFields } from '../lib/sheet-format';
 import { checklistItemSchema } from '@ordo/shared';
 
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -62,11 +63,11 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       id: 'sources',
       label: 'Fiches',
       size: 170,
-      text: (item) => item.sources.map((source) => source.name).join(', '),
+      text: (item) => item.sources.map((source) => source.label).join(', '),
       filter: {
         kind: 'choices',
         value: (item) => item.sources.map((source) => source.sheetId),
-        options: [...new Map((list?.items ?? []).flatMap((item) => item.sources.map((source) => [source.sheetId, source.name] as const)))].map(([value, name]) => ({ value, label: name })),
+        options: [...new Map((list?.items ?? []).flatMap((item) => item.sources.map((source) => [source.sheetId, source.label] as const)))].map(([value, label]) => ({ value, label })),
       },
       groupable: true,
     },
@@ -122,10 +123,10 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         }
         actions={
           <>
-            <Button
+            <ActionButton
+              priority="secondary"
               size="xs"
-              variant="default"
-              leftSection={<PlusIcon aria-hidden />}
+              icon={<PlusIcon aria-hidden />}
               onClick={() =>
                 openFormPanel('Ajouter une fiche', (close) => (
                   <SheetPicker onAdd={(sheetId, multiplier) => mutations.addToChecklist.mutateAsync({ id: list.id, sheetId, multiplier })} onDone={close} />
@@ -133,7 +134,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
               }
             >
               Ajouter une fiche
-            </Button>
+            </ActionButton>
             <Button
               size="xs"
               variant="subtle"
@@ -143,7 +144,8 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
                 confirmDestructive({
                   title: 'Refaire la liste',
                   risks: 'La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu.',
-                  onConfirm: () => mutations.resetChecklist.mutate(list.id, toastCallbacks('Liste refaite.')),
+                  run: () => mutations.resetChecklist.mutateAsync(list.id),
+                  done: 'Liste refaite.',
                 })
               }
             >
@@ -160,7 +162,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           deleteRowsAction(rows, {
             label: 'Retirer',
             title: 'Retirer les éléments',
-            risks: `${countOf(rows.length, 'élément')} seront retirés de la liste à cocher.`,
+            risks: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'sera retiré', 'seront retirés')} de la liste à cocher.`,
             remove: (item) => mutations.removeChecklistItem.mutateAsync(item.id),
             done: `${countOf(rows.length, 'élément')} ${plural(rows.length, 'retiré')}.`,
             clear,
@@ -168,7 +170,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
         ]}
         bar={{ searchLabel: 'Rechercher (élément, description)' }}
         getKey={(item) => item.id}
-        rowProps={(item) => ({ style: item.checkedAt ? { opacity: 0.6 } : undefined })}
+        isDone={(item) => Boolean(item.checkedAt)}
         cells={(item) => ({
           done: <EditableCheck value={Boolean(item.checkedAt)} label={`${item.label} fait`} onSave={(checked) => bulk('done')(item, { checked })} />,
           label: <EditableText value={item.label} label={`Libellé de ${item.label}`} onSave={(next) => next && bulk('label')(item, { label: next })} />,
@@ -182,7 +184,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
             <StackedValues>
               {item.sources.map((source) => (
                 <Text key={source.sheetId} size="sm" truncate>
-                  {source.name}
+                  {source.label}
                 </Text>
               ))}
             </StackedValues>

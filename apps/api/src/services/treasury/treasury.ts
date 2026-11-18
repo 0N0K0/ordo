@@ -4,11 +4,13 @@ import {
   formatDay,
   occurrenceDates,
   parseDay,
+  parseOptionalDay,
   splitAmounts,
-  treasuryAccountSchema,
-  treasuryEntrySchema,
+  sumOf,
   type TreasuryAccountInput,
+  treasuryAccountSchema,
   type TreasuryEntryInput,
+  treasuryEntrySchema,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -17,7 +19,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertNotArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
@@ -45,7 +47,7 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
   const data = parseInput(treasuryAccountSchema, input);
   const position = await nextPositionIn('treasuryAccount');
   return prisma.treasuryAccount.create({
-    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
+    data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate), position },
   });
 }
 
@@ -61,7 +63,7 @@ export async function updateAccount(id: string, input: TreasuryAccountInput): Pr
   await assertNotArchived('TREASURY_ACCOUNT', id);
   return prisma.treasuryAccount.update({
     where: { id },
-    data: { name: data.name, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
+    data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
   });
 }
 
@@ -136,24 +138,23 @@ interface EntryRefs {
  * @returns {Promise<void>}
  */
 async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.parse>, previous: EntryRefs | null): Promise<void> {
-  /**
-   * Ids given that the entry did not have.
-   * @param {(string | null | undefined)[]} ids Ids given.
-   * @param {(string | null | undefined)[]} before Ids it had.
-   * @returns {string[]} New ids.
-   */
-  const added = (ids: (string | null | undefined)[], before: (string | null | undefined)[]) => ids.filter((id): id is string => Boolean(id) && !before.includes(id));
   const lines = previous?.lines ?? [];
   const allocations = previous?.allocations ?? [];
-  await assertNoneArchived('TREASURY_ACCOUNT', added([entry.accountId], [previous?.accountId]));
-  await assertNoneArchived('TREASURY_CATEGORY', added([entry.categoryId, ...entry.lines.map((line) => line.categoryId)], [previous?.categoryId, ...lines.map((line) => line.categoryId)]));
-  await assertNoneArchived('TREASURY_PAYMENT_METHOD', added([entry.methodId], [previous?.methodId]));
-  await assertNoneArchived('TREASURY_COUNTERPARTY', added([entry.counterpartyId], [previous?.counterpartyId]));
-  await assertNoneArchived('TREASURY_CONTEXT', added(entry.lines.map((line) => line.contextId), lines.map((line) => line.contextId)));
-  await assertNoneArchived('TREASURY_RELATION', added(entry.lines.map((line) => line.relationId), lines.map((line) => line.relationId)));
+  const categories = [previous?.categoryId, ...lines.map((item) => item.categoryId)];
+  await assertNotArchived('TREASURY_ACCOUNT', entry.accountId, { keep: previous?.accountId, field: 'accountId' });
+  await assertNotArchived('TREASURY_CATEGORY', entry.categoryId, { keep: categories, field: 'categoryId' });
+  await assertNotArchived('TREASURY_PAYMENT_METHOD', entry.methodId, { keep: previous?.methodId, field: 'methodId' });
+  await assertNotArchived('TREASURY_COUNTERPARTY', entry.counterpartyId, { keep: previous?.counterpartyId, field: 'counterpartyId' });
+  for (const [index, line] of entry.lines.entries()) {
+    await assertNotArchived('TREASURY_CATEGORY', line.categoryId, { keep: categories, field: `lines.${index}.categoryId` });
+    await assertNotArchived('TREASURY_CONTEXT', line.contextId, { keep: lines.map((item) => item.contextId), field: `lines.${index}.contextId` });
+    await assertNotArchived('TREASURY_RELATION', line.relationId, { keep: lines.map((item) => item.relationId), field: `lines.${index}.relationId` });
+  }
   // Settling an archived document changes it: refused (an allocation it had stays).
-  await assertNoneArchived('ACCOUNTING_DOCUMENT', added(entry.allocations.map((allocation) => allocation.documentId), allocations.map((allocation) => allocation.documentId)));
-  await assertNoneArchived('IMPORTED_DOCUMENT', added(entry.allocations.map((allocation) => allocation.importedDocumentId), allocations.map((allocation) => allocation.importedDocumentId)));
+  for (const [index, allocation] of entry.allocations.entries()) {
+    await assertNotArchived('ACCOUNTING_DOCUMENT', allocation.documentId, { keep: allocations.map((item) => item.documentId), field: `allocations.${index}` });
+    await assertNotArchived('IMPORTED_DOCUMENT', allocation.importedDocumentId, { keep: allocations.map((item) => item.importedDocumentId), field: `allocations.${index}` });
+  }
 }
 
 /** What `assertNoNewArchived` reads of a stored entry. */
@@ -181,7 +182,7 @@ function lineFields(line: ParsedLine, position: number) {
     memberId: line.memberId,
     relationId: line.relationId ?? null,
     loan: line.loan,
-    date: line.date ? parseDay(line.date) : null,
+    date: parseOptionalDay(line.date),
     categoryId: line.categoryId,
     contextId: line.contextId,
     projectId: line.projectId ?? null,
@@ -410,45 +411,48 @@ export async function deleteEntry(id: string): Promise<void> {
  * @returns {Promise<TreasuryEntry>} Actual entry.
  */
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
-  const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } } });
+  const forecast = await prisma.treasuryEntry.findUnique({
+    where: { id },
+    include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } },
+  });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
   await assertNotArchived('TREASURY_ENTRY', id);
   const rule = storedRecurrence(forecast.recurrence);
   const entry = await parseEntry(
     {
-    accountId: forecast.accountId,
-    status: 'ACTUAL',
-    date: actual.date,
-    valueDate: null,
-    label: forecast.label,
-    amount: actual.amount,
-    categoryId: forecast.categoryId,
-    methodId: forecast.methodId,
-    clientId: forecast.clientId,
-    counterpartyId: forecast.counterpartyId,
-    projectId: forecast.projectId,
-    note: forecast.note,
-    url: forecast.url,
-    recurrence: null,
-    allocations: [],
-    linkedEntryIds: [],
-    libraryDocumentIds: [],
-    projectResourceIds: [],
-    // The split follows (percentages apply to the actual amount), with the projects and documents of its lines.
-    lines: forecast.lines.map((line) => ({
-      label: line.label,
-      mode: line.mode,
-      value: fromDecimal(line.value),
-      memberId: line.memberId,
-      categoryId: line.categoryId,
-      contextId: line.contextId,
-      relationId: line.relationId,
-      loan: line.loan,
-      projectId: line.projectId,
-      libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
-      projectResourceIds: line.projectResources.map((document) => document.id),
-      // The links of the forecast stay with it.
-    })),
+      accountId: forecast.accountId,
+      status: 'ACTUAL',
+      date: actual.date,
+      valueDate: null,
+      label: forecast.label,
+      amount: actual.amount,
+      categoryId: forecast.categoryId,
+      methodId: forecast.methodId,
+      clientId: forecast.clientId,
+      counterpartyId: forecast.counterpartyId,
+      projectId: forecast.projectId,
+      note: forecast.note,
+      url: forecast.url,
+      recurrence: null,
+      allocations: [],
+      linkedEntryIds: [],
+      libraryDocumentIds: [],
+      projectResourceIds: [],
+      // The split follows (percentages apply to the actual amount), with the projects and documents of its lines.
+      lines: forecast.lines.map((line) => ({
+        label: line.label,
+        mode: line.mode,
+        value: fromDecimal(line.value),
+        memberId: line.memberId,
+        categoryId: line.categoryId,
+        contextId: line.contextId,
+        relationId: line.relationId,
+        loan: line.loan,
+        projectId: line.projectId,
+        libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
+        projectResourceIds: line.projectResources.map((document) => document.id),
+        // The links of the forecast stay with it.
+      })),
     },
     null,
     // Its own items stay valid, archived or not.
@@ -534,6 +538,34 @@ export async function treasuryProjection(today: string, from: string, until: str
     }
   }
 
+  /**
+   * Item of a document still due: on its due date (else its issue date), late after today, an invoice or a credit note.
+   * @param {{ id: string, type: string, number: string | null, issueDate: Date, dueDate: Date | null, archivedAt: Date | null }} document Document.
+   * @param {number} balance What remains due.
+   * @param {string} clientName Its client.
+   * @param {boolean} importedOne Imported (not made in Ordo).
+   * @returns {object} Item, its kind and document link aside.
+   */
+  const dueItem = (
+    document: { id: string; type: string; number: string | null; issueDate: Date; dueDate: Date | null; archivedAt: Date | null },
+    balance: number,
+    clientName: string,
+    importedOne: boolean,
+  ) => {
+    const date = formatDay(document.dueDate ?? document.issueDate);
+    const credit = document.type === 'CREDIT_NOTE';
+    return {
+      ...base,
+      date: expected(date),
+      dueDate: date,
+      label: `${credit ? 'Avoir' : 'Facture'} ${document.number}${importedOne ? ' (importé)' : ''} — ${clientName}`,
+      amount: (credit ? -1 : 1) * balance,
+      overdue: date < today,
+      archived: document.archivedAt !== null,
+      credit,
+    };
+  };
+
   // What is due on final documents.
   const balances = await documentBalances();
   const due = await prisma.accountingDocument.findMany({
@@ -541,20 +573,8 @@ export async function treasuryProjection(today: string, from: string, until: str
     select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, client: { select: { name: true } } },
   });
   for (const document of due) {
-    const date = formatDay(document.dueDate ?? document.issueDate);
-    const credit = document.type === 'CREDIT_NOTE';
-    items.push({
-      ...base,
-      date: expected(date),
-      dueDate: date,
-      label: `${credit ? 'Avoir' : 'Facture'} ${document.number} — ${document.client.name}`,
-      payerName: document.client.name,
-      amount: (credit ? -1 : 1) * (balances.get(document.id)?.balance ?? 0),
-      kind: credit ? 'CREDIT_NOTE' : 'INVOICE',
-      overdue: date < today,
-      documentId: document.id,
-      archived: document.archivedAt !== null,
-    });
+    const { credit, ...item } = dueItem(document, balances.get(document.id)?.balance ?? 0, document.client.name, false);
+    items.push({ ...item, payerName: document.client.name, kind: credit ? 'CREDIT_NOTE' : 'INVOICE', documentId: document.id });
   }
   const importedDue = await importedBalances();
   const imported = await prisma.importedDocument.findMany({
@@ -562,24 +582,16 @@ export async function treasuryProjection(today: string, from: string, until: str
     select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, clientName: true, client: { select: { name: true } } },
   });
   for (const document of imported) {
-    const date = formatDay(document.dueDate ?? document.issueDate);
-    const credit = document.type === 'CREDIT_NOTE';
-    items.push({
-      ...base,
-      date: expected(date),
-      dueDate: date,
-      label: `${credit ? 'Avoir' : 'Facture'} ${document.number} (importé) — ${document.client?.name ?? document.clientName ?? ''}`,
-      payerName: document.client?.name ?? document.clientName ?? null,
-      amount: (credit ? -1 : 1) * (importedDue.get(document.id)?.balance ?? 0),
-      kind: 'IMPORTED',
-      overdue: date < today,
-      importedDocumentId: document.id,
-      archived: document.archivedAt !== null,
-    });
+    const payerName = document.client?.name ?? document.clientName ?? null;
+    const { credit: _credit, ...item } = dueItem(document, importedDue.get(document.id)?.balance ?? 0, payerName ?? '', true);
+    items.push({ ...item, payerName, kind: 'IMPORTED', importedDocumentId: document.id });
   }
 
   // Coming recurring invoices, paid after the same delay as their model.
-  const recurring = await prisma.recurringInvoice.findMany({ where: { active: true, archivedAt: null, nextDate: { not: null } }, include: { template: { include: { client: { select: { name: true } } } } } });
+  const recurring = await prisma.recurringInvoice.findMany({
+    where: { active: true, archivedAt: null, nextDate: { not: null } },
+    include: { template: { include: { client: { select: { name: true } } } } },
+  });
   for (const schedule of recurring) {
     const rule = storedRecurrence(schedule.recurrence);
     if (!rule || !schedule.nextDate) continue;
@@ -591,7 +603,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         ...base,
         date: expected(paidOn),
         dueDate: paidOn,
-        label: `${schedule.name} — ${schedule.template.client.name}`,
+        label: `${schedule.label} — ${schedule.template.client.name}`,
         payerName: schedule.template.client.name,
         amount: decimalCents(schedule.template.totalGross),
         kind: 'RECURRING_INVOICE',
@@ -603,9 +615,9 @@ export async function treasuryProjection(today: string, from: string, until: str
   items.sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
 
   // Past: actual balance day by day.
-  const balance = (await Promise.all(accounts.map((account) => accountBalance(account, today)))).reduce((sum, value) => sum + value, 0);
+  const balance = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, today))), (value) => value);
   const start = from < today ? from : today;
-  const opening = (await Promise.all(accounts.map((account) => accountBalance(account, addDays(start, -1))))).reduce((sum, value) => sum + value, 0);
+  const opening = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, addDays(start, -1)))), (value) => value);
   const past = await prisma.treasuryEntry.findMany({
     where: { accountId: { in: accountIds }, status: 'ACTUAL', date: { gte: parseDay(start), lte: parseDay(today) } },
     select: { date: true, amount: true, accountId: true },

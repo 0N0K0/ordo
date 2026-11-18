@@ -45,7 +45,7 @@ export const isDone = (routine: Routine) => routine.done;
  * @param {boolean} [doable] Its slot rule allows now. Optional. Default = true.
  * @returns {RoutineState} State.
  */
-export const stateOf = (routine: Routine, today: string, doable = true): RoutineState => {
+export const currentRoutineState = (routine: Routine, today: string, doable = true): RoutineState => {
   const state = routineState(routine.currentDate, isDone(routine), today);
   return state === 'due' && !doable ? 'upcoming' : state;
 };
@@ -58,7 +58,7 @@ export const stateOf = (routine: Routine, today: string, doable = true): Routine
  * @param {(routine: Routine) => string} [label] Name of a routine. Optional. Default = its title.
  * @returns {TreeOption[]} Options.
  */
-export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.title): TreeOption[] {
+export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.label): TreeOption[] {
   const byId = mapById(routines);
   return treeOptions(
     [...routines].sort(byPosition).map((routine) => ({ id: routine.id, parentId: routine.parentId ?? null, label: label(routine) })),
@@ -76,7 +76,7 @@ export function routineTreeOptions(routines: readonly Routine[], offered: (routi
  * @returns {string} Path.
  */
 export function routinePath(routine: Routine, byId: ReadonlyMap<string, Routine>): string {
-  return pathOf(new Map([...byId, [routine.id, routine]]), routine.id, (item) => item.title);
+  return pathOf(new Map([...byId, [routine.id, routine]]), routine.id, (item) => item.label);
 }
 
 /**
@@ -90,16 +90,6 @@ export function waitingFor(routine: Routine, byId: Map<string, Routine>): Routin
     const required = byId.get(id);
     return required && !required.archived && required.currentDate !== null && !isDone(required) ? [required] : [];
   });
-}
-
-/** Groups of the routine table: their headings as a tree, and the groups of each routine. */
-export interface RoutineGrouping {
-  /** Headings, siblings in their order (a parent before its children or not: placed as their tree). */
-  groups: { id: string; name: string; color: string | null; parentId: string | null }[];
-  /** Groups of a (top) routine; none: in the last group, without one. */
-  of: (routine: Routine) => string[];
-  /** Heading of the routines without group ("Sans catégorie"). */
-  noneName: string;
 }
 
 /**
@@ -167,17 +157,6 @@ export function movableOccurrence(routine: Routine): string | null {
  */
 export const moveTo = (routine: Routine, date: string | null): (RoutineMove & { to: string }) | undefined =>
   date ? (movesOf(routine).find((move) => move.to === date && move.from !== date) as (RoutineMove & { to: string }) | undefined) : undefined;
-
-/** Alert presets, in minutes before the moment of the routine. */
-export const ROUTINE_REMINDERS: { value: number; label: string }[] = [
-  { value: 0, label: 'À l’heure' },
-  { value: 5, label: '5 min avant' },
-  { value: 10, label: '10 min avant' },
-  { value: 15, label: '15 min avant' },
-  { value: 30, label: '30 min avant' },
-  { value: 60, label: '1 h avant' },
-  { value: 120, label: '2 h avant' },
-];
 
 /**
  * Manual order of the routines, as their list shows it: each under its parent routine, siblings by their position.

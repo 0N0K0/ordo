@@ -68,7 +68,13 @@ export async function usedCounter(type: AccountingDocumentType, year: number): P
   // Imported documents numbered in the same format count too: Ordo goes on after them.
   const prefix = documentNumber(type, year, 0).slice(0, -5);
   const imported = await prisma.importedDocument.findMany({ where: { type, number: { startsWith: prefix } }, select: { number: true } });
-  const importedMax = Math.max(0, ...imported.map((item) => item.number.slice(prefix.length)).filter((digits) => /^\d{5}$/.test(digits)).map(Number));
+  const importedMax = Math.max(
+    0,
+    ...imported
+      .map((item) => item.number.slice(prefix.length))
+      .filter((digits) => /^\d{5}$/.test(digits))
+      .map(Number),
+  );
   return Math.max(Number(rows[0]?.max ?? 0), importedMax);
 }
 

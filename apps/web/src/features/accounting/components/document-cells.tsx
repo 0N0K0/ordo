@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, FileButton, Group, Tooltip } from '@mantine/core';
+import { FileButton, Group } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
@@ -42,10 +43,10 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
     const { document } = props;
     return document.fileUrl ? (
       <FileBadge
-        name={document.fileName ?? 'Fichier'}
+        filename={document.filename ?? 'Fichier'}
         onClick={(event) => {
           stopClick(event);
-          openFile({ url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
+          openFile({ url: document.fileUrl!, filename: document.filename ?? document.number, mimeType: document.fileMimeType });
         }}
       />
     ) : null;
@@ -58,15 +59,14 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
         {document.attachments.map((attachment) => (
           <FileBadge
             key={attachment.id}
-            name={attachment.name}
-            onClick={() => openFile({ url: attachment.url, name: attachment.name })}
-            removeLabel="Retirer la pièce jointe"
+            filename={attachment.filename}
+            onClick={() => openFile({ url: attachment.url, filename: attachment.filename })}
             onRemove={
               document.archived
                 ? undefined
                 : (event) => {
                     stopClick(event);
-                    confirmRemoveAttachment(attachment, name, (callbacks) => removeAttachment.mutate(attachment.id, callbacks));
+                    confirmRemoveAttachment(attachment, name, () => removeAttachment.mutateAsync(attachment.id));
                   }
             }
           />
@@ -75,11 +75,9 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
       {!document.archived && (
         <FileButton multiple onChange={(files) => files.length && props.onAdd(files)}>
           {(buttonProps) => (
-            <Tooltip label="Joindre des fichiers">
-              <ActionIcon {...buttonProps} variant="subtle" color="gray" size="sm" loading={addAttachments.isPending} aria-label={`Joindre des fichiers à ${name}`}>
-                <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <IconAction label="Joindre des fichiers" {...buttonProps} size="sm" loading={addAttachments.isPending} aria-label={`Joindre des fichiers à ${name}`}>
+              <PlusIcon aria-hidden />
+            </IconAction>
           )}
         </FileButton>
       )}

@@ -1,3 +1,5 @@
+import { IconAction } from '../../../components/actions/IconAction';
+import { projectPath } from '../../../app/pages';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
@@ -5,13 +7,23 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Badge, Button, Group, Stack, Tooltip } from '@mantine/core';
-import { ArrowBendDoubleUpLeftIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, CheckCircleIcon, FlagIcon, EnvelopeSimpleIcon, LinkBreakIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react';
+import { Badge, Button, Group, Stack } from '@mantine/core';
+import {
+  ArrowBendDoubleUpLeftIcon,
+  ArrowBendUpLeftIcon,
+  ArrowBendUpRightIcon,
+  CheckCircleIcon,
+  FlagIcon,
+  EnvelopeSimpleIcon,
+  LinkBreakIcon,
+  PencilSimpleLineIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -23,6 +35,7 @@ import { MailFiles, MailHeader } from './MailHeader';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { Comments } from '../../comments/components/Comments';
 import { useAsyncAction } from '../../../lib/use-async-action';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Message read on the server, as a source of reply or forward.
@@ -81,7 +94,15 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmUnlink = (copyId: string) => {
-    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(copyId, formCallbacks(null, 'Mail détaché du projet.', onDeleted)); } });
+    confirmDestructive({
+      title: 'Détacher le mail du projet',
+      risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.',
+      confirmLabel: 'Détacher',
+      confirmIcon: <LinkBreakIcon aria-hidden />,
+      onConfirm: () => {
+        unlink.mutate(copyId, formCallbacks(null, 'Mail détaché du projet.', onDeleted));
+      },
+    });
   };
 
   // Opens the draft in the writing form; its next save replaces it.
@@ -113,11 +134,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
 
   if (isPending) return <DetailSkeleton fields={0} />;
   if (error || !mail) {
-    return (
-      <ErrorAlert>
-        {error?.message ?? 'Mail introuvable.'}
-      </ErrorAlert>
-    );
+    return <ErrorAlert>{error?.message ?? 'Mail introuvable.'}</ErrorAlert>;
   }
 
   /**
@@ -125,10 +142,13 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le mail', risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.', onConfirm: () => { remove.mutate(
-                { accountId, folder, uids: [uid] },
-                formCallbacks(null, 'Mail supprimé.', onDeleted),
-              ); } });
+    confirmDestructive({
+      title: 'Supprimer le mail',
+      risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.',
+      onConfirm: () => {
+        remove.mutate({ accountId, folder, uids: [uid] }, formCallbacks(null, 'Mail supprimé.', onDeleted));
+      },
+    });
   };
 
   const files = mail.attachments.filter((file) => !file.inline);
@@ -138,12 +158,13 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmDeleteDraft = () => {
-    confirmDestructive({ title: 'Supprimer le brouillon', risks: (
-<>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</>
-), onConfirm: () => { deleteDraft.mutate(
-                { accountId, folder, uid },
-                formCallbacks(null, 'Brouillon supprimé.', onDeleted),
-              ); } });
+    confirmDestructive({
+      title: 'Supprimer le brouillon',
+      risks: <>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte.</>,
+      onConfirm: () => {
+        deleteDraft.mutate({ accountId, folder, uid }, formCallbacks(null, 'Brouillon supprimé.', onDeleted));
+      },
+    });
   };
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;
 
@@ -167,18 +188,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 noMove={Boolean(projectId)}
               />
             )}
-            <Tooltip label="Marquer comme non lu">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label="Marquer comme non lu"
-                onClick={() =>
-                  setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, { onError: onMutationError })
-                }
-              >
-                <EnvelopeSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+            <IconAction label="Marquer comme non lu" onClick={() => setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, ON_ERROR)}>
+              <EnvelopeSimpleIcon aria-hidden />
+            </IconAction>
             <RemoveButton label="Supprimer" aria-label="Supprimer le mail" onClick={confirmDelete} />
           </Group>
         }
@@ -197,15 +209,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                   <ItemBadge key={label.id} item={label} size="sm" leftSection={<FlagIcon weight="fill" aria-hidden />} />
                 ))}
               {mail.linkedProjectIds.map((projectId) => (
-                <Badge
-                  key={projectId}
-                  size="sm"
-                  variant="light"
-                  component={Link}
-                  to={`/projects/${projectId}?tab=mail`}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {workspace?.projects.find((project) => project.id === projectId)?.title ?? 'Projet'}
+                <Badge key={projectId} size="sm" variant="light" component={Link} to={projectPath(projectId, 'mail')} style={{ cursor: 'pointer' }}>
+                  {workspace?.projects.find((project) => project.id === projectId)?.label ?? 'Projet'}
                 </Badge>
               ))}
             </Group>
@@ -223,30 +228,15 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
         </Group>
       ) : (
         <Group gap="xs">
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<ArrowBendUpLeftIcon aria-hidden />}
-            onClick={() => compose(replyOptions(sourceOf(mail), false, own, projectId))}
-          >
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), false, own, projectId))}>
             Répondre
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<ArrowBendDoubleUpLeftIcon aria-hidden />}
-            onClick={() => compose(replyOptions(sourceOf(mail), true, own, projectId))}
-          >
+          </ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendDoubleUpLeftIcon aria-hidden />} onClick={() => compose(replyOptions(sourceOf(mail), true, own, projectId))}>
             Répondre à tous
-          </Button>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<ArrowBendUpRightIcon aria-hidden />}
-            onClick={() => compose(forwardOptions(sourceOf(mail), files, projectId))}
-          >
+          </ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<ArrowBendUpRightIcon aria-hidden />} onClick={() => compose(forwardOptions(sourceOf(mail), files, projectId))}>
             Transférer
-          </Button>
+          </ActionButton>
           {projectId ? (
             copy && (
               <DestructiveButton size="xs" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
@@ -258,9 +248,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           )}
         </Group>
       )}
-      <MailFiles
-        files={files.map((file) => ({ key: String(file.index), name: file.filename, size: file.size, url: `${base}&index=${file.index}` }))}
-      />
+      <MailFiles files={files.map((file) => ({ key: String(file.index), name: file.filename, size: file.size, url: `${base}&index=${file.index}` }))} />
       <MailBody html={mail.html} text={mail.text} />
       {mail.messageId && <Comments target="MAIL" id={mail.messageId} projectId={projectId ?? null} />}
     </Stack>

@@ -1,7 +1,8 @@
-import { ActionIcon, Group, Menu, Text, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
+import { ActionIcon, Group, Menu, Text, type ActionIconProps, type MenuProps } from '@mantine/core';
 import { CheckIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { linkProps } from './link-props';
+import { IconAction } from './IconAction';
 
 /** Action of a menu (or of a row). */
 export interface RowAction {
@@ -26,6 +27,8 @@ export interface RowAction {
   hint?: string;
   /** Destroys something (red, last in the menu, after a separator). Optional. */
   danger?: boolean;
+  /** Only ever in the « … » menu, never as a button (« Archiver » / « Restaurer », decision R). Optional. */
+  inMenu?: boolean;
 }
 
 /** Title of a section of a menu (its actions follow). */
@@ -64,12 +67,16 @@ interface ActionsMenuProps {
   /** What the actions are about (« Actions de … »). */
   name: string;
   items: readonly RowMenuEntry[];
-  /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
+  /** Button opening the menu, when it is not a « … » one (a sort, a caret, a labelled button). Optional. Default = three vertical dots. */
   target?: ReactNode;
-  /** In a clickable row (a folder, a search): its clicks stay in the menu. Optional. */
+  /** In a clickable or draggable row (a folder, a search, a tree): its clicks and pointer presses stay in the menu. Optional. */
   inRow?: boolean;
+  /** Inside another button (a tab): the default button is drawn as a span, its clicks kept from that button. Optional. */
+  nested?: boolean;
   /** Size of the default button. Optional. */
   size?: ActionIconProps['size'];
+  /** Look of the default button: « subtle » in a row or a list, « default » (bordered) next to buttons (a header). Optional. Default = « subtle ». */
+  variant?: 'subtle' | 'default';
   /** Something runs (an export): the default button spins. Optional. */
   loading?: boolean;
   /** Where the menu opens. Optional. Default = « bottom-end ». */
@@ -94,7 +101,23 @@ interface ActionsMenuProps {
  * @param {ActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu, nothing without action.
  */
-export function ActionsMenu({ name, items, target, inRow = false, size, loading, position = 'bottom-end', opened, onChange, hover = false, keepOpen = false, width, maxHeight }: ActionsMenuProps) {
+export function ActionsMenu({
+  name,
+  items,
+  target,
+  inRow = false,
+  nested = false,
+  size,
+  variant = 'subtle',
+  loading,
+  position = 'bottom-end',
+  opened,
+  onChange,
+  hover = false,
+  keepOpen = false,
+  width,
+  maxHeight,
+}: ActionsMenuProps) {
   const menu = menuEntries(items);
   if (menu.length === 0) return null;
   return (
@@ -110,7 +133,17 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
     >
       <Menu.Target>
         {target ?? (
-          <ActionIcon variant="subtle" color="gray" size={size} loading={loading} aria-label={`Actions de ${name}`} onClick={inRow ? (event) => event.stopPropagation() : undefined}>
+          // eslint-disable-next-line no-restricted-syntax -- the « ⋯ » button of every menu, its name read by screen readers.
+          <ActionIcon
+            {...(nested ? { component: 'span' as const } : {})}
+            variant={variant}
+            color={variant === 'subtle' ? 'gray' : undefined}
+            size={size}
+            loading={loading}
+            aria-label={`Actions de ${name}`}
+            onClick={inRow || nested ? (event) => event.stopPropagation() : undefined}
+            onPointerDown={inRow ? (event) => event.stopPropagation() : undefined}
+          >
             <DotsThreeVerticalIcon weight="bold" aria-hidden />
           </ActionIcon>
         )}
@@ -149,29 +182,40 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
 }
 
 interface InlineActionsProps {
-  /** What the actions are about (« Modifier … »). */
+  /** Element the actions are about, its name (« Modifier « Urgent » »). */
   name: string;
   /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators and section titles are left out. */
   items: readonly RowMenuEntry[];
 }
 
 /**
- * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere, a menu
- * gathering them when there are many (`ActionsMenu`).
+ * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere; those kept to
+ * a menu (`inMenu`: « Archiver ») in a « … » menu after them (`ActionsMenu`).
  * @param {InlineActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
 export function InlineActions({ name, items }: InlineActionsProps) {
   const actions = items.filter(isAction);
+  const menu = actions.filter((action) => action.inMenu);
   return (
     <Group gap={2} wrap="nowrap">
-      {actions.map((action) => (
-        <Tooltip key={action.label} label={action.hint ?? action.label}>
-          <ActionIcon variant="subtle" color={action.danger ? 'red' : 'gray'} aria-label={`${action.label} ${name}`} disabled={action.disabled} onClick={action.onClick} {...linkProps(action)}>
+      {actions
+        .filter((action) => !action.inMenu)
+        .map((action) => (
+          <IconAction
+            key={action.label}
+            label={action.label}
+            item={name}
+            hint={action.hint}
+            color={action.danger ? 'red' : 'gray'}
+            disabled={action.disabled}
+            onClick={action.onClick}
+            {...linkProps(action)}
+          >
             {action.icon}
-          </ActionIcon>
-        </Tooltip>
-      ))}
+          </IconAction>
+        ))}
+      <ActionsMenu name={name} items={menu} />
     </Group>
   );
 }

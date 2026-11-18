@@ -1,6 +1,6 @@
 import { labelFormSchema, shoppingCategorySchema } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { createdId, listMutations } from '../../../components/settings/settings-api';
+import { listMutations, itemMutations } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { unarchived } from '../../../lib/archive';
 import { useShoppingData, useShoppingMutations, type ShoppingCategory, type ShoppingStorage, type ShoppingStore, type ShoppingUnit } from '../api';
@@ -28,7 +28,7 @@ export function useStorageItems(): SettingsItemKind<ShoppingStorage> & WithRemov
 }
 
 /**
- * Units, for their settings list and their form (a creation from a select too): a name and an image, no color.
+ * Units, for their settings list and their form (a creation from a select too): a label and an image, no color.
  * @returns {SettingsItemKind<ShoppingUnit> & WithRemove} List and form, and the deletion.
  */
 export function useUnitItems(): SettingsItemKind<ShoppingUnit> & WithRemove {
@@ -36,13 +36,13 @@ export function useUnitItems(): SettingsItemKind<ShoppingUnit> & WithRemove {
   return {
     kind: 'SHOPPING_UNIT',
     withColor: false,
-    schema: labelFormSchema.pick({ name: true }),
-    ...listMutations({ create: createUnit, update: updateUnit, remove: deleteUnit }, (values) => ({ name: values.name, color: UNIT_COLOR })),
+    schema: labelFormSchema.pick({ label: true }),
+    ...listMutations({ create: createUnit, update: updateUnit, remove: deleteUnit }, (values) => ({ label: values.label, color: UNIT_COLOR })),
   };
 }
 
 /**
- * Categories of the products, for their settings list and their form (a creation from a select too): name, color (the
+ * Categories of the products, for their settings list and their form (a creation from a select too): label, color (the
  * one of its parent by default), image, parent and the base lists it is offered in.
  * @returns {SettingsItemKind<ShoppingCategory, { baseListIds: string[] }>} List and form.
  */
@@ -52,10 +52,10 @@ export function useShoppingCategoryItems(): SettingsItemKind<ShoppingCategory, {
   const baseLists = data?.shoppingBaseLists ?? [];
   /**
    * Input of a category from the form values.
-   * @param {{ name: string, color: string, parentId: string | null, baseListIds: string[] }} values Values.
+   * @param {{ label: string, color: string, parentId: string | null, baseListIds: string[] }} values Values.
    * @returns {object} Input.
    */
-  const input = (values: { name: string; color: string; parentId: string | null; baseListIds: string[] }) => ({ ...values, color: values.color || null });
+  const input = (values: { label: string; color: string; parentId: string | null; baseListIds: string[] }) => ({ ...values, color: values.color || null });
   return {
     kind: 'SHOPPING_CATEGORY',
     schema: shoppingCategorySchema,
@@ -66,13 +66,12 @@ export function useShoppingCategoryItems(): SettingsItemKind<ShoppingCategory, {
           label="Références"
           description="Celles où elle est proposée. Aucune : toutes (une sous-catégorie sans liste prend celles de sa catégorie parente)."
           placeholder={form.getValues().baseListIds.length ? undefined : 'Toutes'}
-          data={unarchived(baseLists, form.getValues().baseListIds).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
+          data={unarchived(baseLists, form.getValues().baseListIds).map((baseList) => ({ value: baseList.id, label: baseList.label }))}
           clearable
           {...form.getInputProps('baseListIds')}
         />
       ),
     },
-    create: async (values) => createdId(await createCategory.mutateAsync(input(values))),
-    update: (id, values) => updateCategory.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createCategory, update: updateCategory }, input),
   };
 }

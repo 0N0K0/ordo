@@ -1,9 +1,11 @@
+import { fittedLayout, movedColumnOrder } from './column-fit';
+import { dropProjection, withoutDescendants } from '../../tree/tree-dnd';
 import { TableSkeleton } from '../../feedback/Skeletons';
-import { ActionIcon, Group, Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
+import { Group, Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
 import { closestCenter, DndContext, pointerWithin, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CaretRightIcon } from '@phosphor-icons/react';
+
 import {
   columnResizingFeature,
   columnSizingFeature,
@@ -18,13 +20,13 @@ import {
 } from '@tanstack/react-table';
 import { memo, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { contentWidth } from './column-fit';
+
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
 import { columnFilter } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
-import { NoMatch } from '../../feedback/NoMatch';
+import { NoMatch } from './NoMatch';
 import { ROW_ACTIONS_WIDTH } from '../cells/RowActions';
 import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
@@ -36,7 +38,8 @@ import { BulkTableContext } from '../selection/bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from '../views/use-data-view';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
-import { DragHandle } from '../../actions/DragHandle';
+import { DragHandle } from '../../dnd/DragHandle';
+import { FoldButton } from '../../actions/FoldButton';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 interface LeadingCell<R> {
@@ -100,6 +103,8 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   isActive?: (row: R) => boolean;
   /** The row is archived (dimmed). Optional. */
   isArchived?: (row: R) => boolean;
+  /** The row is done, closed or left out (dimmed, as an archived one). Optional. */
+  isDone?: (row: R) => boolean;
   /** The row is read only (shown among the others: no drag, no check, no cell selection). Optional. */
   readOnly?: (row: R) => boolean;
   /** Rows still loading: a skeleton in place of the table. Optional. Default = false. */
@@ -164,8 +169,6 @@ const ACTIONS_COLUMN = '__actions';
 const COLUMN_PREFIX = 'col:';
 /** Prefix of the group rows. */
 const GROUP_PREFIX = 'g:';
-/** Offset of one level of a tree, in px (that of the title indentation). */
-const INDENT = 20;
 /** Width of the drag handle (and of its room when there is none). */
 const HANDLE_WIDTH = 26;
 
@@ -194,23 +197,6 @@ interface DragItem {
 }
 
 /**
- * Removes the rows nested under a row (they move with it).
- * @param {DragItem[]} items Rows.
- * @param {string} id Row whose descendants are removed.
- * @returns {DragItem[]} Remaining rows.
- */
-function withoutDescendants(items: DragItem[], id: string): DragItem[] {
-  const removed = new Set([id]);
-  return items.filter((item) => {
-    if (item.parentId && removed.has(item.parentId)) {
-      removed.add(item.id);
-      return false;
-    }
-    return true;
-  });
-}
-
-/**
  * Where a dragged row would land, as in the sidebar tree: the place from the hovered row, the level from the
  * horizontal offset (at most one level below the row above, at least the level of the row below).
  * @param {DragItem[]} items Rows during the drag.
@@ -221,21 +207,14 @@ function withoutDescendants(items: DragItem[], id: string): DragItem[] {
  * @returns {{ depth: number, parentId: string | null } | null} Level and parent row, or null when invalid.
  */
 function getProjection(items: DragItem[], activeId: string, overId: string, offsetX: number, tree: boolean) {
-  const activeIndex = items.findIndex((item) => item.id === activeId);
-  const overIndex = items.findIndex((item) => item.id === overId);
-  if (activeIndex < 0 || overIndex < 0) return null;
-  if (!tree) return { depth: items[activeIndex].depth, parentId: items[activeIndex].parentId };
-  const moved = arrayMove(items, activeIndex, overIndex);
-  const previous = moved[overIndex - 1];
-  const next = moved[overIndex + 1];
-  const maxDepth = previous ? previous.depth + 1 : 0;
-  const minDepth = Math.min(next?.depth ?? 0, maxDepth);
-  const depth = Math.max(minDepth, Math.min(items[activeIndex].depth + Math.round(offsetX / INDENT), maxDepth));
-  if (depth === 0) return { depth, parentId: null };
-  for (let index = overIndex - 1; index >= 0; index -= 1) {
-    if (moved[index].depth === depth - 1) return { depth, parentId: moved[index].id };
+  if (!tree) {
+    const active = items.find((item) => item.id === activeId);
+    return active && items.some((item) => item.id === overId) ? { depth: active.depth, parentId: active.parentId } : null;
   }
-  return null;
+  return dropProjection(items, activeId, overId, offsetX, (_, previous, next) => {
+    const max = previous ? previous.depth + 1 : 0;
+    return { min: Math.min(next?.depth ?? 0, max), max };
+  });
 }
 
 /**
@@ -351,6 +330,7 @@ export function DataTable<R>({
   addRow,
   isActive,
   isArchived,
+  isDone,
   readOnly,
   loading = false,
   toolbar = true,
@@ -492,18 +472,7 @@ export function DataTable<R>({
    * @param {ColumnMove} where Where.
    * @returns {void}
    */
-  const moveColumn = (id: string, where: ColumnMove) => {
-    const others = order.filter((item) => item !== id);
-    const index = shown.findIndex((column) => column.id === id);
-    let at: number;
-    if (where === 'start') at = 0;
-    else if (where === 'end') at = others.length;
-    else {
-      const neighbour = shown[where === 'left' ? index - 1 : index + 1].id;
-      at = others.indexOf(neighbour) + (where === 'right' ? 1 : 0);
-    }
-    view.setLayout(withOrder(view.columns, layout, [...others.slice(0, at), id, ...others.slice(at)]));
-  };
+  const moveColumn = (id: string, where: ColumnMove) => view.setLayout(withOrder(view.columns, layout, movedColumnOrder(order, shown, id, where)));
 
   /**
    * Fits a column to its content, or gives it back its default width when it already is.
@@ -511,18 +480,7 @@ export function DataTable<R>({
    * @param {number} index Index among the shown columns.
    * @returns {void}
    */
-  const fitColumn = (column: ShownColumn<R>, index: number) => {
-    if (!tableRef.current) return;
-    const width = clampWidth(contentWidth(tableRef.current, before + index) + 2);
-    const { [column.id]: _dropped, ...others } = layout.columnSizing; // eslint-disable-line @typescript-eslint/no-unused-vars
-    if (fitted.current.get(column.id) === column.width || Math.abs(width - column.width) <= 2) {
-      fitted.current.delete(column.id);
-      view.setLayout({ ...layout, columnSizing: others });
-      return;
-    }
-    fitted.current.set(column.id, width);
-    view.setLayout({ ...layout, columnSizing: { ...others, [column.id]: width } });
-  };
+  const fitColumn = (column: ShownColumn<R>, index: number) => tableRef.current && view.setLayout(fittedLayout(tableRef.current, layout, column, before + index, fitted.current));
 
   /**
    * Moves a dragged column, or a dragged row with its sub-rows: vertically to choose its place, horizontally its level
@@ -692,6 +650,7 @@ export function DataTable<R>({
             dropTarget={projection?.parentId === row.id}
             active={isActive?.(data) ?? false}
             archived={isArchived?.(data) ?? false}
+            done={isDone?.(data) ?? false}
             checked={checks?.isChecked(key) ?? false}
             rowProps={rowProps?.(data) ?? {}}
           >
@@ -724,19 +683,12 @@ export function DataTable<R>({
                       {first ? (
                         <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
                           {row.getCanExpand() ? (
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              aria-label={row.getIsExpanded() ? 'Replier les sous-éléments' : 'Déplier les sous-éléments'}
-                              aria-expanded={row.getIsExpanded()}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                row.toggleExpanded();
-                              }}
-                            >
-                              <CaretRightIcon className={classes.chevron} data-expanded={row.getIsExpanded() || undefined} aria-hidden />
-                            </ActionIcon>
+                            <FoldButton
+                              expanded={row.getIsExpanded()}
+                              aria-label={row.getIsExpanded() ? 'Réduire les sous-éléments' : 'Développer les sous-éléments'}
+                              inRow
+                              onToggle={() => row.toggleExpanded()}
+                            />
                           ) : (
                             <span className={classes.chevronSpacer} />
                           )}
@@ -969,6 +921,7 @@ interface DataRowProps {
   dropTarget: boolean;
   active: boolean;
   archived: boolean;
+  done: boolean;
   checked: boolean;
   rowProps: TableTrProps;
   /** Cells, receiving the drag handle to place in the first cell. */
@@ -981,7 +934,7 @@ interface DataRowProps {
  * @param {DataRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, rowProps, children }: DataRowProps) {
+function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, checked, rowProps, children }: DataRowProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
@@ -1012,6 +965,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, checked, 
       style={{ ...(typeof style === 'object' ? style : {}), transform: CSS.Translate.toString(transform && { ...transform, x: 0 }), transition }}
       data-active={active || undefined}
       data-archived={archived || undefined}
+      data-done={done || undefined}
       data-selected={checked || undefined}
       data-dragging={isDragging || undefined}
       data-drop-target={dropTarget || undefined}

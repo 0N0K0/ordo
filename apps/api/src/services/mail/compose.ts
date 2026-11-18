@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { recipientsSchema } from '@ordo/shared';
+import { recipientsSchema, sumOf } from '@ordo/shared';
 import { convert } from 'html-to-text';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { z } from 'zod';
@@ -57,7 +57,7 @@ async function embedLocalImages(html: string): Promise<{ html: string; images: I
     try {
       if (stored) {
         const attachment = await prisma.attachment.findUnique({ where: { id: stored[1] } });
-        if (attachment) images.set(source, { filename: attachment.name, content: Buffer.from(attachment.data), cid: `${attachment.id}@ordo` });
+        if (attachment) images.set(source, { filename: attachment.filename, content: Buffer.from(attachment.data), cid: `${attachment.id}@ordo` });
       } else if (live) {
         const folder = url.searchParams.get('folder') ?? '';
         const uid = Number(url.searchParams.get('uid'));
@@ -94,23 +94,19 @@ export interface BuiltMessage {
  * @param {Date} [options.date] Date of the mail (scheduled sending); now when omitted. Optional.
  * @returns {Promise<BuiltMessage>} Message.
  */
-export async function buildMessage(
-  account: MailAccount,
-  input: MailFields,
-  options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {},
-): Promise<BuiltMessage> {
+export async function buildMessage(account: MailAccount, input: MailFields, options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {}): Promise<BuiltMessage> {
   const recipients = options.draft ? z.array(z.string().max(320)).max(100) : recipientsSchema;
-  const fields = parseInput(
-    z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(998, 'Objet trop long.') }),
-    { to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [], subject: input.subject },
-  );
+  const fields = parseInput(z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(998, 'Objet trop long.') }), {
+    to: input.to,
+    cc: input.cc ?? [],
+    bcc: input.bcc ?? [],
+    subject: input.subject,
+  });
   if (!options.draft && fields.to.length + fields.cc.length + fields.bcc.length === 0) {
     throw fieldError('to', 'Ajoutez au moins un destinataire.');
   }
 
-  const files: { filename: string; content: Buffer }[] = await Promise.all(
-    (input.attachments ?? []).map(async (file) => ({ filename: file.name, content: Buffer.from(await file.arrayBuffer()) })),
-  );
+  const files: { filename: string; content: Buffer }[] = await Promise.all((input.attachments ?? []).map(async (file) => ({ filename: file.name, content: Buffer.from(await file.arrayBuffer()) })));
   if (input.attachmentsFrom) {
     const { accountId, folder, uid, indexes } = input.attachmentsFrom;
     const original = await fetchParsed(accountId, folder, uid);
@@ -120,7 +116,7 @@ export async function buildMessage(
         .map((attachment) => ({ filename: attachment.filename || 'piece-jointe', content: attachment.content })),
     );
   }
-  if (files.reduce((sum, file) => sum + file.content.length, 0) > MAX_TOTAL_BYTES) {
+  if (sumOf(files, (file) => file.content.length) > MAX_TOTAL_BYTES) {
     throw clientError('BAD_USER_INPUT', 'Pièces jointes trop lourdes (20 Mo au total maximum).');
   }
 

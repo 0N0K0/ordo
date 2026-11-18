@@ -1,8 +1,9 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Anchor, Badge, Group, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -19,6 +20,8 @@ import { TaskRef } from './task-ui';
 import { useCellEdit } from '../lib/cell-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { TaskContext } from '../hooks/use-task-context';
+import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
+import { shoppingListPath, timePath } from '../../../app/pages';
 
 /**
  * « Plages » cell: the slots of the task told in words, changed in a popover.
@@ -54,7 +57,7 @@ export function SlotsCell({ task }: { task: Task }) {
 export function TimerCell({ task }: { task: Task }) {
   const running = useRunningTimer();
   const mine = running.data?.taskIds.includes(task.id) ? running.data : null;
-  return <TimerToggle name={task.title} mine={mine} othersRunning={Boolean(running.data) && !mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
+  return <TimerToggle name={task.label} mine={mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
 }
 
 /**
@@ -65,7 +68,7 @@ export function TimerCell({ task }: { task: Task }) {
 export function TrackedCell({ task }: { task: Task }) {
   if (task.trackedSeconds <= 0) return null;
   return (
-    <Anchor component={Link} to={`/time?task=${task.id}`} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
+    <Anchor component={Link} to={timePath(task.id)} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
       {formatDuration(task.trackedSeconds)}
     </Anchor>
   );
@@ -79,20 +82,11 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
-      <StackedValues>
-        {children.map((child) => (
-          <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
-        ))}
-      </StackedValues>
-      {!task.archived && (
-        <Tooltip label="Ajouter une sous-tâche">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-tâche à ${task.title}`} onClick={onAdd} style={{ flex: 'none' }}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </Group>
+    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', name: task.label, onClick: onAdd }}>
+      {children.map((child) => (
+        <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
+      ))}
+    </ChildrenCell>
   );
 }
 
@@ -115,7 +109,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
 }
 
 /**
- * « Alertes » cell: the active alerts of the task (a bell), and a button adding one (not to an archived task).
+ * « Alarmes » cell: the active alarms of the task (a bell), and a button adding one (not to an archived task).
  * @param {{ task: Task, context: TaskContext, count: number }} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -129,17 +123,14 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         </Badge>
       )}
       {!task.archived && (
-        <Tooltip label="Nouvelle alerte">
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            aria-label={`Nouvelle alerte pour ${task.title}`}
-            onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
-          >
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction
+          label="Nouvelle alarme"
+          size="sm"
+          aria-label={`Nouvelle alarme pour ${task.label}`}
+          onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, label: task.label } })}
+        >
+          <PlusIcon aria-hidden />
+        </IconAction>
       )}
     </Group>
   );
@@ -160,33 +151,33 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>
         {own.map((list) => (
-          <Anchor key={list.id} component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
-            <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.name}
+          <Anchor key={list.id} component={Link} to={shoppingListPath(list.id)} size="sm" truncate>
+            <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.label}
           </Anchor>
         ))}
       </StackedValues>
       {!task.archived && (
-      <ActionsMenu
-        name={task.title}
-        target={
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        }
-        items={[
-          { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
-          { section: 'Rattacher une liste' },
-          ...free.map((list) => ({
-            label: list.name,
-            icon: <BasketIcon aria-hidden />,
-            onClick: () =>
-              updateList.mutate(
-                { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
-                toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
-              ),
-          })),
-        ]}
-      />
+        <ActionsMenu
+          name={task.label}
+          target={
+            <IconAction label="Ajouter une liste d’achats" item={task.label} size="sm" style={{ flex: 'none' }}>
+              <PlusIcon aria-hidden />
+            </IconAction>
+          }
+          items={[
+            { label: 'Nouvelle liste', icon: <PlusIcon aria-hidden />, onClick: () => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined }) },
+            { section: 'Rattacher une liste' },
+            ...free.map((list) => ({
+              label: list.label,
+              icon: <BasketIcon aria-hidden />,
+              onClick: () =>
+                updateList.mutate(
+                  { id: list.id, label: list.label, taskIds: [...new Set([...list.taskIds, ...targets])] },
+                  toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
+                ),
+            })),
+          ]}
+        />
       )}
     </Group>
   );

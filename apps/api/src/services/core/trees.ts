@@ -1,3 +1,4 @@
+import { modelDelegate } from './delegate';
 import { isUnderOrSelf, lineageOf, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -17,7 +18,7 @@ interface TreeDelegate {
  * @param {OrderedModel} model Model.
  * @returns {TreeDelegate} Delegate.
  */
-const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, TreeDelegate>)[model];
+const delegate = (model: OrderedModel) => modelDelegate<TreeDelegate>(model);
 
 /**
  * Checks the parent of an item of a tree: it exists, and is not the item itself nor one of its descendants.
@@ -27,7 +28,12 @@ const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, T
  * @param {{ missing: string, loop: string, field?: string }} messages Name of the missing parent (« Catégorie parente »), message of a loop, field of the error (default « parentId »).
  * @returns {Promise<void>}
  */
-export async function assertTreeParent(model: OrderedModel, parentId: string | null | undefined, id: string | null | undefined, messages: { missing: string; loop: string; field?: string }): Promise<void> {
+export async function assertTreeParent(
+  model: OrderedModel,
+  parentId: string | null | undefined,
+  id: string | null | undefined,
+  messages: { missing: string; loop: string; field?: string },
+): Promise<void> {
   if (!parentId) return;
   const parentOf = new Map((await delegate(model).findMany({ select: { id: true, parentId: true } })).map((item) => [item.id, item.parentId]));
   if (!parentOf.has(parentId)) throw notFound(messages.missing);
@@ -115,14 +121,14 @@ export interface TreeListHooks<T extends TreeNode, D extends { parentId?: string
  * @param {TreeListModel} model Model.
  * @param {TreeListMessages} messages Error messages.
  * @param {TreeListHooks<T, D>} hooks What differs from one tree to another.
- * @returns {object} Tree service: `create`, `update`, `move` and `remove`.
+ * @returns {object} Tree service: `create`, `update`, `move` and `remove`, taking inputs of type `I`.
  */
-export function treeListService<T extends TreeNode, D extends { parentId?: string | null }>(model: TreeListModel, messages: TreeListMessages, hooks: TreeListHooks<T, D>) {
+export function treeListService<T extends TreeNode, D extends { parentId?: string | null }, I = unknown>(model: TreeListModel, messages: TreeListMessages, hooks: TreeListHooks<T, D>) {
   /**
    * Delegate of the model (scoped to the current workspace, as every model).
    * @returns {TreeListDelegate<T>} Delegate.
    */
-  const items = () => (prisma as unknown as Record<string, TreeListDelegate<T>>)[model];
+  const items = () => modelDelegate<TreeListDelegate<T>>(model);
 
   /**
    * Loads an item (with the relations of the hooks), NOT_FOUND when missing.
@@ -149,17 +155,17 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
     const parentId = data.parentId ?? null;
     await assertTreeParent(model, parentId, current?.id, { missing: messages.missingParent, loop: messages.loop });
     // An archived item takes no new child (those already there stay).
-    if (parentId !== (current?.parentId ?? null)) await assertNotArchived(model, parentId);
+    await assertNotArchived(model, parentId, { keep: current?.parentId, field: 'parentId' });
     return data;
   };
 
   /**
    * Updates an item; under another parent, it goes last.
    * @param {string} id Item id.
-   * @param {unknown} input Item.
+   * @param {I} input Item.
    * @returns {Promise<T>} Item.
    */
-  const update = async (id: string, input: unknown): Promise<T> => {
+  const update = async (id: string, input: I): Promise<T> => {
     const current = await find(id);
     await assertNotArchived(model, id);
     const parsed = await parse(input, current);
@@ -171,10 +177,10 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
   return {
     /**
      * Creates an item, last among its siblings.
-     * @param {unknown} input Item.
+     * @param {I} input Item.
      * @returns {Promise<T>} Item.
      */
-    async create(input: unknown): Promise<T> {
+    async create(input: I): Promise<T> {
       const parsed = await parse(input, null);
       const data = hooks.createData ? hooks.createData(parsed) : parsed;
       return items().create({ data: { ...data, position: await lastPosition(parsed.parentId ?? null) } });
@@ -193,7 +199,7 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
       const current = await find(id);
       await assertNotArchived(model, id);
       const parent = parentId === undefined ? current.parentId : parentId;
-      if (parent !== current.parentId) await update(id, hooks.moveInput(current, parent));
+      if (parent !== current.parentId) await update(id, hooks.moveInput(current, parent) as I);
       if (index === null || index === undefined) return;
       await moveInList(model, id, index, { ...hooks.siblings?.(current), parentId: parent });
     },

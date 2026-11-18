@@ -143,25 +143,8 @@
     }
   }
 
-  /* Heading of a group of rows, as on the tasks. */
-  .groupRow {
-    /* Arrière-Plan */
-    background-color: var(--mantine-color-default-hover);
-  }
-
-  .chevron {
-    /* Effets */
-    transform: rotate(0deg);
-
-    &[data-expanded] {
-      transform: rotate(90deg);
-    }
-
-    /* Animation */
-    transition: transform 150ms ease;
-  }
-
-  /* Details of a row unfolded under it (the splits of a treasury entry…). */
+  /* Heading of a group of rows, as on the tasks; details of a row unfolded under it (the splits of a treasury entry…). */
+  .groupRow,
   .details {
     /* Arrière-Plan */
     background-color: var(--mantine-color-default-hover);
@@ -203,23 +186,16 @@
     }
 
     /* Effets */
-    &[data-archived] {
-      opacity: 0.6;
+    &[data-archived],
+    &[data-done] {
+      opacity: var(--onoko-muted-opacity);
     }
 
     &[data-dragging] {
       opacity: var(--onoko-dragging-opacity);
     }
 
-    /* Future parent of the dragged row. */
-    &[data-drop-target] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      outline: 1px solid var(--mantine-primary-color-filled);
-      outline-offset: -1px;
-    }
+    /* Future parent of the dragged row ([data-drop-target]): styles/drop.css. */
   }
 
   /* First cell of a tree: indented by its level. */
@@ -228,7 +204,7 @@
     padding-left: calc(var(--mantine-spacing-xs) + var(--row-depth, 0) * var(--mantine-spacing-lg));
 
     /* Animation */
-    transition: padding-left 120ms ease;
+    transition: padding-left var(--onoko-transition);
   }
 
   .chevronSpacer,

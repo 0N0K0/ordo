@@ -1,5 +1,6 @@
 import { Alert, type AlertProps } from '@mantine/core';
 import type { ReactNode } from 'react';
+import { FEEDBACK_COLORS } from './feedback-colors';
 import { InfoFeedbackIcon, SuccessIcon, WarningFeedbackIcon } from './feedback-icons';
 
 /** Kind of a notice: what went well, what to know (or to set up first), what to watch out for. */
@@ -7,9 +8,9 @@ type NoticeKind = 'success' | 'info' | 'warning';
 
 /** Colour and icon of each kind, the same everywhere (errors: ErrorAlert, in red). */
 const KINDS: Record<NoticeKind, { color: string; icon: ReactNode }> = {
-  success: { color: 'green', icon: <SuccessIcon /> },
-  info: { color: 'blue', icon: <InfoFeedbackIcon /> },
-  warning: { color: 'orange', icon: <WarningFeedbackIcon /> },
+  success: { color: FEEDBACK_COLORS.success, icon: <SuccessIcon /> },
+  info: { color: FEEDBACK_COLORS.info, icon: <InfoFeedbackIcon /> },
+  warning: { color: FEEDBACK_COLORS.warning, icon: <WarningFeedbackIcon /> },
 };
 
 /**

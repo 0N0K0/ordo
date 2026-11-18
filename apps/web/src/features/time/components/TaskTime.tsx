@@ -1,11 +1,13 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { Button, Group, Text, Tooltip } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
 import { useRunningTimer } from '../api';
-import { useStartTimer } from '../hooks/use-start-timer';
+import { TIMER_REPLACED_HINT, useStartTimer } from '../hooks/use-start-timer';
 import { TimerControls } from './TimerControls';
+import { TimerRunningBadge } from './TimerStop';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Time tracked on a task (its share of each time entry), and a button starting the timer on it.
@@ -14,7 +16,7 @@ import { TimerControls } from './TimerControls';
  */
 export function TaskTime({ task }: { task: Task }) {
   const running = useRunningTimer();
-  const { startTimer, isPending } = useStartTimer();
+  const { startTimer, isPending, replacing } = useStartTimer();
   const onThisTask = running.data?.taskIds.includes(task.id) ?? false;
   return (
     <LabeledField label="Temps passé">
@@ -24,23 +26,21 @@ export function TaskTime({ task }: { task: Task }) {
         </Text>
         {onThisTask && running.data ? (
           <Group gap="xs" wrap="nowrap">
-            <Text size="xs" c="red">
-              Chrono en cours
-            </Text>
+            <TimerRunningBadge />
             <TimerControls entry={running.data} size="sm" look="header" />
           </Group>
         ) : (
-          <Tooltip label="Arrête le chrono en cours et en démarre un sur cette tâche" disabled={!running.data}>
-            <Button
+          <Tooltip label={TIMER_REPLACED_HINT} disabled={!replacing}>
+            <ActionButton
+              priority="secondary"
               size="compact-sm"
-              variant="default"
-              leftSection={<PlayIcon aria-hidden />}
+              icon={<PlayIcon aria-hidden />}
               loading={isPending}
               disabled={task.archived}
               onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
             >
               Démarrer le chrono
-            </Button>
+            </ActionButton>
           </Tooltip>
         )}
       </Group>

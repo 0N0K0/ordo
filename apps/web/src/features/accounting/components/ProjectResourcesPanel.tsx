@@ -8,13 +8,14 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
-import { toastCallbacks } from '../../../lib/notify';
-import { formCallbacks } from '../../../lib/form';
+import { type ReactNode } from 'react';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { formCallbacks, useAppForm } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import * as fmt from '../../../lib/format';
+import { projectLinkSchema } from '@ordo/shared';
 
 /**
  * Icon of a link, from its site.
@@ -29,30 +30,32 @@ function linkIcon(url: string): ReactNode {
 }
 
 /**
- * Link form: title, address (links only) and note.
+ * Link form: label, address (links only) and note.
  * @param {{ projectId: string, resource?: ProjectResource, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 function ResourceForm({ projectId, resource, onDone }: { projectId: string; resource?: ProjectResource; onDone: () => void }) {
   const { addLink, update } = useProjectResourceMutations();
-  const [title, setTitle] = useState(resource?.title ?? '');
-  const [url, setUrl] = useState(resource?.kind === 'LINK' ? resource.url : '');
-  const [note, setNote] = useState(resource?.note ?? '');
   const isLink = !resource || resource.kind === 'LINK';
-  const callbacks = formCallbacks(null, resource ? 'Ressource modifiée.' : 'Lien ajouté.', onDone);
+  const form = useAppForm({
+    initialValues: { label: resource?.label ?? '', url: resource?.kind === 'LINK' ? (resource.url ?? '') : '', note: resource?.note ?? '' },
+    // A file has no address.
+    schema: isLink ? projectLinkSchema : projectLinkSchema.omit({ url: true }),
+  });
   return (
     <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (resource) update.mutate({ id: resource.id, title, url: isLink ? url : null, note }, callbacks);
-        else addLink.mutate({ projectId, title, url, note }, callbacks);
-      }}
+      noValidate
+      onSubmit={form.onSubmit(({ label, url, note }) => {
+        const callbacks = formCallbacks(form, resource ? 'Ressource modifiée.' : 'Lien ajouté.', onDone);
+        if (resource) update.mutate({ id: resource.id, label, url: isLink ? url : null, note }, callbacks);
+        else addLink.mutate({ projectId, label, url, note }, callbacks);
+      })}
     >
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus placeholder="Maquettes Figma, dépôt GitHub…" value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
-        {isLink && <TextInput label="Adresse" required placeholder="https://…" value={url} onChange={(event) => setUrl(event.currentTarget.value)} />}
-        <TextInput label="Note" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
-        <FormActions onCancel={onDone} submitLabel={resource ? 'Enregistrer' : 'Ajouter'} loading={addLink.isPending || update.isPending} disabled={!title.trim() || (isLink && !url.trim())} />
+        <TextInput label="Libellé" required data-autofocus placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
+        {isLink && <TextInput label="Adresse" required placeholder="https://…" {...form.getInputProps('url')} />}
+        <TextInput label="Note" {...form.getInputProps('note')} />
+        <FormActions onCancel={onDone} submitLabel={resource ? 'Enregistrer' : 'Ajouter'} loading={addLink.isPending || update.isPending} />
       </Stack>
     </form>
   );
@@ -82,12 +85,12 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (resource: ProjectResource) => {
-    confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
-<>
-            {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
-            irréversible.
-          </>
-), onConfirm: () => { remove.mutate(resource.id, toastCallbacks('Ressource supprimée.')); } });
+    confirmDestructive({
+      title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien',
+      risks: <>{resource.kind === 'FILE' ? `Le fichier « ${resource.label} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.label} » sera retiré du projet.`}</>,
+      run: () => remove.mutateAsync(resource.id),
+      done: 'Ressource supprimée.',
+    });
   };
 
   return (
@@ -96,17 +99,16 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
         description="Documents et liens utiles au projet : cahier des charges, maquettes, dépôt de code…"
         actions={
           <>
-          <FileButton
-            multiple
-            onChange={(files) =>
-              files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))
-            }
-          >
-            {(props) => (
-              <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>Ajouter des fichiers</ActionButton>
-            )}
-          </FileButton>
-          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>Ajouter un lien</ActionButton>
+            <FileButton multiple onChange={(files) => files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))}>
+              {(props) => (
+                <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>
+                  Ajouter des fichiers
+                </ActionButton>
+              )}
+            </FileButton>
+            <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>
+              Ajouter un lien
+            </ActionButton>
           </>
         }
       />
@@ -125,12 +127,12 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                   </ThemeIcon>
                   <Stack gap={0} style={{ minWidth: 0 }}>
                     {resource.kind === 'FILE' ? (
-                      <FileLink url={resource.url} name={resource.title} fw={600} size="sm" truncate>
-                        {resource.title}
+                      <FileLink url={resource.url} filename={resource.label} fw={600} size="sm" truncate>
+                        {resource.label}
                       </FileLink>
                     ) : (
                       <Anchor href={resource.url} target="_blank" rel="noopener noreferrer" fw={600} size="sm" truncate>
-                        {resource.title}
+                        {resource.label}
                       </Anchor>
                     )}
                     <Text size="xs" c="dimmed" truncate>
@@ -139,9 +141,9 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                   </Stack>
                 </Group>
                 <InlineActions
-                  name={resource.title}
+                  name={resource.label}
                   items={[
-                    ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to })),
+                    ...moveEntries(index, resources.length, (to) => move.mutate({ id: resource.id, index: to }, ON_ERROR)),
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(resource) },
                     { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(resource) },
                   ]}

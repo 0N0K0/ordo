@@ -1,3 +1,4 @@
+import { subtreeOf } from '@ordo/shared';
 import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural } from '../../../lib/text';
@@ -11,7 +12,7 @@ import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingP
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { ClientForm } from '../components/ClientForm';
-import { descendantIds, useWorkspace } from '../api';
+import { useWorkspace } from '../api';
 import { useEntityActions } from '../hooks/use-entity-actions';
 import { EntityHeader } from '../components/EntityHeader';
 import { EntitySkeleton } from '../components/EntityState';
@@ -39,7 +40,7 @@ export function ClientPage() {
 
   const projects = data.projects.filter((project) => project.clientId === client.id);
   // Its projects and their sub-projects: their documents show with its own.
-  const projectIds = new Set(projects.flatMap((project) => [project.id, ...descendantIds(data.projects, project.id)]));
+  const projectIds = new Set(projects.flatMap((project) => [...subtreeOf(data.projects, project.id)]));
 
   return (
     <Stack gap="xl">
@@ -52,10 +53,9 @@ export function ClientPage() {
         }
         extraActions={
           !client.archived && (
-            <ActionButton
-              icon={<FolderPlusIcon aria-hidden />}
-              onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}
-            >Nouveau projet</ActionButton>
+            <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}>
+              Nouveau projet
+            </ActionButton>
           )
         }
       />

@@ -2,12 +2,24 @@ import { commentTotal } from '../../comments/lib/comment-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { personKey } from '../../../components/people/people-keys';
-import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, TASK_STATUS_CATEGORY_LABELS, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
+import {
+  DEFAULT_HIDDEN_COLUMNS,
+  formatDuration,
+  ME,
+  readSlotRule,
+  TASK_COLUMNS,
+  TASK_STATUS_CATEGORIES,
+  TASK_STATUS_CATEGORY_LABELS,
+  type TaskColumn,
+  type FilterGroupOf,
+  type TaskStatusCategory,
+  lineageOf,
+} from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
-import type { TaskContext } from '../hooks/use-task-context';
+import { taskRef, type TaskContext } from '../hooks/use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './columns-meta';
 import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
@@ -62,7 +74,7 @@ export function filterUses(group: FilterGroupOf<string> | null | undefined, fiel
 }
 
 /** Key of the row of an event. */
-export const eventKey = (event: EventOccurrence) => `e:${event.key}`;
+export const eventRowKey = (event: EventOccurrence) => `e:${event.key}`;
 
 /** Relative sprints a filter chooses: the current one, the previous and next one of each project tree, past ones, future ones. */
 const SPRINT_TOKENS: ColumnChoice[] = [
@@ -127,7 +139,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
   const projectChoices = context.projectOptions(context.projects);
   const taskChoices = context.taskOptions(context.tasks);
   // Archived values keep their labels, the filter offers them only while in it (ColumnChoice.archived).
-  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name, archived: contributor.archived }))];
+  const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor), archived: contributor.archived }))];
   /**
    * People of a row, with « Moi » for the user.
    * @param {string[]} ids Contributors.
@@ -212,7 +224,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'number', value: (row) => (row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : null) };
       case 'startDate':
       case 'endDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : (id === 'startDate' ? row.event.startDate : row.event.endDate)) };
+        return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
       case 'minDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? row.task[id] : null) };
@@ -264,7 +276,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     filter: filterOf(id),
     formatTotal: id === 'trackedTime' ? (seconds) => formatDuration(Math.round(seconds)) : undefined,
     groupable: ['slots', 'timer', 'subtasks', 'progress', 'alarms', 'shopping', 'comments'].includes(id) ? false : undefined,
-    groupTree: id === 'project' ? context.projects.map((project) => ({ key: project.id, label: project.title, color: project.color ?? null, parentKey: project.parentId ?? null })) : undefined,
+    groupTree: id === 'project' ? context.projects.map((project) => ({ key: project.id, label: project.label, color: project.color ?? null, parentKey: project.parentId ?? null })) : undefined,
     groupValue: GROUP_VALUES[id],
   }));
   // Filters of their own, out of the columns (hidden until shown).
@@ -286,7 +298,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       hiddenByDefault: true,
       groupable: false,
       sortValue: (row) => (row.kind === 'task' ? row.task.number : null),
-      text: (row) => (row.kind === 'task' && row.task.number !== null ? `#${row.task.number}` : ''),
+      text: (row) => (row.kind === 'task' ? taskRef(row.task).trim() : ''),
       filter: { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.number : null) },
     },
     {
@@ -304,7 +316,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     flag('archived', 'Archivée', (task) => task.archived),
     flag('doableNow', 'Faisable maintenant', (task) => extras.doableIds?.has(task.id) ?? false),
     flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
-    flag('hasAlarms', 'A des alertes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
+    flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
     flag('hasComments', 'A des commentaires', (task) => task.commentCount > 0 || Boolean(task.description?.trim())),
     {
       id: 'statusCategory',

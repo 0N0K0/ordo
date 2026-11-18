@@ -7,7 +7,7 @@ export type MilestoneOrder = 'dueDate' | 'title' | 'manual';
 
 export const MILESTONE_ORDER_OPTIONS: { value: MilestoneOrder; label: string }[] = [
   { value: 'dueDate', label: 'Échéance' },
-  { value: 'title', label: 'Titre' },
+  { value: 'title', label: 'Libellé' },
   { value: 'manual', label: 'Manuel' },
 ];
 
@@ -27,7 +27,7 @@ export function useMilestoneOrder() {
  */
 export function sortMilestones(milestones: Milestone[], order: MilestoneOrder): Milestone[] {
   return [...milestones].sort((a, b) => {
-    if (order === 'title') return collator.compare(a.title, b.title) || a.position - b.position;
+    if (order === 'title') return collator.compare(a.label, b.label) || a.position - b.position;
     if (order === 'manual') return a.position - b.position;
     return (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99') || a.position - b.position;
   });

@@ -1,4 +1,4 @@
-import { taskTitleSchema } from '@ordo/shared';
+import { taskLabelSchema } from '@ordo/shared';
 import { AddRowButton, AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useCreateTask, useSetTasksClosed } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
@@ -27,9 +27,9 @@ export function AddTaskRow({ context, defaults, projectId, onOpenForm }: AddTask
   return (
     <AddRowField
       label="Ajouter une tâche"
-      schema={taskTitleSchema}
-      onCreate={(title) =>
-        createTask.mutateAsync({ statusId: defaultStatusId(context), ...values, title, projectId: targetProject }).then((task) => {
+      schema={taskLabelSchema}
+      onCreate={(label) =>
+        createTask.mutateAsync({ statusId: defaultStatusId(context), ...values, label, projectId: targetProject }).then((task) => {
           if (closed) setClosed.mutate({ ids: [task.id], closed: true });
         })
       }

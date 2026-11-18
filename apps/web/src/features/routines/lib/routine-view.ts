@@ -32,7 +32,7 @@ export const REPETITION_LABELS: Record<(typeof ROUTINE_REPETITIONS)[number], str
  * @param {Routine} routine Routine.
  * @returns {(typeof ROUTINE_REPETITIONS)[number]} Repetition.
  */
-export const repetitionOf = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => ruleOf(routine)?.frequency ?? 'DAILY';
+export const routineFrequency = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => ruleOf(routine)?.frequency ?? 'DAILY';
 
 /** What the evaluation of the routine filters needs. */
 export interface RoutineEnv {

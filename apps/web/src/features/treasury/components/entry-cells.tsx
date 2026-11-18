@@ -1,6 +1,7 @@
-import { ActionIcon, Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon, LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { ellipsis } from '../../../lib/text';
 import { useState } from 'react';
@@ -14,7 +15,9 @@ import * as fmt from '../../../lib/format';
 import { handleFileClick } from '../../files/lib/open-file';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
-import { documentKey, payerKey, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { documentPath } from '../../../app/pages';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
@@ -23,13 +26,7 @@ import { documentKey, payerKey, type AnyEntry, type EntryDocument, type EntryEnv
  */
 export function PayerCell({ entry, env, save }: { entry: AnyEntry; env: EntryEnv; save: EntrySave }) {
   return (
-    <EditableSelect
-      value={payerKey(entry)}
-      label={`${entry.amount < 0 ? 'Destinataire' : 'Émetteur'} de ${entry.label}`}
-      nullable
-      data={env.payers}
-      onSave={(key) => save(entry, { clientId: key?.startsWith('client:') ? key.slice(7) : null, counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null })}
-    />
+    <EditableSelect value={payerKey(entry)} label={`${entry.amount < 0 ? 'Destinataire' : 'Émetteur'} de ${entry.label}`} nullable data={env.payers} onSave={(key) => save(entry, payerOfKey(key))} />
   );
 }
 
@@ -63,29 +60,27 @@ export function DocumentsCell({
   const data = [...env.documents];
   const known = new Set(data.flatMap((group) => group.items.map((item) => item.value)));
   const missing = documents.filter((document) => !known.has(documentKey(document)));
-  if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.title })) });
+  if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.label })) });
   return (
     <Group gap={4} wrap="nowrap" align="flex-start">
       <StackedValues>
         {documents.map((document) => (
           <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
             <FileBadge
-              name={document.title}
+              filename={document.label}
               href={document.url}
               target="_blank"
               // A file of the app (PDF, image) opens in its viewer.
-              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
+              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, filename: document.label })}
             />
           </Tooltip>
         ))}
       </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={360} trapFocus>
         <Popover.Target>
-          <Tooltip label="Choisir les pièces justificatives">
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
-              <PencilSimpleIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <IconAction label="Choisir les pièces justificatives" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
+            <PencilSimpleIcon aria-hidden />
+          </IconAction>
         </Popover.Target>
         <Popover.Dropdown>
           <BatchMultiSelect
@@ -96,12 +91,7 @@ export function DocumentsCell({
             data={data}
             value={documents.map(documentKey)}
             comboboxProps={{ withinPortal: false }}
-            onChange={(keys) =>
-              onSave({
-                libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-                projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-              })
-            }
+            onChange={(keys) => onSave(supportingOfKeys(keys))}
           />
         </Popover.Dropdown>
       </Popover>
@@ -128,11 +118,9 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
       </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={380} trapFocus>
         <Popover.Target>
-          <Tooltip label="Lier un mouvement">
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
-              <LinkIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <IconAction label="Lier un mouvement" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
+            <LinkIcon aria-hidden />
+          </IconAction>
         </Popover.Target>
         <Popover.Dropdown>
           <Stack gap={4}>
@@ -167,7 +155,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
     <StackedValues>
       {entry.allocations.map((allocation) =>
         allocation.documentId ? (
-          <Badge key={allocation.id} size="sm" variant="light" leftSection={<ReceiptIcon aria-hidden />} component={Link} to={`/accounting/${allocation.documentId}`} style={{ cursor: 'pointer' }}>
+          <Badge key={allocation.id} size="sm" variant="light" leftSection={<ReceiptIcon aria-hidden />} component={Link} to={documentPath(allocation.documentId)} style={{ cursor: 'pointer' }}>
             {allocation.documentLabel} · {fmt.money(allocation.amount)}
           </Badge>
         ) : (
@@ -200,9 +188,9 @@ export function DetailsToggle({ opened, count, label, onToggle }: { opened: bool
       variant="subtle"
       color="gray"
       size="compact-xs"
-      leftSection={opened ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+      leftSection={<FoldChevron expanded={opened} />}
       aria-expanded={opened}
-      aria-label={`${opened ? 'Replier' : 'Déplier'} la répartition de ${label}`}
+      aria-label={`${opened ? 'Réduire' : 'Développer'} la répartition de ${label}`}
       onClick={onToggle}
     >
       détails ({count})

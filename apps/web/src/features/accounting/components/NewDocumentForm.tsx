@@ -11,13 +11,24 @@ import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { clientProjectOptions } from '../../workspace/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { documentPath } from '../../../app/pages';
 
 /**
  * New document: its client (and project), then the draft opens with the company's default terms.
  * @param {{ type: AccountingDocumentType, clientId?: string | null, projectId?: string | null, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function NewDocumentForm({ type, clientId: initialClient = null, projectId: initialProject = null, onDone }: { type: AccountingDocumentType; clientId?: string | null; projectId?: string | null; onDone: () => void }) {
+export function NewDocumentForm({
+  type,
+  clientId: initialClient = null,
+  projectId: initialProject = null,
+  onDone,
+}: {
+  type: AccountingDocumentType;
+  clientId?: string | null;
+  projectId?: string | null;
+  onDone: () => void;
+}) {
   const { data: workspace } = useWorkspace();
   const { create } = useDocumentMutations();
   const navigate = useNavigate();
@@ -33,7 +44,7 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
       fallback: 'Création impossible.',
       onDone: (id) => {
         onDone();
-        void navigate(`/accounting/${id}`);
+        void navigate(documentPath(id));
       },
     },
   );

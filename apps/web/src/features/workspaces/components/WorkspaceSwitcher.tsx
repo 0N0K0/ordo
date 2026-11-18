@@ -27,7 +27,7 @@ function openWorkspacesManager(): void {
 export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' | 'text' }) {
   const { data } = useWorkspaces();
   const { workspace } = useActiveWorkspace();
-  const label = `Espace : ${workspace?.name ?? ''}. Changer d’espace`;
+  const label = `Espace : ${workspace?.label ?? ''}. Changer d’espace`;
   return (
     <ActionsMenu
       name="l’espace"
@@ -36,7 +36,7 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
       items={[
         { section: 'Espaces' },
         ...(data?.workspaces ?? []).map((item) => ({
-          label: item.name,
+          label: item.label,
           icon: <WorkspaceKindIcon kind={item.kind} />,
           checked: item.id === workspace?.id,
           onClick: () => item.id !== workspace?.id && switchWorkspace(item.id),
@@ -47,7 +47,7 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
       target={
         variant === 'text' ? (
           <UnstyledButton className={classes.text} aria-label={label} aria-haspopup="menu">
-            {workspace?.name ?? 'Espace'}
+            {workspace?.label ?? 'Espace'}
           </UnstyledButton>
         ) : (
           <Button
@@ -59,7 +59,7 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
             aria-haspopup="menu"
             maw={220}
           >
-            {workspace?.name ?? 'Espace'}
+            {workspace?.label ?? 'Espace'}
           </Button>
         )
       }

@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { Stack, TextInput } from '@mantine/core';
 import { contributorFormSchema, suggestHandle, type ContributorFormValues } from '@ordo/shared';
 import { useState } from 'react';
@@ -79,12 +80,7 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
             label="Projets"
             description="Le contributeur est aussi rattaché à leurs sous-projets."
             placeholder={projectIds.length ? undefined : 'Aucun'}
-            {...treeSelectProps(
-              projectOptions(
-                workspace,
-                (workspace?.projects ?? []).filter((project) => !project.archived || projectIds.includes(project.id)),
-              ),
-            )}
+            {...treeSelectProps(projectOptions(workspace, unarchived(workspace?.projects ?? [], projectIds)))}
             value={projectIds}
             onChange={setProjectIds}
             searchable

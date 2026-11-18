@@ -7,7 +7,7 @@ import { ellipsis } from '../../lib/text';
 
 interface FileBadgeProps {
   /** File name, cut beyond `max` characters (whole in its tooltip). */
-  name: string;
+  filename: string;
   /** Size in bytes, shown after the name (the files of a mail). Optional. */
   size?: number | null;
   /** Most characters of the name shown. Optional. Default = 24. */
@@ -20,8 +20,6 @@ interface FileBadgeProps {
   onClick?: (event: MouseEvent<HTMLElement>) => void;
   /** Removes it, from the gray cross on its right. Optional. */
   onRemove?: (event: MouseEvent<HTMLButtonElement>) => void;
-  /** Tooltip of the cross. Optional. Default = « Retirer ». */
-  removeLabel?: string;
   /** Badge size. Optional. Default = sm. */
   badgeSize?: MantineSize;
 }
@@ -32,8 +30,8 @@ interface FileBadgeProps {
  * @param {FileBadgeProps} props Component props.
  * @returns {JSX.Element} Badge.
  */
-export function FileBadge({ name, size, max = 24, href, target, onClick, onRemove, removeLabel = 'Retirer', badgeSize = 'sm' }: FileBadgeProps) {
-  const shown = ellipsis(name, max);
+export function FileBadge({ filename, size, max = 24, href, target, onClick, onRemove, badgeSize = 'sm' }: FileBadgeProps) {
+  const shown = ellipsis(filename, max);
   const clickable = Boolean(href || onClick);
   const link = href ? { component: 'a' as const, href, target, rel: target ? 'noopener noreferrer' : undefined } : {};
   return (
@@ -42,10 +40,9 @@ export function FileBadge({ name, size, max = 24, href, target, onClick, onRemov
       size={badgeSize}
       variant="light"
       color="gray"
-      tt="none"
-      title={shown === name ? undefined : name}
+      title={shown === filename ? undefined : filename}
       leftSection={<PaperclipIcon aria-hidden />}
-      rightSection={onRemove && <RemoveButton variant="field" size="xs" label={removeLabel} aria-label={`Retirer ${name}`} onClick={onRemove} />}
+      rightSection={onRemove && <RemoveButton variant="field" size="xs" label="Retirer" item={filename} onClick={onRemove} />}
       style={clickable ? { cursor: 'pointer' } : undefined}
       onClick={onClick}
     >

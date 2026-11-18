@@ -2,6 +2,7 @@ import { done } from '../errors';
 import { prisma } from '../../db';
 import * as comments from '../../services/core/comments';
 import { builder } from '../builder';
+import { reloaded } from '../reload';
 
 const CommentTargetEnum = builder.enumType('CommentTarget', {
   description: 'Kind of item a comment goes on (tasks have their own comments).',
@@ -41,12 +42,12 @@ builder.mutationFields((t) => ({
   addComment: t.prismaField({
     type: 'Comment',
     args: { target: t.arg({ type: CommentTargetEnum, required: true }), id: t.arg.string({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { target, id, body }) => prisma.comment.findUniqueOrThrow({ ...query, where: { id: (await comments.addComment(target, id, body)).id } }),
+    resolve: async (query, _root, { target, id, body }) => reloaded(prisma.comment, query, comments.addComment(target, id, body)),
   }),
   updateComment: t.prismaField({
     type: 'Comment',
     args: { id: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, body }) => prisma.comment.findUniqueOrThrow({ ...query, where: { id: (await comments.updateComment(id, body)).id } }),
+    resolve: async (query, _root, { id, body }) => reloaded(prisma.comment, query, comments.updateComment(id, body)),
   }),
   deleteComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },

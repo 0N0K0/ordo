@@ -5,33 +5,11 @@ import { PencilSimpleIcon, TrashIcon, ChatCircleTextIcon } from '@phosphor-icons
 import { useState } from 'react';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { ListSkeleton } from '../feedback/Skeletons';
+import { EmptyState } from '../feedback/EmptyState';
 import { MarkdownEditor, type MarkdownSuggestions } from '../markdown/MarkdownEditor';
 import { MarkdownView } from '../markdown/MarkdownView';
 import type { ReferenceTargets } from '../markdown/remark-references';
 import * as fmt from '../../lib/format';
-
-const relative = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 3600],
-  ['month', 30 * 24 * 3600],
-  ['week', 7 * 24 * 3600],
-  ['day', 24 * 3600],
-  ['hour', 3600],
-  ['minute', 60],
-];
-
-/**
- * "il y a 3 heures", "hier"…
- * @param {string} date ISO instant.
- * @returns {string} Relative time.
- */
-function fromNow(date: string): string {
-  const seconds = (Date.parse(date) - Date.now()) / 1000;
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
-  }
-  return 'à l’instant';
-}
 
 /** Comment as the thread shows it. */
 interface ThreadComment {
@@ -60,14 +38,28 @@ interface CommentThreadProps {
   suggestions: MarkdownSuggestions;
   /** References the texts point to. */
   targets: ReferenceTargets;
+  /** Comments of an archived item: shown only, neither added, changed nor deleted. Optional. Default = false. */
+  readOnly?: boolean;
 }
 
 /**
- * One comment, editable in place.
- * @param {{ comment: ThreadComment, actions: ThreadActions, suggestions: MarkdownSuggestions, targets: ReferenceTargets }} props Component props.
+ * One comment, editable in place (unless read only).
+ * @param {{ comment: ThreadComment, actions: ThreadActions, suggestions: MarkdownSuggestions, targets: ReferenceTargets, readOnly: boolean }} props Component props.
  * @returns {JSX.Element} Comment.
  */
-function CommentCard({ comment, actions, suggestions, targets }: { comment: ThreadComment; actions: ThreadActions; suggestions: MarkdownSuggestions; targets: ReferenceTargets }) {
+function CommentCard({
+  comment,
+  actions,
+  suggestions,
+  targets,
+  readOnly,
+}: {
+  comment: ThreadComment;
+  actions: ThreadActions;
+  suggestions: MarkdownSuggestions;
+  targets: ReferenceTargets;
+  readOnly: boolean;
+}) {
   const [draft, setDraft] = useState<string | null>(null);
   /**
    * Saves the edited comment.
@@ -88,11 +80,11 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
           )}
           <Tooltip label={fmt.dateTime(comment.createdAt)}>
             <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
-              {fromNow(comment.createdAt)}
+              {fmt.fromNow(comment.createdAt)}
             </Text>
           </Tooltip>
         </Group>
-        {draft === null && (
+        {draft === null && !readOnly && (
           <ActionsMenu
             name="ce commentaire"
             size="sm"
@@ -105,7 +97,7 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
                 onClick: () =>
                   confirmDestructive({
                     title: 'Supprimer le commentaire',
-                    risks: 'Le commentaire sera supprimé définitivement. Cette action est irréversible.',
+                    risks: 'Le commentaire sera supprimé définitivement.',
                     onConfirm: () => actions.remove(comment.id),
                   }),
               },
@@ -115,7 +107,7 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
       </Group>
       <div style={{ padding: 'var(--mantine-spacing-sm)' }}>
         {draft === null ? (
-          <MarkdownView targets={targets} onChange={(body) => actions.update(comment.id, body)}>
+          <MarkdownView targets={targets} onChange={readOnly ? undefined : (body) => actions.update(comment.id, body)}>
             {comment.body}
           </MarkdownView>
         ) : (
@@ -131,11 +123,11 @@ function CommentCard({ comment, actions, suggestions, targets }: { comment: Thre
 
 /**
  * Comment thread of an item (task, routine, event, document…), the same everywhere: its comments (markdown, editable in
- * place) and the new comment editor at the bottom.
+ * place) and the new comment editor at the bottom; on an archived item, its comments only.
  * @param {CommentThreadProps} props Component props.
  * @returns {JSX.Element} Thread.
  */
-export function CommentThread({ comments, loading = false, actions, suggestions, targets }: CommentThreadProps) {
+export function CommentThread({ comments, loading = false, actions, suggestions, targets, readOnly = false }: CommentThreadProps) {
   const [body, setBody] = useState('');
   /**
    * Posts the new comment.
@@ -150,14 +142,20 @@ export function CommentThread({ comments, loading = false, actions, suggestions,
       {loading ? (
         <ListSkeleton items={2} lines={2} avatar />
       ) : (
-        comments?.map((comment) => <CommentCard key={comment.id} comment={comment} actions={actions} suggestions={suggestions} targets={targets} />)
+        comments?.map((comment) => <CommentCard key={comment.id} comment={comment} actions={actions} suggestions={suggestions} targets={targets} readOnly={readOnly} />)
       )}
-      <MarkdownEditor label="Ajouter un commentaire" value={body} onChange={setBody} suggestions={suggestions} minRows={3} placeholder="Écrivez un commentaire…" onSubmitShortcut={submit} />
-      <Group justify="flex-end">
-        <Button leftSection={<ChatCircleTextIcon aria-hidden />} onClick={submit} loading={actions.adding} disabled={!body.trim()}>
-          Commenter
-        </Button>
-      </Group>
+      {readOnly ? (
+        !loading && !comments?.length && <EmptyState compact message="Aucun commentaire." />
+      ) : (
+        <>
+          <MarkdownEditor label="Ajouter un commentaire" value={body} onChange={setBody} suggestions={suggestions} minRows={3} placeholder="Écrivez un commentaire…" onSubmitShortcut={submit} />
+          <Group justify="flex-end">
+            <Button leftSection={<ChatCircleTextIcon aria-hidden />} onClick={submit} loading={actions.adding} disabled={!body.trim()}>
+              Commenter
+            </Button>
+          </Group>
+        </>
+      )}
     </Stack>
   );
 }

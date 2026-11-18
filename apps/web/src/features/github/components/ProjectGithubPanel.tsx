@@ -1,8 +1,8 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { countOf, plural } from '../../../lib/text';
-import { normalize } from '@ordo/shared';
+import { countOf, plural, normalize, sameName } from '../../../lib/text';
+
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
@@ -17,6 +17,7 @@ import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-con
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -46,7 +47,7 @@ const fold = (name: string) => normalize(name).trim();
  */
 function guessOption(name: string, options: { id: string; name: string }[]): string | undefined {
   const own = fold(name);
-  return options.find((option) => fold(option.name) === own || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
+  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
 }
 
 /**
@@ -71,9 +72,9 @@ function guessSettings(board: GithubBoard, context: TaskContext): LinkValues {
   const statusFieldId = guessField(board, 'SINGLE_SELECT', /^status$|statut/i);
   const priorityFieldId = guessField(board, 'SINGLE_SELECT', /priorit/i);
   const typeFieldId = board.issueTypes.length ? null : guessField(board, 'SINGLE_SELECT', /^type$|type/i);
-  const guessAll = (choices: { id: string; name: string }[], labels: { id: string; name: string }[]) =>
-    Object.fromEntries(labels.map((label) => [label.id, guessOption(label.name, choices)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
-  const options = (fieldId: string | null, labels: { id: string; name: string }[]) => guessAll(board.fields.find((item) => item.id === fieldId)?.options ?? [], labels);
+  const guessAll = (choices: { id: string; name: string }[], labels: { id: string; label: string }[]) =>
+    Object.fromEntries(labels.map((label) => [label.id, guessOption(label.label, choices)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  const options = (fieldId: string | null, labels: { id: string; label: string }[]) => guessAll(board.fields.find((item) => item.id === fieldId)?.options ?? [], labels);
   return {
     url: board.url,
     statusFieldId,
@@ -119,8 +120,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
   const fieldsOf = (type: string) =>
     board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.issueField ? `${field.name} (champ d’issue)` : field.name }));
   const optionsOf = (fieldId: string | null) => board.fields.find((field) => field.id === fieldId)?.options.map((option) => ({ value: option.id, label: option.name })) ?? [];
-  const typeChoices =
-    values.typeSource === 'ISSUE_TYPE' ? board.issueTypes.map((type) => ({ value: type.id, label: type.name })) : values.typeSource === 'FIELD' ? optionsOf(values.typeFieldId) : [];
+  const typeChoices = values.typeSource === 'ISSUE_TYPE' ? board.issueTypes.map((type) => ({ value: type.id, label: type.name })) : values.typeSource === 'FIELD' ? optionsOf(values.typeFieldId) : [];
   const typeSelect = [
     ...(board.issueTypes.length ? [{ group: 'Issues', items: [{ value: ISSUE_TYPES, label: 'Types d’issue de l’organisation' }] }] : []),
     { group: 'Champs du tableau', items: fieldsOf('SINGLE_SELECT') },
@@ -133,34 +133,34 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
    * @param {'statusOptions' | 'priorityOptions' | 'typeOptions'} key Mapping.
    * @returns {JSX.Element} Table.
    */
-  const mappingTable = (labels: { id: string; name: string }[], choices: { value: string; label: string }[], key: 'statusOptions' | 'priorityOptions' | 'typeOptions') => (
-      <Table verticalSpacing={4} withRowBorders={false}>
-        <Table.Tbody>
-          {labels.map((label) => (
-            <Table.Tr key={label.id}>
-              <Table.Td w="40%">
-                <Text size="sm">{label.name}</Text>
-              </Table.Td>
-              <Table.Td>
-                <Select
-                  size="xs"
-                  placeholder="Non synchronisé"
-                  clearable
-                  aria-label={`Option GitHub de ${label.name}`}
-                  data={choices}
-                  value={values[key][label.id] ?? null}
-                  onChange={(optionId) => {
-                    const next = { ...values[key] };
-                    if (optionId) next[label.id] = optionId;
-                    else delete next[label.id];
-                    change({ [key]: next });
-                  }}
-                />
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+  const mappingTable = (labels: { id: string; label: string }[], choices: { value: string; label: string }[], key: 'statusOptions' | 'priorityOptions' | 'typeOptions') => (
+    <Table verticalSpacing={4} withRowBorders={false}>
+      <Table.Tbody>
+        {labels.map((label) => (
+          <Table.Tr key={label.id}>
+            <Table.Td w="40%">
+              <Text size="sm">{label.label}</Text>
+            </Table.Td>
+            <Table.Td>
+              <Select
+                size="xs"
+                placeholder="Non synchronisé"
+                clearable
+                aria-label={`Option GitHub de ${label.label}`}
+                data={choices}
+                value={values[key][label.id] ?? null}
+                onChange={(optionId) => {
+                  const next = { ...values[key] };
+                  if (optionId) next[label.id] = optionId;
+                  else delete next[label.id];
+                  change({ [key]: next });
+                }}
+              />
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
   );
 
   return (
@@ -170,13 +170,27 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         <Anchor href={board.url} target="_blank" rel="noopener" size="sm" fw={600}>
           {board.title}
         </Anchor>
-        . Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les
-        dépendances (« bloquée par »), les relations (« relative à ») et le numéro (celui de l’issue). Choisissez où vont les autres champs.
+        . Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les dépendances (« bloquée par »), les relations («
+        relative à ») et le numéro (celui de l’issue). Choisissez où vont les autres champs.
       </Text>
       {/* By the width of the settings sidebar, not the window's. */}
       <SimpleGrid type="container" cols={{ base: 1, '480px': 2, '760px': 3 }} spacing="sm">
-        <Select label="Statut" placeholder="Non synchronisé" clearable data={fieldsOf('SINGLE_SELECT')} value={values.statusFieldId} onChange={(statusFieldId) => change({ statusFieldId, statusOptions: {} })} />
-        <Select label="Priorité" placeholder="Non synchronisée" clearable data={fieldsOf('SINGLE_SELECT')} value={values.priorityFieldId} onChange={(priorityFieldId) => change({ priorityFieldId, priorityOptions: {} })} />
+        <Select
+          label="Statut"
+          placeholder="Non synchronisé"
+          clearable
+          data={fieldsOf('SINGLE_SELECT')}
+          value={values.statusFieldId}
+          onChange={(statusFieldId) => change({ statusFieldId, statusOptions: {} })}
+        />
+        <Select
+          label="Priorité"
+          placeholder="Non synchronisée"
+          clearable
+          data={fieldsOf('SINGLE_SELECT')}
+          value={values.priorityFieldId}
+          onChange={(priorityFieldId) => change({ priorityFieldId, priorityOptions: {} })}
+        />
         <Select
           label="Type"
           placeholder="Non synchronisé"
@@ -187,7 +201,14 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
             change(value === ISSUE_TYPES ? { typeSource: 'ISSUE_TYPE', typeFieldId: null, typeOptions: {} } : { typeSource: value ? 'FIELD' : null, typeFieldId: value, typeOptions: {} })
           }
         />
-        <Select label="Sprint (itérations)" placeholder="Non synchronisé" clearable data={fieldsOf('ITERATION')} value={values.iterationFieldId} onChange={(iterationFieldId) => change({ iterationFieldId })} />
+        <Select
+          label="Sprint (itérations)"
+          placeholder="Non synchronisé"
+          clearable
+          data={fieldsOf('ITERATION')}
+          value={values.iterationFieldId}
+          onChange={(iterationFieldId) => change({ iterationFieldId })}
+        />
         <Select label="Début" placeholder="Non synchronisé" clearable data={fieldsOf('DATE')} value={values.startFieldId} onChange={(startFieldId) => change({ startFieldId })} />
         <Select label="Fin" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.endFieldId} onChange={(endFieldId) => change({ endFieldId })} />
         <Select label="Date max" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.deadlineFieldId} onChange={(deadlineFieldId) => change({ deadlineFieldId })} />
@@ -208,23 +229,15 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       </Group>
       {values.iterationFieldId && (
         <Text size="xs" c="dimmed">
-          Itérations et sprints se correspondent par leur nom : une itération sans sprint devient un sprint du projet ; un sprint sans itération est à créer dans
-          les réglages du tableau GitHub (l’API ne sait pas donner ses dates à une itération). Ordo fait référence pour les noms et dates. Une tâche placée dans
-          une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres sprints.
+          Itérations et sprints se correspondent par leur nom : une itération sans sprint devient un sprint du projet ; un sprint sans itération est à créer dans les réglages du tableau GitHub (l’API
+          ne sait pas donner ses dates à une itération). Ordo fait référence pour les noms et dates. Une tâche placée dans une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres
+          sprints.
         </Text>
       )}
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
         <SimpleGrid type="container" cols={{ base: 1, '760px': 3 }} spacing="lg">
-          {values.statusFieldId && (
-            <LabeledField label="Statuts">
-              {mappingTable(context.statuses, optionsOf(values.statusFieldId), 'statusOptions')}
-            </LabeledField>
-          )}
-          {values.priorityFieldId && (
-            <LabeledField label="Priorités">
-              {mappingTable(context.priorities, optionsOf(values.priorityFieldId), 'priorityOptions')}
-            </LabeledField>
-          )}
+          {values.statusFieldId && <LabeledField label="Statuts">{mappingTable(context.statuses, optionsOf(values.statusFieldId), 'statusOptions')}</LabeledField>}
+          {values.priorityFieldId && <LabeledField label="Priorités">{mappingTable(context.priorities, optionsOf(values.priorityFieldId), 'priorityOptions')}</LabeledField>}
           {values.typeSource && (
             <LabeledField label="Types">
               {mappingTable(context.types, typeChoices, 'typeOptions')}
@@ -245,22 +258,13 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         value={values.repositoryName ?? ''}
         onChange={(event) => change({ repositoryName: event.currentTarget.value || null })}
       />
-      <Switch
-        label="Envoyer aussi les tâches qui existaient avant la liaison"
-        checked={values.pushExisting}
-        onChange={(event) => change({ pushExisting: event.currentTarget.checked })}
+      <Switch label="Envoyer aussi les tâches qui existaient avant la liaison" checked={values.pushExisting} onChange={(event) => change({ pushExisting: event.currentTarget.checked })} />
+      <Switch label="Synchronisation automatique (toutes les 10 minutes)" checked={values.enabled} onChange={(event) => change({ enabled: event.currentTarget.checked })} />
+      <FormActions
+        onCancel={onDone}
+        loading={saveLink.isPending}
+        onSubmit={() => saveLink.mutate({ projectId, input: values }, formCallbacks(null, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone))}
       />
-      <Switch
-        label="Synchronisation automatique (toutes les 10 minutes)"
-        checked={values.enabled}
-        onChange={(event) => change({ enabled: event.currentTarget.checked })}
-      />
-      <FormActions onCancel={onDone} loading={saveLink.isPending} onSubmit={() =>
-            saveLink.mutate(
-              { projectId, input: values },
-              formCallbacks(null, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone),
-            )
-          } />
     </Stack>
   );
 }
@@ -339,7 +343,14 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, toastCallbacks('Tableau GitHub délié.')); } });
+    confirmDestructive({
+      title: 'Délier le tableau GitHub',
+      risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.',
+      confirmLabel: 'Délier',
+      confirmIcon: <LinkBreakIcon aria-hidden />,
+      run: () => unlink.mutateAsync(projectId),
+      done: 'Tableau GitHub délié.',
+    });
   };
 
   if (!link) {
@@ -395,7 +406,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   <GithubLogoIcon aria-hidden />
                 </ThemeIcon>
                 <Anchor href={link.url} target="_blank" rel="noopener" fw={600}>
-                  {link.title}
+                  {link.label}
                 </Anchor>
                 <Badge variant="light" color={link.enabled ? 'green' : 'gray'}>
                   {link.enabled ? 'Synchronisation automatique' : 'Synchronisation manuelle'}
@@ -423,22 +434,20 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               >
                 Synchroniser
               </Button>
-              <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
+              <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
-              </Button>
+              </ActionButton>
               <DestructiveButton leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
               </DestructiveButton>
             </Group>
           </Group>
-          {link.lastSyncError && (
-            <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>
-          )}
+          {link.lastSyncError && <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>}
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
-              Dernier échange : {countOf(summary.pulledNew, 'tâche')} {plural(summary.pulledNew, 'créée')} depuis GitHub, {countOf(summary.pushedNew, 'item')} {plural(summary.pushedNew, 'créé')} sur GitHub,{' '}
-              {countOf(summary.pulled, 'tâche')} et {countOf(summary.pushed, 'item')} mis à jour, {countOf(summary.unlinked, 'tâche')} {plural(summary.unlinked, 'déliée')}, {countOf(summary.sprints, 'sprint')}{' '}
-              {plural(summary.sprints, 'créé')} ou mis à jour, {countOf(summary.renumbered ?? 0, 'tâche')} {plural(summary.renumbered ?? 0, 'renumérotée')},
+              Dernier échange : {countOf(summary.pulledNew, 'tâche')} {plural(summary.pulledNew, 'créée')} depuis GitHub, {countOf(summary.pushedNew, 'item')} {plural(summary.pushedNew, 'créé')} sur
+              GitHub, {countOf(summary.pulled, 'tâche')} et {countOf(summary.pushed, 'item')} mis à jour, {countOf(summary.unlinked, 'tâche')} {plural(summary.unlinked, 'déliée')},{' '}
+              {countOf(summary.sprints, 'sprint')} {plural(summary.sprints, 'créé')} ou mis à jour, {countOf(summary.renumbered ?? 0, 'tâche')} {plural(summary.renumbered ?? 0, 'renumérotée')},
               {summary.sprintsSkipped ? ` ${countOf(summary.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} {countOf(summary.comments ?? 0, 'commentaire')}{' '}
               {plural(summary.comments ?? 0, 'échangé')}.
             </Text>
@@ -451,8 +460,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
         </Paper>
       )}
       <Text size="xs" c="dimmed">
-        Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du
-        tableau (une issue reste dans son dépôt) ; un item retiré du tableau laisse sa tâche dans Ordo, déliée.
+        Un champ modifié d’un seul côté passe de l’autre ; modifié des deux côtés, la modification la plus récente gagne. Une tâche supprimée dans Ordo est retirée du tableau (une issue reste dans son
+        dépôt) ; un item retiré du tableau laisse sa tâche dans Ordo, déliée.
       </Text>
     </Stack>
   );

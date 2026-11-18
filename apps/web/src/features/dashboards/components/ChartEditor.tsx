@@ -9,9 +9,10 @@ import {
   CHART_BUCKETS,
   CHART_PERIODS,
   chartConfigSchema,
-  chartTitleSchema,
+  chartLabelSchema,
   defaultChartConfig,
   isTimeDimension,
+  SCALE_LABELS,
   SOURCE_GROUP_DIMENSIONS,
   SOURCE_MEASURES,
   SOURCE_TIME_DIMENSIONS,
@@ -40,18 +41,11 @@ const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   donut: 'Anneau',
   burndown: 'Burndown de sprint',
 };
-const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
-  day: 'Jour',
-  week: 'Semaine',
-  month: 'Mois',
-  quarter: 'Trimestre',
-  year: 'Année',
-};
 
 interface ChartEditorProps {
   dashboardId: string;
   chart?: DashboardChart;
-  initial: { title: string; config: ChartConfig; wide: boolean };
+  initial: { label: string; config: ChartConfig; wide: boolean };
   /** Scope of the dashboard. */
   scope: ChartScope;
   context: TaskContext;
@@ -66,7 +60,7 @@ interface ChartEditorProps {
  * @returns {JSX.Element} Editor.
  */
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
-  const [title, setTitle] = useState(initial.title);
+  const [title, setTitle] = useState(initial.label);
   // No invoicing in a personal workspace.
   const { perso } = useActiveWorkspace();
   const [wide, setWide] = useState(initial.wide);
@@ -94,10 +88,10 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
    * @returns {void}
    */
   const save = () => {
-    const titleResult = chartTitleSchema.safeParse(title);
-    setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Titre invalide.'));
+    const titleResult = chartLabelSchema.safeParse(title);
+    setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Libellé invalide.'));
     if (!titleResult.success || !validation.success) return;
-    const input = { title: titleResult.data, config: validation.data, wide };
+    const input = { label: titleResult.data, config: validation.data, wide };
     const callbacks = formCallbacks(null, chart ? 'Diagramme modifié.' : 'Diagramme ajouté.', onDone);
     if (chart) updateChart.mutate({ id: chart.id, input }, callbacks);
     else createChart.mutate({ dashboardId, input }, callbacks);
@@ -145,7 +139,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
               });
             }}
           />
-          <TextInput label="Titre" required data-autofocus value={title} error={titleError} onChange={(event) => setTitle(event.currentTarget.value)} />
+          <TextInput label="Libellé" required data-autofocus value={title} error={titleError} onChange={(event) => setTitle(event.currentTarget.value)} />
           <Select
             label="Type"
             allowDeselect={false}
@@ -174,7 +168,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                 placeholder={sprints.length ? 'Choisissez le sprint' : 'Aucun sprint : créez-en dans l’onglet Sprints d’un projet'}
                 data={sprints.map((sprint) => ({
                   value: sprint.id,
-                  label: `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}`,
+                  label: `${sprint.label} — ${context.projectById.get(sprint.projectId)?.label ?? ''}`,
                 }))}
                 value={config.sprintId}
                 onChange={(sprintId) => change({ sprintId })}
@@ -227,7 +221,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     allowDeselect={false}
                     data={CHART_BUCKETS.map((value) => ({
                       value,
-                      label: BUCKET_LABELS[value],
+                      label: SCALE_LABELS[value],
                     }))}
                     value={config.bucket}
                     onChange={(bucket) => bucket && change({ bucket: bucket as ChartConfig['bucket'] })}
