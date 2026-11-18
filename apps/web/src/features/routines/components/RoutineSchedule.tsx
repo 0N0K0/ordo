@@ -250,7 +250,7 @@ type RoutineRepetition = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' 
  * @param {Routine} routine Routine.
  * @returns {RoutineRepetitionValue} Repetition.
  */
-function repetitionOf(routine: Routine): RoutineRepetitionValue {
+function routineRepetitionValue(routine: Routine): RoutineRepetitionValue {
   const cases = ((routine.cases as RoutineCase[] | null) ?? []).map((item) => ({ ...item, opens: readOpens(item.opens) }));
   return {
     mode: cases.length ? 'CASES' : 'RULE',
@@ -291,7 +291,7 @@ export function RoutineRepetitionModal({
 }) {
   const { data: schedules } = useWorkSchedules();
   const names = scheduleChoices(schedules).names;
-  const [draft, setDraft] = useState<RoutineRepetitionValue>(() => repetitionOf(routine));
+  const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
       opened={opened}

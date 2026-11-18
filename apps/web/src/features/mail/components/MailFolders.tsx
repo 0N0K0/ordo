@@ -26,6 +26,7 @@ import { MailCountBadges } from './MailCountBadges';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { FoldButton } from '../../../components/actions/FoldButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { movedMailsMessage } from '../lib/mail-format';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -332,7 +333,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               event.preventDefault();
               move.mutate(
                 { accountId: account.id, folder: dragged.folder, uids: dragged.uids, target: folder.path },
-                formCallbacks(null, `${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`, onDropped),
+                formCallbacks(null, movedMailsMessage(dragged.uids.length, folder.name), onDropped),
               );
             }}
             style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${folder.depth} * var(--mantine-spacing-md))` }}

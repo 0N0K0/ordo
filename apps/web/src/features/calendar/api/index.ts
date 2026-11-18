@@ -13,6 +13,7 @@ import type {
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { tasksQueryKey } from '../../tasks/api';
+import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
@@ -414,8 +415,8 @@ export function useCalendarCategories() {
  */
 function occurrencesOf(data: CalendarEventsQuery, includeArchived = false): EventOccurrence[] {
   if (includeArchived) return data.calendarEvents;
-  const archived = new Set(data.calendars.filter((calendar) => calendar.archived).map((calendar) => calendar.id));
-  return data.calendarEvents.filter((occurrence) => !occurrence.archived && !archived.has(occurrence.calendarId));
+  const archived = archivedIds(data.calendars);
+  return unarchived(data.calendarEvents).filter((occurrence) => !archived.has(occurrence.calendarId));
 }
 
 /**

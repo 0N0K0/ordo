@@ -24,8 +24,8 @@
 
     /* Animation */
     transition:
-      background-color 150ms ease,
-      opacity 150ms ease;
+      background-color var(--onoko-transition),
+      opacity var(--onoko-transition);
   }
 
   /* Done toggle of a routine: a circle, a filled green check once done. */

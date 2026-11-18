@@ -1,4 +1,4 @@
-import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
+import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator, sumOf } from '@ordo/shared';
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {
   text: {
@@ -105,5 +105,5 @@ export function newConditionFor<F extends string>(kinds: Record<F, FilterFieldKi
  * @returns {number} Count.
  */
 export function countConditions<F extends string>(group: FilterGroupOf<F>): number {
-  return group.children.reduce((sum, child) => sum + (child.type === 'condition' ? 1 : countConditions(child)), 0);
+  return sumOf(group.children, (child) => (child.type === 'condition' ? 1 : countConditions(child)));
 }

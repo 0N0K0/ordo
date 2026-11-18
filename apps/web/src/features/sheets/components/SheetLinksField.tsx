@@ -6,7 +6,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
 import { MultiplierInput } from './MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { unarchived } from '../../../lib/archive';
+import { unarchived, archivedIds } from '../../../lib/archive';
 
 /**
  * Sheets of a routine, an event or a task, each times a multiplier, saved as they change: each occurrence (or the
@@ -25,8 +25,8 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
     sheets ?? [],
     current.map((link) => link.sheetId),
   ).map((sheet) => ({ value: sheet.id, label: sheet.label }));
-  const archivedIds = new Set((sheets ?? []).filter((sheet) => sheet.archived).map((sheet) => sheet.id));
-  const free = options.filter((option) => !archivedIds.has(option.value) && !current.some((link) => link.sheetId === option.value));
+  const archived = archivedIds(sheets);
+  const free = options.filter((option) => !archived.has(option.value) && !current.some((link) => link.sheetId === option.value));
   return (
     <LabeledField label="Fiches">
       <Text size="xs" c="dimmed">

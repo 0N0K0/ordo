@@ -1,15 +1,16 @@
-import { END_AFTER_START, endsAfter, monthOfDay } from '@ordo/shared';
+import { END_AFTER_START, endsAfter } from '@ordo/shared';
 import type { UseFormReturnType } from '@mantine/form';
 import type { FocusEventHandler, ReactNode } from 'react';
+import { monthOfDay } from '../../lib/dates';
 
 /** A bound of a period: a day (YYYY-MM-DD), a month (YYYY-MM), a time (HH:mm) or an instant; empty when null or ''. */
 type Bound = string | null;
 
 /** Side of a period. */
-export type RangeSide = 'start' | 'end';
+type RangeSide = 'start' | 'end';
 
 /** Start and end of a period, bound to where they are kept (a form, a draft, a saved item…). */
-export interface RangeBinding<B extends Bound = Bound> {
+interface RangeBinding<B extends Bound = Bound> {
   /** Start and end. */
   value: readonly [B, B];
   /** Called with both bounds once one changed (the other one following, see `followBounds`). */
@@ -21,7 +22,7 @@ export interface RangeBinding<B extends Bound = Bound> {
 }
 
 /** Props of one bound's input: its value, change, error and blur. */
-export interface BoundProps<B extends Bound> {
+interface BoundProps<B extends Bound> {
   value: B;
   onChange: (value: B) => void;
   error?: ReactNode;
@@ -29,7 +30,7 @@ export interface BoundProps<B extends Bound> {
 }
 
 /** Props of one bound's date picker: the bound props, and the days it may take. */
-export interface DateBoundProps<B extends Bound> extends BoundProps<B> {
+interface DateBoundProps<B extends Bound> extends BoundProps<B> {
   minDate?: string;
   maxDate?: string;
 }
@@ -74,7 +75,7 @@ export function rangeProps<B extends Bound>({ value, onChange, errors, onBlur }:
 }
 
 /** Days every bound of a date period may take, and its kind. */
-export interface DateRangeOptions {
+interface DateRangeOptions {
   /** First day possible (YYYY-MM-DD). Optional. */
   min?: string;
   /** Last day possible (YYYY-MM-DD). Optional. */

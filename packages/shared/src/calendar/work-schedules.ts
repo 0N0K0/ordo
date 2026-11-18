@@ -1,13 +1,13 @@
-import { groupBy } from '../core/collections';
+import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, requiredText } from '../core/rules';
-import { addDays, daysBetween, isoWeek, monthOfDay, weekdayOfDate, yearOfDay } from '../dates/days';
+import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
 import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
-import { daysInMonth, monthFromIndex, monthIndex } from '../dates/months';
+import { daysInMonth, monthIndex, shiftMonth } from '../dates/months';
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
@@ -194,7 +194,7 @@ function caseAnchor(item: LegacyScheduleCase, periodStart: string): string {
     const year = isoWeekYear(anchor);
     return mondayOf(`${year}-01-04`);
   }
-  if (item.pattern === 'YEARLY') return `${anchor.slice(0, 4)}-01-01`;
+  if (item.pattern === 'YEARLY') return `${yearOfDay(anchor)}-01-01`;
   // Every day, weeks: the Monday of a week of its rhythm early enough for an occurrence started before the period to
   // cover its first days.
   const monday = mondayOf(anchor);
@@ -328,7 +328,10 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
  * @returns {number} Minutes.
  */
 export function slotMinutes(slots: readonly { start: string; end: string; allDay?: boolean }[]): number {
-  return slots.filter((slot) => !slot.allDay).reduce((sum, slot) => sum + timeToMinutes(slot.end) - timeToMinutes(slot.start), 0);
+  return sumOf(
+    slots.filter((slot) => !slot.allDay),
+    (slot) => timeToMinutes(slot.end) - timeToMinutes(slot.start),
+  );
 }
 
 /**
@@ -550,16 +553,6 @@ const daySlots = (schedule: WorkScheduleRule, date: string): ScheduleSlotTime[] 
 const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.allDay && (a.allDay || (a.start === b.start && a.end === b.end));
 
 /**
- * First day of a month shifted from the month of a date.
- * @param {string} date YYYY-MM-DD.
- * @param {number} months Months added.
- * @returns {string} YYYY-MM-01.
- */
-function shiftMonth(date: string, months: number): string {
-  return `${monthFromIndex(monthIndex(date) + months)}-01`;
-}
-
-/**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
  * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
  * @param {ScheduleCase} item Case of the slot.
@@ -579,9 +572,9 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
   const day = Number(to.slice(8, 10));
-  const lastDay = daysInMonth(yearOfDay(to), Number(to.slice(5, 7)));
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
   const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  const values = { monthDay: day, weekday: weekdayOf(to), position, month: Number(to.slice(5, 7)), week: isoWeek(to) };
+  const values = { monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };
   if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
   if (rule.frequency === 'DAILY') return { ...result, anchor };
   return { ...result, anchor, rule: { ...rule, ...values } };

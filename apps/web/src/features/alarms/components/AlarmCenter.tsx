@@ -13,7 +13,7 @@ import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
-import { projectPath, taskPath } from '../../../app/pages';
+import { projectPath, taskPath, PAGES } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const TICK_MS = 15_000;
@@ -95,11 +95,11 @@ export function AlarmCenter() {
     const tick = () => {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
-      ringReminders(upcoming.current, now, [link('Voir l’agenda', '/calendar')]);
+      ringReminders(upcoming.current, now, [link('Voir l’agenda', PAGES.calendar.path)]);
       ringRoutineReminders(
         latest.current.routinesData?.routines ?? [],
         now,
-        [link('Voir les routines', '/routines')],
+        [link('Voir les routines', PAGES.routines.path)],
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );

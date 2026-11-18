@@ -11,7 +11,7 @@ import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { plural, copyName } from '../../../lib/text';
 
 /** Actions on routines that their columns cannot do. */
-export interface RoutineRowsActions {
+interface RoutineRowsActions {
   done: SelectionAction;
   postpone: SelectionAction;
   duplicate: SelectionAction;

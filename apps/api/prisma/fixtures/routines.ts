@@ -1,6 +1,7 @@
+import { localAt, rule } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
 import { parisToday } from '../../src/today';
-import { addDays, DEFAULT_RECURRENCE, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
+import { addDays, parseDay, type Recurrence, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/core/geo';
@@ -15,13 +16,6 @@ import {
   bulkSetRoutinesArchived,
   slotsOf,
 } from '../../src/services/routines/routines';
-
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
 
 /**
  * Ticks most occurrences of the routines of the current workspace over the last four weeks (each time of the day
@@ -43,7 +37,7 @@ export async function tickRoutines(today: string): Promise<{ routineId: string; 
           routineId: routine.id,
           date: parseDay(date),
           slot,
-          doneAt: new Date(`${date}T${String(hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`),
+          doneAt: localAt(date, hour, faker.number.int({ min: 0, max: 59 })),
         });
       }
     }

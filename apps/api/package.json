@@ -11,7 +11,8 @@
     "typecheck": "tsc",
     "schema:print": "tsx src/cli/print-schema.ts",
     "user:create": "tsx src/cli/create-user.ts",
-    "db:seed": "prisma db seed --"
+    "db:seed": "prisma db seed --",
+    "lint": "eslint src prisma"
   },
   "keywords": [],
   "author": "",

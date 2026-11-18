@@ -27,6 +27,7 @@ export function dayOf(value: string): string {
   return CALENDAR_DAY.test(value) ? value : localDay(value);
 }
 
+// eslint-disable-next-line no-restricted-imports -- the one path of monthOfDay and yearOfDay in the app.
 export { monthOfDay, yearOfDay } from '@ordo/shared';
 
 /**

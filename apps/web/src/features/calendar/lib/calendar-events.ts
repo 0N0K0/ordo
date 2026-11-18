@@ -1,5 +1,8 @@
+import type { EventInput } from '@fullcalendar/core';
 import { addDays, mapById, readScheduleDisplay, type ScheduleDisplay, type WorkScheduleRule } from '@ordo/shared';
 import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import { archivedIds } from '../../../lib/archive';
+import classes from '../pages/CalendarPage.module.css';
 
 /** Schedule of another workspace subscribed to. */
 type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['data']>[number];
@@ -37,11 +40,11 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
  * @returns {Set<string>} Ids.
  */
 export function archivedCalendarIds(calendars: readonly { id: string; archived: boolean }[] | undefined): Set<string> {
-  return new Set((calendars ?? []).filter((calendar) => calendar.archived).map((calendar) => calendar.id));
+  return archivedIds(calendars);
 }
 
 /** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
-export interface ScheduleSource {
+interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
   color: string | null;
@@ -58,7 +61,7 @@ export interface ScheduleSource {
  * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
  * @returns {string} Label.
  */
-export function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
+function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
   return `${label}${type && type !== label ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
 }
 
@@ -95,4 +98,19 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
       display: readScheduleDisplay(schedule),
     })),
   ];
+}
+
+/**
+ * Look of the bar of a schedule on a day (the all-day row of the week and the day): in the color of its kind (working
+ * hours without one), hatched for a schedule of another workspace.
+ * @param {{ color: string | null, foreign: boolean }} source Schedule shown.
+ * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
+ */
+export function slotBarLook({ color, foreign }: { color: string | null; foreign: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
+  return {
+    backgroundColor: color ?? 'var(--mantine-color-green-light)',
+    borderColor: color ?? 'var(--mantine-color-green-light)',
+    textColor: 'var(--mantine-color-text)',
+    classNames: [classes.slotBar, ...(foreign ? [classes.subscribedSlot] : [])],
+  };
 }

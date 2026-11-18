@@ -1,4 +1,4 @@
-import { colorSchema, labelTextSchema } from '@ordo/shared';
+import { labelFormSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -43,9 +43,6 @@ export interface LabelOptions<T = Label> {
   afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
 }
 
-/** Fields of a label when the table sets none. */
-const LABEL_SCHEMA = z.object({ label: labelTextSchema, color: colorSchema });
-
 /**
  * CRUD of a list of items with a label and a color, in a manual order: a label taken is a CONFLICT (the tables have a
  * unique label), an archived item is not changed.
@@ -55,7 +52,7 @@ const LABEL_SCHEMA = z.object({ label: labelTextSchema, color: colorSchema });
  * @returns {object} Label service.
  */
 export function createLabelService<T extends { id: string } = Label>(model: LabelModel, messages: LabelMessages, options: LabelOptions<T> = {}) {
-  const schema = (options.schema ?? LABEL_SCHEMA).extend(options.extraSchema?.shape ?? {});
+  const schema = (options.schema ?? labelFormSchema).extend(options.extraSchema?.shape ?? {});
   const patchSchema = schema.partial();
 
   /**

@@ -3,7 +3,7 @@ import { plural, collator } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
-import { entrySeconds, formatDuration, lineageOf } from '@ordo/shared';
+import { entrySeconds, formatDuration, lineageOf, sumOf } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -30,13 +30,18 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { TIMER_RUNNING, TimerRunningBadge } from './TimerStop';
+import { documentPath } from '../../../app/pages';
 
 /**
  * Seconds of the finished times (a running timer counts once stopped).
  * @param {readonly TimeEntry[]} entries Times.
  * @returns {number} Seconds.
  */
-const finishedSeconds = (entries: readonly TimeEntry[]) => entries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0);
+const finishedSeconds = (entries: readonly TimeEntry[]) =>
+  sumOf(
+    entries.filter((entry) => entry.endedAt),
+    (entry) => entrySeconds(entry),
+  );
 
 /**
  * Events the times were spent on, as filter options.
@@ -304,7 +309,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
             ),
           event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={bulk('event')} />,
           invoice: entry.documentId && (
-            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
+            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={documentPath(entry.documentId)} style={{ cursor: 'pointer' }}>
               {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
             </Badge>
           ),

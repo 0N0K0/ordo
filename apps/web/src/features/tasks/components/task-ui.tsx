@@ -2,7 +2,7 @@ import { unarchived } from '../../../lib/archive';
 import { mapById } from '@ordo/shared';
 import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { PersonOption } from '../../../components/people/people-rows';
+
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
@@ -16,6 +16,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { personName } from '../../../components/people/people-options';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 /**
  * Link to a task, "#12 Title".
@@ -132,10 +133,7 @@ export function AssigneesSelect({ contributors, value, onChange, label = 'Assign
       label={label}
       description={description}
       data={contributors.map((contributor) => ({ value: contributor.id, label: personName(contributor) }))}
-      renderOption={({ option }) => {
-        const contributor = byId.get(option.value);
-        return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
-      }}
+      renderOption={personOptionRenderer(byId)}
       value={value}
       onChange={onChange}
       error={error}

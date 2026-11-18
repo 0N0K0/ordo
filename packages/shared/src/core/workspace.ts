@@ -36,6 +36,7 @@ export const LABEL_MAX = 50;
 export const labelTextSchema = requiredText(LABEL_MAX);
 
 /** Colour of a label made without one (a GitHub label, a default status): Mantine's gray. */
+// eslint-disable-next-line no-restricted-syntax -- the color itself.
 export const DEFAULT_LABEL_COLOR = '#868e96';
 
 export const colorSchema = z
@@ -79,6 +80,7 @@ export const projectFormSchema = z
 export type ProjectFormValues = z.input<typeof projectFormSchema>;
 
 /** Configurable label (project category, project status…): unique label and color. */
+// eslint-disable-next-line no-restricted-syntax -- the schema itself.
 export const labelFormSchema = z.object({
   label: labelTextSchema,
   color: colorSchema,

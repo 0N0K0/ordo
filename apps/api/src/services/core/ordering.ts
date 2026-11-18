@@ -1,3 +1,5 @@
+import { movedTo } from '@ordo/shared';
+import { modelDelegate } from './delegate';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 
@@ -12,9 +14,11 @@ export const BY_POSITION: { position?: 'asc'; createdAt?: 'asc' }[] = [{ positio
  * @returns {string[]} New order.
  */
 export function moveInOrder(orderedIds: string[], id: string, index: number): string[] {
-  const others = orderedIds.filter((other) => other !== id);
-  const target = Math.max(0, Math.min(index, others.length));
-  return [...others.slice(0, target), id, ...others.slice(target)];
+  return movedTo(
+    orderedIds.filter((other) => other !== id),
+    id,
+    index,
+  );
 }
 
 /**
@@ -48,7 +52,7 @@ export type OrderingClient = typeof prisma | typeof unscopedPrisma | Prisma.Tran
  * @param {OrderingClient} [client] Client. Optional. Default = the scoped client.
  * @returns {OrderedDelegate} Delegate.
  */
-const delegate = (model: OrderedModel, client: OrderingClient = prisma) => (client as unknown as Record<string, OrderedDelegate>)[model];
+const delegate = (model: OrderedModel, client: OrderingClient = prisma) => modelDelegate<OrderedDelegate>(model, client);
 
 /**
  * Moves an item to an index among its siblings (the items matching `where`), all their positions saved at once.

@@ -12,6 +12,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { useShoppingData, type ShoppingItem } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchived } from '../../../lib/archive';
 
 /** Item bought; its place is undefined until chosen (its default then). */
 type Line = { item: ShoppingItem; quantity: number; locationId?: string | null; expiresAt: string | null };
@@ -44,7 +45,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
     if (line.locationId !== undefined) return line.locationId;
     const preferred = (line.item.productId ? products.get(line.item.productId)?.stockLocationId : null) ?? null;
     const location = preferred ? locations?.find((item) => item.id === preferred) : undefined;
-    return location?.archived ? (locations?.find((item) => !item.archived)?.id ?? null) : preferred;
+    return location?.archived ? (unarchived(locations ?? [])[0]?.id ?? null) : preferred;
   };
   const { run: add, loading } = useAsyncAction(
     () =>

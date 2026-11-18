@@ -7,6 +7,7 @@ import { StackedValues } from '../../../components/data-table/cells/StackedValue
 import type { GeoPoint } from '@ordo/shared';
 import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { placesInTree, rootPlace, useAddressSearch, usePlaces, zonesOfText, zonesText } from '../api';
+import { unarchived } from '../../../lib/archive';
 
 /** Height of the lists of places and addresses at most (they scroll beyond). */
 const LIST_HEIGHT = 320;
@@ -45,7 +46,7 @@ interface AddressInputProps extends Omit<InputBaseProps, 'value' | 'onChange'> {
 export function AddressInput({ value, onChange, placeholder, withPlaces = true, withinPortal = true, ...props }: AddressInputProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const { data: places } = usePlaces();
-  const first = (places ?? []).find((place) => !place.archived);
+  const first = unarchived(places ?? [])[0];
   const near = withPlaces && first ? { lat: first.lat, lon: first.lon } : null;
   const search = useAddressSearch(value.point ? '' : value.text, near);
   const needle = normalize(value.text.trim());

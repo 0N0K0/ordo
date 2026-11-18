@@ -1,4 +1,5 @@
-import { subtreeOf } from '@ordo/shared';
+import { sumOf } from '@ordo/shared';
+
 import type { Task } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
 
@@ -16,21 +17,11 @@ export function linkableTasks(context: TaskContext, projectId: string | null, ta
 }
 
 /**
- * Ids of a task and all its sub-tasks (to exclude them from its parent candidates).
- * @param {TaskContext} context Task context.
- * @param {string} taskId Task id.
- * @returns {Set<string>} Ids.
- */
-export function subtreeIds(context: TaskContext, taskId: string): Set<string> {
-  return subtreeOf(context.tasks, taskId);
-}
-
-/**
  * Number of sub-tasks of a task, at any depth.
  * @param {TaskContext} context Task context.
  * @param {string} taskId Task id.
  * @returns {number} Count.
  */
 export function countSubtasks(context: TaskContext, taskId: string): number {
-  return context.childrenOf(taskId).reduce((sum, child) => sum + 1 + countSubtasks(context, child.id), 0);
+  return sumOf(context.childrenOf(taskId), (child) => 1 + countSubtasks(context, child.id));
 }

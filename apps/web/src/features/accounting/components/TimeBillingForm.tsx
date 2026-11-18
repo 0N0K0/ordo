@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { type AccountingLineInput, formatDuration, toCents, VAT_RATES } from '@ordo/shared';
+import { type AccountingLineInput, formatDuration, toCents, VAT_RATES, sumOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntries } from '../../time/api';
@@ -101,7 +101,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
   const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, label: title.trim() || 'Prestation', roundQuarter });
-  const total = lines.reduce((sum, line) => sum + toCents(line.quantity * line.unitPrice), 0);
+  const total = sumOf(lines, (line) => toCents(line.quantity * line.unitPrice));
   const days = selected.map((entry) => entry.day).sort();
   const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
 
@@ -236,7 +236,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
       <Group justify="space-between" align="center">
         <Text size="sm" c="dimmed">
-          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
+          {selected.length} temps, {formatDuration(sumOf(selected, (entry) => entry.seconds))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
         </Text>
         <FormActions
           onCancel={onCancel}

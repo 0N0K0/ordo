@@ -1,10 +1,8 @@
 import { Stack } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import type { ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions, DestructiveRisks } from './DestructiveActions';
-
-let count = 0;
+import { openModal } from '../panels/open-modal';
 
 interface ConfirmDestructiveOptions {
   /** Title of the dialog (« Supprimer le budget »…). */
@@ -30,24 +28,19 @@ interface ConfirmDestructiveOptions {
  * @returns {void}
  */
 export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done }: ConfirmDestructiveOptions): void {
-  const modalId = `confirm-destructive-${++count}`;
-  modals.open({
-    modalId,
-    title,
-    children: (
-      <Stack gap="md">
-        <DestructiveRisks>{risks}</DestructiveRisks>
-        <DestructiveActions
-          confirmLabel={confirmLabel}
-          confirmIcon={confirmIcon}
-          onCancel={() => modals.close(modalId)}
-          onConfirm={() => {
-            modals.close(modalId);
-            onConfirm?.();
-            run?.().then(() => done && notifySuccess(done), onMutationError);
-          }}
-        />
-      </Stack>
-    ),
-  });
+  openModal(title, (close) => (
+    <Stack gap="md">
+      <DestructiveRisks>{risks}</DestructiveRisks>
+      <DestructiveActions
+        confirmLabel={confirmLabel}
+        confirmIcon={confirmIcon}
+        onCancel={close}
+        onConfirm={() => {
+          close();
+          onConfirm?.();
+          run?.().then(() => done && notifySuccess(done), onMutationError);
+        }}
+      />
+    </Stack>
+  ));
 }

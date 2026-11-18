@@ -1,4 +1,4 @@
-import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2 } from '@ordo/shared';
+import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2, sumOf } from '@ordo/shared';
 import { MEASURE_LABELS, PALETTE, type ChartData, type ChartSeries } from './aggregate';
 
 /** A data set of a chart, as a configuration of its own. */
@@ -128,7 +128,7 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     rows: order.map((x) => rows.get(x)!),
     series,
     slices: [],
-    taskCount: results.reduce((sum, { data }) => sum + data.taskCount, 0),
+    taskCount: sumOf(results, ({ data }) => data.taskCount),
     empty: results.every(({ data }) => data.empty),
     mixed: true,
     percentAxis: config.comparisons.some((comparison) => comparison.kind === 'ratio'),

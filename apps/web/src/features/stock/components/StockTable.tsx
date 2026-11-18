@@ -32,7 +32,7 @@ import { StockMoveForm } from './StockMoveForm';
 import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
-import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
@@ -101,7 +101,7 @@ export function StockTable() {
       label: 'Lots',
       size: 170,
       hiddenByDefault: true,
-      text: (item) => item.lots.map((lot) => `${fmt.number(lot.quantity, 3)}${lot.expiresAt ? ` · ${fmt.day(lot.expiresAt)}` : ''}`).join(', '),
+      text: (item) => item.lots.map((lot) => `${fmt.quantity({ quantity: lot.quantity })}${lot.expiresAt ? ` · ${fmt.day(lot.expiresAt)}` : ''}`).join(', '),
       filter: { kind: 'number', value: (item) => item.lots.length },
     },
     {
@@ -214,7 +214,7 @@ export function StockTable() {
               priority="secondary"
               icon={<ListChecksIcon aria-hidden />}
               onClick={() => openFormPanel('Faire l’inventaire', (close) => <StockCountForm onDone={close} />, 'lg')}
-              disabled={!rows.some((item) => !item.archived)}
+              disabled={unarchived(rows).length === 0}
             >
               Faire l’inventaire
             </ActionButton>
@@ -268,7 +268,7 @@ export function StockTable() {
           ),
           quantity: (
             <Text span size="sm" ff="monospace" c={item.quantity <= 0 ? 'dimmed' : undefined}>
-              {fmt.number(item.quantity, 3)}
+              {fmt.quantity({ quantity: item.quantity })}
             </Text>
           ),
           unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
@@ -281,7 +281,7 @@ export function StockTable() {
             <StackedValues>
               {item.lots.map((lot) => (
                 <Text key={lot.id} size="sm">
-                  {fmt.number(lot.quantity, 3)}
+                  {fmt.quantity({ quantity: lot.quantity })}
                   {lot.expiresAt && (
                     <Text span size="sm" c="dimmed">
                       {' '}

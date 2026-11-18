@@ -1,12 +1,13 @@
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+
 import { Group, Tabs, type TabsTabProps } from '@mantine/core';
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
 import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
 import { IconAction } from '../actions/IconAction';
+import { sortableStyle } from '../dnd/sortable-style';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).
@@ -21,7 +22,7 @@ function SortableTab(props: TabsTabProps & { value: string }) {
       ref={setNodeRef}
       {...props}
       {...listeners}
-      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
+      style={{ ...sortableStyle({ transform: transform && { ...transform, y: 0 }, transition, isDragging }), cursor: isDragging ? 'grabbing' : undefined }}
     />
   );
 }

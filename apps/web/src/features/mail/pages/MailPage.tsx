@@ -1,5 +1,5 @@
 import { MailHeaderActions } from '../components/MailHeaderActions';
-import { PAGES } from '../../../app/pages';
+import { PAGES, SETTINGS_PARAM } from '../../../app/pages';
 import { MailListControls } from '../components/MailListControls';
 import { MAIL_SORTS, type DoneFilter } from '../lib/mail-list';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
@@ -32,7 +32,7 @@ import { ScheduledMailsList } from '../components/ScheduledMailsList';
 import { MailAccountsManager } from '../components/MailAccountsManager';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SETTINGS_PARAM, useSettingsOpened } from '../../../app/layout/page-settings';
+import { useSettingsOpened } from '../../../app/layout/page-settings';
 import { unarchived } from '../../../lib/archive';
 import { MailSearchBar } from '../components/MailSearchBar';
 import { selectionFlags, usePageSelection } from '../hooks/use-page-selection';

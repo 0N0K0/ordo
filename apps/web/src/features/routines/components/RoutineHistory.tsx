@@ -15,6 +15,7 @@ import * as fmt from '../../../lib/format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { routineTreeOptions } from '../lib/routine-format';
 import { countOf, collator } from '../../../lib/text';
+import { archivedLabel } from '../../../lib/archive';
 
 /**
  * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing
@@ -95,7 +96,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
         <Select
           aria-label="Routine"
           placeholder="Toutes les routines"
-          {...treeSelectProps(routineTreeOptions(routines, undefined, (routine) => (routine.archived ? `${routine.label} (archivée)` : routine.label)))}
+          {...treeSelectProps(routineTreeOptions(routines, undefined, (routine) => archivedLabel(routine, true)))}
           value={routineId}
           onChange={onRoutine}
           searchable

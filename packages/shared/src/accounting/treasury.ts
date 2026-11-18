@@ -1,5 +1,5 @@
 import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
-import { mapById } from '../core/collections';
+import { mapById, sumOf } from '../core/collections';
 import { clipText } from '../core/text';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
@@ -9,8 +9,7 @@ import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
-const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
-export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
+export type DocumentStatusScope = 'QUOTE' | 'INVOICE';
 export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
 export type DocumentStatusCategory = (typeof DOCUMENT_STATUS_CATEGORIES)[number];
 
@@ -137,7 +136,7 @@ export function lineCents(entryAmount: number, line: { mode: TreasuryLineMode; v
 export function splitAmounts(entryAmount: number, lines: readonly { mode: TreasuryLineMode; value: number }[]): { amounts: number[]; remainder: number } {
   const total = toCents(entryAmount);
   const amounts = lines.map((line) => lineCents(entryAmount, line));
-  return { amounts, remainder: total - amounts.reduce((sum, value) => sum + value, 0) };
+  return { amounts, remainder: total - sumOf(amounts, (value) => value) };
 }
 
 /** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
@@ -274,7 +273,7 @@ export const treasuryEntrySchema = z
       if (entry.linkedEntryIds.length) context.addIssue({ code: 'custom', path: ['linkedEntryIds'], message: onLines });
       if (entry.libraryDocumentIds.length || entry.projectResourceIds.length) context.addIssue({ code: 'custom', path: ['libraryDocumentIds'], message: onLines });
     }
-    const allocated = entry.allocations.reduce((sum, allocation) => sum + toCents(allocation.amount), 0);
+    const allocated = sumOf(entry.allocations, (allocation) => toCents(allocation.amount));
     if (allocated > Math.abs(toCents(entry.amount))) {
       context.addIssue({ code: 'custom', path: ['allocations'], message: 'Les documents réglés dépassent le montant du mouvement.' });
     }
@@ -489,7 +488,8 @@ function statementAmount(value: string | undefined): number | null {
 function statementDate(value: string | undefined, format: StatementMapping['dateFormat']): string | null {
   const parts = (value ?? '').trim().split(/[/.-]/);
   if (parts.length !== 3) return null;
-  let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
+  const [first, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
+  let year = first;
   if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
   const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   return isRealDay(date) ? date : null;

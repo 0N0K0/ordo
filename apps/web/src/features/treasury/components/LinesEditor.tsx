@@ -5,7 +5,7 @@ import { ContextForm, RelationForm } from './TeamPanel';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
-import { unarchived } from '../../../lib/archive';
+import { unarchived, archivedIds } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/items/item-look';
 import { Button, Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
@@ -66,7 +66,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const createCategory = useCategoryCreators(categories);
   const createContext = (name: string) => createInPanel('Nouveau contexte', (done) => <ContextForm label={name} onDone={done} />);
   // An archived context is not proposed any more.
-  const archivedContexts = new Set(contexts.filter((context) => context.archived).map((context) => context.id));
+  const archivedContexts = archivedIds(contexts);
   const periods = (settings?.treasuryContextPeriods ?? [])
     .filter((period) => !archivedContexts.has(period.contextId))
     .map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));

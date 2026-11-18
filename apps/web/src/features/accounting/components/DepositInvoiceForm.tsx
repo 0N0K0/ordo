@@ -8,6 +8,7 @@ import { useAsyncAction } from '../../../lib/use-async-action';
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from '../api/documents';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { documentPath } from '../../../app/pages';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -90,7 +91,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       fallback: 'Création impossible.',
       onDone: (created) => {
         onDone();
-        void navigate(`/accounting/${created}`);
+        void navigate(documentPath(created));
       },
     },
   );

@@ -1,5 +1,6 @@
+import { localAt, relativeDay } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, EMPTY_MAIL_SEARCH } from '@ordo/shared';
+import { EMPTY_MAIL_SEARCH } from '@ordo/shared';
 import { ImapFlow } from 'imapflow';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { prisma } from '../../src/db';
@@ -137,7 +138,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
     return;
   }
   const at = (index: number) => people[index % people.length];
-  const day = (offset: number) => addDays(today, offset);
+  const day = relativeDay(today);
   const [a, b, c, d] = [at(0), at(1), at(2), at(3)];
 
   const mails: Mail[] = [
@@ -330,7 +331,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   const inbox = new Map<string, number>();
   const ordered = [...mails].sort((x, y) => `${x.date}${String(x.hour).padStart(2, '0')}`.localeCompare(`${y.date}${String(y.hour).padStart(2, '0')}`));
   for (const mail of ordered) {
-    const date = new Date(`${mail.date}T${String(mail.hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`);
+    const date = localAt(mail.date, mail.hour, faker.number.int({ min: 0, max: 59 }));
     const messageId = `<${faker.string.alphanumeric(16)}@${mail.from.address.split('@')[1]}>`;
     if (mail.key) ids.set(mail.key, messageId);
     const parent = mail.replyTo ? ids.get(mail.replyTo) : undefined;
@@ -379,7 +380,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   }
 
   // --- A mail scheduled for tomorrow morning ------------------------------------------------------------
-  const sendAt = new Date(`${day(1)}T08:30:00`);
+  const sendAt = localAt(day(1), 8, 30);
   await scheduleMail(
     {
       accountId: account.id,

@@ -1,5 +1,4 @@
-import { Box } from '@mantine/core';
-import { openModal } from '../../../components/panels/open-modal';
+import { openFile } from '../../files/lib/open-file';
 
 import { paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../../mail/lib/compose-options';
@@ -28,7 +27,8 @@ export function pdfUrl(id: string, download = false, paid = false): string {
  * @returns {void}
  */
 export function openPdfPreview(id: string, title: string): void {
-  openModal(title, () => <Box component="iframe" src={`${pdfUrl(id)}#view=FitH&t=${Date.now()}`} title={title} w="100%" h="80vh" style={{ border: 0, display: 'block' }} />, { size: '64rem' });
+  // The time in the address: generated again, not the one the browser keeps.
+  openFile({ url: `${pdfUrl(id)}?t=${Date.now()}`, filename: title, mimeType: 'application/pdf' });
 }
 
 /**

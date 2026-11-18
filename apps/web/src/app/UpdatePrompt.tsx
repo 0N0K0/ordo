@@ -1,7 +1,7 @@
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { notifyInfo } from '../../lib/notify';
+import { notifyInfo } from '../lib/notify';
 
 const NOTIFICATION_ID = 'app-update';
 /** A deployed version is looked for this often while the app stays open. */

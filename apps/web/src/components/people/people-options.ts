@@ -24,7 +24,7 @@ export const personName = (person: { name: string; isMe: boolean }): string => (
  * @param {{ name: string } | null | undefined} me The user as one of the people. Optional.
  * @returns {string} Name shown.
  */
-export const meName = (me: { name: string } | null | undefined): string => (me ? `${me.name} (moi)` : 'Moi');
+export const meName = (me: { name: string } | null | undefined): string => (me ? personName({ ...me, isMe: true }) : 'Moi');
 
 /**
  * Name of the people out of the team or household (decision 15): « Relation(s) » in a pro workspace, « Proche(s) » in a

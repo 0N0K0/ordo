@@ -1,3 +1,4 @@
+import { movedTo } from '@ordo/shared';
 import type { ColumnLayout } from '@ordo/shared';
 import type { ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth } from './data-table';
@@ -29,7 +30,7 @@ function textWidth(text: string, font: string): number {
  * @param {number} index Index of the column among the cells of a row.
  * @returns {number} Width, in pixels.
  */
-export function contentWidth(table: HTMLTableElement, index: number): number {
+function contentWidth(table: HTMLTableElement, index: number): number {
   const cells = [...table.rows].slice(0, MEASURED_ROWS).flatMap((row) => {
     const items = [...row.cells];
     return items.length > index && !items.some((cell) => cell.colSpan > 1) ? [items[index]] : [];
@@ -76,7 +77,7 @@ export function movedColumnOrder(order: readonly string[], shown: readonly { id:
     const neighbour = shown[where === 'left' ? index - 1 : index + 1].id;
     at = others.indexOf(neighbour) + (where === 'right' ? 1 : 0);
   }
-  return [...others.slice(0, at), id, ...others.slice(at)];
+  return movedTo(others, id, at);
 }
 
 /**

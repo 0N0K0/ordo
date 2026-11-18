@@ -1,10 +1,9 @@
-import { yearOfDay } from '@ordo/shared';
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { FileZipIcon } from '@phosphor-icons/react';
 import { fetchDownload } from '../../../lib/download';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
-import { localToday } from '../../../lib/dates';
+import { localToday, yearOfDay } from '../../../lib/dates';
 import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { PeriodRangeFields } from '../../../components/inputs/PeriodRangeFields';

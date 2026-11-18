@@ -11,7 +11,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotRule, taskLabelSchema } from '@ordo/shared';
+import { readSlotRule, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -28,7 +28,7 @@ import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TaskTime } from '../../time/components/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
-import { linkableTasks, subtreeIds } from '../lib/task-links';
+import { linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
@@ -148,7 +148,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
   const doneSubtasks = subtasks.filter((subtask) => context.isClosed(subtask)).length;
-  const excluded = subtreeIds(context, task.id);
+  const excluded = subtreeOf(context.tasks, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id);
   const resolve = (ids: string[]) => ids.map((id) => context.taskById.get(id)).filter((item): item is Task => !!item);
 

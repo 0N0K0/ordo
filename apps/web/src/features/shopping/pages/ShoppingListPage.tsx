@@ -1,5 +1,5 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { PAGES } from '../../../app/pages';
+import { PAGES, SHOPPING_LISTS_PATH } from '../../../app/pages';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
 import { unarchived } from '../../../lib/archive';
@@ -140,7 +140,7 @@ export function ShoppingListPage() {
         size: 100,
         numeric: true,
         sortValue: (item) => (item.productId && inStock.has(item.productId) ? inStock.get(item.productId)! : null),
-        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.number(inStock.get(item.productId)!, 3) : ''),
+        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.quantity({ quantity: inStock.get(item.productId) }) : ''),
         filter: { kind: 'number', value: (item) => (item.productId ? (inStock.get(item.productId) ?? null) : null) },
       },
       {
@@ -207,7 +207,7 @@ export function ShoppingListPage() {
     return <TableSkeleton rows={4} />;
   }
   if (!list) {
-    return <DetailNotFound what="Cette liste" feminine backTo="/shopping?tab=lists" backLabel="Listes d’achats" />;
+    return <DetailNotFound what="Cette liste" feminine backTo={SHOPPING_LISTS_PATH} backLabel="Listes d’achats" />;
   }
 
   const tasks = listTasks(list, context);
@@ -223,7 +223,7 @@ export function ShoppingListPage() {
     <Stack gap="lg">
       <ShoppingSettings />
       <DetailHeader
-        back={{ to: '/shopping?tab=lists', label: 'Listes d’achats' }}
+        back={{ to: SHOPPING_LISTS_PATH, label: 'Listes d’achats' }}
         page={<PageHeader title={PAGES.shopping.title} />}
         title={list.label}
         badges={
@@ -245,7 +245,7 @@ export function ShoppingListPage() {
             {list.entry && (
               <Group gap={4} wrap="nowrap">
                 <BankIcon aria-hidden size={14} />
-                <Anchor component={Link} to="/treasury" size="sm">
+                <Anchor component={Link} to={PAGES.treasury.path} size="sm">
                   {list.entry.label} · {fmt.money(list.entry.amount)} · {fmt.day(list.entry.date)}
                 </Anchor>
               </Group>
@@ -301,7 +301,7 @@ export function ShoppingListPage() {
             <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
-            <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate('/shopping?tab=lists')} header />
+            <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />
           </Group>
         }
       />
@@ -344,7 +344,7 @@ export function ShoppingListPage() {
           extraCells={(item) => ({
             inStock: item.productId && inStock.has(item.productId) && (
               <Text span size="sm" c="dimmed" ff="monospace">
-                {fmt.number(inStock.get(item.productId)!, 3)}
+                {fmt.quantity({ quantity: inStock.get(item.productId) })}
               </Text>
             ),
             delivery: list.remote && (

@@ -1,7 +1,7 @@
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { PlanCard } from './PlanCard';
 import { planCardActions } from '../lib/plan-card-actions';
-import { DragHandle } from '../../../components/actions/DragHandle';
+import { DragHandle } from '../../../components/dnd/DragHandle';
 
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { confirmPlanDelete } from '../lib/confirm-plan-delete';
@@ -10,8 +10,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
-import { SortableArea } from '../../../components/actions/sortable';
-import { useSortableItem } from '../../../components/actions/use-sortable-item';
+import { SortableArea } from '../../../components/dnd/sortable';
+import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';

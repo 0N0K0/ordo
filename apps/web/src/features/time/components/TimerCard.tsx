@@ -1,4 +1,4 @@
-import { projectPath } from '../../../app/pages';
+import { projectPath, PAGES } from '../../../app/pages';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -133,7 +133,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
                 {context.projectById.get(entry.projectId)?.label ?? 'Projet'}
               </Anchor>
             ) : (
-              <Anchor component={Link} to="/routines" size="xs">
+              <Anchor component={Link} to={PAGES.routines.path} size="xs">
                 {entry.routineLabel ?? 'Routine'}
               </Anchor>
             )}

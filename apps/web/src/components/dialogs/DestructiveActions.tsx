@@ -74,7 +74,7 @@ export function DestructiveRisks({ children }: { children: ReactNode }) {
 }
 
 /** What a deletion does with what hangs from the element: kept (detached), or deleted along. */
-export type CascadeMode = 'detach' | 'delete';
+type CascadeMode = 'detach' | 'delete';
 
 /**
  * Choice of a deletion for what hangs from the element (sub-tasks, projects…): keep it, or delete it along, for good.

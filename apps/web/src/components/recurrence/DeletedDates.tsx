@@ -1,6 +1,6 @@
+import * as fmt from '../../lib/format';
 import { LabeledField } from '../inputs/LabeledField';
 import { Chip, Group } from '@mantine/core';
-import { formatLongDate } from './describe-recurrence';
 
 /**
  * Occurrences deleted one by one from a repetition, each restored by a click; nothing without any.
@@ -14,7 +14,7 @@ export function DeletedDates({ dates, onChange }: { dates: readonly string[]; on
       <Group gap={6}>
         {dates.map((date) => (
           <Chip key={date} size="xs" checked={false} title="Rétablir cette date" onClick={() => onChange(dates.filter((item) => item !== date))}>
-            {formatLongDate(date)} ×
+            {fmt.dayInWords(date)} ×
           </Chip>
         ))}
       </Group>

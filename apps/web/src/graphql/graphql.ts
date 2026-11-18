@@ -208,9 +208,9 @@ export type CalendarEventInput = {
   /** Tasks the event is about (none when omitted). */
   taskIds?: Array<string | number> | null | undefined;
   timeZone: string;
-  /** Travel time back from the event, in minutes; none: 0. */
+  /** Travel time back, in minutes; none: 0. */
   travelAfter?: number | null | undefined;
-  /** Travel time to the event, in minutes; none: 0. */
+  /** Travel time there, in minutes; none: 0. */
   travelBefore?: number | null | undefined;
 };
 
@@ -642,6 +642,7 @@ export type RoutineInput = {
   fromTime?: string | null | undefined;
   label: string;
   location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
   /** Times of the day, [{ fromTime, dueTime, optional }]. */
@@ -656,7 +657,9 @@ export type RoutineInput = {
   /** Following its rule: on or out of calendar schedules, in groups (and / or); null: any time. */
   slotCondition?: unknown;
   startDate: string;
+  /** Travel time back, in minutes; none: 0. */
   travelAfter?: number | null | undefined;
+  /** Travel time there, in minutes; none: 0. */
   travelBefore?: number | null | undefined;
 };
 
@@ -676,6 +679,7 @@ export type RoutinePatch = {
   label?: string | null | undefined;
   /** Null: none (its point too). */
   location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
   /** Times of the day following its rule. */
@@ -693,9 +697,9 @@ export type RoutinePatch = {
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;
   startDate?: string | null | undefined;
-  /** Minutes to come back. */
+  /** Travel time back, in minutes; omitted: unchanged. */
   travelAfter?: number | null | undefined;
-  /** Minutes to get there. */
+  /** Travel time there, in minutes; omitted: unchanged. */
   travelBefore?: number | null | undefined;
 };
 

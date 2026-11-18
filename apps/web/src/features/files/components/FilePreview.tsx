@@ -1,6 +1,10 @@
 import { Box, Image } from '@mantine/core';
 import type { ViewableKind } from '../lib/viewable';
 
+/** Height of a file shown in a page (not in a modal): most of the window, never too small. */
+// eslint-disable-next-line no-restricted-syntax -- PAGE_PREVIEW_HEIGHT itself.
+export const PAGE_PREVIEW_HEIGHT = 'max(36rem, calc(100dvh - 16rem))';
+
 interface FilePreviewProps {
   url: string;
   /** Name of the file (its title, its alternative text). */

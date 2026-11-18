@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, formatDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
@@ -31,7 +31,7 @@ import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../s
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { projectFactory, taskFactory, TIME_ZONE } from './factories';
+import { localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE } from './factories';
 import { initialsIcon } from './images';
 import { tinyPdf } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -44,13 +44,6 @@ import { tickRoutines } from './routines';
  * @returns {ReturnType<typeof saveEntry>} Movement.
  */
 const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
-
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
 
 /**
  * Chart configuration from the defaults.
@@ -110,7 +103,7 @@ export async function seedPersonal({
   await purgeWorkspace();
   if (user) await ensureMeContributor(user);
   const meId = user ? await meContributorId(user.id) : null;
-  const day = (offset: number) => addDays(today, offset);
+  const day = relativeDay(today);
   const date = (value: string) => parseDay(value);
 
   // --- Household: members (contributors) and a relation ---------------------------------------------------
@@ -123,7 +116,7 @@ export async function seedPersonal({
   const granny = await saveRelation(null, { name: 'Mamie', note: 'Garde les enfants le mercredi.' });
 
   // --- Labels ---------------------------------------------------------------------------------------
-  const todo = await prisma.taskStatus.create({ data: { label: 'À faire', color: '#868e96', category: 'TODO', position: 0 } });
+  const todo = await prisma.taskStatus.create({ data: { label: 'À faire', color: DEFAULT_LABEL_COLOR, category: 'TODO', position: 0 } });
   const doing = await prisma.taskStatus.create({ data: { label: 'En cours', color: '#228be6', category: 'IN_PROGRESS', position: 1 } });
   const done = await prisma.taskStatus.create({ data: { label: 'Fait', color: '#40c057', category: 'DONE', position: 2 } });
   const dropped = await prisma.taskStatus.create({ data: { label: 'Abandonné', color: '#fa5252', category: 'CANCELLED', position: 3 } });
@@ -142,7 +135,7 @@ export async function seedPersonal({
   const quotes = await project('Devis des artisans', '#15aabf', bathroom.id);
   const holidays = await project('Vacances d’été', '#fab005');
   const garden = await project('Jardin', '#40c057');
-  const papers = await project('Administratif', '#868e96');
+  const papers = await project('Administratif', DEFAULT_LABEL_COLOR);
   await prisma.project.update({ where: { id: bathroom.id }, data: { iconId: await initialsIcon('Salle de bain', '#15aabf') } });
   const task = (projectId: string, title: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) =>
     taskFactory.create({
@@ -177,7 +170,7 @@ export async function seedPersonal({
   await setTaskRecurrence(canteen.id, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }));
   await materializeTaskOccurrences(day(-21), day(30));
   for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: date(today) } } })) {
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T19:00:00`) } });
+    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 19) } });
   }
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
@@ -385,7 +378,7 @@ export async function seedPersonal({
     categoryId: out('Loisirs'),
     lines: [{ label: null, mode: 'PERCENT', value: 100, memberId: null, contextId: holidaysContext, categoryId: out('Loisirs') }],
   });
-  const month = today.slice(0, 7);
+  const month = monthOfDay(today);
   for (const [name, amount, changes] of [
     ['Alimentation', 600, {}],
     ['Loisirs', 80, { memberId: lea.id }],
@@ -502,7 +495,7 @@ export async function seedPersonal({
 
   // --- Tracked time on the projects ------------------------------------------------------------------------
   for (let index = 0; index < 6; index += 1) {
-    const startedAt = new Date(`${day(-faker.number.int({ min: 1, max: 30 }))}T${String(faker.number.int({ min: 9, max: 17 })).padStart(2, '0')}:00:00`);
+    const startedAt = localAt(day(-faker.number.int({ min: 1, max: 30 })), faker.number.int({ min: 9, max: 17 }));
     await createTimeEntry({
       projectId: faker.helpers.arrayElement([bathroom.id, garden.id, papers.id]),
       description: faker.helpers.arrayElement(['Bricolage', 'Rangement', 'Papiers']),

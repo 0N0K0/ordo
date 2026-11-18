@@ -17,9 +17,9 @@ const TYPES = Object.keys(FOLDERS) as AccountingDocumentType[];
  * ZIP of the documents issued over a period, one folder per type: the final documents of Ordo as printed
  * (PDF with their Factur-X), and optionally the files of the imported ones.
  * @param {{ from: string, to: string, types: string[], imported: boolean }} input Period (days included), types, imported documents.
- * @returns {Promise<{ name: string, content: Buffer }>} Archive and its name.
+ * @returns {Promise<{ filename: string, content: Buffer }>} Archive and its file name.
  */
-export async function documentsZip(input: { from: string; to: string; types: string[]; imported: boolean }): Promise<{ name: string; content: Buffer }> {
+export async function documentsZip(input: { from: string; to: string; types: string[]; imported: boolean }): Promise<{ filename: string; content: Buffer }> {
   if (![input.from, input.to].every(isRealDay)) throw clientError('BAD_USER_INPUT', 'Période invalide.');
   const from = parseDay(input.from);
   const to = parseDay(input.to);
@@ -51,5 +51,5 @@ export async function documentsZip(input: { from: string; to: string; types: str
     }
   }
   if (files.length === 0) throw clientError('BAD_USER_INPUT', 'Aucun document sur cette période.');
-  return { name: `Documents comptables du ${input.from} au ${input.to}.zip`, content: zipFiles(files) };
+  return { filename: `Documents comptables du ${input.from} au ${input.to}.zip`, content: zipFiles(files) };
 }

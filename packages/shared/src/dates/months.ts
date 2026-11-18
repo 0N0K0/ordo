@@ -1,4 +1,4 @@
-import { yearOfDay } from './days';
+import { monthOfYear, yearOfDay } from './days';
 
 /** Names of the months, January first: « janvier », « février »… */
 export const MONTH_LABELS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] as const;
@@ -58,7 +58,7 @@ export function dayInMonth(year: number, month: number, day: number): string {
  */
 export function lastDayOfMonth(date: string): string {
   const year = yearOfDay(date);
-  const month = Number(date.slice(5, 7));
+  const month = monthOfYear(date);
   return dayInMonth(year, month, 31);
 }
 
@@ -68,7 +68,7 @@ export function lastDayOfMonth(date: string): string {
  * @returns {number} Months.
  */
 export function monthIndex(date: string): number {
-  return yearOfDay(date) * 12 + Number(date.slice(5, 7)) - 1;
+  return yearOfDay(date) * 12 + monthOfYear(date) - 1;
 }
 
 /**
@@ -78,4 +78,14 @@ export function monthIndex(date: string): number {
  */
 export function monthFromIndex(index: number): string {
   return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * First day of a month shifted from the month of a date.
+ * @param {string} date YYYY-MM-DD (or YYYY-MM).
+ * @param {number} months Months added.
+ * @returns {string} YYYY-MM-01.
+ */
+export function shiftMonth(date: string, months: number): string {
+  return `${monthFromIndex(monthIndex(date) + months)}-01`;
 }

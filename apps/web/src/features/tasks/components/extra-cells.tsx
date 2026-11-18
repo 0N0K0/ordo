@@ -21,6 +21,7 @@ import { useCellEdit } from '../lib/cell-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { TaskContext } from '../hooks/use-task-context';
 import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
+import { shoppingListPath, timePath } from '../../../app/pages';
 
 /**
  * « Plages » cell: the slots of the task told in words, changed in a popover.
@@ -67,7 +68,7 @@ export function TimerCell({ task }: { task: Task }) {
 export function TrackedCell({ task }: { task: Task }) {
   if (task.trackedSeconds <= 0) return null;
   return (
-    <Anchor component={Link} to={`/time?task=${task.id}`} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
+    <Anchor component={Link} to={timePath(task.id)} size="sm" onClick={stopClick} style={{ display: 'block', textAlign: 'right' }}>
       {formatDuration(task.trackedSeconds)}
     </Anchor>
   );
@@ -150,7 +151,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>
         {own.map((list) => (
-          <Anchor key={list.id} component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
+          <Anchor key={list.id} component={Link} to={shoppingListPath(list.id)} size="sm" truncate>
             <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.label}
           </Anchor>
         ))}

@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { type AccountingDocumentInput, type AccountingLineInput, addDays, DEFAULT_RECURRENCE, formatDay, mapById, occurrenceDates, parseDay, type Recurrence, round2 } from '@ordo/shared';
+import { type AccountingDocumentInput, type AccountingLineInput, addDays, formatDay, mapById, occurrenceDates, parseDay, round2, sumOf } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
 import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
@@ -12,7 +12,7 @@ import { createRecurringInvoice, issueDueInvoices } from '../../src/services/acc
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury/treasury';
 import { importStatement } from '../../src/services/treasury/treasury-import';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
-import { maybe } from './factories';
+import { localAt, maybe, relativeDay, rule } from './factories';
 import { logoFile } from './images';
 import { tinyPdf } from './mail';
 import { setCompanyLogo } from '../../src/services/accounting/company';
@@ -202,13 +202,6 @@ function section(label: string): AccountingLineInput {
   return { kind: 'TEXT', label, description: null, quantity: 1, unit: 'UNIT', unitPrice: 0, vatRate: 0, discountType: null, discountValue: null };
 }
 
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
-
 interface AccountingContext {
   clients: Client[];
   projects: Project[];
@@ -224,7 +217,7 @@ interface AccountingContext {
  * @returns {Promise<void>}
  */
 export async function seedAccounting({ clients, projects, today }: AccountingContext): Promise<void> {
-  const day = (offset: number) => addDays(today, offset);
+  const day = relativeDay(today);
   await seedCompany();
   await seedClientBilling(clients);
   const catalog = await seedCatalog();
@@ -303,7 +296,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
    */
   const finalize = async (id: string, date: string) => {
     await finalizeDocument(id);
-    await prisma.accountingDocument.update({ where: { id }, data: { finalizedAt: new Date(`${date}T10:00:00`) } });
+    await prisma.accountingDocument.update({ where: { id }, data: { finalizedAt: localAt(date, 10) } });
     return id;
   };
 
@@ -489,7 +482,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         );
         const best = counted.sort((a, b) => b.entries.length - a.entries.length)[0];
         if (!best?.entries.length) return;
-        const seconds = best.entries.reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+        const seconds = sumOf(best.entries, (entry) => entry.duration ?? 0);
         const done = [...new Set(best.entries.map((entry) => entry.description?.split('\n')[0]).filter(Boolean))].slice(0, 8);
         const draft = await createDocument(
           'INVOICE',
@@ -519,7 +512,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const unbilled = await prisma.timeEntry.findMany({
     where: { projectId: { in: projects.filter((project) => project.clientId === clientD.id).map((project) => project.id) }, documentId: null, duration: { not: null } },
   });
-  const draftSeconds = unbilled.slice(0, 4).reduce((sum, entry) => sum + (entry.duration ?? 0), 0);
+  const draftSeconds = sumOf(unbilled.slice(0, 4), (entry) => entry.duration ?? 0);
   await createDocument(
     'INVOICE',
     await fields('INVOICE', clientD, day(-2), {
@@ -545,7 +538,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
         { value: 'OTHER', weight: 1 },
       ]),
     });
-    await prisma.accountingDocument.update({ where: { id }, data: { sentAt: new Date(`${date}T09:30:00`) } });
+    await prisma.accountingDocument.update({ where: { id }, data: { sentAt: localAt(date, 9, 30) } });
   };
   const finals = await prisma.accountingDocument.findMany({ where: { status: 'FINAL' }, select: { id: true, issueDate: true } });
   for (const document of finals) await sent(document.id, formatDay(document.issueDate));
@@ -560,7 +553,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     const amount = fixed ?? round2((await due(id)) * share);
     if (amount > 0) await recordPayment(id, { accountId: bank.id, date, amount, methodId: methodOf(faker.helpers.arrayElement(['Virement', 'Virement', 'Chèque'])) });
   };
-  const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: new Date(`${date}T11:00:00`), note } });
+  const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: localAt(date, 11), note } });
 
   await pay(ids.archived, day(-150));
   await pay(ids.depositA, day(-140));

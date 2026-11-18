@@ -2,7 +2,7 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
 
-import { PAGES } from '../../../app/pages';
+import { PAGES, sheetPath } from '../../../app/pages';
 import { Paper, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -218,10 +218,10 @@ export function SheetPage() {
   );
 
   if (isPending) return <DetailSkeleton />;
-  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
+  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo={PAGES.sheets.path} backLabel={PAGES.sheets.title} />;
 
   const locked = sheet.archived;
-  const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate('/sheets'))));
+  const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate(PAGES.sheets.path))));
 
   /**
    * Row adding an item by its label, at the end of the table or of a group (the item takes the value of its group); a
@@ -260,7 +260,7 @@ export function SheetPage() {
   return (
     <Stack gap="lg">
       <DetailHeader
-        back={{ to: '/sheets', label: 'Fiches' }}
+        back={{ to: PAGES.sheets.path, label: PAGES.sheets.title }}
         page={<PageHeader title={PAGES.sheets.title} />}
         title={sheet.label}
         badges={sheet.archived && <ArchivedBadge feminine />}
@@ -289,7 +289,7 @@ export function SheetPage() {
               onClick: () =>
                 mutations.duplicate.mutate(
                   sheet.id,
-                  formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
+                  formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(sheetPath(copy))),
                 ),
             },
             archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),

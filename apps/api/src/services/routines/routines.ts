@@ -102,9 +102,6 @@ export async function loadScheduleContext(): Promise<ScheduleContext> {
   };
 }
 
-/** How a routine repeats: its rule, or its cases. */
-export type RoutineMode = 'RULE' | 'CASES';
-
 /**
  * Condition on calendar schedules of a routine following its rule: its own, else the one of its former form (on one
  * of the schedules it followed, and out of those it was done out of); null: any time.

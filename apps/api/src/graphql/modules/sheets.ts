@@ -85,7 +85,7 @@ builder.prismaObject('SheetLink', {
   fields: (t) => ({
     id: t.exposeID('id'),
     sheetId: t.exposeID('sheetId'),
-    multiplier: t.float({ resolve: (link) => link.multiplier.toNumber() }),
+    multiplier: t.float({ resolve: (link) => fromDecimal(link.multiplier) }),
     routineId: t.exposeID('routineId', { nullable: true }),
     eventId: t.exposeID('eventId', { nullable: true }),
     taskId: t.exposeID('taskId', { nullable: true }),

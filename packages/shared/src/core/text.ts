@@ -20,6 +20,7 @@ export function normalize(text: string): string {
  * @returns {boolean} Same name.
  */
 export function sameName(a: string, b: string): boolean {
+  // eslint-disable-next-line no-restricted-syntax -- sameName itself.
   return normalize(a.trim()) === normalize(b.trim());
 }
 

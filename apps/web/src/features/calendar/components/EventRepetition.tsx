@@ -23,7 +23,7 @@ interface EventTiming {
  * @param {EventTiming} timing Timing.
  * @returns {string} Text.
  */
-function describeTiming(timing: EventTiming): string {
+function describeEventTiming(timing: EventTiming): string {
   const day = (date: string) => fmt.capitalize(fmt.day(date));
   if (timing.allDay) return timing.startDate === timing.endDate ? `${day(timing.startDate)}, toute la journée` : `Du ${fmt.day(timing.startDate)} au ${fmt.day(timing.endDate)}`;
   if (timing.startDate === timing.endDate) return `${day(timing.startDate)}, ${timing.startTime ?? ''} – ${timing.endTime ?? ''}`;
@@ -46,7 +46,7 @@ export function EventRepetition({ value, onChange, ruleStart, error }: { value: 
       onChange={onChange}
       valid={(draft) => draft.allDay || Boolean(draft.startTime && draft.endTime && (draft.endDate > draft.startDate || (draft.endTime ?? '') > (draft.startTime ?? '')))}
       describe={(timing) => [
-        describeTiming(timing),
+        describeEventTiming(timing),
         ...(timing.recurrence
           ? [[fmt.capitalize(describeRecurrence(timing.recurrence, ruleStart)), timing.recurrence.duration ? describeDuration(timing.recurrence.duration) : ''].filter(Boolean).join(' · ')]
           : []),

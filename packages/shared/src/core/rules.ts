@@ -25,6 +25,7 @@ export const optionalText = (max: number) =>
     .nullable();
 
 /** Message of a period whose end comes before its start (dates, times, min / max: decision Q). */
+// eslint-disable-next-line no-restricted-syntax -- the message itself.
 export const END_AFTER_START = 'La fin doit suivre le début.';
 
 /**

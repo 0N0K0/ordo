@@ -5,8 +5,8 @@ import { withArchived, type DataColumn } from '../../../components/data-table/ta
 import * as fmt from '../../../lib/format';
 import { commentTotal } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
-import { isDone, routineTreeOptions, stateOf, waitingFor } from './routine-format';
-import { opensWords, REPETITION_LABELS, repetitionOf, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
+import { isDone, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
+import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 
 /**
@@ -39,7 +39,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),
   ];
   const blockers = (routine: Routine) => routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
-  const state = (routine: Routine) => stateOf(routine, env.today, env.doable(routine));
+  const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   return [
     { id: 'title', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
@@ -93,9 +93,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       size: 200,
       hiddenByDefault: true,
       bulk: true,
-      sortValue: (routine) => ROUTINE_REPETITIONS.indexOf(repetitionOf(routine)),
-      text: (routine) => REPETITION_LABELS[repetitionOf(routine)],
-      filter: { kind: 'choice', value: repetitionOf, options: ROUTINE_REPETITIONS.map((value) => ({ value, label: REPETITION_LABELS[value] })) },
+      sortValue: (routine) => ROUTINE_REPETITIONS.indexOf(routineFrequency(routine)),
+      text: (routine) => REPETITION_LABELS[routineFrequency(routine)],
+      filter: { kind: 'choice', value: routineFrequency, options: ROUTINE_REPETITIONS.map((value) => ({ value, label: REPETITION_LABELS[value] })) },
     },
     {
       id: 'estimate',

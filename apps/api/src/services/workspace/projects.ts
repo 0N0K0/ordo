@@ -166,16 +166,6 @@ function siblingsWhere(parentId: string | null, clientId: string | null): Prisma
   return parentId ? { parentId } : { parentId: null, clientId };
 }
 
-/**
- * Next position at the end of a sibling list.
- * @param {string | null} parentId Parent project.
- * @param {string | null} clientId Client (for root projects).
- * @returns {Promise<number>} Position.
- */
-async function nextPosition(parentId: string | null, clientId: string | null): Promise<number> {
-  return nextPositionIn('project', siblingsWhere(parentId, clientId));
-}
-
 interface ProjectDetailsInput {
   description?: string | null;
   statusId?: string | null;
@@ -253,7 +243,7 @@ export async function createProject(
       clientId,
       parentId,
       iconId,
-      position: await nextPosition(parentId, clientId),
+      position: await nextPositionIn('project', siblingsWhere(parentId, clientId)),
       categories: { connect: connectIds(categoryIds) },
     },
   });

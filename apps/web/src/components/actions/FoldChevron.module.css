@@ -12,6 +12,6 @@
     }
 
     /* Animation */
-    transition: transform 150ms ease;
+    transition: transform var(--onoko-transition);
   }
 }

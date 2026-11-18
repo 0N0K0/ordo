@@ -1,5 +1,5 @@
 import { MailHeaderActions } from './MailHeaderActions';
-import { settingsPath } from '../../../app/layout/page-settings';
+import { settingsPath, PAGES } from '../../../app/pages';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { MailListControls } from './MailListControls';
 import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
@@ -48,7 +48,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
   const criteria: MailSearchCriteria = advanced ? { ...advanced, projectId } : { ...EMPTY_MAIL_SEARCH, scope: 'all', state: doneFilter, text: debouncedSearch, projectId };
   const firstAccount = unarchived(accounts ?? [])[0]?.id;
   // Flags are managed in the settings of the page Mails.
-  const manageLabels = () => void navigate(settingsPath('/mail'));
+  const manageLabels = () => void navigate(settingsPath(PAGES.mail.path));
 
   /**
    * Back to the first page, the mail open closed (another list).

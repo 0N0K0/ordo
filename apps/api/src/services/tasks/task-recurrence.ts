@@ -1,4 +1,17 @@
-import { addDays, daysBetween, formatDay, formatOptionalDay, groupBy, isTaskCases, parseDay, type TaskRepetition, taskRepetitionDates, taskRepetitionSchema, withDeletedDates } from '@ordo/shared';
+import {
+  addDays,
+  daysBetween,
+  formatDay,
+  formatOptionalDay,
+  groupBy,
+  isTaskCases,
+  parseDay,
+  parseOptionalDay,
+  type TaskRepetition,
+  taskRepetitionDates,
+  taskRepetitionSchema,
+  withDeletedDates,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task } from '../../generated/prisma/client';
@@ -75,7 +88,7 @@ export async function materializeTaskOccurrences(from: string, to: string): Prom
     for (const date of taskRepetitionDates(rule, anchor, from, to)) {
       if (existing.has(date)) continue;
       const shift = daysBetween(anchor, date);
-      const moved = (value: Date | null) => (value ? parseDay(addDays(formatDay(value), shift)) : null);
+      const moved = (value: Date | null) => parseOptionalDay(value && addDays(formatDay(value), shift));
       // The unique (series, date) pair is not enforced by the schema: concurrent calls are serialized by the check above.
       await prisma.task.create({
         data: {

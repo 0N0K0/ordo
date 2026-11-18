@@ -417,4 +417,4 @@ export const UNIT_COLOR = DEFAULT_LABEL_COLOR;
  * @param {{ name: string, quantity: number | null }} source Sheet and share.
  * @returns {string} Text.
  */
-export const sheetSourceText = (source: { label: string; quantity: number | null }) => (source.quantity !== null ? `${source.label} · ${fmt.number(source.quantity, 3)}` : source.label);
+export const sheetSourceText = (source: { label: string; quantity: number | null }) => (source.quantity !== null ? `${source.label} · ${fmt.quantity({ quantity: source.quantity })}` : source.label);

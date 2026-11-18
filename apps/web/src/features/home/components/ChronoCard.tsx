@@ -11,6 +11,7 @@ import { RunningTimer, TimerStartForm } from '../../time/components/TimerCard';
 import { HomeCard } from './HomeCard';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { PAGES } from '../../../app/pages';
 
 /**
  * Timer and alarms: the running timer (or the form starting one), and a button programming an alarm, with
@@ -32,7 +33,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
   const openAlarmForm = useAlarmForm(context);
 
   return (
-    <HomeCard title="Chrono et alarmes" icon={<TimerIcon aria-hidden />} to="/time" linkLabel="Tous les chronos" loading={!context || running.isPending}>
+    <HomeCard title="Chrono et alarmes" icon={<TimerIcon aria-hidden />} to={PAGES.time.path} linkLabel="Tous les chronos" loading={!context || running.isPending}>
       {context && !running.isPending && (
         <Stack gap="sm">
           {running.data ? <RunningTimer key={running.data.id} entry={running.data} context={context} /> : <TimerStartForm context={context} />}
@@ -46,7 +47,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
                 {next ? `${next.alarm.label} · ${fmt.dateTimeShort(next.at)}` : 'Aucune'}
               </Text>
             </Stack>
-            <Anchor component={Link} to="/alarms" size="sm" style={{ flexShrink: 0 }}>
+            <Anchor component={Link} to={PAGES.alarms.path} size="sm" style={{ flexShrink: 0 }}>
               Gérer
             </Anchor>
           </Group>

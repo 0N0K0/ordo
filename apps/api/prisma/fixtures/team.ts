@@ -1,4 +1,5 @@
-import { addDays } from '@ordo/shared';
+import { relativeDay, TIME_ZONE } from './factories';
+import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
 import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
@@ -34,12 +35,8 @@ export interface SeededTeam {
  * @returns {Promise<SeededTeam>} Members, relations and contexts.
  */
 export async function seedTeam({ contributors, today, monday }: { contributors: Contributor[]; today: string; monday: string }): Promise<SeededTeam> {
-  const day = (offset: number) => addDays(today, offset);
-  const month = (offset: number) => {
-    const date = new Date(`${today.slice(0, 7)}-01T12:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() + offset);
-    return date.toISOString().slice(0, 7);
-  };
+  const day = relativeDay(today);
+  const month = (offset: number) => monthOfDay(shiftMonth(today, offset));
 
   // --- Members and relations ------------------------------------------------------------------------
   const members = [];
@@ -78,7 +75,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   await budget('Repas', 150, {});
   await budget('Matériel', 300, { memberId: members[0]?.id ?? null, repeatEvery: 3 });
   await budget('Déplacements', 250, { contextId: contextIds.get('Déplacement') ?? null });
-  await budget('Repas', 400, { contextId: contextIds.get('Salon') ?? null, repeatEvery: null, month: addDays(monday, 10).slice(0, 7) });
+  await budget('Repas', 400, { contextId: contextIds.get('Salon') ?? null, repeatEvery: null, month: monthOfDay(addDays(monday, 10)) });
   await budget('Divers', 200, { relationId: friend.id, repeatEvery: 6, repeatUntil: month(9) });
 
   // Money in: the expected sales, every month.
@@ -100,7 +97,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     startTime: '12:30',
     endDate: addDays(monday, 3),
     endTime: '14:00',
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timeZone: TIME_ZONE,
     recurrence: null,
     reminders: [30],
     projectId: null,

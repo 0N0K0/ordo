@@ -1,3 +1,4 @@
+import { dayPart } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
 import { githubRequest, githubRestPost } from './client';
@@ -269,7 +270,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
       for (const value of item.fieldValues.nodes) {
         const fieldId = value.field?.id;
         if (!fieldId) continue;
-        const { field: _field, ...rest } = value; // eslint-disable-line @typescript-eslint/no-unused-vars
+        const { field: _field, ...rest } = value;
         fields[fieldId] = rest;
       }
       // Issue fields: their values are the issue's (an option by its name, among the issue field's options).
@@ -280,7 +281,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         if (value.__typename === 'IssueFieldSingleSelectValue') {
           const optionId = field.options.find((option) => option.name === value.name)?.id;
           if (optionId) fields[field.id] = { optionId };
-        } else if (value.__typename === 'IssueFieldDateValue' && value.dateValue) fields[field.id] = { date: value.dateValue.slice(0, 10) };
+        } else if (value.__typename === 'IssueFieldDateValue' && value.dateValue) fields[field.id] = { date: dayPart(value.dateValue) };
         else if (value.__typename === 'IssueFieldNumberValue' && value.numberValue !== undefined) fields[field.id] = { number: value.numberValue };
       }
       const updates = [item.updatedAt, content.updatedAt].filter((date): date is string => Boolean(date)).sort();

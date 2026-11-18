@@ -13,13 +13,13 @@ import {
   isoWeekYear,
   type TableSort,
   weekdayOf,
-  yearOfDay,
+  quarterOf,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
 import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
-import { dayOf, monthOfDay } from '../../../lib/dates';
+import { dayOf, monthOfDay, yearOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
@@ -234,7 +234,6 @@ const weekOf = (date: string) => ({ year: isoWeekYear(date), week: isoWeek(date)
  */
 function periodGroup(date: string, period: GroupPeriod): { key: string; label: string } {
   const year = yearOfDay(date);
-  const month = Number(date.slice(5, 7));
   switch (period) {
     case 'DAY':
       return { key: date, label: fmt.capitalize(fmt.dayLong(date)) };
@@ -245,8 +244,7 @@ function periodGroup(date: string, period: GroupPeriod): { key: string; label: s
     case 'MONTH':
       return { key: monthOfDay(date), label: periodName('month', `${monthOfDay(date)}-01`) };
     case 'QUARTER': {
-      const quarter = Math.ceil(month / 3);
-      return { key: `${year}-Q${quarter}`, label: quarterName(date) };
+      return { key: `${year}-Q${quarterOf(date)}`, label: quarterName(date) };
     }
     case 'YEAR':
       return { key: String(year), label: String(year) };

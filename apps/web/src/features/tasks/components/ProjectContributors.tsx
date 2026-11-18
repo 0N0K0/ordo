@@ -1,7 +1,6 @@
-import { projectPath } from '../../../app/pages';
-import { settingsPath } from '../../../app/layout/page-settings';
+import { projectPath, settingsPath } from '../../../app/pages';
 import { PersonRow } from '../../../components/people/people-rows';
-import { ancestorsOf } from '@ordo/shared';
+import { ancestorsOf, subtreeOf } from '@ordo/shared';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
@@ -9,13 +8,14 @@ import { Anchor, Badge, Group, Paper, Select, Stack, Text } from '@mantine/core'
 import { PlusIcon, UsersIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { toastCallbacks } from '../../../lib/notify';
-import { descendantIds, type Project } from '../../workspace/api';
+import { type Project } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTaskContext } from '../hooks/use-task-context';
 import { countOf } from '../../../lib/text';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Contributors of a project: those attached to it, those inherited from a parent project, and "Moi".
@@ -29,15 +29,14 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   const openForm = useContributorForm();
   if (!context) return <ListSkeleton items={3} avatar />;
   const project = context.projectById.get(projectId);
-  const subtree = descendantIds(context.projects, projectId);
-  subtree.add(projectId);
+  const subtree = subtreeOf(context.projects, projectId);
 
   const ancestors: Project[] = ancestorsOf(context.projectById, project?.id);
   const direct = context.contributors.filter((contributor) => contributor.projectIds.includes(projectId));
   const directIds = direct.map((contributor) => contributor.id);
   // The archived ones attached stay listed (with their badge), but are not offered to be added.
   const members = context.assignableFor([projectId], [], true);
-  const others = context.contributors.filter((contributor) => !contributor.archived && !members.includes(contributor));
+  const others = unarchived(context.contributors).filter((contributor) => !members.includes(contributor));
 
   /**
    * Number of tasks of the project and its sub-projects assigned to a contributor.

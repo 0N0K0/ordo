@@ -1,6 +1,6 @@
 import { dayInMonth, daysInMonth } from './months';
 import { z } from 'zod';
-import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, parseDay, weekdayOfDate, yearOfDay } from './days';
+import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, monthOfYear, parseDay, weekdayOfDate, yearOfDay } from './days';
 import { daySchema } from './times';
 import { endAfter } from '../core/rules';
 
@@ -60,7 +60,7 @@ function endOfIsoWeek(date: string, week: number): string {
  */
 export function spanEnd(duration: Duration, start: string): string {
   const year = yearOfDay(start);
-  const month = Number(start.slice(5, 7));
+  const month = monthOfYear(start);
   switch (duration.unit) {
     case 'DAYS':
       return addDays(start, duration.count - 1);
@@ -289,6 +289,7 @@ export function occurrencesBefore(rule: Recurrence, start: string, date: string)
  * @returns {number} Offset.
  */
 function zoneOffset(time: number, timeZone: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- the parts of a time zone, not a display format.
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hourCycle: 'h23',

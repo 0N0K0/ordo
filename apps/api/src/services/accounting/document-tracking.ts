@@ -1,4 +1,4 @@
-import { documentPaymentSchema, parseDay, SENDING_CHANNELS, type DocumentPaymentInput } from '@ordo/shared';
+import { type DocumentPaymentInput, documentPaymentSchema, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type AccountingDocument } from '../../generated/prisma/client';
@@ -31,7 +31,7 @@ export async function documentBalances(): Promise<Map<string, DocumentBalance>> 
     select: { id: true, type: true, sourceId: true, totalGross: true, allocations: { select: { amount: true } } },
   });
   const gross = (document: (typeof documents)[number]) => decimalCents(document.totalGross);
-  const paid = (document: (typeof documents)[number]) => document.allocations.reduce((sum, allocation) => sum + decimalCents(allocation.amount), 0);
+  const paid = (document: (typeof documents)[number]) => sumOf(document.allocations, (allocation) => decimalCents(allocation.amount));
   const creditNotes = new Map<string, typeof documents>();
   for (const document of documents) {
     if (document.type === 'CREDIT_NOTE' && document.sourceId) creditNotes.set(document.sourceId, [...(creditNotes.get(document.sourceId) ?? []), document]);
@@ -41,8 +41,8 @@ export async function documentBalances(): Promise<Map<string, DocumentBalance>> 
   for (const document of documents) {
     if (document.type !== 'CREDIT_NOTE') {
       const credits = creditNotes.get(document.id) ?? [];
-      const credited = credits.reduce((sum, credit) => sum + decimalCents(credit.totalGross), 0);
-      const refunded = credits.reduce((sum, credit) => sum + paid(credit), 0);
+      const credited = sumOf(credits, (credit) => decimalCents(credit.totalGross));
+      const refunded = sumOf(credits, (credit) => paid(credit));
       result.set(document.id, { paid: paid(document), credited, balance: gross(document) - credited - paid(document) + refunded });
     }
   }
@@ -68,7 +68,7 @@ export async function importedBalances(): Promise<Map<string, DocumentBalance>> 
   });
   return new Map(
     documents.map((document) => {
-      const paid = document.allocations.reduce((sum, allocation) => sum + decimalCents(allocation.amount), 0);
+      const paid = sumOf(document.allocations, (allocation) => decimalCents(allocation.amount));
       return [document.id, { paid, credited: 0, balance: document.settled ? 0 : decimalCents(document.totalGross) - paid }];
     }),
   );

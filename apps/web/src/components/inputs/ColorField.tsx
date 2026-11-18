@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports -- ColorField wraps ColorInput.
 import { ColorInput, type ColorInputProps } from '@mantine/core';
 import { useColorSwatches } from '../../lib/use-color-swatches';
 

@@ -1,7 +1,7 @@
 import { createTheme, PasswordInput } from '@mantine/core';
 import { DatePickerInput, DateTimePicker, MonthPickerInput, TimePicker, YearPickerInput } from '@mantine/dates';
 import { PICKER_FORMATS } from '../lib/format';
-import { VisibilityToggleIcon } from '../components/inputs/VisibilityToggleIcon';
+import { VisibilityToggleIcon } from './VisibilityToggleIcon';
 
 export const theme = createTheme({
   components: {

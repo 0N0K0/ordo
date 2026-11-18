@@ -4,7 +4,7 @@ import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
 import { endAfter, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
-import { addDays, daysBetween, weekdayOfDate, yearOfDay } from '../dates/days';
+import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
@@ -231,7 +231,7 @@ export function routineOpenDate(due: string, opens: RoutineOpens | null, frequen
   if (!opens || !opensFits(opens, frequency)) return due;
   if (opens.mode === 'BEFORE') return addDays(due, -opens.days);
   const year = yearOfDay(due);
-  const month = Number(due.slice(5, 7));
+  const month = monthOfYear(due);
   let open: string;
   if (frequency === 'MONTHLY') {
     open = opensInMonth(opens, year, month);

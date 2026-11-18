@@ -1,7 +1,7 @@
 import { unarchived } from '../../../lib/archive';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { Badge } from '@mantine/core';
-import { formatDuration } from '@ordo/shared';
+import { formatDuration, sumOf } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useCalendarEvents } from '../../calendar/api';
 import { useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
@@ -65,7 +65,7 @@ export function TreasuryNavBadge() {
   const { data: accounts } = useTreasuryAccounts();
   const open = unarchived(accounts ?? []);
   if (open.length === 0) return null;
-  const balance = open.reduce((sum, account) => sum + account.balance, 0);
+  const balance = sumOf(open, (account) => account.balance);
   return (
     <Badge size="sm" variant="light" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
       {fmt.moneyCompact(balance)}

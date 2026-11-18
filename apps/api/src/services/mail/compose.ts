@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { recipientsSchema } from '@ordo/shared';
+import { recipientsSchema, sumOf } from '@ordo/shared';
 import { convert } from 'html-to-text';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { z } from 'zod';
@@ -116,7 +116,7 @@ export async function buildMessage(account: MailAccount, input: MailFields, opti
         .map((attachment) => ({ filename: attachment.filename || 'piece-jointe', content: attachment.content })),
     );
   }
-  if (files.reduce((sum, file) => sum + file.content.length, 0) > MAX_TOTAL_BYTES) {
+  if (sumOf(files, (file) => file.content.length) > MAX_TOTAL_BYTES) {
     throw clientError('BAD_USER_INPUT', 'Pièces jointes trop lourdes (20 Mo au total maximum).');
   }
 

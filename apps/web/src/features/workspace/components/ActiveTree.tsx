@@ -10,7 +10,7 @@ import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
-import { sortableStyle } from '../../../components/actions/sortable-style';
+import { sortableStyle } from '../../../components/dnd/sortable-style';
 
 type ItemKind = 'client' | 'none' | 'project';
 

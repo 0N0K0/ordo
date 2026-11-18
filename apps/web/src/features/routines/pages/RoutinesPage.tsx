@@ -1,4 +1,4 @@
-import { PAGES } from '../../../app/pages';
+import { PAGES, routineHistoryPath } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams } from '../../../lib/search-params';
@@ -7,8 +7,8 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
-import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, HourglassMediumIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { Group, Stack, Text } from '@mantine/core';
+import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
@@ -42,6 +42,7 @@ import { useRoutineRowsActions, useRoutineSelectionActions } from '../components
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
+import { WaitingIcon } from '../components/WaitingIcon';
 
 /** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -178,11 +179,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             <TitleCell routine={routine} readOnly={readOnly} />
             <RepetitionText routine={routine} />
           </Stack>
-          {waiting.length > 0 && !done && (
-            <Tooltip label={`En attente de : ${waiting.map((item) => item.label).join(', ')}`}>
-              <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
-            </Tooltip>
-          )}
+          {!done && <WaitingIcon waiting={waiting} />}
         </Group>
       ),
       currentDate: (
@@ -241,7 +238,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
           !readOnly && rowMenuEntry(rowActions.duplicate),
-          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
+          { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),
         ]}

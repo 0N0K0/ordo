@@ -1,12 +1,12 @@
 import { toggledIn } from '../../../lib/sets';
-import { settingsPath } from '../../../app/layout/page-settings';
+import { settingsPath, documentPath, PAGES } from '../../../app/pages';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 
-import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel, toCents } from '@ordo/shared';
+import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel, toCents, sumOf } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -152,13 +152,13 @@ export function OverdueInvoicesPanel() {
     return <EmptyState icon={<CheckCircleIcon aria-hidden />} iconColor="green" message={<>Aucune facture à relancer : celles envoyées depuis {REMINDER_DELAY_DAYS} jours ou plus sont réglées.</>} />;
   }
 
-  const total = view.rows.reduce((sum, invoice) => sum + toCents(invoice.balance ?? 0), 0);
+  const total = sumOf(view.rows, (invoice) => toCents(invoice.balance ?? 0));
   return (
     <Stack gap="sm">
       {accounts && accounts.length === 0 && (
         <NoticeAlert kind="info">
           Aucune boîte mail : ajoutez-en une dans{' '}
-          <Anchor component={Link} to={settingsPath('/mail')} size="sm">
+          <Anchor component={Link} to={settingsPath(PAGES.mail.path)} size="sm">
             les boîtes mail
           </Anchor>{' '}
           pour envoyer les relances.
@@ -199,7 +199,7 @@ export function OverdueInvoicesPanel() {
         highlightOnHover
         getKey={(invoice) => invoice.id}
         actions={(invoice) => (
-          <RowActions name={invoice.number ?? 'la facture'} primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: `/accounting/${invoice.id}` }} items={[]} />
+          <RowActions name={invoice.number ?? 'la facture'} primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: documentPath(invoice.id) }} items={[]} />
         )}
         leading={{
           width: 44,
@@ -230,7 +230,7 @@ export function OverdueInvoicesPanel() {
             client: invoice.clientName,
             invoice: (
               <>
-                <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>
+                <Anchor component={Link} to={documentPath(invoice.id)} size="sm" fw={600}>
                   {invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}
                   {invoice.number}
                 </Anchor>

@@ -45,9 +45,21 @@ export const NO_SUGGESTIONS: MarkdownSuggestions = { projectId: null, tasks: [],
  * @returns {string} Label.
  */
 export function referenceLabel(task: ReferenceTask, projectId: string | null): string {
-  // A task of no project has no number: its label.
+  return taskShortRef(task, projectId, task.place);
+}
+
+/**
+ * Short reference of a task seen from a project: "#12" in the same project, "Projet #12" otherwise (numbers are per
+ * project), its label for a task of no project (it has no number).
+ * @param {{ number: number | null, label: string, projectId: string | null }} task Task.
+ * @param {string | null} projectId Project it is seen from.
+ * @param {string} place Name of the project of the task (its path).
+ * @returns {string} Reference.
+ */
+export function taskShortRef(task: { number: number | null; label: string; projectId: string | null }, projectId: string | null, place: string): string {
   if (task.number === null) return task.label;
-  return task.projectId === projectId ? `#${task.number}` : `${task.place} #${task.number}`;
+  // eslint-disable-next-line no-restricted-syntax -- taskShortRef itself.
+  return task.projectId === projectId ? `#${task.number}` : `${place} #${task.number}`;
 }
 
 /** Address of a task in a text: by its id (its number changes with a transfer). */

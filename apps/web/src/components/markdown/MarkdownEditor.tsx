@@ -22,7 +22,7 @@ import { notifyError } from '../../lib/notify';
 import { completeReference, insertLink, isUrl, prefixLines, referenceAt, wrapSelection, type EditResult, type ReferenceToken } from './markdown-commands';
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
-import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
+import { referenceLabel, taskReferenceUrl, taskShortRef, type ReferenceTargets, type ReferenceTask } from './remark-references';
 import { countOf, normalize } from '../../lib/text';
 import { PersonOption } from '../people/people-rows';
 
@@ -131,7 +131,7 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
           key: `t${task.id}`,
-          reference: `[${task.number === null ? task.label : `#${task.number}`}](${taskReferenceUrl(task.id)})`,
+          reference: `[${taskShortRef(task, task.projectId, task.place)}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
               {task.number !== null && (

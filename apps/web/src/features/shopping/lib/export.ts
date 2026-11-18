@@ -1,4 +1,4 @@
-import { shoppingCost } from '@ordo/shared';
+import { shoppingCost, sumOf } from '@ordo/shared';
 import { postTablePdf, type PdfTableRow } from '../../../lib/download';
 import type { ShoppingItem, ShoppingList } from '../api';
 import type { ShoppingRow } from './shopping-format';
@@ -18,7 +18,7 @@ const peopleText = (item: ShoppingItem, people: { members: Map<string, string>; 
  * @param {ShoppingItem[]} items Items.
  * @returns {number} Total.
  */
-export const shoppingTotal = (items: ShoppingItem[]) => items.reduce((sum, item) => sum + (shoppingCost(item) ?? 0), 0);
+export const shoppingTotal = (items: ShoppingItem[]) => sumOf(items, (item) => shoppingCost(item) ?? 0);
 
 /**
  * List as plain text, to copy in a message: the categories (or stores) indented as their tree, a box per item

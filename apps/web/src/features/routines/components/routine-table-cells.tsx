@@ -8,7 +8,7 @@ import { TimerToggle } from '../../time/components/TimerToggle';
 import type { TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useRoutineMutations, type Routine } from '../api';
-import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from '../lib/routine-format';
+import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
 import classes from './Routines.module.css';
 
 /**
@@ -49,7 +49,7 @@ function DueBadge({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Badge or text.
  */
 export function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
-  const state = stateOf(routine, today, doable);
+  const state = currentRoutineState(routine, today, doable);
   const next = routine.nextDate ? `Prochaine fois : ${fmt.weekday(routine.nextDate)}` : 'Plus d’occurrence à venir';
   // The occurrence shown comes from another day (an exception).
   const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);

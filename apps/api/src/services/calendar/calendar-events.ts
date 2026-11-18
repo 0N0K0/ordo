@@ -11,10 +11,12 @@ import {
   occurrenceDates,
   occurrencesBefore,
   parseDay,
+  parseOptionalDay,
   type Recurrence,
   recurrenceSchema,
   sharePeople,
   spanEnd,
+  sumOf,
   zonedInstant,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -551,20 +553,17 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, label: postponement.label, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
-    trackedSeconds: event.timeEntries
-      .filter((entry) => formatOptionalDay(entry.calendarOccurrenceDate) === date)
-      .reduce(
-        (sum, entry) =>
-          sum +
-          entrySeconds({
-            startedAt: entry.startedAt.toISOString(),
-            endedAt: entry.endedAt?.toISOString() ?? null,
-            pausedAt: entry.pausedAt?.toISOString() ?? null,
-            pausedSeconds: entry.pausedSeconds,
-            duration: entry.duration,
-          }),
-        0,
-      ),
+    trackedSeconds: sumOf(
+      event.timeEntries.filter((entry) => formatOptionalDay(entry.calendarOccurrenceDate) === date),
+      (entry) =>
+        entrySeconds({
+          startedAt: entry.startedAt.toISOString(),
+          endedAt: entry.endedAt?.toISOString() ?? null,
+          pausedAt: entry.pausedAt?.toISOString() ?? null,
+          pausedSeconds: entry.pausedSeconds,
+          duration: entry.duration,
+        }),
+    ),
   };
 }
 
@@ -740,7 +739,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       ...eventData(fields),
       recurrence: undefined,
       postponedFromId: id,
-      postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
+      postponedFromDate: parseOptionalDay(occurrence?.date ?? null),
       ...eventRelations(fields),
     },
   });

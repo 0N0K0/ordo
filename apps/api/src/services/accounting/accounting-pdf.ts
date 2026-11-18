@@ -5,14 +5,15 @@ import {
   contactName,
   depositAmount,
   type DocumentTotals,
+  fileName,
   formatMoney,
   formatNumber,
   formatPercent,
   paidOnReceipt,
   printedDay,
+  sumOf,
   toCents,
   UNIT_LABELS,
-  fileName,
 } from '@ordo/shared';
 import { createPdf, PDF_TABLE, PDF_TEXT } from '../core/pdf-report';
 import { prisma } from '../../db';
@@ -346,7 +347,7 @@ function tableColumns(width: number, vatApplicable: boolean, discounts: boolean)
     {
       key: 'label',
       label: 'Désignation',
-      width: width - fixed.reduce((sum, column) => sum + column.width, 0),
+      width: width - sumOf(fixed, (column) => column.width),
       align: 'left',
     },
     ...fixed,

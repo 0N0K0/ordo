@@ -21,6 +21,7 @@ import { HomeList, HomeRow } from './HomeList';
 import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from './LateBadge';
+import { taskRef } from '../../tasks/hooks/use-task-context';
 
 interface TasksCardProps {
   context: TaskContext | null;
@@ -37,7 +38,7 @@ interface TasksCardProps {
 export function TasksCard({ context, tasks, today }: TasksCardProps) {
   const link = useTaskLink();
   return (
-    <HomeCard title="Mes tâches du jour" icon={<CheckSquareOffsetIcon aria-hidden />} to="/tasks" loading={!tasks || !context}>
+    <HomeCard title="Mes tâches du jour" icon={<CheckSquareOffsetIcon aria-hidden />} to={PAGES.tasks.path} loading={!tasks || !context}>
       {tasks && context && tasks.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Rien à faire aujourd’hui." />}
       {tasks && context && tasks.length > 0 && (
         <HomeList
@@ -50,7 +51,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
                 key={task.id}
                 to={link.to(task.id)}
                 label={task.label}
-                subtitle={`${context.projectLabel(task.projectId)}${task.number === null ? '' : ` · #${task.number}`}`}
+                subtitle={[context.projectLabel(task.projectId), taskRef(task).trim()].filter(Boolean).join(' · ')}
                 value={late && task.deadline ? <LateBadge due={task.deadline} today={today} /> : <ItemBadge item={status} />}
               />
             );
@@ -98,7 +99,7 @@ export function AgendaCard({ today }: { today: string }) {
   }, [events.data, alarms.data, today]);
 
   return (
-    <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to="/calendar" linkLabel="Ouvrir l’agenda" loading={!items}>
+    <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to={PAGES.calendar.path} linkLabel="Ouvrir l’agenda" loading={!items}>
       {items && items.length === 0 && <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Rien de prévu cette semaine." />}
       {items && items.length > 0 && (
         <HomeList
@@ -140,7 +141,7 @@ interface TimeCardProps {
 export function TimeCard({ context, time }: TimeCardProps) {
   const max = time?.byProject[0]?.seconds ?? 0;
   return (
-    <HomeCard title="Temps passé" icon={<ClockIcon aria-hidden />} to="/time" loading={!time || !context}>
+    <HomeCard title="Temps passé" icon={<ClockIcon aria-hidden />} to={PAGES.time.path} loading={!time || !context}>
       {time && context && (
         <Stack gap="sm">
           <SimpleGrid cols={2}>

@@ -6,7 +6,7 @@ import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { listSelectProps } from '../../../components/items/item-look';
 import { Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
+import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/shared';
 
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -34,6 +34,40 @@ import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+
+/** Prefixes of the key of a document settled in a choice: made in Ordo, or imported. */
+const DOCUMENT_KEY = 'doc:';
+const IMPORTED_KEY = 'imp:';
+
+/**
+ * Key of a document in the choice of the documents settled: « doc:id » or « imp:id ».
+ * @param {string} id Document.
+ * @param {boolean} imported Whether it is imported.
+ * @returns {string} Key.
+ */
+const documentKey = (id: string, imported: boolean): string => `${imported ? IMPORTED_KEY : DOCUMENT_KEY}${id}`;
+
+/**
+ * Key of a document settled, in the choice of the documents (see documentKey).
+ * @param {{ documentId?: string | null, importedDocumentId?: string | null }} allocation Document settled.
+ * @returns {string | null} Key, none without a document.
+ */
+function allocationKey(allocation: { documentId?: string | null; importedDocumentId?: string | null }): string | null {
+  if (allocation.documentId) return documentKey(allocation.documentId, false);
+  return allocation.importedDocumentId ? documentKey(allocation.importedDocumentId, true) : null;
+}
+
+/**
+ * Document settled of a key of the choice of the documents (see allocationKey).
+ * @param {string | null} key Key.
+ * @returns {{ documentId: string | null, importedDocumentId: string | null }} Document settled.
+ */
+function allocationOfKey(key: string | null): { documentId: string | null; importedDocumentId: string | null } {
+  return {
+    documentId: key?.startsWith(DOCUMENT_KEY) ? key.slice(DOCUMENT_KEY.length) : null,
+    importedDocumentId: key?.startsWith(IMPORTED_KEY) ? key.slice(IMPORTED_KEY.length) : null,
+  };
+}
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -122,14 +156,14 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
     ...(documents ?? [])
       .filter((document) => document.status === 'FINAL' && document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => settleOption(`doc:${document.id}`, `${document.number} — ${document.clientName}`, document)),
+      .map((document) => settleOption(documentKey(document.id, false), `${document.number} — ${document.clientName}`, document)),
     ...(imported ?? [])
       .filter((document) => document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
       .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => settleOption(`imp:${document.id}`, `${document.number} (importé) — ${document.clientName}`, document)),
+      .map((document) => settleOption(documentKey(document.id, true), `${document.number} (importé) — ${document.clientName}`, document)),
   ];
-  const allocated = values.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-  const keyOf = (allocation: TreasuryAllocationInput) => (allocation.documentId ? `doc:${allocation.documentId}` : allocation.importedDocumentId ? `imp:${allocation.importedDocumentId}` : null);
+  const allocated = sumOf(values.allocations, (allocation) => allocation.amount);
+  const keyOf = (allocation: TreasuryAllocationInput) => allocationKey(allocation);
 
   const handleSubmit = form.onSubmit((input) => {
     const payload = entryPayload(input);
@@ -343,8 +377,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                       const option = settleable.find((item) => item.value === key);
                       const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
                       form.setFieldValue(`allocations.${index}`, {
-                        documentId: key?.startsWith('doc:') ? key.slice(4) : null,
-                        importedDocumentId: key?.startsWith('imp:') ? key.slice(4) : null,
+                        ...allocationOfKey(key),
                         amount,
                       });
                       // An empty entry takes the amount and the name of the document it settles.

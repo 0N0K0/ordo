@@ -1,6 +1,6 @@
-import { unarchived } from '../../../lib/archive';
+import { unarchived, archivedIds } from '../../../lib/archive';
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
-import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
+import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH, sumOf } from '@ordo/shared';
 import type { Client, Project, Workspace } from '../api';
 import { collator, normalize } from '../../../lib/text';
 
@@ -339,8 +339,8 @@ export function buildFavoriteSection(workspace: Workspace, sort: SortMode, searc
  */
 export function buildArchiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
   return buildContextSection(workspace, sort, search, {
-    clientIds: new Set(workspace.clients.filter((client) => client.archived).map((client) => client.id)),
-    projectIds: new Set(workspace.projects.filter((project) => project.archived).map((project) => project.id)),
+    clientIds: archivedIds(workspace.clients),
+    projectIds: archivedIds(workspace.projects),
     keep: (project) => project.archived,
   });
 }
@@ -351,8 +351,8 @@ export function buildArchiveSection(workspace: Workspace, sort: SortMode, search
  * @returns {number} Count.
  */
 export function countSectionItems(section: TreeSection): number {
-  const countForest = (nodes: ProjectNode[]): number => nodes.reduce((sum, node) => sum + (section.context?.has(`p:${node.project.id}`) ? 0 : 1) + countForest(node.children), 0);
-  return section.clients.reduce((sum, node) => sum + (section.context?.has(`c:${node.client.id}`) ? 0 : 1) + countForest(node.projects), 0) + countForest(section.orphans);
+  const countForest = (nodes: ProjectNode[]): number => sumOf(nodes, (node) => (section.context?.has(`p:${node.project.id}`) ? 0 : 1) + countForest(node.children));
+  return sumOf(section.clients, (node) => (section.context?.has(`c:${node.client.id}`) ? 0 : 1) + countForest(node.projects)) + countForest(section.orphans);
 }
 
 /**

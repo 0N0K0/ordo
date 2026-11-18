@@ -1,4 +1,4 @@
-import { type ChartConfig, isTimeDimension, round2 } from '@ordo/shared';
+import { type ChartConfig, isTimeDimension, round2, sumOf } from '@ordo/shared';
 import { DIMENSION_LABELS, MONEY_MEASURES, type ChartData } from './aggregate';
 import { downloadCsv, postTablePdf } from '../../../lib/download';
 import * as fmt from '../../../lib/format';
@@ -29,11 +29,11 @@ export function chartTable(data: ChartData, config: ChartConfig): ChartTable {
   const summable = config.type !== 'burndown' && !config.cumulative && config.measure !== 'balance';
   if (config.type === 'donut') {
     const rows = data.slices.map((slice) => [slice.name, slice.value]);
-    return { columns: [axis, 'Valeur'], rows, percent: [false, false], total: summable ? [null, data.slices.reduce((sum, slice) => sum + slice.value, 0)] : null, money };
+    return { columns: [axis, 'Valeur'], rows, percent: [false, false], total: summable ? [null, sumOf(data.slices, (slice) => slice.value)] : null, money };
   }
   const percent = [false, ...data.series.map((serie) => serie.yAxisId === 'right')];
   const rows = data.rows.map((row) => [String(row.x), ...data.series.map((serie) => (typeof row[serie.name] === 'number' ? (row[serie.name] as number) : null))]);
-  const total = summable ? [null, ...data.series.map((_, index) => (percent[index + 1] ? null : round2(rows.reduce((sum, row) => sum + ((row[index + 1] as number | null) ?? 0), 0))))] : null;
+  const total = summable ? [null, ...data.series.map((_, index) => (percent[index + 1] ? null : round2(sumOf(rows, (row) => (row[index + 1] as number | null) ?? 0))))] : null;
   return { columns: [axis, ...data.series.map((serie) => serie.name)], rows, percent, total, money };
 }
 

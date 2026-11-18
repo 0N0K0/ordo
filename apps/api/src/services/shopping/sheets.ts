@@ -7,10 +7,12 @@ import {
   itemNoteSchema,
   mapById,
   parseDay,
+  parseOptionalDay,
   productKey,
   quantitySchema,
   readSheetSources,
   roundQuantity,
+  SHEET_LABEL_MAX,
   sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
@@ -25,7 +27,6 @@ import {
   timesSheet,
   UNIT_MAX,
   unitSchema,
-  SHEET_LABEL_MAX,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -536,7 +537,7 @@ async function assertOwner(scope: OwnerScope): Promise<void> {
  */
 async function sheetPartsOf(scope: OwnerScope): Promise<SheetPart[] | null> {
   const links = await prisma.sheetLink.findMany({ where: { ...scope, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
-  return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() }))) : null;
+  return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: fromDecimal(link.multiplier) }))) : null;
 }
 
 /**
@@ -625,7 +626,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
   // The archived sheets do not fill checklists anymore.
   const parts = await sheetPartsOf(ownerOnly);
   if (!parts) return null;
-  const occurrence = 'occurrenceDate' in owner ? parseDay(owner.occurrenceDate) : null;
+  const occurrence = parseOptionalDay('occurrenceDate' in owner ? owner.occurrenceDate : null);
   try {
     return await prisma.checklist.create({ data: { ...ownerOnly, occurrenceDate: occurrence, items: { create: summedRows(parts) } } });
   } catch (error) {

@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -12,6 +13,7 @@ import { useTreasuryLoans, useTreasurySettings } from '../api';
 import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { SignedAmount } from '../../../components/money/SignedAmount';
+import { archivedIds } from '../../../lib/archive';
 
 /** Row of the loans: a relation (what it owes or is owed), or one of its loan lines under it. */
 type LoanRow =
@@ -108,7 +110,7 @@ export function LoansPanel() {
   const { data: loans, isPending } = useTreasuryLoans();
   const { data: settings } = useTreasurySettings();
   // Comments of an archived relation are read only.
-  const archivedRelations = new Set((settings?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => relation.id));
+  const archivedRelations = archivedIds(settings?.treasuryRelations);
   const rows = useMemo((): LoanRow[] => {
     const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
     return (loans ?? []).flatMap((item) => {
@@ -129,8 +131,14 @@ export function LoansPanel() {
   }, [loans, settings]);
   const view = useDataView({ tableKey: 'treasury-loans', columns: COLUMNS, rows, title: 'Prêts', getKey: (row) => row.key });
   const relations = (loans ?? []).map((item) => item.balance);
-  const owedToMe = relations.filter((balance) => balance > 0).reduce((sum, balance) => sum + balance, 0);
-  const iOwe = -relations.filter((balance) => balance < 0).reduce((sum, balance) => sum + balance, 0);
+  const owedToMe = sumOf(
+    relations.filter((balance) => balance > 0),
+    (balance) => balance,
+  );
+  const iOwe = -sumOf(
+    relations.filter((balance) => balance < 0),
+    (balance) => balance,
+  );
 
   return (
     <Stack gap="md">

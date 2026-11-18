@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports -- BatchMultiSelect wraps MultiSelect.
 import { Anchor, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
 import type { MouseEvent } from 'react';
 import { MAX_STACKED, stackedCount } from '../data-table/cells/stacked';

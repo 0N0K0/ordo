@@ -29,6 +29,7 @@ import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { deleteSheetsAction } from '../lib/delete-sheets';
+import { sheetPath } from '../../../app/pages';
 
 /**
  * Columns of the sheets.
@@ -133,7 +134,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
    * Creates a sheet and opens its page.
    * @returns {void}
    */
-  const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...ON_ERROR });
+  const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(sheetPath(id)), ...ON_ERROR });
 
   return (
     <DataTable
@@ -170,11 +171,11 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         />
       }
       getKey={(sheet) => sheet.id}
-      rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/sheets/${sheet.id}`) })}
+      rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(sheetPath(sheet.id)) })}
       cells={(sheet) => ({
         name: (
           <Group gap="xs" wrap="nowrap">
-            <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+            <Anchor component={Link} to={sheetPath(sheet.id)} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
               {sheet.label}
             </Anchor>
             {sheet.archived && <ArchivedBadge feminine size="xs" />}
@@ -225,8 +226,8 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
             name={sheet.label}
             primary={
               sheet.archived
-                ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
-                : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }
+                ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => navigate(sheetPath(sheet.id)) }
+                : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(sheetPath(sheet.id)) }
             }
             items={[
               // Archived: read only, not used anymore.

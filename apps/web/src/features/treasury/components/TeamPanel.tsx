@@ -3,7 +3,7 @@ import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { PersonOption, PersonRow } from '../../../components/people/people-rows';
+import { PersonRow } from '../../../components/people/people-rows';
 import { listSelectProps } from '../../../components/items/item-look';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { createdId } from '../../../components/settings/settings-api';
@@ -33,6 +33,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -119,10 +120,7 @@ export function TeamMembers() {
           disabled={!others.length}
           searchable
           data={others.map((item) => ({ value: item.id, label: item.name }))}
-          renderOption={({ option }) => {
-            const contributor = contributorById.get(option.value);
-            return <PersonOption name={option.label} label={option.label} avatarUrl={contributor?.avatarUrl} hint={contributor?.handle ? `@${contributor.handle}` : undefined} />;
-          }}
+          renderOption={personOptionRenderer(contributorById)}
           value={null}
           onChange={(contributorId) => contributorId && addMember.mutate({ contributorId }, toastCallbacks('Membre ajouté.'))}
         />

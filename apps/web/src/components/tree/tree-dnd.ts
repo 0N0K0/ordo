@@ -9,7 +9,7 @@ import type { TreePlace } from './category-tree';
  * @param {Parameters<CollisionDetection>[0]} args Collision arguments.
  * @returns {ReturnType<CollisionDetection>} Collisions.
  */
-export const treeCollision: CollisionDetection = (args) => {
+const treeCollision: CollisionDetection = (args) => {
   const under = pointerWithin(args);
   return under.length ? under : closestCenter(args);
 };
@@ -21,7 +21,7 @@ export const treeCollision: CollisionDetection = (args) => {
  * @param {boolean} [nested] Rows can be put under another (a tree). Optional. Default = true.
  * @returns {{ id: string, place: TreePlace } | null} Row and place, null outside the rows.
  */
-export function pointerPlace({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent, nested = true): { id: string; place: TreePlace } | null {
+function pointerPlace({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent, nested = true): { id: string; place: TreePlace } | null {
   if (!over) return null;
   const pointer = 'clientY' in activatorEvent ? (activatorEvent as PointerEvent).clientY + delta.y : null;
   const ratio = pointer === null ? 0.5 : (pointer - over.rect.top) / Math.max(1, over.rect.height);
@@ -74,7 +74,7 @@ interface FlatRow {
 }
 
 /** Indent of a level of a tree dragged, in px: a horizontal move this long changes the level by one. */
-export const DRAG_INDENT = 20;
+const DRAG_INDENT = 20;
 
 /**
  * Removes the rows nested under a dragged row (they move with it).

@@ -1,3 +1,4 @@
+import { modelDelegate } from './delegate';
 import { commentBodySchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -69,7 +70,7 @@ async function assertTarget(target: CommentTarget, id: string): Promise<void> {
     return;
   }
   const { model, lock, via } = TARGET_MODELS[target];
-  const item = await orNotFound((prisma as unknown as Record<string, FindDelegate>)[model].findUnique({ where: { id }, select: { [via ?? 'id']: true } }), 'Élément');
+  const item = await orNotFound(modelDelegate<FindDelegate>(model).findUnique({ where: { id }, select: { [via ?? 'id']: true } }), 'Élément');
   if (lock) await assertNotArchived(lock, item[via ?? 'id']);
 }
 

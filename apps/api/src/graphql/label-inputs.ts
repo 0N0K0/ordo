@@ -1,3 +1,4 @@
+import { modelDelegate } from '../services/core/delegate';
 import type { InputObjectRef } from '@pothos/core';
 import type PrismaTypes from '../generated/pothos-types';
 import { prisma } from '../db';
@@ -26,6 +27,10 @@ type LabelModel = {
 /** Field builder of the GraphQL object of a Prisma model. */
 type ObjectFields<Model extends keyof PrismaTypes> = PothosSchemaTypes.PrismaObjectFieldBuilder<BuilderTypes, PrismaTypes[Model]>;
 
+/** Description of the `archived` field of every archivable type. */
+// eslint-disable-next-line no-restricted-syntax -- the description itself.
+export const ARCHIVED_DESCRIPTION = 'Archived: hidden by default, read only.';
+
 /**
  * Defines the GraphQL object of a model with fields typed against another model of the same kind (labels, tree items).
  * @param {keyof PrismaTypes} name Prisma model (and GraphQL type) name.
@@ -51,7 +56,7 @@ export function labelObject(name: LabelModel, options: { description?: string; c
     label: t.exposeString('label'),
     color: t.exposeString('color', colorDescription === undefined ? {} : { description: colorDescription }),
     position: t.exposeInt('position'),
-    archived: t.boolean({ description: 'Archived: hidden by default, read only.', resolve: (item) => item.archivedAt !== null }),
+    archived: t.boolean({ description: ARCHIVED_DESCRIPTION, resolve: (item) => item.archivedAt !== null }),
   }));
 }
 
@@ -98,7 +103,7 @@ export function labelMutations(
 ): void {
   // Every LabelModel is an object of the schema, so typing the calls with one of them is enough.
   const type = name as 'TaskPriority';
-  const model = (prisma as unknown as Record<string, typeof prisma.taskPriority>)[name.charAt(0).toLowerCase() + name.slice(1)];
+  const model = modelDelegate<typeof prisma.taskPriority>(name.charAt(0).toLowerCase() + name.slice(1));
 
   builder.mutationFields((t) => ({
     [`create${name}`]: t.prismaField({

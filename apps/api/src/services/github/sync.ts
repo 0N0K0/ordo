@@ -1,4 +1,20 @@
-import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_MAX, mapById, MILESTONE_LABEL_MAX, normalize, parseDay, round2, TASK_LABEL_MAX, SPRINT_LABEL_MAX } from '@ordo/shared';
+import {
+  addDays,
+  clipText,
+  dayPart,
+  DEFAULT_LABEL_COLOR,
+  formatOptionalDay,
+  LABEL_MAX,
+  mapById,
+  MILESTONE_LABEL_MAX,
+  parseDay,
+  parseOptionalDay,
+  round2,
+  sameName,
+  SPRINT_LABEL_MAX,
+  sumOf,
+  TASK_LABEL_MAX,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -138,7 +154,7 @@ const relatedOf = (task: SyncedTask) => [...task.relationsA.map((relation) => re
  * @param {SyncedTask} task Task.
  * @returns {number} Hours.
  */
-const trackedHours = (task: SyncedTask) => round2(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600);
+const trackedHours = (task: SyncedTask) => round2(sumOf(task.timeEntries, (entry) => (entry.duration ?? 0) / Math.max(1, entry._count.tasks)) / 3600);
 
 /**
  * Whether the type is synchronized for an item: in a field of the board, or as issue type (issues only).
@@ -227,9 +243,9 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
     else fields.type = item.issueTypeId ? (maps.optionType.has(item.issueTypeId) ? item.issueTypeId : `gh:${item.issueTypeId}`) : null;
   }
   if (link.iterationFieldId) fields.iteration = (fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null;
-  if (usable(link.startFieldId, maps, item.type)) fields.start = (fieldValue(item.fields[link.startFieldId]) as string | null)?.slice(0, 10) ?? null;
-  if (usable(link.endFieldId, maps, item.type)) fields.end = (fieldValue(item.fields[link.endFieldId]) as string | null)?.slice(0, 10) ?? null;
-  if (usable(link.deadlineFieldId, maps, item.type)) fields.deadline = (fieldValue(item.fields[link.deadlineFieldId]) as string | null)?.slice(0, 10) ?? null;
+  if (usable(link.startFieldId, maps, item.type)) fields.start = dayPart(fieldValue(item.fields[link.startFieldId]) as string | null);
+  if (usable(link.endFieldId, maps, item.type)) fields.end = dayPart(fieldValue(item.fields[link.endFieldId]) as string | null);
+  if (usable(link.deadlineFieldId, maps, item.type)) fields.deadline = dayPart(fieldValue(item.fields[link.deadlineFieldId]) as string | null);
   if (usable(link.effortFieldId, maps, item.type)) fields.effort = (fieldValue(item.fields[link.effortFieldId]) as number | null) ?? null;
   return fields;
 }
@@ -259,14 +275,13 @@ async function subtree(taskId: string): Promise<Set<string>> {
  */
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
-  const day = (value: unknown) => (value ? parseDay(String(value)) : null);
   if ('title' in values) data.label = clipText(String(values.title), TASK_LABEL_MAX) || task.label;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
-  if ('deadline' in values) data.deadline = day(values.deadline);
+  if ('deadline' in values) data.deadline = parseOptionalDay((values.deadline as string | null) || null);
   if ('milestone' in values)
     data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId!, String(values.milestone)) /* synced tasks are in a linked project */ } } : { disconnect: true };
   if ('blockedBy' in values) {
@@ -287,8 +302,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     const sprintId = values.iteration ? maps.iterationSprint.get(String(values.iteration)) : undefined;
     if (sprintId && !task.sprints.some((sprint) => sprint.id === sprintId)) data.sprints = { connect: [{ id: sprintId }] };
   }
-  if ('start' in values) data.startDate = day(values.start);
-  if ('end' in values) data.endDate = day(values.end);
+  if ('start' in values) data.startDate = parseOptionalDay((values.start as string | null) || null);
+  if ('end' in values) data.endDate = parseOptionalDay((values.end as string | null) || null);
   if ('effort' in values) data.effort = typeof values.effort === 'number' ? values.effort : null;
   if ('assignees' in values) {
     // Assignees without GitHub login stay.
@@ -301,7 +316,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     const ids: string[] = [];
     for (const key of values.labels as string[]) {
       // Names cut to the rule of the tags: a long label is found again by its cut name.
-      let tag = tags.find((item) => item.label.toLowerCase() === clipText(key, LABEL_MAX));
+      let tag = tags.find((item) => sameName(item.label, clipText(key, LABEL_MAX)));
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
         const position = await nextPositionIn('taskTag');
@@ -428,7 +443,7 @@ async function pushValues(
       let id = repository.get(key);
       if (!id) {
         // A tag without label in the repository: created with the tag's label and color.
-        const tag = tags.find((entry) => entry.label.toLowerCase() === key);
+        const tag = tags.find((entry) => sameName(entry.label, key));
         id = (await createLabel(token, item.repositoryId, tag?.label ?? key, (tag?.color ?? DEFAULT_LABEL_COLOR).replace('#', ''))).id;
         repository.set(key, id);
       }
@@ -565,13 +580,6 @@ function projectTree(projectId: string): Promise<string[]> {
 }
 
 /**
- * Sprint label compared without case or accents.
- * @param {string} label Label.
- * @returns {string} Folded label.
- */
-const foldLabel = (label: string) => normalize(label).trim();
-
-/**
  * Pairs the iterations of the board with the sprints of the project tree, without losing anything. An iteration
  * without sprint takes the Ordo sprint of the same label (a sprint created from it by an earlier sync gives that
  * sprint its tasks and is deleted), or becomes a new sprint with its dates. Ordo is the reference for the label and
@@ -599,7 +607,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
 
   for (const iteration of field.iterations) {
     let sprint = sprints.find((item) => item.githubIterationId === iteration.id);
-    const twin = sprints.find((item) => !item.githubIterationId && item !== sprint && foldLabel(item.label) === foldLabel(iteration.title));
+    const twin = sprints.find((item) => !item.githubIterationId && item !== sprint && sameName(item.label, iteration.title));
     if (twin) {
       if (sprint) {
         // A sprint created from the iteration by an earlier sync: its tasks join the Ordo sprint, which replaces it.
@@ -837,7 +845,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         updatedAt: new Date().toISOString(),
         fields: {},
       };
-      const { title: _title, body: _body, assignees: _assignees, ...fields } = local; // eslint-disable-line @typescript-eslint/no-unused-vars
+      const { title: _title, body: _body, assignees: _assignees, ...fields } = local;
       // A new item is empty: only the values set in Ordo are sent.
       const pushable = Object.fromEntries(Object.entries(fields).filter(([, value]) => !isUnmapped(value, 'ordo') && value !== null && value !== false && !(Array.isArray(value) && !value.length)));
       await pushValues(token, link, item, pushable, pushContext(task, item.assignees));

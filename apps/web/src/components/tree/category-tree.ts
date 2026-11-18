@@ -1,4 +1,4 @@
-import { childrenByParent, LEVEL, mapById, subtreeOf } from '@ordo/shared';
+import { childrenByParent, LEVEL, mapById } from '@ordo/shared';
 import { treeOptions, type TreeOption } from './tree-select';
 import { collator } from '../../lib/text';
 
@@ -83,16 +83,6 @@ export function categoryOptions(categories: readonly TreeCategory[], exclude?: s
  */
 export function categoryPaths(categories: readonly TreeCategory[]): Map<string, string> {
   return new Map(categoryTree(categories).map((placed) => [placed.category.id, placed.path]));
-}
-
-/**
- * A category and all its sub-categories.
- * @param {readonly TreeCategory[]} categories All categories.
- * @param {string} id Category.
- * @returns {Set<string>} Ids.
- */
-export function categorySubtree(categories: readonly TreeCategory[], id: string): Set<string> {
-  return subtreeOf(categories, id);
 }
 
 /** Where a dragged category is dropped on another one: before it, after it or under it (last). */

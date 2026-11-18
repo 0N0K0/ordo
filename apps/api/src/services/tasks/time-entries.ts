@@ -1,4 +1,4 @@
-import { durationSchema, parseDay, timeDescriptionSchema, subtreeOf } from '@ordo/shared';
+import { durationSchema, parseOptionalDay, subtreeOf, timeDescriptionSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
@@ -24,7 +24,7 @@ async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ 
   if (!event) throw fieldError('calendarEventId', 'Évènement introuvable.');
   const recurring = event.recurrence !== null;
   if (recurring && !link.occurrenceDate) throw fieldError('calendarEventId', 'Choisissez l’occurrence de l’évènement.');
-  return { calendarEventId: link.eventId, calendarOccurrenceDate: recurring && link.occurrenceDate ? parseDay(link.occurrenceDate) : null };
+  return { calendarEventId: link.eventId, calendarOccurrenceDate: recurring ? parseOptionalDay(link.occurrenceDate || null) : null };
 }
 
 /**

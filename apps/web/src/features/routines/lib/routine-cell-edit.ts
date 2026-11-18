@@ -3,7 +3,7 @@ import { useEntityCellEdit } from '../../../components/data-table/selection/bulk
 import { notifyWithUndo, onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from '../api';
 import { countOf } from '../../../lib/text';
-import { cellLabel } from '../../../components/data-table/cells/cell-field';
+import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 /** Columns of the routine table edited together on a cell selection. */
 type RoutineColumn =
@@ -91,10 +91,10 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
 }
 
 /**
- * Accessible label of a cell of the routine table, mentioning the bulk edit of a selection (cellLabel).
+ * Accessible label of a cell of the routine table, mentioning the bulk edit of a selection (itemCellLabel).
  * @param {string} field Field name.
  * @param {Routine} routine Routine.
  * @param {number} count Routines changed by an edit.
  * @returns {string} Label.
  */
-export const routineCellLabel = (field: string, routine: Routine, count: number): string => cellLabel(field, `de ${routine.label}`, count);
+export const routineCellLabel = (field: string, routine: Routine, count: number): string => itemCellLabel(field, `« ${routine.label} »`, count);

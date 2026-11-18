@@ -1,5 +1,4 @@
-import { settingsPath } from '../../../app/layout/page-settings';
-import { PAGES } from '../../../app/pages';
+import { PAGES, settingsPath } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { countBy } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
@@ -50,12 +49,12 @@ export function SettingsPage() {
 
   // Settings moved to their views.
   const moved: Record<string, string> = {
-    tracking: perso ? '/' : settingsPath('/accounting'),
-    company: perso ? '/' : settingsPath('/accounting', 'company'),
-    calendar: settingsPath('/calendar'),
-    mail: settingsPath('/mail'),
+    tracking: perso ? '/' : settingsPath(PAGES.accounting.path),
+    company: perso ? '/' : settingsPath(PAGES.accounting.path, 'company'),
+    calendar: settingsPath(PAGES.calendar.path),
+    mail: settingsPath(PAGES.mail.path),
     // In every view of tasks.
-    tasks: settingsPath('/tasks'),
+    tasks: settingsPath(PAGES.tasks.path),
   };
   if (asked && moved[asked]) return <Navigate to={moved[asked]} replace />;
 

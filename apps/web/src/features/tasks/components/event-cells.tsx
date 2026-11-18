@@ -6,7 +6,7 @@ import { useNow } from '../../../lib/use-now';
 
 import { notifySuccess, ON_ERROR } from '../../../lib/notify';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
-import { eventKey, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, type TaskTableRow } from '../lib/task-columns';
 import type { TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/lib/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
@@ -16,7 +16,7 @@ import classes from './TaskTable.module.css';
 import type { TaskContext } from '../hooks/use-task-context';
 import { EVENT_STATES, eventState } from '../lib/event-format';
 
-import { cellField as sharedField, stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellField } from '../../../components/data-table/cells/cell-field';
 import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -61,10 +61,6 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
   );
 }
 
-/** Look of the cell fields, like those of the tasks. */
-/** Fields of the cells, a click kept from the row. */
-const cellField = { ...sharedField, onClick: stopClick } as const;
-
 /**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
  * of the bulk selection of its column, each with its own change (its people kept, its own length…).
@@ -78,7 +74,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
   return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
     // The events of the selection of the table (on this column), else this one.
     const events = (table?.rows ?? []).flatMap((row) => (row.kind === 'event' ? [row.event] : []));
-    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventKey, rows: events }, column, event);
+    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventRowKey, rows: events }, column, event);
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
       const chosen = await askScope({ action: 'update' });
@@ -192,7 +188,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
   if (event.allDay) {
     return (
       <DatePickerInput
-        {...cellField}
+        {...stoppedCellField}
         aria-label={label}
         value={side === 'start' ? startDate : endDate}
         minDate={side === 'end' ? startDate : undefined}
@@ -210,7 +206,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
   const value = side === 'start' ? `${startDate} ${event.startTime}:00` : `${endDate} ${event.endTime}:00`;
   return (
     <DateTimePicker
-      {...cellField}
+      {...stoppedCellField}
       aria-label={label}
       value={value}
       minDate={side === 'end' ? startDate : undefined}

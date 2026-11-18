@@ -11,7 +11,7 @@ import { useBulkUndo } from '../lib/bulk-undo';
 import { tasksLabel } from '../lib/bulk-label';
 
 /** Actions on tasks that their columns cannot do. */
-export interface TaskRowsActions {
+interface TaskRowsActions {
   close: SelectionAction;
   clone: SelectionAction;
   transfer: SelectionAction;

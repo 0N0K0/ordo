@@ -1,4 +1,4 @@
-import { clientPath, projectPath } from '../../../app/pages';
+import { clientPath, projectPath, SETTINGS_PARAM } from '../../../app/pages';
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { SubSection } from '../../../components/page/SubSection';
@@ -7,7 +7,7 @@ import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { useSetParams } from '../../../lib/search-params';
-import { ancestorsOf, mapById } from '@ordo/shared';
+import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -57,7 +57,6 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ProjectList } from '../components/ProjectList';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -160,7 +159,7 @@ export function ProjectPage() {
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.
-  const tree = new Set([project.id, ...subtree]);
+  const tree = subtreeOf(data.projects, project.id);
   const canAddSubProject = !project.archived && canHaveChildren(data.projects, project.id);
 
   return (

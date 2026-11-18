@@ -13,7 +13,7 @@ import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
-import { occurrenceSpan, scheduleSources } from '../../calendar/lib/calendar-events';
+import { occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
@@ -53,7 +53,7 @@ const STATES: Record<ItemState, { color: string; text: string }> = {
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {ItemState} State.
  */
-const stateOf = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
+const historyItemState = (item: HistoryItem, today: string): ItemState => (item.check ? 'done' : item.date >= today ? 'todo' : item.optional ? 'skipped' : 'missed');
 
 /**
  * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
@@ -82,7 +82,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const [time, setTime] = useState(() => proposedTime(item, today));
   // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
   const [day, setDay] = useState(() => (item.check ? localDay(item.check.doneAt) : item.date > today ? today : item.date));
-  const state = stateOf(item, today);
+  const state = historyItemState(item, today);
   const at = localInstant(day, time || '00:00');
   // Now when the form opened: a later hour is refused.
   const now = useNow(false);
@@ -174,7 +174,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
   const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, label: name } of slotSources) {
+  for (const { schedule, rule, color, label: name, foreign } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
@@ -183,10 +183,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       allDay: true,
       start: day,
       end: addDays(day, 1),
-      backgroundColor: color ?? 'var(--mantine-color-green-light)',
-      borderColor: color ?? 'var(--mantine-color-green-light)',
-      textColor: 'var(--mantine-color-text)',
-      classNames: [calendarClasses.slotBar],
+      ...slotBarLook({ color, foreign }),
     });
     for (const slot of slots) {
       events.push({
@@ -219,7 +216,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // hour they were done, else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
-    const state = stateOf(item, today);
+    const state = historyItemState(item, today);
     const { color, text } = STATES[state];
     const minutes = routine?.estimate ?? 30;
     const doneAt = item.check ? new Date(item.check.doneAt) : null;

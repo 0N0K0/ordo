@@ -11,6 +11,7 @@ import { shoppingTotal } from '../lib/export';
 import { openNewList } from '../lib/open-new-list';
 import { shoppingProgress } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
+import { shoppingListPath } from '../../../app/pages';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -46,7 +47,7 @@ export function TaskShopping({ task }: { task: Task }) {
           const total = shoppingTotal(list.items);
           return (
             <Group key={list.id} gap="xs" wrap="nowrap">
-              <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate style={{ flex: 1 }}>
+              <Anchor component={Link} to={shoppingListPath(list.id)} size="sm" truncate style={{ flex: 1 }}>
                 {list.label}
               </Anchor>
               <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>

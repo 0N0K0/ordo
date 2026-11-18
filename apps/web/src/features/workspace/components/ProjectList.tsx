@@ -15,8 +15,9 @@ import { projectDepth, projectHeight } from '../lib/tree';
 import classes from './ProjectList.module.css';
 
 import treeRow from '../../../components/tree/tree-drop.module.css';
-import { DragHandle } from '../../../components/actions/DragHandle';
+import { DragHandle } from '../../../components/dnd/DragHandle';
 import { FoldButton } from '../../../components/actions/FoldButton';
+import { unarchived } from '../../../lib/archive';
 
 interface ProjectListProps {
   projects: Project[];
@@ -140,7 +141,9 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
     if (lineageOf(byId, target.id).some((current) => current.id === id)) return null;
     const parentId = place === 'INSIDE' ? target.id : target.parentId;
     if ((parentId ? projectDepth(allProjects, parentId) : 0) + projectHeight(allProjects, id) > MAX_PROJECT_DEPTH) return null;
-    const siblings = projects.filter((project) => !project.archived && project.parentId === parentId).sort(listOrder);
+    const siblings = unarchived(projects)
+      .filter((project) => project.parentId === parentId)
+      .sort(listOrder);
     const others = siblings.filter((project) => project.id !== id);
     const at = others.findIndex((project) => project.id === targetId);
     const index = place === 'INSIDE' ? others.length : place === 'BEFORE' ? at : at + 1;

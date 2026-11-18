@@ -1,10 +1,9 @@
 import { formCallbacks } from '../../../lib/form';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { PAGES } from '../../../app/pages';
+import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
-import { useSetParams } from '../../../lib/search-params';
 import { countOf, plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -17,11 +16,11 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
+import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar, sumOf } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -57,7 +56,6 @@ import { BudgetsPanel } from '../components/BudgetsPanel';
 import { LoansPanel } from '../components/LoansPanel';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
@@ -185,6 +183,9 @@ type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: '
 /** Tabs of the treasury page. */
 const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
 
+/** Former tabs of the page: the settings and the accounts, in the settings sidebar. */
+const MOVED_TABS = { settings: { changes: { [SETTINGS_PARAM]: '1' }, only: true }, accounts: { changes: { [SETTINGS_PARAM]: '1' }, only: true } };
+
 /**
  * Treasury: balance of the accounts, balance curve (actual, then forecast) over a month, a quarter or a
  * calendar year moved with arrows, expected movements (forecasts, invoices due, coming recurring invoices), actual movements of a
@@ -194,13 +195,8 @@ const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
 export function TreasuryPage() {
   const today = localToday();
   const [params] = useSearchParams();
-  const setParams = useSetParams();
   // The old settings and accounts tabs: in the settings sidebar.
-  const [tab, setTab, asked] = usePageTab(TREASURY_TABS);
-  const moved = asked === 'settings' || asked === 'accounts';
-  useEffect(() => {
-    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { only: true });
-  }, [moved, setParams]);
+  const [tab, setTab] = usePageTab(TREASURY_TABS, TREASURY_TABS[0], MOVED_TABS);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<CalendarScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
@@ -327,7 +323,10 @@ export function TreasuryPage() {
   }
 
   const items = projection?.items ?? [];
-  const receivable = items.filter((item) => item.amount > 0 && (item.kind === 'INVOICE' || item.kind === 'IMPORTED')).reduce((sum, item) => sum + item.amount, 0);
+  const receivable = sumOf(
+    items.filter((item) => item.amount > 0 && (item.kind === 'INVOICE' || item.kind === 'IMPORTED')),
+    (item) => item.amount,
+  );
   const late = items.filter((item) => item.overdue && item.amount > 0 && item.kind !== 'FORECAST');
   const forecastSeries = (projection?.series ?? []).filter((point) => point.forecast && point.date >= from && point.date <= periodLast);
   const lowest = forecastSeries.reduce<(typeof forecastSeries)[number] | null>((low, point) => (!low || point.balance < low.balance ? point : low), null);
@@ -350,7 +349,7 @@ export function TreasuryPage() {
         <AmountTile label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <AmountTile
           label="En retard"
-          value={late.reduce((sum, item) => sum + item.amount, 0)}
+          value={sumOf(late, (item) => item.amount)}
           hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
           color={late.length ? 'red' : undefined}
         />
@@ -535,7 +534,7 @@ export function TreasuryPage() {
                   <>
                     {item.documentId ? (
                       <Group gap={4} wrap="nowrap">
-                        <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
+                        <Anchor component={Link} to={documentPath(item.documentId)} size="sm">
                           {item.label}
                         </Anchor>
                         {item.archived && <ArchivedBadge size="xs" />}

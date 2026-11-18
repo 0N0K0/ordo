@@ -20,7 +20,7 @@ function sniff(buffer: Buffer): IconKind | null {
   if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpeg';
   if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
 
-  const head = buffer.toString('utf8', 0, 2048).replace(/^﻿/, '');
+  const head = buffer.toString('utf8', 0, 2048).replace(/^\uFEFF/, '');
   const withoutProlog = head.replace(/^\s*(<\?xml[^>]*\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|\s)*/i, '');
   return withoutProlog.startsWith('<svg') ? 'svg' : null;
 }

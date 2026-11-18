@@ -17,6 +17,7 @@ import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
 import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
 import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { documentPath } from '../../../app/pages';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
@@ -154,7 +155,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
     <StackedValues>
       {entry.allocations.map((allocation) =>
         allocation.documentId ? (
-          <Badge key={allocation.id} size="sm" variant="light" leftSection={<ReceiptIcon aria-hidden />} component={Link} to={`/accounting/${allocation.documentId}`} style={{ cursor: 'pointer' }}>
+          <Badge key={allocation.id} size="sm" variant="light" leftSection={<ReceiptIcon aria-hidden />} component={Link} to={documentPath(allocation.documentId)} style={{ cursor: 'pointer' }}>
             {allocation.documentLabel} · {fmt.money(allocation.amount)}
           </Badge>
         ) : (

@@ -10,7 +10,7 @@ import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { useParams } from 'react-router';
 
-import { FilePreview } from '../../files/components/FilePreview';
+import { FilePreview, PAGE_PREVIEW_HEIGHT } from '../../files/components/FilePreview';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { useImportedDocument, useImportedDocumentMutations } from '../api/documents';
@@ -24,6 +24,7 @@ import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { Comments } from '../../comments/components/Comments';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { PAGES } from '../../../app/pages';
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
@@ -40,7 +41,7 @@ export function ImportedDocumentPage() {
   if (isLoading) {
     return <DetailSkeleton fields={6} />;
   }
-  if (!document) return <DetailNotFound what="Ce document" backTo="/accounting" backLabel="Facturation" />;
+  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.title} />;
 
   const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, filename: document.filename, mimeType: document.fileMimeType }) : null;
   const money = (amount: number) => fmt.money(amount, document.currency);
@@ -56,7 +57,7 @@ export function ImportedDocumentPage() {
   return (
     <Stack gap="md">
       <DetailHeader
-        back={{ to: '/accounting', label: 'Facturation' }}
+        back={{ to: PAGES.accounting.path, label: PAGES.accounting.title }}
         order={1}
         title={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number}`}
         badges={
@@ -94,7 +95,7 @@ export function ImportedDocumentPage() {
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
             {document.fileUrl && kind ? (
-              <FilePreview url={document.fileUrl} filename={document.filename ?? document.number} kind={kind} height="max(36rem, calc(100dvh - 16rem))" />
+              <FilePreview url={document.fileUrl} filename={document.filename ?? document.number} kind={kind} height={PAGE_PREVIEW_HEIGHT} />
             ) : (
               <Box p="xl">
                 <EmptyState

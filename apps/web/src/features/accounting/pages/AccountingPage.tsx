@@ -1,6 +1,6 @@
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { PAGES } from '../../../app/pages';
+import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
 import { plural } from '../../../lib/text';
@@ -10,7 +10,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { Badge, Group, Stack, Text } from '@mantine/core';
-import { recurrenceSchema, yearOfDay } from '@ordo/shared';
+import { recurrenceSchema } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -20,7 +20,7 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
-import { localToday } from '../../../lib/dates';
+import { localToday, yearOfDay } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
@@ -36,11 +36,10 @@ import { DocumentStatusSettings } from '../components/DocumentStatusSettings';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
-import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
@@ -58,6 +57,9 @@ const TABS = [
 
 /** Tabs of the page: the documents by type, then the others. */
 const PAGE_TABS = [...TABS.map((item) => item.value), 'toSend', 'overdue', 'recurring', 'catalog'] as const;
+
+/** Former tabs of the page: the tracking statuses, in the settings sidebar. */
+const MOVED_TABS = { tracking: { changes: { [SETTINGS_PARAM]: '1' } } };
 
 /**
  * Repetition of a recurring invoice, as a sentence.
@@ -215,7 +217,7 @@ function RecurringList() {
           name={item.label}
           primary={!item.archived && { label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
           items={[
-            { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
+            { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: documentPath(item.templateId) },
             archiveEntry({ archived: item.archived, type: 'Facture récurrente', label: item.label, feminine: true }, setArchived, item.id),
             rowMenuEntry(deleteRecurring([item])),
           ]}
@@ -235,11 +237,8 @@ export function AccountingPage() {
   const [params] = useSearchParams();
   const setParams = useSetParams();
   // Imported documents are now listed with their type (the former tab shows the quotes).
-  const [tab, setTab, askedTab] = usePageTab(PAGE_TABS, 'QUOTE');
   // The old tab of the tracking statuses: its settings, in the sidebar.
-  useEffect(() => {
-    if (askedTab === 'tracking') setParams({ tab: null, [SETTINGS_PARAM]: '1' });
-  }, [askedTab, setParams]);
+  const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', MOVED_TABS);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -258,7 +257,7 @@ export function AccountingPage() {
     .reverse();
   // Archived ones are not to do any more.
   const toSend = (documents ?? []).filter((document) => !document.archived && document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
-  const importedToSend = (imported.data ?? []).filter((document) => !document.archived && document.trackingStatus?.category === 'TO_SEND');
+  const importedToSend = unarchived(imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
 
   return (

@@ -1,10 +1,11 @@
 import { unarchived } from '../../../lib/archive';
 import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
-import { PersonAvatar, PersonOption } from '../../../components/people/people-rows';
+import { PersonAvatar } from '../../../components/people/people-rows';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { TaskContext } from '../hooks/use-task-context';
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 interface AssigneesCellProps {
   /** Assignees of the row. */
@@ -42,10 +43,7 @@ export function AssigneesCell({ value, projectId, projectIds, context, label, re
         return contributor ? [{ id, label: context.contributorName(contributor), icon: <PersonAvatar name={contributor.name} avatarUrl={contributor.avatarUrl} /> }] : [];
       })}
       data={context.assignableFor(projectIds ?? [projectId], value).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-      renderOption={({ option }) => {
-        const contributor = context.contributorById.get(option.value);
-        return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} />;
-      }}
+      renderOption={personOptionRenderer(context.contributorById, { handle: false })}
       onSave={(assigneeIds) => onSave(assigneeIds, listDiff(value, assigneeIds))}
     />
   );

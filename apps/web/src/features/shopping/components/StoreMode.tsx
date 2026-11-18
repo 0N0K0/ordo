@@ -4,7 +4,7 @@ import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
 import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon } from '@phosphor-icons/react';
+import { ArrowSquareOutIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { onMutationError } from '../../../lib/notify';
 import { useStockMutations } from '../../stock/api';
@@ -14,6 +14,8 @@ import { useShoppingData, useShoppingMutations, type ShoppingItem, type Shopping
 import { NO_GROUP, shoppingRows, visibleRows } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { Caption } from '../../../components/page/Caption';
 
 interface HeadingProps {
   name: string;
@@ -43,11 +45,17 @@ function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: He
       style={{ paddingLeft: `calc(${Math.max(0, depth - 1)} * var(--mantine-spacing-md))` }}
     >
       <Group gap="xs" wrap="nowrap">
-        {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+        <FoldChevron expanded={!collapsed} />
         {(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
-        <Text fw={depth <= 1 ? 700 : 600} size={depth === 0 ? 'lg' : 'sm'} tt={depth === 0 ? undefined : 'uppercase'} c={depth === 0 ? undefined : 'dimmed'} style={{ flex: 1 }}>
-          {name}
-        </Text>
+        {depth === 0 ? (
+          <Text fw={700} size="lg" style={{ flex: 1 }}>
+            {name}
+          </Text>
+        ) : (
+          <Caption fw={depth <= 1 ? 700 : 600} size="sm" style={{ flex: 1 }}>
+            {name}
+          </Caption>
+        )}
         <Badge size={depth === 0 ? 'lg' : 'md'} variant={count ? 'filled' : 'light'} color={count ? undefined : 'green'} aria-label={`${count} à acheter`}>
           {count}
         </Badge>
@@ -226,7 +234,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
           <Stack gap="xs">
             <UnstyledButton className={classes.storeHeading} data-depth={0} onClick={() => toggle('bought')} aria-expanded={!collapsed.has('bought')}>
               <Group gap="xs" wrap="nowrap">
-                {collapsed.has('bought') ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+                <FoldChevron expanded={!collapsed.has('bought')} />
                 <Text fw={700} size="lg" c="dimmed" style={{ flex: 1 }}>
                   Acheté
                 </Text>

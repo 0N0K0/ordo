@@ -3,7 +3,7 @@ import { TimePicker } from '@mantine/dates';
 import { rangeProps } from '../../../components/inputs/date-range';
 
 /** Times of a moment of the day: from when, and before when, it is done (each optional). */
-export interface SlotTimes {
+interface SlotTimes {
   fromTime: string | null;
   dueTime: string | null;
 }

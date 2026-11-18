@@ -1,4 +1,4 @@
-import { addDays, colorSchema, countOf, daysBetween, daySchema, endAfter, LOCAL_DATE_TIME_PATTERN, monthOfDay, timeToMinutes, WEEKDAY_SHORT_LABELS, weekdayText } from '@ordo/shared';
+import { addDays, colorSchema, countOf, dayPart, daysBetween, daySchema, endAfter, LOCAL_DATE_TIME_PATTERN, monthOfDay, timeToMinutes, WEEKDAY_SHORT_LABELS, weekdayText } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
@@ -39,7 +39,6 @@ const calendarPdfSchema = reportHeadingSchema
   .refine(...endAfter('from', 'to'))
   .refine((view) => daysBetween(view.from, view.to) <= 45, 'Période invalide.');
 type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
-type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, light: PDF_TABLE.fill, work: '#e6f4ea', today: '#fff8db' };
 const MARGIN = 28;
@@ -106,12 +105,12 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
 
   // All-day row: bars over their days, on as few rows as possible.
   const allDay = view.items
-    .filter((item) => item.allDay && item.kind !== 'work' && item.start.slice(0, 10) <= view.to && item.end.slice(0, 10) >= view.from)
+    .filter((item) => item.allDay && item.kind !== 'work' && dayPart(item.start) <= view.to && dayPart(item.end) >= view.from)
     .sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end));
   const rows: string[][] = [];
   const placed = allDay.map((item) => {
-    const first = Math.max(0, daysBetween(view.from, item.start.slice(0, 10)));
-    const last = Math.min(days.length - 1, daysBetween(view.from, item.end.slice(0, 10)));
+    const first = Math.max(0, daysBetween(view.from, dayPart(item.start)));
+    const last = Math.min(days.length - 1, daysBetween(view.from, dayPart(item.end)));
     let row = rows.findIndex((taken) => taken.every((range) => Number(range.split(':')[1]) < first || Number(range.split(':')[0]) > last));
     if (row < 0) row = rows.push([]) - 1;
     rows[row].push(`${first}:${last}`);
@@ -137,8 +136,8 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
 
   // Hours: those of the items, 8 h to 19 h at least.
   const timed = view.items.filter((item) => !item.allDay);
-  const startHour = Math.min(8, ...timed.map((item) => (item.start.slice(0, 10) < item.end.slice(0, 10) ? 0 : Math.floor(timeToMinutes(item.start.slice(11)) / 60))));
-  const endHour = Math.max(19, ...timed.map((item) => (item.end.slice(0, 10) > item.start.slice(0, 10) ? 24 : Math.ceil(timeToMinutes(item.end.slice(11)) / 60))));
+  const startHour = Math.min(8, ...timed.map((item) => (dayPart(item.start) < dayPart(item.end) ? 0 : Math.floor(timeToMinutes(item.start.slice(11)) / 60))));
+  const endHour = Math.max(19, ...timed.map((item) => (dayPart(item.end) > dayPart(item.start) ? 24 : Math.ceil(timeToMinutes(item.end.slice(11)) / 60))));
   const gridTop = y;
   const hourHeight = (area.y + area.height - gridTop) / (endHour - startHour);
   const yOf = (minutes: number) => gridTop + ((Math.min(Math.max(minutes, startHour * 60), endHour * 60) - startHour * 60) / 60) * hourHeight;
@@ -151,8 +150,8 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
   const pieces = timed.flatMap((item) =>
     days
       .map((day, index) => {
-        const startDay = item.start.slice(0, 10);
-        const endDay = item.end.slice(0, 10);
+        const startDay = dayPart(item.start);
+        const endDay = dayPart(item.end);
         if (day < startDay || day > endDay) return null;
         const start = day === startDay ? timeToMinutes(item.start.slice(11)) : 0;
         const end = day === endDay ? timeToMinutes(item.end.slice(11)) : 24 * 60;
@@ -263,7 +262,7 @@ function drawMonth(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: { x:
       else if (monthOfDay(day) !== month) doc.rect(x, y, cellWidth, cellHeight).fill(COLORS.light);
       doc.rect(x, y, cellWidth, cellHeight).lineWidth(0.3).strokeColor(COLORS.border).stroke();
       clippedText(doc, String(Number(day.slice(8))), { x: x + 3, y: y + 2, width: cellWidth - 6, height: 10, size: 7.5, color: monthOfDay(day) === month ? COLORS.text : COLORS.muted, bold: true });
-      const ofDay = items.filter((item) => item.start.slice(0, 10) <= day && day <= item.end.slice(0, 10)).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start));
+      const ofDay = items.filter((item) => dayPart(item.start) <= day && day <= dayPart(item.end)).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start));
       const room = Math.max(0, Math.floor((cellHeight - 13) / lineHeight));
       const shown = ofDay.length > room ? ofDay.slice(0, Math.max(0, room - 1)) : ofDay;
       shown.forEach((item, index) => {

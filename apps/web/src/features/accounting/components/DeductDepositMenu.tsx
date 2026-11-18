@@ -1,5 +1,5 @@
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { type AccountingLineInput, toCents } from '@ordo/shared';
+import { type AccountingLineInput, toCents, sumOf } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
@@ -48,7 +48,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
         { section: 'Factures d’acompte du client' },
         ...offered.map((deposit) => {
           const date = fmt.day(deposit.issueDate);
-          const left = deposit.remaining.reduce((sum, item) => sum + item.cents, 0);
+          const left = sumOf(deposit.remaining, (item) => item.cents);
           return {
             label: `${deposit.number} du ${date}`,
             description: `Reste à déduire ${fmt.moneyCents(left, currency)} HT sur ${fmt.money(deposit.totalGross, currency)} TTC`,

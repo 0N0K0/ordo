@@ -6,7 +6,7 @@ import {
   type TreasuryCounterpartyInput,
   type TreasuryPaymentMethodInput,
 } from '@ordo/shared';
-import { nextPosition } from '../core/settings-lists';
+import { nextPositionIn } from '../core/ordering';
 import { subtreeIds, treeListService } from '../core/trees';
 import { prisma } from '../../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
@@ -65,7 +65,7 @@ export const { create: createCategory, update: updateCategory, move: moveCategor
  * @returns {Promise<TreasuryPaymentMethod>} Method.
  */
 export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Promise<TreasuryPaymentMethod> {
-  return prisma.treasuryPaymentMethod.create({ data: { ...parseInput(treasuryPaymentMethodSchema, input), position: await nextPosition('TREASURY_PAYMENT_METHOD') } });
+  return prisma.treasuryPaymentMethod.create({ data: { ...parseInput(treasuryPaymentMethodSchema, input), position: await nextPositionIn('treasuryPaymentMethod') } });
 }
 
 /**
@@ -102,7 +102,7 @@ export async function deletePaymentMethod(id: string): Promise<void> {
  * @returns {Promise<TreasuryCounterparty>} Counterparty.
  */
 export async function createCounterparty(input: TreasuryCounterpartyInput): Promise<TreasuryCounterparty> {
-  return prisma.treasuryCounterparty.create({ data: { ...parseInput(treasuryCounterpartySchema, input), position: await nextPosition('TREASURY_COUNTERPARTY') } });
+  return prisma.treasuryCounterparty.create({ data: { ...parseInput(treasuryCounterpartySchema, input), position: await nextPositionIn('treasuryCounterparty') } });
 }
 
 /**

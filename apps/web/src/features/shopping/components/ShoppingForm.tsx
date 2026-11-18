@@ -20,6 +20,8 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from './ProductFields';
+import { plural } from '../../../lib/text';
+import { PAGES } from '../../../app/pages';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -98,8 +100,8 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           <TextInput label="Label" required data-autofocus {...form.getInputProps('label')} />
           {target.kind === 'item' && target.item && target.item.sheetSources.length > 0 && (
             <Text size="xs" c="dimmed">
-              Vient {target.item.sheetSources.length > 1 ? 'des fiches' : 'de la fiche'}{' '}
-              <Anchor component={Link} to="/sheets" size="xs">
+              Vient {plural(target.item.sheetSources.length, 'de la fiche', 'des fiches')}{' '}
+              <Anchor component={Link} to={PAGES.sheets.path} size="xs">
                 {target.item.sheetSources.map(sheetSourceText).join(', ')}
               </Anchor>
               .

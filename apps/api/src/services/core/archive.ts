@@ -1,4 +1,4 @@
-import { prisma } from '../../db';
+import { modelDelegate } from './delegate';
 import { clientError, fieldError } from '../../graphql/errors';
 import { assertAllExist } from './lookup';
 import { SETTINGS_LISTS } from './settings-lists';
@@ -65,7 +65,7 @@ const modelOf = (target: ArchivableKind | ArchivableModel): ArchivableModel => (
  * @param {ArchivableModel} model Model.
  * @returns {ArchiveDelegate} Its Prisma delegate (scoped to the current workspace, as every model).
  */
-const delegate = (model: ArchivableModel) => (prisma as unknown as Record<string, ArchiveDelegate>)[model];
+const delegate = (model: ArchivableModel) => modelDelegate<ArchiveDelegate>(model);
 
 /**
  * Condition of the elements archived, or not (every model tells it by its `archivedAt` date).

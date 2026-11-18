@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { clientError } from '../graphql/errors';
 import { fileSecurityPolicy, INLINE_TYPES, isPdf } from '../services/core/attachments';
 import { messageAttachment } from '../services/mail/reader';
-import { downloadRoute, queryFlag, queryText } from './http';
+import { downloadRoute, queryText, shownInPlace } from './http';
 
 export const mailRouter: Router = Router();
 
@@ -18,7 +18,7 @@ mailRouter.get(
     const file = await messageAttachment(String(req.params.accountId), folder, uid, index);
     const image = INLINE_TYPES.includes(file.contentType);
     const pdf = isPdf(file.content);
-    const inline = (image || pdf) && !queryFlag(req.query.download);
+    const inline = shownInPlace(req, image || pdf);
     return {
       content: file.content,
       type: image ? file.contentType : pdf ? 'application/pdf' : 'application/octet-stream',
@@ -27,5 +27,5 @@ mailRouter.get(
       cache: 'private, max-age=3600',
       securityPolicy: fileSecurityPolicy(inline && pdf),
     };
-  }, 'Pièce jointe de mail'),
+  }, 'Pièce jointe de mail impossible.'),
 );

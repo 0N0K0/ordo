@@ -1,5 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { PAGES } from '../../../app/pages';
+import { PAGES, shoppingListPath } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { plural, countOf } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
@@ -71,7 +71,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     const task = context?.taskById.get(id);
     return task ? (context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`) : '';
   };
-  const stateOf = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
+  const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
     { id: 'name', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
     {
@@ -107,11 +107,11 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'État',
       size: 110,
       hiddenByDefault: true,
-      sortValue: (list) => (stateOf(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (stateOf(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
+      sortValue: (list) => (listState(list) === 'CLOSED' ? 1 : 0),
+      text: (list) => (listState(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
       filter: {
         kind: 'choice',
-        value: stateOf,
+        value: listState,
         options: [
           { value: 'OPEN', label: 'En cours' },
           { value: 'CLOSED', label: 'Clôturée' },
@@ -285,7 +285,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           name: (
             <Group gap="xs" wrap="nowrap">
               <EditableText value={list.label} label={`Libellé de la liste ${list.label}`} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('name')(list, { label })} />
-              <IconAction label="Ouvrir la liste" component={Link} to={`/shopping/${list.id}`} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
+              <IconAction label="Ouvrir la liste" component={Link} to={shoppingListPath(list.id)} size="sm" aria-label={`Ouvrir la liste ${list.label}`}>
                 <ArrowSquareInIcon aria-hidden />
               </IconAction>
               {list.archived && <ArchivedBadge feminine size="sm" />}

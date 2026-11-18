@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { IconAction } from '../../../components/actions/IconAction';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { countOf, plural } from '../../../lib/text';
@@ -10,6 +11,7 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
 import type { MailGroup } from '../lib/mail-groups';
 import { unarchived } from '../../../lib/archive';
+import { movedMailsMessage } from '../lib/mail-format';
 
 interface MailOrganizeActionsProps {
   /** Mails, by account and folder (a search may gather several). */
@@ -44,7 +46,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
   const { data: folders } = useMailFolders(oneAccount);
   const junkPath = folders?.find((item) => item.specialUse === '\\Junk')?.path;
   const junk = oneAccount !== null && junkPath !== undefined && groups.every((group) => group.folder === junkPath);
-  const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
+  const count = sumOf(groups, (group) => group.uids.length);
 
   /**
    * Runs an action on every group.
@@ -94,7 +96,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
         onClick={() =>
           void each((group) => spam.mutateAsync({ ...group, spam: !junk }))
             .then(() => {
-              notifySuccess(junk ? `${count > 1 ? 'Mails remis' : 'Mail remis'} en réception.` : `${count > 1 ? 'Mails signalés' : 'Mail signalé'} comme spam.`);
+              notifySuccess(junk ? `${plural(count, 'Mail remis', 'Mails remis')} en réception.` : `${plural(count, 'Mail signalé', 'Mails signalés')} comme spam.`);
               onMoved?.();
             })
             .catch(onMutationError)
@@ -119,7 +121,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
               onClick: () =>
                 void each((group) => (group.folder === item.path ? Promise.resolve() : move.mutateAsync({ ...group, target: item.path })))
                   .then(() => {
-                    notifySuccess(`${count > 1 ? `${count} mails déplacés` : 'Mail déplacé'} dans « ${item.name} ».`);
+                    notifySuccess(movedMailsMessage(count, item.name));
                     onMoved?.();
                   })
                   .catch(onMutationError),
@@ -150,7 +152,7 @@ interface MailSelectionBarProps {
  */
 export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels, noMove }: MailSelectionBarProps) {
   const { setSeen, remove } = useMailActions();
-  const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
+  const count = sumOf(groups, (group) => group.uids.length);
 
   /**
    * Asks for confirmation before deleting the mails.
@@ -169,7 +171,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
       onConfirm: () => {
         void Promise.all(targets.map((group) => remove.mutateAsync(group)))
           .then(() => {
-            notifySuccess(count > 1 ? 'Mails supprimés.' : 'Mail supprimé.');
+            notifySuccess(plural(count, 'Mail supprimé.', 'Mails supprimés.'));
             onGone();
           })
           .catch(onMutationError);

@@ -1,5 +1,5 @@
 import { useDebouncedValue } from '@mantine/hooks';
-import { addDays, isTimeDimension, type ChartConfig } from '@ordo/shared';
+import { addDays, isTimeDimension, type ChartConfig, subtreeOf } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localToday } from '../../../lib/dates';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
@@ -8,7 +8,7 @@ import { filterUses, matchTasks } from '../../tasks/lib/task-columns';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../../treasury/api';
-import { descendantIds } from '../../workspace/api';
+
 import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartData } from './aggregate';
 import { useSprintTaskStatuses } from '../api';
 import { datasetParts, mergeDatasets } from './datasets';
@@ -75,7 +75,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
   const needsDoable = parts.some((part) => part.config.source === 'tasks' && filterUses(part.config.filter, 'doableNow'));
   const columns = useTaskColumns(context, today, { doable: needsDoable });
   const [debouncedParts] = useDebouncedValue(parts, 250);
-  const projectsInScope = useMemo(() => (scope.projectId && context ? new Set([scope.projectId, ...descendantIds(context.projects, scope.projectId)]) : null), [scope.projectId, context]);
+  const projectsInScope = useMemo(() => (scope.projectId && context ? subtreeOf(context.projects, scope.projectId) : null), [scope.projectId, context]);
   const scoped = useMemo(() => (context?.tasks ?? []).filter((task) => !projectsInScope || (task.projectId !== null && projectsInScope.has(task.projectId))), [context, projectsInScope]);
   const matchingData = useMemo(
     () => debouncedParts.map((part) => (part.config.source === 'tasks' && context ? matchTasks(scoped, columns, part.config, today).map((task) => task.id) : undefined)),

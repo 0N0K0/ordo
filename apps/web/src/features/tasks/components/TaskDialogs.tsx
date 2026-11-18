@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { CopyIcon } from '@phosphor-icons/react';
 import { Checkbox, Stack, Text } from '@mantine/core';
@@ -188,13 +189,13 @@ export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
     },
     {
       onDone: (last) => {
-        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
+        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last && taskRef(last) ? ` en ${taskRef(last).trim()}` : ''}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
         onDone(true);
         if (single && last) link.open(last.id);
       },
     },
   );
-  const subtasks = tasks.reduce((count, task) => count + countSubtasks(context, task.id), 0);
+  const subtasks = sumOf(tasks, (task) => countSubtasks(context, task.id));
   return (
     <Stack gap="md">
       <Text size="sm">

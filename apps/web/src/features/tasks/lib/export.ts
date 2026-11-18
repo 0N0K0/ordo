@@ -7,6 +7,7 @@ import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import * as fmt from '../../../lib/format';
 import { beneficiaryNames } from '../../beneficiaries/hooks/use-beneficiaries';
 import { taskRef } from '../hooks/use-task-context';
+import { taskShortRef } from '../../../components/markdown/remark-references';
 
 /**
  * Text of a task cell.
@@ -21,7 +22,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     ids
       .map((id) => context.taskById.get(id))
       .filter((other) => other !== undefined)
-      .map((other) => (other.number === null ? other.label : other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
+      .map((other) => taskShortRef(other, task.projectId, context.projectLabel(other.projectId)))
       .join(', ');
   switch (column) {
     case 'title':

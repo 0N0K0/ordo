@@ -1,5 +1,4 @@
-import { colorSchema, DEFAULT_LABEL_COLOR, type DocumentStatusCategory, type DocumentStatusScope, labelTextSchema, STATUS_CATEGORIES_BY_SCOPE } from '@ordo/shared';
-import { z } from 'zod';
+import { DEFAULT_LABEL_COLOR, type DocumentStatusCategory, type DocumentStatusScope, labelFormSchema, STATUS_CATEGORIES_BY_SCOPE } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
@@ -29,17 +28,15 @@ export async function scopedStatus(statusId: string, type: AccountingDocumentTyp
   return status;
 }
 
-/** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */
-const DEFAULT_DOCUMENT_STATUSES = [
-  { scope: 'QUOTE', label: 'À envoyer', color: DEFAULT_LABEL_COLOR, category: 'TO_SEND' },
-  { scope: 'QUOTE', label: 'Envoyé', color: '#228be6', category: 'SENT' },
-  { scope: 'QUOTE', label: 'Accepté', color: '#40c057', category: 'ACCEPTED' },
-  { scope: 'QUOTE', label: 'Refusé', color: '#fa5252', category: 'REFUSED' },
-  { scope: 'INVOICE', label: 'À envoyer', color: DEFAULT_LABEL_COLOR, category: 'TO_SEND' },
-  { scope: 'INVOICE', label: 'Envoyée', color: '#228be6', category: 'SENT' },
-  { scope: 'INVOICE', label: 'Payée', color: '#40c057', category: 'PAID' },
-  { scope: 'INVOICE', label: 'Avoir à créer', color: '#fd7e14', category: 'CREDIT_DUE' },
-] as const satisfies readonly { scope: DocumentStatusScope; label: string; color: string; category: DocumentStatusCategory }[];
+/** Colors of the tracking statuses a professional workspace starts with (one per category of each scope, labelled as the category). */
+const DEFAULT_STATUS_COLORS: Record<DocumentStatusCategory, string> = {
+  TO_SEND: DEFAULT_LABEL_COLOR,
+  SENT: '#228be6',
+  ACCEPTED: '#40c057',
+  REFUSED: '#fa5252',
+  PAID: '#40c057',
+  CREDIT_DUE: '#fd7e14',
+};
 
 /**
  * Creates the default status of a category missing from a scope, at its end (its label taken by a status of
@@ -50,12 +47,12 @@ const DEFAULT_DOCUMENT_STATUSES = [
  * @returns {Promise<DocumentStatus>} Status.
  */
 async function createDefaultStatus(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client): Promise<DocumentStatus> {
-  const preset = DEFAULT_DOCUMENT_STATUSES.find((item) => item.scope === scope && item.category === category);
-  const base = preset?.label ?? STATUS_CATEGORIES_BY_SCOPE[scope].find((item) => item.value === category)?.label ?? category;
+  // A category of the scope (assertCategory, ensureDocumentStatuses): always listed.
+  const base = STATUS_CATEGORIES_BY_SCOPE[scope].find((item) => item.value === category)!.label;
   const taken = new Set((await client.documentStatus.findMany({ where: { scope }, select: { label: true } })).map((item) => item.label));
   let label = base;
   for (let index = 2; taken.has(label); index += 1) label = `${base} (${index})`;
-  return client.documentStatus.create({ data: { scope, category, label, color: preset?.color ?? DEFAULT_LABEL_COLOR, position: await nextPositionIn('documentStatus', { scope }, client) } });
+  return client.documentStatus.create({ data: { scope, category, label, color: DEFAULT_STATUS_COLORS[category], position: await nextPositionIn('documentStatus', { scope }, client) } });
 }
 
 /**
@@ -118,7 +115,7 @@ async function assertNotLast(status: DocumentStatus): Promise<void> {
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function createDocumentStatus(input: { scope: DocumentStatusScope; label: string; color: string; category: DocumentStatusCategory }): Promise<DocumentStatus> {
-  const data = parseInput(z.object({ label: labelTextSchema, color: colorSchema }), input);
+  const data = parseInput(labelFormSchema, input);
   assertCategory(input.scope, input.category);
   const position = await nextPositionIn('documentStatus', { scope: input.scope });
   try {
@@ -140,7 +137,7 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
 export async function updateDocumentStatus(id: string, input: { label?: string | null; color?: string | null; category?: DocumentStatusCategory | null }): Promise<DocumentStatus> {
   const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
   await assertNotArchived('DOCUMENT_STATUS', id);
-  const data = parseInput(z.object({ label: labelTextSchema.optional(), color: colorSchema.optional() }), {
+  const data = parseInput(labelFormSchema.partial(), {
     label: input.label ?? undefined,
     color: input.color ?? undefined,
   });

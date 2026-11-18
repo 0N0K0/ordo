@@ -196,3 +196,23 @@ export function unarchivedOffered(items: readonly MaybeArchived[], keep?: string
   const offered = new Set(unarchived(items, keep).map((item) => item.id));
   return (id) => offered.has(id);
 }
+
+/**
+ * Ids of the archived items of a list.
+ * @param {readonly MaybeArchived[] | null | undefined} items Items (none while loading).
+ * @returns {Set<string>} Archived ids.
+ */
+export function archivedIds(items: readonly MaybeArchived[] | null | undefined): Set<string> {
+  // eslint-disable-next-line no-restricted-syntax -- the archived set itself.
+  return new Set((items ?? []).filter((item) => item.archived).map((item) => item.id));
+}
+
+/**
+ * Label of an item in a choice, « (archivé) » or « (archivée) » after an archived one.
+ * @param {{ label: string, archived?: boolean | null }} item Item.
+ * @param {boolean} [feminine] Whether the item is feminine (« archivée »). Optional. Default = false.
+ * @returns {string} Label.
+ */
+export function archivedLabel(item: { label: string; archived?: boolean | null }, feminine = false): string {
+  return item.archived ? `${item.label} (${feminine ? 'archivée' : 'archivé'})` : item.label;
+}

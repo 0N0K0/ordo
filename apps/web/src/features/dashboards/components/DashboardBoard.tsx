@@ -1,6 +1,6 @@
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { DragHandle } from '../../../components/actions/DragHandle';
+import { DragHandle } from '../../../components/dnd/DragHandle';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
@@ -28,8 +28,8 @@ import {
   TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { SortableArea } from '../../../components/actions/sortable';
-import { useSortableItem } from '../../../components/actions/use-sortable-item';
+import { SortableArea } from '../../../components/dnd/sortable';
+import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 

@@ -1,3 +1,4 @@
+import { modelDelegate } from './delegate';
 import { isUnderOrSelf, lineageOf, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -17,7 +18,7 @@ interface TreeDelegate {
  * @param {OrderedModel} model Model.
  * @returns {TreeDelegate} Delegate.
  */
-const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, TreeDelegate>)[model];
+const delegate = (model: OrderedModel) => modelDelegate<TreeDelegate>(model);
 
 /**
  * Checks the parent of an item of a tree: it exists, and is not the item itself nor one of its descendants.
@@ -127,7 +128,7 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
    * Delegate of the model (scoped to the current workspace, as every model).
    * @returns {TreeListDelegate<T>} Delegate.
    */
-  const items = () => (prisma as unknown as Record<string, TreeListDelegate<T>>)[model];
+  const items = () => modelDelegate<TreeListDelegate<T>>(model);
 
   /**
    * Loads an item (with the relations of the hooks), NOT_FOUND when missing.

@@ -9,7 +9,7 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { projectPath, taskPath } from '../../../app/pages';
+import { projectPath, taskPath, PAGES } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const ElsewhereAlarmsDocument = graphql(`
@@ -133,7 +133,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
       timers.push(
         window.setInterval(() => {
           const now = new Date();
-          if (wanted.has('CALENDAR')) ringReminders(upcoming, now, [link(`Voir l’agenda de « ${label} »`, '/calendar')], label);
+          if (wanted.has('CALENDAR')) ringReminders(upcoming, now, [link(`Voir l’agenda de « ${label} »`, PAGES.calendar.path)], label);
           if (wanted.has('ALARMS')) for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), label);
         }, TICK_MS),
       );

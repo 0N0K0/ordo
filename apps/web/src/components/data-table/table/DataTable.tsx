@@ -38,7 +38,7 @@ import { BulkTableContext } from '../selection/bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from '../views/use-data-view';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
-import { DragHandle } from '../../actions/DragHandle';
+import { DragHandle } from '../../dnd/DragHandle';
 import { FoldButton } from '../../actions/FoldButton';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */

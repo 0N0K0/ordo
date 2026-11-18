@@ -17,6 +17,7 @@ import {
   parseOptionalDay,
   percentOf,
   printedDay,
+  sumOf,
   toCents,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -468,7 +469,7 @@ async function invoicedOnQuote(quoteId: string) {
  * @returns {Promise<number>} Amount.
  */
 export async function invoicedAmount(quoteId: string): Promise<number> {
-  return (await invoicedOnQuote(quoteId)).reduce((sum, item) => sum + [...item.rates.values()].reduce((total, base) => total + base, 0), 0);
+  return sumOf(await invoicedOnQuote(quoteId), (item) => sumOf([...item.rates.values()], (base) => base));
 }
 
 /**

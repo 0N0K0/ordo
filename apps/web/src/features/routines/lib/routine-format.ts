@@ -45,7 +45,7 @@ export const isDone = (routine: Routine) => routine.done;
  * @param {boolean} [doable] Its slot rule allows now. Optional. Default = true.
  * @returns {RoutineState} State.
  */
-export const stateOf = (routine: Routine, today: string, doable = true): RoutineState => {
+export const currentRoutineState = (routine: Routine, today: string, doable = true): RoutineState => {
   const state = routineState(routine.currentDate, isDone(routine), today);
   return state === 'due' && !doable ? 'upcoming' : state;
 };
@@ -90,16 +90,6 @@ export function waitingFor(routine: Routine, byId: Map<string, Routine>): Routin
     const required = byId.get(id);
     return required && !required.archived && required.currentDate !== null && !isDone(required) ? [required] : [];
   });
-}
-
-/** Groups of the routine table: their headings as a tree, and the groups of each routine. */
-export interface RoutineGrouping {
-  /** Headings, siblings in their order (a parent before its children or not: placed as their tree). */
-  groups: { id: string; name: string; color: string | null; parentId: string | null }[];
-  /** Groups of a (top) routine; none: in the last group, without one. */
-  of: (routine: Routine) => string[];
-  /** Heading of the routines without group ("Sans catégorie"). */
-  noneName: string;
 }
 
 /**

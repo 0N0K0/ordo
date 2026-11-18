@@ -12,6 +12,25 @@ import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
 import { attachmentUrl } from '../../services/core/attachments';
 
+/** Totals of a document, as stored. */
+interface DocumentTotals {
+  totalNet: { toNumber(): number };
+  totalVat: { toNumber(): number };
+  totalGross: { toNumber(): number };
+}
+
+/**
+ * Total fields of a document (issued or imported): excluding VAT, VAT, including VAT.
+ * @param {{ float: Function }} t Field builder of the document type.
+ * @returns {object} Fields.
+ */
+function documentTotalFields<Field>(t: { float: (options: { resolve: (document: DocumentTotals) => number }) => Field }) {
+  return {
+    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
+    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
+    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+  };
+}
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
 export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
 export const UnitEnum = builder.enumType('AccountingUnit', { values: ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const });
@@ -84,9 +103,7 @@ builder.prismaObject('AccountingDocument', {
     globalDiscountType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (document) => document.globalDiscountType }),
     globalDiscountValue: t.float({ nullable: true, resolve: (document) => fromDecimal(document.globalDiscountValue) }),
     currency: t.exposeString('currency'),
-    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+    ...documentTotalFields(t),
     invoicedNet: t.float({
       nullable: true,
       description: 'Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).',
@@ -137,9 +154,7 @@ builder.prismaObject('ImportedDocument', {
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
     label: t.exposeString('label', { nullable: true }),
-    totalNet: t.float({ resolve: (document) => fromDecimal(document.totalNet) }),
-    totalVat: t.float({ resolve: (document) => fromDecimal(document.totalVat) }),
-    totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
+    ...documentTotalFields(t),
     currency: t.exposeString('currency'),
     note: t.exposeString('note', { nullable: true }),
     fileUrl: t.string({

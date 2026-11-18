@@ -134,6 +134,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ## Plan proposé
 
+**Fait le 18 novembre 2026 (soir) :** points 1 à 8 et décisions Y à AI ; configurations eslint pour l'API et le code partagé (`npm run lint`). Restent à part : `DataTableHeader` (bibliothèque), `EntityHeader` (avatar), le survol des cellules éditables, `DeductibleDeposit.issueDate` (changerait GraphQL).
+
 1. **Bugs (1, 2).**
 2. **Restes des décisions (3, 4)**, avec les décisions ci-dessous.
 3. **Petits doublons (5, 6, 7).**

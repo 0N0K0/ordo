@@ -97,6 +97,7 @@ const NO_PROJECT_NODE = 'project:none';
  * @param {{ number: number | null }} task Task.
  * @returns {string} Text.
  */
+// eslint-disable-next-line no-restricted-syntax -- taskRef itself.
 export const taskRef = (task: { number: number | null }) => (task.number === null ? '' : `#${task.number} `);
 
 /**
@@ -104,6 +105,7 @@ export const taskRef = (task: { number: number | null }) => (task.number === nul
  * @param {{ number: number | null, title: string }} task Task.
  * @returns {string} Name.
  */
+// eslint-disable-next-line no-restricted-syntax -- taskName itself.
 export const taskName = (task: { number: number | null; label: string }) => (task.number === null ? `« ${task.label} »` : `#${task.number}`);
 
 /**

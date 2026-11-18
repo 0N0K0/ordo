@@ -2,7 +2,7 @@ import type { TaskInput } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { byPosition, readTaskColumnDefaults, type TaskColumnDefaults } from '@ordo/shared';
+import { byPosition, readTaskColumnDefaults, type TaskColumnDefaults, movedTo } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -529,7 +529,7 @@ export function useMoveTask() {
         const others = ordered.filter((task) => task.id !== id);
         const index = beforeId ? others.findIndex((task) => task.id === beforeId) : others.length;
         if (!moved || index < 0) return data;
-        const order = [...others.slice(0, index), parentId === undefined ? moved : { ...moved, parentId }, ...others.slice(index)];
+        const order = movedTo(others, parentId === undefined ? moved : { ...moved, parentId }, index);
         return { ...data, tasks: order.map((task, position) => ({ ...task, position })) };
       }),
   });

@@ -28,6 +28,7 @@ import { useResizablePanel } from './use-resizable-panel';
 import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
 import { ResizeHandle } from './ResizeHandle';
 import { useIsPhone } from '../../lib/use-is-phone';
+import { PAGES } from '../pages';
 
 /**
  * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
@@ -114,7 +115,11 @@ export function AppLayout() {
                   <ActionsMenu
                     name="mon compte"
                     hover
-                    items={[{ label: 'Mon compte', icon: <UserIcon aria-hidden />, to: '/account' }, 'divider', { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout }]}
+                    items={[
+                      { label: 'Mon compte', icon: <UserIcon aria-hidden />, to: PAGES.account.path },
+                      'divider',
+                      { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
+                    ]}
                     target={
                       <Button
                         variant="subtle"

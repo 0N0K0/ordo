@@ -12,7 +12,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
+import { addDays, daysBetween, sprintFormSchema, type SprintFormValues, sumOf } from '@ordo/shared';
 import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
 
 import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
@@ -150,7 +150,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
           const done = tasks.filter((task) => context.isClosed(task));
           // Effort of the tasks without sub-tasks (a parent's effort is its sub-tasks').
-          const effortOf = (items: typeof tasks) => items.reduce((sum, task) => sum + leafEffort(task, context), 0);
+          const effortOf = (items: typeof tasks) => sumOf(items, (task) => leafEffort(task, context));
           const effort = effortOf(tasks);
           const doneEffort = effortOf(done);
           const start = sprint.startDate;

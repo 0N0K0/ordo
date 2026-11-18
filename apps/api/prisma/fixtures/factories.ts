@@ -1,4 +1,4 @@
-import { minutesToTime, parseDay } from '@ordo/shared';
+import { addDays, DAY_MS, DEFAULT_RECURRENCE, minutesToTime, parseDay, type Recurrence } from '@ordo/shared';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
@@ -39,9 +39,38 @@ const TASK_OBJECTS = [
  * @param {Date} date Any date.
  * @returns {Date} Date at midnight UTC.
  */
-export function day(date: Date): Date {
+export function utcDay(date: Date): Date {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 }
+
+/**
+ * Days counted from today, as the fixtures date things: `const day = relativeDay(today); day(-3)`.
+ * @param {string} today Today, YYYY-MM-DD.
+ * @returns {(offset: number) => string} Day `offset` days after today (before when negative), YYYY-MM-DD.
+ */
+export function relativeDay(today: string): (offset: number) => string {
+  return (offset) => addDays(today, offset);
+}
+
+/**
+ * Instant at a local hour of a day (the machine's time zone, as the app's users).
+ * @param {string} day Day, YYYY-MM-DD.
+ * @param {number} hour Hour, 0 to 23.
+ * @param {number} [minute] Minute. Optional. Default = 0.
+ * @returns {Date} Instant.
+ */
+export function localAt(day: string, hour: number, minute = 0): Date {
+  // eslint-disable-next-line no-restricted-syntax -- localAt itself.
+  return new Date(`${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+}
+
+/**
+ * Repetition from the default one with some changes.
+ * @param {Partial<Recurrence>} changes Changes.
+ * @returns {Recurrence} Repetition.
+ */
+// eslint-disable-next-line no-restricted-syntax -- rule itself.
+export const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
 
 /**
  * Optional value: present with the given probability.
@@ -83,8 +112,8 @@ export const projectFactory = Factory.define<Prisma.ProjectUncheckedCreateInput,
     label: `${faker.helpers.arrayElement(PROJECT_KINDS)} ${faker.location.city()}`,
     description: maybe(0.6, () => faker.lorem.paragraph()),
     color: maybe(0.5, () => faker.helpers.arrayElement(COLORS)),
-    startDate: maybe(0.7, () => day(start)),
-    endDate: maybe(0.6, () => day(faker.date.soon({ days: 180, refDate: start }))),
+    startDate: maybe(0.7, () => utcDay(start)),
+    endDate: maybe(0.6, () => utcDay(faker.date.soon({ days: 180, refDate: start }))),
     position: sequence,
     favorite: faker.datatype.boolean(0.15),
   };
@@ -107,7 +136,7 @@ export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateIn
     projectId: '',
     label: faker.helpers.arrayElement(MILESTONES),
     description: maybe(0.5, () => faker.lorem.sentence()),
-    dueDate: maybe(0.8, () => day(faker.date.soon({ days: 90 }))),
+    dueDate: maybe(0.8, () => utcDay(faker.date.soon({ days: 90 }))),
     position: sequence,
   };
 });
@@ -115,16 +144,16 @@ export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateIn
 export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, object, Task>(({ sequence, onCreate }) => {
   onCreate((data) => prisma.task.create({ data }));
   const start = maybe(0.6, () => faker.date.between({ from: faker.date.recent({ days: 30 }), to: faker.date.soon({ days: 30 }) }));
-  const endDate = start ? maybe(0.8, () => day(faker.date.soon({ days: 20, refDate: start }))) : maybe(0.3, () => day(faker.date.soon({ days: 30 })));
+  const endDate = start ? maybe(0.8, () => utcDay(faker.date.soon({ days: 20, refDate: start }))) : maybe(0.3, () => utcDay(faker.date.soon({ days: 30 })));
   return {
     projectId: '',
     label: `${faker.helpers.arrayElement(TASK_VERBS)} ${faker.helpers.arrayElement(TASK_OBJECTS)}`,
     description: maybe(0.6, markdown),
     effort: maybe(0.7, () => faker.helpers.arrayElement([0.5, 1, 2, 3, 5, 8, 13])),
-    startDate: start && day(start),
+    startDate: start && utcDay(start),
     endDate,
     // "Date max": the end date or a few days of margin after it, sometimes a deadline without end date.
-    deadline: endDate ? maybe(0.8, () => day(faker.date.soon({ days: 5, refDate: endDate }))) : maybe(0.15, () => day(faker.date.soon({ days: 45 }))),
+    deadline: endDate ? maybe(0.8, () => utcDay(faker.date.soon({ days: 5, refDate: endDate }))) : maybe(0.15, () => utcDay(faker.date.soon({ days: 45 }))),
     position: sequence,
   };
 });
@@ -160,7 +189,7 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
   onCreate((data) => prisma.timeEntry.create({ data }));
   let day = faker.date.recent({ days: 42 });
   // Working days only.
-  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() - 86_400_000);
+  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() - DAY_MS);
   const startedAt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), faker.number.int({ min: 8, max: 16 }), faker.helpers.arrayElement([0, 15, 30, 45]));
   const duration = faker.number.int({ min: 1, max: 14 }) * 15 * 60;
   const pausedSeconds = faker.datatype.boolean(0.25) ? faker.number.int({ min: 2, max: 30 }) * 60 : 0;
@@ -177,6 +206,7 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
 });
 
 /** Time zone of the fixtures' events (the machine's). */
+// eslint-disable-next-line no-restricted-syntax -- TIME_ZONE itself.
 export const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const EVENT_LABELS = [
@@ -199,16 +229,8 @@ const PLACES = ['Bureau', 'Salle Ada', 'Salle Turing', 'Chez le client', 'Café 
  * @returns {string} Calendar date.
  */
 export function localDate(date: Date): string {
+  // eslint-disable-next-line no-restricted-syntax -- the parts of a local day, not a display format.
   return new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-}
-
-/**
- * HH:MM of minutes since midnight.
- * @param {number} minutes Minutes.
- * @returns {string} Time.
- */
-export function clock(minutes: number): string {
-  return minutesToTime(minutes);
 }
 
 /**
@@ -218,8 +240,8 @@ export function clock(minutes: number): string {
  */
 export const calendarEventFactory = Factory.define<Prisma.CalendarEventUncheckedCreateInput, object, CalendarEvent>(({ onCreate }) => {
   onCreate(async (data) => prisma.calendarEvent.create({ data: { ...data, calendarId: data.calendarId || (await resolveCalendarId()) } }));
-  let day = faker.date.between({ from: new Date(Date.now() - 21 * 86_400_000), to: new Date(Date.now() + 35 * 86_400_000) });
-  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() + 86_400_000);
+  let day = faker.date.between({ from: new Date(Date.now() - 21 * DAY_MS), to: new Date(Date.now() + 35 * DAY_MS) });
+  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() + DAY_MS);
   const start = faker.number.int({ min: 16, max: 34 }) * 30;
   const end = Math.min(start + faker.helpers.arrayElement([30, 60, 60, 90, 120, 180]), 20 * 60);
   const date = parseDay(localDate(day));
@@ -231,9 +253,9 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     links: place === 'Visio' || faker.datatype.boolean(0.2) ? [{ url: `https://meet.example.com/${faker.string.alphanumeric(10).toLowerCase()}`, label: 'Visio' }] : [],
     allDay: false,
     startDate: date,
-    startTime: clock(start),
+    startTime: minutesToTime(start),
     endDate: date,
-    endTime: clock(end),
+    endTime: minutesToTime(end),
     timeZone: TIME_ZONE,
     reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]),
     calendarId: '',

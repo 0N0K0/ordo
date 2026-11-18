@@ -13,6 +13,7 @@ const numberFormats = new Map<number, Intl.NumberFormat>();
 export function formatNumber(value: number, decimals = 2): string {
   let format = numberFormats.get(decimals);
   if (!format) {
+    // eslint-disable-next-line no-restricted-syntax -- the number format itself.
     format = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: decimals });
     numberFormats.set(decimals, format);
   }

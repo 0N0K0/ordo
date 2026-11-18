@@ -15,9 +15,12 @@ export type DateValue = string | number | Date;
  * @returns {(value: DateValue) => string} Formatter.
  */
 export function dateStyle(options: Intl.DateTimeFormatOptions): (value: DateValue) => string {
+  // eslint-disable-next-line no-restricted-syntax -- the date formats themselves.
   const calendar = new Intl.DateTimeFormat(LOCALE, { ...options, timeZone: 'UTC' });
+  // eslint-disable-next-line no-restricted-syntax -- the date formats themselves.
   const instant = new Intl.DateTimeFormat(LOCALE, options);
   return (value) => {
+    // eslint-disable-next-line no-restricted-syntax -- a day or a month read at midnight UTC, as parseDay.
     if (typeof value === 'string' && CALENDAR_DAY.test(value)) return calendar.format(new Date(`${value.length === 7 ? `${value}-01` : value}T00:00:00Z`));
     return instant.format(value instanceof Date ? value : new Date(value));
   };

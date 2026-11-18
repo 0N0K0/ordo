@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, monthOfDay, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, monthOfDate, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -88,14 +88,14 @@ builder.prismaObject('TreasuryBudget', {
   description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => monthOfDay(formatDay(budget.month)) }),
+    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => monthOfDate(budget.month) }),
     memberId: t.exposeID('memberId', { nullable: true }),
     relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId'),
     amount: t.float({ resolve: (budget) => fromDecimal(budget.amount) }),
     repeatEvery: t.exposeInt('repeatEvery', { nullable: true, description: 'Every n months; none: that month only.' }),
-    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? monthOfDay(formatDay(budget.repeatUntil)) : null) }),
+    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? monthOfDate(budget.repeatUntil) : null) }),
   }),
 });
 

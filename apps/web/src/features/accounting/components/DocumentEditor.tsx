@@ -49,6 +49,7 @@ import {
   PAYMENT_METHOD_PRESETS,
   PAYMENT_TERMS_PRESETS,
   toCents,
+  sumOf,
 } from '@ordo/shared';
 
 import {
@@ -94,7 +95,7 @@ import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from '../lib/recurring-form';
 import { FileLink } from '../../files/components/FileLink';
-import { FilePreview } from '../../files/components/FilePreview';
+import { FilePreview, PAGE_PREVIEW_HEIGHT } from '../../files/components/FilePreview';
 import { clientProjectOptions } from '../../workspace/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -105,6 +106,7 @@ import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { documentPath, PAGES } from '../../../app/pages';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -265,7 +267,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       onConfirm: () => {
         mutations.remove.mutate(
           document.id,
-          formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting')),
+          formCallbacks(null, 'Brouillon supprimé.', () => void navigate(PAGES.accounting.path)),
         );
       },
     });
@@ -319,7 +321,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const createFrom = (type: 'INVOICE' | 'CREDIT_NOTE') =>
-    mutations.createFrom.mutate({ sourceId: document.id, type, issueDate: localToday() }, { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError });
+    mutations.createFrom.mutate({ sourceId: document.id, type, issueDate: localToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError });
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT' && !archived;
   const billedIds = values.timeEntryIds ?? [];
@@ -363,7 +365,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   return (
     <Stack gap="md">
       <DetailHeader
-        back={{ to: '/accounting', label: 'Facturation' }}
+        back={{ to: PAGES.accounting.path, label: PAGES.accounting.title }}
         order={1}
         title={isTemplate ? `Modèle de facture récurrente` : `${typeLabel} ${document.number ?? ''}`}
         badges={
@@ -379,7 +381,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             {document.sourceId && (
               <Text size="sm" c="dimmed">
                 Établi à partir de{' '}
-                <Anchor component={Link} to={`/accounting/${document.sourceId}`} size="sm">
+                <Anchor component={Link} to={documentPath(document.sourceId)} size="sm">
                   {document.sourceNumber ?? 'un document'}
                 </Anchor>
               </Text>
@@ -484,7 +486,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 label="Dupliquer en brouillon"
                 size="lg"
                 aria-label="Dupliquer"
-                onClick={() => mutations.duplicate.mutate({ id: document.id, issueDate: localToday() }, { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError })}
+                onClick={() => mutations.duplicate.mutate({ id: document.id, issueDate: localToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError })}
               >
                 <CopyIcon aria-hidden />
               </IconAction>
@@ -525,7 +527,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && finalView === 'preview' ? (
             <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
-              <FilePreview url={pdfUrl(document.id)} filename={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
+              <FilePreview url={pdfUrl(document.id)} filename={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height={PAGE_PREVIEW_HEIGHT} />
             </Paper>
           ) : (
             <Stack gap="md">
@@ -618,8 +620,8 @@ function Editor({ document }: { document: AccountingDocument }) {
                 {billedIds.length > 0 && (
                   <Group gap="xs" justify="space-between">
                     <Text size="xs" c="dimmed">
-                      <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}) :
-                      ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
+                      <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(sumOf(billedIds, (id) => timeSeconds.get(id) ?? 0))}) : ils sont marqués
+                      facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
                     </Text>
                     {canBillTime && (
                       <Button size="compact-xs" variant="subtle" color="gray" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
@@ -737,7 +739,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               <SettingsSection title="Documents liés">
                 {document.derived.map((item) => (
                   <Group key={item.id} justify="space-between">
-                    <Anchor component={Link} to={`/accounting/${item.id}`} size="sm">
+                    <Anchor component={Link} to={documentPath(item.id)} size="sm">
                       {DOCUMENT_TYPE_LABELS[item.type]} {item.number ?? '(brouillon)'}
                     </Anchor>
                     <Text size="sm" ff="monospace">
@@ -837,7 +839,7 @@ export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
   if (isPending) return <DetailSkeleton fields={6} />;
   if (error) return <ErrorAlert>{error.message}</ErrorAlert>;
-  if (!document) return <DetailNotFound what="Ce document" backTo="/accounting" backLabel="Facturation" />;
+  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.title} />;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;
 }

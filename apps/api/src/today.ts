@@ -7,5 +7,6 @@ export const PARIS = 'Europe/Paris';
  * @returns {string} YYYY-MM-DD.
  */
 export function parisToday(): string {
+  // eslint-disable-next-line no-restricted-syntax -- the day in Paris, as YYYY-MM-DD.
   return new Date().toLocaleDateString('sv-SE', { timeZone: PARIS });
 }

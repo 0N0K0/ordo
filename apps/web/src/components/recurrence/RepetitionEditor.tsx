@@ -10,7 +10,7 @@ import { DurationFields } from './DurationFields';
 import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
 import { arrayMove } from '@dnd-kit/sortable';
-import { SortableArea } from '../actions/sortable';
+import { SortableArea } from '../dnd/sortable';
 import { dateRangeProps } from '../inputs/date-range';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */

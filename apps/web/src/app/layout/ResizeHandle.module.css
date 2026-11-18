@@ -29,7 +29,7 @@
     }
 
     /* Animation */
-    transition: background-color 120ms ease;
+    transition: background-color var(--onoko-transition);
 
     /* Interaction */
     cursor: col-resize;

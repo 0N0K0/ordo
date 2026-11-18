@@ -21,7 +21,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventKey, filterUses, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, filterUses, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -163,7 +163,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       (periodEvents.data ?? [])
         .filter((event) => !projectIds || (event.projectId && projectIds.has(event.projectId)))
         .sort((a, b) => a.start.localeCompare(b.start))
-        .map((event): TaskTableRow => ({ kind: 'event', key: eventKey(event), event })),
+        .map((event): TaskTableRow => ({ kind: 'event', key: eventRowKey(event), event })),
     [periodEvents.data, projectIds],
   );
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);

@@ -1,4 +1,4 @@
-import { isRealDay } from '@ordo/shared';
+import { formatDay, isRealDay } from '@ordo/shared';
 import SchemaBuilder from '@pothos/core';
 import PrismaPlugin from '@pothos/plugin-prisma';
 import ScopeAuthPlugin from '@pothos/plugin-scope-auth';
@@ -48,7 +48,7 @@ builder.scalarType('File', {
 
 builder.scalarType('Date', {
   description: 'Calendar date, YYYY-MM-DD.',
-  serialize: (date) => date.toISOString().slice(0, 10),
+  serialize: (date) => formatDay(date),
   parseValue: (value) => {
     if (typeof value !== 'string' || !isRealDay(value)) throw new TypeError('Date must be YYYY-MM-DD.');
     return value;

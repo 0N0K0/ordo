@@ -6,6 +6,7 @@ import {
   parseDay,
   parseOptionalDay,
   splitAmounts,
+  sumOf,
   type TreasuryAccountInput,
   treasuryAccountSchema,
   type TreasuryEntryInput,
@@ -614,9 +615,9 @@ export async function treasuryProjection(today: string, from: string, until: str
   items.sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
 
   // Past: actual balance day by day.
-  const balance = (await Promise.all(accounts.map((account) => accountBalance(account, today)))).reduce((sum, value) => sum + value, 0);
+  const balance = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, today))), (value) => value);
   const start = from < today ? from : today;
-  const opening = (await Promise.all(accounts.map((account) => accountBalance(account, addDays(start, -1))))).reduce((sum, value) => sum + value, 0);
+  const opening = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, addDays(start, -1)))), (value) => value);
   const past = await prisma.treasuryEntry.findMany({
     where: { accountId: { in: accountIds }, status: 'ACTUAL', date: { gte: parseDay(start), lte: parseDay(today) } },
     select: { date: true, amount: true, accountId: true },

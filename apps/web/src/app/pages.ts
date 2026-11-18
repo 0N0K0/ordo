@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { SETTINGS_TAB_PARAM } from '../components/tabs/use-settings-tab';
 
 /** A page of the app: its address, its name (menu, header, page title) and its icon (menu). */
 interface AppPage {
@@ -100,3 +101,56 @@ export const taskPath = (task: { id: string; projectId: string | null }): string
  */
 // eslint-disable-next-line no-restricted-syntax -- the address of a mail.
 export const mailPath = (account: string, folder: string, uid?: number): string => `/mail?${new URLSearchParams({ account, folder, ...(uid !== undefined && { uid: String(uid) }) })}`;
+
+/**
+ * Page of an accounting document, made in Ordo or imported.
+ * @param {string} id Document.
+ * @param {boolean} [imported] Whether the document is imported. Optional. Default = false.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a document.
+export const documentPath = (id: string, imported = false): string => `/accounting/${imported ? 'imported/' : ''}${id}`;
+
+/**
+ * Page of a sheet.
+ * @param {string} id Sheet.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a sheet.
+export const sheetPath = (id: string): string => `/sheets/${id}`;
+
+/**
+ * Page of a shopping list.
+ * @param {string} id Shopping list.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a shopping list.
+export const shoppingListPath = (id: string): string => `/shopping/${id}`;
+
+/** The lists tab of the shopping page. */
+export const SHOPPING_LISTS_PATH = `${PAGES.shopping.path}?tab=lists`;
+
+/**
+ * Time page on the time of a task.
+ * @param {string} taskId Task.
+ * @returns {string} Path.
+ */
+export const timePath = (taskId: string): string => `${PAGES.time.path}?task=${taskId}`;
+
+/**
+ * History of a routine, on the routines page.
+ * @param {string} routineId Routine.
+ * @returns {string} Path.
+ */
+export const routineHistoryPath = (routineId: string): string => `${PAGES.routines.path}?tab=history&routine=${routineId}`;
+
+/** Parameter of the address opening the settings of a page (closed without it). */
+export const SETTINGS_PARAM = 'settings';
+
+/**
+ * Address of a page with its settings open, on a tab (optional): `/mail?settings=1`, `/accounting?settings=1&section=company`.
+ * @param {string} path Page.
+ * @param {string} [section] Tab of the settings. Optional. Default = the first one.
+ * @returns {string} Path.
+ */
+export const settingsPath = (path: string, section?: string): string => `${path}?${SETTINGS_PARAM}=1${section ? `&${SETTINGS_TAB_PARAM}=${section}` : ''}`;

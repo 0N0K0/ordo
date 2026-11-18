@@ -6,7 +6,6 @@ import type {
   ForecastEntriesQuery,
   TreasuryAccountsQuery,
   TreasuryEntriesQuery,
-  TreasuryEntrySearchQuery,
   TreasuryDocumentOptionsQuery,
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
@@ -44,7 +43,6 @@ export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number
 export type TreasuryContextPeriod = TreasurySettingsQuery['treasuryContextPeriods'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
-export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
 // Under the accounting key: payments change documents, and documents change the forecast.
 export const treasuryKey = [...accountingQueryKey, 'treasury'];
@@ -500,7 +498,7 @@ function useTreasuryMutation<TVariables, TResult>(mutationFn: (variables: TVaria
   return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
-export interface AccountValues {
+interface AccountValues {
   label: string;
   openingBalance: number;
   openingDate: string;

@@ -2,19 +2,20 @@ import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { FloppyDiskIcon } from '@phosphor-icons/react';
 import { Anchor, Button, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useResetPassword } from '../api';
 import { AuthHeader } from './AuthLayout';
 import { NewPasswordFields } from '../components/NewPasswordFields';
+import { useSearchParam } from '../../../lib/search-params';
 
 /**
  * Sets a new password from the link received by email.
  * @returns {JSX.Element} Reset password page.
  */
 export function ResetPasswordPage() {
-  const token = useSearchParams()[0].get('token');
+  const [token] = useSearchParam('token');
   const navigate = useNavigate();
   const resetPassword = useResetPassword();
   const form = useAppForm<ResetPasswordFormValues>({

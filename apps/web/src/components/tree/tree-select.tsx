@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ItemAvatar } from '../items/ItemAvatar';
 import { hasAvatar } from '../items/item-look';
 import { normalize } from '../../lib/text';
+import { childrenByParent, LEVEL } from '@ordo/shared';
 
 /** Node of a tree offered in a select. */
 export interface TreeNode {
@@ -17,8 +18,6 @@ export interface TreeNode {
   /** A grouping of the list (« Sans client », « Sans projet »), left out of the paths of the nodes under it. Optional. */
   pathless?: boolean;
 }
-
-import { childrenByParent, LEVEL } from '@ordo/shared';
 
 /**
  * Option of a select of a tree: its full path as its label (shown once chosen, in pills, cells…), its own name indented

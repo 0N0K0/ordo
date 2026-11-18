@@ -1,5 +1,4 @@
 import {
-  formatDay,
   formatOptionalDay,
   mapById,
   type NewStockItemInput,
@@ -24,6 +23,7 @@ import {
   stockMoveSchema,
   type StockPurchaseInput,
   stockPurchaseSchema,
+  sumOf,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { prisma } from '../../db';
@@ -45,7 +45,7 @@ type Tx = Prisma.TransactionClient;
  * @returns {number} Quantity, rounded to the thousandth.
  */
 export function lotsQuantity(lots: { quantity: Prisma.Decimal }[]): number {
-  return roundQuantity(lots.reduce((sum, lot) => sum + fromDecimal(lot.quantity), 0));
+  return roundQuantity(sumOf(lots, (lot) => fromDecimal(lot.quantity)));
 }
 
 // Places ---------------------------------------------------------------------------------------------------------
@@ -311,7 +311,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
       // More than expected: into the latest lot (a new one without date when there is none).
       if (difference > 0) {
         const latest = [...item.lots].sort((a, b) => (b.expiresAt?.getTime() ?? Infinity) - (a.expiresAt?.getTime() ?? Infinity))[0];
-        await addIn(tx, item, difference, latest?.expiresAt ? formatDay(latest.expiresAt) : null, latest?.id ?? null, source);
+        await addIn(tx, item, difference, formatOptionalDay(latest?.expiresAt ?? null), latest?.id ?? null, source);
       } else if (difference < 0) await takeOut(tx, item.id, -difference, null, source);
     }
     return count;

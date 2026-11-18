@@ -1,7 +1,7 @@
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Anchor, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { ArrowRightIcon } from '@phosphor-icons/react';
-import { DragHandle } from '../../../components/actions/DragHandle';
+import { DragHandle } from '../../../components/dnd/DragHandle';
 import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DragHandleContext } from '../lib/drag-handle';

@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
@@ -59,9 +60,9 @@ function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth
     const natural = Math.max(minimum, Math.min(index === 0 ? MAX_NATURAL.first : MAX_NATURAL.other, Math.max(measure(label, true), ...texts.map((text) => measure(text, false)))) + extra);
     return { minimum, natural };
   });
-  const naturalSum = columns.reduce((sum, column) => sum + column.natural, 0);
+  const naturalSum = sumOf(columns, (column) => column.natural);
   if (naturalSum <= pageWidth) return columns.map((column) => (column.natural / naturalSum) * pageWidth);
-  const minimumSum = columns.reduce((sum, column) => sum + column.minimum, 0);
+  const minimumSum = sumOf(columns, (column) => column.minimum);
   if (minimumSum >= pageWidth) return columns.map((column) => (column.minimum / minimumSum) * pageWidth);
   // Between the two: every column keeps its minimum, the rest goes in proportion of what each would like.
   const ratio = (pageWidth - minimumSum) / (naturalSum - minimumSum);
@@ -81,7 +82,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
 
   const pageWidth = doc.page.width - 2 * MARGIN;
   const widths = columnWidths(doc, table, pageWidth);
-  const xs = widths.map((_, index) => MARGIN + widths.slice(0, index).reduce((sum, width) => sum + width, 0));
+  const xs = widths.map((_, index) => MARGIN + sumOf(widths.slice(0, index), (width) => width));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 

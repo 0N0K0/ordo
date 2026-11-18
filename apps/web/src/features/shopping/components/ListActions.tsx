@@ -24,6 +24,7 @@ import classes from './Shopping.module.css';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmount } from '../../../components/money/SignedAmount';
+import { shoppingListPath } from '../../../app/pages';
 
 const listSchema = shoppingListFormSchema;
 
@@ -180,7 +181,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       onClick: () =>
         mutations.duplicateList.mutate(
           { id: list.id },
-          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(`/shopping/${copyId}`)),
+          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(shoppingListPath(copyId))),
         ),
     },
     'divider',

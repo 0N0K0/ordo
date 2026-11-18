@@ -1,3 +1,4 @@
+import { movedTo } from '@ordo/shared';
 import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 
 /** What a mutation refreshes once done, and what it shows before. */
@@ -58,8 +59,10 @@ export function patchQuery<D>(queryClient: QueryClient, queryKey: QueryKey, patc
 export function moveToIndex<T extends { id: string }>(list: readonly T[], id: string, index: number): T[] | null {
   const moved = list.find((item) => item.id === id);
   if (!moved) return null;
-  const others = list.filter((item) => item.id !== id);
-  // Bounded as the server does (moveInOrder): the order shown is the one saved.
-  const target = Math.max(0, Math.min(index, others.length));
-  return [...others.slice(0, target), moved, ...others.slice(target)];
+  // Bounded as the server does (moveInOrder, on the same movedTo): the order shown is the one saved.
+  return movedTo(
+    list.filter((item) => item.id !== id),
+    moved,
+    index,
+  );
 }

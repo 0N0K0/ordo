@@ -444,8 +444,7 @@ export function useSetProjectArchived() {
     mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetProjectArchivedDocument, variables)).setProjectArchived,
     optimistic: (workspace, { id, archived }) => {
       // Archiving cascades to sub-projects; restoring is settled by the refetch.
-      const affected = archived ? descendantIds(workspace.projects, id) : new Set<string>();
-      affected.add(id);
+      const affected = archived ? subtreeOf(workspace.projects, id) : new Set([id]);
       return {
         ...workspace,
         projects: workspace.projects.map((project) => (affected.has(project.id) ? { ...project, archived } : project)),
@@ -462,7 +461,7 @@ export function useDeleteProject() {
   return useWorkspaceMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectDocument, variables)).deleteProject,
     optimistic: (workspace, { id }) => {
-      const removed = descendantIds(workspace.projects, id).add(id);
+      const removed = subtreeOf(workspace.projects, id);
       return { ...workspace, projects: workspace.projects.filter((project) => !removed.has(project.id)) };
     },
   });

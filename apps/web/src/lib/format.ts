@@ -6,6 +6,7 @@
  * a time, timestamp), shown in the user's time zone.
  */
 
+// eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
 import { capitalize as capitalizeText, countOf, dateStyle, daysBetween, formatMoney, formatNumber, formatPercent, LOCALE, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */

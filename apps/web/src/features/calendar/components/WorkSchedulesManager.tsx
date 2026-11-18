@@ -151,7 +151,7 @@ const NO_KIND = 'none';
  * @param {string} today YYYY-MM-DD.
  * @returns {ScheduleState} State.
  */
-function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
+function scheduleState(schedule: WorkSchedule, today: string): ScheduleState {
   return STATE_OF[periodState(schedule.startDate, schedule.endDate ?? null, today)];
 }
 
@@ -300,7 +300,7 @@ export function WorkSchedulesManager() {
     },
     commentColumn<ScheduleRow>(scheduleComments, ({ schedule }) => schedule.id),
   ];
-  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
+  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({
     tableKey: 'work-schedules',
     getKey: ({ schedule }) => schedule.id,

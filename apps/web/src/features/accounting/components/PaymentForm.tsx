@@ -13,6 +13,7 @@ import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type Tr
 import { useTrackingMutations } from '../api/tracking';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { PAGES } from '../../../app/pages';
 
 /** Document a payment (or refund) is recorded on: what the form needs of it. */
 export interface PayableDocument {
@@ -76,7 +77,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
     return (
       <NoticeAlert kind="info">
         Créez d’abord un compte dans la{' '}
-        <Anchor component={Link} to="/treasury" onClick={onDone}>
+        <Anchor component={Link} to={PAGES.treasury.path} onClick={onDone}>
           trésorerie
         </Anchor>
         .

@@ -1,7 +1,7 @@
 import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
-import { colorSchema, dateSchema, labelTextSchema, optionalColorSchema } from '../core/workspace';
+import { dateSchema, optionalColorSchema, type LabelFormValues } from '../core/workspace';
 
 const linkSchema = z
   .union([z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }), z.literal('')])
@@ -23,12 +23,8 @@ export const unitSchema = optionalText(UNIT_MAX);
 export const itemNoteSchema = optionalText(ITEM_NOTE_MAX);
 const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne peut pas être négatif.').max(9_999_999, 'Prix trop grand.').nullable();
 
-/** Store: a label and a color. */
-export const shoppingStoreSchema = z.object({ label: labelTextSchema, color: colorSchema });
-export type ShoppingStoreInput = z.input<typeof shoppingStoreSchema>;
-
-/** Storage mode of perishable products (fresh, frozen…): a label and a color, as a store. */
-export const shoppingStorageSchema = shoppingStoreSchema;
+/** Store, storage mode or unit: a label and a color (labelFormSchema). */
+export type ShoppingStoreInput = LabelFormValues;
 
 /** Category of products, in a tree. */
 export const shoppingCategorySchema = z.object({

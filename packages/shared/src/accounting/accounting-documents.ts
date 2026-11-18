@@ -1,3 +1,4 @@
+import { sumOf } from '../core/collections';
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
 import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
@@ -210,7 +211,7 @@ export function computeTotals(document: {
     return { gross, discount, net };
   });
 
-  const itemsNet = [...items.values()].reduce((sum, value) => sum + value, 0);
+  const itemsNet = sumOf([...items.values()], (value) => value);
   const globalDiscount = discountOn(itemsNet, document.globalDiscountType, document.globalDiscountValue);
   // The overall discount is spread over the rates in proportion of their bases; the last rate gets the rest.
   const rates = [...new Set([...items.keys(), ...deductionsByRate.keys()])].sort((a, b) => b - a);
@@ -222,9 +223,9 @@ export function computeTotals(document: {
     const base = itemBase - share - (deductionsByRate.get(rate) ?? 0);
     return { rate, base, vat: percentOf(base, rate) };
   });
-  const deductions = [...deductionsByRate.values()].reduce((sum, value) => sum + value, 0);
+  const deductions = sumOf([...deductionsByRate.values()], (value) => value);
   const totalNet = itemsNet - globalDiscount - deductions;
-  const totalVat = vat.reduce((sum, item) => sum + item.vat, 0);
+  const totalVat = sumOf(vat, (item) => item.vat);
   return {
     lines,
     itemsNet,
@@ -251,6 +252,7 @@ export function moneyFormat(currency: string, options: Intl.NumberFormatOptions 
   const key = `${currency}|${JSON.stringify(options)}`;
   let format = moneyFormats.get(key);
   if (!format) {
+    // eslint-disable-next-line no-restricted-syntax -- the money format itself.
     format = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, ...options });
     moneyFormats.set(key, format);
   }

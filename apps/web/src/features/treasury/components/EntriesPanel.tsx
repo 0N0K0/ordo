@@ -16,7 +16,7 @@ import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/ce
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 
 import { treasuryKey, useTreasuryEntries, type TreasuryAccount, type TreasuryEntry } from '../api';
@@ -183,7 +183,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                 priority="secondary"
                 icon={<FileCsvIcon aria-hidden />}
                 onClick={() => openFormPanel('Importer un relevé bancaire', (close) => <StatementImport accounts={accounts} onDone={close} />, 'lg')}
-                disabled={!accounts.some((account) => !account.archived)}
+                disabled={unarchived(accounts).length === 0}
               >
                 Importer un relevé
               </ActionButton>

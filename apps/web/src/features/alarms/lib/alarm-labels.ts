@@ -26,7 +26,7 @@ export interface AlarmTiming {
  * @param {AlarmTiming} timing Timing.
  * @returns {string} Text.
  */
-export function describeTiming(timing: AlarmTiming): string {
+export function describeAlarmTiming(timing: AlarmTiming): string {
   const at = timing.time ? ` à ${timing.time}` : '';
   if (!timing.recurrence || !timing.startDate) return `Le ${timing.startDate ? fmt.day(timing.startDate) : '—'}${at}`;
   return `${fmt.capitalize(describeRecurrence(timing.recurrence, timing.startDate))}${at}`;
@@ -51,6 +51,6 @@ export function nextRing(alarm: Alarm, now: Date): Date | null {
  */
 export function describeAlarm(alarm: Alarm): string {
   if (alarm.type === 'TRACKING_DURATION') return alarm.minutes === 1 ? 'Chaque minute de chrono' : `Toutes les ${alarm.minutes} min de chrono`;
-  const text = describeTiming({ startDate: alarm.startDate, time: alarm.time, recurrence: alarmRule(alarm) });
+  const text = describeAlarmTiming({ startDate: alarm.startDate, time: alarm.time, recurrence: alarmRule(alarm) });
   return alarm.type === 'NOT_TRACKING' ? `${text}, si aucun chrono ne tourne` : text;
 }

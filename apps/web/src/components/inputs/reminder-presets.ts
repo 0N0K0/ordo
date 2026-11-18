@@ -1,5 +1,5 @@
 /** A reminder offered: minutes before the moment, and its label. */
-export interface ReminderPreset {
+interface ReminderPreset {
   value: number;
   label: string;
 }

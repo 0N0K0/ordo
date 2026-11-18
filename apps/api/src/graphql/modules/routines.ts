@@ -1,4 +1,4 @@
-import { parseOptionalDay, readSlotRule } from '@ordo/shared';
+import { parseOptionalDay, readSlotRule, sumOf } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
@@ -6,6 +6,7 @@ import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
+import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
@@ -146,8 +147,8 @@ builder.prismaObject('Routine', {
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
-    travelBefore: t.exposeInt('travelBefore', { description: 'Minutes to get there.' }),
-    travelAfter: t.exposeInt('travelAfter', { description: 'Minutes to get back.' }),
+    travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
+    travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
     position: t.exposeInt('position'),
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
@@ -216,7 +217,7 @@ builder.prismaObject('Routine', {
     trackedSeconds: t.int({
       description: 'Time tracked on it, finished entries only.',
       select: { timeEntries: { select: { duration: true } } },
-      resolve: (routine) => routine.timeEntries.reduce((total, entry) => total + (entry.duration ?? 0), 0),
+      resolve: (routine) => sumOf(routine.timeEntries, (entry) => entry.duration ?? 0),
     }),
   }),
 });
@@ -243,11 +244,8 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     reminders: t.intList(),
     opensOn: t.field({ type: 'JSON', description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
-    location: t.string(),
-    locationLat: t.float(),
-    locationLon: t.float(),
-    travelBefore: t.int(),
-    travelAfter: t.int(),
+    ...locationInputFields(t),
+    ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
     beneficiaryIds: t.idList({ description: 'Contributors it is for; none: none.' }),
@@ -283,11 +281,8 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     beneficiaryRelationIds: t.idList(),
     requiredIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
-    location: t.string({ description: 'Null: none (its point too).' }),
-    locationLat: t.float(),
-    locationLon: t.float(),
-    travelBefore: t.int({ description: 'Minutes to get there.' }),
-    travelAfter: t.int({ description: 'Minutes to come back.' }),
+    ...locationInputFields(t, 'Null: none (its point too).'),
+    ...travelInputFields(t, 'omitted: unchanged'),
     reminders: t.intList({ description: 'Minutes before its moment.' }),
     opensOn: t.field({ type: 'JSON', description: '« À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
@@ -342,11 +337,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   slotRule: null,
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
-  location: input.location ?? null,
-  locationLat: input.locationLat ?? null,
-  locationLon: input.locationLon ?? null,
-  travelBefore: input.travelBefore ?? 0,
-  travelAfter: input.travelAfter ?? 0,
+  ...locatedInput(input),
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds,
   beneficiaryIds: input.beneficiaryIds ?? [],
@@ -502,9 +493,7 @@ builder.mutationFields((t) => ({
       if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds;
       if (input.requiredIds) changes.requiredIds = input.requiredIds;
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
-      if (input.location !== undefined) Object.assign(changes, { location: input.location ?? null, locationLat: input.locationLat ?? null, locationLon: input.locationLon ?? null });
-      if (input.travelBefore !== undefined && input.travelBefore !== null) changes.travelBefore = input.travelBefore;
-      if (input.travelAfter !== undefined && input.travelAfter !== null) changes.travelAfter = input.travelAfter;
+      Object.assign(changes, locatedChanges(input));
       if (input.reminders) changes.reminders = input.reminders;
       if (input.opensOn !== undefined) changes.opensOn = (input.opensOn ?? null) as RoutineInput['opensOn'];
       // A repetition of its own: it no longer follows its cases.

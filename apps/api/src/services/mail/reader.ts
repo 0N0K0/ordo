@@ -1,4 +1,4 @@
-import { collator, NO_SUBJECT } from '@ordo/shared';
+import { collator, NO_SUBJECT, sameName, sumOf } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -201,7 +201,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
 async function sumOverAccounts(count: (accountId: string) => Promise<number>): Promise<number> {
   const accounts = await prisma.mailAccount.findMany({ where: { archivedAt: null }, select: { id: true } });
   const counts = await Promise.all(accounts.map((account) => count(account.id).catch(() => 0)));
-  return counts.reduce((sum, value) => sum + value, 0);
+  return sumOf(counts, (value) => value);
 }
 
 /**
@@ -210,7 +210,7 @@ async function sumOverAccounts(count: (accountId: string) => Promise<number>): P
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
 export function todoMails(): Promise<number> {
-  return sumOverAccounts(async (accountId) => (await listFolders(accountId)).reduce((sum, folder) => sum + (folder.todo ?? 0), 0));
+  return sumOverAccounts(async (accountId) => sumOf(await listFolders(accountId), (folder) => folder.todo ?? 0));
 }
 
 /**
@@ -264,7 +264,7 @@ export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStruc
  * @returns {{ labelIds: string[], done: boolean }} Marks.
  */
 function flagMarks(flags: string[]): { labelIds: string[]; done: boolean } {
-  return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
+  return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => sameName(flag, DONE_KEYWORD)) };
 }
 
 /**

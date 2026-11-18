@@ -1,3 +1,4 @@
+import { changedList } from '@ordo/shared';
 import { createContext, useContext } from 'react';
 import { notifySuccess } from '../../../lib/notify';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
@@ -100,7 +101,7 @@ export function bulkSaver<R, C>(
  */
 export function applyDiff(current: readonly string[], before: readonly string[], after: readonly string[]): string[] {
   const { added, removed } = listDiff(before, after);
-  return [...new Set([...current.filter((value) => !removed.includes(value)), ...added])];
+  return changedList(current, added, removed);
 }
 
 /**

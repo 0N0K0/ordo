@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { plural, countWith } from '../../../lib/text';
@@ -23,7 +24,7 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
     the: 'la fiche',
     name: rowLabel,
     risks: (subject, one, sheets) => {
-      const usedBy = sheets.reduce((sum, sheet) => sum + (sheet.usedBy ?? 0), 0);
+      const usedBy = sumOf(sheets, (sheet) => sheet.usedBy ?? 0);
       const items = one ? countWith(sheets[0].items.length, 'élément', ['son', 'ses']) : 'leurs éléments';
       const used = usedBy ? `, et retirés des ${usedBy} ${plural(usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui ${one ? 'l’ont' : 'les ont'}` : '';
       return `${subject} et ${items} seront supprimés définitivement${used}. Les listes d’achats et les listes à cocher déjà faites ${one ? 'la' : 'les'} gardent.`;

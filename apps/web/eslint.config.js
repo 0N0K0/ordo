@@ -33,6 +33,11 @@ const RESTRICTED_PATHS = [
     message: 'Importer collator et normalize de lib/text : un seul chemin.',
   },
   {
+    name: '@ordo/shared',
+    importNames: ['monthOfDay', 'yearOfDay'],
+    message: 'Importer monthOfDay et yearOfDay de lib/dates : un seul chemin.',
+  },
+  {
     name: '@mantine/dates',
     importNames: ['TimeInput'],
     message: 'Utiliser TimePicker : 24 h et libellés par défaut (app/theme).',
@@ -293,6 +298,130 @@ export default defineConfig([
           selector: 'Literal[value=/j de retard/], TemplateElement[value.raw=/j de retard/]',
           message: 'Utiliser fmt.daysLate (lib/format), LateBadge sur l’accueil (décision AI).',
         },
+        // Round 6 (point 8): patterns written otherwise, and the bricks of points 5 to 7.
+        {
+          selector: "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name='Indicator']",
+          message: 'Utiliser IconAction indicator={n} (components/actions/IconAction) : l’action en infobulle, le compte en pastille.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(find|some|every|findIndex)$/] > ArrowFunctionExpression > UnaryExpression.body[operator='!'] > MemberExpression.argument[property.name='archived'], CallExpression[callee.property.name=/^(find|some|every|findIndex)$/] > ArrowFunctionExpression > LogicalExpression.body > UnaryExpression[operator='!'] > MemberExpression.argument[property.name='archived']",
+          message: 'Utiliser unarchived(items, keep) (lib/archive) puis find / some : les archivés retirés, la valeur en cours gardée.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > LogicalExpression.body[operator='&&'] > UnaryExpression.left[operator='!'] > MemberExpression.argument[property.name='archived']",
+          message: 'Utiliser unarchived(items, keep) (lib/archive) puis filter : les archivés retirés, la valeur en cours gardée.',
+        },
+        {
+          selector:
+            "NewExpression[callee.name='Set'] > CallExpression[callee.property.name='map'][callee.object.callee.property.name='filter'][callee.object.arguments.0.body.property.name='archived'][arguments.0.body.property.name='id']",
+          message: 'Utiliser archivedIds(items) (lib/archive).',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/\\(archivée?\\)/]',
+          message: 'Utiliser archivedLabel(item, feminine) (lib/archive).',
+        },
+        {
+          selector: "JSXOpeningElement[name.name='Text'] > JSXAttribute[name.name='tt'] ConditionalExpression Literal[value='uppercase']",
+          message: 'Utiliser Caption (components/page/Caption) : petites capitales atténuées, graisse 600, partout.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='slice'][arguments.0.value=0][arguments.1.value=4]:matches([callee.object.name=/(start|end|from|to|since|until|month|Month)$/], [callee.object.property.name=/(start|end|from|to|since|until|month|Month|today)$/])",
+          message: 'Utiliser yearOfDay(day) (lib/dates) : l’année d’un jour ou d’un mois.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='slice'][arguments.0.value=5][arguments.1.value=7]",
+          message: 'Utiliser monthOfYear(day) (@ordo/shared) : le mois (1 à 12) d’un jour.',
+        },
+        {
+          selector:
+            'TemplateElement[value.raw=/^\\/(accounting|sheets|shopping)\\//], Literal[value=/^\\/(accounting|sheets|shopping)\\/./], TemplateElement[value.raw=/^\\/(time|routines|shopping)\\?/], Literal[value=/^\\/(time|routines|shopping)\\?/]',
+          message: 'Utiliser documentPath, sheetPath, shoppingListPath, SHOPPING_LISTS_PATH, timePath, routineHistoryPath (app/pages).',
+        },
+        {
+          selector:
+            "Literal[value=/^\\/(tasks|routines|calendar|time|alarms|shopping|sheets|stock|accounting|treasury|mail|documents|dashboards|settings|account)$/]:not(Property[key.name='path'] > Literal)",
+          message: 'Utiliser PAGES.x.path (app/pages) : une adresse par page.',
+        },
+        {
+          selector:
+            'ConditionalExpression[test.operator=/^(>|!==|!=)$/][test.right.value=1][consequent.value=/./][alternate.value=/./]:matches([test.left.name=/(count|length|total|size)$/i], [test.left.property.name=/^(length|size)$/])',
+          message: 'Utiliser plural(count, singulier, pluriel) ou countOf(count, mot) (lib/text).',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='slice'][arguments.length=2][arguments.0.value=0]:not([arguments.1.type='Identifier']):matches([callee.object.name=/^(label|name|title|subject)$/], [callee.object.property.name=/^(label|name|title|subject)$/])",
+          message: 'Utiliser clipText(text, max) (@ordo/shared) : coupé au maximum du schéma, avec « … ».',
+        },
+        {
+          selector: "CallExpression[callee.property.name='add'][callee.object.callee.name='descendantIds'], ArrayExpression > SpreadElement > CallExpression.argument[callee.name='descendantIds']",
+          message: 'Utiliser subtreeOf(items, id) (@ordo/shared) : l’élément et tous ses descendants.',
+        },
+        {
+          selector: "JSXElement[openingElement.name.name='Badge']:has(JSXText[value=/retard/])",
+          message: 'Utiliser LateBadge (features/home) ou fmt.daysLate (lib/format) : un seul retard, orange (décision AI).',
+        },
+        {
+          selector: 'ConditionalExpression[consequent.openingElement.name.name=/^Caret(Down|Right)Icon$/][alternate.openingElement.name.name=/^Caret(Down|Right)Icon$/]',
+          message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire » (décision AE).',
+        },
+        {
+          selector: 'Literal[value=/^(Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Plages|Horaires) de travail\\s*$/]',
+          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text) : « Plages » en perso.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='reduce'][arguments.length=2][arguments.1.value=0] > ArrowFunctionExpression:first-child > BinaryExpression.body[operator='+'][left.type='Identifier']",
+          message: 'Utiliser sumOf(items, (item) => valeur) (@ordo/shared).',
+        },
+        {
+          selector: "CallExpression[callee.object.name='fmt'][callee.property.name='number'][arguments.1.value=3]",
+          message: 'Utiliser fmt.quantity({ quantity, unit }) (lib/format) : une quantité, 3 décimales au plus.',
+        },
+        {
+          selector: "JSXElement[openingElement.name.name='Center']:has(JSXAttribute[name.name='h'][value.value=/^100d?vh$/]):has(JSXOpeningElement[name.name='Loader'])",
+          message: 'Utiliser FullPageLoader (components/feedback/FullPageLoader) pour un chargement plein écran, PageMessage pour une page d’erreur.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='get'][arguments.0.type='Literal'] > MemberExpression.callee > MemberExpression.object[property.value=0][object.callee.name='useSearchParams']",
+          message: 'Utiliser useSearchParam(clé) (lib/search-params).',
+        },
+        {
+          selector: 'Literal[value=/mails? déplacés?/i], TemplateElement[value.raw=/mails? déplacés?/i]',
+          message: 'Utiliser movedMailsMessage(count, dossier) (features/mail/lib/mail-format).',
+        },
+        {
+          selector: "ObjectExpression:has(> SpreadElement[argument.name=/^(cellField|cellCombobox|sharedField|sharedCombobox)$/]):has(> Property[key.name='onClick'][value.name='stopClick'])",
+          message: 'Utiliser stoppedCellField / stoppedCellCombobox (components/data-table/cells/cell-field).',
+        },
+        {
+          selector: "CallExpression[callee.object.name='modals'][callee.property.name=/^(open|openConfirmModal)$/]",
+          message: 'Utiliser openModal (components/panels/open-modal), ou confirmDestructive (components/dialogs/confirm-destructive).',
+        },
+        {
+          selector: "JSXAttribute[name.name='renderOption'] ReturnStatement > JSXElement[openingElement.name.name='PersonOption']",
+          message: 'Utiliser personOptionRenderer(byId) (components/people/person-option).',
+        },
+        {
+          selector: "TemplateLiteral:has(> TemplateElement[value.raw=/(^| )#$/]) > MemberExpression[property.name='number']",
+          message: 'Utiliser taskName(task) / taskRef(task) (features/tasks/hooks/use-task-context) ou taskShortRef(task, projet, lieu) (components/markdown/remark-references).',
+        },
+        {
+          selector:
+            "ArrayExpression[elements.length=3][elements.0.type='SpreadElement'][elements.0.argument.callee.property.name='slice'][elements.0.argument.arguments.0.value=0][elements.2.type='SpreadElement'][elements.2.argument.callee.property.name='slice'][elements.2.argument.arguments.length=1]",
+          message: 'Utiliser movedTo(others, moved, index) (@ordo/shared), ou moveToIndex(list, id, index) (lib/mutation).',
+        },
+        {
+          selector: "Literal[value='max(36rem, calc(100dvh - 16rem))']",
+          message: 'Utiliser PAGE_PREVIEW_HEIGHT (features/files/components/FilePreview).',
+        },
+        {
+          selector: 'TemplateLiteral > TemplateElement[value.raw=/^(doc|imp):$/]',
+          message: 'Utiliser documentKey / allocationKey / allocationOfKey (features/treasury/components/EntryForm).',
+        },
         {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value='red']",
           message: 'Utiliser ErrorAlert (components/feedback/ErrorAlert).',
@@ -310,7 +439,7 @@ export default defineConfig([
   },
   {
     // App-wide features the bricks read (the user, the active workspace and its week, a file link): known exceptions.
-    files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/inputs/WeekDatesProvider.tsx', 'src/components/markdown/MarkdownView.tsx'],
+    files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/markdown/MarkdownView.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }] },
   },
   {
@@ -322,11 +451,6 @@ export default defineConfig([
     // Menus of their own: the tree of the saved places in an address field; the library, to be rewritten.
     files: ['src/features/geo/components/AddressInput.tsx', 'src/features/library/**'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_BUT_MENU }] },
-  },
-  {
-    // BatchMultiSelect wraps MultiSelect, ColorField wraps ColorInput; fmt.moneyCents is the shared formatMoney.
-    files: ['src/components/inputs/BatchMultiSelect.tsx', 'src/components/inputs/ColorField.tsx', 'src/lib/format.ts'],
-    rules: { 'no-restricted-imports': 'off' },
   },
   {
     // To be rewritten entirely: not brought in line.

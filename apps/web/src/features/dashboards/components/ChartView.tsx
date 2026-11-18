@@ -1,3 +1,4 @@
+import { sumOf } from '@ordo/shared';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { AreaChart, BarChart, CompositeChart, DonutChart, LineChart } from '@mantine/charts';
 import { Center, ColorSwatch, Group, Paper, Stack, Text } from '@mantine/core';
@@ -121,7 +122,7 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
             withLabelsLine
             withTooltip
             valueFormatter={format}
-            chartLabel={format(data.slices.reduce((sum, slice) => sum + slice.value, 0))}
+            chartLabel={format(sumOf(data.slices, (slice) => slice.value))}
           />
         </Center>
       ) : config.type === 'line' || config.type === 'burndown' ? (

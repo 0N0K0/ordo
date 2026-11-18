@@ -8,7 +8,7 @@ import classes from './CategoryTree.module.css';
 import { useFolded, useTreeDrop } from './tree-dnd';
 
 import treeRow from './tree-drop.module.css';
-import { DragHandle } from '../actions/DragHandle';
+import { DragHandle } from '../dnd/DragHandle';
 import { FoldButton } from '../actions/FoldButton';
 
 interface CategoryRowProps<C extends TreeCategory> {

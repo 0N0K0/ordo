@@ -1,21 +1,9 @@
-import { Center, Loader } from '@mantine/core';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useMe } from '../api';
+import { FullPageLoader } from '../../../components/feedback/FullPageLoader';
 
 interface FromState {
   from?: { pathname: string; search: string };
-}
-
-/**
- * Full-page loader shown while the session is being checked.
- * @returns {JSX.Element} Loader.
- */
-function SessionLoader() {
-  return (
-    <Center h="100dvh">
-      <Loader aria-label="Chargement" />
-    </Center>
-  );
 }
 
 /**
@@ -26,7 +14,7 @@ export function RequireAuth() {
   const me = useMe();
   const location = useLocation();
 
-  if (me.isPending) return <SessionLoader />;
+  if (me.isPending) return <FullPageLoader label="Chargement" />;
   if (!me.data) return <Navigate to="/login" replace state={{ from: location } satisfies FromState} />;
   return <Outlet />;
 }
@@ -39,7 +27,7 @@ export function RequireGuest() {
   const me = useMe();
   const from = (useLocation().state as FromState | null)?.from;
 
-  if (me.isPending) return <SessionLoader />;
+  if (me.isPending) return <FullPageLoader label="Chargement" />;
   if (me.data) return <Navigate to={from ? `${from.pathname}${from.search}` : '/'} replace />;
   return <Outlet />;
 }

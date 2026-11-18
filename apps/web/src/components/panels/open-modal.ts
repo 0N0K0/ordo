@@ -14,6 +14,7 @@ let count = 0;
 export function openModal(title: ReactNode, render: (close: () => void) => ReactNode, options: { size?: MantineSize | string; onClose?: () => void } = {}): () => void {
   const modalId = `modal-${++count}`;
   const close = () => modals.close(modalId);
+  // eslint-disable-next-line no-restricted-syntax -- openModal itself.
   modals.open({ modalId, title, size: options.size, onClose: options.onClose, children: render(close) });
   return close;
 }

@@ -12,6 +12,7 @@ import { taskOptions } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
+import { shoppingListPath } from '../../../app/pages';
 
 const schema = shoppingListFormSchema.extend({ baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -58,7 +59,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   const handleSubmit = form.onSubmit((values) =>
     createList.mutate(
       { label: values.label, taskIds: values.taskIds, baseListIds: values.baseListIds.filter((id) => missingOf(id) > 0) },
-      formCallbacks(form, 'Liste créée.', onDone, { then: (id: string) => navigate(`/shopping/${id}`) }),
+      formCallbacks(form, 'Liste créée.', onDone, { then: (id: string) => navigate(shoppingListPath(id)) }),
     ),
   );
 

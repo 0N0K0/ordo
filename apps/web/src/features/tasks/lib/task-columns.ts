@@ -19,7 +19,7 @@ import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
-import type { TaskContext } from '../hooks/use-task-context';
+import { taskRef, type TaskContext } from '../hooks/use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './columns-meta';
 import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
@@ -74,7 +74,7 @@ export function filterUses(group: FilterGroupOf<string> | null | undefined, fiel
 }
 
 /** Key of the row of an event. */
-export const eventKey = (event: EventOccurrence) => `e:${event.key}`;
+export const eventRowKey = (event: EventOccurrence) => `e:${event.key}`;
 
 /** Relative sprints a filter chooses: the current one, the previous and next one of each project tree, past ones, future ones. */
 const SPRINT_TOKENS: ColumnChoice[] = [
@@ -298,7 +298,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       hiddenByDefault: true,
       groupable: false,
       sortValue: (row) => (row.kind === 'task' ? row.task.number : null),
-      text: (row) => (row.kind === 'task' && row.task.number !== null ? `#${row.task.number}` : ''),
+      text: (row) => (row.kind === 'task' ? taskRef(row.task).trim() : ''),
       filter: { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.number : null) },
     },
     {

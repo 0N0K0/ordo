@@ -6,22 +6,23 @@ import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDef
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
+  calendarEventFactory,
   clientFactory,
   COLORS,
   commentFactory,
   contributorFactory,
+  localAt,
+  localDate,
   maybe,
   milestoneFactory,
   PHASES,
   projectFactory,
+  rule,
   taskFactory,
-  timeEntryFactory,
-  calendarEventFactory,
-  clock,
-  localDate,
   TIME_ZONE,
+  timeEntryFactory,
 } from './fixtures/factories';
-import { addDays, DEFAULT_RECURRENCE, emptyTableFilter, formatDay, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, minutesToTime, parseDay, type Recurrence, weekdayOfDate } from '@ordo/shared';
 import { createAlarm } from '../src/services/tasks/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
 import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/tasks/task-recurrence';
@@ -92,7 +93,7 @@ await purgeWorkspace();
 const statuses = await Promise.all(
   (
     [
-      ['À faire', '#868e96', 'TODO'],
+      ['À faire', DEFAULT_LABEL_COLOR, 'TODO'],
       ['En cours', '#228be6', 'IN_PROGRESS'],
       ['En revue', '#be4bdb', 'IN_PROGRESS'],
       ['Terminé', '#40c057', 'DONE'],
@@ -114,7 +115,7 @@ const tags = await Promise.all(
     ['backend', '#7950f2'],
     ['design', '#e64980'],
     ['client', '#fd7e14'],
-    ['dette technique', '#868e96'],
+    ['dette technique', DEFAULT_LABEL_COLOR],
   ].map(([name, color], position) => prisma.taskTag.create({ data: { label: name, color, position } })),
 );
 const types = await Promise.all(
@@ -384,14 +385,8 @@ const calendarOf = (categoryIds: readonly string[]) => (categoryIds.some((id) =>
 
 const today = localDate(new Date());
 // Monday of the current week.
-const monday = addDays(today, -((new Date(`${today}T12:00:00`).getDay() + 6) % 7));
+const monday = addDays(today, 1 - weekdayOfDate(today));
 const activeRoots = projects.filter((project) => project.parentId === null && !project.archivedAt);
-/**
- * Rule from the default one.
- * @param {Partial<Recurrence>} changes Changes.
- * @returns {Recurrence} Rule.
- */
-const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
 
 /**
  * Creates a recurring event.
@@ -418,9 +413,9 @@ const recurring = async (event: {
         links: [],
         allDay: event.allDay ?? false,
         startDate: parseDay(event.start),
-        startTime: event.allDay ? null : clock(event.from),
+        startTime: event.allDay ? null : minutesToTime(event.from),
         endDate: parseDay(event.start),
-        endTime: event.allDay ? null : clock(event.to),
+        endTime: event.allDay ? null : minutesToTime(event.to),
         timeZone: TIME_ZONE,
         recurrence: event.recurrence,
         reminders: event.reminders ?? [10],
@@ -627,15 +622,14 @@ const repeatable = await prisma.task.findMany({
 });
 for (const [index, task] of repeatable.entries()) {
   const anchor = formatDay(task.startDate!);
-  const weekday = new Date(`${anchor}T12:00:00Z`).getUTCDay() || 7;
+  const weekday = weekdayOfDate(anchor);
   await setTaskRecurrence(task.id, [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index]);
 }
 await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
 // Past occurrences are mostly done.
 const doneStatus = statuses.find((status) => status.category === 'DONE')!;
 for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: parseDay(today) } } })) {
-  if (faker.datatype.boolean(0.8))
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${formatDay(occurrence.occurrenceDate!)}T17:00:00`) } });
+  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 17) } });
 }
 
 // --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
@@ -685,9 +679,8 @@ await createCalendarEvent({
 // The stand-ups of the last two weeks were tracked from the event (each occurrence).
 if (firstRoot) {
   for (let date = addDays(monday, -14); date < today; date = addDays(date, 1)) {
-    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-    if (weekday === 0 || weekday === 6 || !faker.datatype.boolean(0.7)) continue;
-    await createTimeEntry({ projectId: firstRoot.id, event: { eventId: standUp, occurrenceDate: date }, description: 'Stand-up', startedAt: new Date(`${date}T09:00:00`), duration: 15 * 60 });
+    if (weekdayOfDate(date) > 5 || !faker.datatype.boolean(0.7)) continue;
+    await createTimeEntry({ projectId: firstRoot.id, event: { eventId: standUp, occurrenceDate: date }, description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
   }
 }
 // The next sport session is moved to the day after (the occurrence is called off and a new event made).

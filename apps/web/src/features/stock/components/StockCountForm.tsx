@@ -13,6 +13,7 @@ import { useStockItems, useStockLocations, useStockMutations, type StockItem } f
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -36,7 +37,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
    */
   const within = (id: string | null | undefined) => !locationId || (!!id && isUnderOrSelf(parentOf, id, locationId));
   // The archived items are not counted.
-  const rows = (items ?? []).filter((item) => !item.archived && within(item.locationId));
+  const rows = unarchived(items ?? []).filter((item) => within(item.locationId));
   const columns: DataColumn<StockItem>[] = [
     { id: 'label', label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
     { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
@@ -48,7 +49,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
       numeric: true,
       locked: true,
       sortValue: (item) => counts.get(item.id) ?? null,
-      text: (item) => (counts.has(item.id) ? fmt.number(counts.get(item.id)!, 3) : ''),
+      text: (item) => fmt.quantity({ quantity: counts.get(item.id) }),
     },
   ];
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
@@ -70,7 +71,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
               min={0}
               allowNegative={false}
               hideControls
-              placeholder={fmt.number(item.quantity, 3)}
+              placeholder={fmt.quantity({ quantity: item.quantity })}
               value={counts.get(item.id) ?? ''}
               onChange={(value) =>
                 setCounts((current) => {

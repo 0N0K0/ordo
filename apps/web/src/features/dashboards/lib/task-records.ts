@@ -1,4 +1,4 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2, TASK_STATUS_CATEGORY_LABELS } from '@ordo/shared';
+import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, mapById, round2, TASK_STATUS_CATEGORY_LABELS, sumOf } from '@ordo/shared';
 import { localDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -191,12 +191,20 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
   if (!sprint) return empty;
   const measure = config.measure === 'effort' ? 'effort' : 'count';
   const inSprint = tasks.filter((task) => task.sprintIds.includes(sprint.id));
-  const total = inSprint.reduce((sum, task) => sum + valueOf(task, measure, context), 0);
+  const total = sumOf(inSprint, (task) => valueOf(task, measure, context));
   const days: string[] = [];
   for (let day = sprint.startDate; day <= sprint.endDate; day = addDays(day, 1)) days.push(day);
   const rows = days.map((day, index) => ({
     x: fmt.dayShort(day),
-    Restant: day > today ? null : round2(inSprint.filter((task) => !task.closedAt || localDay(task.closedAt) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
+    Restant:
+      day > today
+        ? null
+        : round2(
+            sumOf(
+              inSprint.filter((task) => !task.closedAt || localDay(task.closedAt) > day),
+              (task) => valueOf(task, measure, context),
+            ),
+          ),
     Idéal: round2(days.length > 1 ? total * (1 - index / (days.length - 1)) : 0),
   }));
   return {

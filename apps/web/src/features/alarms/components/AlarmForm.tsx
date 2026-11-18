@@ -8,7 +8,7 @@ import { useAppForm, formCallbacks } from '../../../lib/form';
 import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { timeTasks } from '../../time/lib/time-tasks';
-import { describeTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
+import { describeAlarmTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
@@ -118,7 +118,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             value={{ startDate: form.values.startDate, time: form.values.time, recurrence: form.values.recurrence }}
             onChange={(timing) => form.setValues({ ...timing })}
             valid={(draft) => Boolean(draft.startDate && draft.time)}
-            describe={(timing) => (timing.startDate ? [describeTiming(timing)] : [])}
+            describe={(timing) => (timing.startDate ? [describeAlarmTiming(timing)] : [])}
             editor={(draft, setDraft) => (
               <RuleEditor
                 rule={draft.recurrence}

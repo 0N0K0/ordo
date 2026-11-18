@@ -5,7 +5,7 @@ import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
-import { taskLabelSchema, type TaskColumn } from '@ordo/shared';
+import { taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
@@ -13,7 +13,7 @@ import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
-import { subtreeIds } from '../lib/task-links';
+
 import { linkableTasks } from '../lib/task-links';
 import { taskName, taskRef, type TaskContext } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
@@ -22,15 +22,12 @@ import { applyDiff, listDiff } from '../../../components/data-table/selection/bu
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, cellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellCombobox, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 import { dateRangeProps } from '../../../components/inputs/date-range';
-
-/** Select fields of the cells, a click kept from the row. */
-const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -40,7 +37,7 @@ const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
  * @returns {string} Label.
  */
 function fieldLabel(name: string, task: Task, count: number): string {
-  return cellLabel(name, `de la tâche ${taskName(task)}`, count);
+  return itemCellLabel(name, `la tâche ${taskName(task)}`, count);
 }
 
 /**
@@ -156,7 +153,7 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
   const { apply, count } = useCellEdit(task, 'milestone');
   return (
     <Select
-      {...cellCombobox}
+      {...stoppedCellCombobox}
       aria-label={fieldLabel('Jalon', task, count)}
       data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
       value={task.milestoneId}
@@ -433,7 +430,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
  */
 export function ParentCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'parent');
-  const excluded = subtreeIds(context, task.id);
+  const excluded = subtreeOf(context.tasks, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id, (candidate) => !excluded.has(candidate.id));
   return (
     <TaskSelect

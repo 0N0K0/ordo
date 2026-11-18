@@ -14,15 +14,6 @@ function nthWeekday(position: number, weekday: number): string {
 }
 
 /**
- * Formats a YYYY-MM-DD date: "3 novembre 2026".
- * @param {string} date Calendar date.
- * @returns {string} Label.
- */
-export function formatLongDate(date: string): string {
-  return fmt.dayInWords(date);
-}
-
-/**
  * Readable repetition: "Toutes les 2 semaines le lundi et le jeudi, jusqu’au 20 décembre 2026".
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
@@ -57,7 +48,7 @@ export function describeRecurrence(rule: Recurrence, start: string, weekdays = t
       }`;
       break;
   }
-  if (rule.until) text += `, jusqu’au ${formatLongDate(rule.until)}`;
+  if (rule.until) text += `, jusqu’au ${fmt.dayInWords(rule.until)}`;
   if (rule.count) text += `, ${rule.count} fois`;
   if (rule.pauses.length) text += ` (${countOf(rule.pauses.length, 'pause')})`;
   return text;

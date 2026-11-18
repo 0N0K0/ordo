@@ -6,6 +6,7 @@ import {
   lineageOf,
   mapById,
   markdownSchema,
+  movedTo,
   parseOptionalDay,
   reaches,
   slotRuleSchema,
@@ -708,7 +709,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
   const others = ordered.filter((task) => task.id !== id).map((task) => task.id);
   const index = beforeId === null ? others.length : others.indexOf(beforeId);
   if (index < 0) throw notFound('Tâche');
-  const order = [...others.slice(0, index), id, ...others.slice(index)];
+  const order = movedTo(others, id, index);
   const current = new Map(ordered.map((task) => [task.id, task.position]));
   // Only rows whose position changes are written.
   await prisma.$transaction([

@@ -11,7 +11,7 @@ interface IconActionLinkProps {
   rel?: string;
 }
 
-export type IconActionProps = Omit<ActionIconProps, 'children'> & Omit<ComponentPropsWithoutRef<'button'>, keyof ActionIconProps | 'children' | 'type'> & IconActionLinkProps & IconActionOwnProps;
+type IconActionProps = Omit<ActionIconProps, 'children'> & Omit<ComponentPropsWithoutRef<'button'>, keyof ActionIconProps | 'children' | 'type'> & IconActionLinkProps & IconActionOwnProps;
 
 /** Props of its own. */
 interface IconActionOwnProps {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { orNotFound } from '../graphql/errors';
-import { downloadRoute } from './http';
+import { downloadRoute, IMMUTABLE_CACHE } from './http';
 
 export const iconsRouter: Router = Router();
 
@@ -13,9 +13,9 @@ iconsRouter.get(
     return {
       content: Buffer.from(icon.data),
       type: icon.mimeType,
-      cache: 'private, max-age=31536000, immutable',
+      cache: IMMUTABLE_CACHE,
       // Defense in depth for SVG: no script, no external resource, even if opened directly.
       securityPolicy: "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     };
-  }, 'Icône'),
+  }, 'Icône impossible.'),
 );

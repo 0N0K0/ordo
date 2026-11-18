@@ -88,6 +88,7 @@ export const PDF_TEXT = { text: '#1d232b', muted: '#66707c' };
 export const PDF_TABLE = { border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0' };
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border };
 
+// eslint-disable-next-line no-restricted-syntax -- the date of an export, in Paris.
 const exportFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeStyle: 'short', timeZone: PARIS });
 
 export interface Report {

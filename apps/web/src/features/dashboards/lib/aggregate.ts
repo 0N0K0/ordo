@@ -15,12 +15,13 @@ import {
   round2,
   shiftCalendar,
   weekStartOf,
-  yearOfDay,
+  sumOf,
 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
 import { currentWeek } from '../../../lib/week';
 import { collator, countOf } from '../../../lib/text';
+import { yearOfDay } from '../../../lib/dates';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -332,7 +333,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
   const slices = xs
     .map((x, index) => ({
       name: x.label,
-      value: round2(series.reduce((sum, serie) => sum + (cells.get(`${x.key}|${serie.key}`) ?? 0), 0)),
+      value: round2(sumOf(series, (serie) => cells.get(`${x.key}|${serie.key}`) ?? 0)),
       color: x.color ?? PALETTE[index % PALETTE.length],
     }))
     .filter((slice) => slice.value !== 0);

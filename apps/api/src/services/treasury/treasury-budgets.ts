@@ -1,4 +1,17 @@
-import { budgetMonths, formatDay, lastDayOfMonth, monthOfDay, occurrenceDates, parseDay, plannedContext, splitAmounts, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
+import {
+  budgetMonths,
+  formatDay,
+  lastDayOfMonth,
+  monthOfDate,
+  monthOfDay,
+  occurrenceDates,
+  parseDay,
+  parseOptionalDay,
+  plannedContext,
+  splitAmounts,
+  type TreasuryBudgetInput,
+  treasuryBudgetSchema,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
@@ -54,7 +67,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
     categoryId: budget.categoryId,
     amount: toDecimal(budget.amount),
     repeatEvery: budget.repeatEvery,
-    repeatUntil: budget.repeatEvery && budget.repeatUntil ? parseDay(`${budget.repeatUntil}-01`) : null,
+    repeatUntil: parseOptionalDay(budget.repeatEvery && budget.repeatUntil ? `${budget.repeatUntil}-01` : null),
   };
 }
 
@@ -117,11 +130,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
 
   const rows = new Map<string, BudgetReportRow>();
   for (const budget of budgets) {
-    const months = budgetMonths(
-      { month: monthOfDay(formatDay(budget.month)), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOfDay(formatDay(budget.repeatUntil)) : null },
-      from,
-      to,
-    );
+    const months = budgetMonths({ month: monthOfDate(budget.month), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOfDate(budget.repeatUntil) : null }, from, to);
     for (const month of months) {
       const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };

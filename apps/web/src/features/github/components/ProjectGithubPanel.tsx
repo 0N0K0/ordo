@@ -1,7 +1,7 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { countOf, plural, normalize } from '../../../lib/text';
+import { countOf, plural, normalize, sameName } from '../../../lib/text';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
@@ -47,7 +47,7 @@ const fold = (name: string) => normalize(name).trim();
  */
 function guessOption(name: string, options: { id: string; name: string }[]): string | undefined {
   const own = fold(name);
-  return options.find((option) => fold(option.name) === own || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
+  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
 }
 
 /**

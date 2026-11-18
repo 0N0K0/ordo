@@ -10,6 +10,7 @@ import { useStockMovements, type StockMovement } from '../api';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { localDay } from '../../../lib/dates';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { sheetPath, shoppingListPath } from '../../../app/pages';
 
 const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
 
@@ -46,7 +47,7 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
       size: 110,
       numeric: true,
       sortValue: (movement) => movement.quantity,
-      text: (movement) => `${movement.quantity > 0 ? '+' : ''}${fmt.number(movement.quantity, 3)}`,
+      text: (movement) => `${movement.quantity > 0 ? '+' : ''}${fmt.quantity({ quantity: movement.quantity })}`,
       filter: { kind: 'number', value: (movement) => movement.quantity },
     },
     { id: 'source', label: 'Origine', size: 200, sortValue: (movement) => movement.source ?? null, text: (movement) => movement.source ?? '', groupable: true },
@@ -66,10 +67,10 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
             {STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind]}
           </Badge>
         ),
-        quantity: <SignedAmount value={movement.quantity} format={(quantity) => fmt.number(quantity, 3)} />,
+        quantity: <SignedAmount value={movement.quantity} format={(quantity) => fmt.quantity({ quantity: quantity })} />,
         source:
           movement.shoppingListId || movement.sheetId ? (
-            <Anchor component={Link} to={movement.shoppingListId ? `/shopping/${movement.shoppingListId}` : `/sheets/${movement.sheetId}`} size="sm">
+            <Anchor component={Link} to={movement.shoppingListId ? shoppingListPath(movement.shoppingListId) : sheetPath(movement.sheetId ?? '')} size="sm">
               {movement.source}
             </Anchor>
           ) : (

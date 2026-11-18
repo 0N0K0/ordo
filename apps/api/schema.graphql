@@ -418,10 +418,10 @@ input CalendarEventInput {
   taskIds: [ID!]
   timeZone: String!
 
-  """Travel time back from the event, in minutes; none: 0."""
+  """Travel time back, in minutes; none: 0."""
   travelAfter: Int
 
-  """Travel time to the event, in minutes; none: 0."""
+  """Travel time there, in minutes; none: 0."""
   travelBefore: Int
 }
 
@@ -477,10 +477,10 @@ type CalendarEventOccurrence {
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
 
-  """Travel time back from the event, in minutes."""
+  """Travel time back, in minutes."""
   travelAfter: Int!
 
-  """Travel time to the event, in minutes."""
+  """Travel time there, in minutes."""
   travelBefore: Int!
 }
 
@@ -2898,10 +2898,10 @@ type Routine {
   """Time tracked on it, finished entries only."""
   trackedSeconds: Int!
 
-  """Minutes to get back."""
+  """Travel time back, in minutes."""
   travelAfter: Int!
 
-  """Minutes to get there."""
+  """Travel time there, in minutes."""
   travelBefore: Int!
 
   """
@@ -3016,6 +3016,8 @@ input RoutineInput {
   fromTime: String
   label: String!
   location: String
+
+  """Point of the location; none: unknown."""
   locationLat: Float
   locationLon: Float
 
@@ -3037,7 +3039,11 @@ input RoutineInput {
   """
   slotCondition: JSON
   startDate: Date!
+
+  """Travel time back, in minutes; none: 0."""
   travelAfter: Int
+
+  """Travel time there, in minutes; none: 0."""
   travelBefore: Int
 }
 
@@ -3080,6 +3086,8 @@ input RoutinePatch {
 
   """Null: none (its point too)."""
   location: String
+
+  """Point of the location; none: unknown."""
   locationLat: Float
   locationLon: Float
 
@@ -3106,10 +3114,10 @@ input RoutinePatch {
   slotCondition: JSON
   startDate: Date
 
-  """Minutes to come back."""
+  """Travel time back, in minutes; omitted: unchanged."""
   travelAfter: Int
 
-  """Minutes to get there."""
+  """Travel time there, in minutes; omitted: unchanged."""
   travelBefore: Int
 }
 

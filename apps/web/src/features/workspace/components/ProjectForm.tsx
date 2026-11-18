@@ -2,11 +2,11 @@ import { unarchived } from '../../../lib/archive';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { byPosition, projectFormSchema, type ProjectFormValues } from '@ordo/shared';
+import { byPosition, projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
-import { descendantIds, useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
+import { useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
 import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -60,7 +60,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const parent = projects.find((item) => item.id === form.values.parentId);
 
   // A parent must be active, outside the project's own sub-tree, and leave room for its levels.
-  const excluded = project ? descendantIds(projects, project.id).add(project.id) : new Set<string>();
+  const excluded = project ? subtreeOf(projects, project.id) : new Set<string>();
   const height = project ? projectHeight(projects, project.id) : 1;
   const parentOptions = projectOptions(
     workspace,

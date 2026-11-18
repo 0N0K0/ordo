@@ -1,6 +1,6 @@
 import { NO_SUBJECT } from '@ordo/shared';
 import { unarchived } from '../../../lib/archive';
-import { mailPath } from '../../../app/pages';
+import { mailPath, PAGES } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { localDay } from '../../../lib/dates';
 import { Text } from '@mantine/core';
@@ -26,7 +26,7 @@ export function MailCard({ today }: { today: string }) {
   const several = accountIds.length > 1;
 
   return (
-    <HomeCard title="Mails non lus" icon={<EnvelopeSimpleIcon aria-hidden />} to="/mail" linkLabel="Boîte de réception" loading={loading}>
+    <HomeCard title="Mails non lus" icon={<EnvelopeSimpleIcon aria-hidden />} to={PAGES.mail.path} linkLabel="Boîte de réception" loading={loading}>
       {!loading && accountIds.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée." />}
       {!loading && unread.error && unread.data?.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Boîte mail injoignable." />}
       {!loading && accountIds.length > 0 && !unread.error && unread.data?.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun mail non lu." />}

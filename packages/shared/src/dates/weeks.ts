@@ -17,6 +17,7 @@ export const DEFAULT_WEEK: WeekSpan = { start: 1, end: 7 };
 export const WEEKDAY_LABELS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] as const;
 
 /** Short names of the days of the week, Monday first: « lun. », « mar. »… */
+// eslint-disable-next-line no-restricted-syntax -- the abbreviation of a weekday, not a cut text.
 export const WEEKDAY_SHORT_LABELS = WEEKDAY_LABELS.map((label) => `${label.slice(0, 3)}.`);
 
 /** Options of a choice of a day of the week, Monday (« 1 ») first, the same everywhere (repetitions, routines). */

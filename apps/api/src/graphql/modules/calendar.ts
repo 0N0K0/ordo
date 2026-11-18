@@ -7,6 +7,7 @@ import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
+import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
@@ -102,8 +103,8 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
     reminders: t.exposeIntList('reminders'),
-    travelBefore: t.exposeInt('travelBefore', { description: 'Travel time to the event, in minutes.' }),
-    travelAfter: t.exposeInt('travelAfter', { description: 'Travel time back from the event, in minutes.' }),
+    travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
+    travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
     projectId: t.exposeID('projectId', { nullable: true }),
     calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
@@ -263,9 +264,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
   fields: (t) => ({
     label: t.string({ required: true }),
     description: t.string(),
-    location: t.string(),
-    locationLat: t.float({ description: 'Point of the location; none: unknown.' }),
-    locationLon: t.float(),
+    ...locationInputFields(t),
     links: t.field({ type: [CalendarLinkInput], required: true }),
     allDay: t.boolean({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
@@ -275,8 +274,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     timeZone: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
-    travelBefore: t.int({ description: 'Travel time to the event, in minutes; none: 0.' }),
-    travelAfter: t.int({ description: 'Travel time back from the event, in minutes; none: 0.' }),
+    ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
     contributorIds: t.idList({ required: true }),
@@ -301,9 +299,7 @@ const CalendarCategoryInput = builder.inputType('CalendarCategoryInput', {
 const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   ...input,
   description: input.description ?? null,
-  location: input.location ?? null,
-  locationLat: input.locationLat ?? null,
-  locationLon: input.locationLon ?? null,
+  ...locatedInput(input),
   startTime: input.startTime ?? null,
   endTime: input.endTime ?? null,
   recurrence: (input.recurrence ?? null) as never,
@@ -314,8 +310,6 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   relationIds: input.relationIds ?? [],
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
-  travelBefore: input.travelBefore ?? 0,
-  travelAfter: input.travelAfter ?? 0,
 });
 
 builder.queryFields((t) => ({

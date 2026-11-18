@@ -38,6 +38,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { documentPath } from '../../../app/pages';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -394,7 +395,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    * @param {Row} row Row.
    * @returns {string} Path.
    */
-  const pathOf = (row: Row) => (row.kind === 'ordo' ? `/accounting/${row.document.id}` : `/accounting/imported/${row.document.id}`);
+  const pathOf = (row: Row) => documentPath(row.document.id, row.kind !== 'ordo');
 
   /**
    * Cells of a document made in Ordo.
@@ -403,7 +404,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    */
   const ordoCells = (document: AccountingDocumentSummary): Record<string, ReactNode> => ({
     number: (
-      <UnstyledButton onClick={() => navigate(`/accounting/${document.id}`)} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
+      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
         <Group gap={6} wrap="nowrap">
           {document.number ? (
             <Text size="sm" ff="monospace" fw={600}>
@@ -463,7 +464,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const importedCells = (document: ImportedDocument): Record<string, ReactNode> => ({
     number: (
       <Group gap={6} wrap="nowrap">
-        <UnstyledButton onClick={() => navigate(`/accounting/imported/${document.id}`)} aria-label={`Ouvrir ${document.number}`}>
+        <UnstyledButton onClick={() => navigate(documentPath(document.id, true))} aria-label={`Ouvrir ${document.number}`}>
           <Text size="sm" ff="monospace" fw={600}>
             {document.number}
           </Text>
@@ -548,7 +549,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         // Not opening the row: the menu is rendered in a portal, its clicks still reach the row.
         <div onClick={(event) => event.stopPropagation()}>
           {row.kind === 'ordo' ? (
-            <OrdoActions document={row.document} onDuplicated={(id) => void navigate(`/accounting/${id}`)} />
+            <OrdoActions document={row.document} onDuplicated={(id) => void navigate(documentPath(id))} />
           ) : (
             <RowActions
               name={row.document.number}

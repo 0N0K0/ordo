@@ -33,7 +33,7 @@ import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { useTimeEntriesSince } from '../../time/api';
 import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
-import { entryEventKey, eventKey } from '../../time/lib/time-events';
+import { entryEventKey, eventOccurrenceKey } from '../../time/lib/time-events';
 import {
   useCalendarCategories,
   useCalendarEventMutations,
@@ -51,7 +51,7 @@ import { schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleLayerLabel, scheduleSources } from '../lib/calendar-events';
+import { archivedCalendarIds, isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../lib/calendar-events';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -68,6 +68,7 @@ import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/Setting
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { HiddenChecklist } from '../components/HiddenChecklist';
+import { unarchived } from '../../../lib/archive';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -276,7 +277,7 @@ export function CalendarPage() {
     // Tracked times: blocks from their start to their end (now while running), in the color of their project.
     // A time spent on an event only shows its part outside the event.
     if (showTimers && range) {
-      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [eventKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
+      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [eventOccurrenceKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
         if (localDay(start) > range.to) continue;
@@ -402,11 +403,8 @@ export function CalendarPage() {
                   ...day,
                   title: name,
                   editable: false,
-                  backgroundColor: color ?? 'var(--mantine-color-green-light)',
-                  borderColor: color ?? 'var(--mantine-color-green-light)',
-                  textColor: 'var(--mantine-color-text)',
                   extendedProps: { kind: 'slot' },
-                  classNames: [classes.slotBar, ...hatched],
+                  ...slotBarLook({ color, foreign }),
                 });
               }
               if (display.dayDisplay === 'DAY_BACKGROUND')
@@ -733,15 +731,11 @@ export function CalendarPage() {
     })),
   ];
   // Slots that can be shown or hidden: of the workspace, then of the workspaces it subscribes to.
-  const typeById = mapById(scheduleTypes ?? []);
-  const scheduleChoices = [
-    ...(schedules ?? []).map((schedule) => ({
-      id: schedule.id,
-      label: scheduleLayerLabel(schedule.label, ((schedule.typeId ? typeById.get(schedule.typeId) : undefined) ?? defaultKind)?.label),
-      color: (schedule.typeId ? typeById.get(schedule.typeId)?.color : undefined) ?? defaultKind?.color ?? 'green',
-    })),
-    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel), color: schedule.color ?? 'green' })),
-  ];
+  const scheduleChoices = scheduleSources(schedules ?? [], foreignSchedules ?? [], scheduleTypes ?? [], defaultKind).map(({ schedule, label, color }) => ({
+    id: schedule.id,
+    label,
+    color: color ?? 'green',
+  }));
   const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
   // Downloads the displayed view as a PDF (calendars shown, tasks, slots and timers as displayed), to print.
   const { run: exportPdf, loading: exporting } = useAsyncAction(
@@ -946,7 +940,7 @@ export function CalendarPage() {
             openEvent({
               defaults: {
                 // A new event goes into the first calendar shown.
-                calendarId: ownCalendars.find((calendar) => !calendar.archived && !hidden.has(calendar.id))?.id ?? null,
+                calendarId: unarchived(ownCalendars).find((calendar) => !hidden.has(calendar.id))?.id ?? null,
                 ...(info.allDay
                   ? {
                       allDay: true,
