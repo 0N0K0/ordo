@@ -393,14 +393,18 @@ const DeleteMailFolderDocument = graphql(`
 `);
 
 const CreateMailLabelDocument = graphql(`
-  mutation CreateMailLabel($name: String!, $color: String!) {
-    createMailLabel(name: $name, color: $color)
+  mutation CreateMailLabel($input: NameColorInput!) {
+    createMailLabel(input: $input) {
+      id
+    }
   }
 `);
 
 const UpdateMailLabelDocument = graphql(`
-  mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {
-    updateMailLabel(id: $id, name: $name, color: $color)
+  mutation UpdateMailLabel($id: ID!, $input: NameColorPatch!) {
+    updateMailLabel(id: $id, input: $input) {
+      id
+    }
   }
 `);
 
@@ -835,8 +839,8 @@ export function useMailFolderMutations() {
  */
 export function useMailLabelMutations() {
   return {
-    create: useMailMutation(async (variables: { name: string; color: string }) => (await execute(CreateMailLabelDocument, variables)).createMailLabel),
-    update: useMailMutation(async (variables: { id: string; name: string; color: string }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
+    create: useMailMutation(async (input: { name: string; color: string }) => (await execute(CreateMailLabelDocument, { input })).createMailLabel),
+    update: useMailMutation(async (variables: { id: string; input: { name: string; color: string } }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
     remove: useMailMutation(async (id: string) => (await execute(DeleteMailLabelDocument, { id })).deleteMailLabel),
   };
 }

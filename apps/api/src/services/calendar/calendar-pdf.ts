@@ -1,4 +1,4 @@
-import { addDays, colorSchema, daySchema, daysBetween, parseDay, timeToMinutes, weekdayText } from '@ordo/shared';
+import { addDays, colorSchema, daySchema, daysBetween, timeToMinutes, weekdayText } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';

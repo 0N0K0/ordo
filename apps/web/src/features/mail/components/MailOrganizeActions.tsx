@@ -2,7 +2,8 @@ import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { countOf, plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
@@ -65,34 +66,30 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
           {done ? <CheckCircleIcon weight="fill" aria-hidden /> : <CircleIcon aria-hidden />}
         </ActionIcon>
       </Tooltip>
-      <Menu position="bottom-end" shadow="md" withinPortal closeOnItemClick={false}>
-        <Menu.Target>
+      <ActionsMenu
+        name="drapeaux"
+        keepOpen
+        target={
           <Tooltip label="Drapeaux">
             <ActionIcon variant="subtle" color="gray" aria-label="Drapeaux">
               <FlagIcon aria-hidden />
             </ActionIcon>
           </Tooltip>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {labels.map((label) => {
+        }
+        items={[
+          ...labels.map((label) => {
             const on = labelIds.includes(label.id);
-            return (
-              <Menu.Item
-                key={label.id}
-                leftSection={<ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} />}
-                rightSection={on ? <CheckCircleIcon weight="fill" aria-hidden /> : null}
-                onClick={() => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onMutationError)}
-              >
-                {label.name}
-              </Menu.Item>
-            );
-          })}
-          {labels.length > 0 && <Menu.Divider />}
-          <Menu.Item leftSection={<GearIcon aria-hidden />} onClick={onManageLabels}>
-            Gérer les drapeaux…
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
+            return {
+              label: label.name,
+              icon: <ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} />,
+              checked: on,
+              onClick: () => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onMutationError),
+            };
+          }),
+          'divider',
+          { label: 'Gérer les drapeaux…', icon: <GearIcon aria-hidden />, onClick: onManageLabels },
+        ]}
+      />
       <Tooltip label={junk ? 'Pas un spam (retour en réception)' : 'Signaler comme spam'}>
         <ActionIcon
           variant="subtle"
@@ -112,35 +109,30 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
         </ActionIcon>
       </Tooltip>
       {oneAccount && !noMove && (
-        <Menu position="bottom-end" shadow="md" withinPortal>
-          <Menu.Target>
+        <ActionsMenu
+          name="déplacement"
+          maxHeight={360}
+          target={
             <Tooltip label="Déplacer vers…">
               <ActionIcon variant="subtle" color="gray" aria-label="Déplacer vers un dossier">
                 <FolderSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-          </Menu.Target>
-          <Menu.Dropdown mah={360} style={{ overflowY: 'auto' }}>
-            {(folders ?? [])
-              .filter((item) => !(groups.length === 1 && item.path === groups[0].folder))
-              .map((item) => (
-                <Menu.Item
-                  key={item.path}
-                  style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.depth} * var(--mantine-spacing-md))` }}
-                  onClick={() =>
-                    void each((group) => (group.folder === item.path ? Promise.resolve() : move.mutateAsync({ ...group, target: item.path })))
-                      .then(() => {
-                        notifySuccess(`${count > 1 ? `${count} mails déplacés` : 'Mail déplacé'} dans « ${item.name} ».`);
-                        onMoved?.();
-                      })
-                      .catch(onMutationError)
-                  }
-                >
-                  {item.name}
-                </Menu.Item>
-              ))}
-          </Menu.Dropdown>
-        </Menu>
+          }
+          items={(folders ?? [])
+            .filter((item) => !(groups.length === 1 && item.path === groups[0].folder))
+            .map((item) => ({
+              label: item.name,
+              indent: item.depth,
+              onClick: () =>
+                void each((group) => (group.folder === item.path ? Promise.resolve() : move.mutateAsync({ ...group, target: item.path })))
+                  .then(() => {
+                    notifySuccess(`${count > 1 ? `${count} mails déplacés` : 'Mail déplacé'} dans « ${item.name} ».`);
+                    onMoved?.();
+                  })
+                  .catch(onMutationError),
+            }))}
+        />
       )}
     </Group>
   );

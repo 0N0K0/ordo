@@ -6,7 +6,7 @@ import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
+import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { fromDecimal } from '../../services/core/decimal';
 
 /** Share of a sheet in an item of a list. */
@@ -259,18 +259,6 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), multiplier: t.arg.float({ required: true }) },
     resolve: (_root, { id, multiplier }) => stock.useSheet(id, multiplier),
   }),
-  createSheetCategory: t.id({
-    args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (_root, { input }) => (await sheets.sheetCategories.create(input)).id,
-  }),
-  updateSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(sheets.sheetCategories.update(id, { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) })),
-  }),
-  deleteSheetCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(sheets.sheetCategories.remove(id)),
-  }),
   duplicateSheet: t.id({ args: { id: t.arg.id({ required: true }) }, resolve: async (_root, { id }) => (await sheets.duplicateSheet(id)).id }),
   deleteSheet: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -322,3 +310,5 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(sheets.deleteChecklistItem(id)),
   }),
 }));
+
+labelMutations('SheetCategory', sheets.sheetCategories, { create: NameColorInput, update: NameColorPatch });

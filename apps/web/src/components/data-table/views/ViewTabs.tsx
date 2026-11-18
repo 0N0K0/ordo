@@ -3,7 +3,7 @@ import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openFormPanel } from '../../panels/panels';
 
-import { Indicator, Menu, Stack, TextInput } from '@mantine/core';
+import { Indicator, Stack, TextInput } from '@mantine/core';
 import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -142,12 +142,10 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
       deleteDisabled={() => views.length === 1}
       add={{
         label: 'Nouvelle vue',
-        menu: (
-          <>
-            <Menu.Item onClick={() => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false))}>Vue vierge</Menu.Item>
-            <Menu.Item onClick={() => promptName('Nouvelle vue', copyName(current?.name ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true))}>À partir de l’affichage actuel</Menu.Item>
-          </>
-        ),
+        menu: [
+          { label: 'Vue vierge', onClick: () => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
+          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.name ?? 'Vue', 60), 'Créer', (name) => state.createView(name, true)) },
+        ],
       }}
     />
   );

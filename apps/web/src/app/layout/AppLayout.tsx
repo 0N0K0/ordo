@@ -1,10 +1,11 @@
 import { SidePanelHost } from '../../components/panels/SidePanel';
-import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
+import { AppShell, Burger, Button, Group, Stack } from '@mantine/core';
+import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../../features/auth/api';
 import { TaskPanel } from '../../features/tasks/components/TaskPanel';
 import { AlarmCenter } from '../../features/alarms/components/AlarmCenter';
@@ -110,8 +111,11 @@ export function AppLayout() {
                   <SettingsButton />
                   <QuickActions />
                   {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
-                  <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
-                    <Menu.Target>
+                  <ActionsMenu
+                    name="mon compte"
+                    hover
+                    items={[{ label: 'Mon compte', icon: <UserIcon aria-hidden />, to: '/account' }, 'divider', { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout }]}
+                    target={
                       <Button
                         variant="subtle"
                         size="xs"
@@ -123,17 +127,8 @@ export function AppLayout() {
                       >
                         {user?.username ?? 'Mon compte'}
                       </Button>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item component={Link} to="/account" leftSection={<UserIcon aria-hidden />}>
-                        Mon compte
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item leftSection={<SignOutIcon aria-hidden />} onClick={handleLogout}>
-                        Me déconnecter
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
+                    }
+                  />
                 </Group>
               </div>
             </AppShell.Header>

@@ -1,4 +1,5 @@
-import { Menu, Table, Text, UnstyledButton } from '@mantine/core';
+import { Table, Text, UnstyledButton } from '@mantine/core';
+import { ActionsMenu } from '../../actions/ActionsMenu';
 import { aggregateValues, type TableAggregate } from '@ordo/shared';
 import { CaretDownIcon } from '@phosphor-icons/react';
 import * as fmt from '../../../lib/format';
@@ -64,8 +65,10 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
           const options = (['count', ...(numeric ? (['sum', 'avg', 'median'] as const) : [])] as TableAggregate[]).map((value) => ({ value, label: LABELS[value] }));
           return (
             <Table.Th key={column.id} ta={column.numeric ? 'right' : undefined} fw={500}>
-              <Menu position="bottom-start" withinPortal>
-                <Menu.Target>
+              <ActionsMenu
+                name={`total de ${column.label}`}
+                position="bottom-start"
+                target={
                   <UnstyledButton aria-label={`Total de ${column.label}`} style={{ whiteSpace: 'nowrap' }}>
                     {chosen ? (
                       <Text span size="sm" ff={column.numeric ? 'monospace' : undefined}>
@@ -80,27 +83,20 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
                       </Text>
                     )}
                   </UnstyledButton>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  {options.map((option) => (
-                    <Menu.Item key={option.value} onClick={() => onChange({ ...totals, [column.id]: option.value })} fw={chosen === option.value ? 600 : undefined}>
-                      {option.label}
-                    </Menu.Item>
-                  ))}
-                  {chosen && (
-                    <Menu.Item
-                      c="dimmed"
-                      onClick={() => {
-                        const next = { ...totals };
-                        delete next[column.id];
-                        onChange(next);
-                      }}
-                    >
-                      Aucun
-                    </Menu.Item>
-                  )}
-                </Menu.Dropdown>
-              </Menu>
+                }
+                items={[
+                  ...options.map((option) => ({ label: option.label, checked: chosen === option.value, onClick: () => onChange({ ...totals, [column.id]: option.value }) })),
+                  chosen && {
+                    label: 'Aucun',
+                    checked: false,
+                    onClick: () => {
+                      const next = { ...totals };
+                      delete next[column.id];
+                      onChange(next);
+                    },
+                  },
+                ]}
+              />
             </Table.Th>
           );
         })}

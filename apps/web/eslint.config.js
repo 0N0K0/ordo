@@ -18,11 +18,19 @@ const RESTRICTED_PATHS = [
     message: 'Utiliser ColorField (components/inputs/ColorField) : les mêmes nuanciers partout.',
   },
   {
+    name: '@mantine/core',
+    importNames: ['Menu'],
+    message: 'Utiliser ActionsMenu (components/actions/ActionsMenu) : les mêmes menus partout (entrées, sections, coches, cible au choix).',
+  },
+  {
     name: '@ordo/shared',
     importNames: ['formatMoney'],
     message: 'Utiliser fmt.money / fmt.moneyCents (lib/format).',
   },
 ];
+
+// The same, Menu allowed: ActionsMenu itself and the genuinely special menus.
+const RESTRICTED_PATHS_BUT_MENU = RESTRICTED_PATHS.filter((path) => !path.importNames.includes('Menu'));
 
 // The shared bricks (components/, lib/) never depend on a feature.
 const NO_FEATURES = {
@@ -110,6 +118,16 @@ export default defineConfig([
     // App-wide features the bricks read (the user, the active workspace and its week, a file link): known exceptions.
     files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/inputs/WeekDatesProvider.tsx', 'src/components/markdown/MarkdownView.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }] },
+  },
+  {
+    // ActionsMenu wraps Menu.
+    files: ['src/components/actions/ActionsMenu.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_BUT_MENU, patterns: [NO_FEATURES] }] },
+  },
+  {
+    // Menus of their own: the tree of the saved places in an address field; the library, to be rewritten.
+    files: ['src/features/geo/components/AddressInput.tsx', 'src/features/library/**'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_BUT_MENU }] },
   },
   {
     files: ['src/lib/format.ts', 'src/lib/notify.tsx'],

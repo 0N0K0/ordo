@@ -1,4 +1,5 @@
-import { Button, Menu, Text } from '@mantine/core';
+import { Button } from '@mantine/core';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { type AccountingLineInput, toCents } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
@@ -35,47 +36,40 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   });
   if (!offered.length) return null;
   return (
-    <Menu position="bottom-start" withinPortal>
-      <Menu.Target>
+    <ActionsMenu
+      name="acompte"
+      position="bottom-start"
+      target={
         <Button size="xs" variant="default" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
           Déduire un acompte
         </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Label>Factures d’acompte du client</Menu.Label>
-        {offered.map((deposit) => {
+      }
+      items={[
+        { section: 'Factures d’acompte du client' },
+        ...offered.map((deposit) => {
           const date = fmt.day(deposit.issueDate);
           const left = deposit.remaining.reduce((sum, item) => sum + item.cents, 0);
-          return (
-            <Menu.Item
-              key={deposit.id}
-              onClick={() =>
-                onAdd(
-                  deposit.remaining.map((item) => ({
-                    kind: 'DEDUCTION',
-                    title: `Acompte ${deposit.number} du ${date}`,
-                    description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
-                    quantity: 1,
-                    unit: 'FLAT',
-                    unitPrice: item.cents / 100,
-                    vatRate: vatApplicable ? item.rate : 0,
-                    discountType: null,
-                    discountValue: null,
-                    deductedDocumentId: deposit.id,
-                  })),
-                )
-              }
-            >
-              <Text size="sm">
-                {deposit.number} du {date}
-              </Text>
-              <Text size="xs" c="dimmed">
-                Reste à déduire {fmt.moneyCents(left, currency)} HT sur {fmt.money(deposit.totalGross, currency)} TTC
-              </Text>
-            </Menu.Item>
-          );
-        })}
-      </Menu.Dropdown>
-    </Menu>
+          return {
+            label: `${deposit.number} du ${date}`,
+            description: `Reste à déduire ${fmt.moneyCents(left, currency)} HT sur ${fmt.money(deposit.totalGross, currency)} TTC`,
+            onClick: () =>
+              onAdd(
+                deposit.remaining.map((item) => ({
+                  kind: 'DEDUCTION' as const,
+                  title: `Acompte ${deposit.number} du ${date}`,
+                  description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
+                  quantity: 1,
+                  unit: 'FLAT' as const,
+                  unitPrice: item.cents / 100,
+                  vatRate: vatApplicable ? item.rate : 0,
+                  discountType: null,
+                  discountValue: null,
+                  deductedDocumentId: deposit.id,
+                })),
+              ),
+          };
+        }),
+      ]}
+    />
   );
 }

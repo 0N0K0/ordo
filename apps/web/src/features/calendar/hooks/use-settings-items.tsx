@@ -27,7 +27,7 @@ export function useCalendarCategoryItems(): SettingsItemKind<CalendarCategory> {
  * @returns {SettingsItemKind<ScheduleType, ScheduleDisplay>} List and form.
  */
 export function useScheduleTypeItems(): SettingsItemKind<ScheduleType, ScheduleDisplay> {
-  const { saveType } = useWorkScheduleMutations();
+  const { createType, updateType } = useWorkScheduleMutations();
   /**
    * Input of a kind from the form values.
    * @param {{ name: string, color: string } & ScheduleDisplay} values Values.
@@ -41,7 +41,7 @@ export function useScheduleTypeItems(): SettingsItemKind<ScheduleType, ScheduleD
       initial: (type) => (type ? readScheduleDisplay(type) : DEFAULT_SCHEDULE_DISPLAY),
       render: (form) => <ScheduleLookEditor name={form.getValues().name} value={form.getValues()} onChange={(display) => form.setValues(display)} />,
     },
-    create: async (values) => createdId(await saveType.mutateAsync({ id: null, input: input(values) })),
-    update: (id, values) => saveType.mutateAsync({ id, input: input(values) }),
+    create: async (values) => createdId(await createType.mutateAsync(input(values))),
+    update: (id, values) => updateType.mutateAsync({ id, input: input(values) }),
   };
 }

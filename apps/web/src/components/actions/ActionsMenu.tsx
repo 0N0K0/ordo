@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Menu, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
+import { ActionIcon, Group, Menu, Text, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
 import { CheckIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { linkProps } from './link-props';
@@ -8,8 +8,12 @@ export interface RowAction {
   label: string;
   /** Icon before the label. Optional for a checked entry (`checked`), whose tick takes its place. */
   icon?: ReactNode;
-  /** Choice of a menu of options (a sort): ticked when chosen, else aligned with the ticked one. Optional. */
+  /** Choice of a menu of options (a sort): ticked when chosen, else aligned with the ticked one; with an icon, the tick goes after the label. Optional. */
   checked?: boolean;
+  /** Second line under the label, dimmed (what the entry holds). Optional. */
+  description?: ReactNode;
+  /** Depth of the entry in a tree (a folder): shifted right by as many steps. Optional. */
+  indent?: number;
   onClick?: () => void;
   /** Page of the app opened by the action. Optional. */
   to?: string;
@@ -74,6 +78,14 @@ interface ActionsMenuProps {
   opened?: boolean;
   /** Opening or closing asked. Optional. */
   onChange?: (opened: boolean) => void;
+  /** Opens on hover too (the menus of the top bar), a click still opening it by touch or keyboard. Optional. */
+  hover?: boolean;
+  /** Stays open after a choice (several flags ticked in a row). Optional. */
+  keepOpen?: boolean;
+  /** Width of the menu. Optional. Default = its content. */
+  width?: MenuProps['width'];
+  /** Highest height of the menu, scrolled beyond (a long list of folders). Optional. */
+  maxHeight?: number;
 }
 
 /**
@@ -82,11 +94,20 @@ interface ActionsMenuProps {
  * @param {ActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu, nothing without action.
  */
-export function ActionsMenu({ name, items, target, inRow = false, size, loading, position = 'bottom-end', opened, onChange }: ActionsMenuProps) {
+export function ActionsMenu({ name, items, target, inRow = false, size, loading, position = 'bottom-end', opened, onChange, hover = false, keepOpen = false, width, maxHeight }: ActionsMenuProps) {
   const menu = menuEntries(items);
   if (menu.length === 0) return null;
   return (
-    <Menu position={position} shadow="md" withinPortal opened={opened} onChange={onChange}>
+    <Menu
+      position={position}
+      shadow="md"
+      withinPortal
+      opened={opened}
+      onChange={onChange}
+      width={width}
+      closeOnItemClick={!keepOpen}
+      {...(hover ? { trigger: 'click-hover' as const, openDelay: 60, closeDelay: 150 } : {})}
+    >
       <Menu.Target>
         {target ?? (
           <ActionIcon variant="subtle" color="gray" size={size} loading={loading} aria-label={`Actions de ${name}`} onClick={inRow ? (event) => event.stopPropagation() : undefined}>
@@ -94,7 +115,7 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
           </ActionIcon>
         )}
       </Menu.Target>
-      <Menu.Dropdown onClick={inRow ? (event) => event.stopPropagation() : undefined}>
+      <Menu.Dropdown onClick={inRow ? (event) => event.stopPropagation() : undefined} mah={maxHeight} style={maxHeight ? { overflowY: 'auto' } : undefined}>
         {menu.map((item, index) =>
           item === 'divider' ? (
             <Menu.Divider key={`divider-${index}`} />
@@ -103,14 +124,21 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
           ) : (
             <Fragment key={`${index}-${item.label}`}>
               <Menu.Item
-                leftSection={item.checked === undefined ? item.icon : item.checked ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
+                leftSection={item.checked === undefined || item.icon ? item.icon : item.checked ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
+                rightSection={item.icon && item.checked ? <CheckIcon aria-hidden /> : undefined}
                 color={item.danger ? 'red' : undefined}
                 disabled={item.disabled}
                 title={item.hint}
+                style={item.indent ? { paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.indent} * var(--mantine-spacing-md))` } : undefined}
                 onClick={item.onClick}
                 {...linkProps(item)}
               >
                 {item.label}
+                {item.description && (
+                  <Text size="xs" c="dimmed">
+                    {item.description}
+                  </Text>
+                )}
               </Menu.Item>
             </Fragment>
           ),

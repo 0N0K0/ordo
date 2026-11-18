@@ -347,10 +347,10 @@ export function createUnit(input: ShoppingStoreInput): Promise<ShoppingUnit> {
  * Renames a unit: the products and items in it follow.
  * @param {string} id Unit id.
  * @param {Partial<ShoppingStoreInput>} input Changes.
- * @returns {Promise<void>}
+ * @returns {Promise<ShoppingUnit>} Unit.
  */
-export async function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Promise<void> {
-  await shoppingUnits.update(id, input);
+export function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Promise<ShoppingUnit> {
+  return shoppingUnits.update(id, input);
 }
 
 /**

@@ -10,7 +10,7 @@ import * as searches from '../../services/mail/searches';
 import { sendMail } from '../../services/mail/sender';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { labelObject } from '../label-inputs';
+import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 
 labelObject('MailLabel', { description: 'Flag of mails (name, color).' });
 
@@ -502,18 +502,6 @@ builder.mutationFields((t) => ({
     args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }) },
     resolve: (_root, { accountId, path }) => done(organize.deleteFolder(accountId, path)),
   }),
-  createMailLabel: t.id({
-    args: { name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
-    resolve: async (_root, args) => (await organize.mailLabels.create(args)).id,
-  }),
-  updateMailLabel: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
-    resolve: (_root, { id, ...input }) => done(organize.mailLabels.update(id, input)),
-  }),
-  deleteMailLabel: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(organize.deleteLabel(id)),
-  }),
   createMailSearch: t.id({
     args: { input: t.arg({ type: MailSearchInput, required: true }) },
     resolve: async (_root, { input }) => (await searches.createSearch(input as never)).id,
@@ -582,3 +570,6 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { input }) => (await sendMail(input)).projectIds,
   }),
 }));
+
+// Deleting a flag also takes it off the marks kept in Ordo.
+labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel }, { create: NameColorInput, update: NameColorPatch });

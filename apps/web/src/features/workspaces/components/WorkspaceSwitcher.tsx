@@ -1,6 +1,7 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import { Button, Menu, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CheckIcon, GearSixIcon } from '@phosphor-icons/react';
+import { Button, UnstyledButton } from '@mantine/core';
+import { CaretDownIcon, GearSixIcon } from '@phosphor-icons/react';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useActiveWorkspace, useWorkspaces } from '../api';
 import { switchWorkspace } from '../lib/switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
@@ -28,9 +29,23 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
   const { workspace } = useActiveWorkspace();
   const label = `Espace : ${workspace?.name ?? ''}. Changer d’espace`;
   return (
-    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
-      <Menu.Target>
-        {variant === 'text' ? (
+    <ActionsMenu
+      name="l’espace"
+      hover
+      position="bottom-start"
+      items={[
+        { section: 'Espaces' },
+        ...(data?.workspaces ?? []).map((item) => ({
+          label: item.name,
+          icon: <WorkspaceKindIcon kind={item.kind} />,
+          checked: item.id === workspace?.id,
+          onClick: () => item.id !== workspace?.id && switchWorkspace(item.id),
+        })),
+        'divider',
+        { label: 'Gérer les espaces…', icon: <GearSixIcon aria-hidden />, onClick: openWorkspacesManager },
+      ]}
+      target={
+        variant === 'text' ? (
           <UnstyledButton className={classes.text} aria-label={label} aria-haspopup="menu">
             {workspace?.name ?? 'Espace'}
           </UnstyledButton>
@@ -46,25 +61,8 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
           >
             {workspace?.name ?? 'Espace'}
           </Button>
-        )}
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Label>Espaces</Menu.Label>
-        {(data?.workspaces ?? []).map((item) => (
-          <Menu.Item
-            key={item.id}
-            leftSection={<WorkspaceKindIcon kind={item.kind} />}
-            rightSection={item.id === workspace?.id ? <CheckIcon aria-hidden /> : null}
-            onClick={() => item.id !== workspace?.id && switchWorkspace(item.id)}
-          >
-            {item.name}
-          </Menu.Item>
-        ))}
-        <Menu.Divider />
-        <Menu.Item leftSection={<GearSixIcon aria-hidden />} onClick={openWorkspacesManager}>
-          Gérer les espaces…
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
+        )
+      }
+    />
   );
 }
