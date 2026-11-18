@@ -1,5 +1,6 @@
+import { FoldChevron } from '../../../components/actions/FoldChevron';
 import { ActionIcon, Badge, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
-import { CaretRightIcon, DotsThreeIcon } from '@phosphor-icons/react';
+import { DotsThreeIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { foldEntries } from '../lib/fold-entries';
@@ -43,7 +44,7 @@ export function SidebarSection({
       <div className={classes.header}>
         <UnstyledButton className={classes.toggle} onClick={onToggle} aria-expanded={opened}>
           <Group gap={6} wrap="nowrap">
-            <CaretRightIcon className={classes.chevron} data-opened={opened || undefined} aria-hidden />
+            <FoldChevron expanded={opened} />
             <Text size="xs" fw={700} tt="uppercase" c="dimmed">
               {title}
             </Text>

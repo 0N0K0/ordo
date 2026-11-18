@@ -1,4 +1,5 @@
-import { ActionIcon, Group, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Group } from '@mantine/core';
 import { openModal } from '../../../components/panels/open-modal';
 
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
@@ -20,16 +21,12 @@ export function openFile(file: { url: string; name: string; mimeType?: string | 
   openModal(
     <Group gap="xs" wrap="nowrap">
       <span>{file.name}</span>
-      <Tooltip label="Ouvrir dans un nouvel onglet">
-        <ActionIcon component="a" href={file.url} target="_blank" rel="noopener" variant="subtle" color="gray" aria-label="Ouvrir dans un nouvel onglet">
-          <ArrowSquareOutIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Télécharger">
-        <ActionIcon component="a" href={downloadUrl(file.url)} variant="subtle" color="gray" aria-label={`Télécharger ${file.name}`}>
-          <DownloadSimpleIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <IconAction label="Ouvrir dans un nouvel onglet" component="a" href={file.url} target="_blank" rel="noopener">
+        <ArrowSquareOutIcon aria-hidden />
+      </IconAction>
+      <IconAction label="Télécharger" component="a" href={downloadUrl(file.url)} aria-label={`Télécharger ${file.name}`}>
+        <DownloadSimpleIcon aria-hidden />
+      </IconAction>
     </Group>,
     () => <FilePreview url={file.url} name={file.name} kind={kind} />,
     { size: kind === 'pdf' ? '64rem' : 'xl' },

@@ -50,15 +50,6 @@ export function listDate(iso: string): string {
 }
 
 /**
- * Full date of an open mail.
- * @param {string} iso Date.
- * @returns {string} Label.
- */
-export function fullDate(iso: string): string {
-  return fmt.dateTime(iso);
-}
-
-/**
  * Escapes text for HTML.
  * @param {string} text Text.
  * @returns {string} Escaped text.

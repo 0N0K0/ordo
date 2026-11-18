@@ -11,24 +11,11 @@
     }
   }
 
-  .grid,
-  .gridInner,
-  .column {
+  /* Its columns and panes: those of the page Mails (MailPage.module.css). */
+  .grid {
     @media (min-width: 88em) {
       /* Dimension */
       height: 100%;
-    }
-  }
-
-  .pane {
-    /* Agencement */
-    display: flex;
-    flex-direction: column;
-
-    @media (min-width: 88em) {
-      /* Dimension */
-      height: 100%;
-      overflow: hidden;
     }
   }
 

@@ -1,6 +1,9 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
+
+/** Subject shown for a mail without one. */
+export const NO_SUBJECT = '(sans objet)';
 
 const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(255);
 const portSchema = z.number({ error: 'Port attendu.' }).int().min(1, 'Port invalide.').max(65_535, 'Port invalide.');
@@ -60,7 +63,7 @@ export const mailSearchCriteriaSchema = z
     if (criteria.scope === 'folder' && (!criteria.folder || criteria.accountIds.length !== 1)) {
       context.addIssue({ code: 'custom', path: ['folder'], message: 'Choisissez le dossier (d’une seule boîte).' });
     }
-    if (criteria.since && criteria.until && criteria.until < criteria.since) context.addIssue({ code: 'custom', path: ['until'], message: 'La fin doit suivre le début.' });
+    if (!endsAfter(criteria.since, criteria.until)) context.addIssue({ code: 'custom', path: ['until'], message: END_AFTER_START });
   });
 export type MailSearchCriteria = z.infer<typeof mailSearchCriteriaSchema>;
 

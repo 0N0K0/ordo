@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -60,7 +61,7 @@ interface PaymentFieldsProps {
  */
 function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsProps) {
   const { recordPayment } = useTrackingMutations();
-  const open = accounts.filter((account) => !account.archived);
+  const open = unarchived(accounts);
   const form = useAppForm<PaymentValues>({
     initialValues: {
       accountId: open[0]?.id ?? '',

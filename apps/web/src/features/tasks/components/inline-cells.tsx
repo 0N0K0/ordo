@@ -8,7 +8,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -23,11 +23,12 @@ import classes from '../../../components/data-table/cells/EditableCells.module.c
 
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { cellCombobox as sharedCombobox, cellLabel, stopClick } from '../../../components/data-table/cells/cell-field';
+import { cellCombobox as sharedCombobox, cellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
+import { dateRangeProps } from '../../../components/inputs/date-range';
 
 /** Select fields of the cells, a click kept from the row. */
 const cellCombobox = { ...sharedCombobox, onClick: stopClick } as const;
@@ -316,6 +317,9 @@ interface DateCellProps {
 
 const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max', minDate: 'Date min' } as const;
 
+/** Period each date column bounds: its start and end columns. */
+const DATE_RANGES = { startDate: ['startDate', 'endDate'], endDate: ['startDate', 'endDate'], minDate: ['minDate', 'deadline'], deadline: ['minDate', 'deadline'] } as const;
+
 /**
  * Start, end or "Date max" cell: date picker.
  * @param {DateCellProps} props Component props.
@@ -323,6 +327,10 @@ const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max',
  */
 export function DateCell({ task, column, alert }: DateCellProps) {
   const { apply, count } = useCellEdit(task, column);
+  const [startKey, endKey] = DATE_RANGES[column];
+  const side = column === startKey ? 'start' : 'end';
+  // A single task keeps a valid period (the other bound follows); with several, the API checks every task.
+  const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
   return (
     <DatePickerInput
       variant="unstyled"
@@ -331,10 +339,8 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       onClick={stopClick}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}
-      // A single task keeps a valid range; with several, the API checks every task.
-      minDate={column === 'endDate' && count < 2 ? (task.startDate ?? undefined) : undefined}
-      maxDate={column === 'startDate' && count < 2 ? (task.endDate ?? undefined) : undefined}
-      onChange={(date) => apply({ [column]: date }, { [column]: date })}
+      minDate={count < 2 ? bounds.minDate : undefined}
+      onChange={(date) => (count < 2 ? bounds.onChange(date) : apply({ [column]: date }, { [column]: date }))}
       readOnly={task.archived}
       clearable={!task.archived}
       placeholder={task.archived ? undefined : '—'}
@@ -380,7 +386,6 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
-  const ON_ERROR = { onError: onMutationError };
   const label = kind === 'blocking' ? cellLabel('Tâches que bloque', `la tâche ${taskName(task)}`, count) : cellLabel('Tâches relatives', `à la tâche ${taskName(task)}`, count);
   /**
    * Adds or removes a link, on the edited task or each task of the selection.
@@ -426,17 +431,11 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
     <TaskSelect
       context={context}
       tasks={candidates}
-      variant="unstyled"
-      size="xs"
+      {...cellPicker(task.archived)}
       aria-label={fieldLabel('Tâche parente', task, count)}
-      placeholder={task.archived ? undefined : '—'}
-      readOnly={task.archived}
-      clearable={!task.archived}
       value={task.parentId}
       // A task is not its own parent (the API refuses the other loops).
       onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
-      onClick={stopClick}
-      comboboxProps={{ withinPortal: true }}
     />
   );
 }

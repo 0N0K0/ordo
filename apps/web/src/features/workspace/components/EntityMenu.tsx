@@ -1,7 +1,5 @@
 import { ActionIcon } from '@mantine/core';
 import {
-  ArchiveIcon,
-  ArrowCounterClockwiseIcon,
   DotsThreeIcon,
   FolderPlusIcon,
   PencilSimpleIcon,
@@ -14,6 +12,7 @@ import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-enti
 import { useTreeExpansion } from '../lib/tree-expansion';
 import { foldEntries } from '../lib/fold-entries';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { archiveEntry } from '../../../lib/archive';
 
 interface EntityMenuProps {
   entity: EntityRef;
@@ -75,11 +74,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           icon: <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />,
           onClick: () => actions.setFavorite(entity, !item.favorite),
         },
-        {
-          label: item.archived ? 'Restaurer' : 'Archiver',
-          icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-          onClick: () => actions.setArchived(entity, !item.archived),
-        },
+        archiveEntry({ archived: item.archived, label: `« ${entityLabel(entity)} »`, cascade: entity.type === 'client' ? 'avec ses projets' : undefined }, actions.archiver(entity), item.id),
         { label: 'Supprimer', icon: <TrashIcon aria-hidden />, onClick: () => actions.confirmDelete(entity), danger: true },
       ]}
     />

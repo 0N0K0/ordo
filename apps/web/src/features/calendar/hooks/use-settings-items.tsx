@@ -1,5 +1,5 @@
 import { calendarCategoryFormSchema, DEFAULT_SCHEDULE_DISPLAY, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
-import { createdId, listMutations } from '../../../components/settings/settings-api';
+import { itemMutations } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
@@ -17,8 +17,7 @@ export function useCalendarCategoryItems(): SettingsItemKind<CalendarCategory> {
    * @returns {{ name: string, color: string, parentId: string | null }} Input.
    */
   const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color, parentId: values.parentId });
-  const { create: add, update: save } = listMutations({ create, update, remove: { mutateAsync: async () => undefined } }, input);
-  return { kind: 'CALENDAR_CATEGORY', colorRequired: true, schema: calendarCategoryFormSchema, create: add, update: save };
+  return { kind: 'CALENDAR_CATEGORY', colorRequired: true, schema: calendarCategoryFormSchema, ...itemMutations({ create, update }, input) };
 }
 
 /**
@@ -41,7 +40,6 @@ export function useScheduleTypeItems(): SettingsItemKind<ScheduleType, ScheduleD
       initial: (type) => (type ? readScheduleDisplay(type) : DEFAULT_SCHEDULE_DISPLAY),
       render: (form) => <ScheduleLookEditor name={form.getValues().name} value={form.getValues()} onChange={(display) => form.setValues(display)} />,
     },
-    create: async (values) => createdId(await createType.mutateAsync(input(values))),
-    update: (id, values) => updateType.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createType, update: updateType }, input),
   };
 }

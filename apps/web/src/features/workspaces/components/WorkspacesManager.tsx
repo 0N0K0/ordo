@@ -103,7 +103,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           onClick={() =>
             confirmDestructive({
               title: 'Supprimer l’espace',
-              risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.`,
+              risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur.`,
               onConfirm: () =>
                 remove.mutate(
                   workspace.id,

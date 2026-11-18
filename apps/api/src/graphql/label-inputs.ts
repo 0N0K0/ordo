@@ -2,11 +2,10 @@ import type { InputObjectRef } from '@pothos/core';
 import type PrismaTypes from '../generated/pothos-types';
 import { prisma } from '../db';
 import type { LabelService } from '../services/core/labels';
-import { builder } from './builder';
+import { builder, type BuilderTypes } from './builder';
 import { done } from './errors';
+import { reloaded } from './reload';
 
-/** Schema types of the builder. */
-type BuilderTypes = typeof builder extends PothosSchemaTypes.SchemaBuilder<infer Types> ? Types : never;
 
 /** Name and color of an item of a simple list (a status, a category, a store…). */
 export const NameColorInput = builder.inputType('NameColorInput', {
@@ -25,6 +24,20 @@ type LabelModel = {
   [Name in keyof PrismaTypes]: PrismaTypes[Name]['Shape'] extends { id: string; name: string; color: string; position: number; archivedAt: Date | null } ? Name : never;
 }[keyof PrismaTypes];
 
+/** Field builder of the GraphQL object of a Prisma model. */
+type ObjectFields<Model extends keyof PrismaTypes> = PothosSchemaTypes.PrismaObjectFieldBuilder<BuilderTypes, PrismaTypes[Model]>;
+
+/**
+ * Defines the GraphQL object of a model with fields typed against another model of the same kind (labels, tree items).
+ * @param {keyof PrismaTypes} name Prisma model (and GraphQL type) name.
+ * @param {string | undefined} description Description of the type.
+ * @param {(t: never) => object} fields Fields, typed with a model of the kind.
+ * @returns {void}
+ */
+function modelObject<Model extends keyof PrismaTypes>(name: keyof PrismaTypes, description: string | undefined, fields: (t: ObjectFields<Model>) => object): void {
+  builder.prismaObject(name as Model, { ...(description === undefined ? {} : { description }), fields } as never);
+}
+
 /**
  * Defines the GraphQL object of an item of a simple list, exposing its id, name, color, position and whether it is archived.
  * @param {LabelModel} name Prisma model (and GraphQL type) name.
@@ -33,17 +46,37 @@ type LabelModel = {
  */
 export function labelObject(name: LabelModel, options: { description?: string; colorDescription?: string } = {}): void {
   const { description, colorDescription } = options;
-  // Every LabelModel has the four exposed fields, so typing the call with one of them checks the others too.
-  builder.prismaObject(name as 'TaskPriority', {
-    ...(description === undefined ? {} : { description }),
-    fields: (t) => ({
-      id: t.exposeID('id'),
-      name: t.exposeString('name'),
-      color: t.exposeString('color', colorDescription === undefined ? {} : { description: colorDescription }),
-      position: t.exposeInt('position'),
-      archived: t.boolean({ description: 'Archived: hidden by default, read only.', select: { archivedAt: true }, resolve: (item) => item.archivedAt !== null }),
-    }),
-  });
+  // Every LabelModel has the four exposed fields, so typing the fields with one of them checks the others too.
+  modelObject(name, description, (t: ObjectFields<'TaskPriority'>) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color', colorDescription === undefined ? {} : { description: colorDescription }),
+    position: t.exposeInt('position'),
+    archived: t.boolean({ description: 'Archived: hidden by default, read only.', resolve: (item) => item.archivedAt !== null }),
+  }));
+}
+
+/** Prisma model of an item of a settings tree: an id, a name, an optional color, a parent and a manual position. */
+type TreeItemModel = {
+  [Name in keyof PrismaTypes]: PrismaTypes[Name]['Shape'] extends { id: string; name: string; color: string | null; parentId: string | null; position: number } ? Name : never;
+}[keyof PrismaTypes];
+
+/**
+ * Defines the GraphQL object of an item of a settings tree, exposing its id, name, color, parent and position.
+ * @param {TreeItemModel} name Prisma model (and GraphQL type) name.
+ * @param {{ description?: string, positionDescription?: string }} [options] Descriptions of the type and of its position. Optional.
+ * @returns {void}
+ */
+export function treeItemObject(name: TreeItemModel, options: { description?: string; positionDescription?: string } = {}): void {
+  const { description, positionDescription } = options;
+  // Every TreeItemModel has the exposed fields, so typing the fields with one of them checks the others too.
+  modelObject(name, description, (t: ObjectFields<'RoutineCategory'>) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
+    parentId: t.exposeID('parentId', { nullable: true }),
+    position: t.exposeInt('position', positionDescription === undefined ? {} : { description: positionDescription }),
+  }));
 }
 
 /** Input type of the create or update mutation of a simple list (`NameColorInput`, `TaskLabelInput`, `ScheduleTypeInput`…). */
@@ -68,26 +101,18 @@ export function labelMutations(
   const type = name as 'TaskPriority';
   const model = (prisma as unknown as Record<string, typeof prisma.taskPriority>)[name.charAt(0).toLowerCase() + name.slice(1)];
 
-  /**
-   * Reloads an item with the fields requested by the query.
-   * @param {object} query Pothos Prisma selection.
-   * @param {{ id: string }} item Saved item.
-   * @returns {Promise<object>} Item.
-   */
-  const reload = (query: object, item: { id: string }) => model.findUniqueOrThrow({ ...query, where: { id: item.id } });
-
   builder.mutationFields((t) => ({
     [`create${name}`]: t.prismaField({
       type,
       ...(descriptions.create === undefined ? {} : { description: descriptions.create }),
       args: { input: t.arg({ type: inputs.create as typeof NameColorInput, required: true }) },
-      resolve: async (query, _root, { input }) => reload(query, await service.create(input)),
+      resolve: async (query, _root, { input }) => reloaded(model, query, service.create(input)),
     }),
     [`update${name}`]: t.prismaField({
       type,
       ...(descriptions.update === undefined ? {} : { description: descriptions.update }),
       args: { id: t.arg.id({ required: true }), input: t.arg({ type: inputs.update as typeof NameColorPatch, required: true }) },
-      resolve: async (query, _root, { id, input }) => reload(query, await service.update(id, input)),
+      resolve: async (query, _root, { id, input }) => reloaded(model, query, service.update(id, input)),
     }),
     [`delete${name}`]: t.boolean({
       ...(descriptions.delete === undefined ? {} : { description: descriptions.delete }),

@@ -1,3 +1,4 @@
+import { DEFAULT_LABEL_COLOR } from '@ordo/shared';
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
 import { personName, usePeopleOptions } from '../../../components/people/people-options';
 import { mapById, byPosition, lineageOf } from '@ordo/shared';
@@ -409,7 +410,7 @@ export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], con
 }
 
 /** Color of the units (they show none: the color rule asks for one). */
-export const UNIT_COLOR = '#868e96';
+export const UNIT_COLOR = DEFAULT_LABEL_COLOR;
 
 /**
  * « Gâteau · 1,5 »: a sheet an item of a list comes from, with its share (none: its name alone).

@@ -138,6 +138,32 @@ export function documentGroups(documents: readonly DocumentSource[], projectId?:
  */
 export const documentKey = (document: { source: string; id: string }) => `${document.source === 'LIBRARY' ? 'lib' : 'res'}:${document.id}`;
 
+/** Supporting documents of an entry or a line: of the library, and files of a project. */
+export interface SupportingDocuments {
+  libraryDocumentIds: string[];
+  projectResourceIds: string[];
+}
+
+/**
+ * Keys of the supporting documents, in the selects.
+ * @param {SupportingDocuments} documents Documents.
+ * @returns {string[]} "lib:<id>" and "res:<id>" keys.
+ */
+export const supportingKeys = ({ libraryDocumentIds, projectResourceIds }: SupportingDocuments): string[] => [
+  ...libraryDocumentIds.map((id) => documentKey({ source: 'LIBRARY', id })),
+  ...projectResourceIds.map((id) => documentKey({ source: 'PROJECT', id })),
+];
+
+/**
+ * Supporting documents chosen in a select, from their keys.
+ * @param {readonly string[]} keys "lib:<id>" and "res:<id>" keys.
+ * @returns {SupportingDocuments} Documents.
+ */
+export const supportingOfKeys = (keys: readonly string[]): SupportingDocuments => ({
+  libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
+  projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
+});
+
 /**
  * Key of the payer or payee of an entry.
  * @param {{ clientId?: string | null, counterpartyId?: string | null }} entry Entry.
@@ -145,6 +171,16 @@ export const documentKey = (document: { source: string; id: string }) => `${docu
  */
 export const payerKey = (entry: { clientId?: string | null; counterpartyId?: string | null }) =>
   entry.clientId ? `client:${entry.clientId}` : entry.counterpartyId ? `tiers:${entry.counterpartyId}` : null;
+
+/**
+ * Payer or payee chosen in a select, from its key.
+ * @param {string | null} key "client:<id>", "tiers:<id>" or null.
+ * @returns {{ clientId: string | null, counterpartyId: string | null }} Client or counterparty.
+ */
+export const payerOfKey = (key: string | null): { clientId: string | null; counterpartyId: string | null } => ({
+  clientId: key?.startsWith('client:') ? key.slice(7) : null,
+  counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
+});
 
 /**
  * Links of an entry, as the links cell shows them.

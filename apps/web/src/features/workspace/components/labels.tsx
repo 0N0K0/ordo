@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { ColorField } from '../../../components/inputs/ColorField';
-import { ActionIcon, Button, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
+import { Button, Group, Popover, Select, Stack, TextInput } from '@mantine/core';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { byPosition, labelFormSchema, type LabelFormValues } from '@ordo/shared';
@@ -48,11 +49,9 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-end" withArrow trapFocus shadow="md">
       <Popover.Target>
-        <Tooltip label={label}>
-          <ActionIcon variant="default" size="input-sm" aria-label={label} onClick={() => setOpened((open) => !open)}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label={label} variant="default" size="input-sm" onClick={() => setOpened((open) => !open)}>
+          <PlusIcon aria-hidden />
+        </IconAction>
       </Popover.Target>
       <Popover.Dropdown>
         {/* Not a nested <form>: the popover renders inside the project form. */}

@@ -1,8 +1,9 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ByWorkspace } from './ByWorkspace';
 
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Button, Stack, Tooltip } from '@mantine/core';
+import { Button, Stack, Tooltip } from '@mantine/core';
 import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -40,17 +41,15 @@ function OwnCalendars() {
         </Tooltip>
       }
       renderActions={(calendar) => (
-        <Tooltip label="Exporter (.ics)">
-          <ActionIcon component="a" href={calendarIcsUrl(calendar.id)} download variant="subtle" color="gray" aria-label={`Exporter ${calendar.name} (.ics)`}>
-            <DownloadSimpleIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+        <IconAction label="Exporter (.ics)" component="a" href={calendarIcsUrl(calendar.id)} download aria-label={`Exporter ${calendar.name} (.ics)`}>
+          <DownloadSimpleIcon aria-hidden />
+        </IconAction>
       )}
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>
           Le calendrier « {calendar.name} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
-          espaces abonnés ne le verront plus. Cette action est irréversible.
+          espaces abonnés ne le verront plus.
         </>
       )}
     />

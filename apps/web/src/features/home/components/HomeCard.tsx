@@ -58,7 +58,7 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
  * @param {{ label: string, value: ReactNode, color?: string }} props Component props.
  * @returns {JSX.Element} Figure.
  */
-export function Figure({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
+export function CardFigure({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
   return (
     <Stack gap={0} miw={0}>
       <Text size="xs" c="dimmed" truncate>

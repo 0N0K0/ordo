@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
@@ -389,9 +390,7 @@ export function useMoveClient() {
     optimistic: (workspace, { id, index }) => {
       const moved = workspace.clients.find((client) => client.id === id);
       if (!moved) return workspace;
-      const siblings = workspace.clients
-        .filter((client) => !client.archived)
-        .sort(byPosition);
+      const siblings = unarchived(workspace.clients).sort(byPosition);
       return { ...workspace, clients: reposition(workspace.clients, siblings, moved, index) };
     },
   });
@@ -505,12 +504,7 @@ export function useMoveProject() {
       const targetClientId = parentId
         ? (workspace.projects.find((item) => item.id === parentId)?.clientId ?? null)
         : clientId;
-      const siblings = workspace.projects
-        .filter((item) =>
-          parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId,
-        )
-        .filter((item) => !item.archived)
-        .sort(byPosition);
+      const siblings = unarchived(workspace.projects.filter((item) => (parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId))).sort(byPosition);
       const descendants = descendantIds(workspace.projects, id);
       const projects = reposition(
         workspace.projects,

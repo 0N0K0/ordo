@@ -1,3 +1,4 @@
+import { CALENDAR_DAY } from '@ordo/shared';
 /**
  * Local date-time of an instant, as ISO text without zone (YYYY-MM-DDTHH:MM:SS.sss).
  * @param {Date} date Instant.
@@ -13,11 +14,9 @@ function localIso(date: Date): string {
  * @returns {string} Day.
  */
 export function localDay(instant: Date | string): string {
+  // eslint-disable-next-line no-restricted-syntax -- the local day of an instant, from its local ISO form.
   return localIso(typeof instant === 'string' ? new Date(instant) : instant).slice(0, 10);
 }
-
-/** A calendar day (YYYY-MM-DD) or month (YYYY-MM): read as it is, whatever the time zone. */
-const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
 
 /**
  * Day of a day or an instant: a calendar day (or month) as it is, an instant in the user's time zone (not UTC).
@@ -28,14 +27,7 @@ export function dayOf(value: string): string {
   return CALENDAR_DAY.test(value) ? value : localDay(value);
 }
 
-/**
- * Month of a calendar day (or of a date picker's value).
- * @param {string} day Day, YYYY-MM-DD.
- * @returns {string} Month, YYYY-MM.
- */
-export function monthOfDay(day: string): string {
-  return day.slice(0, 7);
-}
+export { monthOfDay, yearOfDay } from '@ordo/shared';
 
 /**
  * User's current day, YYYY-MM-DD.
@@ -52,6 +44,7 @@ export function localToday(): string {
  */
 export function localParts(instant: Date | string): { date: string; time: string } {
   const local = localIso(typeof instant === 'string' ? new Date(instant) : instant);
+  // eslint-disable-next-line no-restricted-syntax -- the local day and time of an instant.
   return { date: local.slice(0, 10), time: local.slice(11, 16) };
 }
 

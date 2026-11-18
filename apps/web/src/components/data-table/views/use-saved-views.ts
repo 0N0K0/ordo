@@ -3,7 +3,7 @@ import { useSetParams } from '../../../lib/search-params';
 import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
 
 /** Saved view with its configuration parsed. */
@@ -145,7 +145,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {string} name New name.
      * @returns {void}
      */
-    rename: (id: string, name: string) => mutations.update.mutate({ id, input: { name } }, { onError: onMutationError }),
+    rename: (id: string, name: string) => mutations.update.mutate({ id, input: { name } }, ON_ERROR),
 
     /**
      * Duplicates a view (saved configuration) and opens the copy.
@@ -178,7 +178,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, { onError: onMutationError }),
+    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, ON_ERROR),
 
     /**
      * Moves a view tab.
@@ -186,7 +186,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {number} index Target index.
      * @returns {void}
      */
-    move: (id: string, index: number) => mutations.move.mutate({ id, index }, { onError: onMutationError }),
+    move: (id: string, index: number) => mutations.move.mutate({ id, index }, ON_ERROR),
   };
 }
 

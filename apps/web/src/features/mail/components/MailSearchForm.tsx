@@ -8,6 +8,7 @@ import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 
 /**
  * Search folder: name, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
@@ -25,6 +26,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
     schema: mailSearchSchema,
   });
   const values = form.values;
+  const received = dateRangeProps(formRange(form, 'since', 'until'));
 
   return (
     <form
@@ -93,8 +95,8 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <TextInput label="À" placeholder="Nom ou adresse" {...form.getInputProps('to')} />
           <TextInput label="Objet" {...form.getInputProps('subject')} />
           <TextInput label="Corps" {...form.getInputProps('body')} />
-          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...form.getInputProps('since')} />
-          <DatePickerInput label="Jusqu’au" clearable placeholder="—" minDate={values.since ?? undefined} {...form.getInputProps('until')} />
+          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...received.start} />
+          <DatePickerInput label="Jusqu’au" clearable placeholder="—" {...received.end} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
         <FormActions onCancel={() => onDone()} loading={create.isPending || update.isPending} />

@@ -1,8 +1,9 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
-import { BackLink } from '../../../components/page/BackLink';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ClientSelect } from '../../workspace/components/ClientSelect';
@@ -10,18 +11,18 @@ import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
+import { Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
+import { contactName, type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingLineInput, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, toCents } from '@ordo/shared';
 
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, FloppyDiskIcon, HandCoinsIcon, LinkBreakIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, ReceiptXIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, FloppyDiskIcon, HandCoinsIcon, LinkBreakIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, ReceiptXIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
 import { formCallbacks, showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../../lib/notify';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
@@ -30,7 +31,7 @@ import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
@@ -50,6 +51,8 @@ import { Comments } from '../../comments/components/Comments';
 import { countOf, plural } from '../../../lib/text';
 import { DiscountInput } from './DiscountInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { DetailHeader } from '../../../components/page/DetailHeader';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -111,6 +114,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const mutations = useDocumentMutations();
   const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
+  const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));
   const { data: client } = useClientBilling(values.clientId);
   const [finalView, setFinalView] = useState<'preview' | 'details'>('preview');
   const { data: latestDate } = useLatestDocumentDate(document.type, document.id, document.status === 'DRAFT');
@@ -203,7 +207,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting'))); } });
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes.', onConfirm: () => { mutations.remove.mutate(document.id, formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting'))); } });
   };
 
   /**
@@ -242,8 +246,8 @@ function Editor({ document }: { document: AccountingDocument }) {
       reminder: reminder ? { balance: toCents(document.balance ?? 0) } : null,
       onSent: () =>
         reminder
-          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: onMutationError })
-          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, { onError: onMutationError }),
+          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, ON_ERROR)
+          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, ON_ERROR),
     })
       .then(openComposer)
       .catch(onMutationError)
@@ -295,47 +299,52 @@ function Editor({ document }: { document: AccountingDocument }) {
   };
 
   const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
+  const documentName = `« ${document.number ?? document.title ?? 'Brouillon'} »`;
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start" wrap="wrap">
-        <Stack gap={2}>
-          <BackLink to="/accounting">Facturation</BackLink>
-          <Group gap="sm">
-            <Title order={1} size="h2">
-              {isTemplate ? `Modèle de facture récurrente` : `${typeLabel} ${document.number ?? ''}`}
-            </Title>
+      <DetailHeader
+        back={{ to: '/accounting', label: 'Facturation' }}
+        order={1}
+        title={isTemplate ? `Modèle de facture récurrente` : `${typeLabel} ${document.number ?? ''}`}
+        badges={
+          <>
             <Badge variant="light" color={readOnly ? 'green' : isTemplate ? 'grape' : 'gray'}>
               {readOnly ? 'Définitif' : isTemplate ? 'Modèle' : 'Brouillon'}
             </Badge>
             {archived && <ArchivedBadge feminine={archivedRecurring} />}
-          </Group>
-          {document.sourceId && (
-            <Text size="sm" c="dimmed">
-              Établi à partir de{' '}
-              <Anchor component={Link} to={`/accounting/${document.sourceId}`} size="sm">
-                {document.sourceNumber ?? 'un document'}
-              </Anchor>
-            </Text>
-          )}
-          {document.importedSourceId && (
-            <Text size="sm" c="dimmed">
-              Établi à partir du devis importé {document.importedSourceNumber ?? ''}
-            </Text>
-          )}
-        </Stack>
-        <Group gap="xs">
+          </>
+        }
+        subtitle={
+          <>
+            {document.sourceId && (
+              <Text size="sm" c="dimmed">
+                Établi à partir de{' '}
+                <Anchor component={Link} to={`/accounting/${document.sourceId}`} size="sm">
+                  {document.sourceNumber ?? 'un document'}
+                </Anchor>
+              </Text>
+            )}
+            {document.importedSourceId && (
+              <Text size="sm" c="dimmed">
+                Établi à partir du devis importé {document.importedSourceNumber ?? ''}
+              </Text>
+            )}
+          </>
+        }
+        // The model of a recurring invoice is archived with it, from the list of the recurring invoices.
+        menu={isTemplate ? undefined : { name: documentName, items: [archiveEntry({ archived: document.archived, label: documentName }, setArchived, document.id)] }}
+        actions={
+          <>
           {/* A final document shows its PDF in the page. */}
           {!readOnly && (
             <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
               Aperçu
             </Button>
           )}
-          <Tooltip label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}>
-            <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
+          <IconAction label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'} component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
               <DownloadSimpleIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+</IconAction>
           {receiptable && (
             <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
               <Button component="a" href={pdfUrl(document.id, true, true)} download variant="default" leftSection={<ReceiptIcon aria-hidden />}>
@@ -385,41 +394,19 @@ function Editor({ document }: { document: AccountingDocument }) {
               Rendre récurrente
             </Button>
           )}
-          {/* The model of a recurring invoice is archived with it, from the list of the recurring invoices. */}
-          {!isTemplate && (
-            <Tooltip label={document.archived ? 'Restaurer' : 'Archiver'}>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="lg"
-                aria-label={document.archived ? 'Restaurer' : 'Archiver'}
-                loading={setArchived.isPending}
-                onClick={() => void archiveWithUndo(setArchived, { ids: [document.id], archived: !document.archived, label: `« ${document.number ?? document.title ?? 'Brouillon'} »` })}
-              >
-                {document.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-              </ActionIcon>
-            </Tooltip>
-          )}
           {!isTemplate && !archived && (
-            <Tooltip label="Dupliquer en brouillon">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="lg"
-                aria-label="Dupliquer"
-                onClick={() =>
+            <IconAction label="Dupliquer en brouillon" size="lg" aria-label="Dupliquer" onClick={() =>
                   mutations.duplicate.mutate(
                     { id: document.id, issueDate: localToday() },
                     { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
                   )
-                }
-              >
+                }>
                 <CopyIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+</IconAction>
           )}
-        </Group>
-      </Group>
+          </>
+        }
+      />
 
       {archived ? (
         <ArchivedNotice>
@@ -493,7 +480,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   placeholder="Aucun"
                   data={(client?.contacts ?? [])
                     .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
-                    .map((contact) => ({ value: contact.id, label: `${contact.firstName} ${contact.lastName}` }))}
+                    .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
                   {...form.getInputProps('contactId')}
                 />
                 <DatePickerInput
@@ -511,8 +498,8 @@ function Editor({ document }: { document: AccountingDocument }) {
                   readOnly={locked}
                   {...form.getInputProps('dueDate')}
                 />
-                <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceStart')} />
-                <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...form.getInputProps('serviceEnd')} />
+                <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...service.start} />
+                <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...service.end} />
               </SimpleGrid>
             </SettingsSection>
 
@@ -760,7 +747,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               </Group>
             </FileLink>
             {!readOnly && (
-              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', (callbacks) => removeAttachment.mutate(attachment.id, callbacks))} />
+              <RemoveButton variant="field" label="Retirer" aria-label={`Retirer ${attachment.name}`} onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))} />
             )}
           </Group>
         ))

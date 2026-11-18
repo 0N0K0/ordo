@@ -10,6 +10,7 @@ import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { NO_SUBJECT } from '@ordo/shared';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -48,7 +49,7 @@ export async function copyToProject(
         messageId,
         inReplyTo: bareMessageId(parsed.inReplyTo),
         references,
-        subject: parsed.subject || '(sans objet)',
+        subject: parsed.subject || NO_SUBJECT,
         fromName: from?.name ?? null,
         fromAddress: from?.address ?? '',
         to: parsedAddresses(parsed.to) as object[],

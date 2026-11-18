@@ -1,18 +1,19 @@
-import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
+import { projectPath } from '../../../app/pages';
+import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 import { ArchivedBadge, ItemBadge } from '../../../components/items/ItemBadge';
 import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+
 import { Link } from 'react-router';
 import type { TreePlace } from '../../../components/tree/category-tree';
-import { pointerPlace, treeCollision, useFolded } from '../../../components/tree/tree-dnd';
-import { onMutationError } from '../../../lib/notify';
+import { useFolded, useTreeDrop } from '../../../components/tree/tree-dnd';
+import { ON_ERROR } from '../../../lib/notify';
 import { useMoveProject, type Project, type ProjectStatus } from '../api';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { projectDepth, projectHeight } from '../lib/tree';
 import classes from './ProjectList.module.css';
-import { useDragSensors } from '../../../lib/drag';
+
 import treeRow from '../../../components/tree/tree-drop.module.css';
 import { DragHandle } from '../../../components/actions/DragHandle';
 
@@ -81,7 +82,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       ) : (
         <span className={treeRow.caretSpace} />
       )}
-      <UnstyledButton component={Link} to={`/projects/${project.id}`} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
+      <UnstyledButton component={Link} to={projectPath(project.id)} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="sm" wrap="nowrap">
           <ItemAvatar name={project.title} iconUrl={project.iconUrl} color={project.color ?? 'initials'} size="sm" radius={1000} />
           <Text size="sm" style={{ flex: 1 }} opacity={project.archived ? 0.6 : 1} truncate>
@@ -106,9 +107,6 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
   const statusById = mapById(statuses);
   const moveProject = useMoveProject();
   const [folded, toggle] = useFolded(`projects-${rootParentId ?? clientId ?? 'none'}`);
-  const [dragged, setDragged] = useState<string | null>(null);
-  const [drop, setDrop] = useState<{ id: string; place: TreePlace } | null>(null);
-  const sensors = useDragSensors('plain');
 
   const byId = mapById(projects);
   const rows: { project: Project; depth: number; parent: boolean }[] = [];
@@ -155,53 +153,16 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
     return { parentId, index };
   };
 
-  /**
-   * Updates where the dragged project would go.
-   * @param {DragMoveEvent | DragOverEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragMove = (event: DragMoveEvent | DragOverEvent) => {
-    const next = pointerPlace(event);
-    setDrop((current) => (current?.id === next?.id && current?.place === next?.place ? current : next));
-  };
-
-  /**
-   * Moves the dropped project where the pointer shows.
-   * @param {DragEndEvent} event Drop.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const place = drop?.place ?? 'INSIDE';
-    setDragged(null);
-    setDrop(null);
-    if (!over) return;
-    const target = destination(String(active.id), String(over.id), place);
-    if (!target) return;
-    moveProject.mutate({ id: String(active.id), parentId: target.parentId, clientId: target.parentId ? null : clientId, index: target.index }, { onError: onMutationError });
-  };
+  const { dropOn, dndProps } = useTreeDrop({
+    fallback: 'INSIDE',
+    destination,
+    onDrop: (id, target) => moveProject.mutate({ id, parentId: target.parentId, clientId: target.parentId ? null : clientId, index: target.index }, ON_ERROR),
+    taken: (id) => `${byId.get(id)?.title ?? 'Projet'} saisi.`,
+    moved: 'Projet déplacé.',
+  });
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={treeCollision}
-      onDragStart={({ active }) => setDragged(String(active.id))}
-      onDragMove={handleDragMove}
-      onDragOver={handleDragMove}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => {
-        setDragged(null);
-        setDrop(null);
-      }}
-      accessibility={{
-        announcements: {
-          onDragStart: ({ active }) => `${byId.get(String(active.id))?.title ?? 'Projet'} saisi.`,
-          onDragOver: () => undefined,
-          onDragMove: () => undefined,
-          onDragEnd: ({ over }) => (over ? 'Projet déplacé.' : 'Déplacement annulé.'),
-          onDragCancel: () => 'Déplacement annulé.',
-        },
-      }}
-    >
+    <DndContext {...dndProps}>
       <Paper withBorder radius="md">
         {rows.map(({ project, depth, parent }, index) => (
           <ProjectRow
@@ -212,7 +173,7 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
             first={index === 0}
             folded={parent ? folded.has(project.id) : undefined}
             onToggle={() => toggle(project.id)}
-            drop={dragged !== null && drop?.id === project.id && destination(dragged, project.id, drop.place) ? drop.place : null}
+            drop={dropOn(project.id)}
           />
         ))}
       </Paper>

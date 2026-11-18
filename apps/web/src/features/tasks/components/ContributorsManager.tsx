@@ -5,8 +5,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+
+import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 
@@ -40,8 +40,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
   const { remove } = useContributorMutations();
   const setArchived = useSetArchived('CONTRIBUTOR');
-  const [showArchived, setShowArchived] = useState(false);
-  const shown = visibleItems(contributors, showArchived);
+  const { shown, toggle: archivedToggle } = useArchivedToggle(contributors);
   const openForm = useContributorForm();
   const { data: workspace } = useWorkspace();
   const { perso } = useActiveWorkspace();
@@ -67,7 +66,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
     const used = usage.get(contributor.id) ?? 0;
     confirmDestructive({
       title: 'Supprimer le contributeur',
-      risks: `${contributor.name} sera supprimé définitivement${used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions @${contributor.handle} resteront dans le texte, sans lien. Cette action est irréversible.`,
+      risks: `${contributor.name} sera supprimé définitivement${used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions @${contributor.handle} resteront dans le texte, sans lien.`,
       run: () => remove.mutateAsync({ id: contributor.id }),
       done: `${contributor.name} supprimé.`,
     });
@@ -84,7 +83,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
       }
       actions={
         <>
-          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={contributors.filter((contributor) => contributor.archived).length} />
+          <ShowArchivedSwitch {...archivedToggle} />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
             Nouveau contributeur
           </ActionButton>

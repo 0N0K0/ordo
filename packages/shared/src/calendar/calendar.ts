@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { locatedFields } from '../core/geo';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
 import { colorSchema } from '../core/workspace';
@@ -34,12 +35,8 @@ export const calendarEventInputSchema = z
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */
     reminders: z.array(z.number().int().min(0).max(60 * 24 * 30)).max(10),
-    /** Travel time to the event and back from it, in minutes (timed events). */
-    /** Point of the location, when chosen from the map or a search. */
-    locationLat: z.number().min(-90).max(90).nullable().default(null),
-    locationLon: z.number().min(-180).max(180).nullable().default(null),
-    travelBefore: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
-    travelAfter: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
+    /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
+    ...locatedFields,
     projectId: z.string().nullable(),
     /** Calendar of the event; the first one of the workspace when omitted. */
     calendarId: z.string().nullish(),
@@ -62,7 +59,7 @@ export const calendarEventInputSchema = z
     }
     const start = `${event.startDate} ${event.allDay ? '' : (event.startTime ?? '')}`;
     const end = `${event.endDate} ${event.allDay ? '' : (event.endTime ?? '')}`;
-    if (end < start) context.addIssue({ code: 'custom', path: ['endDate'], message: 'La fin doit suivre le début.' });
+    if (!endsAfter(start, end)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
     if (event.recurrence?.until && event.recurrence.until < event.startDate) {
       context.addIssue({ code: 'custom', path: ['recurrence'], message: 'La fin de la répétition doit suivre le début.' });
     }

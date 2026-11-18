@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { arrayMove } from '@dnd-kit/sortable';
 import { moveEntries } from '../../../components/actions/move-entries';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
@@ -88,7 +89,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
           {!readOnly && (
             <Group gap={0} wrap="nowrap">
               <InlineActions
-                name={`la ligne ${index + 1}`}
+                name={`Ligne ${index + 1}`}
                 items={[
                   { label: 'Description', icon: <NotePencilIcon aria-hidden />, onClick: () => setShowDescription((value) => !value) },
                   ...moveEntries(index, count, (to) => onMove(to - index)),
@@ -212,7 +213,7 @@ interface LinesEditorProps {
 export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions }: LinesEditorProps) {
   const defaultRate = vatApplicable ? 20 : 0;
   const { data: catalog } = useCatalogItems();
-  const offered = (catalog ?? []).filter((item) => !item.archived);
+  const offered = unarchived(catalog ?? []);
   const { keys, setKeys } = useLineKeys(lines.length);
   return (
     <Stack gap="xs">

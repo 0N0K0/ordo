@@ -1,8 +1,8 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { countOf, plural } from '../../../lib/text';
-import { normalize } from '@ordo/shared';
+import { countOf, plural, normalize } from '../../../lib/text';
+
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
@@ -339,7 +339,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, toastCallbacks('Tableau GitHub délié.')); } });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, run: () => unlink.mutateAsync(projectId), done: 'Tableau GitHub délié.' });
   };
 
   if (!link) {

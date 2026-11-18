@@ -1,3 +1,4 @@
+import { dropProjection, withoutDescendants } from '../../../components/tree/tree-dnd';
 import { closestCenter, DndContext, DragOverlay, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
@@ -11,8 +12,6 @@ import classes from './Tree.module.css';
 import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
 import { sortableStyle } from '../../../components/actions/sortable-style';
 
-/** Horizontal offset of one tree level, in px (matches the row indentation). */
-const INDENT = 20;
 
 type ItemKind = 'client' | 'none' | 'project';
 
@@ -108,23 +107,6 @@ function flatten(section: TreeSection, isExpanded: (key: string) => boolean, sho
 }
 
 /**
- * Removes the rows nested under a row (they move with it).
- * @param {FlatItem[]} items Rows.
- * @param {string} id Drag id whose descendants are removed.
- * @returns {FlatItem[]} Remaining rows.
- */
-function withoutDescendants(items: FlatItem[], id: string): FlatItem[] {
-  const removed = new Set([id]);
-  return items.filter((item) => {
-    if (item.parentId && removed.has(item.parentId)) {
-      removed.add(item.id);
-      return false;
-    }
-    return true;
-  });
-}
-
-/**
  * Computes where a dragged project would land: its depth from the horizontal offset, clamped by
  * the row above and the maximum depth, and the parent row at that depth.
  * @param {FlatItem[]} items Rows during the drag.
@@ -134,24 +116,12 @@ function withoutDescendants(items: FlatItem[], id: string): FlatItem[] {
  * @returns {Projection | null} Landing place, or null when invalid.
  */
 function getProjection(items: FlatItem[], activeId: string, overId: string, offsetX: number): Projection | null {
-  const activeIndex = items.findIndex((item) => item.id === activeId);
-  const overIndex = items.findIndex((item) => item.id === overId);
-  if (activeIndex < 0 || overIndex < 0) return null;
-  const active = items[activeIndex];
-  const moved = arrayMove(items, activeIndex, overIndex);
-  const previous = moved[overIndex - 1];
-  const next = moved[overIndex + 1];
-  if (!previous) return null;
-
-  const maxDepth = Math.min(previous.depth + 1, MAX_PROJECT_DEPTH - (active.height - 1));
-  const minDepth = Math.min(next?.kind === 'project' ? next.depth : 1, maxDepth);
-  const depth = Math.max(minDepth, Math.min(active.depth + Math.round(offsetX / INDENT), maxDepth));
-  if (depth < 1) return null;
-
-  for (let index = overIndex - 1; index >= 0; index -= 1) {
-    if (moved[index].depth === depth - 1) return { depth, parentId: moved[index].id };
-  }
-  return null;
+  const projection = dropProjection(items, activeId, overId, offsetX, (active, previous, next) => {
+    if (!previous) return null;
+    const max = Math.min(previous.depth + 1, MAX_PROJECT_DEPTH - (active.height - 1));
+    return { min: Math.min(next?.kind === 'project' ? next.depth : 1, max), max };
+  });
+  return projection && projection.parentId !== null && projection.depth >= 1 ? { depth: projection.depth, parentId: projection.parentId } : null;
 }
 
 /**

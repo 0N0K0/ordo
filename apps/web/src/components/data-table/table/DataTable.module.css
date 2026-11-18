@@ -149,17 +149,6 @@
     background-color: var(--mantine-color-default-hover);
   }
 
-  .chevron {
-    /* Effets */
-    transform: rotate(0deg);
-
-    &[data-expanded] {
-      transform: rotate(90deg);
-    }
-
-    /* Animation */
-    transition: transform 150ms ease;
-  }
 
   /* Details of a row unfolded under it (the splits of a treasury entry…). */
   .details {

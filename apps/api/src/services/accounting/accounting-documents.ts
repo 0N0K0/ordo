@@ -1,4 +1,4 @@
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, percentOf, printedDay, toCents } from '@ordo/shared';
+import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, formatOptionalDay, formatPercent, fromCents, parseDay, parseOptionalDay, percentOf, printedDay, toCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
@@ -196,13 +196,12 @@ function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineUnchecked
 function documentData(input: ReturnType<typeof accountingDocumentInputSchema.parse>) {
   const { lines, issueDate, dueDate, serviceStart, serviceEnd, globalDiscountValue, depositValue, timeEntryIds: _timeEntryIds, ...rest } = input;
   const totals = computeTotals({ lines, globalDiscountType: input.globalDiscountType, globalDiscountValue, vatApplicable: input.vatApplicable });
-  const day = (value: string | null) => (value ? parseDay(value) : null);
   return {
     ...rest,
     issueDate: parseDay(issueDate),
-    dueDate: day(dueDate),
-    serviceStart: day(serviceStart),
-    serviceEnd: day(serviceEnd),
+    dueDate: parseOptionalDay(dueDate),
+    serviceStart: parseOptionalDay(serviceStart),
+    serviceEnd: parseOptionalDay(serviceEnd),
     globalDiscountValue: toDecimal(globalDiscountValue),
     depositType: depositValue ? input.depositType : null,
     depositValue: depositValue && input.depositType ? toDecimal(depositValue) : null,
@@ -526,8 +525,8 @@ export async function createFromDocument(
       serviceId: source.serviceId,
       contactId: source.contactId,
       projectId: source.projectId,
-      serviceStart: source.serviceStart ? formatDay(source.serviceStart) : null,
-      serviceEnd: source.serviceEnd ? formatDay(source.serviceEnd) : null,
+      serviceStart: formatOptionalDay(source.serviceStart),
+      serviceEnd: formatOptionalDay(source.serviceEnd),
       title,
       referenceLabel: source.referenceLabel,
       referenceValue: source.referenceValue,
@@ -552,7 +551,7 @@ function depositLine(percent: number, quote: { number: string | null; totalNet: 
   const day = printedDay(quote.issueDate);
   return {
     kind: 'ITEM',
-    title: `Acompte de ${percent.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
+    title: `Acompte de ${formatPercent(percent)} pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
     description: null,
     quantity: 1,
     unit: 'DEPOSIT',
@@ -592,7 +591,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
     const lines =
       bases.length <= 1
         ? [depositLine(percent, reference, percentOf(totals.totalNet, percent), bases[0]?.rate ?? 0)]
-        : bases.map((item) => ({ ...depositLine(percent, reference, percentOf(item.base, percent), item.rate), description: `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` }));
+        : bases.map((item) => ({ ...depositLine(percent, reference, percentOf(item.base, percent), item.rate), description: `Part soumise à la TVA à ${formatPercent(item.rate, 3)}` }));
     const defaults = await defaultFields('DEPOSIT_INVOICE', quote.clientId, issueDate);
     // A deposit keeps the terms agreed on its quote.
     const paymentTerms = quote.paymentTerms ?? defaults.paymentTerms;
@@ -665,16 +664,15 @@ export async function duplicateDocument(id: string, issueDate: string): Promise<
  * @returns {Promise<AccountingDocumentInput>} Fields.
  */
 export async function editableFields(document: DocumentWithLines): Promise<AccountingDocumentInput> {
-  const day = (value: Date | null) => (value ? formatDay(value) : null);
   return {
     clientId: document.clientId,
     serviceId: document.serviceId,
     contactId: document.contactId,
     projectId: document.projectId,
     issueDate: formatDay(document.issueDate),
-    dueDate: day(document.dueDate),
-    serviceStart: day(document.serviceStart),
-    serviceEnd: day(document.serviceEnd),
+    dueDate: formatOptionalDay(document.dueDate),
+    serviceStart: formatOptionalDay(document.serviceStart),
+    serviceEnd: formatOptionalDay(document.serviceEnd),
     title: document.title,
     introduction: document.introduction,
     referenceLabel: document.referenceLabel,

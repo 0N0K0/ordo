@@ -1390,12 +1390,16 @@ type MailSearch {
 type MailSearchHit {
   accountId: ID!
   date: DateTime!
+
+  """Marked as done."""
   done: Boolean!
   flagged: Boolean!
   folder: String!
   folderName: String!
   from: [MailAddress!]!
   hasAttachments: Boolean!
+
+  """Flags set by the user."""
   labelIds: [ID!]!
   seen: Boolean!
   subject: String!

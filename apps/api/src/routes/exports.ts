@@ -1,4 +1,4 @@
-import { safeFilename } from '@ordo/shared';
+import { fileName } from '@ordo/shared';
 import express, { Router } from 'express';
 import { calendarIcs } from '../services/calendar/calendar-ics';
 import { calendarPdf } from '../services/calendar/calendar-pdf';
@@ -12,14 +12,14 @@ export const exportsRouter: Router = Router();
 exportsRouter.post(
   '/table.pdf',
   express.json({ limit: '5mb' }),
-  downloadRoute(async (req) => ({ content: await tablePdf(req.body), type: 'application/pdf', filename: `${safeFilename(String(req.body?.title ?? 'export'))}.pdf` }), 'Export PDF impossible.'),
+  downloadRoute(async (req) => ({ content: await tablePdf(req.body), type: 'application/pdf', filename: fileName(String(req.body?.title ?? 'export'), 'pdf') }), 'Export PDF impossible.'),
 );
 
 // PDF of charts drawn by the app (PNG images), downloaded.
 exportsRouter.post(
   '/charts.pdf',
   express.json({ limit: '50mb' }),
-  downloadRoute(async (req) => ({ content: await chartsPdf(req.body), type: 'application/pdf', filename: `${safeFilename(String(req.body?.title ?? 'diagrammes'))}.pdf` }), 'Export PDF impossible.'),
+  downloadRoute(async (req) => ({ content: await chartsPdf(req.body), type: 'application/pdf', filename: fileName(String(req.body?.title ?? 'diagrammes'), 'pdf') }), 'Export PDF impossible.'),
 );
 
 // iCalendar file of a calendar of the workspace (?calendar=<id>), or of all of them, downloaded.
@@ -27,7 +27,7 @@ exportsRouter.get(
   '/calendar.ics',
   downloadRoute(async (req) => {
     const { name, content } = await calendarIcs(queryText(req.query.calendar) || null);
-    return { content, type: 'text/calendar; charset=utf-8', filename: `${safeFilename(name)}.ics` };
+    return { content, type: 'text/calendar; charset=utf-8', filename: fileName(name, 'ics') };
   }, 'Export ICS impossible.'),
 );
 
@@ -35,5 +35,5 @@ exportsRouter.get(
 exportsRouter.post(
   '/calendar.pdf',
   express.json({ limit: '5mb' }),
-  downloadRoute(async (req) => ({ content: await calendarPdf(req.body), type: 'application/pdf', filename: `${safeFilename(String(req.body?.title ?? 'agenda'))}.pdf` }), 'Export PDF impossible.'),
+  downloadRoute(async (req) => ({ content: await calendarPdf(req.body), type: 'application/pdf', filename: fileName(String(req.body?.title ?? 'agenda'), 'pdf') }), 'Export PDF impossible.'),
 );

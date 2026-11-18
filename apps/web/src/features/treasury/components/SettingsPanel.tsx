@@ -1,5 +1,5 @@
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { formCallbacks } from '../../../lib/form';
+import { toastCallbacks } from '../../../lib/notify';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Select, SimpleGrid, Stack } from '@mantine/core';
@@ -97,8 +97,7 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       remove={(id) => deleteCounterparty.mutateAsync(id)}
       deleteMessage={(counterparty) => (
         <>
-          « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''} Cette
-          action est irréversible.
+          « {counterparty.name} » sera supprimé définitivement.{counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}
         </>
       )}
     />
@@ -121,7 +120,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
    * @returns {void}
    */
   const save = (changes: Partial<typeof current>) =>
-    setInvoiceCategories.mutate({ ...current, ...changes }, formCallbacks(null, 'Catégorie enregistrée.'));
+    setInvoiceCategories.mutate({ ...current, ...changes }, toastCallbacks('Catégorie enregistrée.'));
   return (
     <SettingsSection title="Factures et avoirs" description="Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.">
       {/* Side by side when the sidebar is wide enough (its width, not the window's). */}

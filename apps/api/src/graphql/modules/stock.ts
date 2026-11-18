@@ -5,19 +5,12 @@ import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 import { relationIds } from '../relation-fields';
 import { fromDecimal } from '../../services/core/decimal';
+import { productInput, productInputFields } from '../product-inputs';
+import { treeItemObject } from '../label-inputs';
 
 const StockMovementKindEnum = builder.enumType('StockMovementKind', { values: STOCK_MOVEMENT_KINDS, description: 'Why a quantity of the stock changed.' });
 
-builder.prismaObject('StockLocation', {
-  description: 'Place things are kept (Frigo, Congélateur…), in a tree.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
-    parentId: t.exposeID('parentId', { nullable: true }),
-    position: t.exposeInt('position'),
-  }),
-});
+treeItemObject('StockLocation', { description: 'Place things are kept (Frigo, Congélateur…), in a tree.' });
 
 builder.prismaObject('StockLot', {
   description: 'Lot of an item of the stock: a quantity and its date.',
@@ -131,13 +124,8 @@ const ItemInput = builder.inputType('StockItemInput', {
   fields: (t) => ({
     productId: t.id(),
     label: t.string({ required: true }),
-    categoryId: t.id(),
-    unit: t.string(),
+    ...productInputFields(t, { people: true, perishable: true }),
     locationId: t.id(),
-    note: t.string(),
-    perishable: t.boolean({ required: true }),
-    memberIds: t.idList({ required: true }),
-    relationIds: t.idList({ required: true }),
     quantity: t.float({ description: 'New item: its quantity to start with.' }),
     expiresAt: t.field({ type: 'Date', description: 'New item: the date of its first lot.' }),
   }),
@@ -187,14 +175,8 @@ const DeliveryInput = builder.inputType('ShoppingDeliveryInput', {
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
   productId: input.productId || null,
   label: input.label,
-  categoryId: input.categoryId || null,
-  unit: input.unit ?? null,
+  ...productInput(input),
   locationId: input.locationId || null,
-  note: input.note ?? null,
-  perishable: input.perishable,
-  memberIds: input.memberIds,
-  relationIds: input.relationIds,
-  quantity: input.quantity ?? null,
   expiresAt: input.expiresAt ?? null,
 });
 

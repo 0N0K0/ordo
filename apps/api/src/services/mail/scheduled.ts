@@ -8,6 +8,7 @@ import { withImap } from './imap';
 import { specialFolder } from './organize';
 import { deliverMessage, type SendMailInput } from './sender';
 import { forEachWorkspace, schedulePerWorkspace } from '../workspace/workspaces';
+import { NO_SUBJECT } from '@ordo/shared';
 
 /**
  * Schedules a mail: the message is built now (files included, dated of its sending time) and kept until then;
@@ -26,7 +27,7 @@ export async function scheduleMail(input: SendMailInput, sendAt: Date): Promise<
     data: {
       accountId: account.id,
       sendAt,
-      subject: input.subject.trim() || '(sans objet)',
+      subject: input.subject.trim() || NO_SUBJECT,
       to: [...input.to],
       raw: new Uint8Array(message.raw),
       copy: new Uint8Array(message.copy),

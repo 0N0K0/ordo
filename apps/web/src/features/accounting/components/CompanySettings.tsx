@@ -6,7 +6,7 @@ import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/rea
 import { useState } from 'react';
 import { AddressFields } from '../../../components/address/AddressFields';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -117,9 +117,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                       color="red"
                       leftSection={<TrashIcon aria-hidden />}
                       onClick={() =>
-                        setLogo.mutate(null, {
-                          onError: onMutationError,
-                        })
+                        setLogo.mutate(null, ON_ERROR)
                       }
                     >
                       Retirer

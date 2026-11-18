@@ -1,9 +1,10 @@
+import { AddItemButton } from '../actions/AddItemButton';
 import { DestructiveButton } from '../dialogs/DestructiveActions';
-import { Button, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 import type { ComponentProps } from 'react';
-import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FolderSimplePlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { localToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
@@ -330,19 +331,10 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
           </div>
         ))}
         <Group gap="xs">
-          <Button
-            size="compact-sm"
-            variant="subtle"
-            leftSection={<PlusIcon aria-hidden />}
-            onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}
-          >
-            Condition
-          </Button>
+          <AddItemButton onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}>Ajouter une condition</AddItemButton>
           {depth < MAX_FILTER_DEPTH && (
-            <Button
-              size="compact-sm"
-              variant="subtle"
-              leftSection={<FolderSimplePlusIcon aria-hidden />}
+            <AddItemButton
+              icon={<FolderSimplePlusIcon aria-hidden />}
               onClick={() =>
                 onChange({
                   ...group,
@@ -353,8 +345,8 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
                 })
               }
             >
-              Groupe
-            </Button>
+              Ajouter un groupe
+            </AddItemButton>
           )}
           {onRemove && (
             <DestructiveButton size="compact-sm" leftSection={<TrashIcon aria-hidden />} onClick={onRemove}>

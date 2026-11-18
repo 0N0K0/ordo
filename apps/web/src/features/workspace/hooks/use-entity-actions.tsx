@@ -1,9 +1,11 @@
+import { clientPath, projectPath } from '../../../app/pages';
 import { openFormPanel } from '../../../components/panels/panels';
 import { openModal } from '../../../components/panels/open-modal';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
+import type { ArchiveMutation } from '../../../lib/archive';
 import { descendantIds, useSetClientArchived, useSetClientFavorite, useSetProjectArchived, useSetProjectFavorite, useUpdateClient, useUpdateProject, workspaceQueryKey, type Client, type Project, type Workspace } from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
@@ -67,27 +69,13 @@ export function useEntityActions() {
   };
 
   /**
-   * Archives or restores, with an undo toast.
+   * Archive mutation of a client (its projects along) or a project, for `archiveEntry`.
    * @param {EntityRef} entity Client or project.
-   * @param {boolean} archived Target state.
-   * @param {boolean} [notify=true] Whether to show the toast. Optional. Default = true.
-   * @returns {void}
+   * @returns {ArchiveMutation} Mutation.
    */
-  const setArchived = (entity: EntityRef, archived: boolean, notify = true): void => {
-    const mutation = entity.type === 'client' ? setClientArchived : setProjectArchived;
-    mutation.mutate(
-      { id: entity.item.id, archived },
-      {
-        onSuccess: () => {
-          if (!notify) return;
-          const cascade = entity.type === 'client' && archived ? ' avec ses projets' : '';
-          const message = `« ${entityLabel(entity)} » ${archived ? 'archivé' : 'restauré'}${cascade}.`;
-          notifyWithUndo(message, () => setArchived(entity, !archived, false));
-        },
-        onError: onMutationError,
-      },
-    );
-  };
+  const archiver = (entity: EntityRef): ArchiveMutation => ({
+    mutateAsync: ({ ids: [id], archived }) => (entity.type === 'client' ? setClientArchived.mutateAsync({ id, archived }) : setProjectArchived.mutateAsync({ id, archived })),
+  });
 
   /**
    * Renames a client or retitles a project.
@@ -103,7 +91,7 @@ export function useEntityActions() {
 
   return {
     setFavorite,
-    setArchived,
+    archiver,
     rename,
 
     /**
@@ -144,7 +132,7 @@ export function useEntityActions() {
             projectCount={projectCount}
             onDone={(deleted) => {
               close();
-              if (deleted) leaveIfOn(`/clients/${entity.item.id}`);
+              if (deleted) leaveIfOn(clientPath(entity.item.id));
             }}
           />
         ));
@@ -157,7 +145,7 @@ export function useEntityActions() {
             subProjectCount={subProjectCount}
             onDone={(deleted) => {
               close();
-              if (deleted) leaveIfOn(`/projects/${entity.item.id}`);
+              if (deleted) leaveIfOn(projectPath(entity.item.id));
             }}
           />
         ));

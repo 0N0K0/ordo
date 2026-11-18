@@ -1,15 +1,18 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { IconAction } from '../../../components/actions/IconAction';
+import { PAGES, projectPath } from '../../../app/pages';
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Button, CloseButton, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
@@ -28,13 +31,17 @@ import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
-import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+
 import { useTaskContext, type TaskContext, taskName, taskRef } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { removedLinksNote } from '../lib/bulk-label';
+import { dateRangeProps } from '../../../components/inputs/date-range';
+import { DetailHeader } from '../../../components/page/DetailHeader';
+import { EffortInput } from './EffortInput';
+import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 
 interface LinkListProps {
   label: string;
@@ -82,15 +89,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
           onBlur={() => setAdding(false)}
         />
       ) : (
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          leftSection={<PlusIcon aria-hidden />}
-          onClick={() => setAdding(true)}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          Ajouter
-        </Button>
+        <AddItemButton onClick={() => setAdding(true)}>Ajouter une tâche</AddItemButton>
       )}
     </SubSection>
   );
@@ -127,6 +126,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) =>
     updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
+  const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
+  const overdue = task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined;
+  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }), errors: [undefined, overdue] });
 
   /**
    * Validates and saves the edited title.
@@ -183,59 +185,52 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     <Stack gap="lg">
       <Stack gap="xs">
         {titleDraft === null ? (
-          <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
-              {task.title}{' '}
-              <Text span c="dimmed" inherit fw={400}>
-                {taskRef(task).trim()}
-              </Text>
-              {task.githubLinked && (
-                <Badge
-                  ml="xs"
-                  variant="light"
-                  color="dark"
-                  leftSection={<GithubLogoIcon aria-hidden />}
-                  style={{ verticalAlign: 'middle' }}
-                  {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, target: '_blank', rel: 'noopener' } : {})}
-                >
-                  {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
-                </Badge>
-              )}
-            </Title>
-            <Group gap="xs" wrap="nowrap">
-              {!locked && (
-              <Button
-                variant="default"
-                size="xs"
-                color={task.closed ? 'green' : 'violet'}
-                leftSection={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-                loading={setClosed.isPending}
-                onClick={() =>
-                  setClosed.mutate(
-                    { ids: [task.id], closed: !task.closed },
-                    { onError: onMutationError },
-                  )
-                }
-              >
-                {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-              </Button>
-              )}
-              {!locked && (
-                <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
-                  Modifier
-                </Button>
-              )}
-              <ActionsMenu
-                name="la tâche"
-                items={actions.menu(task)}
-                target={
-                  <ActionIcon variant="default" size="input-xs" aria-label="Actions de la tâche">
-                    <DotsThreeIcon weight="bold" aria-hidden />
-                  </ActionIcon>
-                }
-              />
-            </Group>
-          </Group>
+          <DetailHeader
+            compact
+            title={
+              <>
+                {task.title}{' '}
+                <Text span c="dimmed" inherit fw={400}>
+                  {taskRef(task).trim()}
+                </Text>
+              </>
+            }
+            badges={
+              <>
+                {task.githubLinked && (
+                  <Badge
+                    variant="light"
+                    color="dark"
+                    leftSection={<GithubLogoIcon aria-hidden />}
+                    {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, target: '_blank', rel: 'noopener' } : {})}
+                  >
+                    {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
+                  </Badge>
+                )}
+                {task.archived && <ArchivedBadge feminine />}
+              </>
+            }
+            actions={
+              !locked && (
+                <>
+                  <Button
+                    variant="default"
+                    size="xs"
+                    color={task.closed ? 'green' : 'violet'}
+                    leftSection={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+                    loading={setClosed.isPending}
+                    onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
+                  >
+                    {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
+                  </Button>
+                  <Button variant="default" size="xs" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.title)}>
+                    Modifier
+                  </Button>
+                </>
+              )
+            }
+            menu={{ name: 'la tâche', items: actions.menu(task) }}
+          />
         ) : (
           <Group gap="xs" align="flex-start" wrap="nowrap">
             <TextInput
@@ -261,10 +256,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         )}
         <Group gap="xs">
           <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
-          {task.archived && (
-            <ArchivedBadge feminine />
-          )}
-          <Anchor component={Link} to={`/projects/${task.projectId}`} size="sm">
+          <Anchor component={Link} to={task.projectId ? projectPath(task.projectId) : PAGES.tasks.path} size="sm">
             {context.projectLabel(task.projectId)}
           </Anchor>
         </Group>
@@ -278,17 +270,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               gap="xs"
               action={
                 description === null && !locked && (
-                  <Tooltip label="Modifier la description">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      aria-label="Modifier la description"
-                      onClick={() => setDescription(task.description ?? '')}
-                    >
+                  <IconAction label="Modifier la description" size="sm" onClick={() => setDescription(task.description ?? '')}>
                       <PencilSimpleIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
+</IconAction>
                 )
               }
             >
@@ -329,14 +313,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               gap="xs"
               action={
                 !task.archived && (
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    leftSection={<PlusIcon aria-hidden />}
-                    onClick={() => actions.create({ parentId: task.id })}
-                  >
-                    Ajouter
-                  </Button>
+                  <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>
                 )
               }
             >
@@ -394,12 +371,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             />
             <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
             <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
-            <NumberInput
+            <EffortInput
               key={`effort-${task.effort}`}
-              label="Effort"
-              min={0}
-              decimalScale={2}
-              decimalSeparator=","
               defaultValue={task.effort ?? ''}
               onBlur={(event) => {
                 const raw = event.currentTarget.value.replace(',', '.').trim();
@@ -410,40 +383,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <TaskTime task={task} />
             <TaskRecurrence task={task} context={context} />
             <Group grow gap="xs">
-              <DatePickerInput
-                label="Début"
-                clearable
-                placeholder="—"
-                value={task.startDate}
-                maxDate={task.endDate ?? undefined}
-                onChange={(startDate) => save({ startDate })}
-              />
-              <DatePickerInput
-                label="Fin"
-                clearable
-                placeholder="—"
-                value={task.endDate}
-                minDate={task.startDate ?? undefined}
-                onChange={(endDate) => save({ endDate })}
-              />
+              <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
+              <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
             </Group>
-            <DatePickerInput
-              label="Date min"
-              description="Avant, la tâche n’est pas à faire."
-              clearable
-              placeholder="—"
-              value={task.minDate}
-              onChange={(minDate) => save({ minDate })}
-            />
-            <DatePickerInput
-              label="Date max"
-              description="Au-delà, la tâche ouverte est en retard."
-              clearable
-              placeholder="—"
-              value={task.deadline}
-              onChange={(deadline) => save({ deadline })}
-              error={task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined}
-            />
+            <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
+            <DatePickerInput label="Date max" description="Au-delà, la tâche ouverte est en retard." clearable placeholder="—" {...doable.end} />
             <TaskSelect
               context={context}
               labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -532,9 +476,7 @@ export function TaskPanel() {
       ) : task && context ? (
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (
-        <ErrorAlert title="Tâche introuvable">
-          Cette tâche n’existe pas ou a été supprimée.
-        </ErrorAlert>
+        <DetailNotFound what="Cette tâche" feminine />
       )}
     </SidePanel>
   );

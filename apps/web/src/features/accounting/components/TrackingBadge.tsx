@@ -4,10 +4,10 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon } from '@phosphor-icons/react';
-import { onMutationError } from '../../../lib/notify';
+
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary } from '../api/documents';
-import { openSentDialog } from '../lib/sent-dialog';
+import { chooseTrackingStatus } from '../lib/sent-dialog';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
 
 type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'archived' | 'status' | 'type' | 'number' | 'trackingStatus' | 'overdue' | 'sentAt' | 'sentVia'>;
@@ -73,19 +73,7 @@ function DocumentStatusMenu({ document, onSelect }: { document: TrackedDocument;
       type={document.type}
       current={document.trackingStatus}
       pending={setStatus.isPending}
-      onSelect={(status) =>
-        onSelect
-          ? onSelect(status)
-          : // A "sent" status asks when and how it was sent.
-            status.category === 'SENT'
-            ? openSentDialog({
-                title: `Envoi de ${document.number ?? 'ce document'}`,
-                sentAt: document.sentAt,
-                sentVia: document.sentVia,
-                onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
-              })
-            : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: onMutationError })
-      }
+      onSelect={(status) => (onSelect ? onSelect(status) : chooseTrackingStatus(document, status, { setStatus, markSent }))}
     />
   );
 }

@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
-import { ActionIcon, Select, Tooltip } from '@mantine/core';
+import { Select } from '@mantine/core';
 import { localToday } from '../../../lib/dates';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -262,10 +263,8 @@ interface ToggleCellProps {
  */
 export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
   return (
-    <Tooltip label={hint} withinPortal>
-      <ActionIcon variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-label={label} aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
-        {icon}
-      </ActionIcon>
-    </Tooltip>
+    <IconAction label={hint} variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-label={label} aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
+      {icon}
+    </IconAction>
   );
 }

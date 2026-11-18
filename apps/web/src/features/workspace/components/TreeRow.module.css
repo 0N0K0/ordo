@@ -56,20 +56,6 @@
     }
   }
 
-  .chevron {
-    /* Agencement */
-    flex: none;
-
-    /* Effets */
-    transform: rotate(0deg);
-
-    &[data-expanded] {
-      transform: rotate(90deg);
-    }
-
-    /* Animation */
-    transition: transform 150ms ease;
-  }
 
   /* Same box as the size="sm" chevron ActionIcon, so names stay aligned with or without chevron. */
   .spacer {

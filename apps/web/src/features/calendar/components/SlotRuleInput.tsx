@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { Select, SimpleGrid, Stack } from '@mantine/core';
 import type { SlotRule } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -34,7 +35,7 @@ export function SlotRuleInput({ value, onChange, error, disabled }: SlotRuleInpu
    */
   const groups = (taken: readonly string[]) => {
     const chosen = [...(value?.inside ?? []), ...(value?.outside ?? [])];
-    const offered = kinds.filter((kind) => !kind.archived || chosen.includes(kind.value));
+    const offered = unarchived(kinds, chosen, (kind) => kind.value);
     return [...new Set(offered.map((kind) => kind.group))].map((group) => ({
       group,
       items: offered.filter((kind) => kind.group === group && !taken.includes(kind.value)).map(({ value: kind, label }) => ({ value: kind, label })),

@@ -1,11 +1,11 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
-import { BackLink } from '../../../components/page/BackLink';
+
 import { PAGES } from '../../../app/pages';
-import { Group, Paper, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Paper, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -22,7 +22,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { ON_ERROR, onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { Comments } from '../../comments/components/Comments';
@@ -30,13 +30,13 @@ import { useShoppingData } from '../../shopping/api';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
-import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
 import { SheetsSettings } from '../components/SheetsSettings';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
@@ -45,6 +45,8 @@ import { sheetItemSchema, shoppingItemSchema, type SheetItemInput } from '@ordo/
 import { SheetUseForm } from '../components/SheetUseForm';
 import { countOf, plural, sameName } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { DetailHeader } from '../../../components/page/DetailHeader';
+import { deleteSheetsAction } from '../lib/delete-sheets';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
@@ -104,7 +106,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
   const { context } = useTaskContext();
   const [name, setName] = useState(sheet.name);
   const [note, setNote] = useState(sheet.note ?? '');
-  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, { onError: onMutationError });
+  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR);
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="sm">
@@ -220,21 +222,7 @@ export function SheetPage() {
     return <DetailNotFound what="Cette fiche" feminine backTo="/sheets" backLabel="Fiches" />;
 
   const locked = sheet.archived;
-  const remove = {
-    label: 'Supprimer',
-    icon: <TrashIcon aria-hidden />,
-    danger: true,
-    onClick: () =>
-      confirmDestructive({
-        title: 'Supprimer la fiche',
-        risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-        onConfirm: () =>
-          mutations.remove.mutate(
-            sheet.id,
-            formCallbacks(null, 'Fiche supprimée.', () => navigate('/sheets')),
-          ),
-      }),
-  };
+  const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate('/sheets'))));
 
   /**
    * Row adding an item by its label, at the end of the table or of a group (the item takes the value of its group); a
@@ -272,58 +260,44 @@ export function SheetPage() {
 
   return (
     <Stack gap="lg">
-      <BackLink to="/sheets">Fiches</BackLink>
-      <PageHeader title={PAGES.sheets.title} />
-      <Group justify="space-between" gap="sm" wrap="wrap" align="flex-end">
-        <Stack gap={2}>
-          <Group gap="xs">
-            <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
-              {sheet.name}
-            </Title>
-            {sheet.archived && <ArchivedBadge feminine />}
-          </Group>
+      <DetailHeader
+        back={{ to: '/sheets', label: 'Fiches' }}
+        page={<PageHeader title={PAGES.sheets.title} />}
+        title={sheet.name}
+        badges={sheet.archived && <ArchivedBadge feminine />}
+        subtitle={
           <Text size="sm" c="dimmed">
             {`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${countOf(sheet.usedBy, 'routine')}, ${plural(sheet.usedBy, 'évènement')} ou ${plural(sheet.usedBy, 'tâche')}` : ''}`}
           </Text>
-        </Stack>
-        <Group gap="sm" ml="auto" wrap="wrap">
-          {sheet.archived ? (
-            <ActionButton
-              priority="secondary"
-              icon={<ArrowCounterClockwiseIcon aria-hidden />}
-              onClick={() => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: false, label: `Fiche « ${sheet.name} »`, feminine: true })}
-              menu={[remove]}
-            >
-              Restaurer
-            </ActionButton>
-          ) : (
+        }
+        actions={
+          !sheet.archived && (
             <ActionButton
               priority="secondary"
               icon={<CookingPotIcon aria-hidden />}
               onClick={() => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />)}
-              menu={[
-                {
-                  label: 'Dupliquer',
-                  icon: <CopyIcon aria-hidden />,
-                  onClick: () =>
-                    mutations.duplicate.mutate(
-                      sheet.id,
-                      formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
-                    ),
-                },
-                {
-                  label: 'Archiver',
-                  icon: <ArchiveIcon aria-hidden />,
-                  onClick: () => void archiveWithUndo(setArchived, { ids: [sheet.id], archived: true, label: `Fiche « ${sheet.name} »`, feminine: true }),
-                },
-                remove,
-              ]}
             >
               Utiliser cette fiche
             </ActionButton>
-          )}
-        </Group>
-      </Group>
+          )
+        }
+        menu={{
+          name: `la fiche « ${sheet.name} »`,
+          items: [
+            !sheet.archived && {
+              label: 'Dupliquer',
+              icon: <CopyIcon aria-hidden />,
+              onClick: () =>
+                mutations.duplicate.mutate(
+                  sheet.id,
+                  formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
+                ),
+            },
+            archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
+            remove,
+          ],
+        }}
+      />
       {/* Made again once saved (its texts are those of the sheet). */}
       <SheetFields key={`${sheet.id}:${sheet.updatedAt}`} sheet={sheet} />
       <DataTable
@@ -454,7 +428,7 @@ export function SheetPage() {
                   confirmDestructive({
                     title: 'Retirer l’élément',
                     risks: `« ${item.label} » sera retiré de la fiche, avec ses commentaires. Les listes déjà faites le gardent.`,
-                    onConfirm: () => mutations.removeItems.mutate([item.id], ON_ERROR),
+                    run: () => mutations.removeItems.mutateAsync([item.id]),
                   }),
               },
             ]}

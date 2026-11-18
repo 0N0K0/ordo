@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { EditableMultiSelect } from '../../../components/data-table/cells/EditableCells';
 import { PersonAvatar, PersonOption } from '../../../components/people/PersonOption';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
@@ -67,6 +68,6 @@ interface ProjectCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function ProjectCell({ value, context, label, placeholder, readOnly = false, onSave }: ProjectCellProps) {
-  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === value));
+  const options = context.projectOptions(unarchived(context.projects, value));
   return <EditableSelect value={value} label={label} nullable placeholder={placeholder} readOnly={readOnly} nothingFoundMessage="Aucun projet" {...treeSelectProps(options)} onSave={onSave} />;
 }

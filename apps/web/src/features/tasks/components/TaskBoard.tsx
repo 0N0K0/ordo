@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -275,7 +276,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     };
   };
 
-  const canCreate = (context?.projects.filter((project) => !project.archived).length ?? 0) > 0;
+  const canCreate = unarchived(context?.projects ?? []).length > 0;
   const config = view.config;
   // The group a new task goes in gives it its value (status, assignee…).
   const groupBy = view.groupColumn && (TASK_GROUP_BY as readonly string[]).includes(view.groupColumn.id) ? (view.groupColumn.id as TaskGroupBy) : null;

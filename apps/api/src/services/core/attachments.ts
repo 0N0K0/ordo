@@ -1,4 +1,4 @@
-import { MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { MAX_ATTACHMENT_BYTES, safeFilename } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Attachment } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -46,8 +46,8 @@ function sniffImage(buffer: Buffer): string | null {
  */
 export function attachmentData(name: string, buffer: Buffer) {
   return {
-    name: name.replace(/[\\/\0]/g, '_').slice(0, 200) || 'fichier',
-    mimeType: sniffImage(buffer) ?? (buffer.toString('ascii', 0, 5) === '%PDF-' ? 'application/pdf' : 'application/octet-stream'),
+    name: safeFilename(name.slice(0, 200)),
+    mimeType: sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream'),
     size: buffer.length,
     data: new Uint8Array(buffer),
   };

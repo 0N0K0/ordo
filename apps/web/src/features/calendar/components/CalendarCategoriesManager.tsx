@@ -30,7 +30,7 @@ export function CalendarCategoriesManager() {
         return (
           <>
             La catégorie « {path} » sera supprimée définitivement et retirée des évènements (qui sont conservés).
-            {childCount > 0 ? ` ${childCount > 1 ? `Ses ${countOf(childCount, 'sous-catégorie')} remontent` : 'Sa sous-catégorie remonte'} d’un niveau.` : ''} Cette action est irréversible.
+            {childCount > 0 ? ` ${childCount > 1 ? `Ses ${countOf(childCount, 'sous-catégorie')} remontent` : 'Sa sous-catégorie remonte'} d’un niveau.` : ''}
           </>
         );
       }}

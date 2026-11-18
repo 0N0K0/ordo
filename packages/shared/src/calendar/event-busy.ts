@@ -1,4 +1,4 @@
-import { addDays } from '../dates/recurrence';
+import { addDays } from '../dates/days';
 
 /** Event occurrence as far as being busy goes. */
 export interface BusyEvent {

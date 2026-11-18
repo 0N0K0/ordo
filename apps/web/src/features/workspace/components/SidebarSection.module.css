@@ -45,15 +45,4 @@
     min-height: inherit;
   }
 
-  .chevron {
-    /* Effets */
-    transform: rotate(0deg);
-
-    &[data-opened] {
-      transform: rotate(90deg);
-    }
-
-    /* Animation */
-    transition: transform 150ms ease;
-  }
 }

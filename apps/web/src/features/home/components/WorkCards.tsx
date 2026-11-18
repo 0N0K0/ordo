@@ -1,9 +1,10 @@
+import { calendarPath, PAGES, projectPath } from '../../../app/pages';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { SubSection } from '../../../components/page/SubSection';
+
 import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { addDays, daysBetween, formatDuration, groupBy } from '@ordo/shared';
+import { addDays, daysBetween, formatDuration } from '@ordo/shared';
 import { nextRing } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
@@ -14,8 +15,9 @@ import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import classes from './Home.module.css';
-import { Figure, HomeCard } from './HomeCard';
-import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
+import tile from '../../../components/page/StatTile.module.css';
+import { CardFigure, HomeCard } from './HomeCard';
+import { HomeList, HomeRow } from './HomeList';
 import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 
@@ -91,39 +93,43 @@ export function AgendaCard({ today }: { today: string }) {
     for (const event of events.data) {
       if (!event.allDay && event.end && Date.parse(event.end) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(event.start);
-      list.push({ key: event.key, day: start ? localDay(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
+      list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
     }
     for (const alarm of alarms.data) {
       const next = nextRing(alarm, now);
       if (!next) continue;
-      const day = localDay(next.toISOString());
+      const day = localDay(next);
       if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.title, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events.data, alarms.data, today]);
 
-  const days = useMemo(() => {
-    return [...groupBy((items ?? []).slice(0, HOME_ROWS), (item) => item.day)];
-  }, [items]);
-
   return (
     <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to="/calendar" linkLabel="Ouvrir l’agenda" loading={!items}>
       {items && items.length === 0 && <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Rien de prévu cette semaine." />}
-      {days.map(([day, list]) => (
-        <SubSection key={day} title={dayLabel(day, today)} gap={2}>
-          {list.map((item) => (
-            <Group key={item.key} gap="xs" wrap="nowrap">
-              <Text size="sm" c="dimmed" w={48} style={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-                {item.time ?? 'Journée'}
-              </Text>
-              {item.alarm && <AlarmIcon aria-label="Alarme" style={{ flexShrink: 0 }} />}
-              <Text size="sm" truncate>
-                {item.title}
-              </Text>
-            </Group>
-          ))}
-        </SubSection>
-      ))}
+      {items && items.length > 0 && (
+        <HomeList
+          items={items}
+          group={{ key: (item) => item.day, title: (day) => dayLabel(day, today) }}
+          render={(item) => (
+            <HomeRow
+              key={item.key}
+              to={item.alarm ? PAGES.alarms.path : calendarPath(item.day)}
+              title={
+                <Group component="span" gap="xs" wrap="nowrap">
+                  <Text span size="sm" c="dimmed" w={48} style={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                    {item.time ?? 'Journée'}
+                  </Text>
+                  {item.alarm && <AlarmIcon aria-label="Alarme" style={{ flexShrink: 0 }} />}
+                  <Text span size="sm" truncate>
+                    {item.title}
+                  </Text>
+                </Group>
+              }
+            />
+          )}
+        />
+      )}
     </HomeCard>
   );
 }
@@ -145,14 +151,14 @@ export function TimeCard({ context, time }: TimeCardProps) {
       {time && context && (
         <Stack gap="sm">
           <SimpleGrid cols={2}>
-            <Figure label="Aujourd’hui" value={formatDuration(time.today)} />
-            <Figure label="Cette semaine" value={formatDuration(time.week)} />
+            <CardFigure label="Aujourd’hui" value={formatDuration(time.today)} />
+            <CardFigure label="Cette semaine" value={formatDuration(time.week)} />
           </SimpleGrid>
           {time.byProject.length === 0 ? (
             <EmptyState compact icon={<ClockIcon aria-hidden />} message="Aucun temps saisi cette semaine." />
           ) : (
             time.byProject.slice(0, 4).map((item) => (
-              <Link key={item.projectId} to={`/projects/${item.projectId}?tab=time`} className={classes.row}>
+              <Link key={item.projectId} to={projectPath(item.projectId, 'time')} className={`${tile.tile} ${classes.row}`}>
                 <Group justify="space-between" wrap="nowrap" gap="xs">
                   <ProjectName context={context} projectId={item.projectId} />
                   <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>

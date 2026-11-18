@@ -1,4 +1,5 @@
-import { ActionIcon, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconAction } from '../actions/IconAction';
+import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
 import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import { AtIcon, CheckSquareIcon, CodeIcon, HashIcon, LinkIcon, ListBulletsIcon, ListNumbersIcon, MarkdownLogoIcon, PaperclipIcon, QuotesIcon, TextBIcon, TextHIcon, TextItalicIcon } from '@phosphor-icons/react';
 import { useId, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
@@ -361,34 +362,15 @@ export function MarkdownEditor({
                 {COMMANDS.map((command) => (
                   <Group key={command.label} gap={2} wrap="nowrap">
                     {command.divider && <span className={classes.divider} />}
-                    <Tooltip label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label={command.label}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => run(command.edit)}
-                      >
+                    <IconAction label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label} size="sm" aria-label={command.label} onMouseDown={(event) => event.preventDefault()} onClick={() => run(command.edit)}>
                         {command.icon}
-                      </ActionIcon>
-                    </Tooltip>
+</IconAction>
                   </Group>
                 ))}
                 <span className={classes.divider} />
-                <Tooltip label="Joindre des fichiers (images affichées, autres fichiers en lien)">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label="Joindre des fichiers"
-                    loading={uploading > 0}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
+                <IconAction label="Joindre des fichiers (images affichées, autres fichiers en lien)" size="sm" aria-label="Joindre des fichiers" loading={uploading > 0} onMouseDown={(event) => event.preventDefault()} onClick={() => fileInputRef.current?.click()}>
                     <PaperclipIcon />
-                  </ActionIcon>
-                </Tooltip>
+</IconAction>
                 <input
                   ref={fileInputRef}
                   type="file"

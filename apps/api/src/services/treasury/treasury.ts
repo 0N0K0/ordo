@@ -1,15 +1,4 @@
-import {
-  addDays,
-  daysBetween,
-  formatDay,
-  occurrenceDates,
-  parseDay,
-  splitAmounts,
-  treasuryAccountSchema,
-  treasuryEntrySchema,
-  type TreasuryAccountInput,
-  type TreasuryEntryInput,
-} from '@ordo/shared';
+import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, parseOptionalDay, splitAmounts, type TreasuryAccountInput, treasuryAccountSchema, type TreasuryEntryInput, treasuryEntrySchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generated/prisma/client';
@@ -181,7 +170,7 @@ function lineFields(line: ParsedLine, position: number) {
     memberId: line.memberId,
     relationId: line.relationId ?? null,
     loan: line.loan,
-    date: line.date ? parseDay(line.date) : null,
+    date: parseOptionalDay(line.date),
     categoryId: line.categoryId,
     contextId: line.contextId,
     projectId: line.projectId ?? null,
@@ -534,6 +523,34 @@ export async function treasuryProjection(today: string, from: string, until: str
     }
   }
 
+  /**
+   * Item of a document still due: on its due date (else its issue date), late after today, an invoice or a credit note.
+   * @param {{ id: string, type: string, number: string | null, issueDate: Date, dueDate: Date | null, archivedAt: Date | null }} document Document.
+   * @param {number} balance What remains due.
+   * @param {string} clientName Its client.
+   * @param {boolean} importedOne Imported (not made in Ordo).
+   * @returns {object} Item, its kind and document link aside.
+   */
+  const dueItem = (
+    document: { id: string; type: string; number: string | null; issueDate: Date; dueDate: Date | null; archivedAt: Date | null },
+    balance: number,
+    clientName: string,
+    importedOne: boolean,
+  ) => {
+    const date = formatDay(document.dueDate ?? document.issueDate);
+    const credit = document.type === 'CREDIT_NOTE';
+    return {
+      ...base,
+      date: expected(date),
+      dueDate: date,
+      label: `${credit ? 'Avoir' : 'Facture'} ${document.number}${importedOne ? ' (importé)' : ''} — ${clientName}`,
+      amount: (credit ? -1 : 1) * balance,
+      overdue: date < today,
+      archived: document.archivedAt !== null,
+      credit,
+    };
+  };
+
   // What is due on final documents.
   const balances = await documentBalances();
   const due = await prisma.accountingDocument.findMany({
@@ -541,20 +558,8 @@ export async function treasuryProjection(today: string, from: string, until: str
     select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, client: { select: { name: true } } },
   });
   for (const document of due) {
-    const date = formatDay(document.dueDate ?? document.issueDate);
-    const credit = document.type === 'CREDIT_NOTE';
-    items.push({
-      ...base,
-      date: expected(date),
-      dueDate: date,
-      label: `${credit ? 'Avoir' : 'Facture'} ${document.number} — ${document.client.name}`,
-      payerName: document.client.name,
-      amount: (credit ? -1 : 1) * (balances.get(document.id)?.balance ?? 0),
-      kind: credit ? 'CREDIT_NOTE' : 'INVOICE',
-      overdue: date < today,
-      documentId: document.id,
-      archived: document.archivedAt !== null,
-    });
+    const { credit, ...item } = dueItem(document, balances.get(document.id)?.balance ?? 0, document.client.name, false);
+    items.push({ ...item, payerName: document.client.name, kind: credit ? 'CREDIT_NOTE' : 'INVOICE', documentId: document.id });
   }
   const importedDue = await importedBalances();
   const imported = await prisma.importedDocument.findMany({
@@ -562,20 +567,9 @@ export async function treasuryProjection(today: string, from: string, until: str
     select: { id: true, type: true, number: true, issueDate: true, dueDate: true, archivedAt: true, clientName: true, client: { select: { name: true } } },
   });
   for (const document of imported) {
-    const date = formatDay(document.dueDate ?? document.issueDate);
-    const credit = document.type === 'CREDIT_NOTE';
-    items.push({
-      ...base,
-      date: expected(date),
-      dueDate: date,
-      label: `${credit ? 'Avoir' : 'Facture'} ${document.number} (importé) — ${document.client?.name ?? document.clientName ?? ''}`,
-      payerName: document.client?.name ?? document.clientName ?? null,
-      amount: (credit ? -1 : 1) * (importedDue.get(document.id)?.balance ?? 0),
-      kind: 'IMPORTED',
-      overdue: date < today,
-      importedDocumentId: document.id,
-      archived: document.archivedAt !== null,
-    });
+    const payerName = document.client?.name ?? document.clientName ?? null;
+    const { credit: _credit, ...item } = dueItem(document, importedDue.get(document.id)?.balance ?? 0, payerName ?? '', true);
+    items.push({ ...item, payerName, kind: 'IMPORTED', importedDocumentId: document.id });
   }
 
   // Coming recurring invoices, paid after the same delay as their model.

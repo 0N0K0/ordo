@@ -1,8 +1,9 @@
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { WarningIcon, ArrowCounterClockwiseIcon, ArrowRightIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { ErrorIcon, InfoFeedbackIcon, SuccessIcon } from '../components/feedback/feedback-icons';
+import { FEEDBACK_COLORS } from '../components/feedback/feedback-colors';
+import { ErrorIcon, InfoFeedbackIcon, SuccessIcon, WarningFeedbackIcon } from '../components/feedback/feedback-icons';
 
 /**
  * Toasts (top right): an error stays until closed; any other closes on its own (paused while hovered), sooner when
@@ -84,7 +85,8 @@ export function notifyInfo({
   icon?: ReactNode;
 }): void {
   const key = id ?? `ordo-info-${(sequence += 1)}`;
-  notifications.show({ id: key, color: 'blue', icon: icon ?? <InfoFeedbackIcon />, title, message: toastBody(key, lines, actions), autoClose: AUTO_CLOSE_READ_MS });
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show({ id: key, color: FEEDBACK_COLORS.info, icon: icon ?? <InfoFeedbackIcon />, title, message: toastBody(key, lines, actions), autoClose: AUTO_CLOSE_READ_MS });
 }
 
 /**
@@ -93,7 +95,8 @@ export function notifyInfo({
  * @returns {void}
  */
 export function notifySuccess(message: string): void {
-  notifications.show({ color: 'green', icon: <SuccessIcon />, message, autoClose: AUTO_CLOSE_MS });
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show({ color: FEEDBACK_COLORS.success, icon: <SuccessIcon />, message, autoClose: AUTO_CLOSE_MS });
 }
 
 /**
@@ -103,7 +106,8 @@ export function notifySuccess(message: string): void {
  * @returns {void}
  */
 export function notifyWarning(title: string, message: string): void {
-  notifications.show({ color: 'yellow', icon: <WarningIcon />, title, message, autoClose: AUTO_CLOSE_READ_MS });
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show({ color: FEEDBACK_COLORS.warning, icon: <WarningFeedbackIcon />, title, message, autoClose: AUTO_CLOSE_READ_MS });
 }
 
 /**
@@ -112,7 +116,8 @@ export function notifyWarning(title: string, message: string): void {
  * @returns {void}
  */
 export function notifyError(message: string): void {
-  notifications.show({ color: 'red', icon: <ErrorIcon />, title: 'Erreur', message, autoClose: false });
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show({ color: FEEDBACK_COLORS.error, icon: <ErrorIcon />, title: 'Erreur', message, autoClose: false });
 }
 
 /**
@@ -123,6 +128,7 @@ export function notifyError(message: string): void {
 export const onMutationError = (error: Error): void => notifyError(error.message);
 
 /** Options of a mutation whose success needs no toast (or is told elsewhere): its error in an error toast. */
+// eslint-disable-next-line no-restricted-syntax -- ON_ERROR itself.
 export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutationError };
 
 /**
@@ -131,6 +137,7 @@ export const ON_ERROR: { onError: (error: Error) => void } = { onError: onMutati
  * @returns {{ onSuccess: (result: T) => void, onError: (error: Error) => void }} Callbacks.
  */
 export function toastCallbacks<T = unknown>(message: string | ((result: T) => string)): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
+  // eslint-disable-next-line no-restricted-syntax -- toastCallbacks itself.
   return { onSuccess: (result) => notifySuccess(typeof message === 'string' ? message : message(result)), onError: onMutationError };
 }
 
@@ -155,9 +162,10 @@ export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERRO
  */
 export function notifyWithUndo(message: string, onUndo: () => void): void {
   const id = `ordo-undo-${(sequence += 1)}`;
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
   notifications.show({
     id,
-    color: 'green',
+    color: FEEDBACK_COLORS.success,
     icon: <SuccessIcon />,
     autoClose: AUTO_CLOSE_READ_MS,
     message: toastBody(id, [message], [{ label: 'Annuler', icon: <ArrowCounterClockwiseIcon aria-hidden />, onClick: onUndo }]),

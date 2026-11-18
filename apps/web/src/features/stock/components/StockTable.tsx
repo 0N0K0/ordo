@@ -1,7 +1,7 @@
-import { plural, countOf } from '../../../lib/text';
+import { locationSelectProps } from '../hooks/use-location-select';
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
-import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, MinusIcon, PlusIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -11,15 +11,15 @@ import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText } from
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
-import { treeSelectProps } from '../../../components/tree/tree-select';
+
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { localDay, localToday } from '../../../lib/dates';
 import { addDays, mapById, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { useShoppingData } from '../../shopping/api';
@@ -29,10 +29,10 @@ import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
 import { StockMoveForm } from './StockMoveForm';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { nextExpiry, stockItemInput } from '../lib/stock-format';
-import { archiveEntry, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
@@ -57,8 +57,7 @@ export function StockTable() {
   const mutations = useStockMutations();
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   const setArchived = useSetArchived('STOCK_ITEM', [stockKey]);
-  const [showArchived, setShowArchived] = useState(false);
-  const rows = visibleItems(items ?? [], showArchived);
+  const { shown: rows, toggle: archivedToggle } = useArchivedToggle(items ?? []);
   const today = localToday();
   const soon = addDays(today, SOON);
   const places = categoryPaths(locations ?? []);
@@ -181,6 +180,22 @@ export function StockTable() {
       return next;
     });
 
+  /**
+   * « Supprimer » of articles, on a row as on a selection.
+   * @param {StockItem[]} rows Articles.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
+   */
+  const deleteItems = (rows: StockItem[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'article',
+      the: 'l’article',
+      name: (item) => item.label,
+      risks: (subject, one) => `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} définitivement du stock, avec ${one ? 'ses' : 'leurs'} lots et ${one ? 'son' : 'leur'} historique.`,
+      remove: (item) => mutations.deleteItem.mutateAsync(item.id),
+      clear,
+    });
+
   return (
     <DataTable
       framed
@@ -188,28 +203,13 @@ export function StockTable() {
       selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
       isArchived={(item) => item.archived}
       readOnly={(item) => item.archived}
-      selectionActions={(rows, clear) => [
-        archiveRowsAction({
-          archived: rows.every((item) => item.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
-          label: countOf(rows.length, 'article'),
-          count: rows.length,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les articles',
-          risks: `${countOf(rows.length, 'article')} seront supprimés du stock avec leurs lots et leur historique. Cette action est irréversible.`,
-          remove: (item) => mutations.deleteItem.mutateAsync(item.id),
-          done: `${countOf(rows.length, 'article')} ${plural(rows.length, 'supprimé')}.`,
-          clear,
-        }),
-      ]}
+      selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'article', clear }), deleteItems(rows, clear)]}
       verticalSpacing="xs"
       bar={{
         searchLabel: 'Rechercher (article, description)',
         actions: (
           <Group gap="sm">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(items ?? []).filter((item) => item.archived).length} />
+            <ShowArchivedSwitch {...archivedToggle} />
             <ActionButton
               priority="secondary"
               icon={<ListChecksIcon aria-hidden />}
@@ -253,7 +253,7 @@ export function StockTable() {
               label={`Emplacement de ${item.label}`}
               nullable
               readOnly={readOnly}
-              {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], item.locationId)))}
+              {...locationSelectProps(locations ?? [], item.locationId)}
               onSave={(locationId) => bulk('location')(item, { locationId })}
             />
           ),
@@ -331,17 +331,7 @@ export function StockTable() {
             },
             { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, onClick: () => openFormPanel(`Historique · ${item.label}`, () => <MovementsTable itemId={item.id} />, 'lg') },
             archiveEntry({ archived: item.archived, label: `Article « ${item.label} »` }, setArchived, item.id),
-            {
-              label: 'Supprimer',
-              icon: <TrashIcon aria-hidden />,
-              danger: true,
-              onClick: () =>
-                confirmDestructive({
-                  title: 'Supprimer l’article',
-                  risks: `« ${item.label} », ses lots et son historique seront supprimés définitivement du stock.`,
-                  onConfirm: () => mutations.deleteItem.mutate(item.id, toastCallbacks('Article supprimé.')),
-                }),
-            },
+            rowMenuEntry(deleteItems([item])),
           ]}
         />
       )}

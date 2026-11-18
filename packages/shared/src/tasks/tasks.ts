@@ -1,8 +1,8 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { endAfter, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
-import { slotRuleSchema } from '../calendar/slot-rules';
+import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
 /** Longest title of a task. */
@@ -83,10 +83,8 @@ export const taskFormSchema = z
     /** Slots it is done on or out of; null: the default of the workspace. */
     slotRule: slotRuleSchema.nullable().default(null),
   })
-  .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
-    path: ['endDate'],
-    error: 'La date de fin doit suivre la date de début.',
-  });
+  .refine(...endAfter('startDate', 'endDate'))
+  .refine(...endAfter('minDate', 'deadline'));
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
 /** Longest title of a milestone. */
@@ -111,8 +109,34 @@ export const sprintNameSchema = requiredText(120);
 export function sprintSchema<G extends z.ZodType>(goal: G) {
   return z
     .object({ name: sprintNameSchema, startDate: startDaySchema, endDate: endDaySchema, goal })
-    .refine((values) => values.endDate >= values.startDate, { path: ['endDate'], error: 'La fin doit suivre le début.' });
+    .refine(...endAfter('startDate', 'endDate'));
 }
 
 export const sprintFormSchema = sprintSchema(z.string());
 export type SprintFormValues = z.input<typeof sprintFormSchema>;
+
+/** Fields of a task sent to create or change it: undefined leaves a field unchanged, null clears it. */
+export interface TaskInput {
+  title?: string | null;
+  description?: string | null;
+  projectId?: string | null;
+  statusId?: string | null;
+  priorityId?: string | null;
+  typeId?: string | null;
+  assigneeIds?: string[] | null;
+  tagIds?: string[] | null;
+  effort?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  deadline?: string | null;
+  /** « Date min »: not to be done before. */
+  minDate?: string | null;
+  parentId?: string | null;
+  milestoneId?: string | null;
+  sprintIds?: string[] | null;
+  /** « Bénéficiaires »: contributors and relations the task is for. */
+  beneficiaryIds?: string[] | null;
+  beneficiaryRelationIds?: string[] | null;
+  /** Slots the task is done on or out of; null: the default of the workspace. */
+  slotRule?: SlotRule | null;
+}

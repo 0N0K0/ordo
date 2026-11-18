@@ -108,7 +108,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const confirmDelete = (view: SavedView<C>) => {
     confirmDestructive({
       title: 'Supprimer la vue',
-      risks: <>La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées. Cette action est irréversible.</>,
+      risks: <>La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées.</>,
       onConfirm: () => {
         state.remove(view);
       },

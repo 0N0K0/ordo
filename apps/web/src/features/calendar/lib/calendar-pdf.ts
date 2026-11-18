@@ -1,3 +1,4 @@
+import { DEFAULT_LABEL_COLOR } from '@ordo/shared';
 import { dayOf, localParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
 import { addDays } from '@ordo/shared';
@@ -63,7 +64,7 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
     if (item.extendedProps?.kind === 'slot' || item.extendedProps?.kind === 'travel') return [];
     const kind: PdfKind = item.display === 'background' || item.extendedProps?.kind === 'editSlot' ? 'work' : ((item.extendedProps?.kind as PdfKind | undefined) ?? 'event');
     const classes = Array.isArray(item.classNames) ? item.classNames : [];
-    const color = kind === 'work' ? '#2f9e44' : kind === 'pause' ? '#fd7e14' : kind === 'event' ? hexColor(item.backgroundColor, '#228be6') : hexColor(item.borderColor, '#868e96');
+    const color = kind === 'work' ? '#2f9e44' : kind === 'pause' ? '#fd7e14' : kind === 'event' ? hexColor(item.backgroundColor, '#228be6') : hexColor(item.borderColor, DEFAULT_LABEL_COLOR);
     if (item.allDay) {
       const start = dayOf(String(item.start));
       // FullCalendar ends are exclusive.

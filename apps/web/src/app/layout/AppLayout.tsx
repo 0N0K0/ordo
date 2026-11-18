@@ -14,7 +14,7 @@ import { MailWatcher } from '../../features/mail/components/MailWatcher';
 import { ElsewhereNotifier } from '../../features/workspaces/components/ElsewhereNotifier';
 import { WorkspaceGate } from '../../features/workspaces/components/WorkspaceGate';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
-import { onMutationError } from '../../lib/notify';
+import { ON_ERROR } from '../../lib/notify';
 import classes from './AppLayout.module.css';
 import { HeaderClock } from './HeaderClock';
 import { HeaderTitle } from './HeaderTitle';
@@ -54,7 +54,7 @@ export function AppLayout() {
    * @returns {void}
    */
   const handleLogout = () => {
-    logout.mutate(undefined, { onError: onMutationError });
+    logout.mutate(undefined, ON_ERROR);
   };
 
   const sidebarOpened = mobile ? mobileOpened : sidebarShown;

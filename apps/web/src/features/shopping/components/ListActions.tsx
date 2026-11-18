@@ -167,7 +167,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     icon: <TrashIcon aria-hidden />,
     danger: true,
     onClick: () =>
-      confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
+      confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`, onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },
             formCallbacks(null, 'Liste supprimée.', () => onDeleted?.()),
@@ -191,13 +191,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       onClick: () =>
         mutations.duplicateList.mutate(
           { id: list.id },
-          {
-            onSuccess: (copyId) => {
-              notifySuccess('Liste dupliquée.');
-              navigate(`/shopping/${copyId}`);
-            },
-            onError: onMutationError,
-          },
+          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(`/shopping/${copyId}`)),
         ),
     },
     'divider',

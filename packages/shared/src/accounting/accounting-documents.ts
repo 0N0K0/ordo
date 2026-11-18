@@ -1,7 +1,8 @@
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
-import { requiredText, optionalText } from '../core/rules';
-import { addDays } from '../dates/recurrence';
+import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
+import { addDays } from '../dates/days';
+import { LOCALE } from '../core/numbers';
 import { daySchema } from '../dates/times';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
@@ -70,9 +71,7 @@ export const accountingDocumentInputSchema = z
     if (document.dueDate && document.dueDate < document.issueDate) {
       context.addIssue({ code: 'custom', path: ['dueDate'], message: 'L’échéance doit suivre la date du document.' });
     }
-    if (document.serviceStart && document.serviceEnd && document.serviceEnd < document.serviceStart) {
-      context.addIssue({ code: 'custom', path: ['serviceEnd'], message: 'La fin de la prestation doit suivre son début.' });
-    }
+    if (!endsAfter(document.serviceStart, document.serviceEnd)) context.addIssue({ code: 'custom', path: ['serviceEnd'], message: END_AFTER_START });
     if (document.depositType === 'PERCENT' && (document.depositValue ?? 0) > 100) {
       context.addIssue({ code: 'custom', path: ['depositValue'], message: '100 % maximum.' });
     }
@@ -251,7 +250,7 @@ export function moneyFormat(currency: string, options: Intl.NumberFormatOptions 
   const key = `${currency}|${JSON.stringify(options)}`;
   let format = moneyFormats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, ...options });
+    format = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, ...options });
     moneyFormats.set(key, format);
   }
   return format;

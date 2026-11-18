@@ -1,3 +1,4 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
@@ -19,6 +20,7 @@ import { TaskRef } from './task-ui';
 import { useCellEdit } from '../lib/cell-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { TaskContext } from '../hooks/use-task-context';
+import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
 
 /**
  * « Plages » cell: the slots of the task told in words, changed in a popover.
@@ -79,20 +81,11 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
-      <StackedValues>
-        {children.map((child) => (
-          <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
-        ))}
-      </StackedValues>
-      {!task.archived && (
-        <Tooltip label="Ajouter une sous-tâche">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-tâche à ${task.title}`} onClick={onAdd} style={{ flex: 'none' }}>
-            <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </Group>
+    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', name: task.title, onClick: onAdd }}>
+      {children.map((child) => (
+        <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
+      ))}
+    </ChildrenCell>
   );
 }
 
@@ -129,17 +122,9 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
         </Badge>
       )}
       {!task.archived && (
-        <Tooltip label="Nouvelle alerte">
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            aria-label={`Nouvelle alerte pour ${task.title}`}
-            onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}
-          >
+        <IconAction label="Nouvelle alerte" size="sm" aria-label={`Nouvelle alerte pour ${task.title}`} onClick={() => openForm(undefined, { defaults: { taskId: task.id, projectId: task.projectId, title: task.title } })}>
             <PlusIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+</IconAction>
       )}
     </Group>
   );

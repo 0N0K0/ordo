@@ -1,4 +1,4 @@
-import { collator } from '@ordo/shared';
+import { collator, NO_SUBJECT } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -94,7 +94,7 @@ async function messageMarks(accountId: string, folder: string, uid: number, mess
       return message ? [...(message.flags ?? [])] : [];
     });
   });
-  if (flags) return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
+  if (flags) return flagMarks(flags);
   const mark = messageId ? await prisma.mailMark.findUnique({ where: { accountId_messageId: { accountId, messageId } } }) : null;
   return { labelIds: mark?.labelIds ?? [], done: mark?.done ?? false };
 }
@@ -256,6 +256,15 @@ async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Pro
 export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true } as const;
 
 /**
+ * Flags and done state of a mail read from its IMAP keywords.
+ * @param {string[]} flags IMAP flags of the mail.
+ * @returns {{ labelIds: string[], done: boolean }} Marks.
+ */
+function flagMarks(flags: string[]): { labelIds: string[]; done: boolean } {
+  return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
+}
+
+/**
  * Summary of a fetched message, with its flags and done state: its IMAP keywords, or the marks kept in Ordo.
  * @param {FetchMessageObject} message Message fetched with SUMMARY_FETCH.
  * @param {boolean} keywords Whether its folder takes keywords.
@@ -263,13 +272,12 @@ export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStruc
  * @returns {MailSummary} Summary.
  */
 export function toSummary(message: FetchMessageObject, keywords: boolean, marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>): MailSummary {
-  const flags = [...(message.flags ?? [])];
-  const mark = keywords ? null : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
+  const mark = keywords ? flagMarks([...(message.flags ?? [])]) : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
   return {
-    labelIds: keywords ? flags.map(keywordLabel).filter((id): id is string => id !== null) : (mark?.labelIds ?? []),
-    done: keywords ? flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) : (mark?.done ?? false),
+    labelIds: mark?.labelIds ?? [],
+    done: mark?.done ?? false,
     uid: message.uid,
-    subject: message.envelope?.subject || '(sans objet)',
+    subject: message.envelope?.subject || NO_SUBJECT,
     from: envelopeAddresses(message.envelope?.from),
     to: envelopeAddresses(message.envelope?.to),
     date: new Date(message.envelope?.date ?? message.internalDate ?? Date.now()),
@@ -413,7 +421,7 @@ export async function readMessage(accountId: string, folder: string, uid: number
     references: (Array.isArray(parsed.references) ? parsed.references : parsed.references ? [parsed.references] : [])
       .map(bareMessageId)
       .filter((id): id is string => id !== null),
-    subject: parsed.subject || '(sans objet)',
+    subject: parsed.subject || NO_SUBJECT,
     from: parsedAddresses(parsed.from),
     to: parsedAddresses(parsed.to),
     cc: parsedAddresses(parsed.cc),

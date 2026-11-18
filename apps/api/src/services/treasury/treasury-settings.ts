@@ -22,7 +22,7 @@ type ParsedCategory = ReturnType<typeof treasuryCategorySchema.parse>;
  * Categories of the treasury, in a tree of one direction each; a deleted one's sub-categories move up to its parent,
  * its entries lose their category.
  */
-const categories = treeListService<TreasuryCategory, ParsedCategory>(
+const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCategoryInput>(
   'treasuryCategory',
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
   {
@@ -52,44 +52,12 @@ const categories = treeListService<TreasuryCategory, ParsedCategory>(
 );
 
 /**
- * Creates a category, last among its siblings.
- * @param {TreasuryCategoryInput} input Category.
- * @returns {Promise<TreasuryCategory>} Category.
+ * A category: created last among its siblings, updated (under another parent, it goes last; changing its direction
+ * moves its sub-categories along and is refused while entries of the other direction use it), moved under another one
+ * of the same direction (or to the top level) at an index, deleted (its sub-categories move up to its parent, its
+ * entries lose their category).
  */
-export function createCategory(input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  return categories.create(input);
-}
-
-/**
- * Updates a category (under another parent, it goes last). Changing its direction moves its sub-categories along and
- * is refused while entries of the other direction use it.
- * @param {string} id Category id.
- * @param {TreasuryCategoryInput} input Category.
- * @returns {Promise<TreasuryCategory>} Category.
- */
-export function updateCategory(id: string, input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  return categories.update(id, input);
-}
-
-/**
- * Moves a category under another one of the same direction (or to the top level), at an index among its new siblings.
- * @param {string} id Category id.
- * @param {string | null} parentId New parent.
- * @param {number | null} [index] Index among the siblings; last when omitted. Optional.
- * @returns {Promise<void>}
- */
-export function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  return categories.move(id, parentId, index);
-}
-
-/**
- * Deletes a category: its sub-categories move up to its parent, its entries lose their category.
- * @param {string} id Category id.
- * @returns {Promise<void>}
- */
-export function deleteCategory(id: string): Promise<void> {
-  return categories.remove(id);
-}
+export const { create: createCategory, update: updateCategory, move: moveCategory, remove: deleteCategory } = categories;
 
 /**
  * Creates a payment method.

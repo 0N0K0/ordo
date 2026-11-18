@@ -1,4 +1,4 @@
-import { addDays, DATE_PERIOD_LABELS, filterPeriod, type CalendarScale, type DatePeriod } from '@ordo/shared';
+import { addDays, DATE_PERIOD_LABELS, filterPeriod, type CalendarScale, type DatePeriod, yearOfDay } from '@ordo/shared';
 import * as fmt from './format';
 
 /** Period offered by the export forms: a period of the filters (« Ce mois-ci », « Le mois dernier »…), or dates chosen. */
@@ -28,7 +28,7 @@ export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: stri
  * @param {string} day A day of the quarter (YYYY-MM-DD).
  * @returns {string} Name.
  */
-export const quarterName = (day: string) => `T${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1} ${day.slice(0, 4)}`;
+export const quarterName = (day: string) => `T${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1} ${yearOfDay(day)}`;
 
 /**
  * Name of a calendar period: "Novembre 2026", "T4 2026", "2026".

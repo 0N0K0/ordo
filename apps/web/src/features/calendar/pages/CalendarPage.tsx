@@ -1,3 +1,4 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
@@ -8,7 +9,6 @@ import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
@@ -16,14 +16,14 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
-import { localMidnight, localParts, localToday } from '../../../lib/dates';
+import { localDay, localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, onMutationError } from '../../../lib/notify';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
@@ -67,6 +67,7 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
+import { HiddenChecklist } from '../components/HiddenChecklist';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -100,13 +101,6 @@ const SETTINGS_TABS = ['display', 'settings'] as const;
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
 /** Rows of the collapsed all-day row (week and day views). */
 const ALL_DAY_ROWS = 2;
-
-/**
- * Local calendar date of a Date.
- * @param {Date} date Date.
- * @returns {string} YYYY-MM-DD.
- */
-const dayOf = (date: Date) => localParts(date).date;
 
 /**
  * Calendar: events and dated tasks by month, week or day;
@@ -285,7 +279,7 @@ export function CalendarPage() {
       const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [eventKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
-        if (dayOf(start) > range.to) continue;
+        if (localDay(start) > range.to) continue;
         const running = entry.endedAt === null;
         const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
         const project = entry.projectId ? context.projectById.get(entry.projectId) : undefined;
@@ -640,7 +634,7 @@ export function CalendarPage() {
     const startParts = localParts(event.start);
     // FullCalendar ends are exclusive; all-day dates here are inclusive.
     const endDate = event.end ?? new Date(event.start.getTime() + (allDay ? 86_400_000 : 3_600_000));
-    const endParts = allDay ? { date: addDays(dayOf(endDate), -1), time: '' } : localParts(endDate);
+    const endParts = allDay ? { date: addDays(localDay(endDate), -1), time: '' } : localParts(endDate);
 
     if (event.extendedProps.kind === 'editSlot') {
       const slot: ScheduleSlotTime = event.extendedProps.slot;
@@ -818,88 +812,32 @@ export function CalendarPage() {
           <SettingsTabPanel value="display">
             <Stack gap="md">
               <SettingsSection title="Affichage">
-                <LabeledField label="Calendriers" gap="xs">
-                  {calendarChoices.length === 0 ? (
-                    <EmptyState compact message="Aucun calendrier." />
-                  ) : (
-                    calendarChoices.map((calendar) => (
-                      <Checkbox
-                        key={calendar.id}
-                        color={calendar.color}
-                        label={calendar.label}
-                        checked={!hidden.has(calendar.id)}
-                        onChange={(event) =>
-                          setFilters({
-                            ...filters,
-                            hiddenCalendarIds: event.currentTarget.checked ? [...hidden].filter((id) => id !== calendar.id) : [...hidden, calendar.id],
-                          })
-                        }
-                      />
-                    ))
-                  )}
-                </LabeledField>
-                <LabeledField label={schedulesTitle(perso)} gap="xs">
-                  {scheduleChoices.length === 0 ? (
-                    <EmptyState compact message="Aucune plage." />
-                  ) : (
-                    scheduleChoices.map((schedule) => (
-                      <Checkbox
-                        key={schedule.id}
-                        color={schedule.color}
-                        label={schedule.label}
-                        disabled={filters.workHours === false}
-                        checked={!hiddenSchedules.has(schedule.id)}
-                        onChange={(event) =>
-                          setFilters({
-                            ...filters,
-                            hiddenScheduleIds: event.currentTarget.checked ? [...hiddenSchedules].filter((id) => id !== schedule.id) : [...hiddenSchedules, schedule.id],
-                          })
-                        }
-                      />
-                    ))
-                  )}
-                </LabeledField>
+                <HiddenChecklist
+                  label="Calendriers"
+                  empty="Aucun calendrier."
+                  choices={calendarChoices}
+                  hidden={hidden}
+                  onChange={(hiddenCalendarIds) => setFilters({ ...filters, hiddenCalendarIds })}
+                />
+                <HiddenChecklist
+                  label={schedulesTitle(perso)}
+                  empty="Aucune plage."
+                  choices={scheduleChoices}
+                  hidden={hiddenSchedules}
+                  disabled={filters.workHours === false}
+                  onChange={(hiddenScheduleIds) => setFilters({ ...filters, hiddenScheduleIds })}
+                />
                 <LabeledField label="Aussi dans l’agenda" gap="xs">
-                  <Switch
-                    label="Tâches"
-                    checked={filters.tasks}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        tasks: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  <Switch
-                    label="Routines"
-                    checked={showRoutines}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        routines: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  <Switch
-                    label={schedulesTitle(perso)}
-                    checked={filters.workHours !== false}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        workHours: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  <Switch
-                    label="Chronos"
-                    checked={showTimers}
-                    onChange={(event) =>
-                      setFilters({
-                        ...filters,
-                        timers: event.currentTarget.checked,
-                      })
-                    }
-                  />
+                  {(
+                    [
+                      ['tasks', 'Tâches', filters.tasks],
+                      ['routines', 'Routines', showRoutines],
+                      ['workHours', schedulesTitle(perso), filters.workHours !== false],
+                      ['timers', 'Chronos', showTimers],
+                    ] as const
+                  ).map(([key, label, checked]) => (
+                    <Switch key={key} label={label} checked={checked} onChange={(event) => setFilters({ ...filters, [key]: event.currentTarget.checked })} />
+                  ))}
                   <ShowArchivedSwitch checked={showArchived} onChange={(archived) => setFilters({ ...filters, archived })} />
                 </LabeledField>
                 <LabeledField label="Heures (semaine, jour)" gap="xs">
@@ -974,17 +912,16 @@ export function CalendarPage() {
             timeGridWeek: { duration: { days: weekLength(week) }, dateAlignment: 'week', dateIncrement: { weeks: 1 } },
           }}
           allDayContent={() => (
-            <Tooltip label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}>
-              <ActionIcon
-                variant="light"
-                size="sm"
-                aria-label={allDayExpanded ? 'Réduire la ligne journée entière' : 'Développer la ligne journée entière'}
-                aria-expanded={allDayExpanded}
-                onClick={() => setAllDayExpanded(!allDayExpanded)}
-              >
-                {allDayExpanded ? <CaretUpIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-              </ActionIcon>
-            </Tooltip>
+            <IconAction
+              label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}
+              variant="light"
+              size="sm"
+              aria-label={allDayExpanded ? 'Réduire la ligne journée entière' : 'Développer la ligne journée entière'}
+              aria-expanded={allDayExpanded}
+              onClick={() => setAllDayExpanded(!allDayExpanded)}
+            >
+              {allDayExpanded ? <CaretUpIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+            </IconAction>
           )}
           // "+N": expands the whole all-day row instead of opening a popover (same view and period: no move).
           moreLinkClick={(info) => {
@@ -1002,8 +939,8 @@ export function CalendarPage() {
           datesSet={(info: DatesSetArg) => {
             setTitle(info.view.title);
             const next = {
-              from: dayOf(info.start),
-              to: addDays(dayOf(info.end), -1),
+              from: localDay(info.start),
+              to: addDays(localDay(info.end), -1),
             };
             setRange((current) => (current && current.from === next.from && current.to === next.to ? current : next));
           }}

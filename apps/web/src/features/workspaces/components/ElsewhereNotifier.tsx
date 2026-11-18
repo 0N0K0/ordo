@@ -9,7 +9,7 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const ElsewhereAlarmsDocument = graphql(`
@@ -94,7 +94,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
       if (alarm.task) return [link(`${taskRef(alarm.task)}${alarm.task.title}`, taskPath(alarm.task))];
-      if (alarm.project) return [link(alarm.project.title, `/projects/${alarm.project.id}`)];
+      if (alarm.project) return [link(alarm.project.title, projectPath(alarm.project.id))];
       return [link(`Ouvrir « ${name} »`, '/')];
     };
 

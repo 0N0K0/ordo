@@ -154,8 +154,9 @@ builder.mutationFields((t) => ({
   saveGithubLink: t.boolean({
     description: 'Links a project to a board, or changes the settings of its link.',
     args: { projectId: t.arg.id({ required: true }), input: t.arg({ type: LinkInput, required: true }) },
-    resolve: async (_root, { projectId, input }) => {
-      await admin.saveGithubLink(projectId, {
+    resolve: (_root, { projectId, input }) =>
+      done(
+        admin.saveGithubLink(projectId, {
         url: input.url,
         statusFieldId: input.statusFieldId ?? null,
         priorityFieldId: input.priorityFieldId ?? null,
@@ -175,9 +176,7 @@ builder.mutationFields((t) => ({
         repositoryName: input.repositoryName ?? null,
         pushExisting: input.pushExisting,
         enabled: input.enabled,
-      });
-      return true;
-    },
+      })),
   }),
   unlinkGithubProject: t.boolean({
     args: { projectId: t.arg.id({ required: true }) },

@@ -1,4 +1,4 @@
-import { parseOptionalDay } from '@ordo/shared';
+import { END_AFTER_START, parseOptionalDay } from '@ordo/shared';
 import { fieldError } from '../../graphql/errors';
 
 /**
@@ -11,5 +11,5 @@ import { fieldError } from '../../graphql/errors';
 export function assertDateRange(changes: { startDate?: string | null; endDate?: string | null }, current?: { startDate: Date | null; endDate: Date | null }): void {
   const startDate = changes.startDate === undefined ? current?.startDate : parseOptionalDay(changes.startDate);
   const endDate = changes.endDate === undefined ? current?.endDate : parseOptionalDay(changes.endDate);
-  if (startDate && endDate && endDate < startDate) throw fieldError('endDate', 'La date de fin doit suivre la date de début.');
+  if (startDate && endDate && endDate < startDate) throw fieldError('endDate', END_AFTER_START);
 }

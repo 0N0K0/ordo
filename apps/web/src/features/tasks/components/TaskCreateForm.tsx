@@ -1,4 +1,4 @@
-import { NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
@@ -13,6 +13,8 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { defaultStatusId } from '../lib/new-task-defaults';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { EffortInput } from './EffortInput';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -58,6 +60,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
     },
     schema: taskFormSchema,
   });
+  const dates = dateRangeProps(formRange(form, 'startDate', 'endDate'));
+  const doable = dateRangeProps(formRange(form, 'minDate', 'deadline'));
 
   // The parent must stay in the tree of the chosen project.
   // Without project: among the tasks of no project.
@@ -166,17 +170,11 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
         />
         <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
-          <NumberInput label="Effort" min={0} decimalScale={2} decimalSeparator="," {...form.getInputProps('effort')} />
-          <DatePickerInput label="Début" clearable placeholder="—" {...form.getInputProps('startDate')} />
-          <DatePickerInput
-            label="Fin"
-            clearable
-            placeholder="—"
-            minDate={form.values.startDate ?? undefined}
-            {...form.getInputProps('endDate')}
-          />
-          <DatePickerInput label="Date min" clearable placeholder="—" {...form.getInputProps('minDate')} />
-          <DatePickerInput label="Date max" clearable placeholder="—" {...form.getInputProps('deadline')} />
+          <EffortInput {...form.getInputProps('effort')} />
+          <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
+          <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
+          <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
+          <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
         <SlotRuleInput value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />

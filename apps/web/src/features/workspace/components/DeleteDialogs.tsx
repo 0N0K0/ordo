@@ -1,7 +1,7 @@
 import { formCallbacks } from '../../../lib/form';
-import { Radio, Stack, Text } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { useState } from 'react';
-import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
+import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
 import { useDeleteClient, useDeleteProject, type Client, type Project } from '../api';
 import { countOf } from '../../../lib/text';
 
@@ -36,21 +36,12 @@ export function DeleteClientDialog({ client, projectCount, onDone }: DeleteClien
 
   return (
     <Stack gap="md">
-      <Text size="sm">
-        Le client <strong>{client.name}</strong> sera supprimé définitivement. Cette action est irréversible ; pour le
+      <DestructiveRisks>
+        Le client <strong>{client.name}</strong> sera supprimé définitivement. Pour le
         retirer de la liste sans perdre ses données, archivez-le plutôt.
-      </Text>
+      </DestructiveRisks>
       {projectCount > 0 && (
-        <Radio.Group
-          label={`Que faire de ses ${countOf(projectCount, 'projet')} ?`}
-          value={mode}
-          onChange={(value) => setMode(value as 'detach' | 'delete')}
-        >
-          <Stack gap="xs" mt="xs">
-            <Radio value="detach" label="Les conserver, sans client" />
-            <Radio value="delete" label="Les supprimer aussi, définitivement" color="red" />
-          </Stack>
-        </Radio.Group>
+        <CascadeChoice label={`Que faire de ses ${countOf(projectCount, 'projet')} ?`} keepLabel="Les conserver, sans client" value={mode} onChange={setMode} />
       )}
       <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={deleteClient.isPending} />
     </Stack>
@@ -88,13 +79,13 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
 
   return (
     <Stack gap="md">
-      <Text size="sm">
+      <DestructiveRisks>
         Le projet <strong>{project.title}</strong>
         {subProjectCount > 0 &&
           ` et ses ${countOf(subProjectCount, 'sous-projet')}`}{' '}
-        {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement. Cette action est irréversible ;
-        pour {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
-      </Text>
+        {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement.
+        Pour {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
+      </DestructiveRisks>
       <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={deleteProject.isPending} />
     </Stack>
   );

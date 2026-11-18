@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { mapById } from '@ordo/shared';
 import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
@@ -153,7 +154,7 @@ interface ProjectSelectProps extends Omit<SelectProps, 'data'> {
  * @returns {JSX.Element} Select.
  */
 export function ProjectSelect({ context, ...props }: ProjectSelectProps) {
-  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === props.value));
+  const options = context.projectOptions(unarchived(context.projects, props.value));
   return <Select {...treeSelectProps(options)} searchable nothingFoundMessage="Aucun projet" {...props} />;
 }
 

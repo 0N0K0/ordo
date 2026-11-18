@@ -84,10 +84,9 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (resource: ProjectResource) => {
     confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
 <>
-            {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
-            irréversible.
+            {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`}
           </>
-), onConfirm: () => { remove.mutate(resource.id, toastCallbacks('Ressource supprimée.')); } });
+), run: () => remove.mutateAsync(resource.id), done: 'Ressource supprimée.' });
   };
 
   return (

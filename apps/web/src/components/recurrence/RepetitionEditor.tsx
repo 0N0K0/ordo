@@ -11,6 +11,7 @@ import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
 import { arrayMove } from '@dnd-kit/sortable';
 import { SortableArea } from '../actions/sortable';
+import { dateRangeProps } from '../inputs/date-range';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
@@ -81,31 +82,14 @@ function CaseFields<T>({
   props: RepetitionEditorProps<T>;
 }) {
   const ruleStart = item.since && item.since > start ? item.since : start;
+  // Its rhythm counts from its first day.
+  const period = dateRangeProps({ value: [item.since, item.until], onChange: ([since, until]) => onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) }) });
   return (
     <Stack gap="sm">
       {withPeriod && (
         <Group gap="xs">
-          <DatePickerInput
-            size="xs"
-            w={190}
-            label="Du"
-            placeholder="Dès le début"
-            clearable
-            maxDate={item.until ?? undefined}
-            value={item.since}
-            // Its rhythm counts from its first day.
-            onChange={(date) => onChange({ since: date ? date : null, anchor: null })}
-          />
-          <DatePickerInput
-            size="xs"
-            w={190}
-            label="Au"
-            placeholder="Jusqu’à la fin"
-            clearable
-            minDate={item.since ?? undefined}
-            value={item.until}
-            onChange={(date) => onChange({ until: date ? date : null })}
-          />
+          <DatePickerInput size="xs" w={190} label="Du" placeholder="Dès le début" clearable {...period.start} />
+          <DatePickerInput size="xs" w={190} label="Au" placeholder="Jusqu’à la fin" clearable {...period.end} />
         </Group>
       )}
       <RecurrenceEditor
@@ -225,5 +209,28 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
       )}
       {footer}
     </Stack>
+  );
+}
+
+interface RuleEditorProps extends Pick<RepetitionEditorProps<null>, 'start' | 'weekly' | 'allowNone' | 'durations' | 'footer'> {
+  /** Rule; null: it does not repeat. */
+  rule: Recurrence | null;
+  onChange: (rule: Recurrence | null) => void;
+}
+
+/**
+ * Editor of one rule of repetition (an alarm, an event, a field): the repetition editor without its cases.
+ * @param {RuleEditorProps} props Component props (and those of the repetition editor).
+ * @returns {JSX.Element} Editor.
+ */
+export function RuleEditor({ rule, onChange, ...props }: RuleEditorProps) {
+  return (
+    <RepetitionEditor<null>
+      {...props}
+      mode="RULE"
+      onModeChange={() => undefined}
+      cases={[{ since: null, until: null, anchor: null, rule, times: null }]}
+      onChange={(cases) => onChange(cases[0]?.rule ?? null)}
+    />
   );
 }

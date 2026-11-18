@@ -1,12 +1,14 @@
 import {
   formatDay,
+  formatOptionalDay,
   mapById,
   type NewStockItemInput,
   newStockItemSchema,
-  parseDay,
+  parseOptionalDay,
   productKey,
   type ProductStockInput,
   productStockSchema,
+  roundQuantity,
   sheetMultiplierSchema,
   type ShoppingDeliveryInput,
   shoppingDeliverySchema,
@@ -22,7 +24,6 @@ import {
   stockMoveSchema,
   type StockPurchaseInput,
   stockPurchaseSchema,
-  roundQuantity,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { prisma } from '../../db';
@@ -37,13 +38,6 @@ import { connectIds } from '../core/relations';
 import { fromDecimal, toDecimal } from '../core/decimal';
 
 type Tx = Prisma.TransactionClient;
-
-/**
- * Calendar date of a day.
- * @param {string | null} day YYYY-MM-DD.
- * @returns {Date | null} Date.
- */
-const dayOf = (day: string | null) => (day ? parseDay(day) : null);
 
 /**
  * Quantity of an item: the sum of its lots.
@@ -220,7 +214,7 @@ interface MoveSource {
  * @returns {Promise<void>}
  */
 async function addIn(tx: Tx, item: StockItem, quantity: number, expiresAt: string | null, lotId: string | null, source: MoveSource): Promise<void> {
-  const date = item.perishable ? dayOf(expiresAt) : null;
+  const date = item.perishable ? parseOptionalDay(expiresAt) : null;
   const lot = lotId
     ? await tx.stockLot.findFirst({ where: { id: lotId, itemId: item.id } })
     : await tx.stockLot.findFirst({ where: { itemId: item.id, ...(item.perishable ? { expiresAt: date } : {}) }, orderBy: { createdAt: 'asc' } });
@@ -287,7 +281,7 @@ export async function moveStock(input: StockMoveInput): Promise<number> {
 export async function setLotExpiry(id: string, expiresAt: string | null): Promise<void> {
   const lot = await orNotFound(prisma.stockLot.findUnique({ where: { id }, select: { itemId: true } }), 'Lot');
   await assertNotArchived('STOCK_ITEM', lot.itemId);
-  await prisma.stockLot.update({ where: { id }, data: { expiresAt: dayOf(expiresAt) } });
+  await prisma.stockLot.update({ where: { id }, data: { expiresAt: parseOptionalDay(expiresAt) } });
 }
 
 /**
@@ -359,7 +353,6 @@ async function itemFor(
     : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter((item) => productKey(item) === productKey(source));
   const found = same.find((item) => item.locationId === locationId) ?? (locationId ? undefined : same[0]);
   if (found) return found;
-  const { _max } = await tx.stockItem.aggregate({ _max: { position: true } });
   return tx.stockItem.create({
     data: {
       productId: source.productId,
@@ -368,7 +361,7 @@ async function itemFor(
       categoryId: source.categoryId,
       locationId,
       perishable: source.perishable,
-      position: (_max.position ?? -1) + 1,
+      position: await nextPositionIn('stockItem', {}, tx),
       members: { connect: connectIds(source.memberIds) },
       relations: { connect: connectIds(source.relationIds) },
     },
@@ -397,8 +390,7 @@ export async function addPurchase(input: StockPurchaseInput): Promise<void> {
  * @returns {Promise<void>}
  */
 async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, locationId: string | null, expiresAt: string | null): Promise<void> {
-  const bought = await tx.shoppingItem.findUnique({ where: { id: shoppingItemId }, include: { members: { select: { id: true } }, relations: { select: { id: true } } } });
-  if (!bought) throw notFound('Élément');
+  const bought = await orNotFound(tx.shoppingItem.findUnique({ where: { id: shoppingItemId }, include: { members: { select: { id: true } }, relations: { select: { id: true } } } }), 'Élément');
   const item = await itemFor(
     tx,
     {
@@ -411,7 +403,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
     },
     locationId,
   );
-  await addIn(tx, item, quantity, expiresAt ?? (bought.expiresAt ? formatDay(bought.expiresAt) : null), null, { kind: 'PURCHASE', shoppingItemId });
+  await addIn(tx, item, quantity, expiresAt ?? formatOptionalDay(bought.expiresAt), null, { kind: 'PURCHASE', shoppingItemId });
 }
 
 /**
@@ -550,8 +542,8 @@ const deliveryFields = (data: ShoppingDeliveryInput) => ({
   label: data.label || null,
   trackingUrl: data.trackingUrl || null,
   pickup: data.pickup,
-  windowFrom: dayOf(data.windowFrom),
-  windowTo: dayOf(data.windowTo),
+  windowFrom: parseOptionalDay(data.windowFrom),
+  windowTo: parseOptionalDay(data.windowTo),
   address: data.address || null,
   lat: data.address ? data.lat : null,
   lon: data.address ? data.lon : null,

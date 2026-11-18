@@ -1,4 +1,4 @@
-import { addDays, clipText, formatDay, LABEL_NAME_MAX, mapById, MILESTONE_TITLE_MAX, normalize, parseDay, round2, TASK_TITLE_MAX } from '@ordo/shared';
+import { addDays, clipText, DEFAULT_LABEL_COLOR, formatOptionalDay, LABEL_NAME_MAX, mapById, MILESTONE_TITLE_MAX, normalize, parseDay, round2, TASK_TITLE_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
@@ -191,9 +191,9 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     fields.iteration =
       current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
-  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? formatDay(task.startDate) : null;
-  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? formatDay(task.endDate) : null;
-  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? formatDay(task.deadline) : null;
+  if (usable(link.startFieldId, maps, type)) fields.start = formatOptionalDay(task.startDate);
+  if (usable(link.endFieldId, maps, type)) fields.end = formatOptionalDay(task.endDate);
+  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = formatOptionalDay(task.deadline);
   if (usable(link.effortFieldId, maps, type)) fields.effort = task.effort;
   return fields;
 }
@@ -307,7 +307,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
       if (!tag) {
         const label = item.labels.find((entry) => entry.name.toLowerCase() === key);
         const position = await nextPositionIn('taskTag');
-        tag = await prisma.taskTag.create({ data: { name: clipText(label?.name ?? key, LABEL_NAME_MAX), color: '#868e96', position } });
+        tag = await prisma.taskTag.create({ data: { name: clipText(label?.name ?? key, LABEL_NAME_MAX), color: DEFAULT_LABEL_COLOR, position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -431,7 +431,7 @@ async function pushValues(
       if (!id) {
         // A tag without label in the repository: created with the tag's name and color.
         const tag = tags.find((entry) => entry.name.toLowerCase() === key);
-        id = (await createLabel(token, item.repositoryId, tag?.name ?? key, (tag?.color ?? '#868e96').replace('#', ''))).id;
+        id = (await createLabel(token, item.repositoryId, tag?.name ?? key, (tag?.color ?? DEFAULT_LABEL_COLOR).replace('#', ''))).id;
         repository.set(key, id);
       }
       add.push(id);
@@ -742,6 +742,21 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const milestones: MilestoneCache = new Map();
     const sent: SentRelations = new Set();
     const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [tag.name.toLowerCase(), tag.color]));
+    /**
+     * What a push of the values of a task needs besides them: its tags, the caches of this sync.
+     * @param {SyncedTask} task Task.
+     * @param {string[]} knownBefore Assignees of the item before the push.
+     * @returns {Parameters<typeof pushValues>[4]} Push context.
+     */
+    const pushContext = (task: SyncedTask, knownBefore: string[]): Parameters<typeof pushValues>[4] => ({
+      knownBefore,
+      tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
+      labels,
+      milestones,
+      sent,
+      taskByContent: maps.taskByContent,
+      issueFields: maps.issueFields,
+    });
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
     const iterationIds = new Set(board.fields.find((field) => field.id === link.iterationFieldId)?.iterations.map((iteration) => iteration.id) ?? []);
 
@@ -755,15 +770,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
       const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
       if (Object.keys(result.push).length) {
-        await pushValues(token, link, item, result.push, {
-          knownBefore: (remote.assignees as string[]) ?? [],
-          tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
-          labels,
-          milestones,
-          sent,
-          taskByContent: maps.taskByContent,
-          issueFields: maps.issueFields,
-        });
+        await pushValues(token, link, item, result.push, pushContext(task, (remote.assignees as string[]) ?? []));
         summary.pushed += 1;
       }
       if (await pushTrackedTime(token, link, item, task, maps.issueFields)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
@@ -823,15 +830,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       const { title: _title, body: _body, assignees: _assignees, ...fields } = local; // eslint-disable-line @typescript-eslint/no-unused-vars
       // A new item is empty: only the values set in Ordo are sent.
       const pushable = Object.fromEntries(Object.entries(fields).filter(([, value]) => !isUnmapped(value, 'ordo') && value !== null && value !== false && !(Array.isArray(value) && !value.length)));
-      await pushValues(token, link, item, pushable, {
-        knownBefore: item.assignees,
-        tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
-        labels,
-        milestones,
-        sent,
-        taskByContent: maps.taskByContent,
-        issueFields: maps.issueFields,
-      });
+      await pushValues(token, link, item, pushable, pushContext(task, item.assignees));
       await pushTrackedTime(token, link, item, task, maps.issueFields);
       // Values that could not be sent are seen as GitHub's (empty), so they are not sent again.
       const snapshot = Object.fromEntries(Object.entries(local).map(([key, value]) => [key, isUnmapped(value, 'ordo') ? null : value]));

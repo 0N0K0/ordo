@@ -461,8 +461,7 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RecurringInput, required: true }) },
     resolve: async (_root, { id, input }) => {
       await recurring.updateRecurringInvoice(id, input as recurring.RecurringSettings, parisToday());
-      await recurring.issueDueInvoices(parisToday());
-      return true;
+      return done(recurring.issueDueInvoices(parisToday()));
     },
   }),
   deleteRecurringInvoice: t.boolean({

@@ -1,4 +1,4 @@
-import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableSort, type TableViewConfig } from '@ordo/shared';
+import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableFilterGroup, type TableSort, type TableViewConfig } from '@ordo/shared';
 import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../selection/bulk-selection';
 import { newConditionFor } from '../../filters/filter-meta';
@@ -13,6 +13,19 @@ export interface FirstTableView {
   name: string;
   config?: Partial<TableViewConfig>;
 }
+
+/**
+ * Filter of a first view: the rows whose date field is within a period (« thisMonth », « lastYear »…).
+ * @param {string} field Date field (its condition has the same id).
+ * @param {string} period Period token.
+ * @returns {TableFilterGroup} Filter.
+ */
+export const withinFilter = (field: string, period: string): TableFilterGroup => ({
+  type: 'group',
+  id: 'root',
+  combinator: 'and',
+  children: [{ type: 'condition', id: field, field, operator: 'within', value: period }],
+});
 
 /** Rows checked of a table (their check boxes): every field of each edited at once. */
 export interface RowSelection {

@@ -1,3 +1,6 @@
+import { LOCALE } from '../core/numbers';
+import { CALENDAR_DAY } from './days';
+
 /**
  * Day and month formats shared by the app and the API's PDFs: a calendar day (YYYY-MM-DD, or a month YYYY-MM) is shown as
  * it is, whatever the time zone; an instant (Date, ISO text with a time, timestamp) in the time zone of the runtime.
@@ -5,9 +8,6 @@
 
 /** A calendar day (YYYY-MM-DD) or month (YYYY-MM), or an instant. */
 export type DateValue = string | number | Date;
-
-const LOCALE = 'fr-FR';
-const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
 
 /**
  * Formatter of a style for calendar days (UTC) and one for instants (local time).

@@ -1,16 +1,17 @@
+import { settingsPath } from '../../../app/layout/page-settings';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { MailListControls } from './MailListControls';
 import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { ActionIcon, Box, Button, Grid, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Box, Grid, Paper, Stack, Text, Tooltip } from '@mantine/core';
 
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
-import { ArrowsClockwiseIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { notifySuccess } from '../../../lib/notify';
 import { useFillHeight } from '../../../lib/fill-height';
-import { AdvancedSearchPanel } from './AdvancedSearchPanel';
+import { AdvancedSearchHeader, AdvancedSearchPanel } from './AdvancedSearchPanel';
 import { useMailAccounts, useMailRefresh } from '../api';
 import classes from '../pages/MailPage.module.css';
 import { MailReader } from './MailReader';
@@ -20,6 +21,7 @@ import panel from './ProjectMailsPanel.module.css';
 import { useMailComposer } from '../hooks/use-mail-composer';
 import { useMailSearch } from '../hooks/use-mail-search';
 import { unarchived } from '../../../lib/archive';
+import { MailSearchBar } from './MailSearchBar';
 
 type SortBy = 'date' | 'correspondent' | 'subject';
 
@@ -46,7 +48,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
   const criteria: MailSearchCriteria = advanced ? { ...advanced, projectId } : { ...EMPTY_MAIL_SEARCH, scope: 'all', state: doneFilter, text: debouncedSearch, projectId };
   const firstAccount = unarchived(accounts ?? [])[0]?.id;
   // Flags are managed in the settings of the page Mails.
-  const manageLabels = () => void navigate('/mail?settings=1');
+  const manageLabels = () => void navigate(settingsPath('/mail'));
 
   /**
    * Back to the first page, the mail open closed (another list).
@@ -59,53 +61,30 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
 
   return (
     <div ref={fillRef} className={panel.panes} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
-      <Grid gap="md" classNames={{ root: panel.grid, inner: panel.gridInner }}>
-        <Grid.Col span={{ base: 12, xl: 5 }} className={panel.column}>
-          <Paper withBorder radius="md" className={panel.pane}>
+      <Grid gap="md" classNames={{ root: panel.grid, inner: classes.gridInner }}>
+        <Grid.Col span={{ base: 12, xl: 5 }} className={classes.column}>
+          <Paper withBorder radius="md" className={classes.pane}>
             <Stack gap={6} p="xs" className={classes.listHeader}>
               {advanced ? (
-                <Group justify="space-between" gap="xs">
-                  <Text size="sm" fw={600}>
-                    Recherche avancée
-                  </Text>
-                  <Group gap={4}>
-                    <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={() => setAdvancedOpen(!advancedOpen)}>
-                      {advancedOpen ? 'Masquer les critères' : 'Modifier'}
-                    </Button>
-                    <Button
-                      size="compact-xs"
-                      variant="subtle"
-                      color="gray"
-                      leftSection={<XIcon aria-hidden />}
-                      onClick={() => {
-                        mailSearch.setAdvanced(null);
-                        reset();
-                      }}
-                    >
-                      Quitter
-                    </Button>
-                  </Group>
-                </Group>
+                <AdvancedSearchHeader
+                  open={advancedOpen}
+                  onToggle={() => setAdvancedOpen(!advancedOpen)}
+                  onQuit={() => {
+                    mailSearch.setAdvanced(null);
+                    reset();
+                  }}
+                />
               ) : (
-                <Group gap={4} wrap="nowrap">
-                  <TextInput
-                    size="xs"
-                    style={{ flex: 1 }}
-                    placeholder="Rechercher (objet, expéditeur, texte)"
-                    aria-label="Rechercher dans les mails du projet"
-                    leftSection={<MagnifyingGlassIcon aria-hidden />}
-                    value={search}
-                    onChange={(event) => {
-                      mailSearch.setText(event.currentTarget.value);
-                      reset();
-                    }}
-                  />
-                  <Tooltip label="Recherche avancée">
-                    <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(!advancedOpen)}>
-                      <SlidersHorizontalIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
+                <MailSearchBar
+                  label="Rechercher dans les mails du projet"
+                  value={search}
+                  onChange={(text) => {
+                    mailSearch.setText(text);
+                    reset();
+                  }}
+                  advancedOpen={advancedOpen}
+                  onToggleAdvanced={() => setAdvancedOpen(!advancedOpen)}
+                />
               )}
               {advancedOpen && firstAccount && (
                 <AdvancedSearchPanel
@@ -165,8 +144,8 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
             />
           </Paper>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, xl: 7 }} className={panel.column}>
-          <Paper withBorder radius="md" p="md" className={`${panel.pane} ${panel.scroll}`}>
+        <Grid.Col span={{ base: 12, xl: 7 }} className={classes.column}>
+          <Paper withBorder radius="md" p="md" className={`${classes.pane} ${panel.scroll}`}>
             {open ? (
               <MailReader key={`${open.accountId}-${open.folder}-${open.uid}`} {...open} projectId={projectId} onDeleted={() => setOpen(null)} onManageLabels={manageLabels} />
             ) : (

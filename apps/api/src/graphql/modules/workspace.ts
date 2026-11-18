@@ -6,8 +6,9 @@ import { iconUrl } from '../../services/core/icons';
 import * as projects from '../../services/workspace/projects';
 import { projectStatuses } from '../../services/tasks/statuses';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type InputFields } from '../builder';
 import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { reloaded } from '../reload';
 
 builder.prismaObject('ProjectCategory', {
   fields: (t) => ({
@@ -65,17 +66,26 @@ const ClientUpdateInput = builder.inputType('ClientUpdateInput', {
   }),
 });
 
+/**
+ * Fields of a project a creation and an update both take (its title, client, parent and icon aside).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const projectFields = (t: InputFields) => ({
+  categoryIds: t.idList(),
+  statusId: t.id(),
+  description: t.string(),
+  startDate: t.field({ type: 'Date' }),
+  endDate: t.field({ type: 'Date' }),
+  color: t.string(),
+});
+
 const ProjectInput = builder.inputType('ProjectInput', {
   fields: (t) => ({
     title: t.string({ required: true }),
     clientId: t.id({ description: 'Client of a root project; a sub-project inherits the client of its parent.' }),
     parentId: t.id(),
-    categoryIds: t.idList(),
-    statusId: t.id(),
-    description: t.string(),
-    startDate: t.field({ type: 'Date' }),
-    endDate: t.field({ type: 'Date' }),
-    color: t.string(),
+    ...projectFields(t),
     icon: t.field({ type: 'File' }),
   }),
 });
@@ -85,12 +95,7 @@ const ProjectUpdateInput = builder.inputType('ProjectUpdateInput', {
     title: t.string(),
     clientId: t.id({ description: 'null detaches the project from its client; omitted leaves it unchanged.' }),
     parentId: t.id({ description: 'null makes it a root project; omitted leaves it unchanged.' }),
-    categoryIds: t.idList(),
-    statusId: t.id(),
-    description: t.string(),
-    startDate: t.field({ type: 'Date' }),
-    endDate: t.field({ type: 'Date' }),
-    color: t.string(),
+    ...projectFields(t),
     icon: t.field({ type: 'File', description: 'Replaces the current icon.' }),
     removeIcon: t.boolean(),
   }),
@@ -121,49 +126,29 @@ builder.queryFields((t) => ({
   }),
 }));
 
-/**
- * Reloads a client with the fields requested by the query.
- * @param {object} query Pothos Prisma selection.
- * @param {string} id Client id.
- * @returns {Promise<object>} Client.
- */
-function reloadClient(query: object, id: string) {
-  return prisma.client.findUniqueOrThrow({ ...query, where: { id } });
-}
-
-/**
- * Reloads a project with the fields requested by the query.
- * @param {object} query Pothos Prisma selection.
- * @param {string} id Project id.
- * @returns {Promise<object>} Project.
- */
-function reloadProject(query: object, id: string) {
-  return prisma.project.findUniqueOrThrow({ ...query, where: { id } });
-}
-
 builder.mutationFields((t) => ({
   createClient: t.prismaField({
     type: 'Client',
     args: { input: t.arg({ type: ClientInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadClient(query, (await clients.createClient(input)).id),
+    resolve: async (query, _root, { input }) => reloaded(prisma.client, query, clients.createClient(input)),
   }),
   updateClient: t.prismaField({
     type: 'Client',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ClientUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloadClient(query, (await clients.updateClient(id, input)).id),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.client, query, clients.updateClient(id, input)),
   }),
   setClientFavorite: t.prismaField({
     type: 'Client',
     args: { id: t.arg.id({ required: true }), favorite: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, favorite }) =>
-      reloadClient(query, (await clients.setClientFavorite(id, favorite)).id),
+      reloaded(prisma.client, query, clients.setClientFavorite(id, favorite)),
   }),
   setClientArchived: t.prismaField({
     type: 'Client',
     description: 'Archiving cascades to the active projects; restoring brings them back.',
     args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, archived }) =>
-      reloadClient(query, (await clients.setClientArchived(id, archived)).id),
+      reloaded(prisma.client, query, clients.setClientArchived(id, archived)),
   }),
   deleteClient: t.boolean({
     args: {
@@ -183,26 +168,26 @@ builder.mutationFields((t) => ({
   createProject: t.prismaField({
     type: 'Project',
     args: { input: t.arg({ type: ProjectInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadProject(query, (await projects.createProject(input)).id),
+    resolve: async (query, _root, { input }) => reloaded(prisma.project, query, projects.createProject(input)),
   }),
   updateProject: t.prismaField({
     type: 'Project',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProjectUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) =>
-      reloadProject(query, (await projects.updateProject(id, input)).id),
+      reloaded(prisma.project, query, projects.updateProject(id, input)),
   }),
   setProjectFavorite: t.prismaField({
     type: 'Project',
     args: { id: t.arg.id({ required: true }), favorite: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, favorite }) =>
-      reloadProject(query, (await projects.setProjectFavorite(id, favorite)).id),
+      reloaded(prisma.project, query, projects.setProjectFavorite(id, favorite)),
   }),
   setProjectArchived: t.prismaField({
     type: 'Project',
     description: 'Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.',
     args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, archived }) =>
-      reloadProject(query, (await projects.setProjectArchived(id, archived)).id),
+      reloaded(prisma.project, query, projects.setProjectArchived(id, archived)),
   }),
   deleteProject: t.boolean({
     description: 'Deletes the project and all its sub-projects.',

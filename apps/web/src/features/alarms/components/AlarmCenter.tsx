@@ -11,9 +11,9 @@ import { useAlarmMutations, useAlarms, type Alarm } from '../api';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath } from '../../../app/pages';
 import { taskRef } from '../../tasks/hooks/use-task-context';
 
 const TICK_MS = 15_000;
@@ -85,7 +85,7 @@ export function AlarmCenter() {
       const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
       if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.title}`, taskPath(task))];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
-      return project ? [link(project.title, `/projects/${project.id}`)] : [];
+      return project ? [link(project.title, projectPath(project.id))] : [];
     };
 
     /**
@@ -100,7 +100,7 @@ export function AlarmCenter() {
         latest.current.routinesData?.routines ?? [],
         now,
         [link('Voir les routines', '/routines')],
-        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: onMutationError }),
+        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       if (!list) return;

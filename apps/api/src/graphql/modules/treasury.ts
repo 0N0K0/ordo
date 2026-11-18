@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, monthOfDay, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -87,14 +87,14 @@ builder.prismaObject('TreasuryBudget', {
   description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => formatDay(budget.month).slice(0, 7) }),
+    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => monthOfDay(formatDay(budget.month)) }),
     memberId: t.exposeID('memberId', { nullable: true }),
     relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId'),
     amount: t.float({ resolve: (budget) => fromDecimal(budget.amount) }),
     repeatEvery: t.exposeInt('repeatEvery', { nullable: true, description: 'Every n months; none: that month only.' }),
-    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? formatDay(budget.repeatUntil).slice(0, 7) : null) }),
+    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? monthOfDay(formatDay(budget.repeatUntil)) : null) }),
   }),
 });
 
@@ -302,6 +302,12 @@ function linkedLine(line: {
   return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
 }
 
+/** Selections of the supporting documents of an entry or a line: of the library (its folder), of projects (its project). */
+const SUPPORTING_DOCUMENTS = {
+  library: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
+  project: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+};
+
 /**
  * Supporting documents of an entry or a line: of the library, then of projects.
  * @param {object} owner Entry or line with its documents.
@@ -406,8 +412,8 @@ builder.prismaObject('TreasuryEntry', {
       type: [EntryDocumentRef],
       description: 'Supporting documents: of the library, then of projects.',
       select: {
-        libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
-        projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+        libraryDocuments: SUPPORTING_DOCUMENTS.library,
+        projectResources: SUPPORTING_DOCUMENTS.project,
       },
       resolve: (entry) => supportingDocuments(entry),
     }),
@@ -426,8 +432,8 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
     type: [EntryDocumentRef],
     description: 'Supporting documents: of the library, then of projects.',
     select: {
-      libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
-      projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+      libraryDocuments: SUPPORTING_DOCUMENTS.library,
+      projectResources: SUPPORTING_DOCUMENTS.project,
     },
     resolve: (line) => supportingDocuments(line),
   }),
@@ -837,32 +843,13 @@ builder.queryFields((t) => ({
     description: 'Documents of the app that can support an entry: the library, then the documents of the projects.',
     resolve: async () => {
       const [documents, resources] = await Promise.all([
-        prisma.libraryDocument.findMany({ select: { ...documentSelect.select, folder: { select: { name: true } } }, orderBy: { title: 'asc' } }),
+        prisma.libraryDocument.findMany({ ...SUPPORTING_DOCUMENTS.library, orderBy: { title: 'asc' } }),
         prisma.projectResource.findMany({
-          select: { ...documentSelect.select, project: { select: { id: true, title: true } } },
+          ...SUPPORTING_DOCUMENTS.project,
           orderBy: [{ project: { title: 'asc' } }, { position: 'asc' }],
         }),
       ]);
-      return [
-        ...documents.map((document) => ({
-          id: document.id,
-          source: 'LIBRARY' as const,
-          kind: document.kind,
-          title: document.title,
-          url: documentUrl(document),
-          projectId: null,
-          place: document.folder?.name ?? 'Documents',
-        })),
-        ...resources.map((resource) => ({
-          id: resource.id,
-          source: 'PROJECT' as const,
-          kind: resource.kind,
-          title: resource.title,
-          url: documentUrl(resource),
-          projectId: resource.project.id,
-          place: resource.project.title,
-        })),
-      ];
+      return supportingDocuments({ libraryDocuments: documents, projectResources: resources });
     },
   }),
   treasuryEntrySearch: t.prismaField({

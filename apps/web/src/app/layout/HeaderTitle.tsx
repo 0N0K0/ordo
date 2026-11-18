@@ -4,7 +4,7 @@ import { Link, useLocation, useMatch } from 'react-router';
 import { useWorkspace } from '../../features/workspace/api';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
 import classes from './HeaderTitle.module.css';
-import { pageOfPath } from '../pages';
+import { clientPath, pageOfPath, projectPath } from '../pages';
 
 interface Crumb {
   label: string;
@@ -30,11 +30,11 @@ function useCrumbs(): Crumb[] {
     for (let parentId = project.parentId; parentId;) {
       const parent = workspace.projects.find((item) => item.id === parentId);
       if (!parent) break;
-      crumbs.unshift({ label: parent.title, to: `/projects/${parent.id}` });
+      crumbs.unshift({ label: parent.title, to: projectPath(parent.id) });
       parentId = parent.parentId;
     }
     const client = workspace.clients.find((item) => item.id === project.clientId);
-    if (client) crumbs.unshift({ label: client.name, to: `/clients/${client.id}` });
+    if (client) crumbs.unshift({ label: client.name, to: clientPath(client.id) });
     return crumbs;
   }
   if (clientId) {

@@ -1,7 +1,8 @@
-import { ActionIcon, Group, Menu, Text, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
+import { ActionIcon, Group, Menu, Text, type ActionIconProps, type MenuProps } from '@mantine/core';
 import { CheckIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { linkProps } from './link-props';
+import { IconAction } from './IconAction';
 
 /** Action of a menu (or of a row). */
 export interface RowAction {
@@ -26,6 +27,8 @@ export interface RowAction {
   hint?: string;
   /** Destroys something (red, last in the menu, after a separator). Optional. */
   danger?: boolean;
+  /** Only ever in the « … » menu, never as a button (« Archiver » / « Restaurer », decision R). Optional. */
+  inMenu?: boolean;
 }
 
 /** Title of a section of a menu (its actions follow). */
@@ -149,29 +152,40 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
 }
 
 interface InlineActionsProps {
-  /** What the actions are about (« Modifier … »). */
+  /** Element the actions are about, its name (« Modifier « Urgent » »). */
   name: string;
   /** Actions, each as an icon with its label in a tooltip (destructive ones in red); separators and section titles are left out. */
   items: readonly RowMenuEntry[];
 }
 
 /**
- * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere, a menu
- * gathering them when there are many (`ActionsMenu`).
+ * Actions shown side by side, each as an icon (a card, an item of a list): the same buttons everywhere; those kept to
+ * a menu (`inMenu`: « Archiver ») in a « … » menu after them (`ActionsMenu`).
  * @param {InlineActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
 export function InlineActions({ name, items }: InlineActionsProps) {
   const actions = items.filter(isAction);
+  const menu = actions.filter((action) => action.inMenu);
   return (
     <Group gap={2} wrap="nowrap">
-      {actions.map((action) => (
-        <Tooltip key={action.label} label={action.hint ?? action.label}>
-          <ActionIcon variant="subtle" color={action.danger ? 'red' : 'gray'} aria-label={`${action.label} ${name}`} disabled={action.disabled} onClick={action.onClick} {...linkProps(action)}>
+      {actions
+        .filter((action) => !action.inMenu)
+        .map((action) => (
+          <IconAction
+            key={action.label}
+            label={action.label}
+            item={name}
+            hint={action.hint}
+            color={action.danger ? 'red' : 'gray'}
+            disabled={action.disabled}
+            onClick={action.onClick}
+            {...linkProps(action)}
+          >
             {action.icon}
-          </ActionIcon>
-        </Tooltip>
-      ))}
+          </IconAction>
+        ))}
+      <ActionsMenu name={name} items={menu} />
     </Group>
   );
 }

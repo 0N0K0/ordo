@@ -9,8 +9,9 @@ import * as scheduled from '../../services/mail/scheduled';
 import * as searches from '../../services/mail/searches';
 import { sendMail } from '../../services/mail/sender';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type BuilderTypes, type InputFields } from '../builder';
 import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { reloaded } from '../reload';
 
 labelObject('MailLabel', { description: 'Flag of mails (name, color).' });
 
@@ -73,20 +74,25 @@ const MailFolder = builder.objectRef<reader.MailFolder>('MailFolder').implement(
   }),
 });
 
-const MailSummary = builder.objectRef<reader.MailSummary>('MailSummary').implement({
-  fields: (t) => ({
-    uid: t.exposeInt('uid'),
-    subject: t.exposeString('subject'),
-    from: t.field({ type: [MailAddress], resolve: (mail) => mail.from }),
-    to: t.field({ type: [MailAddress], resolve: (mail) => mail.to }),
-    date: t.expose('date', { type: 'DateTime' }),
-    seen: t.exposeBoolean('seen'),
-    flagged: t.exposeBoolean('flagged'),
-    hasAttachments: t.exposeBoolean('hasAttachments'),
-    labelIds: t.exposeIDList('labelIds', { description: 'Flags set by the user.' }),
-    done: t.exposeBoolean('done', { description: 'Marked as done.' }),
-  }),
+/**
+ * Fields of a mail in a list (a folder, a search folder).
+ * @param {PothosSchemaTypes.ObjectFieldBuilder<BuilderTypes, reader.MailSummary>} t Field builder.
+ * @returns {object} Fields.
+ */
+const summaryFields = (t: PothosSchemaTypes.ObjectFieldBuilder<BuilderTypes, reader.MailSummary>) => ({
+  uid: t.exposeInt('uid'),
+  subject: t.exposeString('subject'),
+  from: t.field({ type: [MailAddress], resolve: (mail) => mail.from }),
+  to: t.field({ type: [MailAddress], resolve: (mail) => mail.to }),
+  date: t.expose('date', { type: 'DateTime' }),
+  seen: t.exposeBoolean('seen'),
+  flagged: t.exposeBoolean('flagged'),
+  hasAttachments: t.exposeBoolean('hasAttachments'),
+  labelIds: t.exposeIDList('labelIds', { description: 'Flags set by the user.' }),
+  done: t.exposeBoolean('done', { description: 'Marked as done.' }),
 });
+
+const MailSummary = builder.objectRef<reader.MailSummary>('MailSummary').implement({ fields: summaryFields });
 
 const MailPage = builder.objectRef<{ messages: reader.MailSummary[]; total: number }>('MailPage').implement({
   fields: (t) => ({
@@ -224,18 +230,27 @@ const MailLocationInput = builder.inputType('MailLocationInput', {
   }),
 });
 
+/**
+ * Fields of a mail written (sent or saved as a draft): its account, recipients, subject, files and thread.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const writtenMailFields = (t: InputFields) => ({
+  accountId: t.id({ required: true }),
+  to: t.stringList({ required: true }),
+  cc: t.stringList(),
+  bcc: t.stringList(),
+  subject: t.string({ required: true }),
+  attachments: t.field({ type: ['File'] }),
+  attachmentsFrom: t.field({ type: AttachmentsFromInput }),
+  inReplyTo: t.string(),
+  references: t.stringList(),
+});
+
 const SendMailInput = builder.inputType('SendMailInput', {
   fields: (t) => ({
-    accountId: t.id({ required: true }),
-    to: t.stringList({ required: true }),
-    cc: t.stringList(),
-    bcc: t.stringList(),
-    subject: t.string({ required: true }),
+    ...writtenMailFields(t),
     html: t.string({ required: true, description: 'Body, signature and quote included.' }),
-    attachments: t.field({ type: ['File'] }),
-    attachmentsFrom: t.field({ type: AttachmentsFromInput }),
-    inReplyTo: t.string(),
-    references: t.stringList(),
     projectId: t.id({ description: 'Project the mail is written from: the sent mail is linked to it.' }),
     draft: t.field({ type: MailLocationInput, description: 'Draft the mail comes from, deleted once sent.' }),
   }),
@@ -243,16 +258,8 @@ const SendMailInput = builder.inputType('SendMailInput', {
 
 const SaveDraftInput = builder.inputType('SaveMailDraftInput', {
   fields: (t) => ({
-    accountId: t.id({ required: true }),
-    to: t.stringList({ required: true }),
-    cc: t.stringList(),
-    bcc: t.stringList(),
-    subject: t.string({ required: true }),
+    ...writtenMailFields(t),
     html: t.string({ required: true }),
-    attachments: t.field({ type: ['File'] }),
-    attachmentsFrom: t.field({ type: AttachmentsFromInput }),
-    inReplyTo: t.string(),
-    references: t.stringList(),
     projectId: t.id(),
     replace: t.field({ type: MailLocationInput, description: 'Previous version of the draft, replaced.' }),
   }),
@@ -291,16 +298,7 @@ const MailSearchHit = builder.objectRef<searches.MailSearchHit>('MailSearchHit')
     accountId: t.exposeID('accountId'),
     folder: t.exposeString('folder'),
     folderName: t.exposeString('folderName'),
-    uid: t.exposeInt('uid'),
-    subject: t.exposeString('subject'),
-    from: t.field({ type: [MailAddress], resolve: (mail) => mail.from }),
-    to: t.field({ type: [MailAddress], resolve: (mail) => mail.to }),
-    date: t.expose('date', { type: 'DateTime' }),
-    seen: t.exposeBoolean('seen'),
-    flagged: t.exposeBoolean('flagged'),
-    hasAttachments: t.exposeBoolean('hasAttachments'),
-    labelIds: t.exposeIDList('labelIds'),
-    done: t.exposeBoolean('done'),
+    ...summaryFields(t as unknown as Parameters<typeof summaryFields>[0]),
   }),
 });
 
@@ -420,7 +418,13 @@ builder.queryFields((t) => ({
   }),
 }));
 
-builder.mutationFields((t) => ({
+builder.mutationFields((t) => {
+  /**
+   * Arguments naming mails of a folder.
+   * @returns {object} Account, folder and UIDs.
+   */
+  const mailsArgs = () => ({ accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }) });
+  return {
   testMailAccount: t.boolean({
     description: 'Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.',
     args: { input: t.arg({ type: MailAccountInput, required: true }), id: t.arg.id() },
@@ -430,19 +434,19 @@ builder.mutationFields((t) => ({
     type: 'MailAccount',
     args: { input: t.arg({ type: MailAccountInput, required: true }) },
     resolve: async (query, _root, { input }) =>
-      prisma.mailAccount.findUniqueOrThrow({ ...query, where: { id: (await accounts.createMailAccount(input)).id } }),
+      reloaded(prisma.mailAccount, query, accounts.createMailAccount(input)),
   }),
   updateMailAccount: t.prismaField({
     type: 'MailAccount',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailAccountInput, required: true }) },
     resolve: async (query, _root, { id, input }) =>
-      prisma.mailAccount.findUniqueOrThrow({ ...query, where: { id: (await accounts.updateMailAccount(id, input)).id } }),
+      reloaded(prisma.mailAccount, query, accounts.updateMailAccount(id, input)),
   }),
   setMailSignature: t.prismaField({
     type: 'MailAccount',
     args: { id: t.arg.id({ required: true }), signature: t.arg.string({ required: true }) },
     resolve: async (query, _root, { id, signature }) =>
-      prisma.mailAccount.findUniqueOrThrow({ ...query, where: { id: (await accounts.setMailSignature(id, signature)).id } }),
+      reloaded(prisma.mailAccount, query, accounts.setMailSignature(id, signature)),
   }),
   deleteMailAccount: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -453,33 +457,21 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id, index }) => done(accounts.moveMailAccount(id, index)),
   }),
   setMailSeen: t.boolean({
-    args: {
-      accountId: t.arg.id({ required: true }),
-      folder: t.arg.string({ required: true }),
-      uids: t.arg.intList({ required: true }),
-      seen: t.arg.boolean({ required: true }),
-    },
+    args: { ...mailsArgs(), seen: t.arg.boolean({ required: true }) },
     resolve: (_root, { accountId, folder, uids, seen }) => done(reader.setSeen(accountId, folder, uids, seen)),
   }),
   markMails: t.boolean({
     description: 'Adds or removes a flag (labelId and on), or sets the done state (done), on mails.',
-    args: {
-      accountId: t.arg.id({ required: true }),
-      folder: t.arg.string({ required: true }),
-      uids: t.arg.intList({ required: true }),
-      labelId: t.arg.id(),
-      on: t.arg.boolean(),
-      done: t.arg.boolean(),
-    },
+    args: { ...mailsArgs(), labelId: t.arg.id(), on: t.arg.boolean(), done: t.arg.boolean() },
     resolve: (_root, { accountId, folder, uids, labelId, on, done: isDone }) => done(organize.markMails(accountId, folder, uids, labelId ? { labelId: labelId, on: on ?? true } : { done: isDone ?? true })),
   }),
   reportMailSpam: t.string({
     description: 'Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.',
-    args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }), spam: t.arg.boolean({ required: true }) },
+    args: { ...mailsArgs(), spam: t.arg.boolean({ required: true }) },
     resolve: (_root, { accountId, folder, uids, spam }) => organize.reportSpam(accountId, folder, uids, spam),
   }),
   moveMails: t.boolean({
-    args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }), target: t.arg.string({ required: true }) },
+    args: { ...mailsArgs(), target: t.arg.string({ required: true }) },
     resolve: (_root, { accountId, folder, uids, target }) => done(organize.moveMails(accountId, folder, uids, target)),
   }),
   createMailFolder: t.string({
@@ -531,7 +523,7 @@ builder.mutationFields((t) => ({
   }),
   deleteMails: t.boolean({
     description: 'Moves mails to the trash (deletes them for good from the trash).',
-    args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }) },
+    args: mailsArgs(),
     resolve: (_root, { accountId, folder, uids }) => done(reader.deleteMessages(accountId, folder, uids)),
   }),
   linkMail: t.prismaField({
@@ -569,7 +561,8 @@ builder.mutationFields((t) => ({
     args: { input: t.arg({ type: SendMailInput, required: true }) },
     resolve: async (_root, { input }) => (await sendMail(input)).projectIds,
   }),
-}));
+  };
+});
 
 // Deleting a flag also takes it off the marks kept in Ordo.
 labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel }, { create: NameColorInput, update: NameColorPatch });

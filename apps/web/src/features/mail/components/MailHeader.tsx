@@ -1,7 +1,8 @@
+import * as fmt from '../../../lib/format';
 import { PersonAvatar } from '../../../components/people/PersonOption';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { addressLabel, fullDate, senderName, type Address } from '../lib/mail-format';
+import { addressLabel, senderName, type Address } from '../lib/mail-format';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { handleFileClick } from '../../files/lib/open-file';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
@@ -43,7 +44,7 @@ export function MailHeader({ subject, from, to, cc, date, actions, extra }: Mail
             {cc.length > 0 && ` · Cc : ${cc.map(addressLabel).join(', ')}`}
           </Text>
           <Text size="xs" c="dimmed">
-            {fullDate(date)}
+            {fmt.dateTime(date)}
           </Text>
           {extra}
         </Stack>

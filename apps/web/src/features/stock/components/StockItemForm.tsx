@@ -1,19 +1,20 @@
-import { categoryOptions } from '../../../components/tree/category-tree';
-import { Autocomplete, Checkbox, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
+import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
+import { useLocationSelect } from '../hooks/use-location-select';
+
+import { Autocomplete, Checkbox, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
-import { treeSelectProps } from '../../../components/tree/tree-select';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { useShoppingData } from '../../shopping/api';
-import { useStockLocations, useStockMutations } from '../api';
+import { useStockMutations } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from '../../shopping/components/ProductFields';
-import { unarchived, unarchivedOffered } from '../../../lib/archive';
+import { unarchived } from '../../../lib/archive';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -25,7 +26,7 @@ type Values = NewStockItemInput & Record<string, unknown>;
  */
 export function StockItemForm({ locationId = null, onDone }: { locationId?: string | null; onDone: () => void }) {
   const { data } = useShoppingData();
-  const { data: locations } = useStockLocations();
+  const locationSelect = useLocationSelect();
   const { createItem } = useStockMutations();
   const people = usePeople();
   // The archived references, places and categories are not offered.
@@ -64,14 +65,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           error={form.errors.label}
         />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-          <Select
-            label="Emplacement"
-            placeholder="Aucun"
-            clearable
-            searchable
-            {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], values.locationId)))}
-            {...form.getInputProps('locationId')}
-          />
+          <CreatableSelect label="Emplacement" placeholder="Aucun" clearable searchable {...locationSelect(values.locationId)} {...form.getInputProps('locationId')} />
           <ShoppingCategoryField {...form.getInputProps('categoryId')} value={values.categoryId ?? null} onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">

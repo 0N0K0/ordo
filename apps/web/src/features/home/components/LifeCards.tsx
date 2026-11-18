@@ -1,6 +1,8 @@
+import { collator } from '../../../lib/text';
+import { IconAction } from '../../../components/actions/IconAction';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { collator, daysBetween, mapById } from '@ordo/shared';
-import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
+import { daysBetween, mapById } from '@ordo/shared';
+import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 
@@ -10,7 +12,8 @@ import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../../rou
 import { usePostponeRoutine } from '../../routines/hooks/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../../shopping/api';
 import classes from './Home.module.css';
-import { Figure, HomeCard } from './HomeCard';
+import tile from '../../../components/page/StatTile.module.css';
+import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
 
@@ -46,7 +49,7 @@ export function RoutinesCard({ today }: { today: string }) {
             const waiting = waitingFor(routine, byId);
             const late = routine.currentDate !== null && routine.currentDate < today;
             return (
-              <Group key={routine.id} justify="space-between" wrap="nowrap" gap="xs" className={classes.row}>
+              <Group key={routine.id} justify="space-between" wrap="nowrap" gap="xs" className={`${tile.tile} ${classes.row}`}>
                 <Group gap="xs" wrap="nowrap" miw={0}>
                   <RoutineDoneToggles routine={routine} />
                   <Text size="sm" truncate>
@@ -74,11 +77,9 @@ export function RoutinesCard({ today }: { today: string }) {
                       {routine.estimate} min
                     </Text>
                   )}
-                  <Tooltip label="Reporter au lendemain">
-                    <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Reporter « ${routine.title} » au lendemain`} onClick={() => postpone(routine)}>
-                      <ArrowBendUpRightIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
+                  <IconAction label="Reporter au lendemain" size="sm" aria-label={`Reporter « ${routine.title} » au lendemain`} onClick={() => postpone(routine)}>
+                    <ArrowBendUpRightIcon aria-hidden />
+                  </IconAction>
                 </Group>
               </Group>
             );
@@ -106,8 +107,8 @@ export function ShoppingCard() {
   return (
     <HomeCard title="Achats" icon={<BasketIcon aria-hidden />} to="/shopping" loading={!data || !lists}>
       <Group gap="xl">
-        <Figure label="Produits manquants" value={missing} color={missing ? 'orange' : undefined} />
-        <Figure label="Listes en cours" value={open.length} />
+        <CardFigure label="Produits manquants" value={missing} color={missing ? 'orange' : undefined} />
+        <CardFigure label="Listes en cours" value={open.length} />
       </Group>
       {open.length === 0 ? (
         <EmptyState compact icon={<BasketIcon aria-hidden />} message="Aucune liste en cours." />

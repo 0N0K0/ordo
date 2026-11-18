@@ -1,9 +1,6 @@
+import { FoldChevron } from '../../../components/actions/FoldChevron';
 import { ActionIcon, Text, UnstyledButton } from '@mantine/core';
-import {
-  CaretRightIcon,
-  DotsThreeIcon,
-  FolderPlusIcon,
-} from '@phosphor-icons/react';
+import { DotsThreeIcon, FolderPlusIcon } from '@phosphor-icons/react';
 import { forwardRef, useState, type CSSProperties } from 'react';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -60,7 +57,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       <UnstyledButton className={classes.groupToggle} onClick={onToggle} disabled={!hasChildren}>
         <span className={rowClasses.spacer}>
           {hasChildren && (
-            <CaretRightIcon className={rowClasses.chevron} data-expanded={expanded || undefined} aria-hidden />
+            <FoldChevron expanded={expanded} />
           )}
         </span>
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">

@@ -46,3 +46,14 @@ export function countBy<T>(items: readonly T[], keysOf: (item: T) => string | re
   }
   return counts;
 }
+
+/**
+ * A list of ids with some added and some removed, each once (the same changes made to several items).
+ * @param {readonly string[]} list Current ids.
+ * @param {readonly string[]} [added] Ids added. Optional.
+ * @param {readonly string[]} [removed] Ids removed. Optional.
+ * @returns {string[]} New ids.
+ */
+export function changedList(list: readonly string[], added: readonly string[] = [], removed: readonly string[] = []): string[] {
+  return [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+}

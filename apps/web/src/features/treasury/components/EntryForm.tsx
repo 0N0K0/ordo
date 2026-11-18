@@ -1,11 +1,14 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { unarchived } from '../../../lib/archive';
+
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { SidePanel } from '../../../components/panels/SidePanel';
+
 import { listSelectProps } from '../../../components/items/item-look';
-import { ActionIcon, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
-import { PlusIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+
+import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useWorkspace } from '../../workspace/api';
@@ -14,14 +17,15 @@ import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
 import { LinesEditor } from './LinesEditor';
 import type { LineLink } from '../lib/lines';
-import { documentGroups, payerGroups } from '../lib/entry-env';
+import { documentGroups, payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
+import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
-import { CategoryItemForm, CounterpartyItemForm, MethodItemForm } from './TreasuryItemForms';
-import { ContextForm, RelationForm } from './TeamPanel';
+import { useCategoryCreators, useEntryCreators } from '../hooks/use-settings-items';
+import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { projectOptions } from '../../workspace/lib/tree';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
+
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -46,24 +50,6 @@ interface LinkedSummary {
  */
 const entryLink = (entry: LinkedSummary): LineLink => ({ kind: 'entry', id: entry.id, entryLabel: entry.label, date: entry.date, label: null, amount: entry.amount });
 
-/**
- * A select with a button creating a new option next to it.
- * @param {{ label: string, onCreate: () => void, children: ReactNode }} props Component props: what the button creates, the action, the select.
- * @returns {JSX.Element} Field.
- */
-function WithCreate({ label, onCreate, children }: { label: string; onCreate: () => void; children: ReactNode }) {
-  return (
-    <Group gap={4} align="flex-end" wrap="nowrap">
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-      <Tooltip label={label}>
-        <ActionIcon variant="default" size="input-sm" aria-label={label} onClick={onCreate}>
-          <PlusIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-    </Group>
-  );
-}
-
 interface EntryFormProps {
   entry?: TreasuryEntry | ForecastEntry;
   /** New entry: actual or forecast. */
@@ -83,10 +69,6 @@ interface EntryFormProps {
 export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  // Category, method or counterparty created from the form.
-  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | 'relation' | null>(null);
-  // Line a context or a relation is created for.
-  const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: item.date })));
   const { data: workspace } = useWorkspace();
@@ -95,7 +77,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const { data: documents } = useAccountingDocuments();
   const { data: imported } = useImportedDocuments();
   const { createEntry, updateEntry } = useTreasuryMutations();
-  const open = (accounts ?? []).filter((account) => !account.archived || account.id === entry?.accountId);
+  const open = unarchived(accounts ?? [], entry?.accountId);
   const form = useAppForm<EntryValues>({
     initialValues: entryValues(entry, { status, copy, accountId: open[0]?.id ?? '' }),
     schema: treasuryEntrySchema,
@@ -106,22 +88,20 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const incoming = values.direction === 'IN';
   const forecast = values.status === 'FORECAST';
   // Key of the payer select: "client:<id>" or "tiers:<id>".
-  const payer = values.clientId ? `client:${values.clientId}` : values.counterpartyId ? `tiers:${values.counterpartyId}` : null;
+  const payer = payerKey(values);
   const categories = settings?.treasuryCategories ?? [];
+  const createCategory = useCategoryCreators(categories);
+  const create = useEntryCreators(values.direction);
   const methods = (settings?.treasuryPaymentMethods ?? []).filter((method) => (incoming ? method.incoming : method.outgoing) || method.id === values.methodId);
   const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? [])
-    .map((group) => ({ ...group, items: group.items.filter((item) => !item.archived || item.value === payer) }))
+    .map((group) => ({ ...group, items: unarchived(group.items, payer, (item) => item.value) }))
     .filter((group) => group.items.length);
   // Supporting documents, grouped by place: the library, then each project (the entry's project first).
   const documentData = documentGroups([...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)], values.projectId);
-  const selectedDocuments = [...values.libraryDocumentIds.map((id) => `lib:${id}`), ...values.projectResourceIds.map((id) => `res:${id}`)];
   // Projects of the entry or of its lines, archived ones only when chosen already.
   const chosenProjects = new Set([values.projectId, ...values.lines.map((line) => line.projectId)]);
   // Each project with its full path: client › project › sub-project.
-  const projectChoices = projectOptions(
-    workspace,
-    (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)),
-  );
+  const projectChoices = projectOptions(workspace, unarchived(workspace?.projects ?? [], [...chosenProjects]));
 
   // Documents it can settle: still due and not archived, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
@@ -205,45 +185,40 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             {!split && (
-              <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
-                <Select
-                  label="Catégorie"
-                  clearable
-                  searchable
-                  placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-                  {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
-                  {...form.getInputProps('categoryId')}
-                />
-              </WithCreate>
-            )}
-            <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
-              <Select
-                label="Moyen de paiement"
+              <CreatableSelect
+                label="Catégorie"
                 clearable
-                placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
-                {...listSelectProps(methods, undefined, values.methodId)}
-                {...form.getInputProps('methodId')}
+                searchable
+                onCreate={createCategory[values.direction]}
+                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un nom pour la créer'}
+                {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
+                {...form.getInputProps('categoryId')}
               />
-            </WithCreate>
-          </SimpleGrid>
-          <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>
-            <Select
-              label={incoming ? 'Émetteur' : 'Destinataire'}
+            )}
+            <CreatableSelect
+              label="Moyen de paiement"
               clearable
-              searchable
-              placeholder="Client ou tiers"
-              nothingFoundMessage="Aucun client ni tiers"
-              data={payers}
-              value={payer}
-              onChange={(key) =>
-                form.setValues({
-                  clientId: key?.startsWith('client:') ? key.slice(7) : null,
-                  counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
-                })
-              }
-              error={form.errors.clientId ?? form.errors.counterpartyId}
+              onCreate={create.method}
+              placeholder={methods.length ? '—' : 'Aucun : tapez un nom pour le créer'}
+              {...listSelectProps(methods, undefined, values.methodId)}
+              {...form.getInputProps('methodId')}
             />
-          </WithCreate>
+          </SimpleGrid>
+          <CreatableSelect
+            label={incoming ? 'Émetteur' : 'Destinataire'}
+            onCreate={async (name) => {
+              const id = await create.counterparty(name);
+              return id && `tiers:${id}`;
+            }}
+            clearable
+            searchable
+            placeholder="Client ou tiers"
+            nothingFoundMessage="Aucun client ni tiers"
+            data={payers}
+            value={payer}
+            onChange={(key) => form.setValues(payerOfKey(key))}
+            error={form.errors.clientId ?? form.errors.counterpartyId}
+          />
           {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
           <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
           <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
@@ -281,14 +256,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             entryId={entry?.id ?? null}
             projects={projectChoices}
             documentGroups={documentData}
-            onCreateContext={(index) => {
-              setContextLine(index);
-              setCreating('context');
-            }}
-            onCreateRelation={(index) => {
-              setContextLine(index);
-              setCreating('relation');
-            }}
           />
 
           {split ? (
@@ -297,22 +264,11 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             </Text>
           ) : (
             <>
-              <BatchMultiSelect
-                label="Pièces justificatives"
-                description="Documents de la bibliothèque ou des projets."
-                placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
-                searchable
-                clearable
-                nothingFoundMessage="Aucun document"
+              <SupportingDocumentsSelect
                 data={documentData}
-                value={selectedDocuments}
-                onChange={(keys) =>
-                  form.setValues({
-                    libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-                    projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-                  })
-                }
-                error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+                value={values}
+                onChange={(documents) => form.setValues({ ...documents })}
+                error={(form.errors.libraryDocumentIds ?? form.errors.projectResourceIds) as string | undefined}
               />
 
               <Divider label="Mouvements liés" labelPosition="left" />
@@ -406,15 +362,9 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                 </Text>
               )}
               <Group justify="space-between">
-                <Button
-                  size="xs"
-                  variant="default"
-                  leftSection={<PlusIcon aria-hidden />}
-                  disabled={settleable.length === values.allocations.length}
-                  onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
-                >
+                <AddItemButton disabled={settleable.length === values.allocations.length} onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}>
                   {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
-                </Button>
+                </AddItemButton>
                 {values.allocations.length > 0 && (
                   <Text size="xs" c="dimmed">
                     {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
@@ -426,73 +376,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
           <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
         </Stack>
-        <SidePanel
-          opened={creating !== null}
-          onClose={() => setCreating(null)}
-          title={
-            creating === 'category'
-              ? 'Nouvelle catégorie'
-              : creating === 'method'
-                ? 'Nouveau moyen de paiement'
-                : creating === 'context'
-                  ? 'Nouveau contexte'
-                  : creating === 'relation'
-                    ? 'Nouvelle relation'
-                    : 'Nouveau tiers'
-          }
-        >
-          {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
-          <div onSubmit={(event) => event.stopPropagation()}>
-            {creating === 'category' && (
-              <CategoryItemForm
-                direction={values.direction}
-                categories={categories}
-                onDone={(id) => {
-                  if (id) form.setFieldValue('categoryId', id);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'relation' && (
-              <RelationForm
-                onDone={(id) => {
-                  if (id && contextLine !== null) {
-                    form.setFieldValue(`lines.${contextLine}.relationId`, id);
-                    form.setFieldValue(`lines.${contextLine}.memberId`, null);
-                  }
-                  setContextLine(null);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'context' && (
-              <ContextForm
-                onDone={(id) => {
-                  if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
-                  setContextLine(null);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'method' && (
-              <MethodItemForm
-                direction={values.direction}
-                onDone={(id) => {
-                  if (id) form.setFieldValue('methodId', id);
-                  setCreating(null);
-                }}
-              />
-            )}
-            {creating === 'counterparty' && (
-              <CounterpartyItemForm
-                onDone={(id) => {
-                  if (id) form.setValues({ clientId: null, counterpartyId: id });
-                  setCreating(null);
-                }}
-              />
-            )}
-          </div>
-        </SidePanel>
       </form>
       {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
     </Stack>

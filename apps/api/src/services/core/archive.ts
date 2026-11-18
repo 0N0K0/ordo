@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { assertAllExist } from './lookup';
 import { SETTINGS_LISTS } from './settings-lists';
+import { BY_POSITION } from './ordering';
 
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
@@ -110,4 +111,19 @@ export async function assertNoneArchived(target: ArchivableKind | ArchivableMode
   if (!ids?.length) return;
   const model = modelOf(target);
   if ((await delegate(model).count({ where: { id: { in: [...new Set(ids)] }, ...archivedWhere(true) } })) > 0) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+}
+
+/** Model delegate able to find the first record of a list (`prisma.calendar`, `tx.documentStatus`…). */
+interface FirstDelegate<T> {
+  findFirst(args: { where: object; orderBy: typeof BY_POSITION }): PromiseLike<T | null>;
+}
+
+/**
+ * First record of a list in its manual order that is not archived, else the first one (archived), else none.
+ * @param {FirstDelegate} model Model delegate.
+ * @param {object} [where] The list: its scope. Optional. Default = every record.
+ * @returns {Promise<T | null>} Record.
+ */
+export async function firstActive<T>(model: FirstDelegate<T>, where: object = {}): Promise<T | null> {
+  return (await model.findFirst({ where: { ...where, archivedAt: null }, orderBy: BY_POSITION })) ?? model.findFirst({ where, orderBy: BY_POSITION });
 }

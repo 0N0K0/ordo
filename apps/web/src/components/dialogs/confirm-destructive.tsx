@@ -1,15 +1,15 @@
-import { Stack, Text } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import type { ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
-import { DestructiveActions } from './DestructiveActions';
+import { DestructiveActions, DestructiveRisks } from './DestructiveActions';
 
 let count = 0;
 
 interface ConfirmDestructiveOptions {
   /** Title of the dialog (« Supprimer le budget »…). */
   title: string;
-  /** What the action does and what is lost (a sentence, or more). */
+  /** What the action does and what is lost (a sentence, or more); « Cette action est irréversible. » follows. */
   risks: ReactNode;
   /** Label of the confirmation. Optional. Default = « Supprimer ». */
   confirmLabel?: string;
@@ -24,8 +24,8 @@ interface ConfirmDestructiveOptions {
 }
 
 /**
- * Asks for the confirmation of a destructive action, the dialog of every one: its risks, then the confirmation (first,
- * in red) and Cancel, bottom-right.
+ * Asks for the confirmation of a destructive action, the dialog of every one: its risks (and « Cette action est
+ * irréversible. »), then the confirmation (first, in red) and Cancel, bottom-right.
  * @param {ConfirmDestructiveOptions} options Dialog.
  * @returns {void}
  */
@@ -36,9 +36,7 @@ export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, on
     title,
     children: (
       <Stack gap="md">
-        <Text size="sm" component="div">
-          {risks}
-        </Text>
+        <DestructiveRisks>{risks}</DestructiveRisks>
         <DestructiveActions
           confirmLabel={confirmLabel}
           confirmIcon={confirmIcon}

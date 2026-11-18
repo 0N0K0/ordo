@@ -167,6 +167,15 @@ export const clientContactSchema = z.object({
 });
 export type ClientContactInput = z.input<typeof clientContactSchema>;
 
+/**
+ * Name of a contact of a client: « Prénom Nom ».
+ * @param {{ firstName: string, lastName: string }} contact Contact.
+ * @returns {string} Name.
+ */
+export function contactName(contact: { firstName: string; lastName: string }): string {
+  return `${contact.firstName} ${contact.lastName}`;
+}
+
 /** The user's business. */
 export const companyProfileSchema = z.object({
   name: requiredText(200, 'Le nom de la société est requis.'),

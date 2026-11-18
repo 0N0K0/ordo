@@ -1,5 +1,5 @@
 import { createTheme, PasswordInput } from '@mantine/core';
-import { DatePickerInput, DateTimePicker, MonthPickerInput, YearPickerInput } from '@mantine/dates';
+import { DatePickerInput, DateTimePicker, MonthPickerInput, TimePicker, YearPickerInput } from '@mantine/dates';
 import { PICKER_FORMATS } from '../lib/format';
 import { VisibilityToggleIcon } from '../components/inputs/VisibilityToggleIcon';
 
@@ -13,6 +13,8 @@ export const theme = createTheme({
     DateTimePicker: DateTimePicker.extend({ defaultProps: { valueFormat: PICKER_FORMATS.dateTime } }),
     MonthPickerInput: MonthPickerInput.extend({ defaultProps: { valueFormat: PICKER_FORMATS.month } }),
     YearPickerInput: YearPickerInput.extend({ defaultProps: { valueFormat: PICKER_FORMATS.year } }),
+    // Times of day always in 24 hours (« HH:MM »), whatever the language of the browser (a native field shows AM / PM in English).
+    TimePicker: TimePicker.extend({ defaultProps: { format: '24h', hoursInputLabel: 'Heures', minutesInputLabel: 'Minutes' } }),
   },
 });
 

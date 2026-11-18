@@ -7,7 +7,7 @@ import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
@@ -123,7 +123,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     const callbacks = formCallbacks(form, copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.', (created: unknown) => {
       // A copy takes the sub-routines of the routine with it, under itself.
       if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
-        copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: onMutationError });
+        copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);
       }
       onDone();
     });

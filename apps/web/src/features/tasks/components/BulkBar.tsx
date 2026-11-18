@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { plural } from '../../../lib/text';
 import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
@@ -32,7 +33,7 @@ export function useTaskRowsActions(context: TaskContext | null) {
   return (tasks: Task[], onClear?: () => void): TaskRowsActions => {
     const ids = tasks.map((task) => task.id);
     const label = tasksLabel(ids.length);
-    const active = tasks.filter((task) => !task.archived);
+    const active = unarchived(tasks);
     const activeIds = active.map((task) => task.id);
     const several = active.length > 1;
     /**

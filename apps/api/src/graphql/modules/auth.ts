@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import * as auth from '../../services/core/auth';
 import { builder } from '../builder';
 import { requireSession } from '../context';
+import { reloaded } from '../reload';
 
 builder.queryField('me', (t) =>
   t.prismaField({
@@ -25,7 +26,7 @@ builder.mutationFields((t) => ({
     },
     resolve: async (query, _root, args, ctx) => {
       const user = await auth.login(ctx.req, ctx.res, args);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      return reloaded(prisma.user, query, user);
     },
   }),
 
@@ -74,7 +75,7 @@ builder.mutationFields((t) => ({
     },
     resolve: async (query, _root, { currentPassword, username }, ctx) => {
       const user = await auth.changeUsername(requireSession(ctx), currentPassword, username);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      return reloaded(prisma.user, query, user);
     },
   }),
 
@@ -87,7 +88,7 @@ builder.mutationFields((t) => ({
     },
     resolve: async (query, _root, { currentPassword, email }, ctx) => {
       const user = await auth.requestEmailChange(requireSession(ctx), currentPassword, email);
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      return reloaded(prisma.user, query, user);
     },
   }),
 
@@ -95,7 +96,7 @@ builder.mutationFields((t) => ({
     type: 'User',
     resolve: async (query, _root, _args, ctx) => {
       const user = await auth.cancelEmailChange(requireSession(ctx));
-      return prisma.user.findUniqueOrThrow({ ...query, where: { id: user.id } });
+      return reloaded(prisma.user, query, user);
     },
   }),
 }));

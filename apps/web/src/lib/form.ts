@@ -81,6 +81,7 @@ export function formCallbacks<Values, T = unknown>(
 ): { onSuccess: (result: T) => void; onError: (error: Error) => void } {
   return {
     onSuccess: (result) => {
+      // eslint-disable-next-line no-restricted-syntax -- formCallbacks itself.
       notifySuccess(typeof message === 'string' ? message : message(result));
       onDone?.(result);
       options.then?.(result);

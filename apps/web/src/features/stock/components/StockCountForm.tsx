@@ -1,18 +1,18 @@
+import { locationSelectProps } from '../hooks/use-location-select';
 import { formCallbacks } from '../../../lib/form';
 import { isUnderOrSelf } from '@ordo/shared';
-import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
+import { categoryPaths } from '../../../components/tree/category-tree';
 import { Select, Stack, Text, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { treeSelectProps } from '../../../components/tree/tree-select';
+
 import * as fmt from '../../../lib/format';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
-import { unarchivedOffered } from '../../../lib/archive';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -54,15 +54,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
   return (
     <Stack gap="md">
-      <Select
-        label="Emplacement"
-        placeholder="Tout le stock"
-        clearable
-        searchable
-        {...treeSelectProps(categoryOptions(locations ?? [], undefined, unarchivedOffered(locations ?? [], locationId)))}
-        value={locationId}
-        onChange={setLocationId}
-      />
+      <Select label="Emplacement" placeholder="Tout le stock" clearable searchable {...locationSelectProps(locations ?? [], locationId)} value={locationId} onChange={setLocationId} />
       <Text size="xs" c="dimmed">
         Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l’écart avec l’attendu est noté dans l’historique.
       </Text>

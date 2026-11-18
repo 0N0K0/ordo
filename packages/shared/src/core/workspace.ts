@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredText } from './rules';
+import { endAfter, requiredText } from './rules';
 import { daySchema } from '../dates/times';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
@@ -20,6 +20,9 @@ export const LABEL_NAME_MAX = 50;
 
 /** Name of a configurable label (category, status…). */
 export const labelNameSchema = requiredText(LABEL_NAME_MAX);
+
+/** Colour of a label made without one (a GitHub label, a default status): Mantine's gray. */
+export const DEFAULT_LABEL_COLOR = '#868e96';
 
 export const colorSchema = z
   .string()
@@ -58,10 +61,7 @@ export const projectFormSchema = z
     endDate: dateSchema,
     color: optionalColorSchema,
   })
-  .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
-    path: ['endDate'],
-    error: 'La date de fin doit suivre la date de début.',
-  });
+  .refine(...endAfter('startDate', 'endDate'));
 export type ProjectFormValues = z.input<typeof projectFormSchema>;
 
 /** Configurable label (project category, project status…): unique name and color. */

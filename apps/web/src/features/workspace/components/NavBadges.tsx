@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { Badge } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
@@ -62,7 +63,7 @@ export function TimeNavBadge() {
  */
 export function TreasuryNavBadge() {
   const { data: accounts } = useTreasuryAccounts();
-  const open = accounts?.filter((account) => !account.archived) ?? [];
+  const open = unarchived(accounts ?? []);
   if (open.length === 0) return null;
   const balance = open.reduce((sum, account) => sum + account.balance, 0);
   return (

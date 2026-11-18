@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { endAfter, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 import { optionalColorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
@@ -121,5 +121,5 @@ export const shoppingDeliverySchema = z
     /** Items of the list it brings. */
     itemIds: z.array(z.string()).max(500),
   })
-  .refine((delivery) => !delivery.windowFrom || !delivery.windowTo || delivery.windowTo >= delivery.windowFrom, { path: ['windowTo'], message: 'La fin doit suivre le début.' });
+  .refine(...endAfter('windowFrom', 'windowTo'));
 export type ShoppingDeliveryInput = z.infer<typeof shoppingDeliverySchema>;

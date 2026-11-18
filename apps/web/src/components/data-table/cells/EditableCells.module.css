@@ -5,7 +5,9 @@
     width: 100%;
   }
 
-  .input {
+  /* Cell fields and chip cells: the same box, a border showing on hover, focus and while open. */
+  .input,
+  .chipTrigger {
     /* Dimension */
     min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
     border-radius: var(--mantine-radius-sm);
@@ -13,6 +15,15 @@
     /* Espacement */
     padding-inline: calc(var(--mantine-spacing-xs) / 2);
 
+    /* Bordures */
+    outline: 1px solid transparent;
+
+    &[data-expanded] {
+      outline-color: var(--mantine-color-default-border);
+    }
+  }
+
+  .input {
     /* Room for the color swatch: the unstyled variant does not reserve it. */
     .root:has(.section[data-position='left']) & {
       padding-inline-start: calc(var(--mantine-spacing-xs) * 2.25);
@@ -22,13 +33,9 @@
     font-size: var(--mantine-font-size-sm);
     color: inherit;
 
-    /* Bordures */
-    outline: 1px solid transparent;
-
     &:hover,
     &:focus,
-    &:focus-within,
-    &[data-expanded] {
+    &:focus-within {
       outline-color: var(--mantine-color-default-border);
     }
 
@@ -63,18 +70,9 @@
 
     /* Dimension */
     width: 100%;
-    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
-    border-radius: var(--mantine-radius-sm);
-
-    /* Espacement */
-    padding-inline: calc(var(--mantine-spacing-xs) / 2);
-
-    /* Bordures */
-    outline: 1px solid transparent;
 
     &:hover,
-    &:focus-visible,
-    &[data-expanded] {
+    &:focus-visible {
       outline-color: var(--mantine-color-default-border);
     }
   }

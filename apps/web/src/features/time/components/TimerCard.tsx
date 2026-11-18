@@ -1,3 +1,4 @@
+import { projectPath } from '../../../app/pages';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -5,7 +6,7 @@ import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeMutations, type TimeEntry } from '../api';
@@ -17,6 +18,7 @@ import { useStartTimer } from '../hooks/use-start-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { TIMER_RUNNING } from './TimerStop';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -102,7 +104,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    * @returns {void}
    */
   const save = (input: { projectId?: string; taskIds?: string[]; description?: string | null }) =>
-    update.mutate({ id: entry.id, input }, { onError: onMutationError });
+    update.mutate({ id: entry.id, input }, ON_ERROR);
 
   /**
    * Asks for confirmation before discarding the running timer.
@@ -110,8 +112,8 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    */
   const confirmDiscard = () => {
     confirmDestructive({ title: 'Abandonner le chrono', risks: (
-<>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré. Cette action est irréversible.</>
-), confirmLabel: 'Abandonner', onConfirm: () => { remove.mutate(entry.id, toastCallbacks('Chrono abandonné.')); } });
+<>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré.</>
+), confirmLabel: 'Abandonner', run: () => remove.mutateAsync(entry.id), done: 'Chrono abandonné.' });
   };
 
   return (
@@ -122,10 +124,10 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
             {formatClock(entrySeconds(entry, now))}
           </Text>
           <Text size="xs" c="dimmed">
-            {paused ? 'En pause' : 'En cours'} — depuis{' '}
+            {paused ? 'Chrono en pause' : TIMER_RUNNING} — depuis{' '}
             {fmt.time(entry.startedAt)} ·{' '}
             {entry.projectId ? (
-              <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
+              <Anchor component={Link} to={projectPath(entry.projectId, 'time')} size="xs">
                 {context.projectById.get(entry.projectId)?.title ?? 'Projet'}
               </Anchor>
             ) : (

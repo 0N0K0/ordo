@@ -37,7 +37,7 @@ import { notifyError, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { moveEntries } from '../../../components/actions/move-entries';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
-import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ChartEditor } from './ChartEditor';
@@ -204,7 +204,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const confirmDelete = () => {
     confirmDestructive({
       title: 'Supprimer le diagramme',
-      risks: `Le diagramme « ${chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées. Cette action est irréversible.`,
+      risks: `Le diagramme « ${chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.`,
       run: () => removeChart.mutateAsync(chart.id),
       done: 'Diagramme supprimé.',
     });
@@ -244,11 +244,11 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 ? []
                 : ([
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
-                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, { onError: onMutationError }) },
+                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, ON_ERROR) },
                     {
                       label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
                       icon: <ArrowsHorizontalIcon aria-hidden />,
-                      onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: onMutationError }),
+                      onClick: () => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, ON_ERROR),
                     },
                     ...moveEntries(index, count, (to) => moveChart.mutate({ id: chart.id, index: to }, ON_ERROR)),
                     {
@@ -315,10 +315,8 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const captures: Captures = useRef(new Map());
   const setArchived = useSetArchived('DASHBOARD', [dashboardsKey]);
   // Archived dashboards: hidden until asked, read only (their charts with them).
-  const [showArchived, setShowArchived] = useState(false);
   const all = dashboards ?? [];
-  const tabs = [...visibleItems(all, showArchived)];
-  const archivedCount = all.filter((dashboard) => dashboard.archived).length;
+  const { shown: tabs, toggle: archivedToggle } = useArchivedToggle(all);
   const [current, select] = useTabParam('dashboard', tabs);
 
   /**
@@ -334,7 +332,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     }
     // The index among every dashboard of the scope, the archived ones hidden included.
     const index = all.findIndex((dashboard) => dashboard.id === tabs[target]?.id);
-    if (index >= 0) mutations.move.mutate({ id, index }, { onError: onMutationError });
+    if (index >= 0) mutations.move.mutate({ id, index }, ON_ERROR);
   };
 
   /**
@@ -356,7 +354,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         return;
       }
       close();
-      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: onMutationError });
+      if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, ON_ERROR);
       else
         mutations.create.mutate(
           { name: result.data, projectId },
@@ -389,7 +387,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const confirmDelete = (dashboard: Dashboard) => {
     confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      risks: `« ${dashboard.name} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées. Cette action est irréversible.`,
+      risks: `« ${dashboard.name} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées.`,
       run: () => mutations.remove.mutateAsync(dashboard.id),
       done: 'Tableau de bord supprimé.',
     });
@@ -452,7 +450,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     return (
       <Stack gap="md">
         <ActionsRow>
-          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
+          <ShowArchivedSwitch {...archivedToggle} />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askName()}>
             Nouveau tableau de bord
           </ActionButton>
@@ -490,7 +488,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         />
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
-          <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={archivedCount} />
+          <ShowArchivedSwitch {...archivedToggle} />
           <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={() => void exportDashboard()}>
             Exporter en PDF
           </ActionButton>
@@ -513,11 +511,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (
         // The dropped chart moves to its new place.
-        <SortableArea
-          ids={current.charts.map((chart) => chart.id)}
-          layout="grid"
-          onMove={(id, _, index) => !current.archived && mutations.moveChart.mutate({ id, index }, { onError: onMutationError })}
-        >
+        <SortableArea ids={current.charts.map((chart) => chart.id)} layout="grid" onMove={(id, _, index) => !current.archived && mutations.moveChart.mutate({ id, index }, ON_ERROR)}>
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
             {current.charts.map((chart, chartIndex) => (
               <ChartCard

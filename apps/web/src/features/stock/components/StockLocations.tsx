@@ -1,5 +1,4 @@
-import { stockLocationSchema } from '@ordo/shared';
-import { createdId } from '../../../components/settings/settings-api';
+import { useLocationItems } from '../hooks/use-location-select';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { useStockLocations, useStockMutations } from '../api';
 
@@ -10,16 +9,11 @@ import { useStockLocations, useStockMutations } from '../api';
  */
 export function StockLocations({ usage }: { usage: Map<string, number> }) {
   const { data: locations } = useStockLocations();
-  const { createLocation, updateLocation, moveLocation, deleteLocation } = useStockMutations();
-  /**
-   * Input of a place from the form values.
-   * @param {{ name: string, color: string, parentId: string | null }} values Values.
-   * @returns {object} Input.
-   */
-  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, parentId: values.parentId });
+  const { moveLocation, deleteLocation } = useStockMutations();
+  const definition = useLocationItems();
   return (
     <SettingsList
-      kind="STOCK_LOCATION"
+      {...definition}
       nested
       title="Emplacements"
       description="Où sont rangés les articles, en arborescence (Cuisine › Frigo) : glissez un emplacement sur un autre pour l’y ranger."
@@ -28,9 +22,6 @@ export function StockLocations({ usage }: { usage: Map<string, number> }) {
       usage={usage}
       usageNoun="articles"
       storageKey="ordo.stock.locations"
-      schema={stockLocationSchema}
-      create={async (values) => createdId(await createLocation.mutateAsync(input(values)))}
-      update={(id, values) => updateLocation.mutateAsync({ id, input: input(values) })}
       remove={(id) => deleteLocation.mutateAsync(id)}
       move={(id, parentId, index) => moveLocation.mutateAsync({ id, parentId, index })}
     />

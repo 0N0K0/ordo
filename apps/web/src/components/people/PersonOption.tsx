@@ -14,7 +14,7 @@ const OPTION_AVATAR = 20;
 export function PersonOption({ name, label, avatarUrl, hint }: { name: string; label: string; avatarUrl?: string | null; hint?: string }) {
   return (
     <Group gap="xs" wrap="nowrap">
-      <Avatar src={avatarUrl} name={name} color="initials" size={OPTION_AVATAR} />
+      <PersonAvatar name={name} avatarUrl={avatarUrl} size={OPTION_AVATAR} />
       <Text size="sm">{label}</Text>
       {hint && (
         <Text size="xs" c="dimmed">
@@ -54,7 +54,7 @@ interface PersonRowProps {
 export function PersonRow({ name, label = name, avatarUrl, badges, details }: PersonRowProps) {
   return (
     <>
-      <Avatar src={avatarUrl} name={name} color="initials" />
+      <PersonAvatar name={name} avatarUrl={avatarUrl} size="md" />
       <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
         <Group gap={6} wrap="nowrap">
           <Text size="sm" fw={500} truncate>

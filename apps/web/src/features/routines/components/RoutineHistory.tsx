@@ -4,7 +4,7 @@ import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, collator, mapById } from '@ordo/shared';
+import { addDays, mapById } from '@ordo/shared';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { localToday } from '../../../lib/dates';
@@ -14,7 +14,7 @@ import { useAgendaLayerOptions } from '../hooks/use-agenda-layers';
 import * as fmt from '../../../lib/format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { routineTreeOptions } from '../lib/routine-format';
-import { countOf } from '../../../lib/text';
+import { countOf, collator } from '../../../lib/text';
 
 /**
  * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing

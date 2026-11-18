@@ -1,6 +1,6 @@
 import { labelFormSchema, shoppingCategorySchema } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { createdId, listMutations } from '../../../components/settings/settings-api';
+import { listMutations, itemMutations } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { unarchived } from '../../../lib/archive';
 import { useShoppingData, useShoppingMutations, type ShoppingCategory, type ShoppingStorage, type ShoppingStore, type ShoppingUnit } from '../api';
@@ -72,7 +72,6 @@ export function useShoppingCategoryItems(): SettingsItemKind<ShoppingCategory, {
         />
       ),
     },
-    create: async (values) => createdId(await createCategory.mutateAsync(input(values))),
-    update: (id, values) => updateCategory.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createCategory, update: updateCategory }, input),
   };
 }

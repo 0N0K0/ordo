@@ -1,14 +1,15 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
-import { BackLink } from '../../../components/page/BackLink';
+
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Box, Button, Grid, Group, Paper, Stack, Text } from '@mantine/core';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
+import { DownloadSimpleIcon, FileXIcon, PencilSimpleIcon, PaperclipIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { useParams } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+
 import { FilePreview } from '../../files/components/FilePreview';
 import { downloadUrl, viewableKind } from '../../files/lib/viewable';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
@@ -17,10 +18,11 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { openImportForm } from '../lib/imported-form';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { StatusMenu } from '../components/TrackingBadge';
-import { openSentDialog } from '../lib/sent-dialog';
+import { chooseTrackingStatus } from '../lib/sent-dialog';
 import * as fmt from '../../../lib/format';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { Comments } from '../../comments/components/Comments';
+import { DetailHeader } from '../../../components/page/DetailHeader';
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
@@ -52,43 +54,35 @@ export function ImportedDocumentPage() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Stack gap={4}>
-          <BackLink to="/accounting">Facturation</BackLink>
-          <Group gap="xs">
-            <Title order={1} size="h3">
-              {DOCUMENT_TYPE_LABELS[document.type]} {document.number}
-            </Title>
+      <DetailHeader
+        back={{ to: '/accounting', label: 'Facturation' }}
+        order={1}
+        title={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number}`}
+        badges={
+          <>
             <Badge variant="light" color="cyan">
               Importé
             </Badge>
             {document.archived && <ArchivedBadge />}
-          </Group>
-          {document.title && <Text c="dimmed">{document.title}</Text>}
-        </Stack>
-        <Group gap="xs" wrap="nowrap">
-          {document.fileUrl && (
-            <Tooltip label="Télécharger le fichier">
-              <ActionIcon component="a" href={downloadUrl(document.fileUrl)} variant="default" size="lg" aria-label="Télécharger le fichier">
+          </>
+        }
+        subtitle={document.title && <Text c="dimmed">{document.title}</Text>}
+        actions={
+          <>
+            {document.fileUrl && (
+              <IconAction label="Télécharger le fichier" component="a" href={downloadUrl(document.fileUrl)} variant="default" size="lg">
                 <DownloadSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {!document.archived && (
-            <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
-              Modifier
-            </Button>
-          )}
-          <Button
-            variant="default"
-            leftSection={document.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-            loading={setArchived.isPending}
-            onClick={() => void archiveWithUndo(setArchived, { ids: [document.id], archived: !document.archived, label: `« ${document.number} »` })}
-          >
-            {document.archived ? 'Restaurer' : 'Archiver'}
-          </Button>
-        </Group>
-      </Group>
+              </IconAction>
+            )}
+            {!document.archived && (
+              <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openImportForm(document)}>
+                Modifier
+              </Button>
+            )}
+          </>
+        }
+        menu={{ name: `« ${document.number} »`, items: [archiveEntry({ archived: document.archived, label: `« ${document.number} »` }, setArchived, document.id)] }}
+      />
 
       <Grid gap="md">
         <Grid.Col span={{ base: 12, lg: 8 }}>
@@ -128,17 +122,7 @@ export function ImportedDocumentPage() {
                   current={document.trackingStatus}
                   pending={setStatus.isPending}
                   readOnly={document.archived}
-                  onSelect={(status) =>
-                    // A "sent" status asks when and how it was sent.
-                    status.category === 'SENT'
-                      ? openSentDialog({
-                          title: `Envoi de ${document.number}`,
-                          sentAt: document.sentAt,
-                          sentVia: document.sentVia,
-                          onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
-                        })
-                      : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: onMutationError })
-                  }
+                  onSelect={(status) => chooseTrackingStatus(document, status, { setStatus, markSent })}
                 />
                 {document.type !== 'QUOTE' && (
                   <Badge variant="light" color={document.balance ? 'orange' : 'green'}>

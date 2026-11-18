@@ -1,3 +1,4 @@
+import { clientPath, projectPath } from '../../../app/pages';
 import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { SubSection } from '../../../components/page/SubSection';
@@ -152,7 +153,7 @@ export function ProjectPage() {
         subtitle={
           <Breadcrumbs separator="›" separatorMargin={6} fz="sm">
             {client ? (
-              <Anchor component={Link} to={`/clients/${client.id}`} size="sm">
+              <Anchor component={Link} to={clientPath(client.id)} size="sm">
                 {client.name}
               </Anchor>
             ) : (
@@ -163,7 +164,7 @@ export function ProjectPage() {
               )
             )}
             {ancestors.map((ancestor) => (
-              <Anchor key={ancestor.id} component={Link} to={`/projects/${ancestor.id}`} size="sm">
+              <Anchor key={ancestor.id} component={Link} to={projectPath(ancestor.id)} size="sm">
                 {ancestor.title}
               </Anchor>
             ))}

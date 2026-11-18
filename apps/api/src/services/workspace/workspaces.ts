@@ -3,9 +3,9 @@ import type { NextFunction, Request, Response } from 'express';
 import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, requiredText } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
-import { BY_POSITION, moveInOrder } from '../core/ordering';
+import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { assertExists } from '../core/lookup';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
 import { resolveCalendarId } from '../calendar/calendars';
@@ -141,8 +141,7 @@ async function setUpWorkspace(workspace: Workspace): Promise<void> {
  */
 export async function createWorkspace(input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
-  const last = await unscopedPrisma.workspace.aggregate({ _max: { position: true } });
-  const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: (last._max.position ?? -1) + 1 } });
+  const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: await nextPositionIn('workspace', {}, unscopedPrisma) } });
   await setUpWorkspace(workspace);
   return workspace;
 }
@@ -155,8 +154,7 @@ export async function createWorkspace(input: { name: string; kind: WorkspaceKind
  */
 export async function updateWorkspace(id: string, input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
-  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id } });
-  if (!workspace) throw notFound('Espace');
+  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id } }), 'Espace');
   if (workspace.kind === 'PRO' && data.kind === 'PERSO') {
     const used = await runInWorkspace(workspace, async () => (await prisma.client.count()) + (await prisma.accountingDocument.count()) + (await prisma.importedDocument.count()));
     if (used > 0) throw clientError('BAD_USER_INPUT', 'Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel.');
@@ -207,8 +205,7 @@ export async function moveWorkspace(id: string, index: number): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function deleteWorkspace(id: string): Promise<void> {
-  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id } });
-  if (!workspace) throw notFound('Espace');
+  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id } }), 'Espace');
   if ((await unscopedPrisma.workspace.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier espace ne peut pas être supprimé.');
   await runInWorkspace(workspace, () =>
     prisma.$transaction(async (tx) => {

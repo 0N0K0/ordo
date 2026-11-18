@@ -3,13 +3,13 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { describeAlarm, nextRing } from '../lib/alarm-labels';
 import { useAlarmMutations, type Alarm } from '../api';
 import type { AlarmFormOpener } from '../hooks/use-alarm-form';
 import * as fmt from '../../../lib/format';
-import { taskPath } from '../../tasks/lib/task-links';
+import { projectPath, taskPath } from '../../../app/pages';
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -51,7 +51,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
   const confirmDelete = (alarm: Alarm) => {
     confirmDestructive({
       title: 'Supprimer l’alarme',
-      risks: `L’alarme « ${alarm.title} » sera supprimée définitivement et ne sonnera plus. Cette action est irréversible.`,
+      risks: `L’alarme « ${alarm.title} » sera supprimée définitivement et ne sonnera plus.`,
       run: () => remove.mutateAsync(alarm.id),
       done: 'Alarme supprimée.',
     });
@@ -82,7 +82,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   </Text>
                 )}
                 {(task ?? project) && (
-                  <Anchor component={Link} to={task ? taskPath(task) : `/projects/${project!.id}`} size="xs">
+                  <Anchor component={Link} to={task ? taskPath(task) : projectPath(project!.id)} size="xs">
                     {task ? context.taskLabel(task) : project!.title}
                   </Anchor>
                 )}
@@ -96,7 +96,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 <Switch
                   aria-label={alarm.enabled ? `Désactiver ${alarm.title}` : `Activer ${alarm.title}`}
                   checked={alarm.enabled}
-                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, { onError: onMutationError })}
+                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, ON_ERROR)}
                 />
                 <InlineActions
                   name={alarm.title}

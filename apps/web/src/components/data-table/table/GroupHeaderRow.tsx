@@ -1,5 +1,6 @@
+import { FoldChevron } from '../../actions/FoldChevron';
 import { ActionIcon, Badge, ColorSwatch, Group, Table, Text } from '@mantine/core';
-import { CaretRightIcon } from '@phosphor-icons/react';
+
 import type { ReactNode } from 'react';
 import classes from './DataTable.module.css';
 
@@ -31,7 +32,7 @@ export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggl
       <Table.Td colSpan={span} style={depth ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` } : undefined}>
         <Group gap="xs" wrap="nowrap">
           <ActionIcon variant="subtle" color="gray" size="sm" aria-label={collapsed ? `Déplier ${label}` : `Replier ${label}`} aria-expanded={!collapsed} onClick={onToggle}>
-            <CaretRightIcon className={classes.chevron} data-expanded={!collapsed || undefined} aria-hidden />
+            <FoldChevron expanded={!collapsed} />
           </ActionIcon>
           {color && <ColorSwatch color={color} size={12} />}
           <Text size="sm" fw={depth === 0 ? 700 : 600}>

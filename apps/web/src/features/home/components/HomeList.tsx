@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 import { Link, type To } from 'react-router';
 import { plural } from '../../../lib/text';
 import classes from './Home.module.css';
+import tile from '../../../components/page/StatTile.module.css';
+import { groupBy } from '@ordo/shared';
+import { SubSection } from '../../../components/page/SubSection';
 
 /** Rows shown at most in a list of a home card; the others are counted below. */
 export const HOME_ROWS = 10;
@@ -11,18 +14,27 @@ interface HomeListProps<T> {
   items: T[];
   /** Row of an item (with its key). */
   render: (item: T) => ReactNode;
+  /** Groups of the rows shown (the items sorted by it): its key and its title (a day). Optional. */
+  group?: { key: (item: T) => string; title: (key: string) => ReactNode };
 }
 
 /**
- * List of a home card: its first rows, then « + N autres ».
+ * List of a home card: its first rows (under the titles of their groups), then « + N autres ».
  * @param {HomeListProps<T>} props Component props.
  * @returns {JSX.Element} List.
  */
-export function HomeList<T>({ items, render }: HomeListProps<T>) {
+export function HomeList<T>({ items, render, group }: HomeListProps<T>) {
   const more = items.length - HOME_ROWS;
+  const shown = items.slice(0, HOME_ROWS);
   return (
-    <Stack gap={0}>
-      {items.slice(0, HOME_ROWS).map(render)}
+    <Stack gap={group ? 'sm' : 0}>
+      {group
+        ? [...groupBy(shown, group.key)].map(([key, rows]) => (
+            <SubSection key={key} title={group.title(key)} gap={0}>
+              {rows.map(render)}
+            </SubSection>
+          ))
+        : shown.map(render)}
       {more > 0 && (
         <Text size="xs" c="dimmed" pt={4}>
           + {more} {plural(more, 'autre')}
@@ -51,7 +63,7 @@ interface HomeRowProps {
  */
 export function HomeRow({ to, title, subtitle, value, emphasis = false }: HomeRowProps) {
   return (
-    <Link to={to} className={classes.row}>
+    <Link to={to} className={`${tile.tile} ${classes.row}`}>
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Stack gap={0} miw={0}>
           <Text size="sm" fw={emphasis ? 600 : undefined} truncate>

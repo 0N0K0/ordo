@@ -1,9 +1,10 @@
 import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
 import { mapById } from '../core/collections';
 import { z } from 'zod';
-import { requiredText, optionalText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, optionalText, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
-import { printedDay, recurrenceSchema } from '../dates/recurrence';
+import { printedDay } from '../dates/days';
+import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
@@ -157,7 +158,7 @@ export const treasuryContextPeriodSchema = z
     endDate: daySchema(),
     note: optionalText(200),
   })
-  .refine((period) => period.endDate >= period.startDate, { path: ['endDate'], message: 'La fin précède le début.' });
+  .refine(...endAfter('startDate', 'endDate'));
 export type TreasuryContextPeriodInput = z.input<typeof treasuryContextPeriodSchema>;
 
 /**
@@ -191,7 +192,7 @@ export const treasuryBudgetSchema = z
     /** Last month (YYYY-MM), included; none: no end. */
     repeatUntil: monthSchema.nullable(),
   })
-  .refine((budget) => !budget.repeatUntil || !budget.repeatEvery || budget.repeatUntil >= budget.month, { path: ['repeatUntil'], message: 'La fin précède le début.' })
+  .refine((budget) => !budget.repeatEvery || endsAfter(budget.month, budget.repeatUntil), { path: ['repeatUntil'], message: END_AFTER_START })
   .refine((budget) => !budget.memberId || !budget.relationId, { path: ['memberId'], message: 'Un membre ou une relation, pas les deux.' });
 export type TreasuryBudgetInput = z.input<typeof treasuryBudgetSchema>;
 

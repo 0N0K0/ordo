@@ -15,7 +15,7 @@ import { countOf } from '../../../lib/text';
 export function confirmPlanDelete({ title, what, count, link, done, remove }: { title: string; what: string; count: number; link: string; done: string; remove: () => Promise<unknown> }): void {
   confirmDestructive({
     title,
-    risks: `${what} sera supprimé définitivement${count > 0 ? ` et retiré des ${countOf(count, 'tâche')} ${link}` : ''}. Les tâches ne sont pas supprimées. Cette action est irréversible.`,
+    risks: `${what} sera supprimé définitivement${count > 0 ? ` et retiré des ${countOf(count, 'tâche')} ${link}` : ''}. Les tâches ne sont pas supprimées.`,
     run: remove,
     done,
   });

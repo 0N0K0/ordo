@@ -1,5 +1,5 @@
 import { routineCategorySchema } from '@ordo/shared';
-import { createdId } from '../../../components/settings/settings-api';
+import { itemMutations } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { useRoutineMutations, type RoutineCategory } from '../api';
 
@@ -20,7 +20,6 @@ export function useRoutineCategoryItems(): SettingsItemKind<RoutineCategory> {
   return {
     kind: 'ROUTINE_CATEGORY',
     schema: routineCategorySchema,
-    create: async (values) => createdId(await createCategory.mutateAsync(input(values))),
-    update: (id, values) => updateCategory.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createCategory, update: updateCategory }, input),
   };
 }

@@ -1,7 +1,8 @@
+import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
-import { Accordion, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Accordion, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import {
   CHART_COMPARISON_KINDS,
   defaultChartConfig,
@@ -278,13 +279,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
             </Stack>
           </Paper>
         ))}
-      {several && (
-        <div>
-          <Button size="xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={addComparison}>
-            Comparer deux jeux
-          </Button>
-        </div>
-      )}
+      {several && <AddItemButton onClick={addComparison}>Comparer deux jeux</AddItemButton>}
     </Stack>
   );
 }

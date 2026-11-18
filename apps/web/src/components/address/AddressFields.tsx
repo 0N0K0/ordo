@@ -1,6 +1,7 @@
-import { Anchor, Fieldset, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { AddItemButton } from '../actions/AddItemButton';
+import { Fieldset, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { EMPTY_ADDRESS, type Address } from '@ordo/shared';
-import { PlusIcon } from '@phosphor-icons/react';
+
 import { COUNTRY_OPTIONS } from './countries';
 import { RemoveButton } from '../actions/RemoveButton';
 
@@ -45,11 +46,7 @@ export function AddressFields({ legend, value, onChange, errors = {} }: AddressF
           </Group>
         ))}
         {address.lines.length < 4 && (
-          <Anchor component="button" type="button" size="xs" onClick={() => update({ lines: [...address.lines, ''] })}>
-            <Group gap={4}>
-              <PlusIcon aria-hidden /> Ajouter une ligne
-            </Group>
-          </Anchor>
+          <AddItemButton onClick={() => update({ lines: [...address.lines, ''] })}>Ajouter une ligne</AddItemButton>
         )}
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
           <TextInput label="Code postal" value={address.postalCode} onChange={(event) => update({ postalCode: event.currentTarget.value })} error={errors.postalCode} />

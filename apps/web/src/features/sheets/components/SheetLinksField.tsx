@@ -2,7 +2,7 @@ import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Group, Select, Text } from '@mantine/core';
 
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
 import { MultiplierInput } from './MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -19,7 +19,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const { data: links } = useSheetLinks(owner);
   const { setLinks } = useSheetMutations();
   const current = (links ?? []).map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier }));
-  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, { onError: onMutationError });
+  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, ON_ERROR);
   // The archived sheets are not offered (those linked already stay).
   const options = unarchived(
     sheets ?? [],

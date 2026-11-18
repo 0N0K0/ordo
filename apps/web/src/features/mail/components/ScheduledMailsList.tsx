@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Group, Paper, Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
 import { toastCallbacks } from '../../../lib/notify';
 import { useMailAccounts, useMailActions, useScheduledMails } from '../api';
@@ -47,27 +48,22 @@ export function ScheduledMailsList() {
             </Stack>
             {mail.status !== 'SENDING' && (
               <Group gap={2} wrap="nowrap">
-                <Tooltip label="Envoyer maintenant">
-                  <ActionIcon
-                    variant="subtle"
-                    aria-label={`Envoyer maintenant « ${mail.subject} »`}
-                    loading={sendScheduled.isPending && sendScheduled.variables === mail.id}
-                    onClick={() => sendScheduled.mutate(mail.id, toastCallbacks('Mail envoyé.'))}
-                  >
-                    <PaperPlaneRightIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Annuler l’envoi (retour aux brouillons)">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Annuler l’envoi de « ${mail.subject} »`}
-                    loading={cancelScheduled.isPending && cancelScheduled.variables === mail.id}
-                    onClick={() => cancelScheduled.mutate(mail.id, toastCallbacks('Envoi annulé : le mail est dans les brouillons.'))}
-                  >
-                    <ArrowCounterClockwiseIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <IconAction
+                  label="Envoyer maintenant"
+                  aria-label={`Envoyer maintenant « ${mail.subject} »`}
+                  loading={sendScheduled.isPending && sendScheduled.variables === mail.id}
+                  onClick={() => sendScheduled.mutate(mail.id, toastCallbacks('Mail envoyé.'))}
+                >
+                  <PaperPlaneRightIcon aria-hidden />
+                </IconAction>
+                <IconAction
+                  label="Annuler l’envoi (retour aux brouillons)"
+                  aria-label={`Annuler l’envoi de « ${mail.subject} »`}
+                  loading={cancelScheduled.isPending && cancelScheduled.variables === mail.id}
+                  onClick={() => cancelScheduled.mutate(mail.id, toastCallbacks('Envoi annulé : le mail est dans les brouillons.'))}
+                >
+                  <ArrowCounterClockwiseIcon aria-hidden />
+                </IconAction>
               </Group>
             )}
           </Group>

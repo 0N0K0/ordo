@@ -1,7 +1,7 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { PAGES } from '../../../app/pages';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { BackLink } from '../../../components/page/BackLink';
+
 import { unarchived } from '../../../lib/archive';
 import { countOf, plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
@@ -10,8 +10,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { ActionIcon, Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+
 import {
   ArchiveIcon,
   BankIcon,
@@ -45,9 +45,9 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { ProductPicker } from '../components/ProductPicker';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
-import { blankInput, EMPTY_GROUPS_LABEL, listClosed, listTasks, usePeople, type ShoppingGrouping, shoppingProgress } from '../lib/shopping-format';
+import { blankInput, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
 import { ShoppingSettings } from '../components/ShoppingSettings';
-import { GroupingControl } from '../components/GroupingControl';
+import { GroupingOptions } from '../components/GroupingControl';
 import { itemColumns, optionalColumn } from '../lib/shopping-columns';
 import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
@@ -62,6 +62,8 @@ import * as fmt from '../../../lib/format';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { Comments } from '../../comments/components/Comments';
+import { DetailHeader } from '../../../components/page/DetailHeader';
+import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -93,9 +95,9 @@ export function ShoppingListPage() {
   const { data } = useShoppingData();
   const { context } = useTaskContext();
   const mutations = useShoppingMutations();
-  const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
+  const groupingOptions = useShoppingGrouping('list');
+  const { grouping, showEmpty } = groupingOptions;
   const [storeMode, setStoreMode] = useState(false);
-  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const list = lists?.find((item) => item.id === id);
   // Projects of the list, through its tasks: their contributors are the members offered.
   const people = usePeople();
@@ -221,24 +223,22 @@ export function ShoppingListPage() {
   return (
     <Stack gap="lg">
       <ShoppingSettings />
-      <Group gap="sm" align="flex-start" wrap="nowrap">
-        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <BackLink to="/shopping?tab=lists">Listes d’achats</BackLink>
-          <PageHeader title={PAGES.shopping.title} />
-          <Group gap="xs">
-            <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
-              {list.name}
-            </Title>
-            {list.archived ? (
-              <ArchivedBadge feminine />
-            ) : (
-              closed && (
-                <Badge variant="light" color="gray" tt="none">
-                  Clôturée
-                </Badge>
-              )
-            )}
-          </Group>
+      <DetailHeader
+        back={{ to: '/shopping?tab=lists', label: 'Listes d’achats' }}
+        page={<PageHeader title={PAGES.shopping.title} />}
+        title={list.name}
+        badges={
+          list.archived ? (
+            <ArchivedBadge feminine />
+          ) : (
+            closed && (
+              <Badge variant="light" color="gray" tt="none">
+                Clôturée
+              </Badge>
+            )
+          )
+        }
+        subtitle={
           <Group gap="md">
             {tasks.map((task) => (
               <TaskRef key={task.id} task={task} blocked={context?.isBlocked(task)} />
@@ -256,19 +256,14 @@ export function ShoppingListPage() {
               {total > 0 && ` · ${fmt.money(spent)} sur ${fmt.money(total)} estimés`}
             </Text>
           </Group>
-        </Stack>
-      </Group>
+        }
+      />
 
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
         manualText="Sans tri : l’ordre de la liste, dans ses catégories."
-        displayOptions={
-          <>
-            <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-          </>
-        }
+        displayOptions={<GroupingOptions {...groupingOptions} />}
         actions={
           <Group gap="sm" ml="auto" wrap="wrap">
             {!closed && (
@@ -429,7 +424,7 @@ export function ShoppingListPage() {
                     else
                       confirmDestructive({
                         title: 'Retirer l’élément',
-                        risks: `« ${item.name} » n’est dans aucune référence : il sera supprimé définitivement. Cette action est irréversible.`,
+                        risks: `« ${item.name} » n’est dans aucune référence : il sera supprimé définitivement.`,
                         confirmLabel: 'Retirer',
                         onConfirm: remove,
                       });

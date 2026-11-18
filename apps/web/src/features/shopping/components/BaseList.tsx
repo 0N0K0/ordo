@@ -3,11 +3,11 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Button, Group, Stack, Switch, Text } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
+
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, visibleItems } from '../../../lib/archive';
+
+import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { openMoveProducts } from '../lib/open-move-products';
@@ -20,8 +20,8 @@ import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
-import { blankInput, EMPTY_GROUPS_LABEL, categoriesForBaseList, usePeople, type ShoppingGrouping } from '../lib/shopping-format';
-import { GroupingControl } from './GroupingControl';
+import { blankInput, categoriesForBaseList, usePeople } from '../lib/shopping-format';
+import { GroupingOptions } from './GroupingControl';
 import { itemColumns } from '../lib/shopping-columns';
 import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
 import * as fmt from '../../../lib/format';
@@ -32,9 +32,10 @@ import { EditableCheck, EditableSelect } from '../../../components/data-table/ce
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../../stock/api';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
+import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [
@@ -51,7 +52,7 @@ const BASE_LIST_VIEWS: FirstTableView[] = [
 function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
   confirmDestructive({
     title: 'Retirer le produit',
-    risks: <>« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</>,
+    risks: <>« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent.</>,
     confirmLabel: 'Retirer',
     onConfirm: () => {
       onConfirm();
@@ -89,16 +90,15 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
-  const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.baseGrouping', defaultValue: 'category' });
-  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
+  const groupingOptions = useShoppingGrouping('base');
+  const { grouping, showEmpty } = groupingOptions;
   const people = usePeople();
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
   const places = categoryPaths(locations ?? []);
   const setArchived = useSetArchived('SHOPPING_PRODUCT', [shoppingKey]);
-  const [showArchived, setShowArchived] = useState(false);
   const all = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
-  const products = [...visibleItems(all, showArchived)];
+  const { shown: products, toggle: archivedToggle } = useArchivedToggle(all);
   // The archived products are not on the lists made.
   const missing = products.filter((product) => product.missing && !product.archived);
   // An archived base list is read only.
@@ -228,7 +228,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         manualText="Sans tri : les produits par nom, dans leurs catégories."
         actions={
           <Group gap="sm" wrap="nowrap">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((product) => product.archived).length} />
+            <ShowArchivedSwitch {...archivedToggle} />
             <ActionButton priority="secondary" icon={<ArrowsLeftRightIcon aria-hidden />} disabled={locked || products.length === 0 || otherBaseLists === 0} onClick={() => openMoveProducts(baseList)}>
               Déplacer des produits
             </ActionButton>
@@ -240,12 +240,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             </Button>
           </Group>
         }
-        displayOptions={
-          <>
-            <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-          </>
-        }
+        displayOptions={<GroupingOptions {...groupingOptions} />}
       />
 
       {isPending ? (
@@ -278,13 +273,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
               done: `${countOf(rows.length, 'produit')} ${plural(rows.length, 'retiré')}.`,
               clear,
             }),
-            archiveRowsAction({
-              archived: rows.every((product) => product.archived),
-              apply: (archived) => setArchived.mutateAsync({ ids: rows.map((product) => product.id), archived }),
-              label: countOf(rows.length, 'produit'),
-              count: rows.length,
-              clear,
-            }),
+            archiveItemsAction(rows, setArchived, { noun: 'produit', clear }),
           ]}
           grouping={grouping}
           showEmpty={showEmpty}

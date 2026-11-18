@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { calendarStart, shiftCalendar } from '../dates/periods';
-import { addDays } from '../dates/recurrence';
+import { addDays } from '../dates/days';
 import { isRealDay } from '../dates/times';
 import { DEFAULT_WEEK, weekRange, type WeekSpan } from '../dates/weeks';
 

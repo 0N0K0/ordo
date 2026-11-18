@@ -74,3 +74,9 @@ builder.scalarType('DateTime', {
 // Every root field requires a session unless it opts out with `skipTypeScopes`.
 builder.queryType({ authScopes: { loggedIn: true } });
 builder.mutationType({ authScopes: { loggedIn: true } });
+
+/** Field builder of an input type (`fields: (t) => …` of `builder.inputType`), for field lists shared by several inputs. */
+export type InputFields = Parameters<Parameters<typeof builder.inputType>[1]['fields']>[0];
+
+/** Schema types of the builder (for helpers typed against its field builders). */
+export type BuilderTypes = typeof builder extends PothosSchemaTypes.SchemaBuilder<infer Types> ? Types : never;

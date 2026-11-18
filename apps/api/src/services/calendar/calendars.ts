@@ -1,10 +1,10 @@
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, firstActive } from '../core/archive';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
@@ -46,8 +46,7 @@ async function findCalendar(id: string): Promise<Calendar> {
 export async function resolveCalendarId(id?: string | null): Promise<string> {
   if (id) return (await findCalendar(id)).id;
   // An archived calendar takes no new event: the first one that is not, else the first one (refused then).
-  const first =
-    (await prisma.calendar.findFirst({ where: { archivedAt: null }, orderBy: BY_POSITION, select: { id: true } })) ?? (await prisma.calendar.findFirst({ orderBy: BY_POSITION, select: { id: true } }));
+  const first = await firstActive(prisma.calendar);
   if (first) return first.id;
   const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { name: true } });
   return (await prisma.calendar.create({ data: { name: workspace.name, color: DEFAULT_COLOR } })).id;
@@ -124,8 +123,7 @@ export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
  * @returns {Promise<void>}
  */
 export async function subscribe(calendarId: string): Promise<void> {
-  const calendar = await unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true } });
-  if (!calendar) throw notFound('Calendrier');
+  const calendar = await orNotFound(unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true } }), 'Calendrier');
   if (calendar.workspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ce calendrier appartient déjà à cet espace.');
   if (await prisma.calendarSubscription.findFirst({ where: { calendarId }, select: { id: true } })) return;
   const position = await nextPositionIn('calendarSubscription');

@@ -1,20 +1,17 @@
-import { useCategoryItems } from '../hooks/use-settings-items';
-import { itemCreator } from '../../../components/settings/create-settings-item';
+import { useCategoryCreators } from '../hooks/use-settings-items';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { openFormPanel } from '../../../components/panels/panels';
-import { plural, countOf } from '../../../lib/text';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { itemChoices, listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
 import { Badge, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
-import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
@@ -26,7 +23,7 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday, monthOfDay } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from '../api';
 import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -37,10 +34,11 @@ import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { meName, personName } from '../../../components/people/people-options';
+import { dateRangeProps, followBounds, formRange } from '../../../components/inputs/date-range';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -85,7 +83,6 @@ function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value
       clearable={nullable}
       minDate={minMonth ? `${minMonth}-01` : undefined}
       value={value ? `${value}-01` : null}
-      valueFormat="MMMM YYYY"
       // « Novembre 2026 », as the month of the other cells.
       styles={{ input: { textTransform: 'capitalize' } }}
       popoverProps={{ withinPortal: true }}
@@ -120,6 +117,22 @@ interface BudgetValues extends Record<string, unknown> {
 }
 
 /**
+ * Values of a budget saved, for its form or a change of one field.
+ * @param {TreasuryBudget} budget Budget.
+ * @returns {BudgetValues} Values.
+ */
+const budgetValues = (budget: TreasuryBudget): BudgetValues => ({
+  month: budget.month,
+  memberId: budget.memberId ?? null,
+  relationId: budget.relationId ?? null,
+  contextId: budget.contextId ?? null,
+  categoryId: budget.categoryId,
+  amount: budget.amount,
+  repeatEvery: budget.repeatEvery ?? null,
+  repeatUntil: budget.repeatUntil ?? null,
+});
+
+/**
  * Budget form: money out or in, month, member (none: me), context (none: everyday), category of that direction,
  * amount, repetition.
  * @param {{ budget?: TreasuryBudget, defaults?: Partial<BudgetValues>, onDone: () => void }} props Component props.
@@ -147,6 +160,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
     schema: treasuryBudgetSchema,
   });
   const values = form.values;
+  const months = dateRangeProps(formRange(form, 'month', 'repeatUntil'), { month: true });
   const me = members.find((member) => member.isMe);
   // Money out or in: the direction of the category, unless chosen first (none chosen: money out).
   const [chosenDirection, setDirection] = useState<'OUT' | 'IN' | null>(null);
@@ -156,7 +170,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
     return !every ? 'ONCE' : every === 12 ? 'YEAR' : 'MONTHS';
   });
   const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
-  const categoryItems = useCategoryItems(direction);
+  const createCategory = useCategoryCreators(categories);
 
   return (
     <Stack gap="lg">
@@ -175,13 +189,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
       >
         <Stack gap="sm">
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <MonthPickerInput
-              label={values.repeatEvery ? 'À partir de' : 'Mois'}
-              required
-              value={`${values.month}-01`}
-              onChange={(value) => value && form.setFieldValue('month', monthOfDay(value))}
-              error={form.errors.month}
-            />
+            <MonthPickerInput label={values.repeatEvery ? 'À partir de' : 'Mois'} required {...months.start} />
             <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
           </SimpleGrid>
           <SegmentedControl
@@ -202,7 +210,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             label="Catégorie"
             required
             searchable
-            onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: categories.filter((category) => category.direction === direction && !category.archived) })}
+            onCreate={createCategory[direction]}
             {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
             nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
             description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
@@ -250,17 +258,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
                 error={form.errors.repeatEvery}
               />
             )}
-            {values.repeatEvery && (
-              <MonthPickerInput
-                label="Jusqu’à"
-                placeholder="Sans fin"
-                clearable
-                minDate={`${values.month}-01`}
-                value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
-                onChange={(value) => form.setFieldValue('repeatUntil', value ? monthOfDay(value) : null)}
-                error={form.errors.repeatUntil}
-              />
-            )}
+            {values.repeatEvery && <MonthPickerInput label="Jusqu’à" placeholder="Sans fin" clearable {...months.end} />}
           </SimpleGrid>
           <FormActions onCancel={onDone} loading={save.isPending} />
         </Stack>
@@ -286,6 +284,23 @@ export function BudgetsPanel() {
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();
+  /**
+   * « Supprimer » of budgets, on a row as on a selection.
+   * @param {TreasuryBudget[]} rows Budgets.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
+   */
+  const deleteBudgets = (rows: TreasuryBudget[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'budget',
+      the: 'le budget',
+      risks: (subject, one, budgets) => {
+        const repeated = budgets.some((budget) => budget.repeatEvery);
+        return `${subject}${repeated ? ` et ${one ? 'toutes ses' : 'leurs'} répétitions` : ''} ${one && !repeated ? 'sera supprimé' : 'seront supprimés'} définitivement. ${one ? 'Ses' : 'Leurs'} mouvements seront hors budget s’il n’y en a pas d’autre.`;
+      },
+      remove: (budget) => remove.mutateAsync(budget.id),
+      clear,
+    });
   const setArchived = useSetArchived('TREASURY_BUDGET', [treasuryKey]);
 
   /**
@@ -299,20 +314,13 @@ export function BudgetsPanel() {
       {
         id: budget.id,
         input: {
-          month: budget.month,
-          memberId: budget.memberId ?? null,
-          relationId: budget.relationId ?? null,
-          contextId: budget.contextId ?? null,
-          categoryId: budget.categoryId,
-          amount: budget.amount,
-          repeatEvery: budget.repeatEvery ?? null,
-          repeatUntil: budget.repeatUntil ?? null,
+          ...budgetValues(budget),
           ...change,
           // A budget of a single month ends with it.
           ...(change.repeatEvery === null ? { repeatUntil: null } : {}),
         },
       },
-      { onError: onMutationError },
+      ON_ERROR,
     );
   const categories = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(categories);
@@ -686,22 +694,7 @@ export function BudgetsPanel() {
             view={definedView}
             selectionLabel={(count) => selectedLabel(count, ['budget', 'budgets'], false)}
             isArchived={(budget) => budget.archived}
-            selectionActions={(rows, clear) => [
-              archiveRowsAction({
-                archived: rows.every((budget) => budget.archived),
-                apply: (archived) => setArchived.mutateAsync({ ids: rows.map((budget) => budget.id), archived }),
-                label: countOf(rows.length, 'budget'),
-                count: rows.length,
-                clear,
-              }),
-              deleteRowsAction(rows, {
-                title: 'Supprimer les budgets',
-                risks: `${countOf(rows.length, 'budget')} et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                remove: (budget) => remove.mutateAsync(budget.id),
-                done: `${countOf(rows.length, 'budget')} ${plural(rows.length, 'supprimé')}.`,
-                clear,
-              }),
-            ]}
+            selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'budget', clear }), deleteBudgets(rows, clear)]}
             verticalSpacing={4}
             getKey={(budget) => budget.id}
             cells={(budget) =>
@@ -724,7 +717,8 @@ export function BudgetsPanel() {
                       <MonthCell
                         value={budget.month}
                         label="Premier mois du budget"
-                        onSave={(month) => month && bulk('month')(budget, (row) => (row.repeatUntil && row.repeatUntil < month ? {} : { month }))}
+                        // A first month set after the last one moves the last one to it (decision Q).
+                        onSave={(month) => month && bulk('month')(budget, (row) => ({ month, repeatUntil: followBounds([row.month, row.repeatUntil ?? null], 'start', month)[1] }))}
                       />
                     ),
                     repeat: (
@@ -746,7 +740,9 @@ export function BudgetsPanel() {
                         label="Dernier mois du budget"
                         nullable
                         minMonth={budget.month}
-                        onSave={(repeatUntil) => bulk('until')(budget, (row) => (!row.repeatEvery || (repeatUntil && repeatUntil < row.month) ? {} : { repeatUntil }))}
+                        onSave={(repeatUntil) =>
+                          bulk('until')(budget, (row) => (row.repeatEvery ? { repeatUntil, month: followBounds([row.month, row.repeatUntil ?? null], 'end', repeatUntil)[0] ?? row.month } : {}))
+                        }
                       />
                     ) : (
                       <Text size="sm" c="dimmed">
@@ -799,7 +795,7 @@ export function BudgetsPanel() {
               return (
                 <RowActions
                   name="le budget"
-                  primary={budget.archived ? archiveItem : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
+                  primary={budget.archived ? undefined : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                   items={[
                     !budget.archived && {
                       label: 'Dupliquer',
@@ -808,30 +804,11 @@ export function BudgetsPanel() {
                         // A new budget with its values, to change (month, category…) before it is saved.
                         openBudget({
                           copy: true,
-                          defaults: {
-                            month: budget.month,
-                            memberId: budget.memberId ?? null,
-                            relationId: budget.relationId ?? null,
-                            contextId: budget.contextId ?? null,
-                            categoryId: budget.categoryId,
-                            amount: budget.amount,
-                            repeatEvery: budget.repeatEvery ?? null,
-                            repeatUntil: budget.repeatUntil ?? null,
-                          },
+                          defaults: budgetValues(budget),
                         }),
                     },
-                    !budget.archived && archiveItem,
-                    {
-                      label: 'Supprimer',
-                      icon: <TrashIcon aria-hidden />,
-                      danger: true,
-                      onClick: () =>
-                        confirmDestructive({
-                          title: 'Supprimer le budget',
-                          risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                          onConfirm: () => remove.mutate(budget.id, toastCallbacks('Budget supprimé.')),
-                        }),
-                    },
+                    archiveItem,
+                    rowMenuEntry(deleteBudgets([budget])),
                   ]}
                 />
               );

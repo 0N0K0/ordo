@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { addDays } from '../dates/recurrence';
+import { addDays } from '../dates/days';
 import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 
 /** Kind of the slots without kind of the workspace (its working hours, « Travail »). */

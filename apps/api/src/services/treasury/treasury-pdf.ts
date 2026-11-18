@@ -1,4 +1,4 @@
-import { addDays, capitalize, formatDay, formatMoney, longDayText, mapById, monthText, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
+import { addDays, capitalize, countOf, daySchema, endAfter, fileName, formatDay, formatMoney, longDayText, mapById, monthOfDay, monthText, offsetLinkedMovements, parseDay, pathOf, plural, printedDay, splitAmounts } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -18,7 +18,7 @@ const statementSchema = z
     /** One account, or all of them. */
     accountId: z.string().nullable(),
   })
-  .refine((period) => period.from <= period.to, { path: ['to'], message: 'La fin de la période précède son début.' })
+  .refine(...endAfter('from', 'to'))
   .refine((period) => period.to <= addDays(period.from, 366 * 10), { path: ['to'], message: 'Dix ans au plus.' });
 type StatementInput = z.input<typeof statementSchema>;
 
@@ -171,7 +171,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   });
   y += 36 + 6;
   const notes = [
-    `${entries.length} mouvement${entries.length > 1 ? 's' : ''} réel${entries.length > 1 ? 's' : ''}, par date d’exécution ; les prévisions ne sont pas incluses.`,
+    `${countOf(entries.length, 'mouvement')} ${plural(entries.length, 'réel')}, par date d’exécution ; les prévisions ne sont pas incluses.`,
     offset > 0 ? `Dont ${money(offset)} d’entrées et de sorties liées qui se compensent (entrées nettes ${money(incoming - offset)}, sorties nettes ${money(outgoing - offset)}).` : '',
   ].filter(Boolean);
   doc.font('regular').fontSize(7.5).fillColor(COLORS.muted).text(notes.join(' '), MARGIN, y, { width: pageWidth });
@@ -220,7 +220,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   };
 
   header();
-  const byMonth = new Set(entries.map((entry) => formatDay(entry.date).slice(0, 7))).size > 1 || from.slice(0, 7) !== to.slice(0, 7);
+  const byMonth = new Set(entries.map((entry) => monthOfDay(formatDay(entry.date)))).size > 1 || monthOfDay(from) !== monthOfDay(to);
   let running = opening;
   let month = '';
   let pendingOpenings = [...openings];
@@ -233,9 +233,9 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   }
   entries.forEach((entry, index) => {
     const day = formatDay(entry.date);
-    if (byMonth && day.slice(0, 7) !== month) {
-      month = day.slice(0, 7);
-      const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => formatDay(other.date).slice(0, 7) === month);
+    if (byMonth && monthOfDay(day) !== month) {
+      month = monthOfDay(day);
+      const ofMonth = entries.map((other, otherIndex) => ({ other, amount: amounts[otherIndex] })).filter(({ other }) => monthOfDay(formatDay(other.date)) === month);
       const monthIn = ofMonth.filter(({ amount }) => amount > 0).reduce((sum, { amount }) => sum + amount, 0);
       const monthOut = -ofMonth.filter(({ amount }) => amount < 0).reduce((sum, { amount }) => sum + amount, 0);
       band(capitalize(monthText(month)), `Entrées ${money(monthIn)} · Sorties ${money(monthOut)}`, COLORS.month);
@@ -368,5 +368,5 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printedDay(to)} : ${money(closing)}`, COLORS.month);
 
   const content = await finish();
-  return { name: safeFilename(`Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`), content };
+  return { name: fileName(`Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}`, 'pdf'), content };
 }

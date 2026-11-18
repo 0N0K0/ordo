@@ -1,8 +1,8 @@
+import { unarchived } from '../../../lib/archive';
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
 import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, Workspace } from '../api';
-import { collator } from '../../../lib/text';
-import { normalize } from '../../../lib/text';
+import { collator, normalize } from '../../../lib/text';
 
 export type SortMode = 'manual' | 'name';
 
@@ -216,11 +216,11 @@ export function canHaveChildren(projects: Project[], id: string): boolean {
  * @returns {TreeSection} Active section.
  */
 export function buildActiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
-  const active = workspace.projects.filter((project) => !project.archived);
+  const active = unarchived(workspace.projects);
   const roots = active.filter((project) => !project.parentId);
   const section: TreeSection = {
     clients: sortItems(
-      workspace.clients.filter((client) => !client.archived),
+      unarchived(workspace.clients),
       sort,
     ).map((client) => ({
       client,

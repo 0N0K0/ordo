@@ -1,21 +1,5 @@
 @layer app {
-  .row {
-    /* Agencement */
-    display: block;
-
-    /* Typographie */
-    color: inherit;
-    text-decoration: none;
-
-    /* Arrière-Plan */
-    &:hover {
-      background-color: var(--mantine-color-default-hover);
-    }
-
-    /* Animation */
-    transition: background-color 150ms ease;
-  }
-
+  /* A row of a card: a tile (components/page/StatTile.module.css), tighter. */
   .row {
     /* Dimension */
     border-radius: var(--mantine-radius-sm);

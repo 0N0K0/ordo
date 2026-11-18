@@ -3,15 +3,15 @@ import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { PAGES } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
-import { plural, countOf } from '../../../lib/text';
+import { plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { Badge, Group, Stack, Text } from '@mantine/core';
-import { recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { recurrenceSchema, yearOfDay } from '@ordo/shared';
+import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -21,7 +21,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { localToday } from '../../../lib/dates';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
 import { useOverdueInvoices } from '../api/tracking';
@@ -38,7 +38,7 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
@@ -127,10 +127,7 @@ function RecurringList() {
    * @returns {void}
    */
   const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
-    update.mutate(
-      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } },
-      { onError: onMutationError },
-    );
+    update.mutate({ id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: item.startDate, autoFinalize: item.autoFinalize, active: item.active, ...change } }, ON_ERROR);
   const view = useDataView({
     tableKey: 'recurring-invoices',
     getKey: (item) => item.id,
@@ -144,19 +141,22 @@ function RecurringList() {
   if (isPending) return <TableSkeleton rows={3} />;
 
   /**
-   * Asks for confirmation before deleting a schedule.
-   * @param {RecurringInvoice} item Schedule.
-   * @returns {void}
+   * « Supprimer » of recurring invoices, on a row as on a selection.
+   * @param {RecurringInvoice[]} rows Recurring invoices.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
    */
-  const confirmDelete = (item: RecurringInvoice) => {
-    confirmDestructive({
-      title: 'Supprimer la facture récurrente',
-      risks: <>« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</>,
-      onConfirm: () => {
-        remove.mutate(item.id, toastCallbacks('Facture récurrente supprimée.'));
-      },
+  const deleteRecurring = (rows: RecurringInvoice[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'facture récurrente',
+      many: 'factures récurrentes',
+      feminine: true,
+      the: 'la facture récurrente',
+      name: (item) => item.name,
+      risks: (subject, one) => `${subject} et ${one ? 'son modèle' : 'leurs modèles'} seront supprimés définitivement ; les factures déjà émises sont conservées.`,
+      remove: (item) => remove.mutateAsync(item.id),
+      clear,
     });
-  };
 
   return (
     <DataTable
@@ -164,23 +164,7 @@ function RecurringList() {
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['facture récurrente', 'factures récurrentes'])}
       isArchived={(item) => item.archived}
-      selectionActions={(rows, clear) => [
-        archiveRowsAction({
-          archived: rows.every((item) => item.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
-          label: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')}`,
-          count: rows.length,
-          feminine: true,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les factures récurrentes',
-          risks: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
-          remove: (item) => remove.mutateAsync(item.id),
-          done: `${countOf(rows.length, 'facture')} ${plural(rows.length, 'récurrente')} ${plural(rows.length, 'supprimée')}.`,
-          clear,
-        }),
-      ]}
+      selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'facture récurrente', many: 'factures récurrentes', feminine: true, clear }), deleteRecurring(rows, clear)]}
       verticalSpacing="xs"
       empty={<EmptyState compact message="Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente »." />}
       getKey={(item) => item.id}
@@ -233,7 +217,7 @@ function RecurringList() {
           items={[
             { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
             archiveEntry({ archived: item.archived, label: `« ${item.name} »`, feminine: true }, setArchived, item.id),
-            { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
+            rowMenuEntry(deleteRecurring([item])),
           ]}
         />
       )}
@@ -268,8 +252,8 @@ export function AccountingPage() {
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
   // Years of the documents, offered by the download of a period.
-  const yearOf = (date: string) => date.slice(0, 4);
-  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
+  const yearOf = (date: string) => String(yearOfDay(date));
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), yearOf(localToday())])]
     .sort()
     .reverse();
   // Archived ones are not to do any more.

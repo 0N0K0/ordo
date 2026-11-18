@@ -125,6 +125,15 @@ export type TreasuryChartFilter = z.infer<typeof treasuryChartFilterSchema>;
 /** Id of the main data set of a chart (its own source, measure and filters). */
 export const MAIN_DATASET = 'main';
 
+/** Records a data set counts (tasks: same filters as the task views; documents; treasury entries). */
+const chartFilterFields = {
+  filter: taskTableFilterSchema.default(emptyTableFilter),
+  search: z.string().max(200).default(''),
+  includeArchived: z.boolean().default(false),
+  documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
+  treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+};
+
 /** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
 const chartDatasetSchema = z.object({
   id: z.string().min(1).max(40),
@@ -137,11 +146,7 @@ const chartDatasetSchema = z.object({
   series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
   /** How it is drawn; the type of the chart when null. */
   type: z.enum(['bar', 'line', 'area']).nullable().default(null),
-  filter: taskTableFilterSchema.default(emptyTableFilter),
-  search: z.string().max(200).default(''),
-  includeArchived: z.boolean().default(false),
-  documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
-  treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+  ...chartFilterFields,
 });
 export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 
@@ -175,12 +180,7 @@ export const chartConfigSchema = z
     cumulative: z.boolean().default(false),
     /** Burndown: the sprint followed. */
     sprintId: z.string().nullable().default(null),
-    /** Tasks counted: same filters as the task views. */
-    filter: taskTableFilterSchema.default(emptyTableFilter),
-    search: z.string().max(200).default(''),
-    includeArchived: z.boolean().default(false),
-    documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
-    treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+    ...chartFilterFields,
     /** Name of the main data set (shown when there are several). */
     name: z.string().trim().max(60, '60 caractères maximum.').default(''),
     /** Other data sets, drawn on the same axis. */

@@ -6,7 +6,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
@@ -117,10 +117,10 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
         </Text>
       </Text>
       <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(value)} />
-      <TimeInput
+      <TimePicker
         label={item.check ? 'Faite à' : 'Faite à (heure prévue par défaut)'}
         value={time}
-        onChange={(event) => setTime(event.currentTarget.value)}
+        onChange={setTime}
         error={future ? 'Cette heure n’est pas encore passée.' : undefined}
         data-autofocus
       />

@@ -2,7 +2,7 @@ import { LabeledField } from '../inputs/LabeledField';
 import { AddItemButton } from '../actions/AddItemButton';
 import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { DeletedDates } from './DeletedDates';
@@ -64,6 +64,19 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
    */
   const update = (changes: Partial<Recurrence>) => rule && onChange({ ...rule, ...changes });
   const end = rule?.until ? 'UNTIL' : rule?.count ? 'COUNT' : 'NEVER';
+  // Weekday of a monthly or yearly rule by week (« le 2e mardi »).
+  const weekdaySelect = values && (
+    <Select
+      size="xs"
+      w={130}
+      aria-label="Jour de la semaine"
+      data={WEEKDAYS}
+      value={String(values.weekday)}
+      allowDeselect={false}
+      comboboxProps={comboboxProps}
+      onChange={(weekday) => weekday && update({ ...values, weekday: Number(weekday) })}
+    />
+  );
 
   return (
     <Stack gap="sm">
@@ -119,9 +132,9 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
       {weekly && rule?.frequency === 'WEEKLY' && (
         <Chip.Group multiple value={rule.weekdays.map(String)} onChange={(days) => update({ weekdays: days.map(Number).sort() })}>
           <Group gap={6}>
-            {WEEKDAY_NAMES.map((name, index) => (
+            {WEEKDAY_SHORT_LABELS.map((name, index) => (
               <Chip key={name} value={String(index + 1)} size="xs">
-                {name.slice(0, 3)}.
+                {name}
               </Chip>
             ))}
           </Group>
@@ -165,16 +178,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
                   comboboxProps={comboboxProps}
                   onChange={(position) => position && update({ ...values, position: Number(position) as Recurrence['position'] })}
                 />
-                <Select
-                  size="xs"
-                  w={130}
-                  aria-label="Jour de la semaine"
-                  data={WEEKDAYS}
-                  value={String(values.weekday)}
-                  allowDeselect={false}
-                  comboboxProps={comboboxProps}
-                  onChange={(weekday) => weekday && update({ ...values, weekday: Number(weekday) })}
-                />
+                {weekdaySelect}
               </>
             )}
             {rule.frequency === 'YEARLY' && rule.monthlyMode !== 'WEEK' && (
@@ -191,16 +195,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             )}
             {rule.monthlyMode === 'WEEK' && (
               <>
-                <Select
-                  size="xs"
-                  w={130}
-                  aria-label="Jour de la semaine"
-                  data={WEEKDAYS}
-                  value={String(values.weekday)}
-                  allowDeselect={false}
-                  comboboxProps={comboboxProps}
-                  onChange={(weekday) => weekday && update({ ...values, weekday: Number(weekday) })}
-                />
+                {weekdaySelect}
                 <NumberInput
                   size="xs"
                   w={130}

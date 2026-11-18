@@ -4,7 +4,7 @@ import { addDays, daysBetween, formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useNow } from '../../../lib/use-now';
 
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess, ON_ERROR } from '../../../lib/notify';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
 import { eventKey, type TaskTableRow } from '../lib/task-columns';
 import type { TaskColumn } from '@ordo/shared';
@@ -88,10 +88,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
     for (const target of targets) {
       const change = typeof changes === 'function' ? changes(target) : changes;
       if (!Object.keys(change).length) continue;
-      update.mutate(
-        { id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } },
-        { onError: onMutationError },
-      );
+      update.mutate({ id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } }, ON_ERROR);
     }
     if (targets.length > 1) notifySuccess(`Modification appliquée à ${targets.length} évènements.`);
   };
@@ -182,7 +179,7 @@ const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.en
 
 /**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
- * zone). Moving the start moves the end too (same duration); the end never goes before the start.
+ * zone). Moving the start moves the end too (same duration); an end set before the start moves the start to it (decision Q).
  * @param {{ event: EventOccurrence, side: 'start' | 'end' }} props Occurrence and side.
  * @returns {JSX.Element} Cell.
  */
@@ -201,8 +198,8 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
         minDate={side === 'end' ? startDate : undefined}
         onChange={(date) => {
           if (!date) return;
-          // Each event keeps its own length; an end never comes before its start.
-          if (side === 'end') void save((target) => (date >= target.startDate ? { endDate: date } : {}));
+          // Each event keeps its own length; an end set before its start brings the start to it.
+          if (side === 'end') void save((target) => (date >= target.startDate ? { endDate: date } : { startDate: date, endDate: date }));
           else void save((target) => ({ startDate: date, endDate: addDays(date, spanOf(target)) }));
         }}
         popoverProps={{ withinPortal: true }}
@@ -210,7 +207,6 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
     );
   }
 
-  const start = wall(startDate, event.startTime ?? null);
   const value = side === 'start' ? `${startDate} ${event.startTime}:00` : `${endDate} ${event.endTime}:00`;
   return (
     <DateTimePicker
@@ -228,8 +224,11 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
             const newEnd = fromWall(moved + lengthOf(target));
             return { startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time };
           });
-        } else if (moved < start) notifyError('La fin ne peut pas être avant le début.');
-        else void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? { endDate: date, endTime: clock.slice(0, 5) } : {}));
+        } else {
+          // An end set before the start brings the start to it.
+          const end = { endDate: date, endTime: clock.slice(0, 5) };
+          void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? end : { ...end, startDate: date, startTime: end.endTime }));
+        }
       }}
       popoverProps={{ withinPortal: true }}
     />

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
@@ -132,9 +132,7 @@ export const alarmInputSchema = z
     }
     if (!alarm.startDate) context.addIssue({ code: 'custom', path: ['startDate'], message: 'La date est requise.' });
     if (!alarm.time) context.addIssue({ code: 'custom', path: ['time'], message: 'L’heure est requise.' });
-    if (alarm.startDate && alarm.endDate && alarm.endDate < alarm.startDate) {
-      context.addIssue({ code: 'custom', path: ['endDate'], message: 'La date de fin doit suivre la date de début.' });
-    }
+    if (!endsAfter(alarm.startDate, alarm.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
   });
 export type AlarmInput = z.input<typeof alarmInputSchema>;
 

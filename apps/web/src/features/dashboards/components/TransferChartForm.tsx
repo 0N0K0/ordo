@@ -34,7 +34,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
   const chosen = choices.find((dashboard) => dashboard.id === dashboardId)?.id ?? choices[0]?.id ?? null;
   const destinationProps = treeSelectProps([
     { value: GENERAL, label: 'Tableau de bord général (tous les projets)', name: 'Tableau de bord général (tous les projets)', depth: 0, parent: null },
-    ...context.projectOptions(context.projects.filter((project) => !project.archived)),
+    ...context.projectOptions(unarchived(context.projects)),
   ]);
 
   return (

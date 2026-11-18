@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope, SendingChannel } from '@ordo/shared';
@@ -129,7 +130,7 @@ export function useOverdueInvoices(today: string) {
   // An archived invoice is not reminded (hidden from the day-to-day views).
   return useQuery({
     queryKey: [...accountingQueryKey, 'overdue', today],
-    queryFn: async () => (await execute(OverdueInvoicesDocument, { today })).overdueInvoices.filter((invoice) => !invoice.archived),
+    queryFn: async () => unarchived((await execute(OverdueInvoicesDocument, { today })).overdueInvoices),
   });
 }
 

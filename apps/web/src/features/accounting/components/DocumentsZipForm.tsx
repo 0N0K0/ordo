@@ -1,3 +1,4 @@
+import { yearOfDay } from '@ordo/shared';
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { FileZipIcon } from '@phosphor-icons/react';
 import { fetchDownload } from '../../../lib/download';
@@ -29,10 +30,10 @@ const ZIP_PERIODS: { value: ZipPeriod; label: string }[] = [
  * @returns {JSX.Element} Form.
  */
 export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone?: () => void; year?: string | null; years?: string[] }) {
-  const [year, setYear] = useState(initialYear ?? localToday().slice(0, 4));
+  const [year, setYear] = useState(initialYear ?? String(yearOfDay(localToday())));
   const range = usePeriodRange<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth', (period) => (period === 'calendarYear' ? [`${year}-01-01`, `${year}-12-31`] : null));
   const { today, preset, setPreset, from, to } = range;
-  const yearOptions = [...new Set([...years, today.slice(0, 4), year])].sort().reverse();
+  const yearOptions = [...new Set([...years, String(yearOfDay(today)), year])].sort().reverse();
   const [types, setTypes] = useState<string[]>(TYPES);
   const [imported, setImported] = useState(true);
   const valid = range.valid && types.length > 0;

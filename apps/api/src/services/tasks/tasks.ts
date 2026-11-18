@@ -1,4 +1,4 @@
-import { ancestorsOf, commentBodySchema, dateSchema, effortSchema, groupBy, lineageOf, mapById, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, taskTitleSchema } from '@ordo/shared';
+import { ancestorsOf, dateSchema, effortSchema, groupBy, lineageOf, mapById, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, type TaskInput as SharedTaskInput, taskTitleSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
@@ -13,6 +13,7 @@ import { ARCHIVED_MESSAGE, assertNoneArchived, type ArchivableModel } from '../c
 import { subtreeIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
+import { commentBody } from '../core/comments';
 
 /**
  * Root project of each project: tasks can only be linked inside the same tree.
@@ -192,30 +193,8 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
   }
 }
 
-export interface TaskInput {
-  title?: string | null;
-  description?: string | null;
-  projectId?: string | null;
-  statusId?: string | null;
-  priorityId?: string | null;
-  typeId?: string | null;
-  assigneeIds?: string[] | null;
-  tagIds?: string[] | null;
-  effort?: number | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  deadline?: string | null;
-  /** « Date min »: not to be done before. */
-  minDate?: string | null;
-  parentId?: string | null;
-  milestoneId?: string | null;
-  sprintIds?: string[] | null;
-  /** « Bénéficiaires »: contributors and relations the task is for. */
-  beneficiaryIds?: string[] | null;
-  beneficiaryRelationIds?: string[] | null;
-  /** Slots the task is done on or out of; null: the default of the workspace. */
-  slotRule?: unknown;
-}
+/** Fields of a task sent to create or change it, its slot rule as GraphQL gives it (JSON, checked by the schema). */
+export type TaskInput = Omit<SharedTaskInput, 'slotRule'> & { slotRule?: unknown };
 
 const detailsSchema = z.object({
   title: taskTitleSchema.optional(),
@@ -259,14 +238,6 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
 }
 
 /**
- * Next position at the end of the global task order.
- * @returns {Promise<number>} Position.
- */
-async function nextPosition(): Promise<number> {
-  return nextPositionIn('task');
-}
-
-/**
  * Creates a task at the end of the list.
  * @param {TaskInput & { title: string }} input Task input (no project: a task of none, without number).
  * @returns {Promise<Task>} Created task.
@@ -293,7 +264,7 @@ export async function createTask(input: TaskInput & { title: string }): Promise<
       typeId: input.typeId ?? null,
       parentId: input.parentId ?? null,
       milestoneId: input.milestoneId ?? null,
-      position: await nextPosition(),
+      position: await nextPositionIn('task'),
       sprints: { connect: connectIds(input.sprintIds ?? []) },
       assignees: { connect: connectIds(input.assigneeIds ?? []) },
       beneficiaries: { connect: connectIds(input.beneficiaryIds ?? []) },
@@ -504,7 +475,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
 
   return prisma.$transaction(async (tx) => {
-    let position = ((await tx.task.aggregate({ _max: { position: true } }))._max.position ?? -1) + 1;
+    let position = await nextPositionIn('task', {}, tx);
 
     /**
      * Copies one task under a parent.
@@ -664,8 +635,7 @@ async function assertCommentTask(id: string): Promise<void> {
 export async function addComment(taskId: string, body: string): Promise<TaskComment> {
   const task = await findTask(taskId);
   if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
-  const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
-  return prisma.taskComment.create({ data: { taskId, body: parsed.body } });
+  return prisma.taskComment.create({ data: { taskId, body: commentBody(body) } });
 }
 
 /**
@@ -676,8 +646,7 @@ export async function addComment(taskId: string, body: string): Promise<TaskComm
  */
 export async function updateComment(id: string, body: string): Promise<TaskComment> {
   await assertCommentTask(id);
-  const parsed = parseInput(z.object({ body: commentBodySchema }), { body });
-  return prisma.taskComment.update({ where: { id }, data: { body: parsed.body } });
+  return prisma.taskComment.update({ where: { id }, data: { body: commentBody(body) } });
 }
 
 /**

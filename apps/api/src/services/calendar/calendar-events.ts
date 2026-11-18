@@ -1,21 +1,4 @@
-import {
-  addDays,
-  calendarEventInputSchema,
-  daysBetween,
-  entrySeconds,
-  formatDay,
-  occurrenceDates,
-  maxSpanDays,
-  spanEnd,
-  occurrencesBefore,
-  parseDay,
-  recurrenceSchema,
-  zonedInstant,
-  type CalendarEventInput,
-  type EventScope,
-  type Recurrence,
-  sharePeople,
-} from '@ordo/shared';
+import { addDays, type CalendarEventInput, calendarEventInputSchema, daysBetween, entrySeconds, type EventScope, formatDay, formatOptionalDay, maxSpanDays, occurrenceDates, occurrencesBefore, parseDay, type Recurrence, recurrenceSchema, sharePeople, spanEnd, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -252,6 +235,34 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
 }
 
 /**
+ * Prisma writes of the relations of validated event fields: each list connected (a new event) or set (a changed one).
+ * @param {Awaited<ReturnType<typeof parseEvent>>} event Fields.
+ * @param {'connect' | 'set'} [mode='connect'] Write. Optional. Default = connect.
+ * @returns {object} Relations.
+ */
+function eventRelations(event: Awaited<ReturnType<typeof parseEvent>>, mode: 'connect' | 'set' = 'connect') {
+  return {
+    contributors: { [mode]: connectIds(event.contributorIds) },
+    relations: { [mode]: connectIds(event.relationIds) },
+    beneficiaries: { [mode]: connectIds(event.beneficiaryIds) },
+    beneficiaryRelations: { [mode]: connectIds(event.beneficiaryRelationIds) },
+    categories: { [mode]: connectIds(event.categoryIds) },
+    tasks: { [mode]: connectIds(event.taskIds) },
+  };
+}
+
+/**
+ * Ids of the relations of a loaded event, as its input gives them.
+ * @param {EventWithRelations} event Event.
+ * @returns {Record<string, string[]>} Ids of its contributors, relations, beneficiaries, categories and tasks.
+ */
+function relationIdsOf(event: EventWithRelations): Record<'contributorIds' | 'relationIds' | 'beneficiaryIds' | 'beneficiaryRelationIds' | 'categoryIds' | 'taskIds', string[]> {
+  return {
+    ...relationIdsOf(event),
+  };
+}
+
+/**
  * Prisma data of validated event fields.
  * @param {Awaited<ReturnType<typeof parseEvent>>} event Fields.
  * @returns {object} Scalar data and relations.
@@ -300,12 +311,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
     data: {
       ...eventData(event),
       recurrence: event.recurrence ?? undefined,
-      contributors: { connect: connectIds(event.contributorIds) },
-      relations: { connect: connectIds(event.relationIds) },
-      beneficiaries: { connect: connectIds(event.beneficiaryIds) },
-      beneficiaryRelations: { connect: connectIds(event.beneficiaryRelationIds) },
-      categories: { connect: connectIds(event.categoryIds) },
-      tasks: { connect: connectIds(event.taskIds) },
+      ...eventRelations(event),
     },
   });
   await saveRoutineLinks(null, created.id, event);
@@ -376,14 +382,7 @@ async function updateEventFields(
   await assertEventWritable(event);
   const fields = await parseEvent(input, ...(await eventKept(id)));
   const occurrence = occurrenceOf(event, occurrenceDate);
-  const relations = {
-    contributors: { set: connectIds(fields.contributorIds) },
-    relations: { set: connectIds(fields.relationIds) },
-    beneficiaries: { set: connectIds(fields.beneficiaryIds) },
-    beneficiaryRelations: { set: connectIds(fields.beneficiaryRelationIds) },
-    categories: { set: connectIds(fields.categoryIds) },
-    tasks: { set: connectIds(fields.taskIds) },
-  };
+  const relations = eventRelations(fields, 'set');
 
   if (!occurrence) {
     return prisma.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.JsonNull, ...relations } });
@@ -446,12 +445,7 @@ async function updateEventFields(
       data: {
         ...eventData(fields),
         recurrence: rule ?? undefined,
-        contributors: { connect: connectIds(fields.contributorIds) },
-        relations: { connect: connectIds(fields.relationIds) },
-        beneficiaries: { connect: connectIds(fields.beneficiaryIds) },
-        beneficiaryRelations: { connect: connectIds(fields.beneficiaryRelationIds) },
-        categories: { connect: connectIds(fields.categoryIds) },
-        tasks: { connect: connectIds(fields.taskIds) },
+        ...eventRelations(fields),
       },
     });
   });
@@ -527,22 +521,17 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     projectId: event.projectId,
     calendarId: event.calendarId,
     archived: event.archivedAt !== null,
-    contributorIds: event.contributors.map((contributor) => contributor.id),
-    relationIds: event.relations.map((relation) => relation.id),
-    beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
-    beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
-    categoryIds: event.categories.map((category) => category.id),
-    taskIds: event.tasks.map((task) => task.id),
+    ...relationIdsOf(event),
     routineLinks: linksWithin(event.routineLinks, startDate, endDate),
     calledOff: event.calledOff || (change?.calledOff ?? false),
     postponedFrom: event.postponedFromId
-      ? { eventId: event.postponedFromId, date: event.postponedFromDate ? formatDay(event.postponedFromDate) : null, title: event.postponedFrom?.title ?? '' }
+      ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), title: event.postponedFrom?.title ?? '' }
       : null,
     postponedTo: event.postponements
-      .filter((postponement) => (postponement.postponedFromDate ? formatDay(postponement.postponedFromDate) : null) === date)
+      .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, title: postponement.title, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
     trackedSeconds: event.timeEntries
-      .filter((entry) => (entry.calendarOccurrenceDate ? formatDay(entry.calendarOccurrenceDate) : null) === date)
+      .filter((entry) => formatOptionalDay(entry.calendarOccurrenceDate) === date)
       .reduce(
         (sum, entry) =>
           sum +
@@ -641,12 +630,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     travelAfter: event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
-    contributorIds: event.contributors.map((contributor) => contributor.id),
-    relationIds: event.relations.map((relation) => relation.id),
-    beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
-    beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
-    categoryIds: event.categories.map((category) => category.id),
-    taskIds: event.tasks.map((task) => task.id),
+    ...relationIdsOf(event),
     routineLinks: linksWithin(event.routineLinks, date, addDays(date, span)),
   };
 }
@@ -737,12 +721,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       recurrence: undefined,
       postponedFromId: id,
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
-      contributors: { connect: connectIds(fields.contributorIds) },
-      relations: { connect: connectIds(fields.relationIds) },
-      beneficiaries: { connect: connectIds(fields.beneficiaryIds) },
-      beneficiaryRelations: { connect: connectIds(fields.beneficiaryRelationIds) },
-      categories: { connect: connectIds(fields.categoryIds) },
-      tasks: { connect: connectIds(fields.taskIds) },
+      ...eventRelations(fields),
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);

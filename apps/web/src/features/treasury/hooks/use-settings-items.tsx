@@ -2,9 +2,11 @@ import { Checkbox, Group, SimpleGrid, Text, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryAccountSchema, treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { AmountInput } from '../../../components/inputs/AmountInput';
-import { createdId } from '../../../components/settings/settings-api';
+import { itemMutations } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { localToday } from '../../../lib/dates';
+import { itemCreator } from '../../../components/settings/create-settings-item';
+import { unarchived } from '../../../lib/archive';
 import { useTreasuryMutations, type TreasuryAccount, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from '../api';
 
 /** Fields of an account of its own: its opening balance and date. */
@@ -51,8 +53,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
         </>
       ),
     },
-    create: async (values) => createdId(await createAccount.mutateAsync(input(values))),
-    update: (id, values) => updateAccount.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createAccount, update: updateAccount }, input),
   };
 }
 
@@ -74,8 +75,7 @@ export function useCategoryItems(direction: TreasuryDirection): SettingsItemKind
     kind: 'TREASURY_CATEGORY',
     schema: treasuryCategorySchema,
     extra: { initial: () => ({ direction }), render: () => null },
-    create: async (values) => createdId(await createCategory.mutateAsync(input(values))),
-    update: (id, values) => updateCategory.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createCategory, update: updateCategory }, input),
   };
 }
 
@@ -106,8 +106,7 @@ export function useMethodItems(): SettingsItemKind<TreasuryPaymentMethod, Method
         </Group>
       ),
     },
-    create: async (values) => createdId(await createMethod.mutateAsync(input(values))),
-    update: (id, values) => updateMethod.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createMethod, update: updateMethod }, input),
   };
 }
 
@@ -133,7 +132,43 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterparty, C
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),
       render: (form) => <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />,
     },
-    create: async (values) => createdId(await createCounterparty.mutateAsync(input(values))),
-    update: (id, values) => updateCounterparty.mutateAsync({ id, input: input(values) }),
+    ...itemMutations({ create: createCounterparty, update: updateCounterparty }, input),
+  };
+}
+
+/** Creator of an item from a select (`onCreate` of `CreatableSelect`): its settings form, then the id created. */
+type Creator = (name: string) => Promise<string | null>;
+
+/**
+ * Creators of a category from a select, for each direction: its settings form, its parent among the categories of
+ * the direction not archived.
+ * @param {readonly TreasuryCategory[]} categories Every category.
+ * @returns {Record<TreasuryDirection, Creator>} Creators, by direction.
+ */
+export function useCategoryCreators(categories: readonly TreasuryCategory[]): Record<TreasuryDirection, Creator> {
+  const incoming = useCategoryItems('IN');
+  const outgoing = useCategoryItems('OUT');
+  /**
+   * Creator of a category of a direction.
+   * @param {TreasuryDirection} direction Direction.
+   * @param {SettingsItemKind<TreasuryCategory, CategoryExtra>} kind Its list and form.
+   * @returns {Creator} Creator.
+   */
+  const creator = (direction: TreasuryDirection, kind: SettingsItemKind<TreasuryCategory, CategoryExtra>) =>
+    itemCreator('Nouvelle catégorie', kind, { tree: unarchived(categories.filter((category) => category.direction === direction)) });
+  return { IN: creator('IN', incoming), OUT: creator('OUT', outgoing) };
+}
+
+/**
+ * Creators of a payment method (serving the direction of the entry) and of a counterparty, from a select.
+ * @param {TreasuryDirection} direction Direction of the entry.
+ * @returns {{ method: Creator, counterparty: Creator }} Creators.
+ */
+export function useEntryCreators(direction: TreasuryDirection): { method: Creator; counterparty: Creator } {
+  const methods = useMethodItems();
+  const counterparties = useCounterpartyItems();
+  return {
+    method: itemCreator('Nouveau moyen de paiement', methods, { initial: { incoming: direction !== 'OUT', outgoing: direction !== 'IN' } }),
+    counterparty: itemCreator('Nouveau tiers', counterparties),
   };
 }

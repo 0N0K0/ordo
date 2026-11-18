@@ -1,6 +1,7 @@
+import { AddItemButton } from '../../actions/AddItemButton';
 import { arrayMove } from '@dnd-kit/sortable';
 import { ActionIcon, Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { RemoveButton } from '../../actions/RemoveButton';
 
 interface SortPanelProps<K extends string> {
@@ -66,9 +67,9 @@ export function SortPanel<K extends string>({ sorting, onChange, keys, labels, m
         ))
       )}
       <Group justify="space-between">
-        <Button size="compact-sm" variant="subtle" leftSection={<PlusIcon aria-hidden />} disabled={available.length === 0} onClick={() => onChange([...sorting, { id: available[0], desc: false }])}>
+        <AddItemButton disabled={available.length === 0} onClick={() => onChange([...sorting, { id: available[0], desc: false }])}>
           Ajouter un tri
-        </Button>
+        </AddItemButton>
         {sorting.length > 0 && (
           <Button size="compact-sm" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => onChange([])}>
             Revenir à l’ordre manuel

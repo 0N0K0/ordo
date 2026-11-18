@@ -19,5 +19,5 @@ The global rule « reuse before writing, never write the same thing twice » (`~
 - Migrations are append-only and must run on PostgreSQL 9.6.
 - JSDoc on every function. Icons: `@phosphor-icons/react`.
 - The documents library (`features/library`, `services/library`) will be rewritten: leave it alone.
-- Duplicates: `npm run dup` (jscpd, `.jscpd.json`) must not report more clones after a change than before (baseline 2026-11-18: 65 clones, 0.59 %).
+- Duplicates: `npm run dup` (jscpd, `.jscpd.json`) must not report more clones after a change than before (baseline 2026-11-18: 4 clones).
 - Checks: `npx tsc --noEmit` (api, shared), `npx tsc --noEmit -p tsconfig.app.json` and `npx eslint src` (web).

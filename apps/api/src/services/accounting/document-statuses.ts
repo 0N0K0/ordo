@@ -1,10 +1,10 @@
-import { colorSchema, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE, type DocumentStatusCategory, type DocumentStatusScope } from '@ordo/shared';
+import { colorSchema, DEFAULT_LABEL_COLOR, type DocumentStatusCategory, type DocumentStatusScope, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, firstActive } from '../core/archive';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -31,11 +31,11 @@ export async function scopedStatus(statusId: string, type: AccountingDocumentTyp
 
 /** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */
 const DEFAULT_DOCUMENT_STATUSES = [
-  { scope: 'QUOTE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
+  { scope: 'QUOTE', name: 'À envoyer', color: DEFAULT_LABEL_COLOR, category: 'TO_SEND' },
   { scope: 'QUOTE', name: 'Envoyé', color: '#228be6', category: 'SENT' },
   { scope: 'QUOTE', name: 'Accepté', color: '#40c057', category: 'ACCEPTED' },
   { scope: 'QUOTE', name: 'Refusé', color: '#fa5252', category: 'REFUSED' },
-  { scope: 'INVOICE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
+  { scope: 'INVOICE', name: 'À envoyer', color: DEFAULT_LABEL_COLOR, category: 'TO_SEND' },
   { scope: 'INVOICE', name: 'Envoyée', color: '#228be6', category: 'SENT' },
   { scope: 'INVOICE', name: 'Payée', color: '#40c057', category: 'PAID' },
   { scope: 'INVOICE', name: 'Avoir à créer', color: '#fd7e14', category: 'CREDIT_DUE' },
@@ -55,8 +55,7 @@ async function createDefaultStatus(scope: DocumentStatusScope, category: Documen
   const taken = new Set((await client.documentStatus.findMany({ where: { scope }, select: { name: true } })).map((item) => item.name));
   let name = label;
   for (let index = 2; taken.has(name); index += 1) name = `${label} (${index})`;
-  const { _max } = await client.documentStatus.aggregate({ where: { scope }, _max: { position: true } });
-  return client.documentStatus.create({ data: { scope, category, name, color: preset?.color ?? '#868e96', position: (_max.position ?? -1) + 1 } });
+  return client.documentStatus.create({ data: { scope, category, name, color: preset?.color ?? DEFAULT_LABEL_COLOR, position: await nextPositionIn('documentStatus', { scope }, client) } });
 }
 
 /**
@@ -83,9 +82,7 @@ export async function ensureDocumentStatuses(client: Client = prisma): Promise<v
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
-  const status =
-    (await client.documentStatus.findFirst({ where: { scope, category, archivedAt: null }, orderBy: BY_POSITION })) ??
-    (await client.documentStatus.findFirst({ where: { scope, category }, orderBy: BY_POSITION }));
+  const status = await firstActive(client.documentStatus, { scope, category });
   return status ?? createDefaultStatus(scope, category, client);
 }
 

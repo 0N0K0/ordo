@@ -1,3 +1,4 @@
+import { yearOfDay } from './days';
 /**
  * Number of days of a month.
  * @param {number} year Year.
@@ -25,7 +26,7 @@ export function dayInMonth(year: number, month: number, day: number): string {
  * @returns {string} YYYY-MM-DD.
  */
 export function lastDayOfMonth(date: string): string {
-  const year = Number(date.slice(0, 4));
+  const year = yearOfDay(date);
   const month = Number(date.slice(5, 7));
   return dayInMonth(year, month, 31);
 }
@@ -36,7 +37,7 @@ export function lastDayOfMonth(date: string): string {
  * @returns {number} Months.
  */
 export function monthIndex(date: string): number {
-  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
+  return yearOfDay(date) * 12 + Number(date.slice(5, 7)) - 1;
 }
 
 /**

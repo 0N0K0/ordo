@@ -178,6 +178,7 @@ _Créés par nos propres lots (à ne plus jamais reproduire) : l'état « Affich
 ## Plan proposé
 
 **Garde-fous de chaque lot** (pour ne plus créer de doublons) :
+
 - factoriser dès la deuxième copie, avant de rendre le lot ;
 - chaque nouvelle brique arrive avec la règle eslint qui interdit son ancien motif ;
 - chaque agent lit d'abord la liste des briques existantes ;

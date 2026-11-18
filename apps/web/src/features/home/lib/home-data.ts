@@ -1,5 +1,5 @@
 import { localDay, localMidnight, monthOfDay } from '../../../lib/dates';
-import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
+import { addDays, entrySeconds, filterPeriod, yearOfDay } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
 import type { Task } from '../../tasks/api';
@@ -66,7 +66,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
       continue;
     }
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
-    if (document.issueDate.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
+    if (yearOfDay(document.issueDate) === yearOfDay(today)) summary.yearNet += sign * document.totalNet;
     if (monthOfDay(document.issueDate) === monthOfDay(today)) summary.monthNet += sign * document.totalNet;
     if (sign > 0 && (document.balance ?? 0) > 0) {
       summary.receivable += document.balance ?? 0;
@@ -81,7 +81,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
     if (document.type === 'QUOTE' || document.archived) continue;
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
     const date = document.issueDate;
-    if (date.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
+    if (yearOfDay(date) === yearOfDay(today)) summary.yearNet += sign * document.totalNet;
     if (monthOfDay(date) === monthOfDay(today)) summary.monthNet += sign * document.totalNet;
   }
   // Oldest sent first: those to follow up.

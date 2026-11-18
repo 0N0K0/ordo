@@ -1,3 +1,5 @@
+import { projectPath } from '../../../app/pages';
+import { settingsPath } from '../../../app/layout/page-settings';
 import { PersonRow } from '../../../components/people/PersonOption';
 import { ancestorsOf } from '@ordo/shared';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -132,7 +134,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                           Via{' '}
                           <Anchor
                             component={Link}
-                            to={`/projects/${inheritedFrom.id}?settings=1&section=contributors`}
+                            to={settingsPath(projectPath(inheritedFrom.id), 'contributors')}
                             size="xs"
                             inherit
                           >

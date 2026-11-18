@@ -8,6 +8,7 @@ import * as schedules from '../../services/calendar/work-schedules';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { NameColorInput, labelMutations, labelObject } from '../label-inputs';
+import { reloaded } from '../reload';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
@@ -379,12 +380,12 @@ builder.mutationFields((t) => ({
   createCalendar: t.prismaField({
     type: 'Calendar',
     args: { input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (query, _root, { input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.createCalendar(input)).id } }),
+    resolve: async (query, _root, { input }) => reloaded(prisma.calendar, query, calendars.createCalendar(input)),
   }),
   updateCalendar: t.prismaField({
     type: 'Calendar',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.updateCalendar(id, input)).id } }),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.calendar, query, calendars.updateCalendar(id, input)),
   }),
   deleteCalendar: t.boolean({
     description: 'Deletes a calendar with its events (not the last one of the workspace).',
@@ -472,15 +473,15 @@ builder.mutationFields((t) => ({
   setScheduleSubscriptionLook: t.boolean({
     description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id(), input: t.arg({ type: ScheduleSubscriptionLookInput, required: true }) },
-    resolve: async (_root, { workspaceId, typeId, input }) => {
-      await schedules.setScheduleSubscriptionLook(workspaceId, typeId ?? null, {
-        color: input.color ?? null,
-        dayDisplay: (input.dayDisplay ?? null) as never,
-        dayBar: input.dayBar ?? null,
-        monthDisplay: (input.monthDisplay ?? null) as never,
-      });
-      return true;
-    },
+    resolve: (_root, { workspaceId, typeId, input }) =>
+      done(
+        schedules.setScheduleSubscriptionLook(workspaceId, typeId ?? null, {
+          color: input.color ?? null,
+          dayDisplay: (input.dayDisplay ?? null) as never,
+          dayBar: input.dayBar ?? null,
+          monthDisplay: (input.monthDisplay ?? null) as never,
+        }),
+      ),
   }),
   unsubscribeScheduleKind: t.boolean({
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },

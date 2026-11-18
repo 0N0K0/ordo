@@ -1,5 +1,6 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { Group, Stack, Title } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -45,18 +46,9 @@ export function EntityHeader({
       </Group>
       <Group gap="xs">
         {!item.archived && (
-          <Tooltip label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
-            <ActionIcon
-              variant={item.favorite ? 'light' : 'default'}
-              color={item.favorite ? 'yellow' : undefined}
-              size="input-sm"
-              aria-label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              aria-pressed={item.favorite}
-              onClick={() => actions.setFavorite(entity, !item.favorite)}
-            >
+          <IconAction label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} variant={item.favorite ? 'light' : 'default'} color={item.favorite ? 'yellow' : undefined} size="input-sm" aria-pressed={item.favorite} onClick={() => actions.setFavorite(entity, !item.favorite)}>
               <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+</IconAction>
         )}
         {extraActions}
       </Group>

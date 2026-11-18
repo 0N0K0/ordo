@@ -1,8 +1,10 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { openModal } from '../../../components/panels/open-modal';
-import { WEEKDAY_LABELS } from '@ordo/shared';
+import { addDays, WEEKDAY_LABELS, weekdayOfDate } from '@ordo/shared';
+import { localInstant, localToday } from '../../../lib/dates';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { FileBadge } from '../../../components/items/FileBadge';
-import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
+import { Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -25,16 +27,19 @@ const AUTOSAVE_MS = 4000;
  * @returns {{ label: string, at: Date }[]} Moments to come.
  */
 function schedulePresets(): { label: string; at: Date }[] {
-  const now = new Date();
-  const at = (days: number, hour: number) => {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, hour, 0, 0, 0);
-    return date;
-  };
+  const today = localToday();
+  /**
+   * A whole hour some days from today.
+   * @param {number} days Days from today.
+   * @param {number} hour Hour.
+   * @returns {Date} Instant.
+   */
+  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${String(hour).padStart(2, '0')}:00`);
   // First day of the next week of the workspace.
   const week = currentWeek();
-  const nextStart = (week.start - (((now.getDay() + 6) % 7) + 1) + 7) % 7 || 7;
+  const nextStart = (week.start - weekdayOfDate(today) + 7) % 7 || 7;
   return [
-    ...(now.getHours() < 13 ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
+    ...(new Date().getHours() < 13 ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
     { label: 'Demain matin', at: at(1, 8) },
     { label: `${fmt.capitalize(WEEKDAY_LABELS[week.start - 1])} matin`, at: at(nextStart, 8) },
   ];
@@ -342,11 +347,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           {saveState.status === 'saved' && `Brouillon enregistré à ${fmt.time(saveState.at)}`}
           {saveState.status === 'error' && 'Brouillon non enregistré : nouvel essai à la prochaine modification.'}
         </Text>
-        <Tooltip label="Fermer">
-          <ActionIcon variant="subtle" color="gray" aria-label="Fermer le mail" onClick={requestClose}>
+        <IconAction label="Fermer" aria-label="Fermer le mail" onClick={requestClose}>
             <XIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+</IconAction>
       </Group>
       <Select
         label="De"

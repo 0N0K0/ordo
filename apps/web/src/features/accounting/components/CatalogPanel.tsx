@@ -1,30 +1,29 @@
-import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
-import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveEntry, archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useCompanyProfile } from '../api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from '../api/catalog';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -186,7 +185,7 @@ export function CatalogPanel() {
           ...change,
         },
       },
-      { onError: onMutationError },
+      ON_ERROR,
     );
   const itemComments = useCommentCounts(
     'CATALOG_ITEM',
@@ -200,7 +199,7 @@ export function CatalogPanel() {
     title: 'Catalogue',
     first: CATALOG_VIEWS,
   });
-  // An archived item is read only (restored by « Restaurer » or its « Archivé » cell).
+  // An archived item is read only (restored by « Restaurer » in its menu).
   const bulk = bulkSaver(view, (item: CatalogItem, change: Partial<CatalogItemInput>) => !item.archived && saveItem(item, change));
 
   /**
@@ -213,21 +212,21 @@ export function CatalogPanel() {
   };
 
   /**
-   * Asks for confirmation before deleting an item.
-   * @param {CatalogItem} item Item.
-   * @returns {void}
+   * « Supprimer » of items of the catalogue, on a row as on a selection.
+   * @param {CatalogItem[]} rows Items.
+   * @param {() => void} [clear] Clears the selection once done. Optional.
+   * @returns {SelectionAction} Action.
    */
-  const confirmDelete = (item: CatalogItem) => {
-    confirmDestructive({
-      title: 'Supprimer l’article',
-      risks: (
-<>« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</>
-),
-      onConfirm: () => {
-        remove.mutate(item.id, toastCallbacks('Article supprimé.'));
-      },
+  const deleteItems = (rows: CatalogItem[], clear?: () => void) =>
+    deleteItemsAction(rows, {
+      noun: 'article',
+      the: 'l’article',
+      name: (item) => item.title,
+      risks: (subject, one) =>
+        `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} du catalogue. Les documents qui ${one ? 'l’utilisent' : 'les utilisent'} gardent leurs lignes. Pour seulement ne plus ${one ? 'le' : 'les'} proposer, ${one ? 'archivez-le' : 'archivez-les'}.`,
+      remove: (item) => remove.mutateAsync(item.id),
+      clear,
     });
-  };
 
   if (isPending) return <TableSkeleton rows={4} />;
 
@@ -237,20 +236,8 @@ export function CatalogPanel() {
       view={view}
       selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
       selectionActions={(rows, clear) => [
-        archiveRowsAction({
-          archived: rows.every((item) => item.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((item) => item.id), archived }),
-          label: countOf(rows.length, 'article'),
-          count: rows.length,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les articles',
-          risks: `${countOf(rows.length, 'article')} seront supprimés du catalogue ; les documents qui les utilisent gardent leurs lignes.`,
-          remove: (item) => remove.mutateAsync(item.id),
-          done: `${countOf(rows.length, 'article')} ${plural(rows.length, 'supprimé')}.`,
-          clear,
-        }),
+        archiveItemsAction(rows, setArchived, { noun: 'article', clear }),
+        deleteItems(rows, clear),
       ]}
       bar={{
         searchLabel: 'Rechercher un article',
@@ -331,7 +318,12 @@ export function CatalogPanel() {
               onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
           ),
-        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => void archiveWithUndo(setArchived, { ids: [item.id], archived, label: `« ${item.title} »` })} />,
+        // Archived or restored from its « … » menu only (decision R).
+        archived: (
+          <Text size="sm" c="dimmed">
+            {item.archived ? 'Archivé' : 'Actif'}
+          </Text>
+        ),
       })}
       actions={(item) => (
         <RowActions
@@ -339,7 +331,7 @@ export function CatalogPanel() {
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
           items={[
             archiveEntry({ archived: item.archived, label: `« ${item.title} »` }, setArchived, item.id),
-            { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
+            rowMenuEntry(deleteItems([item])),
           ]}
         />
       )}

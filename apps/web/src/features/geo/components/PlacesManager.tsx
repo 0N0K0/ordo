@@ -123,7 +123,7 @@ export function PlacesManager() {
             deleteMessage={(place, path) => (
               <>
                 {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera supprimé{place.parentId ? 'e' : ''} définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il
-                ne sera plus proposé. Cette action est irréversible.
+                ne sera plus proposé.
               </>
             )}
           />

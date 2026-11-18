@@ -1,0 +1,17 @@
+@layer app {
+  /* Chevron of something folded (right) or unfolded (down). */
+  .chevron {
+    /* Agencement */
+    flex: none;
+
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-expanded] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
+}

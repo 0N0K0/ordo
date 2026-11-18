@@ -8,6 +8,22 @@ const geoPointSchema = z.object({
 });
 export type GeoPoint = z.infer<typeof geoPointSchema>;
 
+/** Travel time to a place or back from it, in minutes (at most a day). */
+const travelTimeSchema = z
+  .number()
+  .int()
+  .min(0, 'Durée positive attendue.')
+  .max(24 * 60, '24 h maximum.')
+  .default(0);
+
+/** Fields of a located item (event, routine): the point of its place, when chosen from the map or a search, and the travel times to it and back. */
+export const locatedFields = {
+  locationLat: geoPointSchema.shape.lat.nullable().default(null),
+  locationLon: geoPointSchema.shape.lon.nullable().default(null),
+  travelBefore: travelTimeSchema,
+  travelAfter: travelTimeSchema,
+};
+
 /** Ways to travel a route can be computed for. */
 export const TRAVEL_MODES = ['CAR', 'BIKE', 'FOOT'] as const;
 export type TravelMode = (typeof TRAVEL_MODES)[number];

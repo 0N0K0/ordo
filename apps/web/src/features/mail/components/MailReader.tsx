@@ -1,3 +1,5 @@
+import { IconAction } from '../../../components/actions/IconAction';
+import { projectPath } from '../../../app/pages';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
@@ -5,13 +7,13 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Badge, Button, Group, Stack, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Stack } from '@mantine/core';
 import { ArrowBendDoubleUpLeftIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, CheckCircleIcon, FlagIcon, EnvelopeSimpleIcon, LinkBreakIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -139,7 +141,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    */
   const confirmDeleteDraft = () => {
     confirmDestructive({ title: 'Supprimer le brouillon', risks: (
-<>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</>
+<>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte.</>
 ), onConfirm: () => { deleteDraft.mutate(
                 { accountId, folder, uid },
                 formCallbacks(null, 'Brouillon supprimé.', onDeleted),
@@ -167,18 +169,11 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 noMove={Boolean(projectId)}
               />
             )}
-            <Tooltip label="Marquer comme non lu">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label="Marquer comme non lu"
-                onClick={() =>
-                  setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, { onError: onMutationError })
-                }
-              >
+            <IconAction label="Marquer comme non lu" onClick={() =>
+                  setSeen.mutate({ accountId, folder, uids: [uid], seen: false }, ON_ERROR)
+                }>
                 <EnvelopeSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+</IconAction>
             <RemoveButton label="Supprimer" aria-label="Supprimer le mail" onClick={confirmDelete} />
           </Group>
         }
@@ -202,7 +197,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                   size="sm"
                   variant="light"
                   component={Link}
-                  to={`/projects/${projectId}?tab=mail`}
+                  to={projectPath(projectId, 'mail')}
                   style={{ cursor: 'pointer' }}
                 >
                   {workspace?.projects.find((project) => project.id === projectId)?.title ?? 'Projet'}

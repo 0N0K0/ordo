@@ -1,9 +1,10 @@
+import { IconAction } from '../../../components/actions/IconAction';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, CloseButton, Box, Group, NavLink, ScrollArea, Stack, TextInput, Tooltip } from '@mantine/core';
+import { CloseButton, Box, Group, NavLink, ScrollArea, Stack, TextInput } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { PackageIcon, ArchiveIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, SortAscendingIcon, SquaresFourIcon, UsersThreeIcon, WalletIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -311,11 +312,9 @@ export function Sidebar() {
         <ActionsMenu
           name="la barre latérale"
           target={
-            <Tooltip label="Trier">
-              <ActionIcon variant="default" size="input-xs" aria-label="Trier">
+            <IconAction label="Trier" variant="default" size="input-xs">
                 <SortAscendingIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+</IconAction>
           }
           items={[
             { section: 'Trier' },
@@ -326,11 +325,9 @@ export function Sidebar() {
         <ActionsMenu
           name="la barre latérale"
           target={
-            <Tooltip label="Créer">
-              <ActionIcon size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
+            <IconAction label="Créer" size="input-xs" aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}>
                 <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
+</IconAction>
           }
           items={newEntityEntries(actions, perso)}
         />

@@ -3,23 +3,17 @@ import { prisma } from '../../db';
 import * as shopping from '../../services/shopping/shopping';
 import { readSheetSources } from '@ordo/shared';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type BuilderTypes, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
-import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject, NameColorInput, NameColorPatch, treeItemObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 import { fromDecimal } from '../../services/core/decimal';
+import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
 
-builder.prismaObject('ShoppingCategory', {
-  description: 'Category of the shopping products, in a tree.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
-    parentId: t.exposeID('parentId', { nullable: true }),
-    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
-    baseListIds: t.idList(relationIds('baseLists', 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).')),
-  }),
-});
+treeItemObject('ShoppingCategory', { description: 'Category of the shopping products, in a tree.', positionDescription: 'Manual order among its siblings.' });
+builder.prismaObjectFields('ShoppingCategory', (t) => ({
+  baseListIds: t.idList(relationIds('baseLists', 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).')),
+}));
 
 labelObject('ShoppingStorage', { description: 'Storage mode of perishable products (fresh, frozen…).' });
 
@@ -36,6 +30,37 @@ builder.prismaObject('ShoppingBaseList', {
   }),
 });
 
+/** What a product of a base list and an item of a shopping list have in common. */
+interface BoughtShape {
+  categoryId: string | null;
+  storeId: string | null;
+  url: string | null;
+  note: string | null;
+  quantity: Parameters<typeof fromDecimal>[0];
+  unit: string | null;
+  unitPrice: Parameters<typeof fromDecimal>[0];
+  perishable: boolean;
+  storageId: string | null;
+}
+
+/**
+ * Fields of what is bought, on a base list or a shopping list: its category, store, link, note, quantity, unit, price
+ * and how it is kept.
+ * @param {PothosSchemaTypes.FieldBuilder<BuilderTypes, BoughtShape, 'PrismaObject'>} t Field builder.
+ * @returns {object} Fields.
+ */
+const boughtFields = (t: PothosSchemaTypes.FieldBuilder<BuilderTypes, BoughtShape, 'PrismaObject'>) => ({
+  categoryId: t.exposeID('categoryId', { nullable: true }),
+  storeId: t.exposeID('storeId', { nullable: true }),
+  url: t.exposeString('url', { nullable: true }),
+  note: t.exposeString('note', { nullable: true }),
+  quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
+  unit: t.exposeString('unit', { nullable: true }),
+  unitPrice: t.float({ nullable: true, resolve: (item) => fromDecimal(item.unitPrice) }),
+  perishable: t.exposeBoolean('perishable'),
+  storageId: t.exposeID('storageId', { nullable: true }),
+});
+
 builder.prismaObject('ShoppingProduct', {
   description: 'Product of a base list: what is usually bought, marked when missing.',
   fields: (t) => ({
@@ -46,15 +71,7 @@ builder.prismaObject('ShoppingProduct', {
     consumable: t.exposeBoolean('consumable', { description: 'Used up (taken from the stock by sheets and checklists).' }),
     autoStock: t.exposeBoolean('autoStock', { description: 'Added to the stock by itself once bought (else proposed).' }),
     stockLocationId: t.exposeID('stockLocationId', { nullable: true, description: 'Place it goes to in the stock.' }),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    storeId: t.exposeID('storeId', { nullable: true }),
-    url: t.exposeString('url', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (product) => fromDecimal(product.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (product) => fromDecimal(product.unitPrice) }),
-    perishable: t.exposeBoolean('perishable'),
-    storageId: t.exposeID('storageId', { nullable: true }),
+    ...boughtFields(t as unknown as Parameters<typeof boughtFields>[0]),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true, description: 'Date of the last purchase: once past, the product is marked missing.' }),
     missing: t.exposeBoolean('missing'),
     lastPurchasedAt: t.expose('lastPurchasedAt', { type: 'DateTime', nullable: true }),
@@ -71,15 +88,7 @@ builder.prismaObject('ShoppingItem', {
     listId: t.exposeID('listId'),
     productId: t.exposeID('productId', { nullable: true }),
     name: t.exposeString('name'),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    storeId: t.exposeID('storeId', { nullable: true }),
-    url: t.exposeString('url', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    unitPrice: t.float({ nullable: true, resolve: (item) => fromDecimal(item.unitPrice) }),
-    perishable: t.exposeBoolean('perishable'),
-    storageId: t.exposeID('storageId', { nullable: true }),
+    ...boughtFields(t as unknown as Parameters<typeof boughtFields>[0]),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
     purchasedAt: t.expose('purchasedAt', { type: 'DateTime', nullable: true }),
     optional: t.exposeBoolean('optional', { description: 'Not needed: bought if possible (the list is done without it).' }),
@@ -125,19 +134,16 @@ const CategoryInput = builder.inputType('ShoppingCategoryInput', {
 
 
 
-const shoppingFields = (t: Parameters<Parameters<typeof builder.inputType>[1]['fields']>[0]) => ({
+/**
+ * Fields of a shopping product and of a shopping item.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const shoppingFields = (t: InputFields) => ({
   name: t.string({ required: true }),
-  categoryId: t.id(),
-  storeId: t.id(),
-  url: t.string(),
-  note: t.string(),
-  quantity: t.float(),
-  unit: t.string(),
+  ...productInputFields(t, { people: true, perishable: false }),
+  ...purchaseInputFields(t),
   unitPrice: t.float(),
-  memberIds: t.idList({ required: true }),
-  relationIds: t.idList({ required: true }),
-  perishable: t.boolean(),
-  storageId: t.id(),
   expiresAt: t.field({ type: 'Date' }),
 });
 
@@ -154,17 +160,9 @@ const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => ({ ...
  */
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
   ...input,
-  categoryId: input.categoryId || null,
-  storeId: input.storeId || null,
-  url: input.url ?? null,
-  note: input.note ?? null,
-  quantity: input.quantity ?? null,
-  unit: input.unit ?? null,
+  ...productInput(input),
+  ...purchaseInput(input),
   unitPrice: input.unitPrice ?? null,
-  memberIds: input.memberIds,
-  relationIds: input.relationIds,
-  perishable: input.perishable ?? false,
-  storageId: input.storageId || null,
   expiresAt: input.expiresAt ?? null,
   optional: input.optional ?? false,
 });

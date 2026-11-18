@@ -1,3 +1,5 @@
+import { toggledIn } from '../../../lib/sets';
+import { settingsPath } from '../../../app/layout/page-settings';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
@@ -98,13 +100,7 @@ export function OverdueInvoicesPanel() {
    * @param {string} id Invoice.
    * @returns {void}
    */
-  const toggle = (id: string) =>
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => setSelected((current) => toggledIn(current, id));
 
   /**
    * Asks for confirmation, then sends the reminders of the selection.
@@ -162,7 +158,7 @@ export function OverdueInvoicesPanel() {
       {accounts && accounts.length === 0 && (
         <NoticeAlert kind="info">
           Aucune boîte mail : ajoutez-en une dans{' '}
-          <Anchor component={Link} to="/mail?settings=1" size="sm">
+          <Anchor component={Link} to={settingsPath('/mail')} size="sm">
             les boîtes mail
           </Anchor>{' '}
           pour envoyer les relances.
@@ -255,7 +251,7 @@ export function OverdueInvoicesPanel() {
                   )}
                 </Text>
                 <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
-                  Envoyée il y a {sentSince} {plural(sentSince, 'jour')}
+                  Envoyée {fmt.daysAgo(sentSince)}
                 </Badge>
                 {invoice.dueDate && (
                   <Text size="xs" c="dimmed">
@@ -271,7 +267,7 @@ export function OverdueInvoicesPanel() {
                   <>
                     <Text size="sm">{fmt.day(invoice.lastReminderAt)}</Text>
                     <Text size="xs" c="dimmed">
-                      {since === 0 ? 'aujourd’hui' : `il y a ${since} ${plural(since ?? 0, 'jour')}`} · {invoice.reminderCount} {plural(invoice.reminderCount, 'relance')}
+                      {fmt.daysAgo(since ?? 0)} · {invoice.reminderCount} {plural(invoice.reminderCount, 'relance')}
                     </Text>
                   </>
                 ) : (

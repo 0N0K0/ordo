@@ -1,25 +1,17 @@
-import { readSlotRule } from '@ordo/shared';
+import { parseOptionalDay, readSlotRule } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
+import { treeItemObject } from '../label-inputs';
 
-builder.prismaObject('RoutineCategory', {
-  description: 'Category of the routines, in a tree.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
-    parentId: t.exposeID('parentId', { nullable: true }),
-    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
-  }),
-});
+treeItemObject('RoutineCategory', { description: 'Category of the routines, in a tree.', positionDescription: 'Manual order among its siblings.' });
 
 /** Selection computing the occurrences and times of the day of a routine. */
 const TIMING = { id: true, archivedAt: true, startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true, slotCondition: true } as const;
@@ -36,13 +28,6 @@ function slotsOf(ctx: Context): Promise<routines.ScheduleContext> {
   if (!slots) slotContexts.set(ctx, (slots = routines.loadScheduleContext()));
   return slots;
 }
-
-/**
- * Calendar date as a Date (the Date scalar), or null.
- * @param {string | null} date YYYY-MM-DD.
- * @returns {Date | null} Date.
- */
-const asDate = (date: string | null) => (date ? parseDay(date) : null);
 
 /** Time of the day of an occurrence, with its state. */
 interface SlotState {
@@ -158,21 +143,21 @@ builder.prismaObject('Routine', {
       nullable: true,
       description: 'Current occurrence: the last one on or before today (null before the start or after the end).',
       select: TIMING,
-      resolve: async (routine, _args, ctx) => asDate(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).current),
+      resolve: async (routine, _args, ctx) => parseOptionalDay(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).current),
     }),
     firstDate: t.field({
       type: 'Date',
       nullable: true,
       description: 'First occurrence of the routine (from its start).',
       select: TIMING,
-      resolve: async (routine, _args, ctx) => asDate(routines.firstOccurrence(routine, await slotsOf(ctx))),
+      resolve: async (routine, _args, ctx) => parseOptionalDay(routines.firstOccurrence(routine, await slotsOf(ctx))),
     }),
     nextDate: t.field({
       type: 'Date',
       nullable: true,
       description: 'First occurrence after today.',
       select: TIMING,
-      resolve: async (routine, _args, ctx) => asDate(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next),
+      resolve: async (routine, _args, ctx) => parseOptionalDay(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next),
     }),
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
     moves: t.field({
@@ -252,6 +237,21 @@ const RoutineInputType = builder.inputType('RoutineInput', {
   }),
 });
 
+/**
+ * Changes of the times and repetition of a routine, for one routine and for several (omitted fields unchanged).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const repetitionChangeFields = (t: InputFields) => ({
+  fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
+  dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
+  startDate: t.field({ type: 'Date' }),
+  recurrence: t.field({ type: 'JSON' }),
+  cases: t.field({ type: 'JSON', description: 'Cases (with recurrence: its whole repetition); empty: its rule.' }),
+  moments: t.field({ type: 'JSON', description: 'Times of the day following its rule.' }),
+  slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, following its rule; null: any time.' }),
+});
+
 const RoutinePatch = builder.inputType('RoutinePatch', {
   description: 'Changes of a routine (omitted fields unchanged).',
   fields: (t) => ({
@@ -271,13 +271,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     travelAfter: t.int({ description: 'Minutes to come back.' }),
     reminders: t.intList({ description: 'Minutes before its moment.' }),
     opensOn: t.field({ type: 'JSON', description: '« À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
-    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
-    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
-    startDate: t.field({ type: 'Date' }),
-    recurrence: t.field({ type: 'JSON' }),
-    cases: t.field({ type: 'JSON', description: 'Cases (with recurrence: its whole repetition); empty: its rule.' }),
-    moments: t.field({ type: 'JSON', description: 'Times of the day following its rule.' }),
-    slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, following its rule; null: any time.' }),
+    ...repetitionChangeFields(t),
   }),
 });
 
@@ -292,13 +286,7 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeRequiredIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
-    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
-    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
-    startDate: t.field({ type: 'Date' }),
-    recurrence: t.field({ type: 'JSON' }),
-    cases: t.field({ type: 'JSON', description: 'Cases (with recurrence: its whole repetition); empty: its rule.' }),
-    moments: t.field({ type: 'JSON', description: 'Times of the day following its rule.' }),
-    slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, following its rule; null: any time.' }),
+    ...repetitionChangeFields(t),
     opensOn: t.field({ type: 'JSON', description: '« À partir du » of its rule; null: none.' }),
   }),
 });
@@ -366,7 +354,7 @@ const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurren
     date: t.field({ type: 'Date', description: 'Due day (its last day).', resolve: (occurrence) => parseDay(occurrence.date) }),
     startDate: t.field({ type: 'Date', description: 'First day it can be done.', resolve: (occurrence) => parseDay(occurrence.startDate) }),
     shownDate: t.field({ type: 'Date', description: 'Day it shows on: its due day once past, today while it runs, its first day before.', resolve: (occurrence) => parseDay(occurrence.shownDate) }),
-    movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => asDate(occurrence.movedFrom) }),
+    movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => parseOptionalDay(occurrence.movedFrom) }),
     slots: t.field({ type: [RoutineSlotRef], resolve: (occurrence) => occurrence.slots }),
   }),
 });
@@ -509,8 +497,7 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      await routines.patchRoutine(id, changes);
-      return true;
+      return done(routines.patchRoutine(id, changes));
     },
   }),
   moveRoutine: t.boolean({

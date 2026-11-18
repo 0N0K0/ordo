@@ -31,7 +31,7 @@ import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
-import { copyOf, findOpenList, nextPosition } from './shopping';
+import { copyOf, findOpenList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
@@ -410,7 +410,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
   return prisma.$transaction(async (tx) => {
     const items = await tx.shoppingItem.findMany({ where: { listId, purchasedAt: null } });
     const byKey = new Map(items.map((item) => [productKey({ productId: item.productId, label: item.name, unit: item.unit }), item]));
-    let position = await nextPosition(listId);
+    let position = await nextPositionIn('shoppingItem', { listId }, tx);
     for (const part of parts) {
       const key = productKey(part);
       const item = byKey.get(key);

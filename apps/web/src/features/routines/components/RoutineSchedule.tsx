@@ -1,3 +1,4 @@
+import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
@@ -7,7 +8,6 @@ import { DatePickerInput } from '@mantine/dates';
 import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot, DURATION_UNITS } from '@ordo/shared';
 import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
@@ -20,10 +20,11 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { SlotConditionBuilder } from './SlotConditionBuilder';
 import { describeSlotCondition } from '../lib/slot-condition-text';
-import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from '../lib/routine-format';
+import { DAILY, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { SlotTimesFields } from './SlotTimesFields';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -75,20 +76,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
     <LabeledField label="Moments de la journée">
       {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
-          <TimeField
-            size="xs"
-            aria-label={`À partir de, moment ${position + 1}, cas ${index + 1}`}
-            leftSection={<Text size="xs">dès</Text>}
-            value={moment.fromTime ?? ''}
-            onChange={(value) => update(position, { fromTime: value || null })}
-          />
-          <TimeField
-            size="xs"
-            aria-label={`Avant, moment ${position + 1}, cas ${index + 1}`}
-            leftSection={<Text size="xs">avant</Text>}
-            value={moment.dueTime ?? ''}
-            onChange={(value) => update(position, { dueTime: value || null })}
-          />
+          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} />
           <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
           {(allowEmpty || moments.length > 1) && (
             <RemoveButton label="Retirer le moment" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />

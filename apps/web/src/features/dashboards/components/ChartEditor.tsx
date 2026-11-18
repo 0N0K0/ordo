@@ -12,6 +12,7 @@ import {
   chartTitleSchema,
   defaultChartConfig,
   isTimeDimension,
+  SCALE_LABELS,
   SOURCE_GROUP_DIMENSIONS,
   SOURCE_MEASURES,
   SOURCE_TIME_DIMENSIONS,
@@ -39,13 +40,6 @@ const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   area: 'Aires',
   donut: 'Anneau',
   burndown: 'Burndown de sprint',
-};
-const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
-  day: 'Jour',
-  week: 'Semaine',
-  month: 'Mois',
-  quarter: 'Trimestre',
-  year: 'Année',
 };
 
 interface ChartEditorProps {
@@ -227,7 +221,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     allowDeselect={false}
                     data={CHART_BUCKETS.map((value) => ({
                       value,
-                      label: BUCKET_LABELS[value],
+                      label: SCALE_LABELS[value],
                     }))}
                     value={config.bucket}
                     onChange={(bucket) => bucket && change({ bucket: bucket as ChartConfig['bucket'] })}

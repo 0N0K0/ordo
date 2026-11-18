@@ -11,29 +11,6 @@ import { MarkdownView } from '../markdown/MarkdownView';
 import type { ReferenceTargets } from '../markdown/remark-references';
 import * as fmt from '../../lib/format';
 
-const relative = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 3600],
-  ['month', 30 * 24 * 3600],
-  ['week', 7 * 24 * 3600],
-  ['day', 24 * 3600],
-  ['hour', 3600],
-  ['minute', 60],
-];
-
-/**
- * "il y a 3 heures", "hier"…
- * @param {string} date ISO instant.
- * @returns {string} Relative time.
- */
-function fromNow(date: string): string {
-  const seconds = (Date.parse(date) - Date.now()) / 1000;
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
-  }
-  return 'à l’instant';
-}
-
 /** Comment as the thread shows it. */
 interface ThreadComment {
   id: string;
@@ -103,7 +80,7 @@ function CommentCard({
           )}
           <Tooltip label={fmt.dateTime(comment.createdAt)}>
             <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
-              {fromNow(comment.createdAt)}
+              {fmt.fromNow(comment.createdAt)}
             </Text>
           </Tooltip>
         </Group>
@@ -120,7 +97,7 @@ function CommentCard({
                 onClick: () =>
                   confirmDestructive({
                     title: 'Supprimer le commentaire',
-                    risks: 'Le commentaire sera supprimé définitivement. Cette action est irréversible.',
+                    risks: 'Le commentaire sera supprimé définitivement.',
                     onConfirm: () => actions.remove(comment.id),
                   }),
               },

@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -13,6 +14,7 @@ import { projectDepth, projectHeight, projectOptions } from '../lib/tree';
 
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 
 interface ProjectFormProps {
   /** Project to edit; creates a new one when absent. */
@@ -52,6 +54,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     },
     schema: projectFormSchema,
   });
+  const period = dateRangeProps(formRange(form, 'startDate', 'endDate'));
   const pending = createProject.isPending || updateProject.isPending;
   const projects = workspace?.projects ?? [];
   const parent = projects.find((item) => item.id === form.values.parentId);
@@ -61,12 +64,11 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const height = project ? projectHeight(projects, project.id) : 1;
   const parentOptions = projectOptions(
     workspace,
-    projects.filter((item) => !excluded.has(item.id) && (!item.archived || item.id === project?.parentId) && projectDepth(projects, item.id) + height <= MAX_PROJECT_DEPTH),
+    unarchived(projects, project?.parentId).filter((item) => !excluded.has(item.id) && projectDepth(projects, item.id) + height <= MAX_PROJECT_DEPTH),
   );
 
   // Archived clients cannot receive projects, except the one the project already belongs to.
-  const clientOptions = (workspace?.clients ?? [])
-    .filter((client) => !client.archived || client.id === project?.clientId)
+  const clientOptions = unarchived(workspace?.clients ?? [], project?.clientId)
     .sort(byPosition)
     .map((client) => ({ value: client.id, label: client.name }));
 
@@ -138,19 +140,8 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           error={form.errors.categoryIds as string | undefined}
         />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          <DatePickerInput
-            label="Début"
-            placeholder="—"
-            clearable
-            {...form.getInputProps('startDate')}
-          />
-          <DatePickerInput
-            label="Fin"
-            placeholder="—"
-            clearable
-            minDate={form.values.startDate ?? undefined}
-            {...form.getInputProps('endDate')}
-          />
+          <DatePickerInput label="Début" placeholder="—" clearable {...period.start} />
+          <DatePickerInput label="Fin" placeholder="—" clearable {...period.end} />
         </SimpleGrid>
         <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
         <IconField

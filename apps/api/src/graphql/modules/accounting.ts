@@ -6,6 +6,7 @@ import * as company from '../../services/accounting/company';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
+import { reloaded } from '../reload';
 
 export const AccountingDocumentTypeEnum = builder.enumType(
   'AccountingDocumentType',
@@ -272,7 +273,7 @@ builder.mutationFields((t) => ({
         address: (input.address ?? null) as never,
         phones: input.phones as never,
       });
-      return prisma.client.findUniqueOrThrow({ ...query, where: { id } });
+      return reloaded(prisma.client, query, { id });
     },
   }),
   createClientService: t.prismaField({

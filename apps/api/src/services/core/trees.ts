@@ -115,9 +115,9 @@ export interface TreeListHooks<T extends TreeNode, D extends { parentId?: string
  * @param {TreeListModel} model Model.
  * @param {TreeListMessages} messages Error messages.
  * @param {TreeListHooks<T, D>} hooks What differs from one tree to another.
- * @returns {object} Tree service: `create`, `update`, `move` and `remove`.
+ * @returns {object} Tree service: `create`, `update`, `move` and `remove`, taking inputs of type `I`.
  */
-export function treeListService<T extends TreeNode, D extends { parentId?: string | null }>(model: TreeListModel, messages: TreeListMessages, hooks: TreeListHooks<T, D>) {
+export function treeListService<T extends TreeNode, D extends { parentId?: string | null }, I = unknown>(model: TreeListModel, messages: TreeListMessages, hooks: TreeListHooks<T, D>) {
   /**
    * Delegate of the model (scoped to the current workspace, as every model).
    * @returns {TreeListDelegate<T>} Delegate.
@@ -156,10 +156,10 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
   /**
    * Updates an item; under another parent, it goes last.
    * @param {string} id Item id.
-   * @param {unknown} input Item.
+   * @param {I} input Item.
    * @returns {Promise<T>} Item.
    */
-  const update = async (id: string, input: unknown): Promise<T> => {
+  const update = async (id: string, input: I): Promise<T> => {
     const current = await find(id);
     await assertNotArchived(model, id);
     const parsed = await parse(input, current);
@@ -171,10 +171,10 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
   return {
     /**
      * Creates an item, last among its siblings.
-     * @param {unknown} input Item.
+     * @param {I} input Item.
      * @returns {Promise<T>} Item.
      */
-    async create(input: unknown): Promise<T> {
+    async create(input: I): Promise<T> {
       const parsed = await parse(input, null);
       const data = hooks.createData ? hooks.createData(parsed) : parsed;
       return items().create({ data: { ...data, position: await lastPosition(parsed.parentId ?? null) } });
@@ -193,7 +193,7 @@ export function treeListService<T extends TreeNode, D extends { parentId?: strin
       const current = await find(id);
       await assertNotArchived(model, id);
       const parent = parentId === undefined ? current.parentId : parentId;
-      if (parent !== current.parentId) await update(id, hooks.moveInput(current, parent));
+      if (parent !== current.parentId) await update(id, hooks.moveInput(current, parent) as I);
       if (index === null || index === undefined) return;
       await moveInList(model, id, index, { ...hooks.siblings?.(current), parentId: parent });
     },

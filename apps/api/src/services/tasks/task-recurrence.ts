@@ -1,4 +1,4 @@
-import { addDays, daysBetween, formatDay, groupBy, isTaskCases, parseDay, type TaskRepetition, taskRepetitionDates, taskRepetitionSchema, withDeletedDates } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, formatOptionalDay, groupBy, isTaskCases, parseDay, type TaskRepetition, taskRepetitionDates, taskRepetitionSchema, withDeletedDates } from '@ordo/shared';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task } from '../../generated/prisma/client';
@@ -20,8 +20,7 @@ function storedTaskRepetition(value: unknown): TaskRepetition | null {
  * @returns {string | null} Calendar date.
  */
 function anchorOf(task: Pick<Task, 'startDate' | 'endDate'>): string | null {
-  const date = task.startDate ?? task.endDate;
-  return date ? formatDay(date) : null;
+  return formatOptionalDay(task.startDate ?? task.endDate);
 }
 
 /**

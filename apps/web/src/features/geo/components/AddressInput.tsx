@@ -1,5 +1,7 @@
-import { mapById, normalize } from '@ordo/shared';
-import { ActionIcon, Checkbox, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Stack, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
+import { normalize } from '../../../lib/text';
+import { IconAction } from '../../../components/actions/IconAction';
+import { mapById } from '@ordo/shared';
+import { Checkbox, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Stack, Text, useCombobox, type InputBaseProps } from '@mantine/core';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import type { GeoPoint } from '@ordo/shared';
@@ -137,11 +139,9 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
               ) : withPlaces && places?.length ? (
                 <Menu position="bottom-end" withinPortal={withinPortal}>
                   <Menu.Target>
-                    <Tooltip label="Lieux enregistrés">
-                      <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Choisir un lieu enregistré">
-                        <HouseIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
+                    <IconAction label="Lieux enregistrés" size="sm" aria-label="Choisir un lieu enregistré">
+                      <HouseIcon aria-hidden />
+                    </IconAction>
                   </Menu.Target>
                   <Menu.Dropdown>
                     <Menu.Label>Lieux enregistrés</Menu.Label>

@@ -16,6 +16,7 @@ import { clientError, fieldError, isUniqueConflict, orNotFound, parseInput, reth
 import { createContributor } from '../workspace/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
+import { nextPositionIn } from '../core/ordering';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
 const memberWhere = { OR: [{ teamMember: true }, { userId: { not: null } }] } satisfies Prisma.ContributorWhereInput;
@@ -97,8 +98,7 @@ export async function saveContext(id: string | null, input: TreasuryContextInput
   try {
     return await prisma.$transaction(async (tx) => {
       if (id) return tx.treasuryContext.update({ where: { id }, data });
-      const { _max } = await tx.treasuryContext.aggregate({ _max: { position: true } });
-      return tx.treasuryContext.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+      return tx.treasuryContext.create({ data: { ...data, position: await nextPositionIn('treasuryContext', {}, tx) } });
     });
   } catch (error) {
     rethrowUnique(error, 'Un contexte porte déjà ce nom.');

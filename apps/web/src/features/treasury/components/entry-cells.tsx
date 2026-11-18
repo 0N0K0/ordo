@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
+import { IconAction } from '../../../components/actions/IconAction';
+import { Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { FileBadge } from '../../../components/items/FileBadge';
@@ -14,7 +15,7 @@ import * as fmt from '../../../lib/format';
 import { handleFileClick } from '../../files/lib/open-file';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
-import { documentKey, payerKey, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
@@ -23,13 +24,7 @@ import { documentKey, payerKey, type AnyEntry, type EntryDocument, type EntryEnv
  */
 export function PayerCell({ entry, env, save }: { entry: AnyEntry; env: EntryEnv; save: EntrySave }) {
   return (
-    <EditableSelect
-      value={payerKey(entry)}
-      label={`${entry.amount < 0 ? 'Destinataire' : 'Émetteur'} de ${entry.label}`}
-      nullable
-      data={env.payers}
-      onSave={(key) => save(entry, { clientId: key?.startsWith('client:') ? key.slice(7) : null, counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null })}
-    />
+    <EditableSelect value={payerKey(entry)} label={`${entry.amount < 0 ? 'Destinataire' : 'Émetteur'} de ${entry.label}`} nullable data={env.payers} onSave={(key) => save(entry, payerOfKey(key))} />
   );
 }
 
@@ -81,11 +76,9 @@ export function DocumentsCell({
       </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={360} trapFocus>
         <Popover.Target>
-          <Tooltip label="Choisir les pièces justificatives">
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
-              <PencilSimpleIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <IconAction label="Choisir les pièces justificatives" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
+            <PencilSimpleIcon aria-hidden />
+          </IconAction>
         </Popover.Target>
         <Popover.Dropdown>
           <BatchMultiSelect
@@ -96,12 +89,7 @@ export function DocumentsCell({
             data={data}
             value={documents.map(documentKey)}
             comboboxProps={{ withinPortal: false }}
-            onChange={(keys) =>
-              onSave({
-                libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-                projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-              })
-            }
+            onChange={(keys) => onSave(supportingOfKeys(keys))}
           />
         </Popover.Dropdown>
       </Popover>
@@ -128,11 +116,9 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
       </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={380} trapFocus>
         <Popover.Target>
-          <Tooltip label="Lier un mouvement">
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
-              <LinkIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <IconAction label="Lier un mouvement" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
+            <LinkIcon aria-hidden />
+          </IconAction>
         </Popover.Target>
         <Popover.Dropdown>
           <Stack gap={4}>

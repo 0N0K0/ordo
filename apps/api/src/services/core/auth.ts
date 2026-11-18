@@ -19,7 +19,7 @@ import {
 } from '../../auth/session';
 import { prisma } from '../../db';
 import { env } from '../../env';
-import { type User } from '../../generated/prisma/client';
+import { type Prisma, type User } from '../../generated/prisma/client';
 import { clientError, fieldError, isUniqueConflict, parseInput } from '../../graphql/errors';
 import type { Mail } from '../../mail/mailer';
 import { sendMail } from '../../mail/mailer';
@@ -156,6 +156,17 @@ export async function requestPasswordReset(req: Request, rawIdentifier: string):
 }
 
 /**
+ * Checks a new password (strong, unlike the user's names), then the writes setting it: its hash, the reset links dropped.
+ * @param {{ id: string, username: string, email: string }} user User.
+ * @param {string} password New password.
+ * @returns {Promise<Prisma.PrismaPromise<unknown>[]>} Writes, for a transaction.
+ */
+async function passwordWrites(user: { id: string; username: string; email: string }, password: string): Promise<Prisma.PrismaPromise<unknown>[]> {
+  parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
+  return [prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } }), prisma.authToken.deleteMany({ where: { userId: user.id, type: 'PASSWORD_RESET' } })];
+}
+
+/**
  * Sets a new password from a reset link and closes every session.
  * @param {string} token Token from the link.
  * @param {string} password New password.
@@ -164,13 +175,7 @@ export async function requestPasswordReset(req: Request, rawIdentifier: string):
 export async function resetPassword(token: string, password: string): Promise<void> {
   const authToken = await findValidToken(token, 'PASSWORD_RESET');
   const { user } = authToken;
-  parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
-
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } }),
-    prisma.authToken.deleteMany({ where: { userId: user.id, type: 'PASSWORD_RESET' } }),
-    prisma.session.deleteMany({ where: { userId: user.id } }),
-  ]);
+  await prisma.$transaction([...(await passwordWrites(user, password)), prisma.session.deleteMany({ where: { userId: user.id } })]);
   sendInBackground(passwordChangedNoticeMail(user.email));
 }
 
@@ -183,12 +188,7 @@ export async function resetPassword(token: string, password: string): Promise<vo
  */
 export async function changePassword(session: SessionInfo, currentPassword: string, password: string): Promise<void> {
   const user = await verifyCurrentPassword(session, currentPassword);
-  parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
-
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } }),
-    prisma.authToken.deleteMany({ where: { userId: user.id, type: 'PASSWORD_RESET' } }),
-  ]);
+  await prisma.$transaction(await passwordWrites(user, password));
   await destroyUserSessions(user.id, session.id);
   sendInBackground(passwordChangedNoticeMail(user.email));
 }

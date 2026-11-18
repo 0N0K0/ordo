@@ -2,6 +2,7 @@ import { assertNotArchived } from '../../services/core/archive';
 import { iconUrl } from '../../services/core/icons';
 import * as lists from '../../services/core/settings-lists';
 import { builder } from '../builder';
+import { done } from '../errors';
 
 const SettingsListKindEnum = builder.enumType('SettingsListKind', {
   description: 'Settings list sharing the same look (color, image, name) and manual order.',
@@ -72,12 +73,6 @@ builder.mutationFields((t) => ({
   reorderSettingsItems: t.boolean({
     description: 'Puts the items of a flat settings list in the order given.',
     args: { kind: t.arg({ type: SettingsListKindEnum, required: true }), ids: t.arg.idList({ required: true }) },
-    resolve: async (_root, { kind, ids }) => {
-      await lists.reorder(
-        kind,
-        ids.map((id) => id),
-      );
-      return true;
-    },
+    resolve: (_root, { kind, ids }) => done(lists.reorder(kind, ids)),
   }),
 }));

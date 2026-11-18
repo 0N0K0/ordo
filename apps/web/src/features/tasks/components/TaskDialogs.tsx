@@ -1,14 +1,15 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { CopyIcon } from '@phosphor-icons/react';
-import { Checkbox, Radio, Stack, Text } from '@mantine/core';
+import { Checkbox, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
 import { useSearchParams } from 'react-router';
 
 import { outermost } from '../../../components/data-table/selection/selection-actions';
-import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
+import { CascadeChoice, DestructiveActions, DestructiveRisks } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { countOf, plural } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
 import { countSubtasks } from '../lib/task-links';
@@ -41,39 +42,31 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
   const handleConfirm = () =>
     remove.mutate(
       { ids: [...selected], deleteSubtasks: mode === 'delete' },
-      {
-        onSuccess: () => {
-          notifySuccess(single ? `Tâche ${taskName(single)} supprimée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'supprimée')}.`);
-          onDone(true);
-          if (selected.has(params.get(TASK_PARAM) ?? '')) link.close();
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, single ? `Tâche ${taskName(single)} supprimée.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'supprimée')}.`, () => {
+        onDone(true);
+        if (selected.has(params.get(TASK_PARAM) ?? '')) link.close();
+      }),
     );
 
   return (
     <Stack gap="md">
-      <Text size="sm">
+      <DestructiveRisks>
         {single ? (
           <>
-            La tâche <strong>{`${taskRef(single).trim()} ${single.title}`}</strong> et ses commentaires seront supprimés définitivement. Cette action est irréversible ; pour la retirer des listes sans
-            perdre ses données, archivez-la plutôt.
+            La tâche <strong>{`${taskRef(single).trim()} ${single.title}`}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la
+            plutôt.
           </>
         ) : (
-          `${tasksLabel(tasks.length)} et leurs commentaires seront supprimées définitivement. Cette action est irréversible ; pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
+          `${tasksLabel(tasks.length)} et leurs commentaires seront supprimées définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
         )}
-      </Text>
+      </DestructiveRisks>
       {subtasks > 0 && (
-        <Radio.Group
+        <CascadeChoice
           label={single ? `Que faire de ses ${countOf(subtasks, 'sous-tâche')} ?` : 'Que faire de leurs sous-tâches non sélectionnées ?'}
+          keepLabel="Les conserver (elles remontent d’un niveau)"
           value={mode}
-          onChange={(value) => setMode(value as 'detach' | 'delete')}
-        >
-          <Stack gap="xs" mt="xs">
-            <Radio value="detach" label="Les conserver (elles remontent d’un niveau)" />
-            <Radio value="delete" label="Les supprimer aussi, définitivement" color="red" />
-          </Stack>
-        </Radio.Group>
+          onChange={setMode}
+        />
       )}
       <DestructiveActions onConfirm={handleConfirm} onCancel={() => onDone(false)} loading={remove.isPending} />
     </Stack>

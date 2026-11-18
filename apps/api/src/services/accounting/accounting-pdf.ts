@@ -1,4 +1,4 @@
-import { type AccountingDocumentType, type Address, addressLines, depositAmount, type DocumentTotals, formatMoney, paidOnReceipt, printedDay, toCents, UNIT_LABELS } from '@ordo/shared';
+import { type AccountingDocumentType, type Address, addressLines, contactName, depositAmount, type DocumentTotals, formatMoney, formatNumber, formatPercent, paidOnReceipt, printedDay, toCents, UNIT_LABELS } from '@ordo/shared';
 import { createPdf, PDF_TABLE, PDF_TEXT } from '../core/pdf-report';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
@@ -476,21 +476,19 @@ function writeLines(
     if (line.kind !== 'TEXT') {
       const values: Record<Column['key'], string> = {
         title: '',
-        quantity: line.quantity.toLocaleString('fr-FR', {
-          maximumFractionDigits: 3,
-        }),
+        quantity: formatNumber(line.quantity, 3),
         unit: line.kind === 'DEDUCTION' ? '' : UNIT_LABELS[line.unit].short,
         price: money(toCents(line.unitPrice)),
         // A percentage as such, an amount as the amount taken off.
         discount: !total.discount
           ? ''
           : line.discountType === 'PERCENT'
-            ? `${line.discountValue?.toLocaleString('fr-FR')} %`
+            ? formatPercent(line.discountValue ?? 0, 3)
             : `−${money(total.discount)}`,
         vat:
           line.kind === 'DISBURSEMENT'
             ? '—'
-            : `${line.vatRate.toLocaleString('fr-FR')} %`,
+            : formatPercent(line.vatRate, 3),
         total: money(total.net),
       };
       doc.font('regular').fontSize(9).fillColor(COLORS.text);
@@ -544,7 +542,7 @@ function writeTotals(
     ...(totals.globalDiscount
       ? [
           {
-            label: `Remise${document.globalDiscountType === 'PERCENT' && discountValue ? ` (${discountValue.toLocaleString('fr-FR')} %)` : ''}`,
+            label: `Remise${document.globalDiscountType === 'PERCENT' && discountValue ? ` (${formatPercent(discountValue, 3)})` : ''}`,
             value: `−${money(totals.globalDiscount)}`,
           },
         ]
@@ -562,7 +560,7 @@ function writeTotals(
       : []),
     ...(document.vatApplicable
       ? totals.vat.map((item) => ({
-          label: `TVA ${item.rate.toLocaleString('fr-FR')} % sur ${money(item.base)}`,
+          label: `TVA ${formatPercent(item.rate, 3)} sur ${money(item.base)}`,
           value: money(item.vat),
         }))
       : []),
@@ -984,7 +982,7 @@ function writeHeader(
   // Buyer, in the window of the envelope (lower when the facts above reach it), on the white of the page.
   const contact = buyer.contact
     ? [
-        `${buyer.contact.firstName} ${buyer.contact.lastName}`,
+        contactName(buyer.contact),
         buyer.contact.jobTitle,
       ]
         .filter(Boolean)
@@ -1321,7 +1319,7 @@ export async function documentPdf(
           label: 'Acompte à la commande',
           value:
             document.depositType === 'PERCENT'
-              ? `${(fromDecimal(document.depositValue) ?? 0).toLocaleString('fr-FR')} %, soit ${formatMoney(deposit, document.currency)}`
+              ? `${formatPercent(fromDecimal(document.depositValue) ?? 0, 3)}, soit ${formatMoney(deposit, document.currency)}`
               : formatMoney(deposit, document.currency),
         }
       : null,

@@ -10,17 +10,17 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { useEntryCellSave } from '../lib/entry-values';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -29,7 +29,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { toastCallbacks } from '../../../lib/notify';
+
 import {
   treasuryKey,
   useForecastEntries,
@@ -41,7 +41,6 @@ import {
   type TreasuryAccount,
   type TreasuryEntry,
 } from '../api';
-import { CHART_SCALES } from '../lib/chart-period';
 import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
@@ -60,12 +59,13 @@ import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { useDeleteEntries } from '../hooks/use-delete-entries';
 
 /**
  * Amount in euros, from currency units.
@@ -176,7 +176,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
  * @param {{ label: string, value: number, hint?: string, color?: string }} props Component props.
  * @returns {JSX.Element} Tile.
  */
-function Figure({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
+function AmountTile({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
   return <StatTile label={label} value={fmt.money(value)} hint={hint} valueColor={color ?? (value < 0 ? 'red' : undefined)} />;
 }
 
@@ -212,7 +212,7 @@ export function TreasuryPage() {
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
-  const { deleteEntry } = useTreasuryMutations();
+  const deleteEntries = useDeleteEntries();
   const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
 
@@ -346,15 +346,15 @@ export function TreasuryPage() {
     <Stack gap="md">
       {header}
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
-        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(accounts.filter((account) => !account.archived).length, 'compte')} />
-        <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
-        <Figure
+        <AmountTile label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(unarchived(accounts).length, 'compte')} />
+        <AmountTile label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
+        <AmountTile
           label="En retard"
           value={late.reduce((sum, item) => sum + item.amount, 0)}
           hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
           color={late.length ? 'red' : undefined}
         />
-        <Figure
+        <AmountTile
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
           value={end?.balance ?? 0}
           hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${fmt.day(lowest.date)}` : undefined}
@@ -402,7 +402,7 @@ export function TreasuryPage() {
             <SegmentedControl
               size="xs"
               aria-label="Durée de la période"
-              data={CHART_SCALES}
+              data={CALENDAR_SCALE_OPTIONS}
               value={scale}
               // The new period contains the first day of the previous one.
               onChange={(value) => {
@@ -468,24 +468,11 @@ export function TreasuryPage() {
               ];
               return [
                 {
-                  ...archiveRowsAction({
-                    archived: entries.every((entry) => entry.archived),
-                    apply: (archived) => setArchived.mutateAsync({ ids: entries.map((entry) => entry.id), archived }),
-                    label: countOf(entries.length, 'prévision'),
-                    count: entries.length,
-                    feminine: true,
-                    clear,
-                  }),
+                  ...archiveItemsAction(entries, setArchived, { noun: 'prévision', feminine: true, clear }),
                   disabled: entries.length === 0,
                 },
                 {
-                  ...deleteRowsAction(entries, {
-                    title: 'Supprimer les prévisions',
-                    risks: `${countOf(entries.length, 'prévision')} et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
-                    remove: (entry) => deleteEntry.mutateAsync(entry.id),
-                    done: `${countOf(entries.length, 'prévision')} ${plural(entries.length, 'supprimée')}.`,
-                    clear,
-                  }),
+                  ...deleteEntries.forecasts(entries, clear, entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''),
                   disabled: entries.length === 0,
                 },
               ];
@@ -598,7 +585,7 @@ export function TreasuryPage() {
                   name={item.label}
                   primary={
                     entry.archived
-                      ? archiveItem
+                      ? undefined
                       : forecast
                         ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => openDialog({ kind: 'realize', item }) }
                         : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) }
@@ -610,24 +597,8 @@ export function TreasuryPage() {
                       icon: <CopyIcon aria-hidden />,
                       onClick: () => openDialog({ kind: 'entry', entry, copy: true }),
                     },
-                    !entry.archived && archiveItem,
-                    {
-                      label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
-                      icon: <TrashIcon aria-hidden />,
-                      danger: true,
-                      onClick: () =>
-                        forecast
-                          ? confirmDestructive({
-                              title: 'Supprimer la prévision',
-                              risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Prévision supprimée.')),
-                            })
-                          : confirmDestructive({
-                              title: 'Supprimer le mouvement',
-                              risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
-                            }),
-                    },
+                    archiveItem,
+                    rowMenuEntry(forecast ? deleteEntries.forecasts([entry]) : deleteEntries.movements([entry])),
                   ]}
                 />
               );

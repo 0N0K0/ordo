@@ -1,4 +1,4 @@
-import { prisma } from '../../db';
+import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 
 /** Manual order of a list: by position, then by creation (two items at the same position). */
@@ -39,12 +39,16 @@ interface OrderedDelegate {
 /** Name of the delegate of a model with a manual order (`dashboard`, `taskView`…). */
 export type OrderedModel = Uncapitalize<Prisma.ModelName>;
 
+/** Client the positions are read and written with: the scoped client, a transaction, or the unscoped one (workspaces). */
+export type OrderingClient = typeof prisma | typeof unscopedPrisma | Prisma.TransactionClient;
+
 /**
- * Delegate of an ordered model (scoped to the current workspace, as every model).
+ * Delegate of an ordered model (scoped to the current workspace, as every model, unless the client is not).
  * @param {OrderedModel} model Model.
+ * @param {OrderingClient} [client] Client. Optional. Default = the scoped client.
  * @returns {OrderedDelegate} Delegate.
  */
-const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, OrderedDelegate>)[model];
+const delegate = (model: OrderedModel, client: OrderingClient = prisma) => (client as unknown as Record<string, OrderedDelegate>)[model];
 
 /**
  * Moves an item to an index among its siblings (the items matching `where`), all their positions saved at once.
@@ -52,25 +56,25 @@ const delegate = (model: OrderedModel) => (prisma as unknown as Record<string, O
  * @param {string} id Item moved (one of the siblings).
  * @param {number} index Its new index.
  * @param {object} [where] Its siblings: its scope (its project, its dashboard…). Optional. Default = every item.
+ * @param {Prisma.TransactionClient} [tx] Transaction to run in (the positions are then saved inside it). Optional. Default = a transaction of its own.
  * @returns {Promise<void>}
  */
-export async function moveInList(model: OrderedModel, id: string, index: number, where: object = {}): Promise<void> {
-  const siblings = await delegate(model).findMany({ where, orderBy: BY_POSITION, select: { id: true } });
-  await saveSiblingOrder(
-    siblings.map((item) => item.id),
-    id,
-    index,
-    (siblingId, position) => delegate(model).update({ where: { id: siblingId }, data: { position } }),
-  );
+export async function moveInList(model: OrderedModel, id: string, index: number, where: object = {}, tx?: Prisma.TransactionClient): Promise<void> {
+  const siblings = await delegate(model, tx).findMany({ where, orderBy: BY_POSITION, select: { id: true } });
+  const ids = siblings.map((item) => item.id);
+  const save = (siblingId: string, position: number) => delegate(model, tx).update({ where: { id: siblingId }, data: { position } });
+  if (!tx) return saveSiblingOrder(ids, id, index, save);
+  for (const [position, siblingId] of moveInOrder(ids, id, index).entries()) await save(siblingId, position);
 }
 
 /**
  * Position of an item added at the end of a list.
  * @param {OrderedModel} model Model.
  * @param {object} [where] Its future siblings: its scope (its parent, its project…). Optional. Default = every item.
+ * @param {OrderingClient} [client] Client to read with (a transaction, the unscoped client). Optional. Default = the scoped client.
  * @returns {Promise<number>} Position after the last one.
  */
-export async function nextPositionIn(model: OrderedModel, where: object = {}): Promise<number> {
-  const { _max } = await delegate(model).aggregate({ where, _max: { position: true } });
+export async function nextPositionIn(model: OrderedModel, where: object = {}, client?: OrderingClient): Promise<number> {
+  const { _max } = await delegate(model, client).aggregate({ where, _max: { position: true } });
   return (_max.position ?? -1) + 1;
 }

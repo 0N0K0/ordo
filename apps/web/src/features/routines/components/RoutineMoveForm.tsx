@@ -6,9 +6,8 @@ import { DatePickerInput } from '@mantine/dates';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { SubSection } from '../../../components/page/SubSection';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { localToday } from '../../../lib/dates';
@@ -17,6 +16,7 @@ import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-f
 import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { SlotTimesFields } from './SlotTimesFields';
 
 /**
  * Short date of a calendar date: "jeu. 13 nov.".
@@ -136,27 +136,9 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             <LabeledField label="Horaires">
               {times.map((item, index) => (
                 <Group key={index} gap={6} wrap="nowrap">
-                  <TimeField
-                    size="xs"
-                    aria-label={`À partir de, moment ${index + 1}`}
-                    leftSection={<Text size="xs">dès</Text>}
-                    value={item.fromTime ?? ''}
-                    onChange={(value) => changeTimes(index, { fromTime: value || null })}
-                  />
-                  <TimeField
-                    size="xs"
-                    aria-label={`Avant, moment ${index + 1}`}
-                    leftSection={<Text size="xs">avant</Text>}
-                    value={item.dueTime ?? ''}
-                    onChange={(value) => changeTimes(index, { dueTime: value || null })}
-                  />
+                  <SlotTimesFields value={item} onChange={(changes) => changeTimes(index, changes)} name={`moment ${index + 1}`} />
                 </Group>
               ))}
-              {times.some((item) => item.fromTime && item.dueTime && item.fromTime >= item.dueTime) && (
-                <Text size="xs" c="red">
-                  L’heure maximale doit suivre l’heure de début.
-                </Text>
-              )}
             </LabeledField>
           </>
         ) : (
@@ -182,7 +164,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   size="sm"
                   aria-label={`Remettre l’occurrence du ${fmt.dayLong(item.from)} à son jour`}
                   loading={removeMove.isPending && removeMove.variables?.from === item.from}
-                  onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: onMutationError })}
+                  onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, ON_ERROR)}
                 />
               </Group>
             ))}

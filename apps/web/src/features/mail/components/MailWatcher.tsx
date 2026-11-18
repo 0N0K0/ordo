@@ -1,3 +1,6 @@
+import { NO_SUBJECT } from '@ordo/shared';
+import { unarchived } from '../../../lib/archive';
+import { mailPath } from '../../../app/pages';
 import { EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
@@ -94,15 +97,15 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
           icon: <EnvelopeSimpleIcon />,
           title,
           lines: [where],
-          actions: [link(name ? `Ouvrir la boîte de réception dans « ${name} »` : 'Ouvrir la boîte de réception', `/mail?account=${accountId}&folder=INBOX`)],
+          actions: [link(name ? `Ouvrir la boîte de réception dans « ${name} »` : 'Ouvrir la boîte de réception', mailPath(accountId, 'INBOX'))],
         });
         return;
       }
       for (const message of fresh) {
-        const title = message.subject || '(sans objet)';
+        const title = message.subject || NO_SUBJECT;
         const from = message.from[0]?.name || message.from[0]?.address;
         systemNotification(title, [name, from].filter(Boolean).join(' · ') || undefined, `mail:${accountId}:${message.uid}`);
-        notifyInfo({ icon: <EnvelopeSimpleIcon />, title, lines: [where, from && `De ${from}`], actions: [link('Lire le mail', `/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`)] });
+        notifyInfo({ icon: <EnvelopeSimpleIcon />, title, lines: [where, from && `De ${from}`], actions: [link('Lire le mail', mailPath(accountId, 'INBOX', message.uid))] });
       }
     };
 
@@ -116,13 +119,11 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
         .then(({ mailAccounts }) =>
           Promise.all(
             // An archived account is not watched anymore.
-            mailAccounts
-              .filter((account) => !account.archived)
-              .map(({ id: accountId }) =>
-                (workspaceId ? executeIn(workspaceId, WatchedUnreadMailsDocument, { accountId }) : execute(WatchedUnreadMailsDocument, { accountId }))
-                  .then(({ mailMessages }) => announce(accountId, mailMessages.messages))
-                  .catch(() => undefined),
-              ),
+            unarchived(mailAccounts).map(({ id: accountId }) =>
+              (workspaceId ? executeIn(workspaceId, WatchedUnreadMailsDocument, { accountId }) : execute(WatchedUnreadMailsDocument, { accountId }))
+                .then(({ mailMessages }) => announce(accountId, mailMessages.messages))
+                .catch(() => undefined),
+            ),
           ),
         )
         .catch(() => undefined);

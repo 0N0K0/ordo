@@ -2,13 +2,13 @@ import { PICKER_FORMATS } from '../../../lib/format';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
 import { useState } from 'react';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { rangeError, rangeProps } from '../../../components/inputs/date-range';
 
 /**
  * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
@@ -30,6 +30,7 @@ export function SlotEditForm({
 }) {
   const [value, setValue] = useState(slot);
   const invalid = !value.allDay && (!value.start || !value.end || value.end <= value.start);
+  const hours = rangeProps({ value: [value.start, value.end], onChange: ([start, end]) => setValue({ ...value, start, end }) }, true);
   return (
     <form
       noValidate
@@ -50,14 +51,8 @@ export function SlotEditForm({
         />
         {!value.allDay && (
           <Group gap="sm" grow>
-            <TimeField label="Début" required value={value.start} onChange={(start) => setValue({ ...value, start })} />
-            <TimeField
-              label="Fin"
-              required
-              value={value.end}
-              onChange={(end) => setValue({ ...value, end })}
-              error={value.start && value.end && value.end <= value.start ? 'La fin doit suivre le début.' : undefined}
-            />
+            <TimePicker label="Début" required {...hours.start} />
+            <TimePicker label="Fin" required {...hours.end} />
           </Group>
         )}
         <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid} danger={<DeleteButton onClick={onDelete} />} />
@@ -86,7 +81,17 @@ export function RoutineOccurrenceForm({
   const [date, setDate] = useState(occurrence.date);
   const [fromTime, setFromTime] = useState(occurrence.slot.fromTime);
   const [dueTime, setDueTime] = useState(occurrence.slot.dueTime);
-  const invalid = Boolean(fromTime && dueTime && dueTime <= fromTime);
+  const invalid = Boolean(rangeError(fromTime, dueTime, true));
+  const hours = rangeProps(
+    {
+      value: [fromTime ?? '', dueTime ?? ''],
+      onChange: ([from, due]) => {
+        setFromTime(from || null);
+        setDueTime(due || null);
+      },
+    },
+    true,
+  );
   const unchanged = date === occurrence.date && fromTime === occurrence.slot.fromTime && dueTime === occurrence.slot.dueTime;
   return (
     <form
@@ -99,8 +104,8 @@ export function RoutineOccurrenceForm({
       <Stack gap="md">
         <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} minDate={occurrence.routine.startDate} value={date} onChange={(value) => value && setDate(value)} data-autofocus />
         <Group gap="sm" grow>
-          <TimeField label="À partir de" value={fromTime ?? ''} onChange={(value) => setFromTime(value || null)} />
-          <TimeField label="Avant" value={dueTime ?? ''} onChange={(value) => setDueTime(value || null)} error={invalid ? 'L’heure maximale doit suivre l’heure de début.' : undefined} />
+          <TimePicker label="À partir de" {...hours.start} />
+          <TimePicker label="Avant" {...hours.end} />
         </Group>
         <FormActions
           onCancel={onClose}

@@ -15,15 +15,15 @@ import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
 import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+
+import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useMilestoneMutations, type Milestone } from '../api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
@@ -117,14 +117,13 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move, update } = useMilestoneMutations();
   const setArchived = useSetArchived('MILESTONE');
-  const [showArchived, setShowArchived] = useState(false);
   const [order, setOrder] = useMilestoneOrder();
   const today = localToday();
+  // Already in the chosen order.
+  const all = (context?.milestones ?? []).filter((milestone) => milestone.projectId === projectId);
+  const { shown: milestones, toggle: archivedToggle } = useArchivedToggle(all);
   if (!context) return null;
   const project = context.projectById.get(projectId);
-  // Already in the chosen order.
-  const all = context.milestones.filter((milestone) => milestone.projectId === projectId);
-  const milestones = visibleItems(all, showArchived);
   const sortable = order === 'manual' && !project?.archived;
 
   /**
@@ -159,7 +158,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         description="Les jalons sont utilisables par les tâches du projet et de ses sous-projets."
         actions={
           <>
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={all.filter((milestone) => milestone.archived).length} />
+            <ShowArchivedSwitch {...archivedToggle} />
             <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
           </>
@@ -169,7 +168,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         <EmptyState icon={<FlagIcon aria-hidden />} message="Aucun jalon pour ce projet." />
       ) : (
         // Manual order: the dropped milestone moves to its new place.
-        <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, { onError: onMutationError })}>
+        <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, ON_ERROR)}>
             {milestones.map((milestone) => {
               const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
               const done = tasks.filter((task) => context.isClosed(task)).length;
@@ -191,7 +190,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                     progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}
                     description={milestone.description}
                     targets={context.targetsFor(milestone.projectId)}
-                    onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}
+                    onDescription={milestone.archived || project?.archived ? undefined : (description) => update.mutate({ id: milestone.id, input: { description } }, ON_ERROR)}
                   />
                 </SortableMilestone>
               );

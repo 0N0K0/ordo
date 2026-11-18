@@ -1,6 +1,8 @@
+import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { clientPath, projectPath } from '../../../app/pages';
 import { ActionIcon, TextInput } from '@mantine/core';
 import { entityNameSchema, projectTitleSchema } from '@ordo/shared';
-import { CaretRightIcon } from '@phosphor-icons/react';
+
 import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router';
 import { notifyError } from '../../../lib/notify';
@@ -42,7 +44,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
   const isProject = entity.type === 'project';
   const [draft, setDraft] = useState(label);
   const [error, setError] = useState<string | null>(null);
-  const href = entity.type === 'client' ? `/clients/${item.id}` : `/projects/${item.id}`;
+  const href = entity.type === 'client' ? clientPath(item.id) : projectPath(item.id);
 
   /**
    * Starts the inline rename.
@@ -117,7 +119,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
           onClick={expansion.onToggle}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <CaretRightIcon className={classes.chevron} data-expanded={expansion.expanded || undefined} aria-hidden />
+          <FoldChevron expanded={expansion.expanded} />
         </ActionIcon>
       ) : (
         <span className={classes.spacer} />

@@ -4,10 +4,12 @@ import { readSheetSources } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
-import { builder } from '../builder';
+import { builder, type BuilderTypes } from '../builder';
 import { relationIds } from '../relation-fields';
 import { NameColorInput, NameColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { fromDecimal } from '../../services/core/decimal';
+import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
+import { reloaded } from '../reload';
 
 /** Share of a sheet in an item of a list. */
 export const SheetSourceRef = builder.objectRef<SheetSource>('SheetSource').implement({
@@ -19,16 +21,35 @@ export const SheetSourceRef = builder.objectRef<SheetSource>('SheetSource').impl
   }),
 });
 
+/** What an item of a sheet and an item of a checklist have in common. */
+interface ItemShape {
+  productId: string | null;
+  label: string;
+  categoryId: string | null;
+  quantity: Parameters<typeof fromDecimal>[0];
+  unit: string | null;
+  note: string | null;
+}
+
+/**
+ * Fields of an item of a sheet or of a checklist: its product (or label of its own), category, quantity, unit and note.
+ * @param {PothosSchemaTypes.FieldBuilder<BuilderTypes, ItemShape, 'PrismaObject'>} t Field builder.
+ * @returns {object} Fields.
+ */
+const itemFields = (t: PothosSchemaTypes.FieldBuilder<BuilderTypes, ItemShape, 'PrismaObject'>) => ({
+  productId: t.exposeID('productId', { nullable: true }),
+  label: t.exposeString('label'),
+  categoryId: t.exposeID('categoryId', { nullable: true }),
+  quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
+  unit: t.exposeString('unit', { nullable: true }),
+  note: t.exposeString('note', { nullable: true }),
+});
+
 builder.prismaObject('SheetItem', {
   description: 'Item of a sheet: a product of the references, or a label of its own.',
   fields: (t) => ({
     id: t.exposeID('id'),
-    productId: t.exposeID('productId', { nullable: true }),
-    label: t.exposeString('label'),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
+    ...itemFields(t as unknown as Parameters<typeof itemFields>[0]),
     consumable: t.exposeBoolean('consumable', { description: 'Used up when the sheet is used (taken from the stock).' }),
     storeId: t.exposeID('storeId', { nullable: true }),
     url: t.exposeString('url', { nullable: true }),
@@ -76,12 +97,7 @@ builder.prismaObject('ChecklistItem', {
   fields: (t) => ({
     id: t.exposeID('id'),
     listId: t.exposeID('listId'),
-    productId: t.exposeID('productId', { nullable: true }),
-    label: t.exposeString('label'),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
-    quantity: t.float({ nullable: true, resolve: (item) => fromDecimal(item.quantity) }),
-    unit: t.exposeString('unit', { nullable: true }),
-    note: t.exposeString('note', { nullable: true }),
+    ...itemFields(t as unknown as Parameters<typeof itemFields>[0]),
     sources: t.field({ type: [SheetSourceRef], resolve: (item) => readSheetSources(item.sources) }),
     consumable: t.exposeBoolean('consumable', { description: 'Taken from the stock when ticked.' }),
     checkedAt: t.expose('checkedAt', { type: 'DateTime', nullable: true }),
@@ -107,18 +123,10 @@ const SheetItemInputRef = builder.inputType('SheetItemInput', {
     id: t.id(),
     productId: t.id(),
     label: t.string({ required: true }),
-    categoryId: t.id(),
-    quantity: t.float(),
-    unit: t.string(),
-    note: t.string(),
+    ...productInputFields(t, { people: false, perishable: false }),
+    ...purchaseInputFields(t),
     consumable: t.boolean(),
-    storeId: t.id(),
-    url: t.string(),
-    perishable: t.boolean(),
-    storageId: t.id(),
     optional: t.boolean(),
-    memberIds: t.idList(),
-    relationIds: t.idList(),
   }),
 });
 
@@ -153,18 +161,10 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
   id: input.id || null,
   productId: input.productId || null,
   label: input.label,
-  categoryId: input.categoryId || null,
-  quantity: input.quantity ?? null,
-  unit: input.unit ?? null,
-  note: input.note ?? null,
+  ...productInput(input),
+  ...purchaseInput(input),
   consumable: input.consumable ?? true,
-  storeId: input.storeId || null,
-  url: input.url ?? null,
-  perishable: input.perishable ?? false,
-  storageId: input.storageId || null,
   optional: input.optional ?? false,
-  memberIds: input.memberIds ?? [],
-  relationIds: input.relationIds ?? [],
 });
 
 /** Refusal of a request about sheets of no owner. */
@@ -222,7 +222,7 @@ builder.queryFields((t) => ({
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id(), occurrenceDate: t.arg({ type: 'Date' }) },
     resolve: async (query, _root, args) => {
       const list = await sheets.checklist(ownerOf({ ...args, occurrenceDate: args.occurrenceDate ?? null }));
-      return list ? prisma.checklist.findUniqueOrThrow({ ...query, where: { id: list.id } }) : null;
+      return list ? reloaded(prisma.checklist, query, list) : null;
     },
   }),
 }));
@@ -276,13 +276,13 @@ builder.mutationFields((t) => ({
   setSheetLinks: t.boolean({
     description: 'Sets the sheets of a routine, an event or a task (one of them).',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id(), links: t.arg({ type: [SheetLinkInputRef], required: true }) },
-    resolve: async (_root, { routineId, eventId, taskId, links }) => {
-      await sheets.setSheetLinks(
-        { routineId: routineId || null, eventId: eventId || null, taskId: taskId || null },
-        links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier })),
-      );
-      return true;
-    },
+    resolve: (_root, { routineId, eventId, taskId, links }) =>
+      done(
+        sheets.setSheetLinks(
+          { routineId: routineId || null, eventId: eventId || null, taskId: taskId || null },
+          links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier })),
+        ),
+      ),
   }),
   resetChecklist: t.boolean({
     description: 'Makes a checklist again from the sheets of its owner (ticks and changes lost).',

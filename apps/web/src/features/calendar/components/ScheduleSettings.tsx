@@ -83,7 +83,7 @@ function ScheduleTypes() {
       noun="le type"
       items={types ?? []}
       remove={(id) => removeType.mutateAsync(id)}
-      deleteMessage={(type) => <>Le type « {type.name} » sera supprimé ; ses plages restent, sans type. Cette action est irréversible.</>}
+      deleteMessage={(type) => <>Le type « {type.name} » sera supprimé ; ses plages restent, sans type.</>}
     />
   );
 }

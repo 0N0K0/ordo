@@ -1,7 +1,8 @@
+import type { TaskInput } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { byPosition, readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
+import { byPosition, readTaskColumnDefaults, type TaskColumnDefaults } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -470,30 +471,8 @@ function useTasksMutation<TVariables, TResult>(mutationFn: (variables: TVariable
   return useInvalidatingMutation(mutationFn, { invalidate: [tasksQueryKey] });
 }
 
-export interface TaskInputValues {
-  title?: string;
-  projectId?: string | null;
-  description?: string | null;
-  statusId?: string | null;
-  priorityId?: string | null;
-  typeId?: string | null;
-  assigneeIds?: string[];
-  tagIds?: string[];
-  effort?: number | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  deadline?: string | null;
-  /** « Date min ». */
-  minDate?: string | null;
-  parentId?: string | null;
-  milestoneId?: string | null;
-  sprintIds?: string[];
-  /** « Bénéficiaires »: contributors and relations the task is for. */
-  beneficiaryIds?: string[];
-  beneficiaryRelationIds?: string[];
-  /** Slots it is done on or out of; null: the default of the workspace. */
-  slotRule?: SlotRule | null;
-}
+/** Fields of a task sent on a creation or an update (the shared input of the API). */
+export type TaskInputValues = TaskInput;
 
 /**
  * Creates a task.

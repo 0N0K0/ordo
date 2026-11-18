@@ -1,5 +1,4 @@
-import { normalize } from '@ordo/shared';
-import { sameName } from '../../lib/text';
+import { sameName, normalize } from '../../lib/text';
 import type { ComboboxData, ComboboxItem, ComboboxItemGroup, ComboboxParsedItem, OptionsFilter } from '@mantine/core';
 
 /** Value of the option creating what was typed. */

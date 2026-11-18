@@ -1,7 +1,6 @@
 import { copyName } from '../../../lib/text';
-import { TimeField } from '../../../components/inputs/TimeField';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -10,7 +9,7 @@ import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { timeTasks } from '../../time/lib/time-tasks';
 import { describeTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
-import { RepetitionEditor } from '../../../components/recurrence/RepetitionEditor';
+import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -127,16 +126,14 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             valid={(draft) => Boolean(draft.startDate && draft.time)}
             describe={(timing) => (timing.startDate ? [describeTiming(timing)] : [])}
             editor={(draft, setDraft) => (
-              <RepetitionEditor<null>
-                mode="RULE"
-                onModeChange={() => undefined}
-                cases={[{ since: null, until: null, anchor: null, rule: draft.recurrence, times: null }]}
-                onChange={(cases) => setDraft({ ...draft, recurrence: cases[0]?.rule ?? null })}
+              <RuleEditor
+                rule={draft.recurrence}
+                onChange={(recurrence) => setDraft({ ...draft, recurrence })}
                 start={draft.startDate ?? localToday()}
                 footer={
                   <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
                     <DatePickerInput label={draft.recurrence ? 'À partir du' : 'Date'} required value={draft.startDate} onChange={(startDate) => startDate && setDraft({ ...draft, startDate })} />
-                    <TimeField label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
+                    <TimePicker label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
                   </SimpleGrid>
                 }
               />

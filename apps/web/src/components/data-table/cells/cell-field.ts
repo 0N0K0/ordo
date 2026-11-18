@@ -20,6 +20,23 @@ export const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true,
 export const stopClick = (event: SyntheticEvent) => event.stopPropagation();
 
 /**
+ * Props of a picker in a cell (a parent, a link): borderless, « — » when empty, cleared unless read only, its click kept
+ * from the row, its dropdown above the table.
+ * @param {boolean} readOnly Shown only.
+ * @returns {object} Select props.
+ */
+export const cellPicker = (readOnly: boolean) =>
+  ({
+    variant: 'unstyled',
+    size: 'xs',
+    placeholder: readOnly ? undefined : '—',
+    readOnly,
+    clearable: !readOnly,
+    onClick: stopClick,
+    comboboxProps: { withinPortal: true },
+  }) as const;
+
+/**
  * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
  * @param {KeyboardEvent<HTMLInputElement>} event Key event.
  * @param {() => void} cancel Gives up the draft.

@@ -16,7 +16,7 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
 import * as fmt from '../../../lib/format';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from '../api';
 import { SheetLinksField } from './SheetLinksField';
@@ -143,7 +143,8 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
                 confirmDestructive({
                   title: 'Refaire la liste',
                   risks: 'La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu.',
-                  onConfirm: () => mutations.resetChecklist.mutate(list.id, toastCallbacks('Liste refaite.')),
+                  run: () => mutations.resetChecklist.mutateAsync(list.id),
+                  done: 'Liste refaite.',
                 })
               }
             >

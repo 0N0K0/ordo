@@ -1,8 +1,8 @@
 import { countOf, plural } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
 import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -12,7 +12,7 @@ import { EditableMultiSelect, EditableSelect } from '../../../components/data-ta
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -22,12 +22,13 @@ import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
 import { sheetInput } from '../lib/sheet-format';
-import { archiveRowsAction, deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
-import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
+import { deleteSheetsAction } from '../lib/delete-sheets';
 
 /**
  * Columns of the sheets.
@@ -113,13 +114,13 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
   const { context } = useTaskContext();
   const { create, update, duplicate, remove } = useSheetMutations();
   const setArchived = useSetArchived('SHEET', [sheetsKey]);
-  const [showArchived, setShowArchived] = useState(false);
+  const { shown, toggle: archivedToggle } = useArchivedToggle(sheets ?? []);
   const view = useDataView({
     tableKey: 'sheets',
     projectId,
     getKey: (sheet) => sheet.id,
     columns: sheetColumns(context, categories ?? [], projectId !== null),
-    rows: [...visibleItems(sheets ?? [], showArchived)],
+    rows: shown,
     title: 'Fiches',
   });
   // The archived sheets are left as they are.
@@ -146,21 +147,8 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         ...(rows.some((sheet) => sheet.archived)
           ? []
           : [duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` })]),
-        archiveRowsAction({
-          archived: rows.every((sheet) => sheet.archived),
-          apply: (archived) => setArchived.mutateAsync({ ids: rows.map((sheet) => sheet.id), archived }),
-          label: countOf(rows.length, 'fiche'),
-          count: rows.length,
-          feminine: true,
-          clear,
-        }),
-        deleteRowsAction(rows, {
-          title: 'Supprimer les fiches',
-          risks: `${countOf(rows.length, 'fiche')} et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
-          remove: (sheet) => remove.mutateAsync(sheet.id),
-          done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'supprimée')}.`,
-          clear,
-        }),
+        archiveItemsAction(rows, setArchived, { noun: 'fiche', feminine: true, clear }),
+        deleteSheetsAction(rows, (sheet) => remove.mutateAsync(sheet.id), clear),
       ]}
       verticalSpacing="xs"
       highlightOnHover
@@ -168,7 +156,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         searchLabel: 'Rechercher (nom, élément)',
         actions: (
           <Group gap="md">
-            <ShowArchivedSwitch checked={showArchived} onChange={setShowArchived} count={(sheets ?? []).filter((sheet) => sheet.archived).length} label="Afficher les archivées" />
+            <ShowArchivedSwitch {...archivedToggle} label="Afficher les archivées" />
             <ActionButton icon={<PlusIcon aria-hidden />} onClick={createSheet} loading={create.isPending}>
               Nouvelle fiche
             </ActionButton>
@@ -210,7 +198,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
               label={`Projet de ${sheet.name}`}
               nullable
               readOnly={sheet.archived}
-              {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === sheet.projectId)))}
+              {...treeSelectProps(context.projectOptions(unarchived(context.projects, sheet.projectId)))}
               onSave={(next) => bulk('project')(sheet, { projectId: next })}
             />
           </div>
@@ -249,17 +237,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
               },
               !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
               archiveEntry({ archived: sheet.archived, label: `Fiche « ${sheet.name} »`, feminine: true }, setArchived, sheet.id),
-              {
-                label: 'Supprimer',
-                icon: <TrashIcon aria-hidden />,
-                danger: true,
-                onClick: () =>
-                  confirmDestructive({
-                    title: 'Supprimer la fiche',
-                    risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} ${plural(sheet.usedBy, 'routine, évènement ou tâche', 'routines, évènements ou tâches')} qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent. Cette action est irréversible.`,
-                    onConfirm: () => remove.mutate(sheet.id, toastCallbacks('Fiche supprimée.')),
-                  }),
-              },
+              rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}
           />
         </div>

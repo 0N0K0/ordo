@@ -10,11 +10,10 @@ import { PICKER_FORMATS } from '../../../lib/format';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 
-import { TimeField } from '../../../components/inputs/TimeField';
 import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
-import { ArchiveIcon, ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -25,7 +24,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
 import { archivedCalendarIds } from '../lib/calendar-events';
-import { archiveWithUndo, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { useStartTimer } from '../../time/hooks/use-start-timer';
 import { EventLocation } from '../../geo/components/EventLocation';
@@ -35,7 +34,8 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope, chooseScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from '../lib/event-input';
+import { LOCAL_TIME_ZONE, occurrenceInput } from '../lib/event-input';
+import { EVENT_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -49,6 +49,8 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { calendarPath } from '../../../app/pages';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -83,8 +85,8 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
       <TextInput label="Titre" required value={values.title} onChange={(event) => setValues({ ...values, title: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
         <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
-        {!fields.allDay && <TimeField label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
-        {!fields.allDay && <TimeField label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
+        {!fields.allDay && <TimePicker label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
+        {!fields.allDay && <TimePicker label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
       <FormActions onCancel={onCancel} submitLabel="Reporter" submitIcon={<ArrowArcRightIcon aria-hidden />} loading={loading} disabled={!valid} onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })} />
@@ -232,15 +234,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   });
   const recurring = occurrence?.occurrenceDate != null;
 
-  /**
-   * Archives the event (its whole series) or restores it, with an undo, then closes the form.
-   * @returns {Promise<void>}
-   */
-  const handleArchive = async () => {
-    if (!occurrence) return;
-    await archiveWithUndo(setArchived, { ids: [occurrence.eventId], archived: !occurrence.archived, label: `« ${occurrence.title} »` });
-    onDone();
-  };
+  // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
+  const archiveMenu = occurrence && <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, label: `« ${occurrence.title} »` }, setArchived, occurrence.eventId, onDone)]} />;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
 
@@ -280,7 +275,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     }
     confirmDestructive({
       title: 'Supprimer l’évènement',
-      risks: `L’évènement « ${occurrence?.title ?? ''} » sera supprimé définitivement. Cette action est irréversible.`,
+      risks: `L’évènement « ${occurrence?.title ?? ''} » sera supprimé définitivement.`,
       onConfirm: () => run('ALL'),
     });
   };
@@ -314,7 +309,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             {occurrence.postponedTo.map((target) => (
               <span key={target.eventId}>
                 Reporté au{' '}
-                <Anchor component={Link} to={`/calendar?date=${target.startDate}`} onClick={onDone}>
+                <Anchor component={Link} to={calendarPath(target.startDate)} onClick={onDone}>
                   {fmt.dayLong(target.startDate)}
                   {target.startTime && ` à ${target.startTime}`}
                 </Anchor>
@@ -330,7 +325,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               <>
                 {' '}
                 du{' '}
-                <Anchor component={Link} to={`/calendar?date=${occurrence.postponedFrom.date}`} onClick={onDone}>
+                <Anchor component={Link} to={calendarPath(occurrence.postponedFrom.date)} onClick={onDone}>
                   {fmt.dayLong(occurrence.postponedFrom.date)}
                 </Anchor>
               </>
@@ -486,7 +481,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             onChange={(keys) => form.setFieldValue('routineLinks', keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })))}
             error={form.errors.routineLinks as string | undefined}
           />
-          <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={REMINDER_PRESETS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+          <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={EVENT_REMINDERS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
         </SimpleGrid>
         {recurring && (
           <Text size="xs" c="dimmed">
@@ -525,11 +520,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             {occurrence ? (
                 <Group gap={4}>
                   <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
-                  {!calendarArchived && (
-                    <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
-                      Restaurer
-                    </Button>
-                  )}
+                  {!calendarArchived && archiveMenu}
                 </Group>
             ) : (
               <span />
@@ -576,9 +567,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                     </Button>
                   </>
                 )}
-                <Button variant="subtle" color="gray" leftSection={<ArchiveIcon aria-hidden />} onClick={() => void handleArchive()} loading={setArchived.isPending}>
-                  Archiver
-                </Button>
+                {archiveMenu}
                 </>
               )
             }

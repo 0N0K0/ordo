@@ -1,3 +1,4 @@
+import { unarchived } from '../../../lib/archive';
 import { parsePersonKey } from '../../../components/people/people-keys';
 import type { TaskGroupBy } from '@ordo/shared';
 import type { TaskInputValues } from '../api';
@@ -17,7 +18,7 @@ export interface NewTaskDefaults extends Partial<TaskInputValues> {
  * @returns {string | null} Status id (none: no status defined).
  */
 export function defaultStatusId(context: TaskContext): string | null {
-  const statuses = context.statuses.filter((status) => !status.archived);
+  const statuses = unarchived(context.statuses);
   return (statuses.find((status) => status.category === 'TODO') ?? statuses[0])?.id ?? null;
 }
 

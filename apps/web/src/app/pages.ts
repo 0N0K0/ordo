@@ -58,3 +58,45 @@ const BY_SEGMENT = new Map<string, AppPage>(Object.values(PAGES).map((page) => [
 export function pageOfPath(pathname: string): AppPage | null {
   return BY_SEGMENT.get(pathname.split('/')[1] ?? '') ?? null;
 }
+
+/**
+ * Page of a project, on a tab.
+ * @param {string} id Project.
+ * @param {string} [tab] Tab (« tasks », « time », « mail »…). Optional. Default = the first one.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a project.
+export const projectPath = (id: string, tab?: string): string => `/projects/${id}${tab ? `?tab=${tab}` : ''}`;
+
+/**
+ * Calendar opened on a day.
+ * @param {string} date Day (YYYY-MM-DD).
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a day of the calendar.
+export const calendarPath = (date: string): string => `/calendar?date=${date}`;
+
+/**
+ * Page of a client.
+ * @param {string} id Client.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a client.
+export const clientPath = (id: string): string => `/clients/${id}`;
+
+/**
+ * Page of a task: the tasks tab of its project with the task open, or « Tâches » for a task of no project.
+ * @param {{ id: string, projectId: string | null }} task Task.
+ * @returns {string} Path.
+ */
+export const taskPath = (task: { id: string; projectId: string | null }): string => (task.projectId ? `${projectPath(task.projectId, 'tasks')}&task=${task.id}` : `/tasks?task=${task.id}`);
+
+/**
+ * Mails page on a folder of an account, a mail open (optional).
+ * @param {string} account Mail account.
+ * @param {string} folder Folder (« INBOX »…).
+ * @param {number} [uid] Mail open. Optional.
+ * @returns {string} Path.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the address of a mail.
+export const mailPath = (account: string, folder: string, uid?: number): string => `/mail?${new URLSearchParams({ account, folder, ...(uid !== undefined && { uid: String(uid) }) })}`;

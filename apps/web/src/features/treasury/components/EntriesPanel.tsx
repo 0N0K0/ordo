@@ -1,26 +1,25 @@
+import { toggledIn } from '../../../lib/sets';
 import { openFormPanel } from '../../../components/panels/panels';
-import { plural, countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
 import { Group, Stack, Switch, Text } from '@mantine/core';
-import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
-import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { offsetLinkedMovements } from '@ordo/shared';
+import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useEntryCellSave, type EntryValues } from '../lib/entry-values';
 import { bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { toastCallbacks } from '../../../lib/notify';
-import { treasuryKey, useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from '../api';
+
+import { treasuryKey, useTreasuryEntries, type TreasuryAccount, type TreasuryEntry } from '../api';
 import { DetailsToggle, SettledCell } from './entry-cells';
 import { useEntryEnv, type EntryEnv } from '../lib/entry-env';
 import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
@@ -33,6 +32,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { useDeleteEntries } from '../hooks/use-delete-entries';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -105,22 +105,10 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
   ];
 }
 
-/**
- * Filter of the entries executed within a period.
- * @param {string} period Period token.
- * @returns {TableFilterGroup} Filter.
- */
-const executedWithin = (period: string): TableFilterGroup => ({
-  type: 'group',
-  id: 'root',
-  combinator: 'and',
-  children: [{ type: 'condition', id: 'date', field: 'date', operator: 'within', value: period }],
-});
-
 /** Views made the first time the entries are shown: this month (opened first), this year by month, all by month. */
 const ENTRY_VIEWS: FirstTableView[] = [
-  { name: 'Ce mois-ci', config: { filter: executedWithin('thisMonth') } },
-  { name: 'Cette année', config: { filter: executedWithin('thisYear'), groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
+  { name: 'Ce mois-ci', config: { filter: withinFilter('date', 'thisMonth') } },
+  { name: 'Cette année', config: { filter: withinFilter('date', 'thisYear'), groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
   { name: 'Tous', config: { groupBy: 'month', sorting: [{ id: 'month', desc: true }] } },
 ];
 
@@ -135,7 +123,7 @@ const ENTRY_VIEWS: FirstTableView[] = [
 export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProps) {
   // Every entry: the views choose their period and account.
   const { data: entries, isPending } = useTreasuryEntries({ from: '1900-01-01', to: '2999-12-31', accountId: null });
-  const { deleteEntry } = useTreasuryMutations();
+  const deleteEntries = useDeleteEntries();
   const setArchived = useSetArchived('TREASURY_ENTRY', [treasuryKey]);
   const saveEntry = useEntryCellSave();
   const env = useEntryEnv(accounts);
@@ -164,13 +152,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const split = actual.filter((entry) => entry.lines.length > 0);
   const allExpanded = split.length > 0 && split.every((entry) => expanded.has(entry.id));
-  const toggle = (id: string) =>
-    setExpanded((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => setExpanded((current) => toggledIn(current, id));
   return (
     <Stack gap="sm">
       <DataTable
@@ -263,43 +245,12 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             items={[
               !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
               archiveEntry({ archived: entry.archived, label: `« ${entry.label} »` }, setArchived, entry.id),
-              {
-                label: 'Supprimer',
-                icon: <TrashIcon aria-hidden />,
-                danger: true,
-                onClick: () =>
-                  confirmDestructive({
-                    title: 'Supprimer le mouvement',
-                    risks: [
-                      `« ${entry.label} » sera supprimé définitivement.`,
-                      entry.allocations.length ? 'Les documents qu’il règle redeviendront dus.' : '',
-                      entry.linkedEntries.length ? 'Ses liens avec d’autres mouvements seront retirés.' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' '),
-                    onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
-                  }),
-              },
+              rowMenuEntry(deleteEntries.movements([entry])),
             ]}
           />
         )}
         selectionLabel={(count) => selectedLabel(count, ['mouvement', 'mouvements'], false)}
-        selectionActions={(rows, clear) => [
-          archiveRowsAction({
-            archived: rows.every((entry) => entry.archived),
-            apply: (archived) => setArchived.mutateAsync({ ids: rows.map((entry) => entry.id), archived }),
-            label: countOf(rows.length, 'mouvement'),
-            count: rows.length,
-            clear,
-          }),
-          deleteRowsAction(rows, {
-            title: 'Supprimer les mouvements',
-            risks: `${countOf(rows.length, 'mouvement')} seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
-            remove: (entry) => deleteEntry.mutateAsync(entry.id),
-            done: `${countOf(rows.length, 'mouvement')} ${plural(rows.length, 'supprimé')}.`,
-            clear,
-          }),
-        ]}
+        selectionActions={(rows, clear) => [archiveItemsAction(rows, setArchived, { noun: 'mouvement', clear }), deleteEntries.movements(rows, clear)]}
       />
     </Stack>
   );

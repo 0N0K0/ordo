@@ -3,10 +3,12 @@ import {
   ALL_SCHEDULES,
   caseSpans,
   caseStart,
+  changedList,
   conditionConstrains,
   conditionScheduleIds,
   conditionWindows,
   daysBetween,
+  daySchema,
   formatDay,
   isUnderOrSelf,
   MAX_ROUTINE_MOVES,
@@ -16,41 +18,41 @@ import {
   occurrencesBefore,
   opensReach,
   parseDay,
+  type PlannedSlot,
   plannedSlots,
   reaches,
   readOpens,
   readSlotCondition,
+  type Recurrence,
+  type RoutineBulkChanges as SharedBulkChanges,
+  type RoutineCase,
   routineCaseOn,
   routineCaseSchema,
   routineCaseSpans,
+  type RoutineCategoryInput,
   routineCategorySchema,
+  type RoutineInput,
+  type RoutineMove,
   routineMoveSchema,
+  type RoutineMoveTimes,
   routineMoveTimesSchema,
   routineOpenDate,
   routineSchema,
-  routineSlotSchema,
-  type PlannedSlot,
-  type Recurrence,
-  type RoutineCase,
-  type RoutineCategoryInput,
-  type RoutineInput,
-  type RoutineMove,
-  type RoutineMoveTimes,
   type RoutineSlot,
+  routineSlotSchema,
   type SlotCondition,
   type TimeWindow,
   weekdayOf,
   windowsAllowed,
   withMove,
   withMovedTimes,
-  daySchema,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode, treeListService } from '../core/trees';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { assertActiveContributors, assertActiveRelations, assertProjectContributors } from '../workspace/contributors';
@@ -437,7 +439,7 @@ function slotsOn(routine: RoutineTiming, occurrence: string, schedules: Schedule
 // Categories ------------------------------------------------------------------------------------------------------
 
 /** Categories of the routines, in a tree; a deleted one's sub-categories go one level up, its routines lose it. */
-const categories = treeListService<RoutineCategory, RoutineCategoryInput>(
+const categories = treeListService<RoutineCategory, RoutineCategoryInput, RoutineCategoryInput>(
   'routineCategory',
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
   {
@@ -447,43 +449,10 @@ const categories = treeListService<RoutineCategory, RoutineCategoryInput>(
 );
 
 /**
- * Creates a category, last among its siblings.
- * @param {RoutineCategoryInput} input Category.
- * @returns {Promise<RoutineCategory>} Category.
+ * A category: created last among its siblings, updated (under another parent, it goes last), moved under another one
+ * or to the top level at an index (last when omitted), deleted (its routines lose it, its sub-categories go one level up).
  */
-export function createCategory(input: RoutineCategoryInput): Promise<RoutineCategory> {
-  return categories.create(input);
-}
-
-/**
- * Updates a category (under another parent, it goes last).
- * @param {string} id Category id.
- * @param {RoutineCategoryInput} input Category.
- * @returns {Promise<RoutineCategory>} Category.
- */
-export function updateCategory(id: string, input: RoutineCategoryInput): Promise<RoutineCategory> {
-  return categories.update(id, input);
-}
-
-/**
- * Moves a category under another one, or to the top level.
- * @param {string} id Category id.
- * @param {string | null} parentId New parent.
- * @param {number | null} [index] Index among its new siblings; last when omitted. Optional.
- * @returns {Promise<void>}
- */
-export function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  return categories.move(id, parentId, index);
-}
-
-/**
- * Deletes a category: its routines lose it, its sub-categories go one level up.
- * @param {string} id Category id.
- * @returns {Promise<void>}
- */
-export function deleteCategory(id: string): Promise<void> {
-  return categories.remove(id);
-}
+export const { create: createCategory, update: updateCategory, move: moveCategory, remove: deleteCategory } = categories;
 
 // Routines --------------------------------------------------------------------------------------------------------
 
@@ -783,38 +752,9 @@ export async function patchRoutine(id: string, changes: Partial<RoutineInput>): 
   return updateRoutine(id, { ...(await inputOf(id)), ...changes });
 }
 
-/** Same changes for several routines: values set, or ids added to and removed from their lists. */
-export interface RoutineBulkChanges {
-  addCategoryIds?: string[];
-  removeCategoryIds?: string[];
-  addAssigneeIds?: string[];
-  removeAssigneeIds?: string[];
-  addRequiredIds?: string[];
-  removeRequiredIds?: string[];
-  /** Minutes, null: none, undefined: unchanged. */
-  estimate?: number | null;
-  /** Null: none, undefined: unchanged. */
-  projectId?: string | null;
-  /** Null: no limit, undefined: unchanged. */
-  fromTime?: string | null;
-  dueTime?: string | null;
-  startDate?: string;
-  recurrence?: unknown;
-  /** Whole repetition (with recurrence): its cases, moments, condition and « à partir du »; undefined: unchanged. */
-  cases?: unknown;
-  moments?: unknown;
-  slotCondition?: unknown;
-  opensOn?: unknown;
-}
-
-/**
- * List with ids added and removed.
- * @param {string[]} list Current ids.
- * @param {string[]} [added] Added ids. Optional.
- * @param {string[]} [removed] Removed ids. Optional.
- * @returns {string[]} New ids.
- */
-const changedList = (list: string[], added: string[] = [], removed: string[] = []) => [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+/** Same changes for several routines, their repetition as GraphQL gives it (JSON, checked by the routine schema). */
+export type RoutineBulkChanges = Omit<SharedBulkChanges, 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn'> &
+  Partial<Record<'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn', unknown>>;
 
 /**
  * Applies the same changes to several routines; every routine is checked before any is saved.
@@ -942,8 +882,7 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
  * @returns {Promise<string>} Occurrence date.
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
-  const [routine, slots] = await Promise.all([prisma.routine.findUnique({ where: { id } }), loadScheduleContext()]);
-  if (!routine) throw notFound('Routine');
+  const [routine, slots] = await Promise.all([orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine'), loadScheduleContext()]);
   if (routine.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');

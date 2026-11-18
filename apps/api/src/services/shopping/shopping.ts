@@ -3,7 +3,7 @@ import {
   fromCents,
   lineageOf,
   mapById,
-  parseDay,
+  parseOptionalDay,
   shoppingBaseListNameSchema,
   type ShoppingCategoryInput,
   shoppingCategorySchema,
@@ -38,8 +38,6 @@ import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
-
-const day = (value: string | null) => (value === null ? null : parseDay(value));
 
 /**
  * Checks the category and the store of a product or an item.
@@ -79,7 +77,7 @@ const fields = (input: Parsed) => ({
   perishable: input.perishable,
   // Storage mode and date only for what is perishable.
   storageId: input.perishable ? input.storageId : null,
-  expiresAt: input.perishable ? day(input.expiresAt) : null,
+  expiresAt: input.perishable ? parseOptionalDay(input.expiresAt) : null,
 });
 
 /**
@@ -110,7 +108,7 @@ type ParsedCategory = ReturnType<typeof shoppingCategorySchema.parse>;
  * Categories of products, in a tree, each with the base lists it belongs to; a deleted one's sub-categories go up a
  * level, its products and items are left without one.
  */
-const categories = treeListService<CategoryWithLists, ParsedCategory>(
+const categories = treeListService<CategoryWithLists, ParsedCategory, ShoppingCategoryInput>(
   'shoppingCategory',
   { notFound: 'Catégorie', missingParent: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' },
   {
@@ -133,43 +131,11 @@ const categories = treeListService<CategoryWithLists, ParsedCategory>(
 );
 
 /**
- * Creates a category, last among its siblings.
- * @param {ShoppingCategoryInput} input Category.
- * @returns {Promise<ShoppingCategory>} Category.
+ * A category: created last among its siblings, updated (under another parent, it goes last), moved under another one
+ * (or to the top level) keeping its name, color and base lists, deleted (its sub-categories go up a level, its products
+ * and items are left without one).
  */
-export function createCategory(input: ShoppingCategoryInput): Promise<ShoppingCategory> {
-  return categories.create(input);
-}
-
-/**
- * Updates a category (under another parent, it goes last).
- * @param {string} id Category id.
- * @param {ShoppingCategoryInput} input Category.
- * @returns {Promise<ShoppingCategory>} Category.
- */
-export function updateCategory(id: string, input: ShoppingCategoryInput): Promise<ShoppingCategory> {
-  return categories.update(id, input);
-}
-
-/**
- * Moves a category under another one (or to the top level), keeping its name, color and base lists.
- * @param {string} id Category id.
- * @param {string | null} parentId New parent, null for the top level.
- * @param {number | null} [index] Index among its new siblings; last when omitted. Optional.
- * @returns {Promise<void>}
- */
-export function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
-  return categories.move(id, parentId, index);
-}
-
-/**
- * Deletes a category: its sub-categories go up a level, its products and items are left without one.
- * @param {string} id Category id.
- * @returns {Promise<void>}
- */
-export function deleteCategory(id: string): Promise<void> {
-  return categories.remove(id);
-}
+export const { create: createCategory, update: updateCategory, move: moveCategory, remove: deleteCategory } = categories;
 
 // Stores and storage modes --------------------------------------------------------------------------------------
 
@@ -578,15 +544,6 @@ async function findItem(id: string): Promise<ShoppingItem> {
 }
 
 /**
- * Next position in a list.
- * @param {string} listId List.
- * @returns {Promise<number>} Position.
- */
-export async function nextPosition(listId: string): Promise<number> {
-  return nextPositionIn('shoppingItem', { listId });
-}
-
-/**
  * Adds an item of this list only (not from a base list).
  * @param {string} listId List.
  * @param {ShoppingItemInput} input Item.
@@ -595,7 +552,7 @@ export async function nextPosition(listId: string): Promise<number> {
 export async function addItem(listId: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   await findOpenList(listId);
   const data = await parseShopping(shoppingItemSchema, input);
-  return prisma.shoppingItem.create({ data: { ...fields(data), optional: data.optional, listId, position: await nextPosition(listId), ...peopleData(data, 'connect') } });
+  return prisma.shoppingItem.create({ data: { ...fields(data), optional: data.optional, listId, position: await nextPositionIn('shoppingItem', { listId }), ...peopleData(data, 'connect') } });
 }
 
 /**
@@ -613,7 +570,7 @@ export async function addProducts(listId: string, productIds: string[]): Promise
   if (products.length !== ids.length) throw notFound('Produit');
   const present = new Set((await prisma.shoppingItem.findMany({ where: { listId, productId: { in: ids } }, select: { productId: true } })).map((item) => item.productId));
   const added = products.filter((product) => !present.has(product.id));
-  const start = await nextPosition(listId);
+  const start = await nextPositionIn('shoppingItem', { listId });
   await prisma.shoppingList.update({ where: { id: listId }, data: { items: { create: added.map((product, index) => copyOf(product, product.id, start + index)) } } });
   return added.length;
 }
@@ -682,7 +639,7 @@ async function syncExpiry(tx: Prisma.TransactionClient, productId: string): Prom
 export async function duplicateItem(id: string): Promise<ShoppingItem> {
   const item = await orNotFound(prisma.shoppingItem.findUnique({ where: { id }, include: withPeople }), 'Élément');
   await assertItemOpen(item);
-  return prisma.shoppingItem.create({ data: { ...copyOf(item, item.productId, await nextPosition(item.listId)), listId: item.listId } });
+  return prisma.shoppingItem.create({ data: { ...copyOf(item, item.productId, await nextPositionIn('shoppingItem', { listId: item.listId })), listId: item.listId } });
 }
 
 /**

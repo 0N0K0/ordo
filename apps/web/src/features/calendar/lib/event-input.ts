@@ -4,21 +4,6 @@ import type { EventOccurrence } from '../api';
 /** Time zone of the user's device: times of new events are local to it. */
 export const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-/** Reminder presets, in minutes before the start. */
-export const REMINDER_PRESETS: { value: number; label: string }[] = [
-  { value: 0, label: 'Au début' },
-  { value: 5, label: '5 min avant' },
-  { value: 10, label: '10 min avant' },
-  { value: 15, label: '15 min avant' },
-  { value: 30, label: '30 min avant' },
-  { value: 60, label: '1 h avant' },
-  { value: 120, label: '2 h avant' },
-  { value: 360, label: '6 h avant (la veille à 18 h pour une journée entière)' },
-  { value: 1440, label: '1 jour avant' },
-  { value: 2880, label: '2 jours avant' },
-  { value: 10080, label: '1 semaine avant' },
-];
-
 /**
  * Fields of an occurrence, as the input of a change.
  * @param {EventOccurrence} occurrence Occurrence.

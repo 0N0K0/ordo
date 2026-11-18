@@ -1,3 +1,4 @@
+import { toggledIn } from '../../../lib/sets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { plural } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -18,6 +19,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { dateRangeProps } from '../../../components/inputs/date-range';
 
 /**
  * What a time was spent on: its tasks, then its description.
@@ -59,6 +61,13 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const [projectId, setProjectId] = useState<string | null>(initialProject ?? projects.find((option) => !option.disabled)?.value ?? null);
   const [from, setFrom] = useState<string | null>(start);
   const [to, setTo] = useState<string | null>(end);
+  const period = dateRangeProps({
+    value: [from, to],
+    onChange: ([first, last]) => {
+      setFrom(first);
+      setTo(last);
+    },
+  });
   const [grouping, setGrouping] = useState<TimeGrouping>('TOTAL');
   const [unit, setUnit] = useState<'HOUR' | 'DAY'>('HOUR');
   const [hoursPerDay, setHoursPerDay] = useState(7);
@@ -92,8 +101,8 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     <Stack gap="sm">
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <Select label="Projet" required searchable allowDeselect={false} {...treeSelectProps(projects)} value={projectId} onChange={setProjectId} />
-        <DatePickerInput label="Du" clearable value={from} onChange={setFrom} />
-        <DatePickerInput label="Au" clearable value={to} onChange={setTo} />
+        <DatePickerInput label="Du" clearable {...period.start} />
+        <DatePickerInput label="Au" clearable {...period.end} />
       </SimpleGrid>
 
       {!projectId ? (
@@ -128,12 +137,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
                 aria-label={`Facturer le temps du ${entry.day}`}
                 checked={!unchecked.has(entry.id)}
                 onChange={() =>
-                  setUnchecked((current) => {
-                    const next = new Set(current);
-                    if (next.has(entry.id)) next.delete(entry.id);
-                    else next.add(entry.id);
-                    return next;
-                  })
+                  setUnchecked((current) => toggledIn(current, entry.id))
                 }
               />
             ),

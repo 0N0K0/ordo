@@ -1,13 +1,13 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { formCallbacks } from '../../../lib/form';
 import { categoryPaths } from '../../../components/tree/category-tree';
-import { normalize } from '@ordo/shared';
+
 import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
-import { collator, countOf, plural } from '../../../lib/text';
+import { collator, countOf, plural, normalize } from '../../../lib/text';
 import { unarchived } from '../../../lib/archive';
 
 /**

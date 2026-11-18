@@ -1,4 +1,4 @@
-import { budgetMonths, formatDay, lastDayOfMonth, occurrenceDates, parseDay, plannedContext, splitAmounts, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
+import { budgetMonths, formatDay, lastDayOfMonth, monthOfDay, occurrenceDates, parseDay, plannedContext, splitAmounts, type TreasuryBudgetInput, treasuryBudgetSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
@@ -85,7 +85,6 @@ export async function deleteBudget(id: string): Promise<void> {
  * @param {string} day YYYY-MM-DD.
  * @returns {string} Month.
  */
-const monthOf = (day: string) => day.slice(0, 7);
 
 /**
  * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
@@ -119,7 +118,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
   const rows = new Map<string, BudgetReportRow>();
   for (const budget of budgets) {
     const months = budgetMonths(
-      { month: monthOf(formatDay(budget.month)), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOf(formatDay(budget.repeatUntil)) : null },
+      { month: monthOfDay(formatDay(budget.month)), repeatEvery: budget.repeatEvery, repeatUntil: budget.repeatUntil ? monthOfDay(formatDay(budget.repeatUntil)) : null },
       from,
       to,
     );
@@ -140,7 +139,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
    * @returns {void}
    */
   const add = (day: string, key: Key, amount: number, kind: 'actual' | 'forecast') => {
-    const month = monthOf(day);
+    const month = monthOfDay(day);
     // A line of its own day may fall out of the range (an entry of the range for purchases of the month before).
     if (!amount || month < from || month > to) return;
     const seen = new Set<string>();

@@ -1,3 +1,7 @@
+import type { ColumnLayout } from '@ordo/shared';
+import type { ColumnMove } from '../toolbar/ColumnHeaderMenu';
+import { clampWidth } from './data-table';
+
 /** Rows measured at most: enough to see the content of a column, quick on long lists. */
 const MEASURED_ROWS = 400;
 
@@ -52,4 +56,45 @@ export function contentWidth(table: HTMLTableElement, index: number): number {
     else element.setAttribute('style', style);
   }
   return Math.ceil(width);
+}
+
+/**
+ * Order of the columns with one moved to the start, the end, or by one shown column.
+ * @param {readonly string[]} order Order of every column.
+ * @param {readonly { id: string }[]} shown Columns shown, in order.
+ * @param {string} id Column moved.
+ * @param {ColumnMove} where Where.
+ * @returns {string[]} New order.
+ */
+export function movedColumnOrder(order: readonly string[], shown: readonly { id: string }[], id: string, where: ColumnMove): string[] {
+  const others = order.filter((item) => item !== id);
+  const index = shown.findIndex((column) => column.id === id);
+  let at: number;
+  if (where === 'start') at = 0;
+  else if (where === 'end') at = others.length;
+  else {
+    const neighbour = shown[where === 'left' ? index - 1 : index + 1].id;
+    at = others.indexOf(neighbour) + (where === 'right' ? 1 : 0);
+  }
+  return [...others.slice(0, at), id, ...others.slice(at)];
+}
+
+/**
+ * Layout with a column fitted to its content, or given back its default width when it already is.
+ * @param {HTMLTableElement} table Table.
+ * @param {ColumnLayout} layout Layout.
+ * @param {{ id: string, width: number }} column Column, with its width now.
+ * @param {number} cellIndex Index of its cells in a row.
+ * @param {Map<string, number>} fitted Widths of the columns fitted (kept to tell a second fit).
+ * @returns {ColumnLayout} New layout.
+ */
+export function fittedLayout(table: HTMLTableElement, layout: ColumnLayout, column: { id: string; width: number }, cellIndex: number, fitted: Map<string, number>): ColumnLayout {
+  const width = clampWidth(contentWidth(table, cellIndex) + 2);
+  const { [column.id]: _dropped, ...others } = layout.columnSizing; // eslint-disable-line @typescript-eslint/no-unused-vars
+  if (fitted.get(column.id) === column.width || Math.abs(width - column.width) <= 2) {
+    fitted.delete(column.id);
+    return { ...layout, columnSizing: others };
+  }
+  fitted.set(column.id, width);
+  return { ...layout, columnSizing: { ...others, [column.id]: width } };
 }

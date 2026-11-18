@@ -1,5 +1,5 @@
 import { Button, Group, Select, Switch } from '@mantine/core';
-import { GROUP_PERIODS, type GroupPeriod } from '@ordo/shared';
+import { GROUP_PERIODS, SCALE_LABELS, type GroupPeriod } from '@ordo/shared';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
 import { BulkHint } from '../selection/BulkHint';
 import { useState, type ReactNode } from 'react';
@@ -15,7 +15,7 @@ import { TableOptions, TableToolbar, ToolbarFilter, ToolbarSort } from './TableT
 import type { DataView } from '../views/use-data-view';
 
 /** Names of the periods of a grouping on a date. */
-const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: 'Jour', WEEK: 'Semaine', MONTH: 'Mois', QUARTER: 'Trimestre', YEAR: 'Année' };
+const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: SCALE_LABELS.day, WEEK: SCALE_LABELS.week, MONTH: SCALE_LABELS.month, QUARTER: SCALE_LABELS.quarter, YEAR: SCALE_LABELS.year };
 
 /**
  * CSV and PDF buttons of the exports of a table.

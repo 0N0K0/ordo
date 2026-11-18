@@ -1,4 +1,4 @@
-import { formatDay, reminderMail, sendRemindersSchema } from '@ordo/shared';
+import { formatOptionalDay, reminderMail, sendRemindersSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parseInput, userErrorMessage } from '../../graphql/errors';
 import { documentPdf } from './accounting-pdf';
@@ -68,7 +68,7 @@ export async function sendReminders(input: { accountId: string; documentIds: str
       totalGross: decimalCents(document.totalGross),
       balance,
       currency: document.currency,
-      dueDate: document.dueDate ? formatDay(document.dueDate) : null,
+      dueDate: formatOptionalDay(document.dueDate),
       companyName: company.name,
       firstName: recipient.firstName,
     });

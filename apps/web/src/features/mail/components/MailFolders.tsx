@@ -21,7 +21,7 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -112,13 +112,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   const placeFolder = (folder: { path: string; name: string }, parent: string | null) =>
     moveFolder.mutate(
       { accountId: account.id, path: folder.path, parent },
-      {
-        onSuccess: (path) => {
-          notifySuccess(parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`);
-          if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`, (path) => {
+        if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+      }),
     );
 
   /**
@@ -229,7 +225,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   const askDelete = (folder: { path: string; name: string }) => {
     confirmDestructive({
       title: 'Supprimer le dossier',
-      risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur. Cette action est irréversible.</>,
+      risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur.</>,
       onConfirm: () => {
         remove.mutate(
           { accountId: account.id, path: folder.path },

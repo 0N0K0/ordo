@@ -6,6 +6,7 @@ import type { Task } from '../../tasks/api';
 import { useRunningTimer } from '../api';
 import { useStartTimer } from '../hooks/use-start-timer';
 import { TimerControls } from './TimerControls';
+import { TimerRunningBadge } from './TimerStop';
 
 /**
  * Time tracked on a task (its share of each time entry), and a button starting the timer on it.
@@ -24,9 +25,7 @@ export function TaskTime({ task }: { task: Task }) {
         </Text>
         {onThisTask && running.data ? (
           <Group gap="xs" wrap="nowrap">
-            <Text size="xs" c="red">
-              Chrono en cours
-            </Text>
+            <TimerRunningBadge />
             <TimerControls entry={running.data} size="sm" look="header" />
           </Group>
         ) : (

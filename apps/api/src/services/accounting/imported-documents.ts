@@ -1,4 +1,4 @@
-import { importedDocumentSchema as importSchema, parseDay, type ImportedDocumentInput } from '@ordo/shared';
+import { type ImportedDocumentInput, importedDocumentSchema as importSchema, parseDay, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { type ImportedDocument } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
@@ -21,7 +21,7 @@ function importData(input: ReturnType<typeof importSchema.parse>) {
   return {
     ...input,
     issueDate: parseDay(input.issueDate),
-    dueDate: input.dueDate ? parseDay(input.dueDate) : null,
+    dueDate: parseOptionalDay(input.dueDate),
     totalNet: toDecimal(input.totalNet),
     totalVat: toDecimal(input.totalVat),
     totalGross: toDecimal(input.totalGross),

@@ -19,14 +19,6 @@ async function findClient(id: string): Promise<Client> {
 }
 
 /**
- * Next position at the end of the client list.
- * @returns {Promise<number>} Position.
- */
-async function nextClientPosition(): Promise<number> {
-  return nextPositionIn('client');
-}
-
-/**
  * Creates a client at the end of the list.
  * @param {object} input Client input.
  * @param {string} input.name Name.
@@ -41,7 +33,7 @@ export async function createClient(input: { name: string; color?: string | null;
     color: input.color ?? null,
   });
   const iconId = input.icon ? await storeIcon(input.icon) : null;
-  return prisma.client.create({ data: { name, color, iconId, position: await nextClientPosition() } });
+  return prisma.client.create({ data: { name, color, iconId, position: await nextPositionIn('client') } });
 }
 
 /**

@@ -1,9 +1,8 @@
 import { dayInMonth, daysInMonth } from './months';
 import { z } from 'zod';
-import { isoWeekday, parseDay, weekdayOfDate } from './days';
+import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, parseDay, weekdayOfDate, yearOfDay } from './days';
 import { daySchema } from './times';
-
-export { parseDay };
+import { endAfter } from '../core/rules';
 
 export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
@@ -48,9 +47,7 @@ export interface Span {
 function endOfIsoWeek(date: string, week: number): string {
   const sunday = addDays(date, 7 - weekdayOfDate(date));
   for (let candidate = sunday, scanned = 0; scanned < 60; candidate = addDays(candidate, 7), scanned += 1) {
-    const thursday = addDays(candidate, -3);
-    const number = Math.floor(daysBetween(`${thursday.slice(0, 4)}-01-01`, thursday) / 7) + 1;
-    if (number === week) return candidate;
+    if (isoWeek(candidate) === week) return candidate;
   }
   return sunday;
 }
@@ -62,7 +59,7 @@ function endOfIsoWeek(date: string, week: number): string {
  * @returns {string} Last day, included.
  */
 export function spanEnd(duration: Duration, start: string): string {
-  const year = Number(start.slice(0, 4));
+  const year = yearOfDay(start);
   const month = Number(start.slice(5, 7));
   switch (duration.unit) {
     case 'DAYS':
@@ -147,7 +144,7 @@ export const recurrenceSchema = z
     duration: occurrenceDurationSchema.nullish(),
     /** Paused periods, dates included. */
     pauses: z
-      .array(z.object({ from: daySchema(), to: daySchema() }).refine((pause) => pause.to >= pause.from, 'La fin de la pause doit suivre son début.'))
+      .array(z.object({ from: daySchema(), to: daySchema() }).refine(...endAfter('from', 'to')))
       .max(100),
   })
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
@@ -166,67 +163,13 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   pauses: [],
 };
 
-const DAY_MS = 86_400_000;
-
-/**
- * Date at midnight UTC of a YYYY-MM-DD day that may be missing: null and undefined are kept (a field cleared, or left
- * unchanged).
- * @param {string | null | undefined} date Day.
- * @returns {Date | null | undefined} Date.
- */
-export function parseOptionalDay<T extends string | null | undefined>(date: T): Date | Exclude<T, string> {
-  return (date === null || date === undefined ? date : parseDay(date)) as Date | Exclude<T, string>;
-}
-
-/**
- * YYYY-MM-DD of a UTC date.
- * @param {Date} date Date at midnight UTC.
- * @returns {string} Calendar date.
- */
-export function formatDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-/**
- * Day as printed in documents and mails: DD/MM/YYYY.
- * @param {string | Date} day YYYY-MM-DD, or a date at midnight UTC.
- * @returns {string} DD/MM/YYYY.
- */
-export function printedDay(day: string | Date): string {
-  const [year, month, date] = (typeof day === 'string' ? day : formatDay(day)).slice(0, 10).split('-');
-  return `${date}/${month}/${year}`;
-}
-
-/**
- * Adds days to a calendar date.
- * @param {string} date Calendar date.
- * @param {number} days Days, possibly negative.
- * @returns {string} Calendar date.
- */
-export function addDays(date: string, days: number): string {
-  return formatDay(new Date(parseDay(date).getTime() + days * DAY_MS));
-}
-
-/**
- * Days from one calendar date to another.
- * @param {string} from First date.
- * @param {string} to Second date.
- * @returns {number} Days (negative when `to` is before).
- */
-export function daysBetween(from: string, to: string): number {
-  return Math.round((parseDay(to).getTime() - parseDay(from).getTime()) / DAY_MS);
-}
-
 /**
  * ISO week number of a date (1 to 53; the week of January 4th is the first one).
  * @param {Date} date UTC date.
  * @returns {number} Week number.
  */
 function weekOfYear(date: Date): number {
-  // The Thursday of the week tells its year.
-  const thursday = new Date(date.getTime() + (4 - isoWeekday(date)) * DAY_MS);
-  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
-  return Math.floor((thursday.getTime() - yearStart) / DAY_MS / 7) + 1;
+  return isoWeek(formatDay(date));
 }
 
 /**
