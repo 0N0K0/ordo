@@ -2,7 +2,7 @@ import { Button, FileButton, Group, Input, Stack, Text } from '@mantine/core';
 import { ICON_MIME_TYPES, MAX_ICON_BYTES } from '@ordo/shared';
 import { ImageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
+import { ItemAvatar } from '../items/ItemAvatar';
 
 export interface IconValue {
   /** Newly chosen file. */

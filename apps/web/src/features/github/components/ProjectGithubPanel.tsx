@@ -11,7 +11,7 @@ import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
@@ -412,13 +412,13 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 leftSection={<ArrowsClockwiseIcon aria-hidden />}
                 loading={sync.isPending}
                 onClick={() =>
-                  sync.mutate(projectId, {
-                    onSuccess: (result) =>
-                      notifySuccess(
+                  sync.mutate(
+                    projectId,
+                    toastCallbacks(
+                      (result) =>
                         `Synchronisé : ${countOf(result.pulledNew, 'tâche')} et ${countOf(result.pushedNew, 'item')} ${plural(result.pulledNew + result.pushedNew, 'créé')}, ${countOf(result.pulled, 'tâche')} et ${countOf(result.pushed, 'item')} mis à jour, ${countOf(result.renumbered, 'tâche')} ${plural(result.renumbered, 'renumérotée')},${result.sprintsSkipped ? ` ${countOf(result.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} ${countOf(result.comments, 'commentaire')} ${plural(result.comments, 'échangé')}.`,
-                      ),
-                    onError: onMutationError,
-                  })
+                    ),
+                  )
                 }
               >
                 Synchroniser

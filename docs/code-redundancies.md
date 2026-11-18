@@ -137,6 +137,8 @@ Les éléments créés ne passent plus leur propre formulaire à la modification
 
 ## Plan proposé
 
+**Fait le 18 novembre 2026** : points 1 à 13 et décisions A à N ; règles eslint contre le retour des motifs unifiés (`apps/web/eslint.config.js`). Restent : 12 fichiers qui importent encore `Menu` de Mantine directement, 5 imports de `features/` depuis `components/` et `lib/` (espace actif, liens de fichiers, clés de requête), commentés en exceptions ; `labelMutations` pour les listes des achats, du mail et des plages (le schéma changerait).
+
 1. **Bugs (1 à 5)**, avec les décisions A, B et C si elles touchent les données.
 2. **Briques contournées (6, 8, 9) :** mécanique.
 3. **Nouveaux doublons (7, 10, 11, 12)**, avec les décisions D à L.

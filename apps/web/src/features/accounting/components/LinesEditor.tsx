@@ -1,6 +1,6 @@
 import { moveEntries } from '../../../components/actions/move-entries';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';

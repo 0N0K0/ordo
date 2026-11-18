@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { InfoFeedbackIcon, SuccessIcon, WarningFeedbackIcon } from './feedback-icons';
 
 /** Kind of a notice: what went well, what to know (or to set up first), what to watch out for. */
-export type NoticeKind = 'success' | 'info' | 'warning';
+type NoticeKind = 'success' | 'info' | 'warning';
 
 /** Colour and icon of each kind, the same everywhere (errors: ErrorAlert, in red). */
 const KINDS: Record<NoticeKind, { color: string; icon: ReactNode }> = {

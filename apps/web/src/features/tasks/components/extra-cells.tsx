@@ -1,5 +1,5 @@
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { ActionIcon, Anchor, Badge, Group, Tooltip } from '@mantine/core';

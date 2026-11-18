@@ -9,7 +9,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
 import { foldEntries } from '../lib/fold-entries';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import rowClasses from './TreeRow.module.css';
 import classes from './Tree.module.css';
 

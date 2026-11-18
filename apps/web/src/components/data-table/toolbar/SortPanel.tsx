@@ -1,6 +1,7 @@
 import { arrayMove } from '@dnd-kit/sortable';
 import { ActionIcon, Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, PlusIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
+import { RemoveButton } from '../../actions/RemoveButton';
 
 interface SortPanelProps<K extends string> {
   sorting: { id: K; desc: boolean }[];
@@ -60,9 +61,7 @@ export function SortPanel<K extends string>({ sorting, onChange, keys, labels, m
             <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Descendre" disabled={index === sorting.length - 1} onClick={() => onChange(arrayMove(sorting, index, index + 1))}>
               <ArrowDownIcon aria-hidden />
             </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Retirer ce tri" onClick={() => onChange(sorting.filter((_, i) => i !== index))}>
-              <TrashIcon aria-hidden />
-            </ActionIcon>
+            <RemoveButton label="Retirer ce tri" size="sm" onClick={() => onChange(sorting.filter((_, i) => i !== index))} />
           </Group>
         ))
       )}

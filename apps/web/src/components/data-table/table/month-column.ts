@@ -1,9 +1,6 @@
 import * as fmt from '../../../lib/format';
-import { localDay } from '../../../lib/dates';
+import { dayOf, monthOfDay } from '../../../lib/dates';
 import type { DataColumn } from './data-table';
-
-/** A calendar day (YYYY-MM-DD) or month (YYYY-MM): its month is read as it is, whatever the time zone. */
-const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
 
 /**
  * Month (YYYY-MM) of a day or an instant: an instant in the user's time zone (not UTC: the 1st at midnight stays in its month).
@@ -12,7 +9,7 @@ const CALENDAR_DAY = /^\d{4}-\d{2}(-\d{2})?$/;
  */
 function monthOfValue(value: string | null | undefined): string | null {
   if (!value) return null;
-  return (CALENDAR_DAY.test(value) ? value : localDay(value)).slice(0, 7);
+  return monthOfDay(dayOf(value));
 }
 
 /**

@@ -4,7 +4,7 @@ import { Group, Select, Text } from '@mantine/core';
 
 import { onMutationError } from '../../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from '../api';
-import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
+import { MultiplierInput } from './MultiplierInput';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { unarchived } from '../../../lib/archive';
 

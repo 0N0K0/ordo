@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { plural } from '../../../lib/text';
 import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
-import type { RowMenuEntry } from '../cells/RowActions';
+import type { RowMenuEntry } from '../../actions/ActionsMenu';
 import type { SelectionAction } from './SelectionBar';
 
 /**

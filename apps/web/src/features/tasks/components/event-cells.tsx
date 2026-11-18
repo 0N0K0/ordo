@@ -161,6 +161,8 @@ const wall = (date: string, time: string | null) => Date.parse(`${date}T${time ?
  */
 const fromWall = (ms: number) => {
   const iso = new Date(ms).toISOString();
+  // A wall time kept as UTC on purpose (see wall): its UTC parts are the wanted ones.
+  // eslint-disable-next-line no-restricted-syntax
   return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
 };
 

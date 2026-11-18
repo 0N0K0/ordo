@@ -1,8 +1,8 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
-import { PlayIcon, TrashIcon } from '@phosphor-icons/react';
+import { PlayIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { onMutationError, toastCallbacks } from '../../../lib/notify';
@@ -16,6 +16,7 @@ import { TimerControls } from './TimerControls';
 import { useStartTimer } from '../hooks/use-start-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -136,11 +137,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
         </Stack>
         <Group gap="xs" wrap="nowrap">
           <TimerControls entry={entry} size="lg" />
-          <Tooltip label="Abandonner (sans enregistrer)">
-            <ActionIcon size="lg" variant="subtle" color="gray" aria-label="Abandonner le chrono" onClick={confirmDiscard}>
-              <TrashIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          <RemoveButton label="Abandonner (sans enregistrer)" aria-label="Abandonner le chrono" size="lg" onClick={confirmDiscard} />
         </Group>
       </Group>
       <div className={classes.fields}>

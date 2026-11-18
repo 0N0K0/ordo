@@ -31,7 +31,7 @@ const emit = () => listeners.forEach((listener) => listener());
  * @param {{ panelId?: string, title: ReactNode, size?: PanelSize, children: ReactNode, onClose?: () => void, locked?: boolean }} panel Panel.
  * @returns {string} Id of the panel.
  */
-export function openPanel({
+function openPanel({
   panelId = `panel-${++count}`,
   title,
   size = 'md',

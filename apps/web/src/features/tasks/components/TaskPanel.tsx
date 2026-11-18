@@ -28,7 +28,7 @@ import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
-import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useTaskContext, type TaskContext, taskName, taskRef } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';

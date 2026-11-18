@@ -82,7 +82,7 @@ export function visibleItems<T extends MaybeArchived>(items: readonly T[], showA
  * @param {{ feminine?: boolean, count?: number }} [options] Agreement: feminine noun, number of elements. Optional. Default = masculine, one.
  * @returns {string} Message.
  */
-export function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1 }: { feminine?: boolean; count?: number } = {}): string {
+function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1 }: { feminine?: boolean; count?: number } = {}): string {
   return `${label} ${plural(count, `${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}`)}.`;
 }
 

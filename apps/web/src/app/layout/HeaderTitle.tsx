@@ -4,7 +4,7 @@ import { Link, useLocation, useMatch } from 'react-router';
 import { useWorkspace } from '../../features/workspace/api';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
 import classes from './HeaderTitle.module.css';
-import { pageTitle } from './page-title';
+import { pageOfPath } from '../pages';
 
 interface Crumb {
   label: string;
@@ -41,7 +41,7 @@ function useCrumbs(): Crumb[] {
     const client = workspace?.clients.find((item) => item.id === clientId);
     return [{ label: client?.name ?? 'Client' }];
   }
-  const title = pageTitle(pathname);
+  const title = pageOfPath(pathname)?.title;
   return title ? [{ label: title }] : [];
 }
 

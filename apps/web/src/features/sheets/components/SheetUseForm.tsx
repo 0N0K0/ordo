@@ -5,7 +5,7 @@ import { notifyInfo, notifySuccess, onMutationError } from '../../../lib/notify'
 import { useSheetMutations } from '../api';
 import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
+import { MultiplierInput } from './MultiplierInput';
 
 /**
  * Use of a sheet (times a multiplier): its consumable items that are references followed in stock are taken from it,

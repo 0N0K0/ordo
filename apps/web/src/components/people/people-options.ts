@@ -1,7 +1,7 @@
 import { useActiveWorkspace } from '../../features/workspaces/api';
 
 /** Option of a select of people. */
-export interface PersonChoice {
+interface PersonChoice {
   value: string;
   label: string;
 }

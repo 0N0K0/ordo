@@ -135,7 +135,7 @@ export function toastCallbacks<T = unknown>(message: string | ((result: T) => st
 }
 
 /** Message of an error thrown without one (not an `Error`). */
-export const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
+const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 
 /**
  * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback.

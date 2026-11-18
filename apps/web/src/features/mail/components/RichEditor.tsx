@@ -1,4 +1,4 @@
-import { LabeledField } from '../inputs/LabeledField';
+import { LabeledField } from '../../../components/inputs/LabeledField';
 
 import { getUploadImageExtension, Link, RichTextEditor } from '@mantine/tiptap';
 import Image from '@tiptap/extension-image';
@@ -6,8 +6,8 @@ import TextAlign from '@tiptap/extension-text-align';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { uploadAttachment } from '../../lib/attachments';
-import { notifyFailure } from '../../lib/notify';
+import { uploadAttachment } from '../../../lib/attachments';
+import { notifyFailure } from '../../../lib/notify';
 
 interface RichEditorProps {
   /** HTML content. */

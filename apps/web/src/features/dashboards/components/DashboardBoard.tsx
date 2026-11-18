@@ -1,7 +1,7 @@
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DragHandle } from '../../../components/actions/DragHandle';
-import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
 import { ActionButton } from '../../../components/actions/ActionButton';

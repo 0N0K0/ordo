@@ -1232,6 +1232,60 @@ export type WorkspaceKind =
   | 'PERSO'
   | 'PRO';
 
+export type TaskViewsQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+  kind?: ViewKind | null | undefined;
+  tableKey?: string | null | undefined;
+}>;
+
+
+export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
+
+export type CreateTaskViewMutationVariables = Exact<{
+  input: TaskViewInput;
+}>;
+
+
+export type CreateTaskViewMutation = { createTaskView: { id: string } };
+
+export type UpdateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  input: TaskViewUpdateInput;
+}>;
+
+
+export type UpdateTaskViewMutation = { updateTaskView: { id: string } };
+
+export type DuplicateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+}>;
+
+
+export type DuplicateTaskViewMutation = { duplicateTaskView: { id: string } };
+
+export type DeleteTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskViewMutation = { deleteTaskView: boolean };
+
+export type SetDefaultTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type SetDefaultTaskViewMutation = { setDefaultTaskView: boolean };
+
+export type MoveTaskViewMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskViewMutation = { moveTaskView: boolean };
+
 export type SetSettingsItemLookMutationVariables = Exact<{
   kind: SettingsListKind;
   id: string | number;
@@ -3855,60 +3909,6 @@ export type SetTasksClosedMutationVariables = Exact<{
 
 export type SetTasksClosedMutation = { setTasksClosed: boolean };
 
-export type TaskViewsQueryVariables = Exact<{
-  projectId?: string | number | null | undefined;
-  kind?: ViewKind | null | undefined;
-  tableKey?: string | null | undefined;
-}>;
-
-
-export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
-
-export type CreateTaskViewMutationVariables = Exact<{
-  input: TaskViewInput;
-}>;
-
-
-export type CreateTaskViewMutation = { createTaskView: { id: string } };
-
-export type UpdateTaskViewMutationVariables = Exact<{
-  id: string | number;
-  input: TaskViewUpdateInput;
-}>;
-
-
-export type UpdateTaskViewMutation = { updateTaskView: { id: string } };
-
-export type DuplicateTaskViewMutationVariables = Exact<{
-  id: string | number;
-  name: string;
-}>;
-
-
-export type DuplicateTaskViewMutation = { duplicateTaskView: { id: string } };
-
-export type DeleteTaskViewMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteTaskViewMutation = { deleteTaskView: boolean };
-
-export type SetDefaultTaskViewMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type SetDefaultTaskViewMutation = { setDefaultTaskView: boolean };
-
-export type MoveTaskViewMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveTaskViewMutation = { moveTaskView: boolean };
-
 export type BulkUpdateTasksMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   changes: BulkTaskInput;
@@ -5279,6 +5279,53 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   position
   iconUrl
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const TaskViewsDocument = new TypedDocumentString(`
+    query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
+  taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
+    id
+    name
+    config
+    isDefault
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
+export const CreateTaskViewDocument = new TypedDocumentString(`
+    mutation CreateTaskView($input: TaskViewInput!) {
+  createTaskView(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskViewMutation, CreateTaskViewMutationVariables>;
+export const UpdateTaskViewDocument = new TypedDocumentString(`
+    mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
+  updateTaskView(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskViewMutation, UpdateTaskViewMutationVariables>;
+export const DuplicateTaskViewDocument = new TypedDocumentString(`
+    mutation DuplicateTaskView($id: ID!, $name: String!) {
+  duplicateTaskView(id: $id, name: $name) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DuplicateTaskViewMutation, DuplicateTaskViewMutationVariables>;
+export const DeleteTaskViewDocument = new TypedDocumentString(`
+    mutation DeleteTaskView($id: ID!) {
+  deleteTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskViewMutation, DeleteTaskViewMutationVariables>;
+export const SetDefaultTaskViewDocument = new TypedDocumentString(`
+    mutation SetDefaultTaskView($id: ID!) {
+  setDefaultTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<SetDefaultTaskViewMutation, SetDefaultTaskViewMutationVariables>;
+export const MoveTaskViewDocument = new TypedDocumentString(`
+    mutation MoveTaskView($id: ID!, $index: Int!) {
+  moveTaskView(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
 export const SetSettingsItemLookDocument = new TypedDocumentString(`
     mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {
   setSettingsItemLook(kind: $kind, id: $id, input: $input)
@@ -8721,53 +8768,6 @@ export const SetTasksClosedDocument = new TypedDocumentString(`
   setTasksClosed(ids: $ids, closed: $closed)
 }
     `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
-export const TaskViewsDocument = new TypedDocumentString(`
-    query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
-  taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
-    id
-    name
-    config
-    isDefault
-    position
-  }
-}
-    `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
-export const CreateTaskViewDocument = new TypedDocumentString(`
-    mutation CreateTaskView($input: TaskViewInput!) {
-  createTaskView(input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateTaskViewMutation, CreateTaskViewMutationVariables>;
-export const UpdateTaskViewDocument = new TypedDocumentString(`
-    mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
-  updateTaskView(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateTaskViewMutation, UpdateTaskViewMutationVariables>;
-export const DuplicateTaskViewDocument = new TypedDocumentString(`
-    mutation DuplicateTaskView($id: ID!, $name: String!) {
-  duplicateTaskView(id: $id, name: $name) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<DuplicateTaskViewMutation, DuplicateTaskViewMutationVariables>;
-export const DeleteTaskViewDocument = new TypedDocumentString(`
-    mutation DeleteTaskView($id: ID!) {
-  deleteTaskView(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteTaskViewMutation, DeleteTaskViewMutationVariables>;
-export const SetDefaultTaskViewDocument = new TypedDocumentString(`
-    mutation SetDefaultTaskView($id: ID!) {
-  setDefaultTaskView(id: $id)
-}
-    `) as unknown as TypedDocumentString<SetDefaultTaskViewMutation, SetDefaultTaskViewMutationVariables>;
-export const MoveTaskViewDocument = new TypedDocumentString(`
-    mutation MoveTaskView($id: ID!, $index: Int!) {
-  moveTaskView(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
 export const BulkUpdateTasksDocument = new TypedDocumentString(`
     mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {
   bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)

@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowUpIcon } from '@phosphor-icons/react';
-import type { RowMenuEntry } from '../data-table/cells/RowActions';
+import type { RowMenuEntry } from './ActionsMenu';
 
 /**
  * « Monter » and « Descendre » entries of the actions of an item of an ordered list, disabled at its ends.

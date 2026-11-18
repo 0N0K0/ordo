@@ -5,7 +5,7 @@ import { ActionIcon, Group, Menu, Tabs, Tooltip, type TabsTabProps } from '@mant
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode, Ref } from 'react';
 import { useDragSensors } from '../../lib/drag';
-import { ActionsMenu, type RowMenuEntry } from '../data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
 
 /**
  * Tab dragged along the tab list (a click still selects it: the drag starts after a few pixels).

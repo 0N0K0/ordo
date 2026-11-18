@@ -1,4 +1,4 @@
-import { useSettingsTab } from '../../../app/layout/use-settings-tab';
+import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -9,7 +9,7 @@ import { useParams } from 'react-router';
 import { ClientBillingSection } from '../../accounting/components/ClientBillingSection';
 import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingPanel';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { ClientForm } from '../components/ClientForm';
 import { descendantIds, useWorkspace } from '../api';
 import { useEntityActions } from '../hooks/use-entity-actions';

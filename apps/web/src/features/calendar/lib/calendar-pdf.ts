@@ -1,4 +1,4 @@
-import { localParts } from '../../../lib/dates';
+import { dayOf, localParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
 import { addDays } from '@ordo/shared';
 import { fileName, postExport } from '../../../lib/download';
@@ -65,9 +65,9 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
     const classes = Array.isArray(item.classNames) ? item.classNames : [];
     const color = kind === 'work' ? '#2f9e44' : kind === 'pause' ? '#fd7e14' : kind === 'event' ? hexColor(item.backgroundColor, '#228be6') : hexColor(item.borderColor, '#868e96');
     if (item.allDay) {
-      const start = String(item.start).slice(0, 10);
+      const start = dayOf(String(item.start));
       // FullCalendar ends are exclusive.
-      const end = item.end ? addDays(String(item.end).slice(0, 10), -1) : start;
+      const end = item.end ? addDays(dayOf(String(item.end)), -1) : start;
       return [{ title: item.title ?? '', kind, allDay: true, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
     }
     const start = localDateTime(item.start);

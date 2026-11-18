@@ -3,7 +3,7 @@ import { ColorField } from '../../../components/inputs/ColorField';
 import { plural } from '../../../lib/text';
 import { Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { ByWorkspace } from '../../../components/settings/ByWorkspace';
+import { ByWorkspace } from './ByWorkspace';
 
 import { DEFAULT_SCHEDULE_KIND_NAME, readScheduleDisplay } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';

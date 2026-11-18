@@ -2,7 +2,7 @@ import { CountBadge } from '../../feedback/CountBadge';
 import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { usePublishedHeight } from '../../../lib/published-height';
+import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
 
 /** Quick search of a toolbar. */

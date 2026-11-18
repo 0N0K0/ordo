@@ -1,5 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ByWorkspace } from '../../../components/settings/ByWorkspace';
+import { ByWorkspace } from './ByWorkspace';
 
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { ActionIcon, Button, Stack, Tooltip } from '@mantine/core';

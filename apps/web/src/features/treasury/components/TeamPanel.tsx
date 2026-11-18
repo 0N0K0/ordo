@@ -30,7 +30,7 @@ import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a

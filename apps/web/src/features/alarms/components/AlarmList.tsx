@@ -1,4 +1,4 @@
-import { InlineActions } from '../../../components/data-table/cells/RowActions';
+import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';

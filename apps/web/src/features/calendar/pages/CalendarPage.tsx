@@ -1,4 +1,4 @@
-import { useSettingsTab } from '../../../app/layout/use-settings-tab';
+import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
@@ -63,7 +63,7 @@ import { ScheduleSettings } from '../components/ScheduleSettings';
 import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, pickerFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
 

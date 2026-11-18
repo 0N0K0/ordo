@@ -1,33 +1,14 @@
 import { DestructiveButton } from '../dialogs/DestructiveActions';
-import {
-  ActionIcon,
-  Button,
-  Group,
-  NumberInput,
-  Paper,
-  SegmentedControl,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { Button, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import {
-  DATE_PERIOD_LABELS,
-  MAX_FILTER_DEPTH,
-  VALUELESS_OPERATORS,
-  type FilterConditionOf,
-  type FilterFieldKind,
-  type FilterGroupOf,
-  type FilterOperator,
-} from '@ordo/shared';
+import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import classes from './FilterBuilder.module.css';
 import { localToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
+import { RemoveButton } from '../actions/RemoveButton';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -263,11 +244,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         w={190}
       />
       {editor}
-      <Tooltip label="Retirer la condition">
-        <ActionIcon variant="subtle" color="gray" size="input-xs" aria-label="Retirer la condition" onClick={onRemove}>
-          <TrashIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <RemoveButton label="Retirer la condition" size="input-xs" onClick={onRemove} />
     </Group>
   );
 }

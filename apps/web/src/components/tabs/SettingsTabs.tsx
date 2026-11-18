@@ -2,7 +2,7 @@ import { Tabs } from '@mantine/core';
 import type { ReactNode } from 'react';
 
 /** Tab of the settings of a page. */
-export interface SettingsTabItem<T extends string> {
+interface SettingsTabItem<T extends string> {
   value: T;
   label: ReactNode;
   /** Icon before the label. Optional. */

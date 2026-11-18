@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { useWorkspace } from '../../workspace/api';
-import { IconField, type IconValue } from '../../workspace/components/IconField';
+import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectOptions } from '../../workspace/lib/tree';
 import { useContributorMutations, type Contributor } from '../api';

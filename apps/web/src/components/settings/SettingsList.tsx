@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../lib/archive';
 import { notifySuccess, ON_ERROR, onMutationError } from '../../lib/notify';
@@ -15,6 +15,7 @@ import { useReorderSettingsItems } from './settings-api';
 import { SettingsItemForm, type SettingsItem, type SettingsItemKind, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';
 import { ActionButton } from '../actions/ActionButton';
+import { RemoveButton } from '../actions/RemoveButton';
 
 interface SettingsListProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {
   title: string;
@@ -264,11 +265,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                   {category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
                 </ActionIcon>
               </Tooltip>
-              <Tooltip label={undeletable?.(category) ?? 'Supprimer'}>
-                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton label={undeletable?.(category) ?? 'Supprimer'} aria-label={`Supprimer ${path}`} disabled={Boolean(undeletable?.(category))} onClick={() => confirmDelete(category, path)} />
             </>
           )}
           onMove={handleMove}

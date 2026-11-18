@@ -10,7 +10,7 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifyError, notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';

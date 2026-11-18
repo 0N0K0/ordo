@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { DeletedDates } from './DeletedDates';
 import { describeRecurrence, MONTHS, WEEKDAY_NAMES } from './describe-recurrence';
 import { RemoveButton } from '../actions/RemoveButton';
+import { plural } from '../../lib/text';
 
 const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'NONE', label: 'Ne se répète pas' },
@@ -17,7 +18,8 @@ const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'YEARLY', label: 'Tous les ans' },
 ];
 
-const UNITS: Record<RecurrenceFrequency, string> = { DAILY: 'jour(s)', WEEKLY: 'semaine(s)', MONTHLY: 'mois', YEARLY: 'an(s)' };
+/** Unit of the interval of each frequency: its singular and plural. */
+const UNITS: Record<RecurrenceFrequency, [string, string]> = { DAILY: ['jour', 'jours'], WEEKLY: ['semaine', 'semaines'], MONTHLY: ['mois', 'mois'], YEARLY: ['an', 'ans'] };
 
 interface RecurrenceEditorProps {
   value: Recurrence | null;
@@ -91,7 +93,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
         {rule && !(rule.frequency === 'WEEKLY' && rule.weekParity) && (
           <NumberInput
             label="Tous les"
-            suffix={` ${UNITS[rule.frequency]}`}
+            suffix={` ${plural(rule.interval, ...UNITS[rule.frequency])}`}
             min={1}
             max={999}
             w={150}

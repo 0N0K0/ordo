@@ -1,4 +1,4 @@
-import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../app/layout/use-settings-tab';
+import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { PAGES } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
@@ -34,7 +34,7 @@ import { openRecurringForm } from '../lib/recurring-form';
 import { DocumentStatusSettings } from '../components/DocumentStatusSettings';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';

@@ -1,4 +1,4 @@
-import { localDay, localMidnight } from '../../../lib/dates';
+import { localDay, localMidnight, monthOfDay } from '../../../lib/dates';
 import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
@@ -67,7 +67,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
     }
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
     if (document.issueDate.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
-    if (document.issueDate.slice(0, 7) === today.slice(0, 7)) summary.monthNet += sign * document.totalNet;
+    if (monthOfDay(document.issueDate) === monthOfDay(today)) summary.monthNet += sign * document.totalNet;
     if (sign > 0 && (document.balance ?? 0) > 0) {
       summary.receivable += document.balance ?? 0;
       if (document.overdue) {
@@ -82,7 +82,7 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
     const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
     const date = document.issueDate;
     if (date.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
-    if (date.slice(0, 7) === today.slice(0, 7)) summary.monthNet += sign * document.totalNet;
+    if (monthOfDay(date) === monthOfDay(today)) summary.monthNet += sign * document.totalNet;
   }
   // Oldest sent first: those to follow up.
   summary.pendingQuotes.sort((a, b) => (a.sentAt ?? a.issueDate).localeCompare(b.sentAt ?? b.issueDate));

@@ -24,7 +24,7 @@ import { EditableNumber, EditableSelect } from '../../../components/data-table/c
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { localToday } from '../../../lib/dates';
+import { localToday, monthOfDay } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from '../api';
@@ -90,7 +90,7 @@ function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value
       styles={{ input: { textTransform: 'capitalize' } }}
       popoverProps={{ withinPortal: true }}
       onChange={(next) => {
-        const month = next ? next.slice(0, 7) : null;
+        const month = next ? monthOfDay(next) : null;
         if ((month || nullable) && month !== value) onSave(month);
       }}
       onClick={(event) => event.stopPropagation()}
@@ -133,7 +133,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const categories = settings?.treasuryCategories ?? [];
   const form = useAppForm<BudgetValues>({
     initialValues: {
-      month: budget?.month ?? localToday().slice(0, 7),
+      month: budget?.month ?? monthOfDay(localToday()),
       memberId: budget?.memberId ?? null,
       relationId: budget?.relationId ?? null,
       contextId: budget?.contextId ?? null,
@@ -179,7 +179,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               label={values.repeatEvery ? 'À partir de' : 'Mois'}
               required
               value={`${values.month}-01`}
-              onChange={(value) => value && form.setFieldValue('month', value.slice(0, 7))}
+              onChange={(value) => value && form.setFieldValue('month', monthOfDay(value))}
               error={form.errors.month}
             />
             <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
@@ -257,7 +257,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
                 clearable
                 minDate={`${values.month}-01`}
                 value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
-                onChange={(value) => form.setFieldValue('repeatUntil', value ? value.slice(0, 7) : null)}
+                onChange={(value) => form.setFieldValue('repeatUntil', value ? monthOfDay(value) : null)}
                 error={form.errors.repeatUntil}
               />
             )}
@@ -282,7 +282,7 @@ type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?
  * @returns {JSX.Element} Panel.
  */
 export function BudgetsPanel() {
-  const [month, setMonth] = useState(() => localToday().slice(0, 7));
+  const [month, setMonth] = useState(() => monthOfDay(localToday()));
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();
@@ -571,7 +571,7 @@ export function BudgetsPanel() {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(value.slice(0, 7))} w={200} />
+        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(monthOfDay(value))} w={200} />
         <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openBudget({ defaults: { month } })} disabled={!categories.length}>
           Nouveau budget
         </ActionButton>

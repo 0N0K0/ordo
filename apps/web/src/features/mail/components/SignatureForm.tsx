@@ -1,7 +1,7 @@
 import { formCallbacks } from '../../../lib/form';
 import { Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { RichEditor } from '../../../components/rich-text/RichEditor';
+import { RichEditor } from './RichEditor';
 import { useMailAccountMutations, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 

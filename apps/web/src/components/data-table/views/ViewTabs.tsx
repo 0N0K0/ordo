@@ -8,7 +8,7 @@ import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
-import { usePublishedHeight } from '../../../lib/published-height';
+import { usePublishedHeight } from './published-height';
 
 import { FormActions } from '../../dialogs/FormActions';
 

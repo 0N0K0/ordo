@@ -6,7 +6,7 @@ import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Pape
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RichEditor } from '../../../components/rich-text/RichEditor';
+import { RichEditor } from './RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailAccounts } from '../api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from '../lib/compose-options';

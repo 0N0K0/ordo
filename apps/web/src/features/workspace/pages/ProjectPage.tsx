@@ -1,4 +1,4 @@
-import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../app/layout/use-settings-tab';
+import { SETTINGS_TAB_PARAM, useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { SubSection } from '../../../components/page/SubSection';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
@@ -37,7 +37,7 @@ import { EntitySkeleton } from '../components/EntityState';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ProjectList } from '../components/ProjectList';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import { SettingsTabPanel, SettingsTabs } from '../../../app/layout/SettingsTabs';
+import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 

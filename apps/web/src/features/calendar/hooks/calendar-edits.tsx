@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
+import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { useWorkScheduleMutations } from '../api';
@@ -52,7 +52,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: { name: schedule.name, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
       {
-        onSuccess: () => notifySuccess(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
+        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -76,7 +76,7 @@ export function useCalendarEdits() {
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
       {
-        onSuccess: () => notifySuccess(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
+        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
         onError: (error) => {
           onMutationError(error);
           revert?.();

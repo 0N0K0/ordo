@@ -1,5 +1,5 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import type { RowMenuEntry } from '../../../components/data-table/cells/RowActions';
+import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { Task } from '../api';
 import { TaskCreateForm } from '../components/TaskCreateForm';
