@@ -1,0 +1,18 @@
+{
+  "path": ["apps/api/src", "apps/web/src", "packages/shared/src"],
+  "format": ["typescript", "tsx", "css"],
+  "ignore": [
+    "**/features/library/**",
+    "**/services/library/**",
+    "**/graphql/graphql.ts",
+    "**/graphql/gql.ts",
+    "**/generated/**",
+    "**/*.d.ts"
+  ],
+  "minTokens": 50,
+  "minLines": 5,
+  "reporters": ["console", "json"],
+  "output": ".jscpd-report",
+  "absolute": false,
+  "gitignore": true
+}
