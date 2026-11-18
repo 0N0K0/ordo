@@ -2,17 +2,7 @@ import { durationSchema, parseDay, timeDescriptionSchema, subtreeOf } from '@ord
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-
-/**
- * Error attached to a form field.
- * @param {string} field Field name.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
-function fieldError(field: string, message: string) {
-  return clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
-}
+import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
 export interface TimeEventLink {

@@ -96,7 +96,6 @@ export function ShoppingListPage() {
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const list = lists?.find((item) => item.id === id);
   // Projects of the list, through its tasks: their contributors are the members offered.
-  const listProjects = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
   const people = usePeople();
   const sheetMutations = useSheetMutations();
   const stockMutations = useStockMutations();
@@ -324,7 +323,6 @@ export function ShoppingListPage() {
       ) : (
         <ShoppingTable
           view={view}
-          projectIds={listProjects}
           selectionLabel={(count) => selectedLabel(count, ['élément', 'éléments'], false)}
           selectionActions={(rows, clear) => [
             { label: 'Ajouter au stock…', icon: <ArchiveIcon aria-hidden />, onClick: () => openFormPanel('Ajouter au stock', (close) => <StockPurchaseForm items={rows} onDone={close} />) },

@@ -1,10 +1,11 @@
-import { ActionIcon, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { XIcon } from '@phosphor-icons/react';
+import { Group, Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useSheets } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
@@ -42,7 +43,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           style={{ flex: 1 }}
           data-autofocus
         />
-        <NumberInput label="Fois" w={100} min={0.25} max={999} step={1} decimalScale={2} decimalSeparator="," value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} prefix="× " />
+        <MultiplierInput label="Fois" w={100} step={1} value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} />
       </Group>
       {present.length > 0 && onRemove && (
         <Stack gap={4}>
@@ -52,25 +53,20 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           {present.map((sheet) => (
             <Group key={sheet.sheetId} gap="xs" justify="space-between" wrap="nowrap">
               <Text size="sm">{sheet.name}</Text>
-              <Tooltip label="Retirer la fiche de la liste">
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`Retirer ${sheet.name} de la liste`}
-                  onClick={() =>
-                    confirmDestructive({
-                      title: 'Retirer la fiche',
-                      risks: `La part de « ${sheet.name} » sera retirée des quantités de la liste, et les éléments qu’elle seule apportait (pas encore achetés ou cochés) seront supprimés.`,
-                      onConfirm: () =>
-                        onRemove(sheet.sheetId)
-                          .then(() => notifySuccess('Fiche retirée.'))
-                          .catch(onMutationError),
-                    })
-                  }
-                >
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton
+                label="Retirer la fiche de la liste"
+                aria-label={`Retirer ${sheet.name} de la liste`}
+                onClick={() =>
+                  confirmDestructive({
+                    title: 'Retirer la fiche',
+                    risks: `La part de « ${sheet.name} » sera retirée des quantités de la liste, et les éléments qu’elle seule apportait (pas encore achetés ou cochés) seront supprimés.`,
+                    onConfirm: () =>
+                      onRemove(sheet.sheetId)
+                        .then(() => notifySuccess('Fiche retirée.'))
+                        .catch(onMutationError),
+                  })
+                }
+              />
             </Group>
           ))}
         </Stack>

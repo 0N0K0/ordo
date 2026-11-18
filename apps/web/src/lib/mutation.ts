@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 
 /** What a mutation refreshes once done, and what it shows before. */
-export interface InvalidatingOptions<V> {
+interface InvalidatingOptions<V> {
   /** Queries refreshed once the mutation is done (with what starts with these keys). */
   invalidate: readonly QueryKey[];
   /** Changes the data shown at once, before the answer; put back as it was on an error. Optional. */

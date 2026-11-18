@@ -1,7 +1,7 @@
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey } from '../../../components/people/people-keys';
 import { Checkbox, Text } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
-import { EVERYDAY_CONTEXT, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
+import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -13,7 +13,8 @@ import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
 import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { entryValues } from '../lib/entry-values';
-import type { LineLink, LineValues } from '../lib/lines';
+import { categoryForDirection, valueInMode, type LineLink, type LineValues } from '../lib/lines';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -93,10 +94,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       filter: {
         kind: 'choice',
         value: (row) => row.line.contextId ?? ME,
-        options: [
-          { value: ME, label: EVERYDAY_CONTEXT },
-          ...(env.settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name, color: item.color ?? 'gray', iconUrl: item.iconUrl })),
-        ],
+        options: [{ value: ME, label: EVERYDAY_CONTEXT }, ...itemOptions(env.settings?.treasuryContexts ?? [])],
       },
       groupable: true,
     },
@@ -240,9 +238,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               // A line going the other way (a refund in a purchase…) takes a category of that way.
               {...treeSelectProps(categoryOptions(categories, row.amount < 0 ? 'OUT' : 'IN'))}
               // A category of money out goes to the lines of money out only (and in to in).
-              onSave={(categoryId) =>
-                saveLine('category', row, (target) => (categoryId && categories.find((item) => item.id === categoryId)?.direction !== (target.amount < 0 ? 'OUT' : 'IN') ? {} : { categoryId }))
-              }
+              onSave={(categoryId) => saveLine('category', row, (target) => (categoryId && !categoryForDirection(categories, categoryId, target.amount < 0 ? 'OUT' : 'IN') ? {} : { categoryId }))}
             />
           ),
           context: (
@@ -267,8 +263,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
                 mode &&
                 saveLine('mode', row, (target) => {
                   if (target.line.mode === mode) return {};
-                  const share = target.amount * sign;
-                  return { mode: mode as TreasuryLineMode, value: mode === 'PERCENT' ? (values.amount ? round2((share * 100) / values.amount) : 0) : share };
+                  return { mode: mode as TreasuryLineMode, value: valueInMode(mode as TreasuryLineMode, target.amount * sign, values.amount) };
                 })
               }
             />
@@ -283,12 +278,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               onSave={(value) => value !== null && saveLine('value', row, { value })}
             />
           ),
-          amount: (
-            <Text span size="sm" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-              {row.amount > 0 ? '+' : ''}
-              {fmt.money(row.amount)}
-            </Text>
-          ),
+          amount: <SignedAmount value={row.amount} />,
           loan: (
             <Checkbox
               size="xs"

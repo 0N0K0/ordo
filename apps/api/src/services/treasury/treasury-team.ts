@@ -11,8 +11,9 @@ import {
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
-import { clientError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { createContributor } from '../workspace/contributors';
+import { assertExists } from '../core/lookup';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
 const memberWhere = { OR: [{ teamMember: true }, { userId: { not: null } }] } satisfies Prisma.ContributorWhereInput;
@@ -89,7 +90,7 @@ export async function removeMember(contributorId: string): Promise<void> {
  */
 export async function saveContext(id: string | null, input: TreasuryContextInput): Promise<TreasuryContext> {
   const data = parseInput(treasuryContextSchema, input);
-  if (id && !(await prisma.treasuryContext.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Contexte');
+  await assertExists(prisma.treasuryContext, id, 'Contexte');
   try {
     return await prisma.$transaction(async (tx) => {
       if (id) return tx.treasuryContext.update({ where: { id }, data });
@@ -145,12 +146,12 @@ export async function deleteContextPeriod(id: string): Promise<void> {
  */
 export async function saveRelation(id: string | null, input: TreasuryRelationInput): Promise<TreasuryRelation> {
   const parsed = parseInput(treasuryRelationSchema, input);
-  if (id && !(await prisma.treasuryRelation.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Relation');
+  await assertExists(prisma.treasuryRelation, id, 'Relation');
   if (parsed.contributorId) {
     const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
     if (isMember(contributor)) {
       const message = 'Ce contributeur est membre : il n’est pas une relation.';
-      throw clientError('BAD_USER_INPUT', message, { fields: { contributorId: message } });
+      throw fieldError('contributorId', message);
     }
   }
   const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null };
@@ -160,7 +161,7 @@ export async function saveRelation(id: string | null, input: TreasuryRelationInp
     if (isUniqueConflict(error)) {
       const contributor = String(error.meta?.target ?? '').includes('contributorId') || JSON.stringify(error.meta ?? {}).includes('contributorId');
       const message = contributor ? 'Ce contributeur est déjà une relation.' : 'Une relation porte déjà ce nom.';
-      throw clientError('BAD_USER_INPUT', message, { fields: { [contributor ? 'contributorId' : 'name']: message } });
+      throw fieldError(contributor ? 'contributorId' : 'name', message);
     }
     throw error;
   }

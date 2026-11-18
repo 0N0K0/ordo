@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { calendarStart, shiftCalendar } from '../dates/periods';
+import { addDays } from '../dates/recurrence';
+import { DAY_PATTERN } from '../dates/times';
 import { DEFAULT_WEEK, weekRange, type WeekSpan } from '../dates/weeks';
 
 /** Kind of value a filter field holds; it decides the available operators. */
@@ -33,24 +36,14 @@ export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNot
  */
 const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisYear', 'lastYear', 'nextYear'] as const;
 
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const relativeDay = /^today([+-]\d{1,4})?$/;
 const rollingPeriod = /^(past|next):\d{1,4}$/;
 
 /** A day of a date condition: a calendar date, today, or N days before or after it. */
-const filterDaySchema = z.string().refine((value) => isoDate.test(value) || relativeDay.test(value), 'Date invalide.');
+const filterDaySchema = z.string().refine((value) => DAY_PATTERN.test(value) || relativeDay.test(value), 'Date invalide.');
 
 /** A period, for the `within` operator. */
 const filterPeriodSchema = z.string().refine((value) => (DATE_PERIODS as readonly string[]).includes(value) || rollingPeriod.test(value), 'Période invalide.');
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Calendar date of a timestamp at UTC midnight.
- * @param {number} value Timestamp.
- * @returns {string} YYYY-MM-DD.
- */
-const isoDay = (value: number): string => new Date(value).toISOString().slice(0, 10);
 
 /**
  * Day of a day token (`YYYY-MM-DD`, `today`, `today+3`, `today-7`).
@@ -61,7 +54,7 @@ const isoDay = (value: number): string => new Date(value).toISOString().slice(0,
 export function filterDay(token: string, today: string): string {
   const relative = /^today([+-]\d+)?$/.exec(token);
   if (!relative) return token;
-  return isoDay(Date.parse(`${today}T00:00:00.000Z`) + Number(relative[1] ?? 0) * DAY_MS);
+  return addDays(today, Number(relative[1] ?? 0));
 }
 
 /**
@@ -73,23 +66,16 @@ export function filterDay(token: string, today: string): string {
  * @returns {[string, string]} [first day, day after the last one], YYYY-MM-DD.
  */
 export function filterPeriod(token: string, today: string, week: WeekSpan = DEFAULT_WEEK): [string, string] {
-  const day = Date.parse(`${today}T00:00:00.000Z`);
   const rolling = /^(past|next):(\d+)$/.exec(token);
   if (rolling) {
     const days = Number(rolling[2]);
-    return rolling[1] === 'past' ? [isoDay(day - (days - 1) * DAY_MS), isoDay(day + DAY_MS)] : [isoDay(day), isoDay(day + days * DAY_MS)];
+    return rolling[1] === 'past' ? [addDays(today, -(days - 1)), addDays(today, 1)] : [today, addDays(today, days)];
   }
-  const date = new Date(day);
   if (token.endsWith('Week')) return weekRange(today, week, token === 'lastWeek' ? -1 : token === 'nextWeek' ? 1 : 0);
-  if (token.endsWith('Year')) {
-    const shift = token === 'lastYear' ? -1 : token === 'nextYear' ? 1 : 0;
-    const year = date.getUTCFullYear() + shift;
-    return [isoDay(Date.UTC(year, 0, 1)), isoDay(Date.UTC(year + 1, 0, 1))];
-  }
-  const shift = token === 'lastMonth' ? -1 : token === 'nextMonth' ? 1 : 0;
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + shift;
-  return [isoDay(Date.UTC(year, month, 1)), isoDay(Date.UTC(year, month + 1, 1))];
+  const scale = token.endsWith('Year') ? 'year' : 'month';
+  const shift = token === 'lastYear' || token === 'lastMonth' ? -1 : token === 'nextYear' || token === 'nextMonth' ? 1 : 0;
+  const start = shiftCalendar(scale, calendarStart(scale, today), shift);
+  return [start, shiftCalendar(scale, start, 1)];
 }
 
 /** Condition of a filter on some fields (tasks, routines…). */

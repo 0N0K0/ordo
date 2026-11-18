@@ -3,12 +3,15 @@ import { PersonAvatar, PersonOption } from '../../../components/people/PersonOpt
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { TaskContext } from '../hooks/use-task-context';
+import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 
 interface AssigneesCellProps {
   /** Assignees of the row. */
   value: string[];
   /** Project of the row: its contributors are offered (none: everyone). */
   projectId: string | null;
+  /** Projects of the rows edited at once (a selection): only the contributors of all of them are offered. Optional. */
+  projectIds?: (string | null)[];
   context: TaskContext;
   label: string;
   readOnly?: boolean;
@@ -27,7 +30,7 @@ interface AssigneesCellProps {
  * @param {AssigneesCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function AssigneesCell({ value, projectId, context, label, readOnly = false, onSave }: AssigneesCellProps) {
+export function AssigneesCell({ value, projectId, projectIds, context, label, readOnly = false, onSave }: AssigneesCellProps) {
   return (
     <PeopleCell
       label={label}
@@ -37,12 +40,12 @@ export function AssigneesCell({ value, projectId, context, label, readOnly = fal
         const contributor = context.contributorById.get(id);
         return contributor ? [{ id, label: context.contributorName(contributor), icon: <PersonAvatar name={contributor.name} avatarUrl={contributor.avatarUrl} /> }] : [];
       })}
-      data={context.assignableFor([projectId], value).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+      data={context.assignableFor(projectIds ?? [projectId], value).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
       renderOption={({ option }) => {
         const contributor = context.contributorById.get(option.value);
         return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} />;
       }}
-      onSave={(assigneeIds) => onSave(assigneeIds, { added: assigneeIds.filter((id) => !value.includes(id)), removed: value.filter((id) => !assigneeIds.includes(id)) })}
+      onSave={(assigneeIds) => onSave(assigneeIds, listDiff(value, assigneeIds))}
     />
   );
 }

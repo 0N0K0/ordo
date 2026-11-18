@@ -4,7 +4,7 @@ import { ArrowBendUpRightIcon, PlayIcon, StopIcon } from '@phosphor-icons/react'
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
-import { useNow } from '../../time/hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import { useStopTimer } from '../../time/hooks/use-stop-timer';
 import { useTimeMutations, type TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';

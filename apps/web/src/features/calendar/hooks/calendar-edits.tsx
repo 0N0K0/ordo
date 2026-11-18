@@ -1,8 +1,8 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
-import { longDay } from '../../routines/hooks/use-routine-move';
+import * as fmt from '../../../lib/format';
 import { useWorkScheduleMutations } from '../api';
 import { askScope } from '../lib/ask-scope';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
@@ -46,7 +46,7 @@ export function useCalendarEdits() {
     try {
       next = changedScheduleSlot(schedule, slot, change, scope);
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Changement impossible.');
+      notifyFailure(error, 'Changement impossible.');
       return revert?.();
     }
     update.mutate(
@@ -76,7 +76,7 @@ export function useCalendarEdits() {
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
       {
-        onSuccess: () => notifySuccess(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${longDay(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
+        onSuccess: () => notifySuccess(scope === 'THIS' ? `Exception ajoutée : « ${routine.title} » le ${fmt.dayLong(to)}, la règle ne change pas.` : `« ${routine.title} » modifiée.`),
         onError: (error) => {
           notifyError(error.message);
           revert?.();
@@ -102,8 +102,8 @@ export function useCalendarEdits() {
         onError,
         onSuccess: (archived) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.title} » est archivée.`);
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${longDay(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, { onError }));
-          else notifySuccess(`« ${routine.title} » s’arrête avant le ${longDay(date)}.`);
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, { onError }));
+          else notifySuccess(`« ${routine.title} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },
     );
@@ -118,7 +118,7 @@ export function useCalendarEdits() {
    */
   const openSlot = (schedule: WorkScheduleRule, name: string, slot: ScheduleSlotTime) => {
     // The scope question is a modal: this panel closes first.
-    openFormPanel(`Plage du ${longDay(slot.date)}`, (close) => (
+    openFormPanel(`Plage du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         name={name}
         slot={slot}
@@ -142,7 +142,7 @@ export function useCalendarEdits() {
    * @returns {void}
    */
   const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    openFormPanel(`« ${occurrence.routine.title} » du ${longDay(occurrence.date)}`, (close) => (
+    openFormPanel(`« ${occurrence.routine.title} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
         onClose={close}

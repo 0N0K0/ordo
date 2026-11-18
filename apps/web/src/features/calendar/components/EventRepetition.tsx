@@ -27,13 +27,10 @@ const ALL_DAY_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', '
  * @returns {string} Text.
  */
 function describeTiming(timing: EventTiming): string {
-  const day = (date: string) => fmt.capitalize(fmt.day(new Date(`${date}T00:00:00Z`)));
-  if (timing.allDay)
-    return timing.startDate === timing.endDate
-      ? `${day(timing.startDate)}, toute la journée`
-      : `Du ${fmt.day(new Date(`${timing.startDate}T00:00:00Z`))} au ${fmt.day(new Date(`${timing.endDate}T00:00:00Z`))}`;
+  const day = (date: string) => fmt.capitalize(fmt.day(date));
+  if (timing.allDay) return timing.startDate === timing.endDate ? `${day(timing.startDate)}, toute la journée` : `Du ${fmt.day(timing.startDate)} au ${fmt.day(timing.endDate)}`;
   if (timing.startDate === timing.endDate) return `${day(timing.startDate)}, ${timing.startTime ?? ''} – ${timing.endTime ?? ''}`;
-  return `${day(timing.startDate)} ${timing.startTime ?? ''} – ${fmt.day(new Date(`${timing.endDate}T00:00:00Z`))} ${timing.endTime ?? ''}`;
+  return `${day(timing.startDate)} ${timing.startTime ?? ''} – ${fmt.day(timing.endDate)} ${timing.endTime ?? ''}`;
 }
 
 /**

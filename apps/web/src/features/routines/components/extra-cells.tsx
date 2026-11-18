@@ -2,14 +2,13 @@ import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { ActionIcon, Badge, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { BellIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { onMutationError } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
 import { useRoutineMutations, type Routine } from '../api';
 import { useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { EditableMultiSelect, EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { openRoutineForm } from '../lib/open-routine-form';
@@ -18,6 +17,7 @@ import { opensText } from '../lib/opens-format';
 import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { ROUTINE_REMINDERS, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 
 /**
  * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
@@ -194,14 +194,14 @@ export function RemindersCell({ routine }: { routine: Routine }) {
       }
     >
       <Stack gap="xs">
-        <BatchMultiSelect
+        <RemindersSelect
           label="Alertes"
-          data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
-          value={routine.reminders.map(String)}
+          presets={ROUTINE_REMINDERS}
+          value={routine.reminders}
           // On a selection, those added here are added to each routine, those removed here removed.
           onChange={(values) =>
             apply((target) => ({
-              reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values)
+              reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values.map(String))
                 .map(Number)
                 .sort((a, b) => a - b),
             }))
@@ -261,8 +261,7 @@ export function BlocksCell({ routine, routines }: { routine: Routine; routines: 
       value={waiting}
       onSave={(next) => {
         // Those added here wait for this routine (and each one of the selection), those removed here no more.
-        const added = next.filter((id) => !waiting.includes(id));
-        const removed = waiting.filter((id) => !next.includes(id));
+        const { added, removed } = listDiff(waiting, next);
         for (const other of routines) {
           let required = other.requiredIds;
           if (added.includes(other.id)) required = [...new Set([...required, ...targets.filter((id) => id !== other.id)])];

@@ -9,7 +9,8 @@ import { useStockMutations } from '../../stock/api';
 import { useStockProposal } from '../../stock/hooks/use-stock-proposal';
 import { deliveryWindow } from '../lib/delivery-format';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingList } from '../api';
-import { NO_GROUP, quantityText, shoppingRows, visibleRows } from '../lib/shopping-format';
+import { NO_GROUP, shoppingRows, visibleRows } from '../lib/shopping-format';
+import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
 
 interface HeadingProps {
@@ -115,9 +116,9 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
     >
       <Checkbox.Indicator size="lg" />
       <Text className={classes.storeName}>{item.name}</Text>
-      {quantityText(item) && (
+      {fmt.quantity(item) && (
         <Text size="md" fw={600} className={classes.nowrap}>
-          {quantityText(item)}
+          {fmt.quantity(item)}
         </Text>
       )}
     </Checkbox.Card>

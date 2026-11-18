@@ -77,13 +77,13 @@ builder.mutationFields((t) => ({
   savePlace: t.id({
     args: { id: t.arg.id(), input: t.arg({ type: PlaceInput, required: true }) },
     resolve: async (_root, { id, input }) =>
-      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId ? String(input.parentId) : null }))
+      (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId || null }))
         .id,
   }),
   movePlace: t.boolean({
     description: 'Moves a place among the places, or a zone under another place or zone, at an index among its siblings.',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int({ required: true }) },
-    resolve: (_root, { id, parentId, index }) => done(geo.movePlace(String(id), parentId ? String(parentId) : null, index)),
+    resolve: (_root, { id, parentId, index }) => done(geo.movePlace(id, parentId || null, index)),
   }),
   deletePlace: t.boolean({
     description: 'Deletes a saved place (events keep their address).',

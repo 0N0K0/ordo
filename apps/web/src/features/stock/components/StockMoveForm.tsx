@@ -1,10 +1,11 @@
-import { NumberInput, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useStockMutations, type StockItem } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 type Kind = 'PURCHASE' | 'CONSUMPTION' | 'LOSS' | 'CORRECTION';
 
@@ -28,24 +29,14 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const adding = kind === 'PURCHASE';
-  const lots = item.lots.map((lot) => ({ value: lot.id, label: `${fmt.number(lot.quantity, 3)}${item.unit ? ` ${item.unit}` : ''}${lot.expiresAt ? ` · ${fmt.day(String(lot.expiresAt))}` : ''}` }));
+  const lots = item.lots.map((lot) => ({ value: lot.id, label: `${fmt.quantity({ quantity: lot.quantity, unit: item.unit })}${lot.expiresAt ? ` · ${fmt.day(String(lot.expiresAt))}` : ''}` }));
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
-        En stock : {fmt.number(item.quantity, 3)}
-        {item.unit ? ` ${item.unit}` : ''}.
+        En stock : {fmt.quantity(item)}.
       </Text>
       <SegmentedControl data={KINDS} value={kind} onChange={(value) => setKind(value as Kind)} />
-      <NumberInput
-        label="Quantité"
-        min={0.001}
-        decimalScale={3}
-        decimalSeparator=","
-        value={quantity}
-        onChange={(value) => setQuantity(Number(value) || 0)}
-        suffix={item.unit ? ` ${item.unit}` : undefined}
-        data-autofocus
-      />
+      <QuantityInput label="Quantité" min={0.001} value={quantity} onChange={(value) => setQuantity(Number(value) || 0)} unit={item.unit} data-autofocus />
       {(lots.length > 1 || (adding && lots.length > 0)) && (
         <Select
           label="Lot"

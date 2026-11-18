@@ -1,5 +1,7 @@
+import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Anchor, Badge, Button, Grid, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Box, Button, Grid, Group, Paper, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { Link, useParams } from 'react-router';
 import { onMutationError } from '../../../lib/notify';
@@ -81,23 +83,24 @@ export function ImportedDocumentPage() {
             {document.fileUrl && kind ? (
               <FilePreview url={document.fileUrl} name={document.fileName ?? document.number} kind={kind} height="max(36rem, calc(100dvh - 16rem))" />
             ) : (
-              <Stack align="center" gap="sm" p="xl">
-                <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                  <FileXIcon aria-hidden />
-                </ThemeIcon>
-                <Text size="sm" c="dimmed">
-                  {document.fileUrl ? 'Ce fichier ne peut pas être affiché ici.' : 'Aucun fichier joint.'}
-                </Text>
-                {document.fileUrl ? (
-                  <Button component="a" href={downloadUrl(document.fileUrl)} variant="default" leftSection={<DownloadSimpleIcon aria-hidden />}>
-                    Télécharger {document.fileName}
-                  </Button>
-                ) : (
-                  <Button variant="default" onClick={() => openImportForm(document)}>
-                    Joindre le fichier
-                  </Button>
-                )}
-              </Stack>
+              <Box p="xl">
+                <EmptyState
+                  plain
+                  icon={<FileXIcon aria-hidden />}
+                  message={document.fileUrl ? 'Ce fichier ne peut pas être affiché ici.' : 'Aucun fichier joint.'}
+                  action={
+                    document.fileUrl ? (
+                      <Button component="a" href={downloadUrl(document.fileUrl)} variant="default" leftSection={<DownloadSimpleIcon aria-hidden />}>
+                        Télécharger {document.fileName}
+                      </Button>
+                    ) : (
+                      <Button variant="default" onClick={() => openImportForm(document)}>
+                        Joindre le fichier
+                      </Button>
+                    )
+                  }
+                />
+              </Box>
             )}
           </Paper>
         </Grid.Col>
@@ -142,7 +145,7 @@ export function ImportedDocumentPage() {
                     </Group>
                   ) : null,
                 )}
-                {document.note && <MarkdownView targets={{ projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set() }}>{document.note}</MarkdownView>}
+                {document.note && <MarkdownView targets={NO_TARGETS}>{document.note}</MarkdownView>}
               </Stack>
             </Section>
             <Comments target="IMPORTED_DOCUMENT" id={document.id} />

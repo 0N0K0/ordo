@@ -1,9 +1,10 @@
-import { contributorNameSchema, handleSchema } from '@ordo/shared';
+import { contributorNameSchema, handleSchema, lineageOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type Contributor } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
+import { assertAllExist } from '../core/lookup';
 
 /**
  * Creates a contributor.
@@ -92,8 +93,7 @@ export async function deleteContributor(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertProjects(projectIds: string[]): Promise<void> {
-  const count = await prisma.project.count({ where: { id: { in: projectIds } } });
-  if (count !== new Set(projectIds).size) throw notFound('Projet');
+  await assertAllExist(prisma.project, projectIds, 'Projet');
 }
 
 /**
@@ -104,8 +104,7 @@ async function assertProjects(projectIds: string[]): Promise<void> {
  */
 export async function setProjectContributors(projectId: string, contributorIds: string[]): Promise<void> {
   await assertProjects([projectId]);
-  const count = await prisma.contributor.count({ where: { id: { in: contributorIds } } });
-  if (count !== new Set(contributorIds).size) throw notFound('Contributeur');
+  await assertAllExist(prisma.contributor, contributorIds, 'Contributeur');
   await prisma.project.update({
     where: { id: projectId },
     data: { contributors: { set: contributorIds.map((contributorId) => ({ id: contributorId })) } },
@@ -126,18 +125,14 @@ export async function attachAssignees(assignments: { projectId: string; contribu
     select: { id: true, projects: { select: { id: true } } },
   });
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const parentOf = new Map(projects.map((project) => [project.id, project.parentId]));
+  const byId = new Map(projects.map((project) => [project.id, project]));
 
   for (const contributor of contributors) {
     const attached = new Set(contributor.projects.map((project) => project.id));
     const connect: string[] = [];
     for (const { projectId, contributorIds } of assignments) {
       if (!contributorIds.includes(contributor.id)) continue;
-      let member = false;
-      for (let current: string | null | undefined = projectId; current && !member; current = parentOf.get(current)) {
-        member = attached.has(current);
-      }
-      if (member) continue;
+      if (lineageOf(byId, projectId).some((project) => attached.has(project.id))) continue;
       attached.add(projectId);
       connect.push(projectId);
     }
@@ -163,12 +158,10 @@ export async function assertProjectContributors(projectId: string | null, ids: s
   const added = ids.filter((id) => !keep.includes(id));
   if (!projectId || added.length === 0) return;
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const parentOf = new Map(projects.map((project) => [project.id, project.parentId]));
-  const scope: string[] = [];
-  for (let current: string | null | undefined = projectId; current; current = parentOf.get(current)) scope.push(current);
+  const scope = lineageOf(new Map(projects.map((project) => [project.id, project])), projectId).map((project) => project.id);
   const allowed = await prisma.contributor.count({ where: { id: { in: added }, OR: [{ userId: { not: null } }, { projects: { some: { id: { in: scope } } } }] } });
   if (allowed !== new Set(added).size) {
     const message = 'Seuls les contributeurs du projet peuvent être choisis.';
-    throw clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
+    throw fieldError(field, message);
   }
 }

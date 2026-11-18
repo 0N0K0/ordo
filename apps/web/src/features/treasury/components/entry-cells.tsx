@@ -1,6 +1,6 @@
-import { ActionIcon, Badge, Button, Group, Popover, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
-import { CaretDownIcon, CaretRightIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, XIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
@@ -10,9 +10,9 @@ import { RuleField } from '../../../components/recurrence/RuleField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { handleFileClick } from '../../files/lib/open-file';
-import { useTreasuryEntrySearch } from '../api';
+import { EntryLinkSelect, LinkBadge } from './entry-links';
+import { linkKey, type LineLink } from '../lib/lines';
 import { documentKey, payerKey, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
-import { describeLink, type LineLink } from '../lib/lines';
 
 /**
  * Payer or payee of an entry, chosen in place among the clients and counterparties.
@@ -124,40 +124,13 @@ export function DocumentsCell({
  */
 export function LinksCell({ links, entryId, lines, label, onSave }: { links: LineLink[]; entryId: string; lines: boolean; label: string; onSave: (links: LineLink[]) => void }) {
   const [opened, setOpened] = useState(false);
-  const [search, setSearch] = useState('');
-  const { data: found } = useTreasuryEntrySearch(opened ? search : '');
-  const linked = new Set(links.map((link) => `${link.kind}:${link.id}`));
-  const candidates: LineLink[] = (found ?? [])
-    .filter((item) => item.id !== entryId)
-    .flatMap((item): LineLink[] => {
-      const base = { entryLabel: item.label, date: String(item.date) };
-      if (!item.lines.length) return [{ ...base, kind: 'entry', id: item.id, label: null, amount: item.amount }];
-      // A split entry is linked through its lines (from a line only).
-      return lines
-        ? item.lines.map((other) => ({ ...base, kind: 'line', id: other.id, label: other.label ?? null, amount: other.mode === 'PERCENT' ? Math.round(item.amount * other.value) / 100 : other.value }))
-        : [];
-    })
-    .filter((link) => !linked.has(`${link.kind}:${link.id}`));
   return (
     <Group gap={4} wrap="nowrap" align="flex-start">
       <StackedValues>
         {links.map((link) => (
-          <Tooltip key={`${link.kind}:${link.id}`} label={describeLink(link)}>
-            <Badge
-              size="sm"
-              variant="outline"
-              color={link.amount < 0 ? 'red' : 'green'}
-              leftSection={<LinkIcon aria-hidden />}
-              rightSection={
-                <ActionIcon size="xs" variant="transparent" color="gray" aria-label={`Délier ${describeLink(link)}`} onClick={() => onSave(links.filter((other) => other !== link))}>
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              }
-              tt="none"
-            >
-              {link.entryLabel.length > 20 ? `${link.entryLabel.slice(0, 19)}…` : link.entryLabel} · {fmt.money(link.amount)}
-            </Badge>
-          </Tooltip>
+          <LinkBadge key={linkKey(link)} link={link} size="sm" variant="outline" withTooltip onUnlink={() => onSave(links.filter((other) => other !== link))}>
+            {link.entryLabel.length > 20 ? `${link.entryLabel.slice(0, 19)}…` : link.entryLabel} · {fmt.money(link.amount)}
+          </LinkBadge>
         ))}
       </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={380} trapFocus>
@@ -170,23 +143,13 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
         </Popover.Target>
         <Popover.Dropdown>
           <Stack gap={4}>
-            <Select
+            <EntryLinkSelect
               aria-label={label}
-              placeholder="Rechercher un mouvement par son libellé…"
-              searchable
-              leftSection={<LinkIcon aria-hidden />}
-              searchValue={search}
-              onSearchChange={setSearch}
-              // Filtered by the server.
-              filter={({ options }) => options}
-              nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-              data={candidates.map((link) => ({ value: `${link.kind}:${link.id}`, label: describeLink(link) }))}
-              value={null}
-              onChange={(key) => {
-                const link = candidates.find((item) => `${item.kind}:${item.id}` === key);
-                if (!link) return;
+              entryId={entryId}
+              links={links}
+              lines={lines}
+              onLink={(link) => {
                 onSave([...links, link]);
-                setSearch('');
                 setOpened(false);
               }}
               comboboxProps={{ withinPortal: false }}

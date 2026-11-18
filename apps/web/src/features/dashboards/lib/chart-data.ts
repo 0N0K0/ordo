@@ -22,7 +22,8 @@ const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
   quarter: 'par trimestre',
   year: 'par an',
 };
-const SOURCE_LABELS: Record<ChartConfig['source'], string> = {
+/** Name of each source of the charts. */
+export const SOURCE_LABELS: Record<ChartConfig['source'], string> = {
   tasks: 'Tâches',
   documents: 'Facturation',
   treasury: 'Trésorerie',

@@ -1,4 +1,5 @@
-import { Divider, Grid, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
+import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
@@ -17,6 +18,7 @@ import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { SubSection } from '../../../components/page/SubSection';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -142,13 +144,12 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 label="Description"
                 value={form.values.description}
                 onChange={(description) => form.setFieldValue('description', description)}
-                suggestions={context?.suggestionsFor(form.values.projectId) ?? { projectId: null, tasks: [], contributors: [] }}
+                suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS}
                 minRows={3}
               />
-              <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                Quand
-              </Text>
-              <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
+              <SubSection title="Quand" gap="md">
+                <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
+              </SubSection>
               {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? String(routine.currentDate) : null} name={routine.title} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
             </Stack>

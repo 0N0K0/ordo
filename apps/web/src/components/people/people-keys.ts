@@ -1,5 +1,5 @@
 /** Kinds of people a field can hold: contributors, members of the team or household, relations (people out of it). */
-export type PersonKind = 'contributor' | 'member' | 'relation';
+type PersonKind = 'contributor' | 'member' | 'relation';
 
 const PREFIX: Record<PersonKind, string> = { contributor: 'c', member: 'm', relation: 'r' };
 const KIND = new Map(Object.entries(PREFIX).map(([kind, prefix]) => [prefix, kind as PersonKind]));

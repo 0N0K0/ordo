@@ -1,7 +1,7 @@
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
-import { collator, entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
+import { collator, entrySeconds, formatDuration, lineageOf, type TableFilterGroup } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -21,6 +21,8 @@ import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { useRoutinesData } from '../../routines/api';
+import { routineTreeOptions } from '../../routines/lib/routine-format';
+import type { TreeOption } from '../../../components/tree/tree-select';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
@@ -61,11 +63,11 @@ const TIME_VIEWS: FirstTableView[] = [
  * Columns of the tracked times.
  * @param {TaskContext | null} context Task context (names of the projects and tasks).
  * @param {Map<string, number>} comments Comments of the times.
- * @param {{ value: string, label: string }[]} routines Routines offered by the filter.
+ * @param {TreeOption[]} routines Routines offered by the filter, as their tree.
  * @param {readonly TimeEntry[]} entries Times (their events offered by the filter).
  * @returns {DataColumn<TimeEntry>[]} Columns.
  */
-function timeColumns(context: TaskContext | null, comments: Map<string, number>, routines: { value: string; label: string }[], entries: readonly TimeEntry[]): DataColumn<TimeEntry>[] {
+function timeColumns(context: TaskContext | null, comments: Map<string, number>, routines: TreeOption[], entries: readonly TimeEntry[]): DataColumn<TimeEntry>[] {
   const projectName = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
   return [
     {
@@ -119,11 +121,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       // A project keeps the times of its sub-projects.
       filter: {
         kind: 'choices',
-        value: (entry) => {
-          const ids: string[] = [];
-          for (let id = entry.projectId; id; id = context?.projectById.get(id)?.parentId ?? null) ids.push(id);
-          return ids;
-        },
+        value: (entry) => (context ? lineageOf(context.projectById, entry.projectId).map((project) => project.id) : []),
         options: context ? context.projectOptions(context.projects) : [],
       },
       groupable: true,
@@ -226,7 +224,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     // A time on a final invoice, or running, is left as it is.
     editable(entry) && update.mutate({ id: entry.id, input: change }, { onError: onMutationError });
   const { data: routinesData } = useRoutinesData();
-  const routineOptions = (routinesData?.routines ?? []).map((routine) => ({ value: routine.id, label: routine.title }));
+  const routineOptions = routineTreeOptions(routinesData?.routines ?? []);
   const entryComments = useCommentCounts(
     'TIME_ENTRY',
     (entries ?? []).map((entry) => entry.id),

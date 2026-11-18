@@ -1,3 +1,4 @@
+import * as fmt from '../../../lib/format';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Alert, Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
@@ -17,14 +18,13 @@ import {
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
 import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from '../lib/aggregate';
 import { CalendarPeriodPicker } from './CalendarPeriodPicker';
 import { useDashboardMutations, type DashboardChart } from '../api';
 import { useChartData, type ChartScope } from '../lib/chart-data';
 import { ChartView } from './ChartView';
 import { DatasetsEditor } from './DatasetsEditor';
-import { DocumentFilters, TreasuryFilters } from './source-filters';
+import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -79,6 +79,8 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
   const source = config.source;
   const burndown = config.type === 'burndown';
   const time = isTimeDimension(config.dimension);
+  // The balance of the treasury: its cash at each date, not a sum of movements.
+  const treasuryBalance = source === 'treasury' && config.measure === 'balance';
   const validation = chartConfigSchema.safeParse(config);
   const sprints = scope.projectId ? context.sprintsFor(scope.projectId) : context.sprints;
 
@@ -250,7 +252,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                   )}
                 </SimpleGrid>
               )}
-              {config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
+              {config.type !== 'donut' && !treasuryBalance && (
                 <Select
                   label={several ? 'Séries du jeu principal' : 'Séries'}
                   placeholder="Aucune (une seule série)"
@@ -269,7 +271,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                   }
                 />
               )}
-              {time && config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
+              {time && config.type !== 'donut' && !treasuryBalance && (
                 <Switch label="Cumulé (total depuis le début de la période)" checked={config.cumulative} onChange={(event) => change({ cumulative: event.currentTarget.checked })} />
               )}
             </>
@@ -277,27 +279,17 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
           <Switch label="Pleine largeur" checked={wide} onChange={(event) => setWide(event.currentTarget.checked)} />
 
           <Divider
-            label={`${several ? 'Jeu principal — ' : ''}${source === 'tasks' ? 'tâches comptées' : source === 'documents' ? 'documents comptés' : 'mouvements comptés'}`.replace(/^./, (letter) =>
-              letter.toUpperCase(),
-            )}
+            label={fmt.capitalize(`${several ? 'Jeu principal — ' : ''}${source === 'tasks' ? 'tâches comptées' : source === 'documents' ? 'documents comptés' : 'mouvements comptés'}`)}
             labelPosition="left"
           />
-          {source === 'tasks' && (
-            <>
-              <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
-              <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
-              <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
-            </>
-          )}
-          {source === 'documents' && <DocumentFilters config={config} change={change} />}
-          {source === 'treasury' && <TreasuryFilters config={config} change={change} />}
+          <SourceFilters source={source} config={config} context={context} change={change} />
           {scope.projectId && source !== 'tasks' && (
             <Text size="xs" c="dimmed">
               Tableau de bord d’un projet : seuls les {source === 'documents' ? 'documents' : 'mouvements'} rattachés au projet ou à ses sous-projets comptent
               {source === 'treasury' && ' (le solde reste celui de tous les comptes)'}.
             </Text>
           )}
-          {!burndown && config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
+          {!burndown && config.type !== 'donut' && !treasuryBalance && (
             <>
               <Divider label="Jeux de données et comparaisons" labelPosition="left" />
               <DatasetsEditor config={config} change={change} context={context} />

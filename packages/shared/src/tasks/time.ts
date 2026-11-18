@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
+import { daySchema, timeOfDaySchema } from '../dates/times';
 
 /** What was done during a tracked time: plain text, several lines. Empty becomes null. */
 export const timeDescriptionSchema = z
@@ -27,8 +28,8 @@ export const timeEntryFormSchema = z
     routineId: z.string().nullable(),
     taskIds: z.array(z.string()),
     description: z.string().max(4000, '4 000 caractères maximum.'),
-    date: z.string({ error: 'La date est requise.' }).regex(/^\d{4}-\d{2}-\d{2}$/, 'La date est requise.'),
-    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).'),
+    date: daySchema('La date est requise.'),
+    start: timeOfDaySchema,
     duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
   })
   .refine((values) => values.projectId !== '' || values.routineId !== null, { path: ['projectId'], message: 'Le projet est requis.' });
@@ -112,10 +113,7 @@ export const alarmInputSchema = z
       .nullable(),
     type: z.enum(ALARM_TYPES),
     startDate: dateSchema,
-    time: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
-      .nullable(),
+    time: timeOfDaySchema.nullable(),
     frequency: z.enum(ALARM_FREQUENCIES),
     interval: z.number().int().min(1, 'Au moins 1.').max(365, '365 maximum.'),
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),

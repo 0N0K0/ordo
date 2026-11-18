@@ -1,9 +1,10 @@
-import { NumberInput, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifyInfo, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useSheetMutations } from '../api';
 import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { MultiplierInput } from '../../../components/inputs/MultiplierInput';
 
 /**
  * Use of a sheet (times a multiplier): its consumable items that are references followed in stock are taken from it,
@@ -19,18 +20,7 @@ export function SheetUseForm({ sheetId, name, onDone }: { sheetId: string; name:
       <Text size="sm" c="dimmed">
         Les éléments consommables de « {name} » qui sont des références suivies en stock en sont retirés, en commençant par les lots qui périment le plus tôt.
       </Text>
-      <NumberInput
-        label="Combien de fois"
-        w={160}
-        min={0.25}
-        max={999}
-        decimalScale={2}
-        decimalSeparator=","
-        prefix="× "
-        value={multiplier}
-        onChange={(value) => setMultiplier(Number(value) || 1)}
-        data-autofocus
-      />
+      <MultiplierInput label="Combien de fois" w={160} value={multiplier} onChange={(value) => setMultiplier(Number(value) || 1)} data-autofocus />
       <FormActions
         onCancel={onDone}
         submitLabel="Utiliser"

@@ -24,33 +24,4 @@
     padding: var(--mantine-spacing-md);
     gap: var(--mantine-spacing-md);
   }
-
-  /* Handle on the left edge, like the one of the navigation sidebar. */
-  .resizeHandle {
-    --handle-width: 6px;
-
-    /* Position */
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(var(--handle-width) / -2);
-    z-index: 2;
-
-    /* Dimension */
-    width: var(--handle-width);
-
-    /* Arrière-Plan */
-    background-color: transparent;
-
-    &:hover {
-      background-color: var(--mantine-primary-color-light);
-    }
-
-    /* Animation */
-    transition: background-color 120ms ease;
-
-    /* Interaction */
-    cursor: col-resize;
-    touch-action: none;
-  }
 }

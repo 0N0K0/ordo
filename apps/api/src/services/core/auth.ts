@@ -20,7 +20,7 @@ import {
 import { prisma } from '../../db';
 import { env } from '../../env';
 import { type User } from '../../generated/prisma/client';
-import { clientError, isUniqueConflict, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, isUniqueConflict, parseInput } from '../../graphql/errors';
 import type { Mail } from '../../mail/mailer';
 import { sendMail } from '../../mail/mailer';
 import {
@@ -227,7 +227,7 @@ export async function requestEmailChange(session: SessionInfo, currentPassword: 
 
   if (email === user.email) {
     const message = "C'est déjà votre adresse actuelle.";
-    throw clientError('BAD_USER_INPUT', message, { fields: { email: message } });
+    throw fieldError('email', message);
   }
   if (await prisma.user.findUnique({ where: { email } })) {
     const message = 'Cette adresse est déjà utilisée.';

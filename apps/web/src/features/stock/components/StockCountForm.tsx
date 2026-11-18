@@ -1,4 +1,6 @@
-import { NumberInput, Select, Stack, Text, Textarea } from '@mantine/core';
+import { isUnderOrSelf } from '@ordo/shared';
+import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
+import { Select, Stack, Text, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -7,9 +9,9 @@ import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
-import { locationOptions, locationPaths } from '../lib/stock-format';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -24,18 +26,19 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const [locationId, setLocationId] = useState<string | null>(null);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const [note, setNote] = useState('');
-  const places = locationPaths(locations ?? []);
-  // A place takes its sub-places.
-  const within = (id: string | null | undefined) => {
-    if (!locationId) return true;
-    for (let current = id; current; current = (locations ?? []).find((place) => place.id === current)?.parentId) if (current === locationId) return true;
-    return false;
-  };
+  const places = categoryPaths(locations ?? []);
+  const parentOf = new Map((locations ?? []).map((place) => [place.id, place.parentId]));
+  /**
+   * Whether a place is the one chosen or under it (a place takes its sub-places).
+   * @param {string | null | undefined} id Place of an item.
+   * @returns {boolean} Kept.
+   */
+  const within = (id: string | null | undefined) => !locationId || (!!id && isUnderOrSelf(parentOf, id, locationId));
   const rows = (items ?? []).filter((item) => within(item.locationId));
   const columns: DataColumn<StockItem>[] = [
     { id: 'label', label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
     { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
-    { id: 'expected', label: 'Attendu', size: 100, numeric: true, sortValue: (item) => item.quantity, text: (item) => `${fmt.number(item.quantity, 3)}${item.unit ? ` ${item.unit}` : ''}` },
+    { id: 'expected', label: 'Attendu', size: 100, numeric: true, sortValue: (item) => item.quantity, text: (item) => fmt.quantity(item) },
     {
       id: 'counted',
       label: 'Compté',
@@ -49,7 +52,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
   return (
     <Stack gap="md">
-      <Select label="Emplacement" placeholder="Tout le stock" clearable searchable {...treeSelectProps(locationOptions(locations ?? []))} value={locationId} onChange={setLocationId} />
+      <Select label="Emplacement" placeholder="Tout le stock" clearable searchable {...treeSelectProps(categoryOptions(locations ?? []))} value={locationId} onChange={setLocationId} />
       <Text size="xs" c="dimmed">
         Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l’écart avec l’attendu est noté dans l’historique.
       </Text>
@@ -59,12 +62,10 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
         getKey={(item) => item.id}
         cells={(item) => ({
           counted: (
-            <NumberInput
+            <QuantityInput
               size="xs"
               aria-label={`Quantité comptée de ${item.label}`}
               min={0}
-              decimalScale={3}
-              decimalSeparator=","
               allowNegative={false}
               hideControls
               placeholder={fmt.number(item.quantity, 3)}

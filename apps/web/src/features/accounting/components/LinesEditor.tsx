@@ -1,20 +1,20 @@
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Button, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
-import { NO_TARGETS } from '../../../components/markdown/remark-references';
+import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useCatalogItems } from '../api/catalog';
 import classes from './LinesEditor.module.css';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
+import { DiscountInput } from './DiscountInput';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
-
-const NO_SUGGESTIONS = { projectId: null, tasks: [], contributors: [] };
 
 /**
  * New line of a kind.
@@ -98,16 +98,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
         </Group>
         {priced && (
           <Group gap="xs" wrap="wrap" align="flex-end">
-            <NumberInput
-              label="Quantité"
-              size="xs"
-              w={100}
-              decimalScale={3}
-              decimalSeparator=","
-              readOnly={readOnly}
-              value={line.quantity}
-              onChange={(value) => update({ quantity: typeof value === 'number' ? value : 0 })}
-            />
+            <QuantityInput label="Quantité" size="xs" w={100} readOnly={readOnly} value={line.quantity} onChange={(value) => update({ quantity: typeof value === 'number' ? value : 0 })} />
             <Select
               label="Unité"
               size="xs"
@@ -140,31 +131,18 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
               />
             )}
             {line.kind === 'ITEM' && (
-              <Group gap={4} align="flex-end" wrap="nowrap">
-                <AmountInput
-                  label="Remise"
-                  size="xs"
-                  w={110}
-                  min={0}
-                  readOnly={readOnly}
-                  error={errors.discountValue}
-                  value={line.discountValue ?? ''}
-                  onChange={(value) =>
-                    update({ discountValue: typeof value === 'number' && value > 0 ? value : null, discountType: typeof value === 'number' && value > 0 ? (line.discountType ?? 'PERCENT') : null })
-                  }
-                />
-                <SegmentedControl
-                  size="xs"
-                  aria-label={`Type de remise de la ligne ${index + 1}`}
-                  readOnly={readOnly}
-                  data={[
-                    { value: 'PERCENT', label: '%' },
-                    { value: 'AMOUNT', label: currency === 'EUR' ? '€' : currency },
-                  ]}
-                  value={line.discountType ?? 'PERCENT'}
-                  onChange={(type) => update({ discountType: type as AccountingLineInput['discountType'] })}
-                />
-              </Group>
+              <DiscountInput
+                label="Remise"
+                size="xs"
+                w={110}
+                readOnly={readOnly}
+                error={errors.discountValue}
+                value={line.discountValue ?? null}
+                type={line.discountType ?? null}
+                currency={currency}
+                typeLabel={`Type de remise de la ligne ${index + 1}`}
+                onChange={({ value, type }) => update({ discountValue: value, discountType: type })}
+              />
             )}
             <Stack gap={0} ml="auto" align="flex-end">
               <Text size="xs" c="dimmed">

@@ -2,8 +2,9 @@ import { tableKeySchema, tableViewConfigSchema, taskViewNameSchema } from '@ordo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
+import { assertExists } from '../core/lookup';
 
 /**
  * Loads a view or throws NOT_FOUND.
@@ -61,9 +62,7 @@ export async function createView(input: { name: string; config: unknown; project
   const tableKey = kind === 'TABLE' ? parseInput(z.object({ tableKey: tableKeySchema }), { tableKey: input.tableKey }).tableKey : null;
   const config = parseConfig(kind, input.config);
   const projectId = input.projectId ?? null;
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) {
-    throw notFound('Projet');
-  }
+  await assertExists(prisma.project, projectId, 'Projet');
   const [position, count] = await Promise.all([nextPositionIn('taskView', viewScope(projectId, kind, tableKey)), prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) })]);
   return prisma.taskView.create({
     data: { name, kind, tableKey, config, projectId, position, isDefault: count === 0 },

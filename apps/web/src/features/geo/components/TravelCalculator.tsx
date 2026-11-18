@@ -2,7 +2,7 @@ import { Button, Divider, Popover, SegmentedControl, Select, Stack, Switch, Text
 import { TRAVEL_MODE_LABELS, TRAVEL_MODES, formatDuration, travelMinutes, type GeoPoint, type TravelMode } from '@ordo/shared';
 import { NavigationArrowIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError } from '../../../lib/notify';
+import { notifyFailure } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { travelTime, usePlaces } from '../api';
 import * as fmt from '../../../lib/format';
@@ -73,7 +73,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
         `${label} ${TRAVEL_MODE_LABELS[mode].toLowerCase()} ${formatDuration(way.seconds)} (${fmt.number(way.meters / 1000, 1)} km)`;
       setSummary(`${[there && told('Aller', goingMode, there), home && told('retour', backMode, home)].filter(Boolean).join(', ')}. Arrondis aux 5 minutes.`);
     } catch (error) {
-      notifyError((error as Error).message);
+      notifyFailure(error);
     } finally {
       setLoading(false);
     }

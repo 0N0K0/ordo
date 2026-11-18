@@ -6,7 +6,7 @@ import type { Task } from '../../tasks/api';
 import { matchTasks } from '../../tasks/lib/task-columns';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
 import { useTimeEntriesSince } from '../../time/api';
-import { useNow } from '../../time/hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import { myTasksFilter } from '../../tasks/lib/my-tasks';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import * as fmt from '../../../lib/format';

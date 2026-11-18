@@ -40,8 +40,6 @@ interface ShoppingTableProps<T extends ShoppingFields> {
   label: string;
   /** Nothing can be changed (an archived list). */
   readOnly?: boolean;
-  /** Projects of the list (through its tasks): the members offered are their contributors. Optional. */
-  projectIds?: string[];
   /** Saves a row changed in place or moved to another category (or store). */
   onSave: (row: T, input: ShoppingItemInput) => void;
   /** State a click switches on a row (missing, or bought), before its fields; changed in bulk too. */
@@ -91,7 +89,6 @@ export function ShoppingTable<T extends ShoppingFields>({
   selectionActions,
   selectionLabel,
   readOnly = false,
-  projectIds,
   onSave,
   toggle,
   badge,
@@ -216,7 +213,6 @@ export function ShoppingTable<T extends ShoppingFields>({
           relationIds={item.relationIds}
           label={`Bénéficiaires de ${name}`}
           readOnly={readOnly}
-          projectIds={projectIds}
           onSave={(chosen) =>
             save('people', (target) => ({ memberIds: applyDiff(target.memberIds, item.memberIds, chosen.memberIds), relationIds: applyDiff(target.relationIds, item.relationIds, chosen.relationIds) }))
           }

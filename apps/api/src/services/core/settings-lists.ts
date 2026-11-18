@@ -1,7 +1,7 @@
 import { colorSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
-import { clientError } from '../../graphql/errors';
+import { fieldError } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
 import { nextPositionIn, type OrderedModel } from './ordering';
 
@@ -69,7 +69,7 @@ export async function setLook(kind: SettingsListKind, id: string, input: { color
   let color = input.color;
   if (color) {
     const parsed = colorSchema.safeParse(color);
-    if (!parsed.success) throw clientError('BAD_USER_INPUT', 'Couleur invalide (format #rrggbb).', { fields: { color: 'Couleur invalide (format #rrggbb).' } });
+    if (!parsed.success) throw fieldError('color', 'Couleur invalide (format #rrggbb).');
     color = parsed.data;
   }
   const iconId = await resolveIconUpdate(item.iconId, input);

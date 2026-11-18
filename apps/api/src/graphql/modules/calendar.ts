@@ -5,8 +5,9 @@ import * as categories from '../../services/calendar/calendar-categories';
 import * as calendars from '../../services/calendar/calendars';
 import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput } from '../label-inputs';
+import { NameColorInput, labelObject } from '../label-inputs';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
@@ -18,15 +19,7 @@ builder.prismaObject('CalendarCategory', {
   }),
 });
 
-builder.prismaObject('Calendar', {
-  description: 'Calendar of the workspace: every event belongs to one.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('Calendar', { description: 'Calendar of the workspace: every event belongs to one.' });
 
 const CalendarWorkspace = builder.objectRef<calendars.CalendarSubscriptionView['workspace']>('CalendarWorkspace').implement({
   description: 'Workspace a calendar belongs to.',
@@ -316,7 +309,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
-  routineLinks: (input.routineLinks ?? []).map((link) => ({ routineId: String(link.routineId), date: String(link.date) })),
+  routineLinks: (input.routineLinks ?? []).map((link) => ({ routineId: link.routineId, date: link.date })),
   relationIds: input.relationIds ?? [],
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
@@ -328,7 +321,7 @@ builder.queryFields((t) => ({
   calendars: t.prismaField({
     type: ['Calendar'],
     description: 'Calendars of the workspace, in their order.',
-    resolve: (query) => prisma.calendar.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.calendar.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   calendarSubscriptions: t.field({
     type: [CalendarSubscription],
@@ -348,11 +341,11 @@ builder.queryFields((t) => ({
   }),
   calendarCategories: t.prismaField({
     type: ['CalendarCategory'],
-    resolve: (query) => prisma.calendarCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.calendarCategory.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   scheduleTypes: t.prismaField({
     type: ['ScheduleType'],
-    resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   defaultScheduleKind: t.field({
     type: DefaultScheduleKindRef,

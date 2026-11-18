@@ -15,24 +15,24 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, readScheduleDisplay, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifyError, notifySuccess, notifyFailure } from '../../../lib/notify';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { useUpdateTask } from '../../tasks/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { useTimeEntriesSince } from '../../time/api';
-import { useNow } from '../../time/hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
+import { entryEventKey, eventKey } from '../../time/lib/time-events';
 import {
   calendarIcsUrl,
-  scheduleRules,
   useCalendarCategories,
   useCalendarEventMutations,
   useCalendarEvents,
@@ -51,6 +51,7 @@ import { slotColumns } from '../lib/slot-columns';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
+import { occurrenceSpan, scheduleSources } from '../lib/calendar-events';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
 import { SubscribedEvent } from '../components/SubscribedEvent';
@@ -203,9 +204,7 @@ export function CalendarPage() {
       result.push({
         id: occurrence.key,
         title: occurrence.title,
-        allDay: occurrence.allDay,
-        start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
-        end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+        ...occurrenceSpan(occurrence),
         backgroundColor: color,
         borderColor: striped ? ofCalendar : color,
         extendedProps: { kind: 'event', occurrence },
@@ -256,9 +255,7 @@ export function CalendarPage() {
       result.push({
         id: `subscribed:${occurrence.key}`,
         title: occurrence.title,
-        allDay: occurrence.allDay,
-        start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
-        end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+        ...occurrenceSpan(occurrence),
         editable: false,
         backgroundColor: subscription.color,
         borderColor: subscription.color,
@@ -269,7 +266,7 @@ export function CalendarPage() {
     // Tracked times: blocks from their start to their end (now while running), in the color of their project.
     // A time spent on an event only shows its part outside the event.
     if (showTimers && range) {
-      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [`${occurrence.eventId}|${occurrence.occurrenceDate ?? ''}`, occurrence]));
+      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [eventKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
         if (dayOf(start) > range.to) continue;
@@ -279,7 +276,8 @@ export function CalendarPage() {
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
         const stop = end > start ? end : new Date(start.getTime() + 60_000);
         let parts: [Date, Date][] = [[start, stop]];
-        const occurrence = entry.calendarEventId ? occurrenceByKey.get(`${entry.calendarEventId}|${entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : ''}`) : undefined;
+        const key = entryEventKey(entry);
+        const occurrence = key ? occurrenceByKey.get(key) : undefined;
         if (occurrence && !occurrence.allDay) {
           const eventStart = new Date(occurrence.start);
           const eventEnd = new Date(occurrence.end);
@@ -313,27 +311,7 @@ export function CalendarPage() {
     // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
     // other workspaces subscribed to are hatched.
     if (range && schedules && (filters.workHours !== false || editingSlots)) {
-      const typeOf = mapById(scheduleTypes ?? []);
-      const own = schedules.map((schedule) => {
-        const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
-        // Without kind: the default kind of the workspace.
-        const kind = type ?? defaultKind;
-        return {
-          rule: scheduleRules([schedule])[0],
-          color: kind?.color ?? null,
-          // Its own label, not its kind's.
-          name: schedule.name,
-          foreign: false,
-          display: readScheduleDisplay(kind),
-        };
-      });
-      const subscribed = (foreignSchedules ?? []).map((schedule) => ({
-        rule: scheduleRules([schedule])[0],
-        color: schedule.color ?? null,
-        name: `${schedule.name} · ${schedule.workspaceName}`,
-        foreign: true,
-        display: readScheduleDisplay(schedule),
-      }));
+      const sources = scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind);
       const month = view === 'dayGridMonth';
       // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
       // schedule with a line that day takes the next lane.
@@ -341,7 +319,7 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
+      for (const { rule, color, name, foreign, display } of sources) {
         if (!foreign && editingSlots) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
           for (const slot of plannedSlots([rule], range.from, range.to)) {
@@ -776,7 +754,7 @@ export function CalendarPage() {
       });
       notifySuccess('Agenda exporté.');
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Export PDF impossible.');
+      notifyFailure(error, 'Export PDF impossible.');
     } finally {
       setExporting(false);
     }

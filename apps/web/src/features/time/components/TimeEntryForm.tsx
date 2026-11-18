@@ -11,6 +11,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useCalendarEvents } from '../../calendar/api';
 import { useTimeMutations, type TimeEntry } from '../api';
 import { TimeTasksSelect } from './TimeTasksSelect';
+import { dayEventOptions, entryEventKey, parseEventKey } from '../lib/time-events';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { useRoutinesData } from '../../routines/api';
@@ -55,14 +56,9 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
   });
 
   // The event the time was spent on: one of the events of its day.
-  const [eventKey, setEventKey] = useState<string | null>(entry?.calendarEventId ? `${entry.calendarEventId}|${entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : ''}` : null);
+  const [eventKey, setEventKey] = useState<string | null>(entry ? entryEventKey(entry) : null);
   const { data: dayEvents } = useCalendarEvents(form.values.date ? { from: form.values.date, to: form.values.date } : null);
-  const eventOptions = (dayEvents ?? [])
-    .filter((occurrence) => !occurrence.allDay || occurrence.startDate <= form.values.date)
-    .map((occurrence) => ({
-      value: `${occurrence.eventId}|${occurrence.occurrenceDate ?? ''}`,
-      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.title}${occurrence.calledOff ? ' (annulé)' : ''}`,
-    }));
+  const eventOptions = dayEventOptions(dayEvents ?? [], form.values.date);
   // The event of the entry stays listed while its day is shown, even when it moved.
   if (eventKey && !eventOptions.some((option) => option.value === eventKey) && entry?.calendarEventTitle) eventOptions.push({ value: eventKey, label: entry.calendarEventTitle });
 
@@ -75,7 +71,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       // Local day and time.
       startedAt: new Date(`${values.date}T${values.start}`).toISOString(),
       duration: parseDuration(values.duration)!,
-      event: eventKey ? { eventId: eventKey.split('|')[0], occurrenceDate: eventKey.split('|')[1] || null } : null,
+      event: parseEventKey(eventKey),
     };
     const callbacks = {
       onSuccess: () => {

@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
 import { notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { withImap } from './imap';
+import { withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
 
@@ -102,8 +102,7 @@ async function searchFolder(
   messageIds: string[] | null,
 ): Promise<MailSearchHit[]> {
   return withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    return withMailbox(client, folder, async () => {
       const keywords = takesKeywords(client);
       const search = async (query: object) => new Set(((await client.search(Object.keys(query).length ? query : { all: true }, { uid: true })) || []) as number[]);
       let uids = await search({
@@ -153,9 +152,7 @@ async function searchFolder(
       for await (const message of client.fetch(latest, SUMMARY_FETCH, { uid: true })) hits.push({ ...toSummary(message, keywords, marks), accountId, folder, folderName });
       // Attachments are seen in the structure of the mails.
       return criteria.attachments ? hits.filter((hit) => hit.hasAttachments) : hits;
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 

@@ -1,6 +1,7 @@
-import { Autocomplete, Checkbox, NumberInput, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
+import { categoryOptions } from '../../../components/tree/category-tree';
+import { Autocomplete, Checkbox, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, usePeople } from '../../shopping/lib/shopping-format';
+import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
@@ -9,8 +10,8 @@ import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
-import { locationOptions } from '../lib/stock-format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -62,15 +63,13 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           error={form.errors.label}
         />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-          <Select label="Emplacement" placeholder="Aucun" clearable searchable {...treeSelectProps(locationOptions(locations ?? []))} {...form.getInputProps('locationId')} />
-          <Select label="Catégorie" placeholder="Aucune" clearable searchable {...treeSelectProps(shoppingCategoryOptions(data?.shoppingCategories ?? []))} {...form.getInputProps('categoryId')} />
+          <Select label="Emplacement" placeholder="Aucun" clearable searchable {...treeSelectProps(categoryOptions(locations ?? []))} {...form.getInputProps('locationId')} />
+          <Select label="Catégorie" placeholder="Aucune" clearable searchable {...treeSelectProps(categoryOptions(data?.shoppingCategories ?? []))} {...form.getInputProps('categoryId')} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-          <NumberInput
+          <QuantityInput
             label="Quantité"
             min={0}
-            decimalScale={3}
-            decimalSeparator=","
             allowNegative={false}
             {...form.getInputProps('quantity')}
             onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}

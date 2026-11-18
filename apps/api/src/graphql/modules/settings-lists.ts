@@ -62,7 +62,7 @@ builder.mutationFields((t) => ({
     description: 'Changes the color and / or the image of an item of a settings list; gives the URL of its image.',
     nullable: true,
     args: { kind: t.arg({ type: SettingsListKindEnum, required: true }), id: t.arg.id({ required: true }), input: t.arg({ type: SettingsItemLookInput, required: true }) },
-    resolve: async (_root, { kind, id, input }) => iconUrl(await lists.setLook(kind, String(id), input)),
+    resolve: async (_root, { kind, id, input }) => iconUrl(await lists.setLook(kind, id, input)),
   }),
   reorderSettingsItems: t.boolean({
     description: 'Puts the items of a flat settings list in the order given.',
@@ -70,7 +70,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { kind, ids }) => {
       await lists.reorder(
         kind,
-        ids.map((id) => String(id)),
+        ids.map((id) => id),
       );
       return true;
     },

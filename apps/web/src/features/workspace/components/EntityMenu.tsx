@@ -107,7 +107,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           leftSection={item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
           onClick={() => actions.setArchived(entity, !item.archived)}
         >
-          {item.archived ? 'Désarchiver' : 'Archiver'}
+          {item.archived ? 'Restaurer' : 'Archiver'}
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => actions.confirmDelete(entity)}>

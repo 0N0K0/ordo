@@ -1,6 +1,6 @@
 import { plural, countOf } from '../../../lib/text';
 import { Anchor, Text } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
 import { ClipboardTextIcon, CopyIcon, CookingPotIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -20,7 +20,7 @@ import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
-import { quantityText, sheetInput } from '../lib/sheet-format';
+import { sheetInput } from '../lib/sheet-format';
 import { deleteRowsAction, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
@@ -40,7 +40,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       .map((id) => categoryName.get(id) ?? '')
       .filter(Boolean)
       .join(', ');
-  const itemText = (item: Sheet['items'][number]) => `${item.label}${quantityText(item) ? ` · ${quantityText(item)}` : ''}`;
+  const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
     { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.name, text: (sheet) => sheet.name },
     {
@@ -53,7 +53,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       filter: {
         kind: 'choices',
         value: (sheet) => sheet.categoryIds,
-        options: categories.map((category) => ({ value: category.id, label: category.name, color: category.color ?? 'gray', iconUrl: category.iconUrl })),
+        options: itemOptions(categories),
       },
       groupable: true,
     },
@@ -189,10 +189,10 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
             {sheet.items.map((item) => (
               <Text key={item.id} size="sm" truncate title={item.note ?? undefined}>
                 {item.label}
-                {quantityText(item) && (
+                {fmt.quantity(item) && (
                   <Text span size="sm" c="dimmed">
                     {' '}
-                    · {quantityText(item)}
+                    · {fmt.quantity(item)}
                   </Text>
                 )}
               </Text>

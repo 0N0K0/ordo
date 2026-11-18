@@ -1,7 +1,8 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { plural } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Stack, Tabs, Text, Title } from '@mantine/core';
+import { Stack, Tabs, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
@@ -76,9 +77,7 @@ export function ClientPage() {
       </PageSettings>
 
       <Stack gap="sm">
-        <Title order={2} size="h4">
-          Projets
-        </Title>
+        <SectionHeader title="Projets" />
         {projects.length === 0 ? (
           <EmptyState icon={<FoldersIcon aria-hidden />} message="Aucun projet pour ce client." />
         ) : (

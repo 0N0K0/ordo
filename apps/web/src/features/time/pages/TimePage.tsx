@@ -1,12 +1,11 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
-import { ActionButton } from '../../../components/actions/ActionButton';
-import { Badge, CloseButton, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { Badge, CloseButton, Group, Stack } from '@mantine/core';
 import { useSearchParams } from 'react-router';
-import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { taskRef, useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimer, useTimeEntriesSince } from '../api';
-import { openTimerForm } from '../lib/open-timer-form';
+import { useTimeEntriesSince } from '../api';
+import { TimeLogActions } from '../components/TimeLogActions';
 import { PlannedTime } from '../components/PlannedTime';
 import { TimeLog } from '../components/TimeLog';
 import { useTimeEntryDialogs } from '../hooks/use-time-dialogs';
@@ -22,7 +21,6 @@ export function TimePage() {
   const { context } = useTaskContext();
   // Every time: the views choose their period.
   const entries = useTimeEntriesSince(null);
-  const running = useRunningTimer();
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context);
   // From the « Temps passé » of a task: its times only, until dismissed.
   const [params] = useSearchParams();
@@ -36,9 +34,7 @@ export function TimePage() {
       <PageHeader title="Chronos" />
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
-      <Title order={2} size="h4">
-        Temps passé
-      </Title>
+      <SectionHeader title="Temps passé" />
       {taskId && (
         <Group gap="xs">
           <Badge size="lg" variant="light" tt="none" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
@@ -54,19 +50,7 @@ export function TimePage() {
         onEdit={openForm}
         onDuplicate={duplicate}
         onDelete={confirmDelete}
-        actions={
-          // One timer runs at a time: the one running shows in the top bar.
-          <Group gap="sm" wrap="nowrap">
-            <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
-              Nouveau temps
-            </ActionButton>
-            <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-              <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context)} disabled={!context || Boolean(running.data)}>
-                Lancer un chrono
-              </ActionButton>
-            </Tooltip>
-          </Group>
-        }
+        actions={<TimeLogActions context={context} onNew={() => openForm()} />}
       />
     </Stack>
   );

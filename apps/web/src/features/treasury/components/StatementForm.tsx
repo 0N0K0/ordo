@@ -1,12 +1,12 @@
-import { Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { fetchDownload } from '../../../lib/download';
-import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
-import { localToday } from '../../../lib/dates';
-import { notifyError, notifySuccess } from '../../../lib/notify';
-import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../../../lib/periods';
+import { useAsyncAction } from '../../../lib/use-async-action';
+import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
 import type { TreasuryAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { PeriodRangeFields } from '../../../components/inputs/PeriodRangeFields';
+import { usePeriodRange } from '../../../components/inputs/use-period-range';
 
 interface StatementFormProps {
   accounts: TreasuryAccount[];
@@ -22,46 +22,22 @@ interface StatementFormProps {
  * @returns {JSX.Element} Form.
  */
 export function StatementForm({ accounts, accountId: initialAccount, onDone }: StatementFormProps) {
-  const today = localToday();
-  const [preset, setPreset] = useState<PeriodPreset>('lastMonth');
-  const [custom, setCustom] = useState<[string | null, string | null]>(presetRange('lastMonth', today));
+  const range = usePeriodRange<PeriodPreset>('lastMonth');
+  const { preset, setPreset, from, to, valid } = range;
   const [accountId, setAccountId] = useState<string | null>(initialAccount);
-  const [loading, setLoading] = useState(false);
-  const [from, to] = preset === 'custom' ? custom : presetRange(preset, today);
-  const valid = Boolean(from && to && from <= to);
-
-  /**
-   * Downloads the statement.
-   * @returns {Promise<void>}
-   */
-  const download = async () => {
-    if (!from || !to) return;
-    setLoading(true);
-    try {
+  const { run: download, loading } = useAsyncAction(
+    async () => {
+      if (!from || !to) return;
       const params = new URLSearchParams({ from, to, ...(accountId ? { accountId } : {}) });
       await fetchDownload(`/api/treasury/statement.pdf?${params}`, `Relevé du ${from} au ${to}.pdf`, 'Relevé impossible.');
-      notifySuccess('Relevé téléchargé.');
-      onDone();
-    } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Relevé impossible.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    { success: 'Relevé téléchargé.', fallback: 'Relevé impossible.', onDone },
+  );
 
   return (
     <Stack gap="md">
       <Select label="Période" data={PERIOD_PRESETS} value={preset} onChange={(value) => value && setPreset(value as PeriodPreset)} allowDeselect={false} data-autofocus />
-      <SimpleGrid cols={2}>
-        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} />
-        <DatePickerInput
-          label="Au"
-          value={to}
-          disabled={preset !== 'custom'}
-          onChange={(value) => setCustom([custom[0], value])}
-          error={from && to && from > to ? 'Avant la date de début.' : undefined}
-        />
-      </SimpleGrid>
+      <PeriodRangeFields range={range} />
       <Select
         label="Compte"
         placeholder="Tous les comptes"

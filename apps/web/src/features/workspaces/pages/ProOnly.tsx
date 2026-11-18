@@ -1,7 +1,6 @@
-import { Button, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { HouseLineIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
+import { PageMessage } from '../../../components/feedback/PageMessage';
 import { useActiveWorkspace } from '../api';
 
 /**
@@ -13,19 +12,10 @@ export function ProOnly({ children }: { children: ReactNode }) {
   const { workspace, perso } = useActiveWorkspace();
   if (!perso) return children;
   return (
-    <Stack align="center" gap="md" py="xl">
-      <ThemeIcon size={64} radius="xl" variant="light" color="gray">
-        <HouseLineIcon size="55%" aria-hidden />
-      </ThemeIcon>
-      <Title order={1} size="h3">
-        Indisponible dans un espace personnel
-      </Title>
-      <Text c="dimmed" ta="center">
-        L’espace « {workspace?.name} » est personnel : il n’a ni facturation, ni clients, ni société.
-      </Text>
-      <Button component={Link} to="/">
-        Retour à l’accueil
-      </Button>
-    </Stack>
+    <PageMessage
+      icon={<HouseLineIcon size="55%" aria-hidden />}
+      title="Indisponible dans un espace personnel"
+      message={<>L’espace « {workspace?.name} » est personnel : il n’a ni facturation, ni clients, ni société.</>}
+    />
   );
 }

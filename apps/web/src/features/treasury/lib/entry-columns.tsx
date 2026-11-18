@@ -1,5 +1,5 @@
 import { Text } from '@mantine/core';
-import { listSelectProps } from '../../../components/settings/item-look';
+import { listSelectProps, itemOptions } from '../../../components/settings/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -71,7 +71,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choice',
         value: (row) => entryOf(row)?.accountId ?? null,
-        options: env.accounts.map((account) => ({ value: account.id, label: account.name, color: account.color ?? 'gray', iconUrl: account.iconUrl })),
+        options: itemOptions(env.accounts),
       },
       groupable: true,
     },
@@ -137,7 +137,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       filter: {
         kind: 'choice',
         value: (row) => entryOf(row)?.methodId ?? null,
-        options: (env.settings?.treasuryPaymentMethods ?? []).map((method) => ({ value: method.id, label: method.name, color: method.color ?? 'gray', iconUrl: method.iconUrl })),
+        options: itemOptions(env.settings?.treasuryPaymentMethods ?? []),
       },
       groupable: true,
     },

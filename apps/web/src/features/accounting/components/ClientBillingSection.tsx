@@ -1,9 +1,10 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../../components/address/countries';
@@ -139,16 +140,16 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={2} size="h4">
-          Facturation
-        </Title>
-        <Group gap="xs">
+      <SectionHeader
+        title="Facturation"
+        actions={
+          <>
           <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>Coordonnées</ActionButton>
           <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>Nouveau service</ActionButton>
           <ActionButton priority="secondary" size="xs" icon={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>Nouveau contact</ActionButton>
-        </Group>
-      </Group>
+          </>
+        }
+      />
       {/* By the width of what holds it (the settings sidebar). */}
       <SimpleGrid type="container" cols={{ base: 1, '640px': 2 }} spacing="md">
         <Paper withBorder radius="md" p="md">

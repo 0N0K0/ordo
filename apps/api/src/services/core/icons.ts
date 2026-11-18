@@ -3,21 +3,12 @@ import DOMPurify from 'isomorphic-dompurify';
 import sharp from 'sharp';
 import { prisma } from '../../db';
 import { getDatamodel } from '../../generated/pothos-types';
-import { clientError } from '../../graphql/errors';
+import { fieldError } from '../../graphql/errors';
 
 /** Raster icons are resized to fit in this square (px). */
 const ICON_SIZE = 256;
 
 type IconKind = 'png' | 'jpeg' | 'webp' | 'svg';
-
-/**
- * Error raised for an unusable icon file, attached to the `icon` field.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
-function invalidIcon(message: string) {
-  return clientError('BAD_USER_INPUT', message, { fields: { icon: message } });
-}
 
 /**
  * Detects the real file type from its first bytes (the extension and declared type are not trusted).
@@ -40,18 +31,18 @@ function sniff(buffer: Buffer): IconKind | null {
  * @returns {Promise<{ mimeType: string, data: Buffer }>} Icon ready to be stored.
  */
 async function processIcon(file: File): Promise<{ mimeType: string; data: Buffer }> {
-  if (file.size > MAX_ICON_BYTES) throw invalidIcon('Image trop lourde (1 Mo maximum).');
+  if (file.size > MAX_ICON_BYTES) throw fieldError('icon', 'Image trop lourde (1 Mo maximum).');
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const kind = sniff(buffer);
-  if (!kind) throw invalidIcon('Format non pris en charge (JPG, PNG, WebP ou SVG).');
+  if (!kind) throw fieldError('icon', 'Format non pris en charge (JPG, PNG, WebP ou SVG).');
 
   if (kind === 'svg') {
     // Strips scripts, event handlers and external references.
     const clean = DOMPurify.sanitize(buffer.toString('utf8'), {
       USE_PROFILES: { svg: true, svgFilters: true },
     });
-    if (!clean.includes('<svg')) throw invalidIcon('Ce fichier SVG est invalide.');
+    if (!clean.includes('<svg')) throw fieldError('icon', 'Ce fichier SVG est invalide.');
     return { mimeType: 'image/svg+xml', data: Buffer.from(clean) };
   }
 
@@ -63,7 +54,7 @@ async function processIcon(file: File): Promise<{ mimeType: string; data: Buffer
       .toBuffer();
     return { mimeType: 'image/webp', data };
   } catch {
-    throw invalidIcon('Cette image est illisible.');
+    throw fieldError('icon', 'Cette image est illisible.');
   }
 }
 

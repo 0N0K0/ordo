@@ -5,7 +5,7 @@ import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
 import { orNotFound } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
-import { withImap } from './imap';
+import { withImap, withMailbox } from './imap';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 
@@ -151,10 +151,9 @@ async function followConversations(): Promise<void> {
         await withImap(account.id, async (client) => {
           const folders = (await client.list()).filter((item) => item.path.toUpperCase() === 'INBOX' || item.specialUse === '\\Sent');
           for (const folder of folders) {
-            const lock = await client.getMailboxLock(folder.path);
-            try {
+            await withMailbox(client, folder.path, async () => {
               const mailbox = client.mailbox;
-              if (!mailbox) continue;
+              if (!mailbox) return;
               const cursor = await prisma.mailFolderCursor.findUnique({
                 where: { accountId_folder: { accountId: account.id, folder: folder.path } },
               });
@@ -167,7 +166,7 @@ async function followConversations(): Promise<void> {
                 create: { accountId: account.id, folder: folder.path, uidValidity: mailbox.uidValidity, lastUid: from },
                 update: { uidValidity: mailbox.uidValidity, lastUid: from },
               });
-              if (last <= from) continue;
+              if (last <= from) return;
               let maxUid = from;
               for await (const message of client.fetch(
                 `${from + 1}:*`,
@@ -190,9 +189,7 @@ async function followConversations(): Promise<void> {
                 where: { accountId_folder: { accountId: account.id, folder: folder.path } },
                 data: { lastUid: maxUid },
               });
-            } finally {
-              lock.release();
-            }
+            });
           }
         });
         for (const item of found) {

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 
 /** Changes of URL parameters: a value sets one, null (or undefined) removes it. */
-export type ParamChanges = Record<string, string | null | undefined>;
+type ParamChanges = Record<string, string | null | undefined>;
 
 /**
  * Changes some URL parameters, keeping the others (or none), replacing the history entry (or adding one).

@@ -1,15 +1,12 @@
 import { Router } from 'express';
-import { getSession } from '../auth/session';
 import { prisma } from '../db';
+import { requireSession, sendDownload } from './http';
 
 export const iconsRouter: Router = Router();
 
 // Icons never change: a replaced icon gets a new id, so they can be cached forever.
 iconsRouter.get('/:id', async (req, res) => {
-  if (!(await getSession(req, res))) {
-    res.sendStatus(401);
-    return;
-  }
+  if (!(await requireSession(req, res))) return;
 
   const icon = await prisma.icon.findUnique({ where: { id: req.params.id } });
   if (!icon) {
@@ -17,12 +14,10 @@ iconsRouter.get('/:id', async (req, res) => {
     return;
   }
 
-  res.set({
-    'Content-Type': icon.mimeType,
-    'Cache-Control': 'private, max-age=31536000, immutable',
+  sendDownload(res, Buffer.from(icon.data), {
+    type: icon.mimeType,
+    cache: 'private, max-age=31536000, immutable',
     // Defense in depth for SVG: no script, no external resource, even if opened directly.
-    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
-    'X-Content-Type-Options': 'nosniff',
+    securityPolicy: "default-src 'none'; style-src 'unsafe-inline'; sandbox",
   });
-  res.send(Buffer.from(icon.data));
 });

@@ -175,11 +175,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         // Its parent and those above it: a filter on a task keeps its sub-tasks at every level.
         return {
           kind: 'choices',
-          value: (row) => {
-            const ids: string[] = [];
-            for (let parent = task(row)?.parentId ?? null; parent && !ids.includes(parent); parent = context.taskById.get(parent)?.parentId ?? null) ids.push(parent);
-            return ids;
-          },
+          value: (row) => lineageOf(context.taskById, task(row)?.parentId).map((parent) => parent.id),
           options: taskChoices,
         };
       case 'blockedBy':

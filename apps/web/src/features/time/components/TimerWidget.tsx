@@ -7,7 +7,7 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from '../api';
 import { RunningTimer } from './TimerCard';
 import classes from './TimerWidget.module.css';
-import { useNow } from '../hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import { useStopTimer } from '../hooks/use-stop-timer';
 
 /**

@@ -2,7 +2,7 @@ import { colorSchema, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE, type Document
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -82,7 +82,7 @@ export async function statusOf(scope: DocumentStatusScope, category: DocumentSta
  */
 function assertCategory(scope: DocumentStatusScope, category: DocumentStatusCategory): void {
   if (!STATUS_CATEGORIES_BY_SCOPE[scope].some((item) => item.value === category)) {
-    throw clientError('BAD_USER_INPUT', 'Catégorie invalide pour ce type de document.', { fields: { category: 'Catégorie invalide.' } });
+    throw fieldError('category', 'Catégorie invalide pour ce type de document.', 'Catégorie invalide.');
   }
 }
 

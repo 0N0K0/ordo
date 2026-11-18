@@ -1,4 +1,4 @@
-import { formatDay } from '@ordo/shared';
+import { formatDay, fromCents } from '@ordo/shared';
 import type { AccountingUnit, Address, DocumentTotals } from '@ordo/shared';
 import type { AccountingDocumentType } from '../../generated/prisma/client';
 import {
@@ -78,7 +78,7 @@ function element(
  * @param {number} cents Cents.
  * @returns {string} Amount.
  */
-const amount = (cents: number) => (cents / 100).toFixed(2);
+const amount = (cents: number) => fromCents(cents).toFixed(2);
 
 /**
  * Date in the 102 format (YYYYMMDD).

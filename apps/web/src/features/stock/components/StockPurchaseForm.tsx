@@ -1,12 +1,14 @@
+import { categoryOptions } from '../../../components/tree/category-tree';
 import { mapById } from '@ordo/shared';
-import { Button, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Paper, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { useAsyncAction } from '../../../lib/use-async-action';
+import { FormActions } from '../../../components/dialogs/FormActions';
 import { useShoppingData, type ShoppingItem } from '../../shopping/api';
 import { useStockLocations, useStockMutations } from '../api';
-import { locationOptions } from '../lib/stock-format';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 type Line = { item: ShoppingItem; quantity: number; locationId: string | null; expiresAt: string | null };
 
@@ -28,7 +30,15 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
       expiresAt: item.expiresAt ? String(item.expiresAt).slice(0, 10) : null,
     })),
   );
-  const [pending, setPending] = useState(false);
+  const { run: add, loading } = useAsyncAction(
+    () =>
+      Promise.all(
+        lines
+          .filter((line) => line.quantity > 0)
+          .map((line) => addPurchase.mutateAsync({ shoppingItemId: line.item.id, quantity: line.quantity, locationId: line.locationId, expiresAt: line.expiresAt })),
+      ),
+    { success: 'Ajouté au stock.', onDone },
+  );
   const change = (index: number, patch: Partial<Line>) => setLines((current) => current.map((line, position) => (position === index ? { ...line, ...patch } : line)));
   return (
     <Stack gap="md">
@@ -42,23 +52,14 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
               {line.item.name}
             </Text>
             <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
-              <NumberInput
-                size="xs"
-                label="Quantité"
-                min={0.001}
-                decimalScale={3}
-                decimalSeparator=","
-                suffix={line.item.unit ? ` ${line.item.unit}` : undefined}
-                value={line.quantity}
-                onChange={(value) => change(index, { quantity: Number(value) || 0 })}
-              />
+              <QuantityInput size="xs" label="Quantité" min={0.001} unit={line.item.unit} value={line.quantity} onChange={(value) => change(index, { quantity: Number(value) || 0 })} />
               <Select
                 size="xs"
                 label="Emplacement"
                 placeholder="Aucun"
                 clearable
                 searchable
-                {...treeSelectProps(locationOptions(locations ?? []))}
+                {...treeSelectProps(categoryOptions(locations ?? []))}
                 value={line.locationId}
                 onChange={(locationId) => change(index, { locationId })}
               />
@@ -67,28 +68,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
           </Stack>
         </Paper>
       ))}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Plus tard
-        </Button>
-        <Button
-          loading={pending}
-          disabled={lines.every((line) => line.quantity <= 0)}
-          onClick={() => {
-            setPending(true);
-            Promise.all(
-              lines
-                .filter((line) => line.quantity > 0)
-                .map((line) => addPurchase.mutateAsync({ shoppingItemId: line.item.id, quantity: line.quantity, locationId: line.locationId, expiresAt: line.expiresAt })),
-            )
-              .then(() => (notifySuccess('Ajouté au stock.'), onDone()))
-              .catch(onMutationError)
-              .finally(() => setPending(false));
-          }}
-        >
-          Ajouter au stock
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} cancelLabel="Plus tard" submitLabel="Ajouter au stock" onSubmit={() => void add()} disabled={lines.every((line) => line.quantity <= 0)} loading={loading} />
     </Stack>
   );
 }

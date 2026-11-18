@@ -1,5 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts, useMailActions, useScheduledMails } from '../api';
@@ -18,12 +18,9 @@ export function ScheduledMailsList() {
 
   if (!scheduled?.length) {
     return (
-      <Stack align="center" gap="sm" p="xl">
-        <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-          <ClockCountdownIcon aria-hidden />
-        </ThemeIcon>
-        <EmptyState compact message="Aucun envoi programmé. Programmez un mail depuis sa fenêtre de rédaction (« Programmer »)." />
-      </Stack>
+      <Box p="xl">
+        <EmptyState plain icon={<ClockCountdownIcon aria-hidden />} message="Aucun envoi programmé. Programmez un mail depuis sa fenêtre de rédaction (« Programmer »)." />
+      </Box>
     );
   }
   return (

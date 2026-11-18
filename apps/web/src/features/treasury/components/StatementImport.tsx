@@ -12,6 +12,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 /** Days between a bank operation and an entry or forecast of the same amount for them to match. */
 const DUPLICATE_DAYS = 3;
@@ -434,12 +435,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
               )}
             </>
           ),
-          amount: (
-            <Text span size="sm" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-              {row.amount > 0 ? '+' : ''}
-              {fmt.money(row.amount)}
-            </Text>
-          ),
+          amount: <SignedAmount value={row.amount} />,
         })}
         actions={() => null}
         actionsWidth={8}

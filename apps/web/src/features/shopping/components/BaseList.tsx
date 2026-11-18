@@ -1,3 +1,4 @@
+import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
@@ -28,7 +29,6 @@ import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../../stock/api';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { locationOptions, locationPaths } from '../../stock/lib/stock-format';
 import { collator, countOf, plural } from '../../../lib/text';
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
@@ -92,7 +92,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const people = usePeople();
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
-  const places = locationPaths(locations ?? []);
+  const places = categoryPaths(locations ?? []);
   const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
@@ -281,7 +281,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
                 value={product.stockLocationId ?? null}
                 label={`Emplacement en stock de ${product.name}`}
                 nullable
-                {...treeSelectProps(locationOptions(locations ?? []))}
+                {...treeSelectProps(categoryOptions(locations ?? []))}
                 onSave={(stockLocationId) => stockBulk('stockLocation')(product, { stockLocationId })}
               />
             ),

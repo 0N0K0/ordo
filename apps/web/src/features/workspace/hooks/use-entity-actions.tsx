@@ -81,7 +81,7 @@ export function useEntityActions() {
         onSuccess: () => {
           if (!notify) return;
           const cascade = entity.type === 'client' && archived ? ' avec ses projets' : '';
-          const message = `« ${entityLabel(entity)} » ${archived ? 'archivé' : 'désarchivé'}${cascade}.`;
+          const message = `« ${entityLabel(entity)} » ${archived ? 'archivé' : 'restauré'}${cascade}.`;
           notifyWithUndo(message, () => setArchived(entity, !archived, false));
         },
         onError: onMutationError,

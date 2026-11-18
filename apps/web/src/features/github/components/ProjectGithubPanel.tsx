@@ -1,3 +1,4 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { plural } from '../../../lib/text';
 import { normalize } from '@ordo/shared';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -283,7 +284,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
  */
 function EditLink({ link, context, onDone }: { link: GithubLink; context: TaskContext; onDone: () => void }) {
   const board = useGithubBoard(link.url);
-  if (board.error) return <Alert color="red">{board.error.message}</Alert>;
+  if (board.error) return <ErrorAlert>{board.error.message}</ErrorAlert>;
   if (!board.data) return <FormSkeleton fields={4} />;
   return (
     <LinkForm
@@ -443,9 +444,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
             </Group>
           </Group>
           {link.lastSyncError && (
-            <Alert color="red" icon={<WarningIcon aria-hidden />} title="Dernière synchronisation en échec">
-              {link.lastSyncError}
-            </Alert>
+            <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>
           )}
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">

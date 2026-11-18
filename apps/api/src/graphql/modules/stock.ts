@@ -3,6 +3,7 @@ import { STOCK_MOVEMENT_KINDS } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
+import { relationIds } from '../relation-fields';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? 0 : value.toNumber());
 
@@ -50,8 +51,8 @@ builder.prismaObject('StockItem', {
       select: { lots: { select: { quantity: true } } },
       resolve: (item) => Math.round(item.lots.reduce((sum, lot) => sum + float(lot.quantity), 0) * 1000) / 1000,
     }),
-    memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
-    relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
+    memberIds: t.idList(relationIds('members')),
+    relationIds: t.idList(relationIds('relations')),
     consumable: t.boolean({
       description: 'Used up: that of its reference (an item of its own is).',
       select: { product: { select: { consumable: true } } },
@@ -192,15 +193,15 @@ const day = (value: unknown) => (value ? String(value instanceof Date ? value.to
  * @returns {import('@ordo/shared').NewStockItemInput} Item.
  */
 const itemInput = (input: typeof ItemInput.$inferInput) => ({
-  productId: input.productId ? String(input.productId) : null,
+  productId: input.productId || null,
   label: input.label,
-  categoryId: input.categoryId ? String(input.categoryId) : null,
+  categoryId: input.categoryId || null,
   unit: input.unit ?? null,
-  locationId: input.locationId ? String(input.locationId) : null,
+  locationId: input.locationId || null,
   note: input.note ?? null,
   perishable: input.perishable,
-  memberIds: input.memberIds.map(String),
-  relationIds: input.relationIds.map(String),
+  memberIds: input.memberIds,
+  relationIds: input.relationIds,
   quantity: input.quantity ?? null,
   expiresAt: day(input.expiresAt),
 });
@@ -219,7 +220,7 @@ const deliveryInput = (input: typeof DeliveryInput.$inferInput) => ({
   address: input.address ?? null,
   lat: input.lat ?? null,
   lon: input.lon ?? null,
-  itemIds: input.itemIds.map(String),
+  itemIds: input.itemIds,
 });
 
 builder.queryFields((t) => ({
@@ -236,7 +237,7 @@ builder.queryFields((t) => ({
     type: ['StockMovement'],
     description: 'Movements of the stock, latest first: all, or those of an item.',
     args: { itemId: t.arg.id() },
-    resolve: (query, _root, { itemId }) => prisma.stockMovement.findMany({ ...query, where: itemId ? { itemId: String(itemId) } : {}, orderBy: { date: 'desc' }, take: 2000 }),
+    resolve: (query, _root, { itemId }) => prisma.stockMovement.findMany({ ...query, where: itemId ? { itemId: itemId } : {}, orderBy: { date: 'desc' }, take: 2000 }),
   }),
   stockCounts: t.prismaField({
     type: ['StockCount'],
@@ -253,66 +254,66 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createStockLocation: t.id({
     args: { input: t.arg({ type: LocationInput, required: true }) },
-    resolve: async (_root, { input }) => (await stock.createLocation({ name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })).id,
+    resolve: async (_root, { input }) => (await stock.createLocation({ name: input.name, color: input.color ?? null, parentId: input.parentId || null })).id,
   }),
   updateStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: LocationInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.updateLocation(String(id), { name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })),
+    resolve: (_root, { id, input }) => done(stock.updateLocation(id, { name: input.name, color: input.color ?? null, parentId: input.parentId || null })),
   }),
   moveStockLocation: t.boolean({
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: (_root, { id, parentId, index }) => done(stock.moveLocation(String(id), parentId ? String(parentId) : null, index)),
+    resolve: (_root, { id, parentId, index }) => done(stock.moveLocation(id, parentId || null, index)),
   }),
-  deleteStockLocation: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteLocation(String(id))) }),
+  deleteStockLocation: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteLocation(id)) }),
   createStockItem: t.id({ args: { input: t.arg({ type: ItemInput, required: true }) }, resolve: async (_root, { input }) => (await stock.createStockItem(itemInput(input))).id }),
   updateStockItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.updateStockItem(String(id), itemInput(input))),
+    resolve: (_root, { id, input }) => done(stock.updateStockItem(id, itemInput(input))),
   }),
-  deleteStockItem: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteStockItem(String(id))) }),
+  deleteStockItem: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteStockItem(id)) }),
   moveStock: t.float({
     description: 'Quantity in or out of an item by hand; returns the quantity moved (signed).',
     args: { input: t.arg({ type: MoveInput, required: true }) },
     resolve: (_root, { input }) =>
       stock.moveStock({
-        itemId: String(input.itemId),
+        itemId: input.itemId,
         kind: input.kind as 'PURCHASE' | 'CONSUMPTION' | 'LOSS' | 'CORRECTION',
         quantity: input.quantity,
-        lotId: input.lotId ? String(input.lotId) : null,
+        lotId: input.lotId || null,
         expiresAt: day(input.expiresAt),
         note: input.note ?? null,
       }),
   }),
   setStockLotExpiry: t.boolean({
     args: { id: t.arg.id({ required: true }), expiresAt: t.arg({ type: 'Date' }) },
-    resolve: (_root, { id, expiresAt }) => done(stock.setLotExpiry(String(id), day(expiresAt))),
+    resolve: (_root, { id, expiresAt }) => done(stock.setLotExpiry(id, day(expiresAt))),
   }),
   recordStockCount: t.id({
     args: { input: t.arg({ type: CountInput, required: true }) },
     resolve: async (_root, { input }) =>
       (
         await stock.recordCount({
-          locationId: input.locationId ? String(input.locationId) : null,
+          locationId: input.locationId || null,
           note: input.note ?? null,
-          lines: input.lines.map((line) => ({ itemId: String(line.itemId), counted: line.counted })),
+          lines: input.lines.map((line) => ({ itemId: line.itemId, counted: line.counted })),
         })
       ).id,
   }),
   setProductStock: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProductStockInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.setProductStock(String(id), { ...input, stockLocationId: input.stockLocationId ? String(input.stockLocationId) : null })),
+    resolve: (_root, { id, input }) => done(stock.setProductStock(id, { ...input, stockLocationId: input.stockLocationId || null })),
   }),
   addStockPurchase: t.boolean({
     description: 'Adds an item bought on a shopping list to the stock.',
     args: { input: t.arg({ type: PurchaseInput, required: true }) },
     resolve: (_root, { input }) =>
-      done(stock.addPurchase({ shoppingItemId: String(input.shoppingItemId), quantity: input.quantity, locationId: input.locationId ? String(input.locationId) : null, expiresAt: day(input.expiresAt) }),
+      done(stock.addPurchase({ shoppingItemId: input.shoppingItemId, quantity: input.quantity, locationId: input.locationId || null, expiresAt: day(input.expiresAt) }),
       ),
   }),
   setShoppingOrder: t.boolean({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: OrderInput, required: true }) },
     resolve: (_root, { listId, input }) =>
-      done(stock.setShoppingOrder(String(listId), {
+      done(stock.setShoppingOrder(listId, {
           remote: input.remote,
           deliveryAddress: input.deliveryAddress ?? null,
           deliveryLat: input.deliveryLat ?? null,
@@ -322,16 +323,16 @@ builder.mutationFields((t) => ({
   }),
   createShoppingDelivery: t.id({
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: DeliveryInput, required: true }) },
-    resolve: async (_root, { listId, input }) => (await stock.createDelivery(String(listId), deliveryInput(input))).id,
+    resolve: async (_root, { listId, input }) => (await stock.createDelivery(listId, deliveryInput(input))).id,
   }),
   updateShoppingDelivery: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: DeliveryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(stock.updateDelivery(String(id), deliveryInput(input))),
+    resolve: (_root, { id, input }) => done(stock.updateDelivery(id, deliveryInput(input))),
   }),
-  deleteShoppingDelivery: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteDelivery(String(id))) }),
+  deleteShoppingDelivery: t.boolean({ args: { id: t.arg.id({ required: true }) }, resolve: (_root, { id }) => done(stock.deleteDelivery(id)) }),
   setShoppingDeliveryReceived: t.idList({
     description: 'Marks a delivery received (its items ticked as bought) or not; returns the items ticked now.',
     args: { id: t.arg.id({ required: true }), received: t.arg.boolean({ required: true }) },
-    resolve: (_root, { id, received }) => stock.setDeliveryReceived(String(id), received),
+    resolve: (_root, { id, received }) => stock.setDeliveryReceived(id, received),
   }),
 }));

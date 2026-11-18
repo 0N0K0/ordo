@@ -9,7 +9,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -29,9 +29,9 @@ import {
   TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useSortable } from '@dnd-kit/sortable';
+import { SortableArea } from '../../../components/actions/sortable';
+import { sortableStyle } from '../../../components/actions/sortable-style';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -49,7 +49,6 @@ import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
-import { useDragSensors } from '../../../lib/drag';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 /** Image of a chart as exported. */
@@ -222,10 +221,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       style={{
         gridColumn: chart.wide ? '1 / -1' : undefined,
         minWidth: 0,
-        transform: CSS.Translate.toString(transform),
-        transition,
-        position: 'relative',
-        zIndex: isDragging ? 1 : undefined,
+        ...sortableStyle({ transform, transition, isDragging }),
       }}
     >
       <Stack gap="sm">
@@ -321,18 +317,6 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const captures: Captures = useRef(new Map());
   const [exporting, setExporting] = useState(false);
   const [current, select] = useTabParam('dashboard', dashboards);
-  const sensors = useDragSensors('sortable');
-
-  /**
-   * Moves the dropped chart to its new place.
-   * @param {DragEndEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!current || !over || active.id === over.id) return;
-    const index = current.charts.findIndex((chart) => chart.id === over.id);
-    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: onMutationError });
-  };
 
   /**
    * Asks for a dashboard name, then creates or renames it.
@@ -494,11 +478,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           onMove={(id, index) => mutations.move.mutate({ id, index }, { onError: onMutationError })}
           name={(dashboard) => dashboard.name}
           label={(dashboard) => dashboard.name}
-          actions={(dashboard) => (
-            <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => askName(dashboard)}>
-              Renommer
-            </Menu.Item>
-          )}
+          actions={(dashboard) => [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]}
           onDelete={confirmDelete}
           add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}
         />
@@ -523,25 +503,24 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       {current.charts.length === 0 ? (
         <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>
-            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-              {current.charts.map((chart, chartIndex) => (
-                <ChartCard
-                  key={chart.id}
-                  chart={chart}
-                  index={chartIndex}
-                  count={current.charts.length}
-                  scope={scope}
-                  context={context}
-                  dashboardName={`${title} — ${current.name}`}
-                  captures={captures}
-                  onEdit={() => openEditor(chart)}
-                />
-              ))}
-            </SimpleGrid>
-          </SortableContext>
-        </DndContext>
+        // The dropped chart moves to its new place.
+        <SortableArea ids={current.charts.map((chart) => chart.id)} layout="grid" onMove={(id, _, index) => mutations.moveChart.mutate({ id, index }, { onError: onMutationError })}>
+          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+            {current.charts.map((chart, chartIndex) => (
+              <ChartCard
+                key={chart.id}
+                chart={chart}
+                index={chartIndex}
+                count={current.charts.length}
+                scope={scope}
+                context={context}
+                dashboardName={`${title} — ${current.name}`}
+                captures={captures}
+                onEdit={() => openEditor(chart)}
+              />
+            ))}
+          </SimpleGrid>
+        </SortableArea>
       )}
     </Stack>
   );

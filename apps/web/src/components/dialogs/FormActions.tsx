@@ -8,6 +8,8 @@ interface FormActionsProps {
   submitIcon?: ReactNode;
   /** Gives up the form (none: no « Annuler »). Optional. */
   onCancel?: () => void;
+  /** Label of the cancel button. Optional. Default = « Annuler ». */
+  cancelLabel?: ReactNode;
   /** The form is being sent (its button waits). Optional. Default = false. */
   loading?: boolean;
   /** The form cannot be sent yet. Optional. Default = false. */
@@ -26,12 +28,12 @@ interface FormActionsProps {
  * @param {FormActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
-export function FormActions({ submitLabel = 'Enregistrer', submitIcon, onCancel, loading = false, disabled = false, onSubmit, autoFocus = false, size }: FormActionsProps) {
+export function FormActions({ submitLabel = 'Enregistrer', submitIcon, onCancel, cancelLabel = 'Annuler', loading = false, disabled = false, onSubmit, autoFocus = false, size }: FormActionsProps) {
   return (
     <Group justify="flex-end" gap={size === 'xs' ? 'xs' : 'sm'}>
       {onCancel && (
         <Button variant="default" size={size} onClick={onCancel}>
-          Annuler
+          {cancelLabel}
         </Button>
       )}
       <Button type={onSubmit ? 'button' : 'submit'} size={size} onClick={onSubmit} loading={loading} disabled={disabled} leftSection={submitIcon} data-autofocus={autoFocus || undefined}>

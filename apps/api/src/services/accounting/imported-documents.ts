@@ -6,6 +6,7 @@ import { attachmentData } from '../core/attachments';
 import { scopeOf } from './document-statuses';
 import { sendingData, sentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
+import { assertExists } from '../core/lookup';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
 
@@ -31,8 +32,8 @@ function importData(input: ReturnType<typeof importSchema.parse>) {
  * @returns {Promise<void>}
  */
 async function assertRefs({ clientId, projectId }: { clientId: string | null; projectId: string | null }): Promise<void> {
-  if (clientId && !(await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }))) throw notFound('Client');
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertExists(prisma.client, clientId, 'Client');
+  await assertExists(prisma.project, projectId, 'Projet');
 }
 
 /**
@@ -94,7 +95,7 @@ export async function updateImportedDocument(id: string, input: ImportedDocument
  */
 export async function setImportedProject(id: string, projectId: string | null): Promise<ImportedDocument> {
   await orNotFound(prisma.importedDocument.findUnique({ where: { id }, select: { id: true } }), 'Document importé');
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   return prisma.importedDocument.update({ where: { id }, data: { projectId } });
 }
 

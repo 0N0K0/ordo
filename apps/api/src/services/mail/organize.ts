@@ -5,8 +5,9 @@ import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailLabel } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { withImap } from './imap';
+import { withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
+import { assertExists } from '../core/lookup';
 
 /** Keywords of the spam state, as most clients and servers read them. */
 const JUNK = '$Junk';
@@ -25,19 +26,16 @@ type MarkChange = { labelId: string; on: boolean } | { done: boolean };
  * @returns {Promise<void>}
  */
 export async function markMails(accountId: string, folder: string, uids: number[], change: MarkChange): Promise<void> {
-  if ('labelId' in change && !(await prisma.mailLabel.findUnique({ where: { id: change.labelId }, select: { id: true } }))) throw notFound('Drapeau');
+  if ('labelId' in change) await assertExists(prisma.mailLabel, change.labelId, 'Drapeau');
   const fallback = await withImap(accountId, async (client) => {
-    const lock = await client.getMailboxLock(folder);
-    try {
+    return withMailbox(client, folder, async () => {
       if (!takesKeywords(client)) return messageIdsOf(client, uids);
       const keyword = 'labelId' in change ? labelKeyword(change.labelId) : DONE_KEYWORD;
       const on = 'labelId' in change ? change.on : change.done;
       if (on) await client.messageFlagsAdd(uids, [keyword], { uid: true });
       else await client.messageFlagsRemove(uids, [keyword], { uid: true });
       return null;
-    } finally {
-      lock.release();
-    }
+    });
   });
   if (!fallback) return;
   for (const messageId of fallback.values()) {
@@ -56,18 +54,38 @@ export async function markMails(accountId: string, folder: string, uids: number[
   }
 }
 
+/** Usual names of the special folders, for servers that do not flag them. */
+const SPECIAL_NAMES = {
+  '\\Drafts': /^(drafts|brouillons)$/i,
+  '\\Sent': /^(sent|sent items|sent messages|envoy[ée]s|[ée]l[ée]ments envoy[ée]s|messages envoy[ée]s)$/i,
+  '\\Trash': /^(trash|deleted|deleted items|deleted messages|corbeille|[ée]l[ée]ments supprim[ée]s)$/i,
+  '\\Junk': /^(junk|spam|courrier ind[ée]sirable|ind[ée]sirables?)$/i,
+} as const;
+
+/** Special use of a folder (RFC 6154). */
+export type SpecialUse = keyof typeof SPECIAL_NAMES;
+
+/**
+ * Path of the folder of an account having a special use, found by its flag or else by its usual name.
+ * @param {ImapFlow} client Connected client.
+ * @param {SpecialUse} specialUse Special use (\Junk…).
+ * @returns {Promise<string | null>} Path, or null when the account has none.
+ */
+export async function findSpecialFolder(client: ImapFlow, specialUse: SpecialUse): Promise<string | null> {
+  const folders = await client.list();
+  const found = folders.find((item) => item.specialUse === specialUse) ?? folders.find((item) => SPECIAL_NAMES[specialUse].test(item.name));
+  return found ? found.path : null;
+}
+
 /**
  * Path of the folder of an account having a special use, created when missing.
  * @param {ImapFlow} client Connected client.
- * @param {string} specialUse Special use (\Junk…).
- * @param {RegExp} names Usual names of such a folder.
+ * @param {SpecialUse} specialUse Special use (\Junk…).
  * @param {string} create Name of the folder to create.
  * @returns {Promise<string>} Path.
  */
-async function specialFolder(client: ImapFlow, specialUse: string, names: RegExp, create: string): Promise<string> {
-  const folders = await client.list();
-  const found = folders.find((item) => item.specialUse === specialUse) ?? folders.find((item) => names.test(item.name));
-  return found ? found.path : (await client.mailboxCreate([create])).path;
+export async function specialFolder(client: ImapFlow, specialUse: SpecialUse, create: string): Promise<string> {
+  return (await findSpecialFolder(client, specialUse)) ?? (await client.mailboxCreate([create])).path;
 }
 
 /**
@@ -81,17 +99,14 @@ async function specialFolder(client: ImapFlow, specialUse: string, names: RegExp
  */
 export async function reportSpam(accountId: string, folder: string, uids: number[], spam: boolean): Promise<string> {
   return withImap(accountId, async (client) => {
-    const target = spam ? await specialFolder(client, '\\Junk', /^(junk|spam|courrier ind[ée]sirable|ind[ée]sirables?)$/i, 'Junk') : 'INBOX';
-    const lock = await client.getMailboxLock(folder);
-    try {
+    const target = spam ? await specialFolder(client, '\\Junk', 'Junk') : 'INBOX';
+    return withMailbox(client, folder, async () => {
       // The keywords are a hint: servers without keywords just move the mails.
       await client.messageFlagsAdd(uids, [spam ? JUNK : NOT_JUNK], { uid: true }).catch(() => undefined);
       await client.messageFlagsRemove(uids, [spam ? NOT_JUNK : JUNK], { uid: true }).catch(() => undefined);
       if (target !== folder) await client.messageMove(uids, target, { uid: true });
       return target;
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 
@@ -107,12 +122,9 @@ export async function moveMails(accountId: string, folder: string, uids: number[
   if (target === folder || !uids.length) return;
   await withImap(accountId, async (client) => {
     if (!(await client.list()).some((item) => item.path === target)) throw notFound('Dossier');
-    const lock = await client.getMailboxLock(folder);
-    try {
+    await withMailbox(client, folder, async () => {
       await client.messageMove(uids, target, { uid: true });
-    } finally {
-      lock.release();
-    }
+    });
   });
 }
 

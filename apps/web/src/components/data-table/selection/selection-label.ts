@@ -1,3 +1,5 @@
+import { plural } from '../../../lib/text';
+
 /**
  * Rows selected, told: "3 lignes sélectionnées", "1 fiche sélectionnée".
  * @param {number} count Count.
@@ -6,4 +8,4 @@
  * @returns {string} Text.
  */
 export const selectedLabel = (count: number, [one, many]: [string, string] = ['ligne', 'lignes'], feminine = true) =>
-  `${count} ${count > 1 ? many : one} sélectionné${feminine ? 'e' : ''}${count > 1 ? 's' : ''}`;
+  `${count} ${plural(count, one, many)} ${plural(count, feminine ? 'sélectionnée' : 'sélectionné')}`;

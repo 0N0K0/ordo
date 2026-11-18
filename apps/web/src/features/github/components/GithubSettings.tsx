@@ -1,7 +1,8 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -124,7 +125,7 @@ export function GithubSettings() {
         description="Les assignés d’une issue sont ceux des contributeurs qui ont son login GitHub ; les autres logins sont laissés tels quels des deux côtés."
       >
         {!contributors?.length ? (
-          <Alert color="gray">Aucun contributeur.</Alert>
+          <EmptyState compact message="Aucun contributeur." />
         ) : (
           <Table verticalSpacing={4} maw={560}>
             <Table.Tbody>

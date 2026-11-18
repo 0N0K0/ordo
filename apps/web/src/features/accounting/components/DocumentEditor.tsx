@@ -1,4 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ClientSelect } from '../../workspace/components/ClientSelect';
 import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
@@ -32,12 +33,12 @@ import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from '../lib/recurring-form';
 import { FileLink } from '../../files/components/FileLink';
 import { FilePreview } from '../../files/components/FilePreview';
-import { projectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../workspace/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { countOf, plural } from '../../../lib/text';
+import { DiscountInput } from './DiscountInput';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -266,10 +267,7 @@ function Editor({ document }: { document: AccountingDocument }) {
     openFormPanel('Facturer le temps passé', (close) => (
         <TimeBillingForm
           projectId={values.projectId}
-          projects={projectOptions(
-            workspace,
-            (workspace?.projects ?? []).filter((project) => project.clientId === values.clientId || project.id === values.projectId),
-          )}
+          projects={clientProjectOptions(workspace, values.clientId, { archived: true, keepId: values.projectId })}
           excludeIds={billedIds}
           start={values.serviceStart}
           end={values.serviceEnd}
@@ -290,7 +288,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       ), { size: 'lg', panelId: `time-billing-${document.id}` });
   };
 
-  const projects = (workspace?.projects ?? []).filter((project) => (!project.archived && project.clientId === values.clientId) || project.id === values.projectId);
   const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
 
   return (
@@ -450,7 +447,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   searchable
                   readOnly={readOnly}
                   placeholder="Aucun"
-                  {...treeSelectProps(projectOptions(workspace, projects))}
+                  {...treeSelectProps(clientProjectOptions(workspace, values.clientId, { keepId: values.projectId }))}
                   {...form.getInputProps('projectId')}
                 />
                 <Select
@@ -570,38 +567,23 @@ function Editor({ document }: { document: AccountingDocument }) {
               )}
               <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={readOnly} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
               {isQuote && (
-                <Group gap={4} align="flex-end" wrap="nowrap">
-                  <AmountInput
-                    label="Acompte à la commande"
-                    placeholder="Aucun"
-                    min={0}
-                    readOnly={readOnly}
-                    style={{ flex: 1 }}
-                    error={form.errors.depositValue}
-                    description={
-                      values.depositType && values.depositValue
-                        ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
-                        : undefined
-                    }
-                    value={values.depositValue ?? ''}
-                    onChange={(value) =>
-                      form.setValues({
-                        depositValue: typeof value === 'number' && value > 0 ? value : null,
-                        depositType: typeof value === 'number' && value > 0 ? (values.depositType ?? 'PERCENT') : null,
-                      })
-                    }
-                  />
-                  <SegmentedControl
-                    aria-label="Type d’acompte"
-                    readOnly={readOnly}
-                    data={[
-                      { value: 'PERCENT', label: '%' },
-                      { value: 'AMOUNT', label: currency === 'EUR' ? '€' : currency },
-                    ]}
-                    value={values.depositType ?? 'PERCENT'}
-                    onChange={(type) => form.setFieldValue('depositType', type as FormValues['depositType'])}
-                  />
-                </Group>
+                <DiscountInput
+                  label="Acompte à la commande"
+                  placeholder="Aucun"
+                  readOnly={readOnly}
+                  style={{ flex: 1 }}
+                  error={form.errors.depositValue}
+                  description={
+                    values.depositType && values.depositValue
+                      ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
+                      : undefined
+                  }
+                  value={values.depositValue ?? null}
+                  type={values.depositType ?? null}
+                  currency={currency}
+                  typeLabel="Type d’acompte"
+                  onChange={({ value, type }) => form.setValues({ depositValue: value, depositType: type })}
+                />
               )}
               {document.type !== 'CREDIT_NOTE' && (
                 <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={readOnly} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
@@ -631,30 +613,16 @@ function Editor({ document }: { document: AccountingDocument }) {
             {readOnly && <TrackingPanel document={document} onRemind={() => openDocumentMail(true)} remindPending={preparingMail} />}
             <Section title="Totaux">
               {!readOnly && (
-                <Group gap={4} align="flex-end" wrap="nowrap">
-                  <AmountInput
-                    label="Remise générale"
-                    min={0}
-                    style={{ flex: 1 }}
-                    error={form.errors.globalDiscountValue}
-                    value={values.globalDiscountValue ?? ''}
-                    onChange={(value) =>
-                      form.setValues({
-                        globalDiscountValue: typeof value === 'number' && value > 0 ? value : null,
-                        globalDiscountType: typeof value === 'number' && value > 0 ? (values.globalDiscountType ?? 'PERCENT') : null,
-                      })
-                    }
-                  />
-                  <SegmentedControl
-                    aria-label="Type de remise générale"
-                    data={[
-                      { value: 'PERCENT', label: '%' },
-                      { value: 'AMOUNT', label: '€' },
-                    ]}
-                    value={values.globalDiscountType ?? 'PERCENT'}
-                    onChange={(type) => form.setFieldValue('globalDiscountType', type as FormValues['globalDiscountType'])}
-                  />
-                </Group>
+                <DiscountInput
+                  label="Remise générale"
+                  style={{ flex: 1 }}
+                  error={form.errors.globalDiscountValue}
+                  value={values.globalDiscountValue ?? null}
+                  type={values.globalDiscountType ?? null}
+                  currency={currency}
+                  typeLabel="Type de remise générale"
+                  onChange={({ value, type }) => form.setValues({ globalDiscountValue: value, globalDiscountType: type })}
+                />
               )}
               <Table withRowBorders={false} verticalSpacing={4}>
                 <Table.Tbody>
@@ -790,7 +758,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
 export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
   if (isPending) return <DetailSkeleton fields={6} />;
-  if (error || !document) return <Alert color="red">{error?.message ?? 'Document introuvable.'}</Alert>;
+  if (error || !document) return <ErrorAlert>{error?.message ?? 'Document introuvable.'}</ErrorAlert>;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;
 }

@@ -6,7 +6,7 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
 import { uploadAttachment } from '../../lib/attachments';
-import { notifyError } from '../../lib/notify';
+import { notifyFailure } from '../../lib/notify';
 import classes from './RichEditor.module.css';
 
 interface RichEditorProps {
@@ -34,7 +34,7 @@ const uploadImage = async (file: File) => (await uploadAttachment(file)).url;
  * @param {unknown} error Error.
  * @returns {void}
  */
-const imageUploadError = (_file: File, error: unknown) => notifyError(error instanceof Error ? error.message : 'Image non envoyée.');
+const imageUploadError = (_file: File, error: unknown) => notifyFailure(error, 'Image non envoyée.');
 
 // Images uploaded (button, drop, paste: the plain image extension lets the button do nothing), resized by
 // their corners keeping their proportions (logos of signatures).

@@ -1,6 +1,7 @@
 import { done } from '../errors';
 import { prisma } from '../../db';
 import * as dashboards from '../../services/dashboards/dashboards';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 
 builder.prismaObject('Dashboard', {
@@ -10,7 +11,7 @@ builder.prismaObject('Dashboard', {
     projectId: t.exposeID('projectId', { nullable: true }),
     name: t.exposeString('name'),
     position: t.exposeInt('position'),
-    charts: t.relation('charts', { query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } }),
+    charts: t.relation('charts', { query: { orderBy: BY_POSITION } }),
   }),
 });
 
@@ -39,7 +40,7 @@ builder.queryFields((t) => ({
     description: 'Dashboards of a project, or the global ones.',
     args: { projectId: t.arg.id() },
     resolve: (query, _root, { projectId }) =>
-      prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+      prisma.dashboard.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: BY_POSITION }),
   }),
 }));
 

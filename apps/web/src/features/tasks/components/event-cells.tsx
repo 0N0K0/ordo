@@ -1,8 +1,8 @@
 import { Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
-import { formatDuration } from '@ordo/shared';
+import { addDays, daysBetween, formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useNow } from '../../../lib/use-now';
 
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
@@ -123,11 +123,7 @@ export function EventPeopleCell({ event, context }: { event: EventOccurrence; co
  */
 export function EventStatusCell({ event }: { event: EventOccurrence }) {
   // Read again each minute: an event to come starts, an ongoing one ends.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const now = useNow(true, 60_000);
   const { label, color } = EVENT_STATES[eventState(event, now)];
   return (
     <Badge variant="light" color={color} radius="sm" style={{ textTransform: 'none' }}>
@@ -180,7 +176,7 @@ const lengthOf = (event: EventOccurrence) => wall(String(event.endDate), event.e
  * @param {EventOccurrence} event Occurrence.
  * @returns {number} Days.
  */
-const spanOf = (event: EventOccurrence) => Math.round((wall(String(event.endDate), null) - wall(String(event.startDate), null)) / 86_400_000);
+const spanOf = (event: EventOccurrence) => daysBetween(String(event.startDate), String(event.endDate));
 
 /**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
@@ -205,7 +201,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
           if (!date) return;
           // Each event keeps its own length; an end never comes before its start.
           if (side === 'end') void save((target) => (date >= String(target.startDate) ? { endDate: date } : {}));
-          else void save((target) => ({ startDate: date, endDate: fromWall(wall(date, null) + spanOf(target) * 86_400_000).date }));
+          else void save((target) => ({ startDate: date, endDate: addDays(date, spanOf(target)) }));
         }}
         popoverProps={{ withinPortal: true }}
       />

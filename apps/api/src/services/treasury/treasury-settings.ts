@@ -11,7 +11,7 @@ import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
 
 /**
@@ -26,7 +26,7 @@ async function parseCategory(input: TreasuryCategoryInput, id?: string) {
   if (!data.parentId) return data;
   const parent = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: data.parentId } }), 'Catégorie parente');
   if (parent.direction !== data.direction) {
-    throw clientError('BAD_USER_INPUT', 'La catégorie parente doit être du même sens.', { fields: { parentId: 'La catégorie parente doit être du même sens.' } });
+    throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
   }
   await assertTreeParent('treasuryCategory', data.parentId, id, { missing: 'Catégorie parente', loop: 'Une catégorie ne peut pas être rangée sous elle-même.' });
   return data;
@@ -68,7 +68,7 @@ export async function updateCategory(id: string, input: TreasuryCategoryInput): 
     }
   }
   const used = await prisma.treasuryEntry.count({ where: { categoryId: { in: [...branch] } } });
-  if (used) throw clientError('BAD_USER_INPUT', 'Des mouvements utilisent cette catégorie : son sens ne peut plus changer.', { fields: { direction: 'Des mouvements l’utilisent.' } });
+  if (used) throw fieldError('direction', 'Des mouvements utilisent cette catégorie : son sens ne peut plus changer.', 'Des mouvements l’utilisent.');
   return prisma.$transaction(async (tx) => {
     await tx.treasuryCategory.updateMany({ where: { id: { in: [...branch] } }, data: { direction: data.direction } });
     return tx.treasuryCategory.update({ where: { id }, data });
@@ -127,10 +127,10 @@ export async function updatePaymentMethod(id: string, input: TreasuryPaymentMeth
   const data = parseInput(treasuryPaymentMethodSchema, input);
   await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id }, select: { id: true } }), 'Moyen de paiement');
   if (!data.incoming && (await prisma.treasuryEntry.count({ where: { methodId: id, amount: { gt: 0 } } }))) {
-    throw clientError('BAD_USER_INPUT', 'Des entrées utilisent ce moyen de paiement.', { fields: { incoming: 'Des entrées l’utilisent.' } });
+    throw fieldError('incoming', 'Des entrées utilisent ce moyen de paiement.', 'Des entrées l’utilisent.');
   }
   if (!data.outgoing && (await prisma.treasuryEntry.count({ where: { methodId: id, amount: { lt: 0 } } }))) {
-    throw clientError('BAD_USER_INPUT', 'Des sorties utilisent ce moyen de paiement.', { fields: { outgoing: 'Des sorties l’utilisent.' } });
+    throw fieldError('outgoing', 'Des sorties utilisent ce moyen de paiement.', 'Des sorties l’utilisent.');
   }
   return prisma.treasuryPaymentMethod.update({ where: { id }, data });
 }
@@ -191,7 +191,7 @@ export async function setInvoiceCategories(input: { invoiceCategoryId: string | 
     const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } }), 'Catégorie');
     if (category.direction !== direction) {
       const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
-      throw clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
+      throw fieldError(field, message);
     }
   }
   const company = await getCompanyProfile();
