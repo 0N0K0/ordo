@@ -2,7 +2,7 @@ import { Button, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DataColumnsPanel } from '../../../components/data-table/toolbar/ColumnsPanel';
 import { localToday } from '../../../lib/dates';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useSetTaskColumnDefaults, useTaskColumnDefaults } from '../api';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { useTaskContext } from '../hooks/use-task-context';
@@ -18,13 +18,12 @@ export function ColumnDefaults() {
   const save = useSetTaskColumnDefaults();
   const { context } = useTaskContext();
   const columns = useTaskColumns(context, localToday(), { doable: false });
-  const onError = onMutationError;
   return (
     <SettingsSection
       title="Colonnes des nouvelles vues"
       actions={
         <>
-          <Button size="xs" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save.mutate(null, { onError })}>
+          <Button size="xs" variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save.mutate(null, ON_ERROR)}>
             Colonnes de l’app
           </Button>
         </>
@@ -37,7 +36,7 @@ export function ColumnDefaults() {
         <DataColumnsPanel
           columns={columns}
           layout={{ columnOrder: defaults.columnOrder, hiddenColumns: defaults.hiddenColumns, columnSizing: {} }}
-          onLayoutChange={(layout) => save.mutate(layout.columnOrder.length ? { columnOrder: layout.columnOrder, hiddenColumns: layout.hiddenColumns } : null, { onError })}
+          onLayoutChange={(layout) => save.mutate(layout.columnOrder.length ? { columnOrder: layout.columnOrder, hiddenColumns: layout.hiddenColumns } : null, ON_ERROR)}
         />
       )}
     </SettingsSection>

@@ -1,4 +1,4 @@
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks } from '../../../lib/form';
 import { useTimeMutations, type TimerStartValues } from '../api';
 
 /**
@@ -9,13 +9,10 @@ export function useStartTimer() {
   const { start } = useTimeMutations();
   return {
     startTimer: (input: TimerStartValues, onStarted?: () => void) =>
-      start.mutate(input, {
-        onSuccess: () => {
-          notifySuccess('Chrono démarré.');
-          onStarted?.();
-        },
-        onError: onMutationError,
-      }),
+      start.mutate(
+        input,
+        formCallbacks(null, 'Chrono démarré.', () => onStarted?.()),
+      ),
     isPending: start.isPending,
   };
 }

@@ -2,7 +2,7 @@ import { colorSchema, labelNameSchema, STATUS_CATEGORIES_BY_SCOPE, type Document
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { assertNotArchived } from '../core/archive';
 
@@ -15,6 +15,18 @@ type Client = Prisma.TransactionClient | typeof prisma;
  */
 export function scopeOf(type: AccountingDocumentType): DocumentStatusScope {
   return type === 'QUOTE' ? 'QUOTE' : 'INVOICE';
+}
+
+/**
+ * A tracking status of the scope of a document type, or NOT_FOUND.
+ * @param {string} statusId Status.
+ * @param {AccountingDocumentType} type Document type.
+ * @returns {Promise<DocumentStatus>} Status.
+ */
+export async function scopedStatus(statusId: string, type: AccountingDocumentType): Promise<DocumentStatus> {
+  const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
+  if (!status || status.scope !== scopeOf(type)) throw notFound('Statut');
+  return status;
 }
 
 /** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */

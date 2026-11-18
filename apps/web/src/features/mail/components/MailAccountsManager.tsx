@@ -5,12 +5,12 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Group, Stack, Text, ThemeIcon } from '@mantine/core';
 
-import { ArchiveIcon, ArrowCounterClockwiseIcon, EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
+import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
@@ -47,15 +47,10 @@ export function MailAccountsManager() {
   const confirmDelete = (account: MailAccount) => {
     confirmDestructive({ title: 'Retirer la boîte mail', risks: (
 <>
-<Text size="sm">
             {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés.
             Les mails restent sur le serveur, et ceux rattachés à des projets restent dans Ordo. Cette action est irréversible.
-          </Text>
-</>
-), confirmLabel: 'Retirer', onConfirm: () => { remove.mutate(account.id, {
-                onSuccess: () => notifySuccess('Boîte mail retirée.'),
-                onError: onMutationError,
-              }); } });
+          </>
+), confirmLabel: 'Retirer', onConfirm: () => { remove.mutate(account.id, toastCallbacks('Boîte mail retirée.')); } });
   };
 
   return (
@@ -100,11 +95,7 @@ export function MailAccountsManager() {
                   // Archived: read only.
                   !account.archived && { label: 'Signature', icon: <SignatureIcon aria-hidden />, onClick: () => open(`Signature — ${account.name}`, (close) => <SignatureForm account={account} onDone={close} />) },
                   !account.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => open(`Modifier — ${account.name}`, (close) => <MailAccountForm account={account} onDone={close} />) },
-                  {
-                    label: account.archived ? 'Restaurer' : 'Archiver',
-                    icon: account.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                    onClick: () => void archiveWithUndo(setArchived, { ids: [account.id], archived: !account.archived, label: `Boîte « ${account.name} »`, feminine: true }),
-                  },
+                  archiveEntry({ archived: account.archived, label: `Boîte « ${account.name} »`, feminine: true }, setArchived, account.id),
                   { label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(account) },
                 ]}
               />

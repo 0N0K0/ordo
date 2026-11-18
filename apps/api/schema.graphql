@@ -595,6 +595,8 @@ type Client {
 
   """Postal address { lines, postalCode, city, region, country }."""
   address: JSON
+
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   color: String
   contacts: [ClientContact!]!
@@ -2318,6 +2320,7 @@ input ProductStockInput {
 }
 
 type Project {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   categories: [ProjectCategory!]!
   clientId: ID
@@ -2791,6 +2794,7 @@ type ReminderResult {
 Task repeating on a calendar rule, ticked once done for its current occurrence.
 """
 type Routine {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   assigneeIds: [ID!]!
 
@@ -3816,6 +3820,7 @@ type SubscribableCalendar {
 }
 
 type Task {
+  """Archived: hidden by default, read only."""
   archived: Boolean!
   assigneeIds: [ID!]!
 

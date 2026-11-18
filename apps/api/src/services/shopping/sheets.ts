@@ -1,15 +1,12 @@
 import {
   addQuantities,
   checklistItemSchema,
+  copyName,
   ITEM_NOTE_MAX,
   itemNoteSchema,
-  quantitySchema,
-  SHOPPING_NAME_MAX,
-  shoppingItemSchema,
-  UNIT_MAX,
-  unitSchema,
   mapById,
   parseDay,
+  quantitySchema,
   readSheetSources,
   roundQuantity,
   sheetCategorySchema,
@@ -22,7 +19,11 @@ import {
   sheetMultiplierSchema,
   sheetSchema,
   type SheetSource,
+  SHOPPING_NAME_MAX,
+  shoppingItemSchema,
   timesSheet,
+  UNIT_MAX,
+  unitSchema,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -198,7 +199,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   await assertNotArchived('SHEET', id);
-  const copy = await createSheet({ name: `${sheet.name} (copie)`.slice(0, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  const copy = await createSheet({ name: copyName(sheet.name, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({
@@ -498,39 +499,55 @@ export async function removeSheetFromShoppingList(listId: string, sheetId: strin
 
 // Sheets of routines, events and tasks ---------------------------------------------------------------------------------
 
+/** Ids of what may own sheets (one of them is set). */
+type OwnerIds = { routineId?: string | null; eventId?: string | null; taskId?: string | null };
+
+/** Where clause of what owns sheets: a routine, an event or a task. */
+export type OwnerScope = { routineId: string } | { eventId: string } | { taskId: string };
+
 /**
- * Where clause of what owns sheets: a routine, an event or a task.
- * @param {{ routineId?: string | null, eventId?: string | null, taskId?: string | null }} owner Owner (one of them).
- * @returns {{ routineId?: string, eventId?: string, taskId?: string }} Where clause.
+ * Where clause of what owns sheets: a routine, an event or a task, exactly one.
+ * @param {OwnerIds} owner Owner (one of them; an occurrence date is left out).
+ * @returns {OwnerScope} Where clause.
  */
-function ownerWhere(owner: { routineId?: string | null; eventId?: string | null; taskId?: string | null }) {
-  const set = [owner.routineId && { routineId: owner.routineId }, owner.eventId && { eventId: owner.eventId }, owner.taskId && { taskId: owner.taskId }].filter(Boolean);
+export function ownerScope(owner: OwnerIds): OwnerScope {
+  const set: OwnerScope[] = [];
+  if (owner.routineId) set.push({ routineId: owner.routineId });
+  if (owner.eventId) set.push({ eventId: owner.eventId });
+  if (owner.taskId) set.push({ taskId: owner.taskId });
   if (set.length !== 1) throw clientError('BAD_USER_INPUT', 'Une routine, un évènement ou une tâche, un seul.');
-  return set[0] as { routineId?: string; eventId?: string; taskId?: string };
+  return set[0];
 }
 
 /**
  * Checks that what owns sheets exists.
- * @param {{ routineId?: string, eventId?: string, taskId?: string }} where Owner.
+ * @param {OwnerScope} scope Owner.
  * @returns {Promise<void>}
  */
-async function assertOwner(where: { routineId?: string; eventId?: string; taskId?: string }): Promise<void> {
-  const found = where.routineId
-    ? await prisma.routine.findUnique({ where: { id: where.routineId }, select: { id: true } })
-    : where.eventId
-      ? await prisma.calendarEvent.findUnique({ where: { id: where.eventId }, select: { id: true } })
-      : await prisma.task.findUnique({ where: { id: where.taskId! }, select: { id: true } });
-  if (!found) throw notFound(where.routineId ? 'Routine' : where.eventId ? 'Évènement' : 'Tâche');
+async function assertOwner(scope: OwnerScope): Promise<void> {
+  if ('routineId' in scope) await assertExists(prisma.routine, scope.routineId, 'Routine');
+  else if ('eventId' in scope) await assertExists(prisma.calendarEvent, scope.eventId, 'Évènement');
+  else await assertExists(prisma.task, scope.taskId, 'Tâche');
+}
+
+/**
+ * Items of the sheets of an owner times their multipliers, the archived sheets left out.
+ * @param {OwnerScope} scope Owner.
+ * @returns {Promise<SheetPart[] | null>} Parts, or null when it has no sheets.
+ */
+async function sheetPartsOf(scope: OwnerScope): Promise<SheetPart[] | null> {
+  const links = await prisma.sheetLink.findMany({ where: { ...scope, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
+  return links.length ? partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() }))) : null;
 }
 
 /**
  * Sets the sheets of a routine, an event or a task (its checklists made later follow them; those made stay).
- * @param {{ routineId?: string | null, eventId?: string | null, taskId?: string | null }} owner Owner.
+ * @param {OwnerIds} owner Owner.
  * @param {SheetLinkInput[]} links Sheets and multipliers, in order.
  * @returns {Promise<void>}
  */
-export async function setSheetLinks(owner: { routineId?: string | null; eventId?: string | null; taskId?: string | null }, links: SheetLinkInput[]): Promise<void> {
-  const where = ownerWhere(owner);
+export async function setSheetLinks(owner: OwnerIds, links: SheetLinkInput[]): Promise<void> {
+  const where = ownerScope(owner);
   await assertOwner(where);
   const data = parseInput(z.array(sheetLinkSchema).max(50, '50 fiches au plus.'), links);
   const ids = [...new Set(data.map((link) => link.sheetId))];
@@ -551,8 +568,7 @@ export async function setSheetLinks(owner: { routineId?: string | null; eventId?
  * @param {SheetOwner} owner Owner.
  * @returns {Prisma.ChecklistWhereInput} Where clause.
  */
-const listWhere = (owner: SheetOwner): Prisma.ChecklistWhereInput =>
-  'taskId' in owner ? { taskId: owner.taskId } : { ...('routineId' in owner ? { routineId: owner.routineId } : { eventId: owner.eventId }), occurrenceDate: parseDay(owner.occurrenceDate) };
+const listWhere = (owner: SheetOwner): Prisma.ChecklistWhereInput => ({ ...ownerScope(owner), ...('occurrenceDate' in owner ? { occurrenceDate: parseDay(owner.occurrenceDate) } : {}) });
 
 /**
  * Items of sheets summed into rows of a checklist (same product, or same label and unit, make one row).
@@ -605,12 +621,11 @@ function summedRows(parts: SheetPart[]) {
 export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
   const existing = await prisma.checklist.findFirst({ where: listWhere(owner) });
   if (existing) return existing;
-  const ownerOnly = 'taskId' in owner ? { taskId: owner.taskId } : 'routineId' in owner ? { routineId: owner.routineId } : { eventId: owner.eventId };
+  const ownerOnly = ownerScope(owner);
   await assertOwner(ownerOnly);
   // The archived sheets do not fill checklists anymore.
-  const links = await prisma.sheetLink.findMany({ where: { ...ownerOnly, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
-  if (!links.length) return null;
-  const parts = await partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() })));
+  const parts = await sheetPartsOf(ownerOnly);
+  if (!parts) return null;
   const occurrence = 'occurrenceDate' in owner ? parseDay(owner.occurrenceDate) : null;
   try {
     return await prisma.checklist.create({ data: { ...ownerOnly, occurrenceDate: occurrence, items: { create: summedRows(parts) } } });
@@ -628,9 +643,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
  */
 export async function resetChecklist(id: string): Promise<Checklist> {
   const list = await orNotFound(prisma.checklist.findUnique({ where: { id } }), 'Liste');
-  const ownerOnly = list.taskId ? { taskId: list.taskId } : list.routineId ? { routineId: list.routineId } : { eventId: list.eventId! };
-  const links = await prisma.sheetLink.findMany({ where: { ...ownerOnly, sheet: { archivedAt: null } }, orderBy: { position: 'asc' } });
-  const parts = await partsOf(links.map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier.toNumber() })));
+  const parts = (await sheetPartsOf(ownerScope(list))) ?? [];
   return prisma.$transaction(async (tx) => {
     await tx.checklistItem.deleteMany({ where: { listId: id } });
     return tx.checklist.update({ where: { id }, data: { items: { create: summedRows(parts) } } });
@@ -744,6 +757,5 @@ export async function setChecklistItemsChecked(ids: string[], checked: boolean):
  * @returns {Promise<void>}
  */
 export async function deleteChecklistItem(id: string): Promise<void> {
-  await findListItem(id);
-  await prisma.checklistItem.delete({ where: { id } });
+  await deleteOrNotFound(prisma.checklistItem, id, 'Élément');
 }

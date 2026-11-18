@@ -1,3 +1,5 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { plural } from '../../../lib/text';
@@ -5,10 +7,9 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Box, Checkbox, Group, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
-import { CheckCircleIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, EnvelopeSimpleIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
 import { correspondent, listDate } from '../lib/mail-format';
 import { groupMails } from '../lib/mail-groups';
@@ -33,19 +34,14 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
   const askDelete = (search: MailSearch) => {
     confirmDestructive({
       title: 'Supprimer le dossier de recherche',
-      risks: (
-        <>
-          <Text size="sm">Le dossier de recherche « {search.name} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</Text>
-        </>
-      ),
+      risks: <>Le dossier de recherche « {search.name} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
       onConfirm: () => {
-        remove.mutate(search.id, {
-          onSuccess: () => {
-            notifySuccess('Dossier de recherche supprimé.');
+        remove.mutate(
+          search.id,
+          formCallbacks(null, 'Dossier de recherche supprimé.', () => {
             if (selectedId === search.id) onSelect(null);
-          },
-          onError: onMutationError,
-        });
+          }),
+        );
       },
     });
   };
@@ -138,9 +134,9 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   const pages = Math.max(1, Math.ceil(total / (results.data?.pageSize ?? 50)));
   if (total === 0) {
     return (
-      <Text size="sm" c="dimmed" ta="center" p="xl">
-        {empty ?? `Aucun mail ne répond ${'id' in query ? 'aux critères de ce dossier' : 'à la recherche'}.`}
-      </Text>
+      <Box p="xl">
+        <EmptyState plain icon={<EnvelopeSimpleIcon aria-hidden />} message={empty ?? `Aucun mail ne répond ${'id' in query ? 'aux critères de ce dossier' : 'à la recherche'}.`} />
+      </Box>
     );
   }
   const messages = results.data?.messages ?? [];

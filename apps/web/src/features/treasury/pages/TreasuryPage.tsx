@@ -1,9 +1,10 @@
+import { formCallbacks } from '../../../lib/form';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
-import { plural, countOf } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -15,9 +16,9 @@ import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleG
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -26,7 +27,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import {
   treasuryKey,
   useForecastEntries,
@@ -169,18 +170,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         loading={realize.isPending}
         disabled={!date || amount <= 0}
         onSubmit={() =>
-          date &&
-          item.entryId &&
-          realize.mutate(
-            { id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount },
-            {
-              onSuccess: () => {
-                notifySuccess('Mouvement enregistré.');
-                onDone();
-              },
-              onError: onMutationError,
-            },
-          )
+          date && item.entryId && realize.mutate({ id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount }, formCallbacks(null, 'Mouvement enregistré.', onDone))
         }
       />
     </Stack>
@@ -307,7 +297,6 @@ export function TreasuryPage() {
       // An entry has a table of lines (its split).
       dialog.kind === 'entry' ? 'lg' : 'md',
     );
-  const onError = onMutationError;
 
   if (accountsPending) return <DetailSkeleton />;
 
@@ -361,7 +350,7 @@ export function TreasuryPage() {
     <Stack gap="md">
       {header}
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
-        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
+        <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={countOf(accounts.filter((account) => !account.archived).length, 'compte')} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <Figure
           label="En retard"
@@ -606,11 +595,7 @@ export function TreasuryPage() {
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
               const forecast = item.kind === 'FORECAST';
-              const archiveItem = {
-                label: entry.archived ? 'Restaurer' : 'Archiver',
-                icon: entry.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                onClick: () => void archiveWithUndo(setArchived, { ids: [entry.id], archived: !entry.archived, label: `« ${entry.label} »`, feminine: forecast }),
-              };
+              const archiveItem = archiveEntry({ archived: entry.archived, label: `« ${entry.label} »`, feminine: forecast }, setArchived, entry.id);
               return (
                 <RowActions
                   name={item.label}
@@ -638,12 +623,12 @@ export function TreasuryPage() {
                           ? confirmDestructive({
                               title: 'Supprimer la prévision',
                               risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
+                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Prévision supprimée.')),
                             })
                           : confirmDestructive({
                               title: 'Supprimer le mouvement',
                               risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
+                              onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
                             }),
                     },
                   ]}

@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { listSelectProps } from '../../../components/items/item-look';
 import { BackLink } from '../../../components/page/BackLink';
 import { Group, Paper, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
@@ -19,7 +20,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { Comments } from '../../comments/components/Comments';
@@ -79,7 +80,10 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
         disabled={!ids.length}
         loading={addProducts.isPending}
         onSubmit={() =>
-          addProducts.mutate({ sheetId, productIds: ids }, { onSuccess: (count) => (notifySuccess(`${countOf(count, 'élément')} ${plural(count, 'ajouté')}.`), onDone()), onError: onMutationError })
+          addProducts.mutate(
+            { sheetId, productIds: ids },
+            formCallbacks(null, (count) => `${countOf(count, 'élément')} ${plural(count, 'ajouté')}.`, onDone),
+          )
         }
       />
     </Stack>
@@ -204,10 +208,9 @@ export function SheetPage() {
     ),
   ];
   const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.name ?? 'Fiche' });
-  const onError = { onError: onMutationError };
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
-    (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, onError),
+    (item, change) => !sheet?.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, ON_ERROR),
   );
 
   if (isPending) return <DetailSkeleton />;
@@ -233,7 +236,11 @@ export function SheetPage() {
       confirmDestructive({
         title: 'Supprimer la fiche',
         risks: `« ${sheet.name} » et ses ${countOf(sheet.items.length, 'élément')} seront supprimés définitivement. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-        onConfirm: () => mutations.remove.mutate(sheet.id, { onSuccess: () => (notifySuccess('Fiche supprimée.'), navigate('/sheets')), ...onError }),
+        onConfirm: () =>
+          mutations.remove.mutate(
+            sheet.id,
+            formCallbacks(null, 'Fiche supprimée.', () => navigate('/sheets')),
+          ),
       }),
   };
 
@@ -305,7 +312,11 @@ export function SheetPage() {
                 {
                   label: 'Dupliquer',
                   icon: <CopyIcon aria-hidden />,
-                  onClick: () => mutations.duplicate.mutate(sheet.id, { onSuccess: (copy) => (notifySuccess('Fiche dupliquée.'), navigate(`/sheets/${copy}`)), ...onError }),
+                  onClick: () =>
+                    mutations.duplicate.mutate(
+                      sheet.id,
+                      formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(`/sheets/${copy}`)),
+                    ),
                 },
                 {
                   label: 'Archiver',
@@ -450,7 +461,7 @@ export function SheetPage() {
                   confirmDestructive({
                     title: 'Retirer l’élément',
                     risks: `« ${item.label} » sera retiré de la fiche, avec ses commentaires. Les listes déjà faites le gardent.`,
-                    onConfirm: () => mutations.removeItems.mutate([item.id], onError),
+                    onConfirm: () => mutations.removeItems.mutate([item.id], ON_ERROR),
                   }),
               },
             ]}

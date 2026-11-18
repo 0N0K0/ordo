@@ -1,8 +1,9 @@
-import { plural } from '../../../lib/text';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { countOf, plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
-import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrashIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
 import type { MailGroup } from '../lib/mail-groups';
@@ -42,7 +43,6 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
   const junkPath = folders?.find((item) => item.specialUse === '\\Junk')?.path;
   const junk = oneAccount !== null && junkPath !== undefined && groups.every((group) => group.folder === junkPath);
   const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
-  const onError = onMutationError;
 
   /**
    * Runs an action on every group.
@@ -60,7 +60,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
           aria-label={done ? 'Marquer à traiter' : 'Marquer comme traité'}
           aria-pressed={done}
           loading={mark.isPending}
-          onClick={() => void each((group) => mark.mutateAsync({ ...group, done: !done })).catch(onError)}
+          onClick={() => void each((group) => mark.mutateAsync({ ...group, done: !done })).catch(onMutationError)}
         >
           {done ? <CheckCircleIcon weight="fill" aria-hidden /> : <CircleIcon aria-hidden />}
         </ActionIcon>
@@ -81,7 +81,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
                 key={label.id}
                 leftSection={<ItemAvatar name={label.name} iconUrl={label.iconUrl} color={label.color} />}
                 rightSection={on ? <CheckCircleIcon weight="fill" aria-hidden /> : null}
-                onClick={() => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onError)}
+                onClick={() => void each((group) => mark.mutateAsync({ ...group, labelId: label.id, on: !on })).catch(onMutationError)}
               >
                 {label.name}
               </Menu.Item>
@@ -105,7 +105,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
                 notifySuccess(junk ? `${count > 1 ? 'Mails remis' : 'Mail remis'} en réception.` : `${count > 1 ? 'Mails signalés' : 'Mail signalé'} comme spam.`);
                 onMoved?.();
               })
-              .catch(onError)
+              .catch(onMutationError)
           }
         >
           {junk ? <TrayIcon aria-hidden /> : <ProhibitIcon aria-hidden />}
@@ -133,7 +133,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
                         notifySuccess(`${count > 1 ? `${count} mails déplacés` : 'Mail déplacé'} dans « ${item.name} ».`);
                         onMoved?.();
                       })
-                      .catch(onError)
+                      .catch(onMutationError)
                   }
                 >
                   {item.name}
@@ -167,7 +167,6 @@ interface MailSelectionBarProps {
 export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels, noMove }: MailSelectionBarProps) {
   const { setSeen, remove } = useMailActions();
   const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
-  const onError = onMutationError;
 
   /**
    * Asks for confirmation before deleting the mails.
@@ -179,10 +178,8 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
       title: 'Supprimer les mails',
       risks: (
         <>
-          <Text size="sm">
-            {count} mail{count > 1 ? 's seront placés' : ' sera placé'} dans la corbeille de leur boîte ({plural(count, 'supprimé')} définitivement s’ils y sont déjà). Leurs copies rattachées à des
-            projets sont conservées.
-          </Text>
+          {countOf(count, 'mail')} {plural(count, 'sera placé', 'seront placés')} dans la corbeille de leur boîte ({plural(count, 'supprimé')} définitivement s’ils y sont déjà). Leurs copies
+          rattachées à des projets sont conservées.
         </>
       ),
       onConfirm: () => {
@@ -191,7 +188,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
             notifySuccess(count > 1 ? 'Mails supprimés.' : 'Mail supprimé.');
             onGone();
           })
-          .catch(onError);
+          .catch(onMutationError);
       },
     });
   };
@@ -203,7 +200,12 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
       </Text>
       <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} noMove={noMove} />
       <Tooltip label="Marquer comme lu">
-        <ActionIcon variant="subtle" color="gray" aria-label="Marquer comme lu" onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: true }))).catch(onError)}>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          aria-label="Marquer comme lu"
+          onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: true }))).catch(onMutationError)}
+        >
           <EnvelopeOpenIcon aria-hidden />
         </ActionIcon>
       </Tooltip>
@@ -212,16 +214,12 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
           variant="subtle"
           color="gray"
           aria-label="Marquer comme non lu"
-          onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: false }))).catch(onError)}
+          onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: false }))).catch(onMutationError)}
         >
           <EnvelopeSimpleIcon aria-hidden />
         </ActionIcon>
       </Tooltip>
-      <Tooltip label="Supprimer">
-        <ActionIcon variant="subtle" color="red" aria-label="Supprimer les mails sélectionnés" onClick={confirmDelete}>
-          <TrashIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
+      <RemoveButton label="Supprimer" aria-label="Supprimer les mails sélectionnés" onClick={confirmDelete} />
       <Tooltip label="Désélectionner">
         <ActionIcon variant="subtle" color="gray" aria-label="Désélectionner" onClick={onClear}>
           <XIcon aria-hidden />

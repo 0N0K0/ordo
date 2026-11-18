@@ -16,7 +16,7 @@ import { Link, useSearchParams } from 'react-router';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useBulkTaskMutations, useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskAlarms } from '../../alarms/components/TaskAlarms';
@@ -142,7 +142,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     else save({ title: result.data }, () => setTitleDraft(null));
   };
 
-  const onLinkError = { onError: onMutationError };
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
   const doneSubtasks = subtasks.filter((subtask) => context.isClosed(subtask)).length;
@@ -161,11 +160,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     const transfer = () =>
       transferTask.mutate(
         { ids: [task.id], projectId },
-        {
-          onSuccess: ({ removedLinks }) =>
-            notifySuccess(`Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
-          onError: onMutationError,
-        },
+        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`),
       );
     const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
     if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
@@ -485,24 +480,24 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               tasks={resolve(task.blockingIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, onLinkError)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, onLinkError)}
+              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR)}
+              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR)}
             />
             <LinkList
               label="Dépend de"
               tasks={resolve(task.blockedByIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, onLinkError)}
-              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, onLinkError)}
+              onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR)}
+              onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR)}
             />
             <LinkList
               label="Relative à"
               tasks={resolve(task.relatedIds)}
               candidates={candidates}
               context={context}
-              onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, onLinkError)}
-              onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, onLinkError)}
+              onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR)}
+              onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR)}
             />
             <Divider />
             <TaskAlarms task={task} context={context} />

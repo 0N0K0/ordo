@@ -1,8 +1,8 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Text } from '@mantine/core';
+
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeMutations, type TimeEntry } from '../api';
 import { TimeEntryForm } from '../components/TimeEntryForm';
@@ -44,17 +44,9 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
   const confirmDelete = (entry: TimeEntry) => {
     confirmDestructive({
       title: 'Supprimer le temps',
-      risks: (
-        <>
-          <Text size="sm">Ce temps ({formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches. Cette action est irréversible.</Text>
-        </>
-      ),
-      onConfirm: () => {
-        remove.mutate(entry.id, {
-          onSuccess: () => notifySuccess('Temps supprimé.'),
-          onError: onMutationError,
-        });
-      },
+      risks: `Ce temps (${formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches. Cette action est irréversible.`,
+      run: () => remove.mutateAsync(entry.id),
+      done: 'Temps supprimé.',
     });
   };
 

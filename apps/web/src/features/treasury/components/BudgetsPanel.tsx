@@ -11,9 +11,9 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, unarchived, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -23,7 +23,7 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from '../api';
 import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -792,11 +792,7 @@ export function BudgetsPanel() {
                   }
             }
             actions={(budget) => {
-              const archiveItem = {
-                label: budget.archived ? 'Restaurer' : 'Archiver',
-                icon: budget.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                onClick: () => void archiveWithUndo(setArchived, { ids: [budget.id], archived: !budget.archived, label: 'Budget' }),
-              };
+              const archiveItem = archiveEntry({ archived: budget.archived, label: 'Budget' }, setArchived, budget.id);
               return (
                 <RowActions
                   name="le budget"
@@ -830,7 +826,7 @@ export function BudgetsPanel() {
                         confirmDestructive({
                           title: 'Supprimer le budget',
                           risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                          onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: onMutationError }),
+                          onConfirm: () => remove.mutate(budget.id, toastCallbacks('Budget supprimé.')),
                         }),
                     },
                   ]}

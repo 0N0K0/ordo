@@ -4,7 +4,7 @@ import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { TravelField } from '../../geo/components/TravelField';
 import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot, DURATION_UNITS } from '@ordo/shared';
 import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { TimeField } from '../../../components/inputs/TimeField';
@@ -54,8 +54,6 @@ interface RoutineTimes {
   opens: RoutineOpens | null;
 }
 
-/** Lengths of an occurrence of a routine: a day, days (the weekend), weeks, months, up to a day, a week or a month. */
-const ROUTINE_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'];
 
 /** A moment from the start to the end of the day. */
 const ANY_TIME: RoutineSlot = { fromTime: null, dueTime: null, optional: false };
@@ -204,7 +202,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
         start={start}
         multiple
         allowNone={false}
-        durations={ROUTINE_DURATIONS}
+        durations={DURATION_UNITS}
         times={routineTimes(names)}
       />
     </Stack>

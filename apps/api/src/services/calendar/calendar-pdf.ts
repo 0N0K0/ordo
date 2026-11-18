@@ -2,7 +2,7 @@ import { addDays, colorSchema, daySchema, daysBetween, parseDay, timeToMinutes }
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TABLE, PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -40,7 +40,7 @@ const calendarPdfSchema = reportHeadingSchema
 type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
 type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 
-const COLORS = { ...PDF_TEXT, border: '#d5dae0', light: '#f2f4f6', work: '#e6f4ea', today: '#fff8db' };
+const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, light: PDF_TABLE.fill, work: '#e6f4ea', today: '#fff8db' };
 const MARGIN = 28;
 const WEEKDAYS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
 const dayTitle = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });

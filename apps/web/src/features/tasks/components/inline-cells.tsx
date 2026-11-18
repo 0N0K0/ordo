@@ -8,11 +8,10 @@ import { DatePickerInput } from '@mantine/dates';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { notifySuccess } from '../../../lib/notify';
 import { TaskSelect } from './task-ui';
 import { subtreeIds } from '../lib/task-links';
 import { linkableTasks } from '../lib/task-links';
@@ -262,7 +261,6 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((id) => !candidates.some((candidate) => candidate.id === id))
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
-  const onError = { onError: onMutationError };
   const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
     <EditableMultiSelect
@@ -287,10 +285,10 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
         // On a selection, each selected task gets (or loses) the same blockers.
         for (const target of targets) {
           for (const id of ids.filter((item) => !task.blockedByIds.includes(item) && item !== target)) {
-            taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, onError);
+            taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, ON_ERROR);
           }
           for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
-            taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, onError);
+            taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, ON_ERROR);
           }
         }
       }}
@@ -382,7 +380,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
-  const onError = { onError: onMutationError };
+  const ON_ERROR = { onError: onMutationError };
   const label =
     count > 1
       ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
@@ -397,8 +395,8 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
    */
   const link = (id: string, add: boolean) => {
     for (const target of targets.filter((item) => item !== id)) {
-      if (kind === 'blocking') taskBlock.mutate({ add, blockerId: target, blockedId: id }, onError);
-      else taskRelation.mutate({ add, taskId: target, otherId: id }, onError);
+      if (kind === 'blocking') taskBlock.mutate({ add, blockerId: target, blockedId: id }, ON_ERROR);
+      else taskRelation.mutate({ add, taskId: target, otherId: id }, ON_ERROR);
     }
   };
   return (
@@ -468,10 +466,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     const transfer = () =>
       bulkTransfer.mutate(
         { ids: targets, projectId },
-        {
-          onSuccess: ({ removedLinks }) => notifySuccess(`${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
-          onError: onMutationError,
-        },
+        toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
     const linked = (item: Task) =>
       item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;

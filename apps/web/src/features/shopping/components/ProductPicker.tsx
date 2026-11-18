@@ -1,10 +1,11 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { formCallbacks } from '../../../lib/form';
 import { categoryPaths } from '../../../components/tree/category-tree';
 import { normalize } from '@ordo/shared';
 import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
 import { collator, countOf, plural } from '../../../lib/text';
 import { unarchived } from '../../../lib/archive';
@@ -90,9 +91,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
       </Group>
       <ScrollArea.Autosize mah="50vh" type="auto" offsetScrollbars>
         {groups.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            {data?.shoppingProducts.length ? 'Aucun produit ne correspond.' : 'Les références sont vides.'}
-          </Text>
+          <EmptyState compact icon={<MagnifyingGlassIcon aria-hidden />} message={data?.shoppingProducts.length ? 'Aucun produit ne correspond.' : 'Les références sont vides.'} />
         ) : (
           <Stack gap="md">
             {groups.map(({ baseList, products: items }) => (
@@ -141,13 +140,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
         onSubmit={() =>
           addProducts.mutate(
             { listId: list.id, productIds: [...selected] },
-            {
-              onSuccess: (count) => {
-                notifySuccess(`${countOf(count, 'produit')} ${plural(count, 'ajouté')}.`);
-                onDone();
-              },
-              onError: onMutationError,
-            },
+            formCallbacks(null, (count) => `${countOf(count, 'produit')} ${plural(count, 'ajouté')}.`, onDone),
           )
         }
       />

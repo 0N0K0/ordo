@@ -1,7 +1,7 @@
+import { formCallbacks } from '../../../lib/form';
 import { Select, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { collator, countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -42,13 +42,7 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
     if (!target || ids.length === 0) return;
     moveProducts.mutate(
       { ids, baseListId: target },
-      {
-        onSuccess: (count) => {
-          notifySuccess(`${countOf(count, 'produit')} ${plural(count, 'déplacé')} vers « ${targetName} ».`);
-          onDone();
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, (count) => `${countOf(count, 'produit')} ${plural(count, 'déplacé')} vers « ${targetName} ».`, onDone),
     );
   };
 

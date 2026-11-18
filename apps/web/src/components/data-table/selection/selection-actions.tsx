@@ -113,16 +113,15 @@ export function switchRowsAction({
   clear?: () => void;
   loading?: boolean;
 }): SelectionAction {
-  const onError = onMutationError;
   return {
     label: on ? labels[1] : labels[0],
     icon: on ? icons[1] : icons[0],
     loading,
     onClick: () =>
       void apply(!on).then(() => {
-        notifyWithUndo(done(!on), undo?.(!on) ?? (() => void apply(on).catch(onError)));
+        notifyWithUndo(done(!on), undo?.(!on) ?? (() => void apply(on).catch(onMutationError)));
         clear?.();
-      }, onError),
+      }, onMutationError),
   };
 }
 

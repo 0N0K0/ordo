@@ -6,7 +6,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -17,9 +17,9 @@ import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/ce
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { treasuryKey, useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from '../api';
 import { DetailsToggle, SettledCell } from './entry-cells';
 import { useEntryEnv, type EntryEnv } from '../lib/entry-env';
@@ -277,11 +277,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
               !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
-              {
-                label: entry.archived ? 'Restaurer' : 'Archiver',
-                icon: entry.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                onClick: () => void archiveWithUndo(setArchived, { ids: [entry.id], archived: !entry.archived, label: `« ${entry.label} »` }),
-              },
+              archiveEntry({ archived: entry.archived, label: `« ${entry.label} »` }, setArchived, entry.id),
               {
                 label: 'Supprimer',
                 icon: <TrashIcon aria-hidden />,
@@ -296,7 +292,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                     ]
                       .filter(Boolean)
                       .join(' '),
-                    onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: onMutationError }),
+                    onConfirm: () => deleteEntry.mutate(entry.id, toastCallbacks('Mouvement supprimé.')),
                   }),
               },
             ]}

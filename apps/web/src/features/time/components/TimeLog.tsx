@@ -1,3 +1,4 @@
+import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
@@ -254,7 +255,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
               title: 'Supprimer les temps',
               risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}. Cette action est irréversible.`,
               remove: (entry) => remove.mutateAsync(entry.id),
-              done: `${deletable.length} temps supprimé(s).`,
+              done: `${deletable.length} temps ${plural(deletable.length, 'supprimé')}.`,
               clear,
             }),
             disabled: deletable.length === 0,

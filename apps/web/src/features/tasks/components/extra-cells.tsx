@@ -6,7 +6,7 @@ import { ActionIcon, Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useAlarmForm } from '../../alarms/hooks/use-alarm-form';
 import { useShoppingMutations, type ShoppingList } from '../../shopping/api';
 import { openNewList } from '../../shopping/lib/open-new-list';
@@ -182,10 +182,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
             onClick: () =>
               updateList.mutate(
                 { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
-                {
-                  onSuccess: () => notifySuccess(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
-                  onError: onMutationError,
-                },
+                toastCallbacks(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
               ),
           })),
         ]}

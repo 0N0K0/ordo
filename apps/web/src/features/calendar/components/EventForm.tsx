@@ -1,3 +1,4 @@
+import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { copyName } from '../../../lib/text';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
@@ -18,7 +19,6 @@ import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
@@ -106,13 +106,7 @@ function PostponePanel({ fields, occurrence, onCancel, onDone }: { fields: Postp
       onConfirm={(input) =>
         postpone.mutate(
           { id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input },
-          {
-            onSuccess: () => {
-              notifySuccess('Évènement reporté.');
-              onDone();
-            },
-            onError: onMutationError,
-          },
+          formCallbacks(null, 'Évènement reporté.', onDone),
         )
       }
     />
@@ -279,13 +273,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     const run = (scope: 'THIS' | 'FOLLOWING' | 'ALL') =>
       remove.mutate(
         { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate },
-        {
-          onSuccess: () => {
-            notifySuccess('Évènement supprimé.');
-            onDone();
-          },
-          onError: onMutationError,
-        },
+        formCallbacks(null, 'Évènement supprimé.', onDone),
       );
     if (recurring) {
       const scope = await askScope({ action: 'delete' });
@@ -295,17 +283,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     confirmDestructive({
       title: 'Supprimer l’évènement',
       risks: `L’évènement « ${occurrence?.title ?? ''} » sera supprimé définitivement. Cette action est irréversible.`,
-      onConfirm: () =>
-        remove.mutate(
-          { id: occurrence!.eventId, scope: 'ALL', occurrenceDate: occurrence!.occurrenceDate },
-          {
-            onSuccess: () => {
-              notifySuccess('Évènement supprimé.');
-              onDone();
-            },
-            onError: onMutationError,
-          },
-        ),
+      onConfirm: () => run('ALL'),
     });
   };
 
@@ -324,13 +302,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     }
     setCalledOff.mutate(
       { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff },
-      {
-        onSuccess: () => {
-          notifySuccess(calledOff ? 'Évènement annulé.' : 'Évènement rétabli.');
-          onDone();
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone),
     );
   };
 
@@ -338,9 +310,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {readOnly && (
-          <Alert color="gray" icon={<ArchiveIcon aria-hidden />} title={<Group gap="xs">{calendarArchived ? 'Calendrier archivé' : 'Évènement archivé'}<ArchivedBadge size="sm" /></Group>}>
+          <ArchivedNotice title={<Group gap="xs">{calendarArchived ? 'Calendrier archivé' : 'Évènement archivé'}<ArchivedBadge size="sm" /></Group>}>
             {calendarArchived ? 'Restaurez son calendrier pour modifier l’évènement.' : 'Restaurez-le pour le modifier.'}
-          </Alert>
+          </ArchivedNotice>
         )}
         {occurrence?.calledOff && (
           <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">

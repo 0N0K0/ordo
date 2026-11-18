@@ -1,13 +1,14 @@
 import { importedDocumentSchema as importSchema, parseDay, type ImportedDocumentInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import { Prisma, type ImportedDocument } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { type ImportedDocument } from '../../generated/prisma/client';
+import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
-import { scopeOf } from './document-statuses';
+import { scopedStatus } from './document-statuses';
 import { sendingData, sentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
 import { assertExists } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
+import { toDecimal } from '../core/decimal';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
 
@@ -21,9 +22,9 @@ function importData(input: ReturnType<typeof importSchema.parse>) {
     ...input,
     issueDate: parseDay(input.issueDate),
     dueDate: input.dueDate ? parseDay(input.dueDate) : null,
-    totalNet: new Prisma.Decimal(input.totalNet),
-    totalVat: new Prisma.Decimal(input.totalVat),
-    totalGross: new Prisma.Decimal(input.totalGross),
+    totalNet: toDecimal(input.totalNet),
+    totalVat: toDecimal(input.totalVat),
+    totalGross: toDecimal(input.totalGross),
   };
 }
 
@@ -124,8 +125,7 @@ export async function setImportedTrackingStatus(id: string, statusId: string | n
   const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
   await assertNotArchived('IMPORTED_DOCUMENT', id);
   if (statusId) {
-    const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
-    if (!status || status.scope !== scopeOf(document.type)) throw notFound('Statut');
+    await scopedStatus(statusId, document.type);
     // An archived status stays the one of its documents, but is not given any more.
     if (statusId !== document.trackingStatusId) await assertNotArchived('DOCUMENT_STATUS', statusId);
   }

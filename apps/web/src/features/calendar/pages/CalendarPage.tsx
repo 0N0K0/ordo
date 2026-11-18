@@ -1,3 +1,4 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PAGES } from '../../../app/pages';
 import { PeriodNav } from '../../../components/page/PeriodNav';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
@@ -818,10 +819,7 @@ export function CalendarPage() {
           <SettingsTabPanel value="display">
             <Stack gap="md">
               <SettingsSection title="Affichage">
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Calendriers
-                  </Text>
+                <LabeledField label="Calendriers" gap="xs">
                   {calendarChoices.length === 0 ? (
                     <EmptyState compact message="Aucun calendrier." />
                   ) : (
@@ -840,11 +838,8 @@ export function CalendarPage() {
                       />
                     ))
                   )}
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    {perso ? 'Plages' : 'Plages de travail'}
-                  </Text>
+                </LabeledField>
+                <LabeledField label={perso ? 'Plages' : 'Plages de travail'} gap="xs">
                   {scheduleChoices.length === 0 ? (
                     <EmptyState compact message="Aucune plage." />
                   ) : (
@@ -864,11 +859,8 @@ export function CalendarPage() {
                       />
                     ))
                   )}
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Aussi dans l’agenda
-                  </Text>
+                </LabeledField>
+                <LabeledField label="Aussi dans l’agenda" gap="xs">
                   <Switch
                     label="Tâches"
                     checked={filters.tasks}
@@ -910,11 +902,8 @@ export function CalendarPage() {
                     }
                   />
                   <ShowArchivedSwitch checked={showArchived} onChange={(archived) => setFilters({ ...filters, archived })} />
-                </Stack>
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Heures (semaine, jour)
-                  </Text>
+                </LabeledField>
+                <LabeledField label="Heures (semaine, jour)" gap="xs">
                   <Switch
                     label="Par 5 minutes"
                     description="Sinon par 30 minutes : les routines courtes se lisent mieux par 5 minutes."
@@ -926,7 +915,7 @@ export function CalendarPage() {
                       })
                     }
                   />
-                </Stack>
+                </LabeledField>
               </SettingsSection>
               <SettingsSection title="Exporter">
                 <Group gap="sm" wrap="wrap">

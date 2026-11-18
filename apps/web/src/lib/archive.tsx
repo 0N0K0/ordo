@@ -1,7 +1,9 @@
+import { ArchiveIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import type { QueryKey } from '@tanstack/react-query';
 import { graphql } from '../graphql';
 import type { ArchivableKind } from '../graphql/graphql';
 import { execute } from './graphql-client';
+import { plural } from './text';
 import { useInvalidatingMutation } from './mutation';
 import { notifyFailure, notifyWithUndo, onMutationError } from './notify';
 
@@ -81,7 +83,7 @@ export function visibleItems<T extends MaybeArchived>(items: readonly T[], showA
  * @returns {string} Message.
  */
 export function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1 }: { feminine?: boolean; count?: number } = {}): string {
-  return `${label} ${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}${count > 1 ? 's' : ''}.`;
+  return `${label} ${plural(count, `${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}`)}.`;
 }
 
 /** Mutation archiving or restoring, as `useSetArchived` gives it (only its promise is used). */
@@ -110,6 +112,21 @@ export async function archiveWithUndo(
     return;
   }
   notifyWithUndo(archivedMessage(label, archived, { feminine, count: ids.length }), () => void mutation.mutateAsync({ ids, archived: !archived }).catch(onMutationError));
+}
+
+/**
+ * « Archiver » / « Restaurer » entry of the menu of an element (hidden from the lists, read only), told with its undo.
+ * @param {{ archived?: boolean | null, label: string, feminine?: boolean }} element Element: archived, its name in the message (« « Courses » »), named in the feminine (optional).
+ * @param {ArchiveMutation} mutation Archive mutation of its kind (`useSetArchived(kind)`).
+ * @param {string} id Element.
+ * @returns {{ label: string, icon: JSX.Element, onClick: () => void }} Menu entry.
+ */
+export function archiveEntry({ archived, label, feminine }: { archived?: boolean | null; label: string; feminine?: boolean }, mutation: ArchiveMutation, id: string) {
+  return {
+    label: archived ? 'Restaurer' : 'Archiver',
+    icon: archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+    onClick: () => void archiveWithUndo(mutation, { ids: [id], archived: !archived, label, feminine }),
+  };
 }
 
 /**

@@ -213,14 +213,7 @@ builder.queryFields((t) => ({
     type: ['SheetLink'],
     description: 'Sheets of a routine, an event or a task, in their order.',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id() },
-    resolve: (query, _root, args) => {
-      if (!args.routineId && !args.eventId && !args.taskId) throw clientError('BAD_USER_INPUT', OWNER_REQUIRED);
-      return prisma.sheetLink.findMany({
-        ...query,
-        where: args.routineId ? { routineId: args.routineId } : args.eventId ? { eventId: args.eventId } : { taskId: args.taskId! },
-        orderBy: { position: 'asc' },
-      });
-    },
+    resolve: (query, _root, args) => prisma.sheetLink.findMany({ ...query, where: sheets.ownerScope(args), orderBy: { position: 'asc' } }),
   }),
   checklist: t.prismaField({
     type: 'Checklist',
@@ -228,7 +221,7 @@ builder.queryFields((t) => ({
     description: 'Checklist of a routine or an event occurrence, or of a task: made of its sheets the first time it is asked (none without sheets).',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id(), occurrenceDate: t.arg({ type: 'Date' }) },
     resolve: async (query, _root, args) => {
-      const list = await sheets.checklist(ownerOf({ ...args, occurrenceDate: args.occurrenceDate ? args.occurrenceDate.slice(0, 10) : null }));
+      const list = await sheets.checklist(ownerOf({ ...args, occurrenceDate: args.occurrenceDate ?? null }));
       return list ? prisma.checklist.findUniqueOrThrow({ ...query, where: { id: list.id } }) : null;
     },
   }),

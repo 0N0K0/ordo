@@ -1,3 +1,5 @@
+import { commentTotal } from '../../comments/lib/comment-column';
+import { itemChoices } from '../../../components/items/item-look';
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { personKey } from '../../../components/people/people-keys';
 import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
@@ -146,19 +148,19 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return {
           kind: 'choice',
           value: (row) => task(row)?.statusId ?? null,
-          options: context.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color, iconUrl: status.iconUrl, archived: status.archived })),
+          options: itemChoices(context.statuses),
         };
       case 'priority':
         return {
           kind: 'choice',
           value: (row) => task(row)?.priorityId ?? null,
-          options: context.priorities.map((priority) => ({ value: priority.id, label: priority.name, color: priority.color, iconUrl: priority.iconUrl, archived: priority.archived })),
+          options: itemChoices(context.priorities),
         };
       case 'type':
         return {
           kind: 'choice',
           value: (row) => task(row)?.typeId ?? null,
-          options: context.types.map((type) => ({ value: type.id, label: type.name, color: type.color, iconUrl: type.iconUrl, archived: type.archived })),
+          options: itemChoices(context.types),
         };
       case 'assignees':
         return { kind: 'choices', value: (row) => withMe(row.kind === 'task' ? row.task.assigneeIds : row.event.contributorIds), options: people };
@@ -166,7 +168,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return {
           kind: 'choices',
           value: (row) => task(row)?.tagIds ?? [],
-          options: context.tags.map((tag) => ({ value: tag.id, label: tag.name, color: tag.color, iconUrl: tag.iconUrl, archived: tag.archived })),
+          options: itemChoices(context.tags),
         };
       case 'milestone':
         return {
@@ -207,7 +209,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'trackedTime':
         return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.trackedSeconds / 3600 : null) };
       case 'comments':
-        return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.commentCount + (row.task.description?.trim() ? 1 : 0) : null) };
+        return { kind: 'number', value: (row) => (row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : null) };
       case 'startDate':
       case 'endDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : (id === 'startDate' ? row.event.startDate : row.event.endDate)) };

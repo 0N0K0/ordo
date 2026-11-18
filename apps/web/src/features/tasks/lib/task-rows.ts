@@ -1,3 +1,4 @@
+import { commentTotal } from '../../comments/lib/comment-column';
 import type { TaskColumn } from '@ordo/shared';
 
 /** What a task is sorted by: a column, or its number. */
@@ -88,7 +89,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return task.relatedIds.length || null;
     case 'comments':
       // A description counts as a comment.
-      return task.commentCount + (task.description?.trim() ? 1 : 0) || null;
+      return commentTotal(task.commentCount, task.description) || null;
     case 'createdAt':
       return task.createdAt;
     case 'updatedAt':

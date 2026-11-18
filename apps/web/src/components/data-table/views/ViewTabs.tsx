@@ -3,7 +3,7 @@ import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openFormPanel } from '../../panels/panels';
 
-import { Indicator, Menu, Stack, Text, TextInput } from '@mantine/core';
+import { Indicator, Menu, Stack, TextInput } from '@mantine/core';
 import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -108,11 +108,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const confirmDelete = (view: SavedView<C>) => {
     confirmDestructive({
       title: 'Supprimer la vue',
-      risks: (
-        <>
-          <Text size="sm">La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées. Cette action est irréversible.</Text>
-        </>
-      ),
+      risks: <>La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées. Cette action est irréversible.</>,
       onConfirm: () => {
         state.remove(view);
       },

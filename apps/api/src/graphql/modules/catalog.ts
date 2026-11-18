@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import * as catalog from '../../services/accounting/catalog';
 import { builder } from '../builder';
 import { LineKindEnum, UnitEnum } from './accounting-documents';
+import { fromDecimal } from '../../services/core/decimal';
 
 builder.prismaObject('CatalogItem', {
   description: 'Product or service of the catalogue: default fields of a document line.',
@@ -13,8 +14,8 @@ builder.prismaObject('CatalogItem', {
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
     unit: t.field({ type: UnitEnum, resolve: (item) => item.unit }),
-    unitPrice: t.float({ resolve: (item) => Number(item.unitPrice) }),
-    vatRate: t.float({ resolve: (item) => Number(item.vatRate) }),
+    unitPrice: t.float({ resolve: (item) => fromDecimal(item.unitPrice) }),
+    vatRate: t.float({ resolve: (item) => fromDecimal(item.vatRate) }),
   }),
 });
 

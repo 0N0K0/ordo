@@ -5,15 +5,15 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { notifyError, notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryEntrySearch } from '../../treasury/api';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
@@ -94,13 +94,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
             onClick={() =>
               attachEntry.mutate(
                 { id: list.id, entryId: entry.id },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Liste rattachée : la répartition a été ajoutée au mouvement.');
-                    onDone();
-                  },
-                  onError: onMutationError,
-                },
+                formCallbacks(null, 'Liste rattachée : la répartition a été ajoutée au mouvement.', onDone),
               )
             }
           >
@@ -139,7 +133,6 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
   const closed = listClosed(list, context);
   // Closed along with its tasks (not by hand): reopened with one of them.
   const byTasks = closed && !list.closedAt;
-  const onError = onMutationError;
   /**
    * Rows of the list as shown, for the exports.
    * @returns {ReturnType<typeof shoppingRows>} Rows.
@@ -156,11 +149,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       },
     );
 
-  const archive: RowMenuEntry = {
-    label: list.archived ? 'Restaurer' : 'Archiver',
-    icon: list.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-    onClick: () => void archiveWithUndo(setArchived, { ids: [list.id], archived: !list.archived, label: `Liste « ${list.name} »`, feminine: true }),
-  };
+  const archive: RowMenuEntry = archiveEntry({ archived: list.archived, label: `Liste « ${list.name} »`, feminine: true }, setArchived, list.id);
   const exports: RowMenuEntry[] = [
     {
       label: 'Copier en texte',
@@ -171,7 +160,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           () => notifyError('La liste n’a pas pu être copiée.'),
         ),
     },
-    { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, onClick: () => void downloadShoppingPdf(list, rows(), people).catch(onError) },
+    { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, onClick: () => void downloadShoppingPdf(list, rows(), people).catch(onMutationError) },
   ];
   const remove: RowMenuEntry = {
     label: 'Supprimer',
@@ -181,13 +170,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${countOf(list.items.length, 'élément')} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },
-            {
-              onSuccess: () => {
-                notifySuccess('Liste supprimée.');
-                onDeleted?.();
-              },
-              onError,
-            },
+            formCallbacks(null, 'Liste supprimée.', () => onDeleted?.()),
           ) }),
   };
   // Archived: read only.
@@ -199,7 +182,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       ? {
           label: 'Détacher du mouvement',
           icon: <BankIcon aria-hidden />,
-          onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, { onSuccess: () => notifySuccess('Liste détachée du mouvement (sa répartition reste).'), onError }),
+          onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, toastCallbacks('Liste détachée du mouvement (sa répartition reste).')),
         }
       : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
     {
@@ -213,7 +196,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
               notifySuccess('Liste dupliquée.');
               navigate(`/shopping/${copyId}`);
             },
-            onError,
+            onError: onMutationError,
           },
         ),
     },
@@ -226,9 +209,9 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           icon: <ArrowCounterClockwiseIcon aria-hidden />,
           disabled: byTasks,
           hint: byTasks ? 'Les tâches de la liste sont fermées : rouvrez-en une pour rouvrir la liste.' : undefined,
-          onClick: () => mutations.setClosed.mutate({ id: list.id, closed: false }, { onSuccess: () => notifySuccess('Liste rouverte.'), onError }),
+          onClick: () => mutations.setClosed.mutate({ id: list.id, closed: false }, toastCallbacks('Liste rouverte.')),
         }
-      : { label: 'Clôturer', icon: <CheckCircleIcon aria-hidden />, onClick: () => mutations.setClosed.mutate({ id: list.id, closed: true }, { onSuccess: () => notifySuccess('Liste clôturée.'), onError }) },
+      : { label: 'Clôturer', icon: <CheckCircleIcon aria-hidden />, onClick: () => mutations.setClosed.mutate({ id: list.id, closed: true }, toastCallbacks('Liste clôturée.')) },
     archive,
     remove,
   ];

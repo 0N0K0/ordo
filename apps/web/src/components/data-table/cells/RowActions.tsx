@@ -1,12 +1,15 @@
 import { ActionIcon, Group, Menu, Tooltip, type ActionIconProps, type MenuProps } from '@mantine/core';
-import { DotsThreeVerticalIcon } from '@phosphor-icons/react';
+import { CheckIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 /** Action of a row. */
 interface RowAction {
   label: string;
-  icon: ReactNode;
+  /** Icon before the label. Optional for a checked entry (`checked`), whose tick takes its place. */
+  icon?: ReactNode;
+  /** Choice of a menu of options (a sort): ticked when chosen, else aligned with the ticked one. Optional. */
+  checked?: boolean;
   onClick?: () => void;
   /** Page of the app opened by the action. Optional. */
   to?: string;
@@ -113,7 +116,14 @@ export function ActionsMenu({ name, items, target, inRow = false, size, loading,
             <Menu.Label key={`section-${index}`}>{item.section}</Menu.Label>
           ) : (
             <Fragment key={`${index}-${item.label}`}>
-              <Menu.Item leftSection={item.icon} color={item.danger ? 'red' : undefined} disabled={item.disabled} title={item.hint} onClick={item.onClick} {...linkProps(item)}>
+              <Menu.Item
+                leftSection={item.checked === undefined ? item.icon : item.checked ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
+                color={item.danger ? 'red' : undefined}
+                disabled={item.disabled}
+                title={item.hint}
+                onClick={item.onClick}
+                {...linkProps(item)}
+              >
                 {item.label}
               </Menu.Item>
             </Fragment>

@@ -1,3 +1,5 @@
+import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
+import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { BackLink } from '../../../components/page/BackLink';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -7,7 +9,7 @@ import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
@@ -17,8 +19,8 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockIcon,
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { formCallbacks, showFormError, useAppForm } from '../../../lib/form';
+import { notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
@@ -200,13 +202,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, {
-                onSuccess: () => {
-                  notifySuccess('Brouillon supprimé.');
-                  void navigate('/accounting');
-                },
-                onError: onMutationError,
-              }); } });
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, formCallbacks(null, 'Brouillon supprimé.', () => void navigate('/accounting'))); } });
   };
 
   /**
@@ -363,11 +359,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                   Valider
                 </Button>
               )}
-              <Tooltip label="Supprimer le brouillon">
-                <ActionIcon variant="subtle" color="red" size="lg" aria-label="Supprimer le brouillon" onClick={confirmDelete}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
+                Supprimer le brouillon
+              </DestructiveButton>
             </>
           )}
           {readOnly && !archived && isQuote && (
@@ -427,11 +421,11 @@ function Editor({ document }: { document: AccountingDocument }) {
       </Group>
 
       {archived ? (
-        <Alert color="gray" icon={<ArchiveIcon aria-hidden />}>
+        <ArchivedNotice>
           {archivedRecurring
             ? 'Facture récurrente archivée : son modèle est en lecture seule et aucune facture n’est plus émise. Restaurez-la depuis la liste des factures récurrentes pour la modifier.'
             : `Document archivé : masqué des listes et en lecture seule.${readOnly ? ' Il reste valable (numéro et PDF conservés).' : ''} Restaurez-le pour le modifier.`}
-        </Alert>
+        </ArchivedNotice>
       ) : (
         readOnly && (
           <NoticeAlert kind="success">
@@ -742,7 +736,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
           multiple
           onChange={(files) =>
             files.length &&
-            addAttachments.mutate({ id: document.id, files }, { onSuccess: () => notifySuccess('Fichiers joints.'), onError: onMutationError })
+            addAttachments.mutate({ id: document.id, files }, toastCallbacks('Fichiers joints.'))
           }
         >
           {(props) => (

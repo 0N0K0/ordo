@@ -10,6 +10,7 @@ import { syncPaymentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
 import { assertExists } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
+import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -23,12 +24,12 @@ export function lineInput(line: AccountingLine): AccountingLineInput {
     kind: line.kind,
     title: line.title,
     description: line.description,
-    quantity: Number(line.quantity),
+    quantity: fromDecimal(line.quantity),
     unit: line.unit,
-    unitPrice: Number(line.unitPrice),
-    vatRate: Number(line.vatRate),
+    unitPrice: fromDecimal(line.unitPrice),
+    vatRate: fromDecimal(line.vatRate),
     discountType: line.discountType,
-    discountValue: line.discountValue === null ? null : Number(line.discountValue),
+    discountValue: fromDecimal(line.discountValue),
     deductedDocumentId: line.deductedDocumentId,
   };
 }
@@ -42,7 +43,7 @@ export function documentTotals(document: DocumentWithLines) {
   return computeTotals({
     lines: [...document.lines].sort(byPosition).map(lineInput),
     globalDiscountType: document.globalDiscountType,
-    globalDiscountValue: document.globalDiscountValue === null ? null : Number(document.globalDiscountValue),
+    globalDiscountValue: fromDecimal(document.globalDiscountValue),
     vatApplicable: document.vatApplicable,
   });
 }
@@ -180,10 +181,10 @@ function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineUnchecked
     // Only a deduction takes off a deposit.
     deductedDocumentId: line.kind === 'DEDUCTION' ? (line.deductedDocumentId ?? null) : null,
     position,
-    quantity: new Prisma.Decimal(line.quantity),
-    unitPrice: new Prisma.Decimal(line.unitPrice),
-    vatRate: new Prisma.Decimal(line.vatRate),
-    discountValue: line.discountValue === null ? null : new Prisma.Decimal(line.discountValue),
+    quantity: toDecimal(line.quantity),
+    unitPrice: toDecimal(line.unitPrice),
+    vatRate: toDecimal(line.vatRate),
+    discountValue: toDecimal(line.discountValue),
   }));
 }
 
@@ -202,12 +203,12 @@ function documentData(input: ReturnType<typeof accountingDocumentInputSchema.par
     dueDate: day(dueDate),
     serviceStart: day(serviceStart),
     serviceEnd: day(serviceEnd),
-    globalDiscountValue: globalDiscountValue === null ? null : new Prisma.Decimal(globalDiscountValue),
+    globalDiscountValue: toDecimal(globalDiscountValue),
     depositType: depositValue ? input.depositType : null,
-    depositValue: depositValue && input.depositType ? new Prisma.Decimal(depositValue) : null,
-    totalNet: new Prisma.Decimal(fromCents(totals.totalNet)),
-    totalVat: new Prisma.Decimal(fromCents(totals.totalVat)),
-    totalGross: new Prisma.Decimal(fromCents(totals.totalGross)),
+    depositValue: depositValue && input.depositType ? toDecimal(depositValue) : null,
+    totalNet: toDecimal(fromCents(totals.totalNet)),
+    totalVat: toDecimal(fromCents(totals.totalVat)),
+    totalGross: toDecimal(fromCents(totals.totalGross)),
   };
 }
 
@@ -532,7 +533,7 @@ export async function createFromDocument(
       referenceValue: source.referenceValue,
       vatApplicable: source.vatApplicable,
       globalDiscountType: source.globalDiscountType,
-      globalDiscountValue: source.globalDiscountValue === null ? null : Number(source.globalDiscountValue),
+      globalDiscountValue: fromDecimal(source.globalDiscountValue),
       lines,
     },
     { sourceId: source.id },
@@ -621,8 +622,8 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
   if (imported.type !== 'QUOTE') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
   if (!imported.clientId) throw clientError('BAD_USER_INPUT', 'Rattachez d’abord le devis importé à un client.');
   await assertNotArchived('IMPORTED_DOCUMENT', imported.id);
-  const totalNet = toCents(Number(imported.totalNet));
-  const totalVat = toCents(Number(imported.totalVat));
+  const totalNet = decimalCents(imported.totalNet);
+  const totalVat = decimalCents(imported.totalVat);
   // The rate of the quote, from its totals, matched to the nearest usual rate.
   const rate = totalNet > 0 ? (totalVat / totalNet) * 100 : 0;
   const vatRate = VAT_RATES.reduce((best, item) => (Math.abs(item - rate) < Math.abs(best - rate) ? item : best), VAT_RATES[0]);
@@ -682,14 +683,14 @@ export async function editableFields(document: DocumentWithLines): Promise<Accou
     paymentTerms: document.paymentTerms,
     paymentMethods: document.paymentMethods,
     depositType: document.depositType,
-    depositValue: document.depositValue === null ? null : Number(document.depositValue),
+    depositValue: fromDecimal(document.depositValue),
     lateInterest: document.lateInterest,
     billingSchedule: document.billingSchedule,
     otherMentions: document.otherMentions,
     showBankDetails: document.showBankDetails,
     vatApplicable: document.vatApplicable,
     globalDiscountType: document.globalDiscountType,
-    globalDiscountValue: document.globalDiscountValue === null ? null : Number(document.globalDiscountValue),
+    globalDiscountValue: fromDecimal(document.globalDiscountValue),
     lines: document.lines.map(lineInput),
   };
 }
@@ -774,8 +775,8 @@ export async function deductibleDeposits(clientId: string, documentId: string | 
       // A final credit note cancelling an invoice gives its deduction back; a draft one does not count yet.
       const credit = line.document.type === 'CREDIT_NOTE';
       if (credit && line.document.status !== 'FINAL') continue;
-      const rate = Number(line.vatRate);
-      const amount = toCents(Number(line.quantity) * Number(line.unitPrice));
+      const rate = fromDecimal(line.vatRate);
+      const amount = toCents(fromDecimal(line.quantity) * fromDecimal(line.unitPrice));
       left.set(rate, (left.get(rate) ?? 0) + (credit ? amount : -amount));
     }
     const remaining = [...left.entries()].filter(([, base]) => base > 0).map(([rate, base]) => ({ rate, base }));

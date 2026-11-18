@@ -1,3 +1,4 @@
+import { formCallbacks } from '../../../lib/form';
 import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -228,21 +229,13 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   const askDelete = (folder: { path: string; name: string }) => {
     confirmDestructive({
       title: 'Supprimer le dossier',
-      risks: (
-        <>
-          <Text size="sm">Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur. Cette action est irréversible.</Text>
-        </>
-      ),
+      risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur. Cette action est irréversible.</>,
       onConfirm: () => {
         remove.mutate(
           { accountId: account.id, path: folder.path },
-          {
-            onSuccess: () => {
-              notifySuccess('Dossier supprimé.');
-              if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
-            },
-            onError: onMutationError,
-          },
+          formCallbacks(null, 'Dossier supprimé.', () => {
+            if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
+          }),
         );
       },
     });
@@ -375,13 +368,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               event.preventDefault();
               move.mutate(
                 { accountId: account.id, folder: dragged.folder, uids: dragged.uids, target: folder.path },
-                {
-                  onSuccess: () => {
-                    notifySuccess(`${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`);
-                    onDropped();
-                  },
-                  onError: onMutationError,
-                },
+                formCallbacks(null, `${dragged.uids.length > 1 ? `${dragged.uids.length} mails déplacés` : 'Mail déplacé'} dans « ${folder.name} ».`, onDropped),
               );
             }}
             style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${folder.depth} * var(--mantine-spacing-md))` }}

@@ -1,4 +1,4 @@
-import { onMutationError } from '../../lib/notify';
+import { ON_ERROR } from '../../lib/notify';
 import type { ThreadActions } from './CommentThread';
 
 /** Mutation of a comment, as TanStack Query gives it (its result unused). */
@@ -17,11 +17,10 @@ export function threadActions<A, R>(
   { add, update, remove }: { add: CommentMutation<A>; update: CommentMutation<{ id: string; body: string }>; remove: CommentMutation<R> },
   variables: { add: (body: string) => A; remove: (id: string) => R },
 ): ThreadActions {
-  const onError = { onError: onMutationError };
   return {
-    add: (body, done) => add.mutate(variables.add(body), { onSuccess: done, ...onError }),
-    update: (id, body, done) => update.mutate({ id, body }, { onSuccess: done, ...onError }),
-    remove: (id) => remove.mutate(variables.remove(id), onError),
+    add: (body, done) => add.mutate(variables.add(body), { onSuccess: done, ...ON_ERROR }),
+    update: (id, body, done) => update.mutate({ id, body }, { onSuccess: done, ...ON_ERROR }),
+    remove: (id) => remove.mutate(variables.remove(id), ON_ERROR),
     adding: add.isPending,
     updating: update.isPending,
   };

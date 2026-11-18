@@ -1,8 +1,8 @@
+import { formCallbacks } from '../../../lib/form';
 import { SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import * as fmt from '../../../lib/format';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useStockMutations, type StockItem } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
@@ -56,7 +56,7 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
         onSubmit={() =>
           move.mutate(
             { itemId: item.id, kind, quantity, lotId, expiresAt: adding ? expiresAt : null, note: note || null },
-            { onSuccess: () => (notifySuccess(adding ? 'Ajouté au stock.' : 'Retiré du stock.'), onDone()), onError: onMutationError },
+            formCallbacks(null, adding ? 'Ajouté au stock.' : 'Retiré du stock.', onDone),
           )
         }
       />

@@ -4,7 +4,7 @@ import { EditableDate, EditableNumber } from '../../../components/data-table/cel
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import * as fmt from '../../../lib/format';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useStockMutations, type StockItem, type StockLot } from '../api';
 import { localDay } from '../../../lib/dates';
 
@@ -47,13 +47,12 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
     },
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });
-  const onError = { onError: onMutationError };
   // A change saves its lot, or every lot of the bulk selection of its column.
   const bulk = bulkSaver<StockLot, { quantity?: number; expiresAt?: string | null }>(view, (lot, change) => {
     // A quantity changed by hand is a correction.
     if (change.quantity !== undefined && change.quantity !== lot.quantity)
-      move.mutate({ itemId: item.id, kind: 'CORRECTION', quantity: change.quantity - lot.quantity, lotId: lot.id, expiresAt: null, note: null }, onError);
-    if (change.expiresAt !== undefined) setLotExpiry.mutate({ id: lot.id, expiresAt: change.expiresAt }, onError);
+      move.mutate({ itemId: item.id, kind: 'CORRECTION', quantity: change.quantity - lot.quantity, lotId: lot.id, expiresAt: null, note: null }, ON_ERROR);
+    if (change.expiresAt !== undefined) setLotExpiry.mutate({ id: lot.id, expiresAt: change.expiresAt }, ON_ERROR);
   });
   return (
     <DataTable

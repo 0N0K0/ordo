@@ -116,7 +116,8 @@ export function OverdueInvoicesPanel() {
     openModal(`Relancer ${countOf(chosen.length, 'facture')}`, (close) => (
       <Stack gap="md">
         <Text size="sm">
-          {chosen.length} mail{chosen.length > 1 ? 's partiront' : ' partira'} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture.
+          {countOf(chosen.length, 'mail')} {plural(chosen.length, 'partira', 'partiront')} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa
+          facture.
         </Text>
         <Stack gap={2}>
           {chosen.map((invoice) => (
@@ -137,7 +138,7 @@ export function OverdueInvoicesPanel() {
                 onSuccess: (results) => {
                   const sent = results.filter((result) => !result.error);
                   const failed = results.filter((result) => result.error);
-                  if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
+                  if (sent.length) notifySuccess(`${countOf(sent.length, 'relance')} ${plural(sent.length, 'envoyée')}.`);
                   if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
                   setSelected(new Set(failed.map((result) => result.documentId)));
                 },

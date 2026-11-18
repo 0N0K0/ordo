@@ -9,6 +9,10 @@ const ArchivableKindEnum = builder.enumType('ArchivableKind', {
 
 /** GraphQL types of the elements archived by their date (the settings lists of `labelObject` and places apart: they expose it themselves). */
 const TYPES = [
+  'Client',
+  'Project',
+  'Task',
+  'Routine',
   'Milestone',
   'Sprint',
   'Dashboard',

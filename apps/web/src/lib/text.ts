@@ -1,4 +1,4 @@
-export { collator, normalize } from '@ordo/shared';
+export { collator, copyName, normalize } from '@ordo/shared';
 
 /**
  * A word in the plural beyond one (« tâches »), in the singular for one or none (« tâche »), as French counts.
@@ -20,15 +20,4 @@ export function plural(count: number, word: string, many = `${word}s`): string {
  */
 export function countOf(count: number, word: string, many?: string): string {
   return `${count} ${plural(count, word, many)}`;
-}
-
-/**
- * Name of a copy: « Nom (copie) », cut to a length when there is one.
- * @param {string} name Name of the original.
- * @param {number} [max] Longest name. Optional.
- * @returns {string} Name of the copy.
- */
-export function copyName(name: string, max?: number): string {
-  const copy = `${name} (copie)`;
-  return max === undefined ? copy : copy.slice(0, max);
 }

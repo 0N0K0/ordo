@@ -1,4 +1,4 @@
-import { chartConfigSchema, chartTitleSchema, dashboardNameSchema } from '@ordo/shared';
+import { chartConfigSchema, chartTitleSchema, copyName, dashboardNameSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
@@ -138,7 +138,7 @@ export async function updateChart(id: string, input: ChartInput): Promise<Dashbo
  */
 export async function duplicateChart(id: string): Promise<DashboardChart> {
   const chart = await findWritableChart(id);
-  const copy = await createChart(chart.dashboardId, { title: `${chart.title} (copie)`.slice(0, 120), config: chart.config, wide: chart.wide });
+  const copy = await createChart(chart.dashboardId, { title: copyName(chart.title, 120), config: chart.config, wide: chart.wide });
   const siblings = await prisma.dashboardChart.findMany({ where: { dashboardId: chart.dashboardId }, orderBy: BY_POSITION, select: { id: true } });
   await moveChart(copy.id, siblings.findIndex((item) => item.id === id) + 1);
   return copy;

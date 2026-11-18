@@ -4,12 +4,12 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
@@ -62,23 +62,12 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
    */
   const confirmDelete = (contributor: Contributor) => {
     const used = usage.get(contributor.id) ?? 0;
-    confirmDestructive({ title: 'Supprimer le contributeur', risks: (
-<>
-<Text size="sm">
-            {contributor.name} sera supprimé définitivement
-            {used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions
-            @{contributor.handle} resteront dans le texte, sans lien. Cette action est irréversible.
-          </Text>
-</>
-), onConfirm: () => { remove.mutate(
-                { id: contributor.id },
-                {
-                  onSuccess: () => {
-                    notifySuccess(`${contributor.name} supprimé.`);
-                  },
-                  onError: onMutationError,
-                },
-              ); } });
+    confirmDestructive({
+      title: 'Supprimer le contributeur',
+      risks: `${contributor.name} sera supprimé définitivement${used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions @${contributor.handle} resteront dans le texte, sans lien. Cette action est irréversible.`,
+      run: () => remove.mutateAsync({ id: contributor.id }),
+      done: `${contributor.name} supprimé.`,
+    });
   };
 
   return (
@@ -145,7 +134,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
 
                     <Text size="xs" c="dimmed">
                   @{contributor.handle}
-                  {(usage.get(contributor.id) ?? 0) > 0 && ` · ${usage.get(contributor.id)} tâche(s)`}
+                  {(usage.get(contributor.id) ?? 0) > 0 && ` · ${countOf(usage.get(contributor.id) ?? 0, 'tâche')}`}
                 </Text>
                 <Text size="xs" c="dimmed" truncate>
                   {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
@@ -162,11 +151,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                   // Archived: read only (restored to be edited).
                   !contributor.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(contributor) },
                   // The user's own profile can be neither archived nor deleted.
-                  !contributor.isMe && {
-                    label: contributor.archived ? 'Restaurer' : 'Archiver',
-                    icon: contributor.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                    onClick: () => void archiveWithUndo(setArchived, { ids: [contributor.id], archived: !contributor.archived, label: contributor.name }),
-                  },
+                  !contributor.isMe && archiveEntry({ archived: contributor.archived, label: contributor.name }, setArchived, contributor.id),
                   !contributor.isMe && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(contributor) },
                 ]}
               />

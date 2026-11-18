@@ -417,7 +417,7 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
 }
 
 /**
- * Transfers a task and its sub-tasks to another project, where they take the next numbers (given by the database), or
+ * Transfers a task (not an archived one) and its sub-tasks to another project, where they take the next numbers (given by the database), or
  * out of any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are
  * removed.
  * @param {string} id Task id.
@@ -426,6 +426,7 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
  */
 export async function transferTask(id: string, projectId: string | null): Promise<{ task: Task; removedLinks: number }> {
   const task = await findTask(id);
+  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   if (projectId) await assertProject(projectId);
   const moved = [id, ...(await descendantIds(id))];
   const rootOf = await loadRootOf();
@@ -674,8 +675,8 @@ export async function deleteComment(id: string): Promise<void> {
 }
 
 /**
- * Moves a task in the global manual order, just before another task (or at the end), and optionally
- * under another parent. Placing relative to a neighbour works the same in a filtered view.
+ * Moves a task (not an archived one) in the global manual order, just before another task (or at the end), and
+ * optionally under another parent. Placing relative to a neighbour works the same in a filtered view.
  * @param {string} id Task id.
  * @param {string | null} beforeId Task to place it before, or null for the end.
  * @param {string | null} [parentId] New parent, null for a top-level task; undefined keeps the parent. Optional.
@@ -683,6 +684,7 @@ export async function deleteComment(id: string): Promise<void> {
  */
 export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
   const task = await findTask(id);
+  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
   if (parentId) await assertParent(parentId, task.projectId, id);
   const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
   if (beforeId === id) {
@@ -709,13 +711,14 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
 }
 
 /**
- * Closes (done) or reopens tasks. A closed task no longer blocks the tasks it blocks.
+ * Closes (done) or reopens tasks (none archived). A closed task no longer blocks the tasks it blocks.
  * @param {string[]} ids Task ids.
  * @param {boolean} closed Target state.
  * @returns {Promise<void>}
  */
 export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
   await assertTasks(ids);
+  await assertNoneArchived('task', ids);
   await prisma.task.updateMany({
     // Already closed tasks keep their closing date.
     where: { id: { in: ids }, closedAt: closed ? null : { not: null } },
@@ -866,13 +869,15 @@ async function topmost(ids: string[]): Promise<string[]> {
 }
 
 /**
- * Transfers several tasks (with their sub-tasks) to another project, or out of any.
+ * Transfers several tasks (with their sub-tasks; none archived) to another project, or out of any.
  * @param {string[]} ids Task ids.
  * @param {string | null} projectId Target project; null: none.
  * @returns {Promise<number>} Number of links removed because they left the project tree.
  */
 export async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<number> {
   await assertTasks(ids);
+  // Refused before any is moved.
+  await assertNoneArchived('task', ids);
   let removedLinks = 0;
   for (const id of await topmost(ids)) removedLinks += (await transferTask(id, projectId)).removedLinks;
   return removedLinks;

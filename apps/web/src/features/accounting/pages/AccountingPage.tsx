@@ -20,7 +20,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { localToday } from '../../../lib/dates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { CatalogPanel } from '../components/CatalogPanel';
 import { OverdueInvoicesPanel } from '../components/OverdueInvoicesPanel';
 import { useOverdueInvoices } from '../api/tracking';
@@ -39,8 +39,7 @@ import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import { useEffect } from 'react';
 import { archiveRowsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { useSetArchived } from '../../../lib/archive';
-import { archiveEntry } from '../lib/archive-entry';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
@@ -148,13 +147,9 @@ function RecurringList() {
   const confirmDelete = (item: RecurringInvoice) => {
     confirmDestructive({
       title: 'Supprimer la facture récurrente',
-      risks: (
-        <>
-          <Text size="sm">« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</Text>
-        </>
-      ),
+      risks: <>« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</>,
       onConfirm: () => {
-        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: onMutationError });
+        remove.mutate(item.id, toastCallbacks('Facture récurrente supprimée.'));
       },
     });
   };

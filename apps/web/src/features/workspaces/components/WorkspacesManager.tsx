@@ -1,10 +1,12 @@
+import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Badge, Button, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
-import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess, ON_ERROR, onMutationError } from '../../../lib/notify';
 
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from '../api';
 import { switchWorkspace } from '../lib/switch';
@@ -43,7 +45,6 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
   const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
   const week = readWeek(workspace);
   const [name, setName] = useState(workspace.name);
-  const onError = onMutationError;
 
   /**
    * Saves the name or the kind when they changed.
@@ -61,7 +62,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
       { id: workspace.id, input },
       {
         onSuccess: () => changes.kind && notifySuccess(changes.kind === 'PERSO' ? 'Espace passé en personnel.' : 'Espace passé en professionnel.'),
-        onError,
+        onError: onMutationError,
       },
     );
   };
@@ -90,41 +91,35 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         <InlineActions
           name={workspace.name}
           items={[
-            { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: workspace.id, index: index - 1 }, { onError }) },
-            { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => move.mutate({ id: workspace.id, index: index + 1 }, { onError }) },
+            { label: 'Monter', icon: <ArrowUpIcon aria-hidden />, disabled: index === 0, onClick: () => move.mutate({ id: workspace.id, index: index - 1 }, ON_ERROR) },
+            { label: 'Descendre', icon: <ArrowDownIcon aria-hidden />, disabled: index === count - 1, onClick: () => move.mutate({ id: workspace.id, index: index + 1 }, ON_ERROR) },
             { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
           ]}
         />
-        <Tooltip label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={`Supprimer ${workspace.name}`}
-            disabled={count === 1}
-            onClick={() =>
-              confirmDestructive({
-                title: 'Supprimer l’espace',
-                risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.`,
-                onConfirm: () =>
-                  remove.mutate(workspace.id, {
-                    onSuccess: () => {
-                      notifySuccess('Espace supprimé.');
-                      if (current && fallbackId) switchWorkspace(fallbackId);
-                    },
-                    onError,
+        <RemoveButton
+          label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}
+          aria-label={`Supprimer ${workspace.name}`}
+          disabled={count === 1}
+          onClick={() =>
+            confirmDestructive({
+              title: 'Supprimer l’espace',
+              risks: `L’espace « ${workspace.name} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur. Cette action est irréversible.`,
+              onConfirm: () =>
+                remove.mutate(
+                  workspace.id,
+                  formCallbacks(null, 'Espace supprimé.', () => {
+                    if (current && fallbackId) switchWorkspace(fallbackId);
                   }),
-              })
-            }
-          >
-            <TrashIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
+                ),
+            })
+          }
+        />
       </Group>
       <Group gap="xs" pl={28}>
         <Text size="xs" c="dimmed">
           Notifier quand un autre espace est ouvert :
         </Text>
-        <Chip.Group multiple value={workspace.notifyElsewhere} onChange={(sources) => setNotifications.mutate({ id: workspace.id, sources: sources as NotificationSource[] }, { onError })}>
+        <Chip.Group multiple value={workspace.notifyElsewhere} onChange={(sources) => setNotifications.mutate({ id: workspace.id, sources: sources as NotificationSource[] }, ON_ERROR)}>
           {SOURCES.map((source) => (
             <Chip key={source.value} value={source.value} size="xs" variant="light">
               {source.label}
@@ -143,7 +138,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           data={WEEKDAYS}
           value={String(week.start)}
           allowDeselect={false}
-          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: Number(value), end: week.end }, { onError })}
+          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: Number(value), end: week.end }, ON_ERROR)}
         />
         <Text size="xs" c="dimmed">
           au
@@ -155,7 +150,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           data={WEEKDAYS}
           value={String(week.end)}
           allowDeselect={false}
-          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: week.start, end: Number(value) }, { onError })}
+          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: week.start, end: Number(value) }, ON_ERROR)}
         />
         <Text size="xs" c="dimmed">
           {weekLength(week) === 8 ? '8 jours : les semaines se chevauchent ce jour-là.' : `${weekLength(week)} jours.`} Vue semaine de l’agenda, « cette semaine »…
@@ -185,13 +180,7 @@ export function WorkspacesManager() {
     if (!name.trim()) return;
     create.mutate(
       { name: name.trim(), kind },
-      {
-        onSuccess: () => {
-          notifySuccess('Espace créé.');
-          setName('');
-        },
-        onError: onMutationError,
-      },
+      formCallbacks(null, 'Espace créé.', () => setName('')),
     );
   };
 

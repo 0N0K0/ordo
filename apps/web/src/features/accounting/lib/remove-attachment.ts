@@ -1,9 +1,9 @@
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 
 /** Callbacks of the removal of an attachment. */
 interface RemoveCallbacks {
-  onSuccess: () => void;
+  onSuccess: (result: unknown) => void;
   onError: (error: Error) => void;
 }
 
@@ -19,6 +19,6 @@ export function confirmRemoveAttachment(attachment: { name: string }, documentNa
   confirmDestructive({
     title: 'Retirer la pièce jointe',
     risks: `« ${attachment.name} » sera supprimée définitivement de ${documentName}.`,
-    onConfirm: () => remove({ onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: onMutationError }),
+    onConfirm: () => remove(toastCallbacks('Pièce jointe retirée.')),
   });
 }

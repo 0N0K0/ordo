@@ -2,7 +2,7 @@ import { ActionIcon, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { archiveWithUndo, useSetArchived, visibleItems } from '../../lib/archive';
-import { notifySuccess, onMutationError } from '../../lib/notify';
+import { notifySuccess, ON_ERROR, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
 import { categoryTree } from '../tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
@@ -142,7 +142,6 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
    * @returns {void}
    */
   const handleMove = (id: string, parentId: string | null, index: number) => {
-    const onError = onMutationError;
     // The index is among the siblings shown: the archived ones hidden keep their place among all of them.
     const order = categoryTree(items)
       .map(({ category }) => category)
@@ -153,12 +152,12 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
     const last = shownSiblings[shownSiblings.length - 1];
     const fullIndex = before ? siblings.indexOf(before) : last ? siblings.indexOf(last) + 1 : 0;
     if (move) {
-      move(id, parentId, fullIndex).catch(onError);
+      move(id, parentId, fullIndex).catch(onMutationError);
       return;
     }
     const ids = order.map((other) => other.id);
     ids.splice(before ? ids.indexOf(before.id) : last ? ids.indexOf(last.id) + 1 : 0, 0, id);
-    reorder.mutate({ kind, ids }, { onError });
+    reorder.mutate({ kind, ids }, ON_ERROR);
   };
 
   /**
@@ -182,14 +181,14 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
     confirmDestructive({
       title: `Supprimer ${noun}`,
       risks: (
-        <Text size="sm">
+        <>
           {deleteMessage?.(item, path) ?? (
             <>
               « {path} » sera supprimé définitivement{used && usageNoun ? ` et retiré des ${used} ${usageNoun} qui l’utilisent` : ''}.{nested ? ' Ses sous-éléments remonteront d’un niveau.' : ''}{' '}
               Cette action est irréversible.
             </>
           )}
-        </Text>
+        </>
       ),
       onConfirm: () => {
         remove(item.id).then(() => notifySuccess(`« ${path} » supprimé.`), onMutationError);

@@ -10,6 +10,16 @@ import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';
 
 /**
+ * Rethrows an SMTP failure as a user error with its detail: « Envoi impossible (…). ».
+ * @param {unknown} error SMTP error.
+ * @param {string} what What failed (« Envoi impossible »).
+ * @returns {never} Never returns.
+ */
+export function rethrowSmtpError(error: unknown, what: string): never {
+  throw clientError('BAD_USER_INPUT', `${what} (${errorMessage(error)}).`);
+}
+
+/**
  * SMTP transport of an account.
  * @param {Pick<MailAccount, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'smtpUser'>} account Account settings.
  * @param {string} password Plain password.
@@ -90,8 +100,7 @@ export async function testMailAccount(input: MailAccountFormValues & { id?: stri
   try {
     await createSmtpTransport(values, smtpPassword).verify();
   } catch (error) {
-    const detail = errorMessage(error);
-    throw clientError('BAD_USER_INPUT', `Connexion SMTP impossible (${detail}).`);
+    rethrowSmtpError(error, 'Connexion SMTP impossible');
   }
 }
 

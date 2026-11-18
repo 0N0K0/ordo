@@ -1,3 +1,4 @@
+import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DragHandle } from '../../../components/actions/DragHandle';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/data-table/cells/RowActions';
@@ -9,13 +10,11 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Alert, Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
-  ArchiveIcon,
   ArrowBendUpRightIcon,
-  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
@@ -37,10 +36,10 @@ import { sortableStyle } from '../../../components/actions/sortable-style';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifyError, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
-import { ARCHIVED_MESSAGE, archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ChartEditor } from './ChartEditor';
@@ -207,17 +206,9 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const confirmDelete = () => {
     confirmDestructive({
       title: 'Supprimer le diagramme',
-      risks: (
-        <>
-          <Text size="sm">Le diagramme « {chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.</Text>
-        </>
-      ),
-      onConfirm: () => {
-        removeChart.mutate(chart.id, {
-          onSuccess: () => notifySuccess('Diagramme supprimé.'),
-          onError: onMutationError,
-        });
-      },
+      risks: `Le diagramme « ${chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées. Cette action est irréversible.`,
+      run: () => removeChart.mutateAsync(chart.id),
+      done: 'Diagramme supprimé.',
     });
   };
 
@@ -350,13 +341,6 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   };
 
   /**
-   * Archives a dashboard or restores it, with an undo.
-   * @param {Dashboard} dashboard Dashboard.
-   * @returns {void}
-   */
-  const toggleArchived = (dashboard: Dashboard) => void archiveWithUndo(setArchived, { ids: [dashboard.id], archived: !dashboard.archived, label: `« ${dashboard.name} »` });
-
-  /**
    * Asks for a dashboard name, then creates or renames it.
    * @param {Dashboard} [dashboard] Dashboard to rename. Optional.
    * @returns {void}
@@ -408,20 +392,9 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const confirmDelete = (dashboard: Dashboard) => {
     confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      risks: (
-        <>
-          <Text size="sm">
-            « {dashboard.name} » et ses {dashboard.charts.length} diagramme
-            {dashboard.charts.length > 1 ? 's' : ''} seront supprimés définitivement. Les données affichées ne sont pas modifiées.
-          </Text>
-        </>
-      ),
-      onConfirm: () => {
-        mutations.remove.mutate(dashboard.id, {
-          onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
-          onError: onMutationError,
-        });
-      },
+      risks: `« ${dashboard.name} » et ses ${countOf(dashboard.charts.length, 'diagramme')} seront supprimés définitivement. Les données affichées ne sont pas modifiées. Cette action est irréversible.`,
+      run: () => mutations.remove.mutateAsync(dashboard.id),
+      done: 'Tableau de bord supprimé.',
     });
   };
 
@@ -513,11 +486,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
           actions={(dashboard) => [
             // Archived: read only.
             ...(dashboard.archived ? [] : [{ label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => askName(dashboard) }]),
-            {
-              label: dashboard.archived ? 'Restaurer' : 'Archiver',
-              icon: dashboard.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-              onClick: () => toggleArchived(dashboard),
-            },
+            archiveEntry({ archived: dashboard.archived, label: `« ${dashboard.name} »` }, setArchived, dashboard.id),
           ]}
           onDelete={confirmDelete}
           add={{ label: 'Nouveau tableau de bord', onClick: () => askName() }}
@@ -542,11 +511,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
         </Group>
       </Group>
 
-      {current.archived && (
-        <Alert color="gray" icon={<ArchiveIcon aria-hidden />}>
-          Tableau de bord archivé : restaurez-le pour le modifier.
-        </Alert>
-      )}
+      {current.archived && <ArchivedNotice>Tableau de bord archivé : restaurez-le pour le modifier.</ArchivedNotice>}
       {current.charts.length === 0 ? (
         <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (

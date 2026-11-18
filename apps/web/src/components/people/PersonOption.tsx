@@ -1,4 +1,4 @@
-import { Avatar, Group, Stack, Text } from '@mantine/core';
+import { Avatar, Group, Stack, Text, type MantineSize } from '@mantine/core';
 import type { ReactNode } from 'react';
 
 /**
@@ -27,11 +27,11 @@ export function PersonOption({ name, label, avatarUrl, hint }: { name: string; l
 
 /**
  * Avatar of a person in a list of people (a cell, a field), next to the name.
- * @param {{ name: string, avatarUrl?: string | null }} props Name (initials), avatar.
+ * @param {{ name: string, avatarUrl?: string | null, size?: MantineSize | number }} props Name (initials), avatar, size (optional, default = 16: in a line of text).
  * @returns {JSX.Element} Avatar.
  */
-export function PersonAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
-  return <Avatar src={avatarUrl} name={name} color="initials" size={16} style={{ flexShrink: 0 }} />;
+export function PersonAvatar({ name, avatarUrl, size = 16 }: { name: string; avatarUrl?: string | null; size?: MantineSize | number }) {
+  return <Avatar src={avatarUrl} name={name} color="initials" size={size} style={{ flexShrink: 0 }} />;
 }
 
 interface PersonRowProps {

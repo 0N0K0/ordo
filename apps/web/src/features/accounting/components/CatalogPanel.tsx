@@ -6,9 +6,9 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, archiveWithUndo, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
@@ -17,7 +17,7 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useCompanyProfile } from '../api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from '../api/catalog';
 import * as fmt from '../../../lib/format';
@@ -221,12 +221,10 @@ export function CatalogPanel() {
     confirmDestructive({
       title: 'Supprimer l’article',
       risks: (
-        <>
-          <Text size="sm">« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</Text>
-        </>
-      ),
+<>« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</>
+),
       onConfirm: () => {
-        remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: onMutationError });
+        remove.mutate(item.id, toastCallbacks('Article supprimé.'));
       },
     });
   };
@@ -340,11 +338,7 @@ export function CatalogPanel() {
           name={item.title}
           primary={!item.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
           items={[
-            {
-              label: item.archived ? 'Restaurer' : 'Archiver',
-              icon: item.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-              onClick: () => void archiveWithUndo(setArchived, { ids: [item.id], archived: !item.archived, label: `« ${item.title} »` }),
-            },
+            archiveEntry({ archived: item.archived, label: `« ${item.title} »` }, setArchived, item.id),
             { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
           ]}
         />

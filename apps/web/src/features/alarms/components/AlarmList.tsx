@@ -4,7 +4,7 @@ import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core'
 import { nextOccurrence } from '@ordo/shared';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { describeAlarm } from '../lib/alarm-labels';
 import { useAlarmMutations, type Alarm } from '../api';
@@ -52,14 +52,9 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
   const confirmDelete = (alarm: Alarm) => {
     confirmDestructive({
       title: 'Supprimer l’alarme',
-      risks: (
-        <>
-          <Text size="sm">L’alarme « {alarm.title} » sera supprimée définitivement et ne sonnera plus. Cette action est irréversible.</Text>
-        </>
-      ),
-      onConfirm: () => {
-        remove.mutate(alarm.id, { onSuccess: () => notifySuccess('Alarme supprimée.'), onError: onMutationError });
-      },
+      risks: `L’alarme « ${alarm.title} » sera supprimée définitivement et ne sonnera plus. Cette action est irréversible.`,
+      run: () => remove.mutateAsync(alarm.id),
+      done: 'Alarme supprimée.',
     });
   };
 

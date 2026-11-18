@@ -1,3 +1,4 @@
+import { itemChoices } from '../../../components/items/item-look';
 import { plural, countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -16,7 +17,7 @@ import {
   type WorkScheduleInput,
   workScheduleSchema,
 } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -25,13 +26,13 @@ import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifyError, onMutationError } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
-import { archiveWithUndo, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
 import { describeScheduleCase, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
@@ -166,13 +167,6 @@ export function WorkSchedulesManager() {
   const setArchived = useSetArchived('WORK_SCHEDULE', [calendarQueryKey]);
 
   /**
-   * Archives a schedule or restores it, with an undo.
-   * @param {WorkSchedule} schedule Schedule.
-   * @returns {void}
-   */
-  const toggleArchived = (schedule: WorkSchedule) => void archiveWithUndo(setArchived, { ids: [schedule.id], archived: !schedule.archived, label: `« ${schedule.name} »`, feminine: true });
-
-  /**
    * Saves fields of a schedule changed in their cells (its hours and exceptions kept).
    * @param {WorkSchedule} schedule Schedule.
    * @param {Partial<WorkScheduleInput>} change Change.
@@ -219,7 +213,8 @@ export function WorkSchedulesManager() {
     confirmDestructive({
       title: `Supprimer « ${schedule.name} »`,
       risks: `Ces plages et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
-      onConfirm: () => remove.mutate(schedule.id, { onSuccess: () => notifySuccess('Plages supprimées.'), onError: onMutationError }),
+      run: () => remove.mutateAsync(schedule.id),
+      done: 'Plages supprimées.',
     });
   const typeById = mapById(types ?? []);
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
@@ -241,10 +236,7 @@ export function WorkSchedulesManager() {
       filter: {
         kind: 'choice',
         value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [
-          { value: NO_KIND, label: defaultName },
-          ...(types ?? []).map((type) => ({ value: type.id, label: type.name, color: type.color ?? 'gray', iconUrl: type.iconUrl, archived: type.archived })),
-        ],
+        options: [{ value: NO_KIND, label: defaultName }, ...itemChoices(types ?? [])],
       },
       groupable: true,
     },
@@ -450,9 +442,7 @@ export function WorkSchedulesManager() {
               primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
               items={[
                 !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                schedule.archived
-                  ? { label: 'Restaurer', icon: <ArrowCounterClockwiseIcon aria-hidden />, onClick: () => toggleArchived(schedule) }
-                  : { label: 'Archiver', icon: <ArchiveIcon aria-hidden />, onClick: () => toggleArchived(schedule) },
+                archiveEntry({ archived: schedule.archived, label: `« ${schedule.name} »`, feminine: true }, setArchived, schedule.id),
                 { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(schedule) },
               ]}
             />

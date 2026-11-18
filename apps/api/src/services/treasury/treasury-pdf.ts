@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, toCents, daySchema } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, mapById, offsetLinkedMovements, parseDay, pathOf, printedDay, safeFilename, splitAmounts, daySchema } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma } from '../../db';
@@ -6,6 +6,7 @@ import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { accountBalance } from './treasury';
 import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport, writeHeading } from '../core/pdf-report';
+import { decimalCents, fromDecimal } from '../core/decimal';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -109,9 +110,9 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   // Accounts opened during the period: their opening balance, that day.
   const openings = accounts
     .filter((account) => formatDay(account.openingDate) >= from && formatDay(account.openingDate) <= to)
-    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: toCents(Number(account.openingBalance)) }));
+    .map((account) => ({ day: formatDay(account.openingDate), name: account.name, amount: decimalCents(account.openingBalance) }));
 
-  const amounts = entries.map((entry) => toCents(Number(entry.amount)));
+  const amounts = entries.map((entry) => decimalCents(entry.amount));
   const incoming = amounts.filter((amount) => amount > 0).reduce((sum, amount) => sum + amount, 0);
   const outgoing = -amounts.filter((amount) => amount < 0).reduce((sum, amount) => sum + amount, 0);
   // Linked money in and out of the period offsetting each other.
@@ -309,8 +310,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     // Split: one muted row per line (and what they leave), under the entry, without balance.
     if (entry.lines.length) {
       const split = splitAmounts(
-        Number(entry.amount),
-        entry.lines.map((line) => ({ mode: line.mode, value: Number(line.value) })),
+        fromDecimal(entry.amount),
+        entry.lines.map((line) => ({ mode: line.mode, value: fromDecimal(line.value) })),
       );
       const parts = [
         ...entry.lines.map((line, lineIndex) => ({

@@ -15,9 +15,9 @@ import { sortableStyle } from '../../../components/actions/sortable-style';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { archiveWithUndo, useSetArchived, visibleItems } from '../../../lib/archive';
+import { archiveEntry, useSetArchived, visibleItems } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/items/ItemBadge';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -193,11 +193,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                     actions={[
                       // Archived (or of an archived project): read only.
                       !milestone.archived && !project?.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(milestone) },
-                      {
-                        label: milestone.archived ? 'Restaurer' : 'Archiver',
-                        icon: milestone.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
-                        onClick: () => void archiveWithUndo(setArchived, { ids: [milestone.id], archived: !milestone.archived, label: `Jalon « ${milestone.title} »` }),
-                      },
+                      archiveEntry({ archived: milestone.archived, label: `Jalon « ${milestone.title} »` }, setArchived, milestone.id),
                       { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(milestone, tasks.length) },
                     ]}
                     progress={<TaskProgress done={done} total={tasks.length} label={`Avancement du jalon ${milestone.title}`} />}

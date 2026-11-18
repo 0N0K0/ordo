@@ -13,7 +13,7 @@ export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
  * (to the end of the last one), or up to a day of the month (and of a month of the year), a week of the year or a month
  * of the year (the next one when it comes before).
  */
-const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
+export const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
 export type DurationUnit = (typeof DURATION_UNITS)[number];
 
 const occurrenceDurationSchema = z.object({

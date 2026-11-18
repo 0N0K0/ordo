@@ -1,6 +1,7 @@
+import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { normalize } from '@ordo/shared';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
@@ -10,7 +11,7 @@ import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
@@ -215,33 +216,24 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
         <SimpleGrid type="container" cols={{ base: 1, '760px': 3 }} spacing="lg">
           {values.statusFieldId && (
-            <Stack gap={4}>
-              <Text size="sm" fw={600}>
-                Statuts
-              </Text>
+            <LabeledField label="Statuts">
               {mappingTable(context.statuses, optionsOf(values.statusFieldId), 'statusOptions')}
-            </Stack>
+            </LabeledField>
           )}
           {values.priorityFieldId && (
-            <Stack gap={4}>
-              <Text size="sm" fw={600}>
-                Priorités
-              </Text>
+            <LabeledField label="Priorités">
               {mappingTable(context.priorities, optionsOf(values.priorityFieldId), 'priorityOptions')}
-            </Stack>
+            </LabeledField>
           )}
           {values.typeSource && (
-            <Stack gap={4}>
-              <Text size="sm" fw={600}>
-                Types
-              </Text>
+            <LabeledField label="Types">
               {mappingTable(context.types, typeChoices, 'typeOptions')}
               {values.typeSource === 'ISSUE_TYPE' && (
                 <Text size="xs" c="dimmed">
                   Les brouillons d’issue n’ont pas de type.
                 </Text>
               )}
-            </Stack>
+            </LabeledField>
           )}
         </SimpleGrid>
       )}
@@ -347,7 +339,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', confirmIcon: <LinkBreakIcon aria-hidden />, onConfirm: () => { unlink.mutate(projectId, toastCallbacks('Tableau GitHub délié.')); } });
   };
 
   if (!link) {
@@ -423,7 +415,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   sync.mutate(projectId, {
                     onSuccess: (result) =>
                       notifySuccess(
-                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.renumbered} tâche(s) renumérotée(s),${result.sprintsSkipped ? ` ${result.sprintsSkipped} sprint(s) sans itération (à créer dans GitHub),` : ''} ${result.comments} commentaire(s) échangé(s).`,
+                        `Synchronisé : ${countOf(result.pulledNew, 'tâche')} et ${countOf(result.pushedNew, 'item')} ${plural(result.pulledNew + result.pushedNew, 'créé')}, ${countOf(result.pulled, 'tâche')} et ${countOf(result.pushed, 'item')} mis à jour, ${countOf(result.renumbered, 'tâche')} ${plural(result.renumbered, 'renumérotée')},${result.sprintsSkipped ? ` ${countOf(result.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} ${countOf(result.comments, 'commentaire')} ${plural(result.comments, 'échangé')}.`,
                       ),
                     onError: onMutationError,
                   })
@@ -444,9 +436,11 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
           )}
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
-              Dernier échange : {summary.pulledNew} tâche(s) créée(s) depuis GitHub, {summary.pushedNew} item(s) créé(s) sur GitHub, {summary.pulled} tâche(s) et{' '}
-              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.renumbered ?? 0} tâche(s) renumérotée(s),{summary.sprintsSkipped ? ` ${summary.sprintsSkipped} sprint(s) sans itération (à créer dans GitHub),` : ''} {summary.comments ?? 0}{' '}
-              commentaire(s) échangé(s).
+              Dernier échange : {countOf(summary.pulledNew, 'tâche')} {plural(summary.pulledNew, 'créée')} depuis GitHub, {countOf(summary.pushedNew, 'item')} {plural(summary.pushedNew, 'créé')} sur GitHub,{' '}
+              {countOf(summary.pulled, 'tâche')} et {countOf(summary.pushed, 'item')} mis à jour, {countOf(summary.unlinked, 'tâche')} {plural(summary.unlinked, 'déliée')}, {countOf(summary.sprints, 'sprint')}{' '}
+              {plural(summary.sprints, 'créé')} ou mis à jour, {countOf(summary.renumbered ?? 0, 'tâche')} {plural(summary.renumbered ?? 0, 'renumérotée')},
+              {summary.sprintsSkipped ? ` ${countOf(summary.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} {countOf(summary.comments ?? 0, 'commentaire')}{' '}
+              {plural(summary.comments ?? 0, 'échangé')}.
             </Text>
           )}
         </Stack>

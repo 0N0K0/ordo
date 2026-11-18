@@ -1,10 +1,11 @@
 import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import { Prisma, type CatalogItem } from '../../generated/prisma/client';
+import { type CatalogItem } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { requirePro } from '../workspace/workspaces';
 import { assertNotArchived } from '../core/archive';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { toDecimal } from '../core/decimal';
 
 /**
  * Prisma data of a validated catalogue item.
@@ -15,9 +16,9 @@ function itemData(input: CatalogItemInput) {
   const data = parseInput(catalogItemSchema, input);
   return {
     ...data,
-    unitPrice: new Prisma.Decimal(data.unitPrice),
+    unitPrice: toDecimal(data.unitPrice),
     // A disbursement is re-invoiced without VAT.
-    vatRate: new Prisma.Decimal(data.kind === 'DISBURSEMENT' ? 0 : data.vatRate),
+    vatRate: toDecimal(data.kind === 'DISBURSEMENT' ? 0 : data.vatRate),
   };
 }
 

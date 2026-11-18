@@ -4,7 +4,7 @@ import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { onMutationError, toastCallbacks } from '../../../lib/notify';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeMutations, type TimeEntry } from '../api';
@@ -117,13 +117,8 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    */
   const confirmDiscard = () => {
     confirmDestructive({ title: 'Abandonner le chrono', risks: (
-<>
-<Text size="sm">Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré. Cette action est irréversible.</Text>
-</>
-), confirmLabel: 'Abandonner', onConfirm: () => { remove.mutate(entry.id, {
-                onSuccess: () => notifySuccess('Chrono abandonné.'),
-                onError: onMutationError,
-              }); } });
+<>Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré. Cette action est irréversible.</>
+), confirmLabel: 'Abandonner', onConfirm: () => { remove.mutate(entry.id, toastCallbacks('Chrono abandonné.')); } });
   };
 
   return (

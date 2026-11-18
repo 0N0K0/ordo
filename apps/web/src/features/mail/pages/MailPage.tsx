@@ -291,9 +291,13 @@ export function MailPage() {
             ) : messages.isPending && accountId ? (
               <ListSkeleton items={6} lines={2} />
             ) : total === 0 ? (
-              <Text size="sm" c="dimmed" ta="center" p="xl">
-                {debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
-              </Text>
+              <Box p="xl">
+                <EmptyState
+                  plain
+                  icon={<EnvelopeSimpleIcon aria-hidden />}
+                  message={debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
+                />
+              </Box>
             ) : (
               <div className={classes.paneScroll} style={{ opacity: messages.isPlaceholderData ? 0.6 : 1 }}>
                 {messages.data?.messages.map((message) => {

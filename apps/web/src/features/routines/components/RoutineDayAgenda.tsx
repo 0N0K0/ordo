@@ -10,7 +10,7 @@ import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../../lib/dates';
-import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
 import { occurrenceSpan, scheduleSources } from '../../calendar/lib/calendar-events';
@@ -87,7 +87,6 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const now = useNow(false);
   const future = at.getTime() > now;
   const window = windowText(item);
-  const onError = { onError: onMutationError };
   /**
    * Ticks it (done at the chosen hour) or unticks it, with an undo.
    * @param {boolean} done Target state.
@@ -98,11 +97,11 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
     setDone.mutate(
       { id: item.routineId, done, date: item.date, slot: item.slot, doneAt: done ? at.toISOString() : null },
       {
-        ...onError,
+        ...ON_ERROR,
         onSuccess: () => {
           onDone();
           notifyWithUndo(done ? 'Routine cochée.' : 'Routine décochée.', () =>
-            setDone.mutate({ id: item.routineId, done: previous !== null, date: item.date, slot: item.slot, doneAt: previous }, onError),
+            setDone.mutate({ id: item.routineId, done: previous !== null, date: item.date, slot: item.slot, doneAt: previous }, ON_ERROR),
           );
         },
       },

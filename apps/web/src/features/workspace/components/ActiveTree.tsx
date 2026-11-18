@@ -2,7 +2,7 @@ import { closestCenter, DndContext, DragOverlay, type CollisionDetection, type D
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { useMemo, useState } from 'react';
-import { onMutationError } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useMoveClient, useMoveProject, type Client, type Project } from '../api';
 import { NO_CLIENT, type ProjectNode, type TreeSection } from '../lib/tree';
 import { NoClientRow } from './NoClientRow';
@@ -303,12 +303,11 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
       items.findIndex((item) => item.id === dragId),
       items.findIndex((item) => item.id === over.id),
     );
-    const onError = onMutationError;
 
     if (kind === 'client') {
       const index = moved.filter((item) => item.kind === 'client').findIndex((item) => item.id === dragId);
       if (index !== section.clients.findIndex((node) => node.client.id === id)) {
-        moveClient.mutate({ id, index }, { onError });
+        moveClient.mutate({ id, index }, ON_ERROR);
       }
       return;
     }
@@ -331,7 +330,7 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
         clientId: parentKind === 'client' ? parentEntityId : null,
         index,
       },
-      { onError },
+      ON_ERROR,
     );
   };
 

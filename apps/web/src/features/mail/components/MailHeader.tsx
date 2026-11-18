@@ -1,4 +1,5 @@
-import { Avatar, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { PersonAvatar } from '../../../components/people/PersonOption';
+import { Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { PaperclipIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { addressLabel, fullDate, senderName, type Address } from '../lib/mail-format';
@@ -32,7 +33,7 @@ export function MailHeader({ subject, from, to, cc, date, actions, extra }: Mail
         {actions}
       </Group>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        <Avatar name={senderName(from)} color="initials" />
+        <PersonAvatar name={senderName(from)} size="md" />
         <Stack gap={0} style={{ minWidth: 0 }}>
           <Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>
             {from.map(addressLabel).join(', ')}

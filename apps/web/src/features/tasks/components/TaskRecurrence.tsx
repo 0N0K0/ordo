@@ -6,7 +6,7 @@ import { describeCase, formatLongDate } from '../../../components/recurrence/des
 import { RepetitionEditor, type RepetitionModeValue } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { DeletedDates } from '../../../components/recurrence/DeletedDates';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { useSetTaskRecurrence, type Task } from '../api';
 import { taskRef, type TaskContext } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
@@ -62,15 +62,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
           return draft.cases.map((item, index) => `${draft.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start))}`);
         }}
         valid={(draft) => draft.mode !== 'CASES' || draft.cases.length > 0}
-        onChange={(draft) =>
-          setRecurrence.mutate(
-            { id: first.id, recurrence: repetitionOf(draft) },
-            {
-              onSuccess: () => notifySuccess(repetitionOf(draft) ? 'Répétition enregistrée.' : 'La tâche ne se répète plus.'),
-              onError: onMutationError,
-            },
-          )
-        }
+        onChange={(draft) => setRecurrence.mutate({ id: first.id, recurrence: repetitionOf(draft) }, toastCallbacks(repetitionOf(draft) ? 'Répétition enregistrée.' : 'La tâche ne se répète plus.'))}
         editor={(draft, setDraft) => (
           <Stack gap="sm">
             <Text size="sm" c="dimmed">

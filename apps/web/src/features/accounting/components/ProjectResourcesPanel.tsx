@@ -8,7 +8,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
+import { toastCallbacks } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
@@ -83,12 +83,10 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
   const confirmDelete = (resource: ProjectResource) => {
     confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
 <>
-<Text size="sm">
             {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
             irréversible.
-          </Text>
-</>
-), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: onMutationError }); } });
+          </>
+), onConfirm: () => { remove.mutate(resource.id, toastCallbacks('Ressource supprimée.')); } });
   };
 
   return (
@@ -100,7 +98,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
           <FileButton
             multiple
             onChange={(files) =>
-              files.length && addFiles.mutate({ projectId, files }, { onSuccess: () => notifySuccess('Fichiers ajoutés.'), onError: onMutationError })
+              files.length && addFiles.mutate({ projectId, files }, toastCallbacks('Fichiers ajoutés.'))
             }
           >
             {(props) => (
