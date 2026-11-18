@@ -127,14 +127,7 @@ export function useTaskContext() {
      * @param {string | null} projectId Project id; none: the tasks of no project.
      * @returns {string | null} Root project id; null without project.
      */
-    const rootOf = (projectId: string | null) => {
-      if (projectId === null) return null;
-      let current = projectId;
-      for (let parent = projectById.get(current)?.parentId; parent; parent = projectById.get(current)?.parentId) {
-        current = parent;
-      }
-      return current;
-    };
+    const rootOf = (projectId: string | null) => (projectId === null ? null : (lineageOf(projectById, projectId).at(-1)?.id ?? projectId));
 
     /**
      * Client and project path of a project.

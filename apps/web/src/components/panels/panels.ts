@@ -65,7 +65,7 @@ export function closePanel(panelId: string): void {
 }
 
 /** Options of a form panel: its width, whether only its content closes it, what follows its closing, its id. */
-export interface FormPanelOptions {
+interface FormPanelOptions {
   size?: PanelSize;
   /** Id of the panel: opened again, it replaces itself (the panel of a chart). Optional. Default = a new one. */
   panelId?: string;

@@ -1,3 +1,4 @@
+import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -201,13 +202,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
           />
           <DatePickerInput label="Au" required minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
         </SimpleGrid>
-        <MarkdownEditor
-          label="Description"
-          value={form.values.note ?? ''}
-          onChange={(note) => form.setFieldValue('note', note)}
-          suggestions={{ projectId: null, tasks: [], contributors: [] }}
-          minRows={2}
-        />
+        <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
         <FormActions onCancel={onDone} loading={saveContextPeriod.isPending} />
       </Stack>
     </form>
@@ -448,7 +443,7 @@ export function TeamRelations() {
                       </Badge>
                     )}
                   </Group>
-                  {relation.note && <MarkdownView targets={{ projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set<string>() }}>{relation.note}</MarkdownView>}
+                  {relation.note && <MarkdownView targets={NO_TARGETS}>{relation.note}</MarkdownView>}
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c="dimmed">

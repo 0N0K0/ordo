@@ -1,11 +1,12 @@
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { fetchDownload } from '../../../lib/download';
-import { DatePickerInput } from '@mantine/dates';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
-import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../../../lib/periods';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
+import { useAsyncAction } from '../../../lib/use-async-action';
+import { PeriodRangeFields } from '../../../components/inputs/PeriodRangeFields';
+import { usePeriodRange } from '../../../components/inputs/use-period-range';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -27,39 +28,25 @@ const ZIP_PERIODS: { value: ZipPeriod; label: string }[] = [
  * @returns {JSX.Element} Form.
  */
 export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone?: () => void; year?: string | null; years?: string[] }) {
-  const today = localToday();
-  const [preset, setPreset] = useState<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth');
-  const [year, setYear] = useState(initialYear ?? today.slice(0, 4));
+  const [year, setYear] = useState(initialYear ?? localToday().slice(0, 4));
+  const range = usePeriodRange<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth', (period) => (period === 'calendarYear' ? [`${year}-01-01`, `${year}-12-31`] : null));
+  const { today, preset, setPreset, from, to } = range;
   const yearOptions = [...new Set([...years, today.slice(0, 4), year])].sort().reverse();
-  const [custom, setCustom] = useState<[string | null, string | null]>(presetRange('lastMonth', today));
   const [types, setTypes] = useState<string[]>(TYPES);
   const [imported, setImported] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [from, to] = preset === 'custom' ? custom : preset === 'calendarYear' ? [`${year}-01-01`, `${year}-12-31`] : presetRange(preset, today);
-  const valid = Boolean(from && to && from <= to) && types.length > 0;
-
-  /**
-   * Downloads the archive (an empty period is reported, not downloaded).
-   * @returns {Promise<void>}
-   */
-  const download = async () => {
-    if (!from || !to) return;
-    setLoading(true);
-    try {
+  const valid = range.valid && types.length > 0;
+  const { run: download, loading } = useAsyncAction(
+    async () => {
+      if (!from || !to) return;
       const params = new URLSearchParams({ from, to, types: types.join(','), imported: imported ? '1' : '0' });
       await fetchDownload(
         `/api/accounting/documents/zip?${params}`,
         preset === 'calendarYear' ? `Documents comptables ${year}.zip` : `Documents comptables du ${from} au ${to}.zip`,
         'Archive impossible.',
       );
-      notifySuccess('Archive téléchargée.');
-      onDone?.();
-    } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Archive impossible.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    { success: 'Archive téléchargée.', fallback: 'Archive impossible.', onDone: () => onDone?.() },
+  );
 
   return (
     <Stack gap="md">
@@ -67,16 +54,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
         <Select label="Période" data={ZIP_PERIODS} value={preset} onChange={(value) => value && setPreset(value as ZipPeriod)} allowDeselect={false} />
         {preset === 'calendarYear' && <Select label="Année" data={yearOptions} value={year} onChange={(value) => value && setYear(value)} allowDeselect={false} />}
       </Group>
-      <SimpleGrid cols={2}>
-        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} />
-        <DatePickerInput
-          label="Au"
-          value={to}
-          disabled={preset !== 'custom'}
-          onChange={(value) => setCustom([custom[0], value])}
-          error={from && to && from > to ? 'Avant la date de début.' : undefined}
-        />
-      </SimpleGrid>
+      <PeriodRangeFields range={range} />
       <Checkbox.Group label="Documents" value={types} onChange={setTypes} error={types.length === 0 ? 'Choisissez au moins un type.' : undefined}>
         <SimpleGrid cols={2} mt="xs">
           {TYPES.map((type) => (

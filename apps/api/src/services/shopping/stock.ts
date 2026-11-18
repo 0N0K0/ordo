@@ -25,8 +25,10 @@ import {
 import { assertTreeParent, deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
+import { peopleData, peopleIds } from './people';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
+import { assertAllExist, assertExists } from '../core/lookup';
 
 type Tx = Prisma.TransactionClient;
 
@@ -120,13 +122,11 @@ export async function deleteLocation(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertItemRefs(data: StockItemInput): Promise<void> {
-  if (data.productId && !(await prisma.shoppingProduct.findUnique({ where: { id: data.productId }, select: { id: true } }))) throw notFound('Référence');
-  if (data.categoryId && !(await prisma.shoppingCategory.findUnique({ where: { id: data.categoryId }, select: { id: true } }))) throw notFound('Catégorie');
-  if (data.locationId && !(await prisma.stockLocation.findUnique({ where: { id: data.locationId }, select: { id: true } }))) throw notFound('Emplacement');
-  const members = [...new Set(data.memberIds)];
-  const relations = [...new Set(data.relationIds)];
-  if (members.length && (await prisma.contributor.count({ where: { id: { in: members } } })) !== members.length) throw notFound('Membre');
-  if (relations.length && (await prisma.treasuryRelation.count({ where: { id: { in: relations } } })) !== relations.length) throw notFound('Relation');
+  await assertExists(prisma.shoppingProduct, data.productId, 'Référence');
+  await assertExists(prisma.shoppingCategory, data.categoryId, 'Catégorie');
+  await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
+  await assertAllExist(prisma.contributor, data.memberIds, 'Membre');
+  await assertAllExist(prisma.treasuryRelation, data.relationIds, 'Relation');
 }
 
 /**
@@ -142,17 +142,6 @@ const itemFields = (data: StockItemInput) => ({
   locationId: data.locationId,
   note: data.note?.trim() || null,
   perishable: data.perishable,
-});
-
-/**
- * People of an item, connected on creation or replacing the previous ones.
- * @param {StockItemInput} data Item.
- * @param {'connect' | 'set'} mode Creation or update.
- * @returns {object} Relation data.
- */
-const people = (data: StockItemInput, mode: 'connect' | 'set') => ({
-  members: { [mode]: [...new Set(data.memberIds)].map((id) => ({ id })) },
-  relations: { [mode]: [...new Set(data.relationIds)].map((id) => ({ id })) },
 });
 
 /**
@@ -175,7 +164,7 @@ export async function createStockItem(input: NewStockItemInput): Promise<StockIt
   await assertItemRefs(data);
   const position = await nextPositionIn('stockItem');
   return prisma.$transaction(async (tx) => {
-    const item = await tx.stockItem.create({ data: { ...itemFields(data), position, ...people(data, 'connect') } });
+    const item = await tx.stockItem.create({ data: { ...itemFields(data), position, ...peopleData(data, 'connect') } });
     if (data.quantity) await addIn(tx, item, data.quantity, data.perishable ? data.expiresAt : null, null, { kind: 'COUNT', note: 'Quantité de départ' });
     return item;
   });
@@ -191,7 +180,7 @@ export async function updateStockItem(id: string, input: StockItemInput): Promis
   await findItem(id);
   const data = parseInput(stockItemSchema, input);
   await assertItemRefs(data);
-  return prisma.stockItem.update({ where: { id }, data: { ...itemFields(data), ...people(data, 'set') } });
+  return prisma.stockItem.update({ where: { id }, data: { ...itemFields(data), ...peopleData(data, 'set') } });
 }
 
 /**
@@ -305,7 +294,7 @@ export async function setLotExpiry(id: string, expiresAt: string | null): Promis
  */
 export async function recordCount(input: StockCountInput): Promise<StockCount> {
   const data = parseInput(stockCountSchema, input);
-  if (data.locationId && !(await prisma.stockLocation.findUnique({ where: { id: data.locationId }, select: { id: true } }))) throw notFound('Emplacement');
+  await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
   const byId = mapById(items);
@@ -337,7 +326,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
 export async function setProductStock(id: string, input: ProductStockInput): Promise<void> {
   const data = parseInput(productStockSchema, input);
   await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true } }), 'Référence');
-  if (data.stockLocationId && !(await prisma.stockLocation.findUnique({ where: { id: data.stockLocationId }, select: { id: true } }))) throw notFound('Emplacement');
+  await assertExists(prisma.stockLocation, data.stockLocationId, 'Emplacement');
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });
 }
 
@@ -385,7 +374,7 @@ async function itemFor(
  */
 export async function addPurchase(input: StockPurchaseInput): Promise<void> {
   const data = parseInput(stockPurchaseSchema, input);
-  if (data.locationId && !(await prisma.stockLocation.findUnique({ where: { id: data.locationId }, select: { id: true } }))) throw notFound('Emplacement');
+  await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
   await prisma.$transaction((tx) => storePurchase(tx, data.shoppingItemId, data.quantity, data.locationId, data.expiresAt));
 }
 
@@ -409,8 +398,7 @@ async function storePurchase(tx: Tx, shoppingItemId: string, quantity: number, l
       unit: bought.unit,
       categoryId: bought.categoryId,
       perishable: bought.perishable,
-      memberIds: bought.members.map((member) => member.id),
-      relationIds: bought.relations.map((relation) => relation.id),
+      ...peopleIds(bought),
     },
     locationId,
   );

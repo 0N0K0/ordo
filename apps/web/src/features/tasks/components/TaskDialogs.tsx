@@ -6,7 +6,7 @@ import { ErrorIcon } from '../../../components/feedback/feedback-icons';
 import { outermost } from '../../../components/data-table/selection/selection-actions';
 import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { countOf, plural } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
 import { countSubtasks } from '../lib/task-links';
@@ -212,7 +212,7 @@ export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
             onDone(true);
             if (single && last) link.open(last.id);
           } catch (error) {
-            notifyError((error as Error).message);
+            notifyFailure(error);
           } finally {
             setPending(false);
           }

@@ -1,4 +1,4 @@
-import { type TreasuryLineMode, LEVEL } from '@ordo/shared';
+import { type TreasuryLineMode, LEVEL, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -81,3 +81,34 @@ export function newLine(fields: Partial<LineValues>): LineValues {
  * @returns {string} "12 mars 2026 · Courses › Glace · -4,50 €".
  */
 export const describeLink = (link: LineLink) => `${fmt.day(link.date)} · ${link.entryLabel}${link.label ? `${LEVEL}${link.label}` : ''} · ${fmt.money(link.amount)}`;
+
+/**
+ * Value of a line in another unit, keeping its share of the entry.
+ * @param {TreasuryLineMode} mode Unit wanted.
+ * @param {number} share Amount of the line relative to the entry (positive: its direction).
+ * @param {number} entryAmount Amount of the entry, positive.
+ * @returns {number} Amount, or percentage of the entry (0 for an entry of 0).
+ */
+export const valueInMode = (mode: TreasuryLineMode, share: number, entryAmount: number) => (mode === 'PERCENT' ? (entryAmount ? round2((share * 100) / entryAmount) : 0) : share);
+
+/**
+ * Category kept for a line only when it is of the direction the line goes.
+ * @param {readonly { id: string, direction: string }[]} categories Categories.
+ * @param {string | null} id Category.
+ * @param {'IN' | 'OUT'} direction Direction of the line.
+ * @returns {string | null} The category, or null when it is of the other direction (or unknown).
+ */
+export function categoryForDirection(categories: readonly { id: string; direction: string }[], id: string | null, direction: 'IN' | 'OUT'): string | null {
+  const category = categories.find((item) => item.id === id);
+  return category && category.direction === direction ? category.id : null;
+}
+
+/** Line or whole entry found to link, with the account of its entry. */
+export type LinkCandidate = LineLink & { accountName: string };
+
+/**
+ * Key of a link, unique among lines and entries.
+ * @param {Pick<LineLink, 'kind' | 'id'>} link Link.
+ * @returns {string} "line:<id>" or "entry:<id>".
+ */
+export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => `${link.kind}:${link.id}`;

@@ -1,18 +1,10 @@
 import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
 import { mapById, byPosition, lineageOf } from '@ordo/shared';
-import { categoryOptions, categoryTree, type PlacedCategory } from '../../../components/tree/category-tree';
+import { categoryTree } from '../../../components/tree/category-tree';
 import { useTreasurySettings } from '../../treasury/api';
 import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from '../api';
-import * as fmt from '../../../lib/format';
-
-/**
- * Quantity and unit of a product or an item ("2 kg", "3 boîte"), empty without quantity nor unit.
- * @param {{ quantity: number | null, unit: string | null }} item Product or item.
- * @returns {string} Text.
- */
-export const quantityText = ({ quantity, unit }: { quantity?: number | null; unit?: string | null }) => [quantity != null ? fmt.number(quantity, 3) : null, unit].filter(Boolean).join(' ');
 
 /** Units offered (any other can be typed). */
 /**
@@ -231,19 +223,6 @@ interface ShoppingGroupLabels {
   people?: ReadonlyMap<string, string>;
 }
 
-/** Category placed in its tree. */
-type PlacedShoppingCategory = PlacedCategory<ShoppingCategory>;
-
-/**
- * Categories in tree order: each one followed by its sub-categories, by name (as the treasury categories).
- * @param {readonly ShoppingCategory[]} categories All categories.
- * @returns {PlacedShoppingCategory[]} Placed categories.
- */
-export const shoppingCategoryTree = (categories: readonly ShoppingCategory[]): PlacedShoppingCategory[] => categoryTree(categories);
-
-/** Select options of the categories, indented as their tree (without the one edited and its sub-categories). */
-export const shoppingCategoryOptions = categoryOptions;
-
 /** Row of a shopping table: a category (or store) heading, or a product or an item under it. */
 export type ShoppingRow<T> =
   | {
@@ -289,7 +268,7 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
 ): ShoppingRow<T>[] {
   const groups =
     grouping === 'category'
-      ? shoppingCategoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
+      ? categoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
       : grouping === 'store'
         ? [...labels.stores].sort(byPosition).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }))
         : grouping === 'storage'

@@ -1,6 +1,6 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
-import { Accordion, ActionIcon, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { Accordion, ActionIcon, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   CHART_COMPARISON_KINDS,
   defaultChartConfig,
@@ -16,12 +16,11 @@ import {
 } from '@ordo/shared';
 import { CopyIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from '../lib/aggregate';
-import { DocumentFilters, TreasuryFilters } from './source-filters';
+import { SOURCE_LABELS } from '../lib/chart-data';
+import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
 
-const SOURCE_LABELS: Record<ChartSource, string> = { tasks: 'Tâches', documents: 'Facturation', treasury: 'Trésorerie' };
 const COMPARISON_LABELS: Record<ChartComparison['kind'], string> = { ratio: 'Pourcentage (A / B)', difference: 'Différence (A − B)' };
 
 let datasetCount = 0;
@@ -224,15 +223,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                       value={dataset.series}
                       onChange={(series) => setDataset(index, { series: (series as ChartDataset['series']) ?? null })}
                     />
-                    {dataset.source === 'tasks' && (
-                      <>
-                        <TextInput placeholder="Recherche (titre, description)" value={dataset.search} onChange={(event) => setDataset(index, { search: event.currentTarget.value })} />
-                        <TaskFilterBuilder filter={dataset.filter} context={context} onChange={(filter) => setDataset(index, { filter })} />
-                        <Switch label="Inclure les tâches archivées" checked={dataset.includeArchived} onChange={(event) => setDataset(index, { includeArchived: event.currentTarget.checked })} />
-                      </>
-                    )}
-                    {dataset.source === 'documents' && <DocumentFilters config={dataset} change={(changes) => changes.documents && setDataset(index, { documents: changes.documents })} />}
-                    {dataset.source === 'treasury' && <TreasuryFilters config={dataset} change={(changes) => changes.treasury && setDataset(index, { treasury: changes.treasury })} />}
+                    <SourceFilters source={dataset.source} config={dataset} context={context} change={(changes) => setDataset(index, changes)} />
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>

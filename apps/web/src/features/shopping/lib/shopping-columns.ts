@@ -1,6 +1,6 @@
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { personKey } from '../../../components/people/people-keys';
-import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from '../api';
 import { rowPeopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../../lib/format';
@@ -28,7 +28,7 @@ interface ItemNames {
  * @returns {DataColumn<T>[]} Columns.
  */
 export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping, names: ItemNames, extra: DataColumn<T>[] = []): DataColumn<T>[] {
-  const paths = new Map(categoryTree(names.categories).map((item) => [item.category.id, item.path]));
+  const paths = categoryPaths(names.categories);
   const storeName = new Map(names.stores.map((store) => [store.id, store.name]));
   const categoryOf = (item: T) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const storeOf = (item: T) => (item.storeId ? (storeName.get(item.storeId) ?? '') : '');

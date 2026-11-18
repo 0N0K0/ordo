@@ -2,7 +2,7 @@ import { mailAccountFormSchema, signatureSchema, type MailAccountFormValues } fr
 import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, errorMessage, fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
@@ -51,8 +51,8 @@ function assertPasswordsForServers(values: MailAccountFormValues, saved: MailAcc
     values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
   const smtpChanged =
     values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
-  if (imapChanged && !values.imapPassword) throw clientError('BAD_USER_INPUT', message, { fields: { imapPassword: message } });
-  if (smtpChanged && !values.smtpPassword) throw clientError('BAD_USER_INPUT', message, { fields: { smtpPassword: message } });
+  if (imapChanged && !values.imapPassword) throw fieldError('imapPassword', message);
+  if (smtpChanged && !values.smtpPassword) throw fieldError('smtpPassword', message);
 }
 
 /**
@@ -78,7 +78,7 @@ export async function testMailAccount(input: MailAccountFormValues & { id?: stri
   try {
     await createSmtpTransport(values, smtpPassword).verify();
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw clientError('BAD_USER_INPUT', `Connexion SMTP impossible (${detail}).`);
   }
 }
@@ -92,10 +92,10 @@ export async function testMailAccount(input: MailAccountFormValues & { id?: stri
 function accountData(input: MailAccountFormValues, creating: boolean) {
   const values = parseInput(mailAccountFormSchema, input);
   if (creating && !values.imapPassword) {
-    throw clientError('BAD_USER_INPUT', 'Le mot de passe est requis.', { fields: { imapPassword: 'Le mot de passe est requis.' } });
+    throw fieldError('imapPassword', 'Le mot de passe est requis.');
   }
   if (creating && !values.smtpPassword) {
-    throw clientError('BAD_USER_INPUT', 'Le mot de passe est requis.', { fields: { smtpPassword: 'Le mot de passe est requis.' } });
+    throw fieldError('smtpPassword', 'Le mot de passe est requis.');
   }
   const { imapPassword, smtpPassword, displayName, ...rest } = values;
   return {

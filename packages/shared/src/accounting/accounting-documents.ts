@@ -99,6 +99,16 @@ export function toCents(value: number): number {
 }
 
 /**
+ * Percentage of an amount in cents, rounded to the cent.
+ * @param {number} cents Amount in cents.
+ * @param {number} percent Percentage (20 for 20 %).
+ * @returns {number} Cents (integer).
+ */
+export function percentOf(cents: number, percent: number): number {
+  return Math.round((cents * percent) / 100);
+}
+
+/**
  * Amount in currency units of cents.
  * @param {number} cents Cents.
  * @returns {number} Amount.
@@ -125,7 +135,7 @@ export function round2(value: number): number {
  */
 function discountOn(base: number, type: DiscountType | null, value: number | null): number {
   if (!type || !value || base <= 0) return 0;
-  const discount = type === 'PERCENT' ? Math.round((base * value) / 100) : toCents(value);
+  const discount = type === 'PERCENT' ? percentOf(base, value) : toCents(value);
   return Math.min(discount, base);
 }
 
@@ -209,7 +219,7 @@ export function computeTotals(document: {
     const share = index === rates.length - 1 ? globalDiscount - spread : itemsNet ? Math.round((globalDiscount * itemBase) / itemsNet) : 0;
     spread += share;
     const base = itemBase - share - (deductionsByRate.get(rate) ?? 0);
-    return { rate, base, vat: Math.round((base * rate) / 100) };
+    return { rate, base, vat: percentOf(base, rate) };
   });
   const deductions = [...deductionsByRate.values()].reduce((sum, value) => sum + value, 0);
   const totalNet = itemsNet - globalDiscount - deductions;
@@ -234,7 +244,7 @@ export function computeTotals(document: {
  * @returns {string} Amount.
  */
 export function formatMoney(cents: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(fromCents(cents));
 }
 
 export const UNIT_LABELS: Record<AccountingUnit, { label: string; short: string }> = {
@@ -299,7 +309,7 @@ export function dueDateForTerms(terms: string | null, issueDate: string): string
  */
 export function depositAmount(type: DiscountType | null, value: number | null, totalGross: number): number {
   if (!type || !value) return 0;
-  return type === 'PERCENT' ? Math.round((totalGross * value) / 100) : toCents(value);
+  return type === 'PERCENT' ? percentOf(totalGross, value) : toCents(value);
 }
 
 /** Quote or invoice issued before Ordo: main information (its file is sent apart). */

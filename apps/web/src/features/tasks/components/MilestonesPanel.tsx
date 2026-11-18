@@ -1,3 +1,4 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { PlanCard } from './PlanCard';
 import { DragHandle } from '../../../components/actions/DragHandle';
 
@@ -7,10 +8,10 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Group, Paper, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { SortableArea } from '../../../components/actions/sortable';
+import { sortableStyle } from '../../../components/actions/sortable-style';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
@@ -25,7 +26,6 @@ import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from 
 import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 
-import { useDragSensors } from '../../../lib/drag';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface MilestoneFormProps {
@@ -104,7 +104,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
       radius="md"
       p="md"
       shadow={isDragging ? 'md' : undefined}
-      style={{ transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined }}
+      style={sortableStyle({ transform, transition, isDragging })}
     >
       <Group gap="sm" wrap="nowrap" align="flex-start">
         {sortable && (
@@ -126,24 +126,12 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move, update } = useMilestoneMutations();
   const [order, setOrder] = useMilestoneOrder();
-  const sensors = useDragSensors('sortable');
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
   // Already in the chosen order.
   const milestones = context.milestones.filter((milestone) => milestone.projectId === projectId);
   const sortable = order === 'manual' && !project?.archived;
-
-  /**
-   * Moves the dropped milestone to its new place (manual order).
-   * @param {DragEndEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    const index = milestones.findIndex((milestone) => milestone.id === over.id);
-    if (index >= 0) move.mutate({ id: String(active.id), index }, { onError: onMutationError });
-  };
 
   /**
    * Opens the milestone form.
@@ -173,20 +161,20 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          Les jalons sont utilisables par les tâches du projet et de ses sous-projets.
-        </Text>
-        <Group gap="sm">
-          <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
-        </Group>
-      </Group>
+      <SectionHeader
+        description="Les jalons sont utilisables par les tâches du projet et de ses sous-projets."
+        actions={
+          <>
+            <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
+            <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
+          </>
+        }
+      />
       {milestones.length === 0 ? (
         <EmptyState icon={<FlagIcon aria-hidden />} message="Aucun jalon pour ce projet." />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={milestones.map((milestone) => milestone.id)} strategy={verticalListSortingStrategy}>
+        // Manual order: the dropped milestone moves to its new place.
+        <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, { onError: onMutationError })}>
             {milestones.map((milestone) => {
               const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
               const done = tasks.filter((task) => context.isClosed(task)).length;
@@ -210,8 +198,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                 </SortableMilestone>
               );
             })}
-          </SortableContext>
-        </DndContext>
+        </SortableArea>
       )}
     </Stack>
   );

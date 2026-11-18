@@ -1,6 +1,6 @@
 import { CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import type { RowMenuEntry } from '../cells/RowActions';
 import type { SelectionAction } from './SelectionBar';
@@ -19,7 +19,7 @@ export async function forEachRow<R>(rows: readonly R[], run: (row: R) => Promise
     notifySuccess(done);
     return true;
   } catch (error) {
-    notifyError((error as Error).message);
+    notifyFailure(error);
     return false;
   }
 }

@@ -12,8 +12,9 @@ import * as loans from '../../services/treasury/treasury-loans';
 import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput } from '../label-inputs';
+import { NameColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 
 // Balances are computed once per request for all documents (lists show many of them).
@@ -79,15 +80,7 @@ const RelationInput = builder.inputType('TreasuryRelationInput', {
   fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id() }),
 });
 
-builder.prismaObject('TreasuryContext', {
-  description: 'Context of spending (not in a tree); a line without context is everyday spending.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('TreasuryContext', { description: 'Context of spending (not in a tree); a line without context is everyday spending.' });
 
 builder.prismaObject('TreasuryBudget', {
   description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
@@ -776,7 +769,7 @@ builder.queryFields((t) => ({
   }),
   treasuryContexts: t.prismaField({
     type: ['TreasuryContext'],
-    resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   treasuryContextPeriods: t.prismaField({
     type: ['TreasuryContextPeriod'],
@@ -811,12 +804,12 @@ builder.queryFields((t) => ({
     resolve: async (query) => {
       // A category added since (credit note to make…) gets its default status.
       if (currentWorkspace().kind === 'PRO') await statuses.ensureDocumentStatuses();
-      return prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] });
+      return prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, ...BY_POSITION] });
     },
   }),
   treasuryAccounts: t.prismaField({
     type: ['TreasuryAccount'],
-    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archived: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.treasuryAccount.findMany({ ...query, orderBy: [{ archived: 'asc' }, ...BY_POSITION] }),
   }),
   treasuryEntries: t.prismaField({
     type: ['TreasuryEntry'],
@@ -825,7 +818,7 @@ builder.queryFields((t) => ({
     resolve: (query, _root, { from, to, accountId }) =>
       prisma.treasuryEntry.findMany({
         ...query,
-        where: { date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) }, ...(accountId ? { accountId } : {}) },
+        where: { date: { gte: parseDay(from), lte: parseDay(to) }, ...(accountId ? { accountId } : {}) },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       }),
   }),

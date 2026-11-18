@@ -18,7 +18,7 @@ import { linkableTasks } from '../lib/task-links';
 import { taskName, taskRef, type TaskContext } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
-import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
@@ -185,8 +185,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
           {...listSelectProps(context.tags)}
           value={task.tagIds}
           onChange={(tagIds) => {
-            const added = tagIds.filter((id) => !task.tagIds.includes(id));
-            const removed = task.tagIds.filter((id) => !tagIds.includes(id));
+            const { added, removed } = listDiff(task.tagIds, tagIds);
             apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
           }}
           onDropdownClose={onDropdownClose}
@@ -222,8 +221,7 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
           data={sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint) }))}
           value={task.sprintIds}
           onChange={(sprintIds) => {
-            const added = sprintIds.filter((id) => !task.sprintIds.includes(id));
-            const removed = task.sprintIds.filter((id) => !sprintIds.includes(id));
+            const { added, removed } = listDiff(task.sprintIds, sprintIds);
             apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
           }}
           onDropdownClose={onDropdownClose}

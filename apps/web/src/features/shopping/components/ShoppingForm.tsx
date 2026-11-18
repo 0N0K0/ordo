@@ -1,8 +1,10 @@
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
+import { categoryOptions } from '../../../components/tree/category-tree';
 import { DatePickerInput } from '@mantine/dates';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { categoriesForBaseList, listTasks, rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, unitOptions, usePeople } from '../lib/shopping-format';
+import { categoriesForBaseList, listTasks, rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { Anchor, Checkbox, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Checkbox, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 
@@ -17,6 +19,7 @@ import { Comments } from '../../comments/components/Comments';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -120,7 +123,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               searchable
               onCreate={(name) => mutations.createCategory.mutateAsync({ name, color, parentId: null })}
               {...treeSelectProps(
-                shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
+                categoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
               )}
               {...form.getInputProps('categoryId')}
             />
@@ -135,11 +138,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, xs: 3 }}>
-            <NumberInput
+            <QuantityInput
               label="Quantité"
               min={0}
-              decimalScale={3}
-              decimalSeparator=","
               allowNegative={false}
               {...form.getInputProps('quantity')}
               onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
@@ -195,7 +196,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             label="Description"
             value={form.values.note}
             onChange={(note) => form.setFieldValue('note', note)}
-            suggestions={context?.suggestionsFor(null) ?? { projectId: null, tasks: [], contributors: [] }}
+            suggestions={context?.suggestionsFor(null) ?? NO_SUGGESTIONS}
             minRows={2}
           />
           {target.kind === 'product' && <Checkbox label="Manque" description="Il sera mis sur la prochaine liste générée." {...form.getInputProps('missing', { type: 'checkbox' })} />}

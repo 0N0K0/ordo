@@ -1,18 +1,20 @@
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/settings/item-look';
-import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
-import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useWorkspace } from '../../workspace/api';
-import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
+import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { LinesEditor } from './LinesEditor';
-import { describeLink } from '../lib/lines';
+import type { LineLink } from '../lib/lines';
+import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
 import { ContextForm, RelationForm } from './TeamPanel';
@@ -26,6 +28,7 @@ import { RuleField } from '../../../components/recurrence/RuleField';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -36,11 +39,11 @@ interface LinkedSummary {
 }
 
 /**
- * Short description of a linked entry.
+ * Linked entry as a link (its badge).
  * @param {LinkedSummary} entry Entry.
- * @returns {string} "12 mars 2026 · Libellé · -86,20 €".
+ * @returns {LineLink} Link.
  */
-const describeLinked = (entry: LinkedSummary) => `${fmt.day(entry.date)} · ${entry.label} · ${fmt.money(entry.amount)}`;
+const entryLink = (entry: LinkedSummary): LineLink => ({ kind: 'entry', id: entry.id, entryLabel: entry.label, date: entry.date, label: null, amount: entry.amount });
 
 /**
  * A select with a button creating a new option next to it.
@@ -79,12 +82,10 @@ interface EntryFormProps {
 export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  const [search, setSearch] = useState('');
   // Category, method or counterparty created from the form.
   const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | 'relation' | null>(null);
   // Line a context or a relation is created for.
   const [contextLine, setContextLine] = useState<number | null>(null);
-  const { data: found } = useTreasuryEntrySearch(search);
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: String(item.date) })));
   const { data: workspace } = useWorkspace();
@@ -141,10 +142,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
     workspace,
     (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)),
   );
-  // Entries found to link: not this one, nor those already linked, nor split ones (linked through their lines).
-  const linkable = (found ?? [])
-    .filter((item) => item.id !== entry?.id && !values.linkedEntryIds.includes(item.id) && item.lines.length === 0)
-    .map((item) => ({ value: item.id, label: `${describeLinked({ ...item, date: String(item.date) })} · ${item.accountName}` }));
 
   // Documents it can settle: still due, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
@@ -271,13 +268,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             />
           </WithCreate>
           {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
-          <MarkdownEditor
-            label="Description"
-            value={form.values.note ?? ''}
-            onChange={(note) => form.setFieldValue('note', note)}
-            suggestions={{ projectId: null, tasks: [], contributors: [] }}
-            minRows={2}
-          />
+          <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
           <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
           <Divider label="Répartition" labelPosition="left" />
@@ -354,63 +345,41 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               {linked.length > 0 && (
                 <Group gap={6}>
                   {linked.map((item) => (
-                    <Badge
+                    <LinkBadge
                       key={item.id}
-                      variant="light"
-                      color={item.amount < 0 ? 'red' : 'green'}
-                      leftSection={<LinkIcon aria-hidden />}
-                      rightSection={
-                        <ActionIcon
-                          size="xs"
-                          variant="transparent"
-                          color="gray"
-                          aria-label={`Délier ${item.label}`}
-                          onClick={() => {
-                            setLinked((current) => current.filter((other) => other.id !== item.id));
-                            form.setFieldValue(
-                              'linkedEntryIds',
-                              values.linkedEntryIds.filter((id) => id !== item.id),
-                            );
-                          }}
-                        >
-                          <XIcon aria-hidden />
-                        </ActionIcon>
-                      }
-                      tt="none"
-                    >
-                      {describeLinked(item)}
-                    </Badge>
+                      link={entryLink(item)}
+                      onUnlink={() => {
+                        setLinked((current) => current.filter((other) => other.id !== item.id));
+                        form.setFieldValue(
+                          'linkedEntryIds',
+                          values.linkedEntryIds.filter((id) => id !== item.id),
+                        );
+                      }}
+                    />
                   ))}
                 </Group>
               )}
-              <Select
+              {/* Entries only: a split one is linked through its lines. */}
+              <EntryLinkSelect
                 aria-label="Lier un mouvement"
-                placeholder="Rechercher un mouvement par son libellé…"
-                searchable
-                clearable={false}
-                leftSection={<LinkIcon aria-hidden />}
-                searchValue={search}
-                onSearchChange={setSearch}
-                // Filtered by the server.
-                filter={({ options }) => options}
-                nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-                data={linkable}
-                value={null}
-                onChange={(id) => {
-                  const item = found?.find((other) => other.id === id);
-                  if (!item) return;
-                  setLinked((current) => [...current, { id: item.id, date: String(item.date), label: item.label, amount: item.amount }]);
-                  form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, item.id]);
-                  setSearch('');
+                entryId={entry?.id ?? null}
+                links={values.linkedEntryIds.map((id) => ({ kind: 'entry' as const, id }))}
+                lines={false}
+                withAccount
+                onLink={(link) => {
+                  setLinked((current) => [...current, { id: link.id, date: link.date, label: link.entryLabel, amount: link.amount }]);
+                  form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, link.id]);
                 }}
                 error={form.errors.linkedEntryIds}
               />
               {(entry?.linkedByLines ?? []).length > 0 && (
                 <Group gap={6}>
                   {(entry?.linkedByLines ?? []).map((line) => (
-                    <Badge key={line.id} variant="outline" color={line.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
-                      {describeLink({ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount })}
-                    </Badge>
+                    <LinkBadge
+                      key={line.id}
+                      variant="outline"
+                      link={{ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount }}
+                    />
                   ))}
                 </Group>
               )}
@@ -456,11 +425,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     value={allocation.amount}
                     onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
                   />
-                  <Tooltip label="Retirer">
-                    <ActionIcon variant="subtle" color="gray" size="lg" aria-label={`Retirer le document ${index + 1}`} onClick={() => form.removeListItem('allocations', index)}>
-                      <XIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
+                  <RemoveButton label="Retirer" size="lg" aria-label={`Retirer le document ${index + 1}`} onClick={() => form.removeListItem('allocations', index)} />
                 </Group>
               ))}
               {form.errors.allocations && (

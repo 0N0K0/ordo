@@ -1,4 +1,4 @@
-import { SegmentedControl, Stack, Switch, Text } from '@mantine/core';
+import { SegmentedControl, Stack, Switch, Text, TextInput } from '@mantine/core';
 import type { ChartConfig } from '@ordo/shared';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import { useDocumentStatuses } from '../../accounting/api/tracking';
@@ -7,13 +7,21 @@ import { useWorkspace } from '../../workspace/api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryPaths, categoryTree } from '../../treasury/lib/categories';
+import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
+import type { TaskContext } from '../../tasks/hooks/use-task-context';
+
+/** Filters of the records of a chart (or of one of its data sets), whatever its source. */
+type SourceFilterFields = Pick<ChartConfig, 'search' | 'filter' | 'includeArchived' | 'documents' | 'treasury'>;
+
+/** Change of the filters of a chart (or of one of its data sets). */
+type SourceFilterChange = (changes: Partial<SourceFilterFields>) => void;
 
 /**
  * Filters of a document chart: types, clients, tracking statuses, drafts, imported documents, credit notes.
- * @param {{ config: ChartConfig, change: (changes: Partial<ChartConfig>) => void }} props Configuration and update.
+ * @param {{ config: Pick<ChartConfig, 'documents' | 'treasury'>, change: SourceFilterChange }} props Configuration and update.
  * @returns {JSX.Element} Filters.
  */
-export function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: (changes: Partial<ChartConfig>) => void }) {
+function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: SourceFilterChange }) {
   const { data: workspace } = useWorkspace();
   const { data: statuses } = useDocumentStatuses();
   const filter = config.documents;
@@ -57,10 +65,10 @@ export function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 
 
 /**
  * Filters of a treasury chart: accounts, categories, money in or out, expected movements.
- * @param {{ config: ChartConfig, change: (changes: Partial<ChartConfig>) => void }} props Configuration and update.
+ * @param {{ config: Pick<ChartConfig, 'documents' | 'treasury'>, change: SourceFilterChange }} props Configuration and update.
  * @returns {JSX.Element} Filters.
  */
-export function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: (changes: Partial<ChartConfig>) => void }) {
+function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: SourceFilterChange }) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
   // By full path (a category also keeps the movements of its sub-categories), in tree order under Recettes and Dépenses.
@@ -118,5 +126,24 @@ export function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 
         onChange={(event) => set({ includeForecast: event.currentTarget.checked })}
       />
     </Stack>
+  );
+}
+
+/**
+ * Filters of the records a chart (or one of its data sets) counts, by its source: search, task filter and archived tasks
+ * (tasks), the document filters (billing) or the movement filters (treasury).
+ * @param {{ source: ChartConfig['source'], config: SourceFilterFields, context: TaskContext, change: SourceFilterChange }} props Source, filters,
+ *   task context and update.
+ * @returns {JSX.Element | null} Filters.
+ */
+export function SourceFilters({ source, config, context, change }: { source: ChartConfig['source']; config: SourceFilterFields; context: TaskContext; change: SourceFilterChange }) {
+  if (source === 'documents') return <DocumentFilters config={config} change={change} />;
+  if (source === 'treasury') return <TreasuryFilters config={config} change={change} />;
+  return (
+    <>
+      <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
+      <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
+      <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
+    </>
   );
 }

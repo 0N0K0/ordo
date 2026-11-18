@@ -3,7 +3,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { SENDING_CHANNEL_LABELS, SENDING_CHANNELS, type SendingChannel } from '@ordo/shared';
 import { useState } from 'react';
 import { localDay, localToday } from '../../../lib/dates';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { useAsyncAction } from '../../../lib/use-async-action';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface SentFormProps {
@@ -25,25 +25,13 @@ export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
   const today = localToday();
   const [date, setDate] = useState<string | null>(sentAt ? localDay(new Date(sentAt)) : today);
   const [via, setVia] = useState<SendingChannel>((SENDING_CHANNELS as readonly string[]).includes(sentVia ?? '') ? (sentVia as SendingChannel) : 'CHORUS');
-  const [saving, setSaving] = useState(false);
-
-  /**
-   * Saves the sending, then closes.
-   * @returns {Promise<void>}
-   */
-  const save = async () => {
-    if (!date) return;
-    setSaving(true);
-    try {
+  const { run: save, loading: saving } = useAsyncAction(
+    async () => {
+      if (!date) throw new Error('Choisissez la date d’envoi.');
       await onSubmit({ date, via });
-      notifySuccess('Envoi noté.');
-      onDone();
-    } catch (error) {
-      notifyError((error as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+    { success: 'Envoi noté.', onDone },
+  );
 
   return (
     <Stack gap="sm">

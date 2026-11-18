@@ -4,7 +4,7 @@ import { CaretRightIcon } from '@phosphor-icons/react';
 import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router';
 import { notifyError } from '../../../lib/notify';
-import { EntityAvatar } from './EntityAvatar';
+import { EntityAvatar } from '../../../components/settings/EntityAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { EntityMenu } from './EntityMenu';
 import classes from './TreeRow.module.css';

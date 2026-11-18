@@ -1,9 +1,10 @@
-import { clientError } from '../../graphql/errors';
+import { clientError, errorMessage } from '../../graphql/errors';
 import type { MailAccount } from '../../generated/prisma/client';
 import { createSmtpTransport, findAccount } from './accounts';
 import { buildMessage, type BuiltMessage, type MailFields } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
+import { findSpecialFolder } from './organize';
 import { conversationProjects, copySentToProjects } from './linked';
 import { decryptSecret } from './secret';
 
@@ -34,15 +35,15 @@ export async function deliverMessage(
       raw: message.raw,
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw clientError('BAD_USER_INPUT', `Envoi impossible (${detail}).`);
   }
 
   // The mail is sent: what follows is not an error for the user.
   if (account.saveSent) {
     await withImap(account.id, async (client) => {
-      const sent = (await client.list()).find((item) => item.specialUse === '\\Sent');
-      if (sent) await client.append(sent.path, message.copy, ['\\Seen']);
+      const sent = await findSpecialFolder(client, '\\Sent');
+      if (sent) await client.append(sent, message.copy, ['\\Seen']);
     }).catch((error: unknown) => console.warn('Copie dans « Envoyés » impossible.', error));
   }
   const projectIds = await conversationProjects(message.references, projectId);

@@ -7,7 +7,7 @@ import { InfoFeedbackIcon } from '../../../components/feedback/feedback-icons';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../../auth/api';
-import { PasswordStrength } from '../../auth/components/PasswordStrength';
+import { NewPasswordFields } from '../../auth/components/NewPasswordFields';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 /**
@@ -161,11 +161,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
           required
           {...form.getInputProps('currentPassword')}
         />
-        <Stack gap="xs">
-          <PasswordInput label="Nouveau mot de passe" autoComplete="new-password" required {...form.getInputProps('password')} />
-          <PasswordStrength value={form.values.password} userInputs={userInputs} />
-        </Stack>
-        <PasswordInput label="Confirmation" autoComplete="new-password" required {...form.getInputProps('confirmation')} />
+        <NewPasswordFields form={form} userInputs={userInputs} />
         <FormActions submitLabel="Modifier le mot de passe" loading={changePassword.isPending} />
       </Stack>
     </form>

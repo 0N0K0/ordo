@@ -1,13 +1,14 @@
-import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, toCents } from '@ordo/shared';
+import { type AccountingDocumentInput, accountingDocumentInputSchema, type AccountingDocumentType, type AccountingLineInput, addDays, byPosition, computeTotals, documentNumber, dueDateForTerms, formatDay, formatMoney, fromCents, parseDay, percentOf, toCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { getCompanyProfile, usedCounter } from './company';
 import { scopeOf, statusOf } from './document-statuses';
 import { syncPaymentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
+import { assertExists } from '../core/lookup';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -77,14 +78,13 @@ function assertEditable(document: AccountingDocument): void {
  */
 async function assertParties({ clientId, serviceId, contactId, projectId }: { clientId: string; serviceId: string | null; contactId: string | null; projectId: string | null }) {
   await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
-  const fieldError = (field: string, message: string) => clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
   if (serviceId && (await prisma.clientService.findUnique({ where: { id: serviceId } }))?.clientId !== clientId) {
     throw fieldError('serviceId', 'Ce service n’appartient pas au client.');
   }
   if (contactId && (await prisma.clientContact.findUnique({ where: { id: contactId } }))?.clientId !== clientId) {
     throw fieldError('contactId', 'Ce contact n’appartient pas au client.');
   }
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
 }
 
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -127,7 +127,7 @@ async function assertChronology(type: AccountingDocumentType, issueDate: string,
   const latest = await latestIssueDate(type, id, client);
   if (latest && issueDate < latest) {
     const message = `La date ne peut pas précéder celle de ${TYPE_NAMES[type]} (${printedDay.format(parseDay(latest))}).`;
-    throw clientError('BAD_USER_INPUT', message, { fields: { issueDate: message } });
+    throw fieldError('issueDate', message);
   }
 }
 
@@ -584,8 +584,8 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
     const bases = totals.vat.filter((item) => item.base > 0);
     const lines =
       bases.length <= 1
-        ? [depositLine(percent, reference, Math.round((totals.totalNet * percent) / 100), bases[0]?.rate ?? 0)]
-        : bases.map((item) => ({ ...depositLine(percent, reference, Math.round((item.base * percent) / 100), item.rate), description: `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` }));
+        ? [depositLine(percent, reference, percentOf(totals.totalNet, percent), bases[0]?.rate ?? 0)]
+        : bases.map((item) => ({ ...depositLine(percent, reference, percentOf(item.base, percent), item.rate), description: `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` }));
     const defaults = await defaultFields('DEPOSIT_INVOICE', quote.clientId, issueDate);
     // A deposit keeps the terms agreed on its quote.
     const paymentTerms = quote.paymentTerms ?? defaults.paymentTerms;
@@ -627,7 +627,7 @@ export async function createDepositInvoice(input: { quoteId?: string | null; imp
       projectId: imported.projectId,
       title: imported.title ?? `Acompte — devis ${imported.number}`,
       vatApplicable: totalVat > 0,
-      lines: [depositLine(percent, { number: imported.number, totalNet, currency: imported.currency, issueDate: imported.issueDate }, Math.round((totalNet * percent) / 100), totalVat > 0 ? vatRate : 0)],
+      lines: [depositLine(percent, { number: imported.number, totalNet, currency: imported.currency, issueDate: imported.issueDate }, percentOf(totalNet, percent), totalVat > 0 ? vatRate : 0)],
     },
     { importedSourceId: imported.id },
   );
@@ -708,7 +708,7 @@ export async function addDocumentAttachments(id: string, files: File[]): Promise
  */
 export async function setDocumentProject(id: string, projectId: string | null): Promise<void> {
   await findDocument(id);
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   await prisma.accountingDocument.update({ where: { id }, data: { projectId } });
 }
 

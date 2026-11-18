@@ -176,11 +176,23 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ## Plan proposé
 
-1. **Bugs et incohérences (1 à 4).** À décider : la règle des personnes des achats, et erreur de champ ou NOT_FOUND.
-2. **Web, briques contournées (12 à 15) :** mécanique, sans risque, quelques petits changements d'espacement.
-3. **API, rapide (6, 8, 9, 11) :** `fieldError`, `BY_POSITION`, `String(id)`, arbres, dates et centimes.
-4. **API, par blocs (5, 7, 10) :** `assertExists`, `routes/http.ts`, `withMailbox`, les personnes des achats, `relationIds`, `labelObject`. À décider : le format d'erreur des routes REST.
-5. **Web, nouveaux composants (16 à 21)**, puis le nettoyage du CSS mort. À décider : la forme des trimestres et le libellé « Désarchiver » ou « Restaurer ».
+**Fait le 17 novembre 2026**, sans les décisions : points 1, 2, 4 (sauf l'erreur de bénéficiaire), 5, 6, 8 à 21, et 7 sauf les réponses d'erreur. Écarts :
+
+- `assertExists` et `assertAllExist` (`services/core/lookup.ts`) gardent l'erreur actuelle de chaque appel ; les listes sont dédoublonnées.
+- `routes/http.ts` : `requireSession`, `queryText`, `safeFilename`, `sendDownload` ; les `catch` gardent leur réponse.
+- `services/shopping/people.ts` : écriture et relecture communes, validation inchangée.
+- `withMailbox` : 12 sites sur 13 (`reader.ts:158` ignore l'échec du verrou).
+- `labelObject` : TaskStatus, DocumentStatus et ScheduleType restent écrits à la main (champs en plus).
+- `ProjectMailsPanel.module.css` : toutes ses classes servent.
+- D'autres croix « retirer » restent hors de `RemoveButton` (téléphones, répétitions, évènement, pièces jointes, déplacement de routine, mail, plages).
+
+Reste à décider :
+
+1. La règle des personnes des achats (3), puis `assertPeople`.
+2. Erreur de champ ou NOT_FOUND pour un bénéficiaire introuvable (4).
+3. Le format d'erreur des routes REST (7).
+4. La forme des trimestres, puis `periodName` (21).
+5. « Désarchiver » ou « Restaurer », puis `archiveRowsAction` (19).
 
 ## Restent à part
 

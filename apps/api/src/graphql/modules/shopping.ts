@@ -2,8 +2,10 @@ import { done } from '../errors';
 import { prisma } from '../../db';
 import * as shopping from '../../services/shopping/shopping';
 import { readSheetSources } from '@ordo/shared';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
-import { NameColorInput, NameColorPatch } from '../label-inputs';
+import { relationIds } from '../relation-fields';
+import { NameColorInput, NameColorPatch, labelObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
@@ -16,43 +18,15 @@ builder.prismaObject('ShoppingCategory', {
     color: t.exposeString('color', { nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
     position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
-    baseListIds: t.idList({
-      description: 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).',
-      select: { baseLists: { select: { id: true } } },
-      resolve: (category) => category.baseLists.map((baseList) => baseList.id),
-    }),
+    baseListIds: t.idList(relationIds('baseLists', 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).')),
   }),
 });
 
-builder.prismaObject('ShoppingStorage', {
-  description: 'Storage mode of perishable products (fresh, frozen…).',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('ShoppingStorage', { description: 'Storage mode of perishable products (fresh, frozen…).' });
 
-builder.prismaObject('ShoppingUnit', {
-  description: 'Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color', { description: 'Unused.' }),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('ShoppingUnit', { description: 'Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.', colorDescription: 'Unused.' });
 
-builder.prismaObject('ShoppingStore', {
-  description: 'Store (or supplier) a product is bought at.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
-  }),
-});
+labelObject('ShoppingStore', { description: 'Store (or supplier) a product is bought at.' });
 
 builder.prismaObject('ShoppingBaseList', {
   description: 'Base list ("liste type"): products usually bought together.',
@@ -86,8 +60,8 @@ builder.prismaObject('ShoppingProduct', {
     missing: t.exposeBoolean('missing'),
     lastPurchasedAt: t.expose('lastPurchasedAt', { type: 'DateTime', nullable: true }),
     lastPrice: t.float({ nullable: true, resolve: (product) => float(product.lastPrice) }),
-    memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (product) => product.members.map((member) => member.id) }),
-    relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (product) => product.relations.map((relation) => relation.id) }),
+    memberIds: t.idList(relationIds('members')),
+    relationIds: t.idList(relationIds('relations')),
   }),
 });
 
@@ -111,8 +85,8 @@ builder.prismaObject('ShoppingItem', {
     purchasedAt: t.expose('purchasedAt', { type: 'DateTime', nullable: true }),
     optional: t.exposeBoolean('optional', { description: 'Not needed: bought if possible (the list is done without it).' }),
     position: t.exposeInt('position'),
-    memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
-    relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
+    memberIds: t.idList(relationIds('members')),
+    relationIds: t.idList(relationIds('relations')),
     deliveryId: t.exposeID('deliveryId', { nullable: true, description: 'Delivery of the remote order it comes with.' }),
     sheetSources: t.field({
       type: [SheetSourceRef],
@@ -127,7 +101,7 @@ builder.prismaObject('ShoppingList', {
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
-    taskIds: t.idList({ select: { tasks: { select: { id: true } } }, resolve: (list) => list.tasks.map((task) => task.id) }),
+    taskIds: t.idList(relationIds('tasks')),
     entryId: t.exposeID('entryId', { nullable: true }),
     entry: t.relation('entry', { nullable: true, description: 'Treasury entry paying the list.' }),
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
@@ -137,7 +111,7 @@ builder.prismaObject('ShoppingList', {
       resolve: (list) => list.closedAt !== null || shopping.tasksClosed(list.tasks),
     }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
-    items: t.relation('items', { query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } }),
+    items: t.relation('items', { query: { orderBy: BY_POSITION } }),
     remote: t.exposeBoolean('remote', { description: 'Ordered remotely: followed by its deliveries.' }),
     deliveryAddress: t.exposeString('deliveryAddress', { nullable: true }),
     deliveryLat: t.exposeFloat('deliveryLat', { nullable: true }),
@@ -188,10 +162,10 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
   quantity: input.quantity ?? null,
   unit: input.unit ?? null,
   unitPrice: input.unitPrice ?? null,
-  memberIds: input.memberIds.map(String),
-  relationIds: input.relationIds.map(String),
+  memberIds: input.memberIds,
+  relationIds: input.relationIds,
   perishable: input.perishable ?? false,
-  storageId: input.storageId ? String(input.storageId) : null,
+  storageId: input.storageId || null,
   expiresAt: input.expiresAt ?? null,
   optional: input.optional ?? false,
 });
@@ -204,8 +178,8 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
 const categoryInput = (input: typeof CategoryInput.$inferInput) => ({
   name: input.name,
   color: input.color ?? null,
-  parentId: input.parentId ? String(input.parentId) : null,
-  baseListIds: (input.baseListIds ?? []).map(String),
+  parentId: input.parentId || null,
+  baseListIds: input.baseListIds ?? [],
 });
 
 builder.queryFields((t) => ({
@@ -216,22 +190,22 @@ builder.queryFields((t) => ({
   }),
   shoppingStores: t.prismaField({
     type: ['ShoppingStore'],
-    resolve: (query) => prisma.shoppingStore.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.shoppingStore.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   shoppingBaseLists: t.prismaField({
     type: ['ShoppingBaseList'],
     description: 'Base lists ("listes types").',
-    resolve: (query) => prisma.shoppingBaseList.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.shoppingBaseList.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   shoppingUnits: t.prismaField({
     type: ['ShoppingUnit'],
     description: 'Units of quantity, in their order.',
-    resolve: (query) => prisma.shoppingUnit.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.shoppingUnit.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   shoppingStorages: t.prismaField({
     type: ['ShoppingStorage'],
     description: 'Storage modes of the perishable products.',
-    resolve: (query) => prisma.shoppingStorage.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query) => prisma.shoppingStorage.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   shoppingProducts: t.prismaField({
     type: ['ShoppingProduct'],
@@ -243,7 +217,7 @@ builder.queryFields((t) => ({
     description: 'Shopping lists, latest first: all, or those of a task.',
     args: { taskId: t.arg.id() },
     resolve: (query, _root, { taskId }) =>
-      prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: String(taskId) } } } : {}, orderBy: { createdAt: 'desc' } }),
+      prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: taskId } } } : {}, orderBy: { createdAt: 'desc' } }),
   }),
 }));
 
@@ -254,16 +228,16 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateCategory(String(id), categoryInput(input))),
+    resolve: (_root, { id, input }) => done(shopping.updateCategory(id, categoryInput(input))),
   }),
   moveShoppingCategory: t.boolean({
     description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
     args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
-    resolve: (_root, { id, parentId, index }) => done(shopping.moveCategory(String(id), parentId ? String(parentId) : null, index)),
+    resolve: (_root, { id, parentId, index }) => done(shopping.moveCategory(id, parentId || null, index)),
   }),
   deleteShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteCategory(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteCategory(id)),
   }),
   createShoppingStore: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
@@ -271,11 +245,11 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateStore(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
+    resolve: (_root, { id, input }) => done(shopping.updateStore(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteStore(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteStore(id)),
   }),
   createShoppingUnit: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
@@ -284,17 +258,17 @@ builder.mutationFields((t) => ({
   updateShoppingUnit: t.boolean({
     description: 'Renames a unit; the products and items in it follow.',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateUnit(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
+    resolve: (_root, { id, input }) => done(shopping.updateUnit(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingUnit: t.boolean({
     description: 'Deletes a unit; the products and items in it are left without one.',
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteUnit(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteUnit(id)),
   }),
   moveShoppingProducts: t.int({
     description: 'Moves products to another base list (after its own); returns how many moved.',
     args: { ids: t.arg.idList({ required: true }), baseListId: t.arg.id({ required: true }) },
-    resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids.map(String), String(baseListId)),
+    resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids, baseListId),
   }),
   createShoppingStorage: t.id({
     args: { input: t.arg({ type: NameColorInput, required: true }) },
@@ -302,11 +276,11 @@ builder.mutationFields((t) => ({
   }),
   updateShoppingStorage: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: NameColorPatch, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateStorage(String(id), { name: input.name ?? undefined, color: input.color ?? undefined })),
+    resolve: (_root, { id, input }) => done(shopping.updateStorage(id, { name: input.name ?? undefined, color: input.color ?? undefined })),
   }),
   deleteShoppingStorage: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteStorage(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteStorage(id)),
   }),
   createShoppingBaseList: t.id({
     args: { name: t.arg.string({ required: true }) },
@@ -314,85 +288,85 @@ builder.mutationFields((t) => ({
   }),
   renameShoppingBaseList: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
-    resolve: (_root, { id, name }) => done(shopping.renameBaseList(String(id), name)),
+    resolve: (_root, { id, name }) => done(shopping.renameBaseList(id, name)),
   }),
   deleteShoppingBaseList: t.boolean({
     description: 'Deletes a base list with its products (the lists made from them keep their items).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteBaseList(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteBaseList(id)),
   }),
   createShoppingProduct: t.id({
     args: { input: t.arg({ type: ProductInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createProduct({ ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing })).id,
+    resolve: async (_root, { input }) => (await shopping.createProduct({ ...itemInput(input), baseListId: input.baseListId, missing: input.missing })).id,
   }),
   updateShoppingProduct: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProductInput, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateProduct(String(id), { ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing })),
+    resolve: (_root, { id, input }) => done(shopping.updateProduct(id, { ...itemInput(input), baseListId: input.baseListId, missing: input.missing })),
   }),
   setShoppingProductsMissing: t.boolean({
     args: { ids: t.arg.idList({ required: true }), missing: t.arg.boolean({ required: true }) },
-    resolve: (_root, { ids, missing }) => done(shopping.setProductsMissing(ids.map(String), missing)),
+    resolve: (_root, { ids, missing }) => done(shopping.setProductsMissing(ids, missing)),
   }),
   deleteShoppingProduct: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteProduct(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteProduct(id)),
   }),
   createShoppingList: t.id({
     description: 'Creates a list, empty or with the missing products of some base lists.',
     args: { name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }), baseListIds: t.arg.idList({ required: true }) },
-    resolve: async (_root, { name, taskIds, baseListIds }) => (await shopping.createList({ name, taskIds: taskIds.map(String), baseListIds: baseListIds.map(String) })).id,
+    resolve: async (_root, { name, taskIds, baseListIds }) => (await shopping.createList({ name, taskIds: taskIds, baseListIds: baseListIds })).id,
   }),
   updateShoppingList: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }) },
-    resolve: (_root, { id, name, taskIds }) => done(shopping.updateList(String(id), { name, taskIds: taskIds.map(String) })),
+    resolve: (_root, { id, name, taskIds }) => done(shopping.updateList(id, { name, taskIds: taskIds })),
   }),
   setShoppingListClosed: t.boolean({
     args: { id: t.arg.id({ required: true }), closed: t.arg.boolean({ required: true }) },
-    resolve: (_root, { id, closed }) => done(shopping.setListClosed(String(id), closed)),
+    resolve: (_root, { id, closed }) => done(shopping.setListClosed(id, closed)),
   }),
   duplicateShoppingList: t.id({
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => (await shopping.duplicateList(String(id))).id,
+    resolve: async (_root, { id }) => (await shopping.duplicateList(id)).id,
   }),
   deleteShoppingList: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteList(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteList(id)),
   }),
   attachShoppingListEntry: t.boolean({
     description: 'Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).',
     args: { id: t.arg.id({ required: true }), entryId: t.arg.id() },
-    resolve: (_root, { id, entryId }) => done(shopping.attachListEntry(String(id), entryId ? String(entryId) : null)),
+    resolve: (_root, { id, entryId }) => done(shopping.attachListEntry(id, entryId || null)),
   }),
   addShoppingItem: t.id({
     description: 'Adds an item of this list only (not from a base list) to a list.',
     args: { listId: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
-    resolve: async (_root, { listId, input }) => (await shopping.addItem(String(listId), itemInput(input))).id,
+    resolve: async (_root, { listId, input }) => (await shopping.addItem(listId, itemInput(input))).id,
   }),
   addShoppingProducts: t.int({
     description: 'Adds products of base lists to a list (those already in it are left out); returns the number added.',
     args: { listId: t.arg.id({ required: true }), productIds: t.arg.idList({ required: true }) },
-    resolve: (_root, { listId, productIds }) => shopping.addProducts(String(listId), productIds.map(String)),
+    resolve: (_root, { listId, productIds }) => shopping.addProducts(listId, productIds),
   }),
   updateShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
-    resolve: (_root, { id, input }) => done(shopping.updateItem(String(id), itemInput(input))),
+    resolve: (_root, { id, input }) => done(shopping.updateItem(id, itemInput(input))),
   }),
   duplicateShoppingItem: t.id({
     description: 'Adds the same item again to its list, not bought, without date (the same product bought with another date).',
     args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => (await shopping.duplicateItem(String(id))).id,
+    resolve: async (_root, { id }) => (await shopping.duplicateItem(id)).id,
   }),
   setShoppingItemPurchased: t.boolean({
     args: { id: t.arg.id({ required: true }), purchased: t.arg.boolean({ required: true }) },
-    resolve: (_root, { id, purchased }) => done(shopping.setItemPurchased(String(id), purchased)),
+    resolve: (_root, { id, purchased }) => done(shopping.setItemPurchased(id, purchased)),
   }),
   saveShoppingItemToBase: t.id({
     description: 'Adds an item of a list to a base list; returns the product.',
     args: { id: t.arg.id({ required: true }), baseListId: t.arg.id({ required: true }) },
-    resolve: async (_root, { id, baseListId }) => (await shopping.saveItemToBase(String(id), String(baseListId))).id,
+    resolve: async (_root, { id, baseListId }) => (await shopping.saveItemToBase(id, baseListId)).id,
   }),
   deleteShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(shopping.deleteItem(String(id))),
+    resolve: (_root, { id }) => done(shopping.deleteItem(id)),
   }),
 }));

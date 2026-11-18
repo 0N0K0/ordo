@@ -1,5 +1,5 @@
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
-import { mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
+import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, Workspace } from '../api';
 import { collator } from '../../../lib/text';
 import { normalize } from '../../../lib/text';
@@ -111,14 +111,9 @@ function filterSection(section: TreeSection, search: string): TreeSection {
  * @returns {string} Path such as "Acme › Site › V2" (without client: its parents alone, empty for a root project).
  */
 function projectPath(workspace: Workspace, project: Project): string {
-  const names: string[] = [];
-  let parentId = project.parentId;
-  while (parentId) {
-    const parent = workspace.projects.find((item) => item.id === parentId);
-    if (!parent) break;
-    names.unshift(parent.title);
-    parentId = parent.parentId;
-  }
+  const names = lineageOf(mapById(workspace.projects), project.parentId)
+    .reverse()
+    .map((parent) => parent.title);
   const client = workspace.clients.find((item) => item.id === project.clientId);
   return [...(client ? [client.name] : []), ...names].join(LEVEL);
 }
@@ -147,6 +142,27 @@ export function projectOptions(workspace: Workspace | undefined, projects: Proje
 }
 
 /**
+ * Options of a select of the projects of a client (projectOptions), archived ones left out unless asked.
+ * @param {Workspace | undefined} workspace Workspace data.
+ * @param {string | null} clientId Client (null: the projects without client, or every project with `anyWhenNoClient`).
+ * @param {object} [options] Options. Optional.
+ * @param {boolean} [options.archived=false] Offers the archived projects too. Optional. Default = false.
+ * @param {string | null} [options.keepId] Project offered whatever its client and state (the one chosen). Optional.
+ * @param {boolean} [options.anyWhenNoClient=false] Without client, offers the projects of every client. Optional. Default = false.
+ * @returns {TreeOption[]} Options.
+ */
+export function clientProjectOptions(
+  workspace: Workspace | undefined,
+  clientId: string | null,
+  { archived = false, keepId = null, anyWhenNoClient = false }: { archived?: boolean; keepId?: string | null; anyWhenNoClient?: boolean } = {},
+): TreeOption[] {
+  const offered = (workspace?.projects ?? []).filter(
+    (project) => (keepId != null && project.id === keepId) || ((archived || !project.archived) && ((anyWhenNoClient && !clientId) || project.clientId === clientId)),
+  );
+  return projectOptions(workspace, offered);
+}
+
+/**
  * Tree of the clients (ids "client:<id>", "client:none" for the projects without client) and of their projects,
  * siblings in their manual order (archived last).
  * @param {Workspace} workspace Workspace data.
@@ -168,11 +184,7 @@ export function projectNodes(workspace: Workspace): TreeNode[] {
  * @returns {number} Depth.
  */
 export function projectDepth(projects: Project[], id: string): number {
-  let depth = 0;
-  for (let current = projects.find((p) => p.id === id); current; current = projects.find((p) => p.id === current!.parentId)) {
-    depth += 1;
-  }
-  return depth;
+  return lineageOf(mapById(projects), id).length;
 }
 
 /**
@@ -277,14 +289,11 @@ function buildContextSection(
   const contextKeys = new Set<string>();
   const shownClients = new Set(clientIds);
   for (const id of content) {
-    let project = byId.get(id);
+    const project = byId.get(id);
     if (project?.clientId) shownClients.add(project.clientId);
-    while (project?.parentId) {
-      const parent = byId.get(project.parentId);
-      if (!parent) break;
+    for (const parent of ancestorsOf(byId, id)) {
       if (!content.has(parent.id)) contextKeys.add(`p:${parent.id}`);
       included.add(parent.id);
-      project = parent;
     }
   }
   for (const clientId of shownClients) {

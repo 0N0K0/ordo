@@ -1,8 +1,10 @@
-import { round2, toCents } from './accounting-documents';
+import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
 import { mapById } from '../core/collections';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
+import { monthFromIndex, monthIndex } from '../dates/months';
 import { parseDay, recurrenceSchema } from '../dates/recurrence';
+import { DAY_PATTERN } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 
 const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -114,7 +116,7 @@ export type TreasuryEntryLineInput = z.input<typeof treasuryEntryLineSchema>;
  * @returns {number} Cents.
  */
 export function lineCents(entryAmount: number, line: { mode: TreasuryLineMode; value: number }): number {
-  return line.mode === 'PERCENT' ? Math.round((toCents(entryAmount) * line.value) / 100) : toCents(line.value);
+  return line.mode === 'PERCENT' ? percentOf(toCents(entryAmount), line.value) : toCents(line.value);
 }
 
 /**
@@ -202,15 +204,13 @@ export type TreasuryBudgetInput = z.input<typeof treasuryBudgetSchema>;
  * @returns {string[]} Months (YYYY-MM).
  */
 export function budgetMonths(budget: { month: string; repeatEvery: number | null; repeatUntil: string | null }, from: string, to: string): string[] {
-  const index = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1;
-  const label = (value: number) => `${Math.floor(value / 12)}-${String((value % 12) + 1).padStart(2, '0')}`;
-  const start = index(budget.month);
+  const start = monthIndex(budget.month);
   if (!budget.repeatEvery) return budget.month >= from && budget.month <= to ? [budget.month] : [];
-  const last = Math.min(index(to), budget.repeatUntil ? index(budget.repeatUntil) : Infinity);
+  const last = Math.min(monthIndex(to), budget.repeatUntil ? monthIndex(budget.repeatUntil) : Infinity);
   const months: string[] = [];
   // First repetition in the range.
-  let current = start + Math.max(0, Math.ceil((index(from) - start) / budget.repeatEvery)) * budget.repeatEvery;
-  for (; current <= last; current += budget.repeatEvery) months.push(label(current));
+  let current = start + Math.max(0, Math.ceil((monthIndex(from) - start) / budget.repeatEvery)) * budget.repeatEvery;
+  for (; current <= last; current += budget.repeatEvery) months.push(monthFromIndex(current));
   return months;
 }
 
@@ -312,7 +312,7 @@ interface ReminderMailInput {
  */
 export function reminderMail(invoice: ReminderMailInput): { subject: string; html: string } {
   const label = invoice.deposit ? 'Facture d’acompte' : 'Facture';
-  const money = (cents: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: invoice.currency }).format(cents / 100);
+  const money = (cents: number) => formatMoney(cents, invoice.currency);
   const date = invoice.dueDate ? parseDay(invoice.dueDate).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : null;
   return {
     subject: `Relance — ${label} ${invoice.number}${invoice.companyName ? ` — ${invoice.companyName}` : ''}`,
@@ -483,7 +483,7 @@ function statementDate(value: string | undefined, format: StatementMapping['date
   let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
   if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
   const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ? date : null;
+  return DAY_PATTERN.test(date) && !Number.isNaN(parseDay(date).getTime()) ? date : null;
 }
 
 /**

@@ -4,20 +4,11 @@ import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { attachAssignees } from '../workspace/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
-
-/**
- * Error attached to a form field.
- * @param {string} field Field name.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
-function fieldError(field: string, message: string) {
-  return clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
-}
+import { assertAllExist, assertExists } from '../core/lookup';
 
 /**
  * Root project of each project: tasks can only be linked inside the same tree.
@@ -149,21 +140,13 @@ async function assertReferences(refs: {
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
 }): Promise<void> {
-  if (refs.beneficiaryIds?.length && (await prisma.contributor.count({ where: { id: { in: refs.beneficiaryIds } } })) !== new Set(refs.beneficiaryIds).size) throw notFound('Bénéficiaire');
-  if (refs.beneficiaryRelationIds?.length && (await prisma.treasuryRelation.count({ where: { id: { in: refs.beneficiaryRelationIds } } })) !== new Set(refs.beneficiaryRelationIds).size) throw notFound('Bénéficiaire');
-  if (refs.statusId && !(await prisma.taskStatus.findUnique({ where: { id: refs.statusId } }))) throw notFound('Statut');
-  if (refs.priorityId && !(await prisma.taskPriority.findUnique({ where: { id: refs.priorityId } }))) {
-    throw notFound('Priorité');
-  }
-  if (refs.typeId && !(await prisma.taskType.findUnique({ where: { id: refs.typeId } }))) throw notFound('Type');
-  if (refs.assigneeIds?.length) {
-    const count = await prisma.contributor.count({ where: { id: { in: refs.assigneeIds } } });
-    if (count !== new Set(refs.assigneeIds).size) throw notFound('Contributeur');
-  }
-  if (refs.tagIds?.length) {
-    const count = await prisma.taskTag.count({ where: { id: { in: refs.tagIds } } });
-    if (count !== new Set(refs.tagIds).size) throw notFound('Étiquette');
-  }
+  await assertAllExist(prisma.contributor, refs.beneficiaryIds, 'Bénéficiaire');
+  await assertAllExist(prisma.treasuryRelation, refs.beneficiaryRelationIds, 'Bénéficiaire');
+  await assertExists(prisma.taskStatus, refs.statusId, 'Statut');
+  await assertExists(prisma.taskPriority, refs.priorityId, 'Priorité');
+  await assertExists(prisma.taskType, refs.typeId, 'Type');
+  await assertAllExist(prisma.contributor, refs.assigneeIds, 'Contributeur');
+  await assertAllExist(prisma.taskTag, refs.tagIds, 'Étiquette');
 }
 
 export interface TaskInput {
@@ -718,8 +701,7 @@ interface BulkTaskChanges {
  */
 async function assertTasks(ids: string[]): Promise<void> {
   if (ids.length === 0) throw clientError('BAD_USER_INPUT', 'Aucune tâche sélectionnée.');
-  const count = await prisma.task.count({ where: { id: { in: ids } } });
-  if (count !== new Set(ids).size) throw notFound('Tâche');
+  await assertAllExist(prisma.task, ids, 'Tâche');
 }
 
 /**

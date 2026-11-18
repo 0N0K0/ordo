@@ -1,10 +1,11 @@
-import { dayInMonth, minutesToTime, timeToMinutes } from '@ordo/shared';
+import { dayInMonth, daysInMonth, minutesToTime, timeToMinutes } from '@ordo/shared';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { weekdayOfDate } from '../dates/weeks';
+import { timeOfDaySchema } from '../dates/times';
 import { slotConditionSchema } from './routine-times';
 import { optionalColorSchema } from '../core/workspace';
 
@@ -20,11 +21,7 @@ export type RoutineCategoryInput = z.input<typeof routineCategorySchema>;
 const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
 export type RoutineAnchor = (typeof ROUTINE_ANCHORS)[number];
 
-const timeOfDay = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
-  .nullable()
-  .default(null);
+const timeOfDay = timeOfDaySchema.nullable().default(null);
 
 /** One time of the day a routine is done in a case (brushing teeth in the morning, at noon, in the evening). */
 export const routineSlotSchema = z
@@ -133,16 +130,8 @@ export const routineSchema = z
       .max(24 * 60, '24 heures maximum.')
       .nullable(),
     /** Time window to do it in (HH:MM): from fromTime, by dueTime at the latest; null: no limit on that side. */
-    fromTime: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
-      .nullable()
-      .default(null),
-    dueTime: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
-      .nullable()
-      .default(null),
+    fromTime: timeOfDay,
+    dueTime: timeOfDay,
     /** Cases (days and times of the day) instead of the repetition and the time window; empty: the repetition. */
     cases: z.array(routineCaseSchema).max(20, '20 cas au plus.').default([]),
     /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
@@ -219,7 +208,7 @@ function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | '
   if (opens.mode === 'WEEKDAY') {
     const firstOne = 1 + ((opens.weekday - weekdayOfDate(first) + 7) % 7);
     if (opens.position > 0) return dayInMonth(year, month, firstOne + 7 * (opens.position - 1));
-    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const last = daysInMonth(year, month);
     return dayInMonth(year, month, last - ((weekdayOfDate(dayInMonth(year, month, last)) - opens.weekday + 7) % 7));
   }
   // Weeks from Monday, the first one that of the 1st; kept within the month.

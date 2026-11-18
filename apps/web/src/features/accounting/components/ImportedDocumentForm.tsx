@@ -1,3 +1,4 @@
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Checkbox, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
@@ -9,7 +10,7 @@ import { notifySuccess } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { useImportedDocumentMutations, type ImportedDocument } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { projectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../workspace/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -69,11 +70,6 @@ export function ImportedDocumentForm({
     schema: importedDocumentSchema,
   });
   const values = form.values;
-  const projects = (workspace?.projects ?? []).filter(
-    (project) =>
-      !project.archived &&
-      (!values.clientId || project.clientId === values.clientId),
-  );
 
   const handleSubmit = form.onSubmit((input) => {
     const callbacks = {
@@ -156,7 +152,7 @@ export function ImportedDocumentForm({
               clearable
               searchable
               placeholder="Aucun"
-              {...treeSelectProps(projectOptions(workspace, projects))}
+              {...treeSelectProps(clientProjectOptions(workspace, values.clientId ?? null, { anyWhenNoClient: true }))}
               {...form.getInputProps('projectId')}
             />
           ) : (
@@ -212,7 +208,7 @@ export function ImportedDocumentForm({
           value={file}
           onChange={setFile}
         />
-        <MarkdownEditor label="Description" value={form.values.note} onChange={(note) => form.setFieldValue('note', note)} suggestions={{ projectId: null, tasks: [], contributors: [] }} minRows={2} />
+        <MarkdownEditor label="Description" value={form.values.note} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
         {values.type !== 'QUOTE' && (
           <Checkbox
             label="Déjà réglée hors trésorerie"

@@ -2,7 +2,7 @@ import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { EntityAvatar } from './EntityAvatar';
+import { EntityAvatar } from '../../../components/settings/EntityAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 
 /**

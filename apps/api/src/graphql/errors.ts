@@ -66,6 +66,17 @@ export function clientError(code: ErrorCode, message: string, extensions?: Recor
 }
 
 /**
+ * BAD_USER_INPUT error attached to a form field.
+ * @param {string} field Field name (a path like « lines.0.categoryId » for nested fields).
+ * @param {string} message Human-readable reason.
+ * @param {string} [fieldMessage] Shorter message shown under the field. Optional. Default = `message`.
+ * @returns {GraphQLError} BAD_USER_INPUT error.
+ */
+export function fieldError(field: string, message: string, fieldMessage: string = message): GraphQLError {
+  return clientError('BAD_USER_INPUT', message, { fields: { [field]: fieldMessage } });
+}
+
+/**
  * Error thrown when a field requires an authenticated session.
  * @returns {GraphQLError} UNAUTHENTICATED error.
  */
@@ -109,4 +120,13 @@ export function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.ou
 export async function done(work: Promise<unknown>): Promise<true> {
   await work;
   return true;
+}
+
+/**
+ * Message of a caught error, whatever was thrown.
+ * @param {unknown} error Caught error.
+ * @returns {string} Its message, or the thrown value as text.
+ */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

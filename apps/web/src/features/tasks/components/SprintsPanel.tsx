@@ -1,3 +1,4 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { PlanCard } from './PlanCard';
 
 import { plural } from '../../../lib/text';
@@ -7,7 +8,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
@@ -125,12 +126,10 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          Les sprints sont utilisables par les tâches du projet et de ses sous-projets.
-        </Text>
-        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>
-      </Group>
+      <SectionHeader
+        description="Les sprints sont utilisables par les tâches du projet et de ses sous-projets."
+        actions={<ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>}
+      />
       {sprints.length === 0 ? (
         <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." />
       ) : (

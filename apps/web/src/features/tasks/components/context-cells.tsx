@@ -3,6 +3,7 @@ import { PersonAvatar, PersonOption } from '../../../components/people/PersonOpt
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import type { TaskContext } from '../hooks/use-task-context';
+import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 
 interface AssigneesCellProps {
   /** Assignees of the row. */
@@ -42,7 +43,7 @@ export function AssigneesCell({ value, projectId, context, label, readOnly = fal
         const contributor = context.contributorById.get(option.value);
         return <PersonOption name={contributor?.name ?? option.label} label={option.label} avatarUrl={contributor?.avatarUrl} />;
       }}
-      onSave={(assigneeIds) => onSave(assigneeIds, { added: assigneeIds.filter((id) => !value.includes(id)), removed: value.filter((id) => !assigneeIds.includes(id)) })}
+      onSave={(assigneeIds) => onSave(assigneeIds, listDiff(value, assigneeIds))}
     />
   );
 }

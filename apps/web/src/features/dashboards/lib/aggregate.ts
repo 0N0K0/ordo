@@ -226,8 +226,7 @@ export function periodLabel(period: ChartConfig['period']): string {
   const start = match[2];
   if (scale === 'year') return start.slice(0, 4);
   if (scale === 'quarter') return `T${Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1} ${start.slice(0, 4)}`;
-  const label = fmt.month(start);
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  return fmt.capitalize(fmt.month(start));
 }
 
 /**

@@ -1,7 +1,7 @@
 import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink } from '../../generated/prisma/client';
-import { clientError, orNotFound } from '../../graphql/errors';
+import { clientError, fieldError, orNotFound } from '../../graphql/errors';
 import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
 import { githubToken } from './client';
@@ -14,7 +14,7 @@ import { currentWorkspaceId } from '../../workspace-context';
  */
 export async function setGithubToken(token: string): Promise<string> {
   const value = token.trim();
-  if (!value) throw clientError('BAD_USER_INPUT', 'Le jeton est requis.', { fields: { token: 'Le jeton est requis.' } });
+  if (!value) throw fieldError('token', 'Le jeton est requis.');
   const login = await viewerLogin(value);
   const data = { token: encryptSecret(value), login };
   await prisma.githubConnection.upsert({ where: { workspaceId: currentWorkspaceId() }, create: data, update: data });

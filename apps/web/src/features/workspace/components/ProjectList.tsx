@@ -9,7 +9,7 @@ import type { TreePlace } from '../../../components/tree/category-tree';
 import { pointerPlace, treeCollision, useFolded } from '../../../components/tree/tree-dnd';
 import { onMutationError } from '../../../lib/notify';
 import { useMoveProject, type Project, type ProjectStatus } from '../api';
-import { EntityAvatar } from './EntityAvatar';
+import { EntityAvatar } from '../../../components/settings/EntityAvatar';
 import { projectDepth, projectHeight } from '../lib/tree';
 import classes from './ProjectList.module.css';
 import { useDragSensors } from '../../../lib/drag';

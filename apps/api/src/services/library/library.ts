@@ -5,6 +5,7 @@ import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { attachmentData } from '../core/attachments';
 import { zipFiles } from '../core/zip';
 import { moveInOrder, nextPositionIn } from '../core/ordering';
+import { assertExists } from '../core/lookup';
 
 /** Largest file of the library. */
 const MAX_LIBRARY_BYTES = 25 * 1024 * 1024;
@@ -28,7 +29,7 @@ const linkSchema = z.object({
  * @returns {Promise<void>}
  */
 async function assertFolder(folderId: string | null): Promise<void> {
-  if (folderId && !(await prisma.documentFolder.findUnique({ where: { id: folderId }, select: { id: true } }))) throw notFound('Dossier');
+  await assertExists(prisma.documentFolder, folderId, 'Dossier');
 }
 
 /**

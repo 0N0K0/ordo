@@ -1,6 +1,6 @@
 import { DragHandle } from '../actions/DragHandle';
 import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { sortableStyle } from '../actions/sortable-style';
 import { ActionIcon, Collapse, Group, Paper, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { CaretDownIcon, CaretRightIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -41,14 +41,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
     </Group>
   );
   return (
-    <Paper
-      ref={setNodeRef}
-      withBorder
-      radius="sm"
-      p="sm"
-      shadow={isDragging ? 'md' : undefined}
-      style={{ transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined }}
-    >
+    <Paper ref={setNodeRef} withBorder radius="sm" p="sm" shadow={isDragging ? 'md' : undefined} style={sortableStyle({ transform, transition, isDragging })}>
       <Stack gap={shown ? 'xs' : 0}>
         <Group justify="space-between" wrap="nowrap" gap={4}>
           {sortable && <DragHandle label={`Déplacer le cas ${index}`} activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} size="sm" />}

@@ -1,4 +1,5 @@
-import { Stack, Text } from '@mantine/core';
+import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
+import { SubSection } from '../../../components/page/SubSection';
 import { CommentThread } from '../../../components/comments/CommentThread';
 import { onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -24,27 +25,26 @@ export function Comments({ target, id, projectId = null, title = 'Commentaires' 
   const comments = useComments(target, id);
   const { add, update, remove } = useCommentMutations();
   const onError = { onError: onMutationError };
-  const empty = { projectId, tasks: [], contributors: [] };
-  return (
-    <Stack gap="xs">
-      {title && (
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          {title}
-        </Text>
-      )}
-      <CommentThread
-        comments={comments.data}
-        loading={comments.isPending}
-        suggestions={context?.suggestionsFor(projectId) ?? empty}
-        targets={context?.targetsFor(projectId) ?? { projectId, taskById: new Map(), taskByNumber: new Map(), handles: new Set() }}
-        actions={{
-          add: (body, done) => add.mutate({ target, id, body }, { onSuccess: done, ...onError }),
-          update: (commentId, body, done) => update.mutate({ id: commentId, body }, { onSuccess: done, ...onError }),
-          remove: (commentId) => remove.mutate(commentId, onError),
-          adding: add.isPending,
-          updating: update.isPending,
-        }}
-      />
-    </Stack>
+  const thread = (
+    <CommentThread
+      comments={comments.data}
+      loading={comments.isPending}
+      suggestions={context?.suggestionsFor(projectId) ?? { ...NO_SUGGESTIONS, projectId }}
+      targets={context?.targetsFor(projectId) ?? { ...NO_TARGETS, projectId }}
+      actions={{
+        add: (body, done) => add.mutate({ target, id, body }, { onSuccess: done, ...onError }),
+        update: (commentId, body, done) => update.mutate({ id: commentId, body }, { onSuccess: done, ...onError }),
+        remove: (commentId) => remove.mutate(commentId, onError),
+        adding: add.isPending,
+        updating: update.isPending,
+      }}
+    />
+  );
+  return title ? (
+    <SubSection title={title} gap="xs">
+      {thread}
+    </SubSection>
+  ) : (
+    thread
   );
 }

@@ -276,12 +276,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       <Grid gap="xl">
         <Grid.Col span={{ base: 12, md: 8 }}>
           <Stack gap="lg">
-            <Stack gap="xs">
-              <Group justify="space-between">
-                <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                  Description
-                </Text>
-                {description === null && (
+            <SubSection
+              title="Description"
+              gap="xs"
+              action={
+                description === null && (
                   <Tooltip label="Modifier la description">
                     <ActionIcon
                       variant="subtle"
@@ -293,8 +292,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                       <PencilSimpleIcon aria-hidden />
                     </ActionIcon>
                   </Tooltip>
-                )}
-              </Group>
+                )
+              }
+            >
               {description === null ? (
                 <MarkdownView targets={context.targetsFor(task.projectId)} onChange={(next) => save({ description: next })}>
                   {task.description}
@@ -316,21 +316,22 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   />
                 </Stack>
               )}
-            </Stack>
+            </SubSection>
 
-            <Stack gap="xs">
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                    Sous-tâches
-                  </Text>
+            <SubSection
+              title={
+                <>
+                  Sous-tâches
                   {subtasks.length > 0 && (
-                    <Text size="xs" c="dimmed">
+                    <Text span inherit fw={400} tt="none" ml="xs">
                       {doneSubtasks}/{subtasks.length}
                     </Text>
                   )}
-                </Group>
-                {!task.archived && (
+                </>
+              }
+              gap="xs"
+              action={
+                !task.archived && (
                   <Button
                     variant="subtle"
                     size="compact-xs"
@@ -339,8 +340,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   >
                     Ajouter
                   </Button>
-                )}
-              </Group>
+                )
+              }
+            >
               {subtasks.length > 0 ? (
                 <>
                   <TaskProgress done={doneSubtasks} total={subtasks.length} size="sm" label="Avancement des sous-tâches" />
@@ -351,15 +353,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               ) : (
                 <EmptyState compact message="Aucune sous-tâche." />
               )}
-            </Stack>
+            </SubSection>
 
             <Divider />
-            <Stack gap="xs">
-              <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                Commentaires
-              </Text>
+            <SubSection title="Commentaires" gap="xs">
               <TaskComments task={task} context={context} />
-            </Stack>
+            </SubSection>
           </Stack>
         </Grid.Col>
 

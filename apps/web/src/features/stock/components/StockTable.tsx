@@ -1,6 +1,6 @@
 import { plural, countOf } from '../../../lib/text';
 import { Badge, Button, Group, Text } from '@mantine/core';
-import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, usePeople } from '../../shopping/lib/shopping-format';
+import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
 import { ArchiveIcon, MinusIcon, PlusIcon, TrashIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -15,7 +15,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { categoryTree } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { localToday } from '../../../lib/dates';
 import { addDays, mapById, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
@@ -31,7 +31,7 @@ import { StockItemForm } from './StockItemForm';
 import { StockMoveForm } from './StockMoveForm';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { locationOptions, locationPaths, nextExpiry, stockItemInput } from '../lib/stock-format';
+import { nextExpiry, stockItemInput } from '../lib/stock-format';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -53,9 +53,9 @@ export function StockTable() {
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   const today = localToday();
   const soon = addDays(today, SOON);
-  const places = locationPaths(locations ?? []);
+  const places = categoryPaths(locations ?? []);
   const categories = shopping?.shoppingCategories ?? [];
-  const categoryPaths = new Map(categoryTree(categories).map((item) => [item.category.id, item.path]));
+  const categoryNames = categoryPaths(categories);
   const products = mapById(shopping?.shoppingProducts ?? []);
   const comments = useCommentCounts(
     'STOCK_ITEM',
@@ -75,7 +75,7 @@ export function StockTable() {
       bulk: true,
       sortValue: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : null),
       text: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: locationOptions(locations ?? []) },
+      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: categoryOptions(locations ?? []) },
       groupable: true,
     },
     {
@@ -83,9 +83,9 @@ export function StockTable() {
       label: 'Catégorie',
       size: 170,
       bulk: true,
-      sortValue: (item) => (item.categoryId ? (categoryPaths.get(item.categoryId) ?? '') : null),
-      text: (item) => (item.categoryId ? (categoryPaths.get(item.categoryId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: shoppingCategoryOptions(categories) },
+      sortValue: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : null),
+      text: (item) => (item.categoryId ? (categoryNames.get(item.categoryId) ?? '') : ''),
+      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: categoryOptions(categories) },
       groupable: true,
     },
     {
@@ -252,7 +252,7 @@ export function StockTable() {
               value={item.locationId ?? null}
               label={`Emplacement de ${item.label}`}
               nullable
-              {...treeSelectProps(locationOptions(locations ?? []))}
+              {...treeSelectProps(categoryOptions(locations ?? []))}
               onSave={(locationId) => bulk('location')(item, { locationId })}
             />
           ),
@@ -261,7 +261,7 @@ export function StockTable() {
               value={item.categoryId ?? null}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(shoppingCategoryOptions(categories))}
+              {...treeSelectProps(categoryOptions(categories))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),

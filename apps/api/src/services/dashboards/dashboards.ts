@@ -1,8 +1,9 @@
 import { chartConfigSchema, chartTitleSchema, dashboardNameSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
-import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
+import { assertExists } from '../core/lookup';
 
 /**
  * Loads a dashboard or throws NOT_FOUND.
@@ -31,7 +32,7 @@ async function findChart(id: string): Promise<DashboardChart> {
  * @returns {Promise<Dashboard>} Dashboard.
  */
 export async function createDashboard(name: string, projectId: string | null): Promise<Dashboard> {
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertExists(prisma.project, projectId, 'Projet');
   const position = await nextPositionIn('dashboard', { projectId });
   return prisma.dashboard.create({ data: { name: parseInput(dashboardNameSchema, name), projectId, position } });
 }
@@ -153,7 +154,7 @@ export async function transferChart(id: string, target: { dashboardId: string | 
   let dashboard: Dashboard | null;
   if (target.dashboardId) dashboard = await findDashboard(target.dashboardId);
   else {
-    if (target.projectId && !(await prisma.project.findUnique({ where: { id: target.projectId }, select: { id: true } }))) throw notFound('Projet');
+    await assertExists(prisma.project, target.projectId, 'Projet');
     dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }
   if (dashboard.id === chart.dashboardId) return dashboard;

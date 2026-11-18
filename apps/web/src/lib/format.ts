@@ -137,6 +137,14 @@ export function number(value: number, decimals = 2): string {
 }
 
 /**
+ * « 6 », « 250 g », « 1,5 kg »: a quantity (3 decimals at most) and its unit; the unit alone without quantity, nothing
+ * without either.
+ * @param {{ quantity?: number | null, unit?: string | null }} item Product, item, lot…
+ * @returns {string} Text.
+ */
+export const quantity = ({ quantity: value, unit }: { quantity?: number | null; unit?: string | null }) => (value == null ? (unit ?? '') : `${number(value, 3)}${unit ? ` ${unit}` : ''}`);
+
+/**
  * « 12,5 % »: a rate given in percent (12.5, not 0.125).
  * @param {number} value Rate.
  * @param {number} [decimals=2] Most decimals. Optional. Default = 2.

@@ -5,7 +5,7 @@ import { EditableMultiSelect } from '../data-table/cells/EditableCells';
 import type { StackedItem } from '../data-table/cells/StackedMultiCell';
 
 /** Options of people, grouped by kind or not. */
-export type PeopleOptions = (ComboboxItem | { group: string; items: ComboboxItem[] })[];
+type PeopleOptions = (ComboboxItem | { group: string; items: ComboboxItem[] })[];
 
 interface PeopleSelectProps {
   label: string;

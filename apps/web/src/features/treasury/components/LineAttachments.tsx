@@ -1,9 +1,7 @@
-import { ActionIcon, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import { Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { LinkIcon, XIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { useTreasuryEntrySearch } from '../api';
-import { describeLink, type LineLink, type LineValues } from '../lib/lines';
+import { linkKey, type LineLink, type LineValues } from '../lib/lines';
+import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 
@@ -25,26 +23,7 @@ interface LineAttachmentsProps {
  * @returns {JSX.Element} Fields.
  */
 export function LineAttachments({ line, onChange, entryId, projects, documentGroups, onClose }: LineAttachmentsProps) {
-  const [search, setSearch] = useState('');
-  const { data: found } = useTreasuryEntrySearch(search);
   const selectedDocuments = [...line.libraryDocumentIds.map((id) => `lib:${id}`), ...line.projectResourceIds.map((id) => `res:${id}`)];
-  const linkedKeys = new Set(line.links.map((link) => `${link.kind}:${link.id}`));
-
-  // Found entries of other entries: their lines, or the whole entry when it has none.
-  const candidates: LineLink[] = (found ?? [])
-    .filter((item) => item.id !== entryId)
-    .flatMap((item): LineLink[] => {
-      const base = { entryLabel: item.label, date: String(item.date) };
-      if (!item.lines.length) return [{ ...base, kind: 'entry' as const, id: item.id, label: null, amount: item.amount }];
-      return item.lines.map((other) => ({
-        ...base,
-        kind: 'line' as const,
-        id: other.id,
-        label: other.label ?? null,
-        amount: other.mode === 'PERCENT' ? Math.round(item.amount * other.value) / 100 : other.value,
-      }));
-    })
-    .filter((link) => !linkedKeys.has(`${link.kind}:${link.id}`));
 
   /**
    * Replaces the links of the line.
@@ -106,43 +85,11 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         {line.links.length > 0 && (
           <Group gap={6}>
             {line.links.map((link) => (
-              <Badge
-                key={`${link.kind}:${link.id}`}
-                variant="light"
-                color={link.amount < 0 ? 'red' : 'green'}
-                leftSection={<LinkIcon aria-hidden />}
-                rightSection={
-                  <ActionIcon size="xs" variant="transparent" color="gray" aria-label={`Délier ${describeLink(link)}`} onClick={() => setLinks(line.links.filter((other) => other !== link))}>
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                }
-                tt="none"
-              >
-                {describeLink(link)}
-              </Badge>
+              <LinkBadge key={linkKey(link)} link={link} onUnlink={() => setLinks(line.links.filter((other) => other !== link))} />
             ))}
           </Group>
         )}
-        <Select
-          aria-label="Lier une ligne ou un mouvement"
-          placeholder="Rechercher un mouvement par son libellé…"
-          searchable
-          clearable={false}
-          leftSection={<LinkIcon aria-hidden />}
-          searchValue={search}
-          onSearchChange={setSearch}
-          // Filtered by the server.
-          filter={({ options }) => options}
-          nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-          data={candidates.map((link) => ({ value: `${link.kind}:${link.id}`, label: describeLink(link) }))}
-          value={null}
-          onChange={(key) => {
-            const link = candidates.find((item) => `${item.kind}:${item.id}` === key);
-            if (!link) return;
-            setLinks([...line.links, link]);
-            setSearch('');
-          }}
-        />
+        <EntryLinkSelect aria-label="Lier une ligne ou un mouvement" entryId={entryId} links={line.links} onLink={(link) => setLinks([...line.links, link])} />
       </Stack>
       <Group justify="flex-end">
         <Button onClick={onClose}>Terminé</Button>

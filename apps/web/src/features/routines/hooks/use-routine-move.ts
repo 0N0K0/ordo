@@ -4,13 +4,6 @@ import { useRoutineMutations, type Routine } from '../api';
 import { movableOccurrence } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 
-/**
- * Long date of a calendar date: "jeudi 13 novembre".
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Text.
- */
-export const longDay = (date: string) => fmt.dayLong(date);
-
 /** Times of the day of an occurrence moved: those chosen, and those it had (to undo). */
 interface MovedTimes {
   times: RoutineMoveTimes;
@@ -28,7 +21,7 @@ export function useRoutineMove() {
   const onError = onMutationError;
   return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes) => {
     if (!date) return;
-    const what = to === date ? 'à d’autres horaires' : `${to > date ? 'reportée' : 'avancée'} au ${longDay(to)}${times ? ', à d’autres horaires' : ''}`;
+    const what = to === date ? 'à d’autres horaires' : `${to > date ? 'reportée' : 'avancée'} au ${fmt.dayLong(to)}${times ? ', à d’autres horaires' : ''}`;
     moveOccurrence.mutate(
       { id: routine.id, date, to, times: times?.times },
       {

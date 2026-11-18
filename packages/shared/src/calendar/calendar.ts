@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
 import { recurrenceSchema } from '../dates/recurrence';
+import { timeOfDaySchema } from '../dates/times';
 import { colorSchema } from '../core/workspace';
-
-const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).');
 
 const calendarLinkSchema = z.object({
   url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
@@ -28,9 +27,9 @@ export const calendarEventInputSchema = z
     links: z.array(calendarLinkSchema).max(20, '20 liens maximum.'),
     allDay: z.boolean(),
     startDate: z.iso.date({ error: 'La date de début est requise.' }),
-    startTime: timeSchema.nullable(),
+    startTime: timeOfDaySchema.nullable(),
     endDate: z.iso.date({ error: 'La date de fin est requise.' }),
-    endTime: timeSchema.nullable(),
+    endTime: timeOfDaySchema.nullable(),
     timeZone: z.string().min(1).max(64),
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */

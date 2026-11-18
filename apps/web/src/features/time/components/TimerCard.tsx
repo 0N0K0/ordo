@@ -10,7 +10,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeMutations, type TimeEntry } from '../api';
 import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
-import { useNow } from '../hooks/use-now';
+import { useNow } from '../../../lib/use-now';
 import { useStopTimer } from '../hooks/use-stop-timer';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';

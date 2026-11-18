@@ -14,7 +14,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
 import type { Routine, RoutineCategory } from '../api';
 import { routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
@@ -34,14 +34,6 @@ import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell 
  * @returns {string} Label.
  */
 const fieldLabel = (field: string, routine: Routine, count: number) => `${field} de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`;
-
-/**
- * Ids added and removed between two lists.
- * @param {string[]} before Previous ids.
- * @param {string[]} after New ids.
- * @returns {{ added: string[], removed: string[] }} Differences.
- */
-const diff = (before: string[], after: string[]) => ({ added: after.filter((id) => !before.includes(id)), removed: before.filter((id) => !after.includes(id)) });
 
 interface CellProps {
   routine: Routine;
@@ -115,7 +107,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
           {...treeSelectProps(categoryOptions(categories))}
           value={routine.categoryIds}
           onChange={(categoryIds) => {
-            const { added, removed } = diff(routine.categoryIds, categoryIds);
+            const { added, removed } = listDiff(routine.categoryIds, categoryIds);
             apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
           }}
           onDropdownClose={onDropdownClose}
@@ -188,7 +180,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
           {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
           value={routine.requiredIds}
           onChange={(requiredIds) => {
-            const { added, removed } = diff(routine.requiredIds, requiredIds);
+            const { added, removed } = listDiff(routine.requiredIds, requiredIds);
             apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
           }}
           onDropdownClose={onDropdownClose}

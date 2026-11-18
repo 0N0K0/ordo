@@ -1,6 +1,7 @@
+import { SectionHeader } from '../../../components/actions/SectionHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { Group, Stack, Text, Title } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { FileArrowUpIcon, PlusIcon, FileTextIcon } from '@phosphor-icons/react';
 import { useAccountingDocuments, useImportedDocuments } from '../api/documents';
 import { DocumentsTable } from './DocumentsTable';
@@ -30,26 +31,26 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
     !ofProjects || document.clientId === clientId || (document.projectId != null && projectIds!.has(document.projectId));
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={2} size="h4">
-          Documents comptables
-        </Title>
-        <ActionButton
-          icon={<PlusIcon aria-hidden />}
-          disabled={!clientId}
-          menu={[
-            ...(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => ({
-              label: DOCUMENT_TYPE_LABELS[type],
-              icon: <FileTextIcon aria-hidden />,
-              onClick: () => openNewDocument(type, { clientId, projectId }),
-            })),
-            'divider' as const,
-            { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
-          ]}
-        >
-          Nouveau document
-        </ActionButton>
-      </Group>
+      <SectionHeader
+        title="Documents comptables"
+        actions={
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            disabled={!clientId}
+            menu={[
+              ...(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => ({
+                label: DOCUMENT_TYPE_LABELS[type],
+                icon: <FileTextIcon aria-hidden />,
+                onClick: () => openNewDocument(type, { clientId, projectId }),
+              })),
+              'divider' as const,
+              { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
+            ]}
+          >
+            Nouveau document
+          </ActionButton>
+        }
+      />
       {!clientId && projectId && (
         <Text size="xs" c="dimmed">
           Rattachez le projet à un client pour lui établir des documents.

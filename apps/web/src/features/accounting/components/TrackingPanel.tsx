@@ -3,10 +3,10 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
 
-import { ActionIcon, Alert, Button, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { Alert, Button, FileInput, Group, Select, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
-import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
+import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -18,6 +18,7 @@ import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
 import { FileLink } from '../../files/components/FileLink';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { RemoveButton } from '../../../components/actions/RemoveButton';
 
 /**
  * Acceptance of a quote: date, and its signed copy.
@@ -169,11 +170,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   <PaperclipIcon aria-hidden /> {document.signedFileName}
                 </Group>
               </FileLink>
-              <Tooltip label="Retirer le devis signé">
-                <ActionIcon variant="subtle" color="gray" aria-label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })}>
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+              <RemoveButton label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })} />
             </Group>
           )}
           <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
@@ -253,11 +250,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                   {fmt.day(new Date(reminder.date))}
                   {reminder.note ? ` · ${reminder.note}` : ''}
                 </Text>
-                <Tooltip label="Supprimer la relance">
-                  <ActionIcon size="sm" variant="subtle" color="gray" aria-label="Supprimer la relance" onClick={() => mutations.deleteReminder.mutate(reminder.id, { onError })}>
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                <RemoveButton label="Supprimer la relance" size="sm" onClick={() => mutations.deleteReminder.mutate(reminder.id, { onError })} />
               </Group>
             ))
           )}

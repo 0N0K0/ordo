@@ -5,7 +5,7 @@ import MailComposer from 'nodemailer/lib/mail-composer';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, parseInput } from '../../graphql/errors';
 import { fetchParsed, messageAttachment } from './reader';
 import { sanitizeMailHtml } from './sanitize';
 
@@ -105,7 +105,7 @@ export async function buildMessage(
     { to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [], subject: input.subject },
   );
   if (!options.draft && fields.to.length + fields.cc.length + fields.bcc.length === 0) {
-    throw clientError('BAD_USER_INPUT', 'Ajoutez au moins un destinataire.', { fields: { to: 'Ajoutez au moins un destinataire.' } });
+    throw fieldError('to', 'Ajoutez au moins un destinataire.');
   }
 
   const files: { filename: string; content: Buffer }[] = await Promise.all(

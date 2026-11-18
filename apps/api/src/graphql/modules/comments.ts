@@ -46,10 +46,10 @@ builder.mutationFields((t) => ({
   updateComment: t.prismaField({
     type: 'Comment',
     args: { id: t.arg.id({ required: true }), body: t.arg.string({ required: true }) },
-    resolve: async (query, _root, { id, body }) => prisma.comment.findUniqueOrThrow({ ...query, where: { id: (await comments.updateComment(String(id), body)).id } }),
+    resolve: async (query, _root, { id, body }) => prisma.comment.findUniqueOrThrow({ ...query, where: { id: (await comments.updateComment(id, body)).id } }),
   }),
   deleteComment: t.boolean({
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(comments.deleteComment(String(id))),
+    resolve: (_root, { id }) => done(comments.deleteComment(id)),
   }),
 }));

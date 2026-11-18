@@ -13,10 +13,11 @@ import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
 import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
 import * as workspaces from '../../services/workspace/workspaces';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
+import { labelObject } from '../label-inputs';
+import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
-
-const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -33,11 +34,7 @@ builder.prismaObject('Contributor', {
       description: 'Member of the team (professional workspace) or household (personal one); the app user always is.',
       resolve: (contributor) => isMember(contributor),
     }),
-    projectIds: t.idList({
-      description: 'Projects the contributor is directly attached to; their sub-projects inherit it.',
-      select: { projects: { select: { id: true } } },
-      resolve: (contributor) => contributor.projects.map((project) => project.id),
-    }),
+    projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
   }),
 });
 
@@ -132,16 +129,7 @@ builder.prismaObject('TaskStatus', {
   }),
 });
 
-for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) {
-  builder.prismaObject(name as 'TaskPriority', {
-    fields: (t) => ({
-      id: t.exposeID('id'),
-      name: t.exposeString('name'),
-      color: t.exposeString('color'),
-      position: t.exposeInt('position'),
-    }),
-  });
-}
+for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) labelObject(name);
 
 const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const, description: 'What a saved view lists (TABLE: any other table, named by its key).' });
 
@@ -185,11 +173,7 @@ builder.prismaObject('Task', {
     slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots the task is done on or out of; null: the default of the workspace.', resolve: (task) => readSlotRule(task.slotRule) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
-    sprintIds: t.idList({
-      description: 'Sprints the task is planned in.',
-      select: { sprints: { select: { id: true } } },
-      resolve: (task) => task.sprints.map((sprint) => sprint.id),
-    }),
+    sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
     githubUrl: t.exposeString('githubUrl', { nullable: true, description: 'Issue on GitHub (null for a draft issue or an unlinked task).' }),
     githubNumber: t.exposeInt('githubNumber', { nullable: true }),
     githubLinked: t.boolean({ description: 'Synchronized with an item of a GitHub board.', resolve: (task) => task.githubItemId !== null }),
@@ -199,24 +183,10 @@ builder.prismaObject('Task', {
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
-    tagIds: t.idList({
-      select: { tags: { select: { id: true } } },
-      resolve: (task) => task.tags.map((tag) => tag.id),
-    }),
-    assigneeIds: t.idList({
-      select: { assignees: { select: { id: true } } },
-      resolve: (task) => task.assignees.map((assignee) => assignee.id),
-    }),
-    beneficiaryIds: t.idList({
-      description: '« Bénéficiaires »: contributors the task is for.',
-      select: { beneficiaries: { select: { id: true } } },
-      resolve: (task) => task.beneficiaries.map((beneficiary) => beneficiary.id),
-    }),
-    beneficiaryRelationIds: t.idList({
-      description: '« Bénéficiaires »: relations the task is for.',
-      select: { beneficiaryRelations: { select: { id: true } } },
-      resolve: (task) => task.beneficiaryRelations.map((relation) => relation.id),
-    }),
+    tagIds: t.idList(relationIds('tags')),
+    assigneeIds: t.idList(relationIds('assignees')),
+    beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors the task is for.')),
+    beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations the task is for.')),
     blockingIds: t.idList({
       description: 'Tasks this task blocks.',
       select: { blocking: { select: { blockedId: true } } },
@@ -420,7 +390,7 @@ builder.queryFields((t) => ({
   tasks: t.prismaField({
     type: ['Task'],
     description: 'Every task, archived ones included, in manual order.',
-    resolve: (query) => prisma.task.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.task.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   task: t.prismaField({
     type: 'Task',
@@ -439,7 +409,7 @@ builder.queryFields((t) => ({
     description: 'Views of the tasks (or routines, by kind) of a project\'s tab, or of their page when projectId is omitted.',
     args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }), tableKey: t.arg.string({ description: 'Table of the views of kind TABLE.' }) },
     resolve: (query, _root, { projectId, kind, tableKey }) =>
-      prisma.taskView.findMany({ ...query, where: taskViews.viewScope(projectId ?? null, kind ?? 'TASKS', tableKey ?? null), orderBy: [...byManualOrder] }),
+      prisma.taskView.findMany({ ...query, where: taskViews.viewScope(projectId ?? null, kind ?? 'TASKS', tableKey ?? null), orderBy: BY_POSITION }),
   }),
   sprintTaskStatuses: t.field({
     type: [SprintTaskStatusRef],
@@ -454,7 +424,7 @@ builder.queryFields((t) => ({
   }),
   milestones: t.prismaField({
     type: ['Milestone'],
-    resolve: (query) => prisma.milestone.findMany({ ...query, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, ...byManualOrder] }),
+    resolve: (query) => prisma.milestone.findMany({ ...query, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, ...BY_POSITION] }),
   }),
   contributors: t.prismaField({
     type: ['Contributor'],
@@ -462,19 +432,19 @@ builder.queryFields((t) => ({
   }),
   taskStatuses: t.prismaField({
     type: ['TaskStatus'],
-    resolve: (query) => prisma.taskStatus.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.taskStatus.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   taskPriorities: t.prismaField({
     type: ['TaskPriority'],
-    resolve: (query) => prisma.taskPriority.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.taskPriority.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   taskTypes: t.prismaField({
     type: ['TaskType'],
-    resolve: (query) => prisma.taskType.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.taskType.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   taskTags: t.prismaField({
     type: ['TaskTag'],
-    resolve: (query) => prisma.taskTag.findMany({ ...query, orderBy: [...byManualOrder] }),
+    resolve: (query) => prisma.taskTag.findMany({ ...query, orderBy: BY_POSITION }),
   }),
 }));
 

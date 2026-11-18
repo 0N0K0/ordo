@@ -1,12 +1,37 @@
 import { prisma } from '../../db';
 import { env } from '../../env';
-import { clientError } from '../../graphql/errors';
+import { clientError, errorMessage } from '../../graphql/errors';
 import { decryptSecret } from '../mail/secret';
 import { currentWorkspaceId } from '../../workspace-context';
 
 interface GraphqlResponse<T> {
   data?: T;
   errors?: { message: string; type?: string }[];
+}
+
+/**
+ * Calls the GitHub API with a token, turning network failures, a refused token and rate limits into errors.
+ * @param {string} token Personal access token.
+ * @param {string} url Endpoint (GraphQL or REST).
+ * @param {unknown} payload JSON body (POST).
+ * @param {Record<string, string>} [headers] Extra headers. Optional.
+ * @returns {Promise<Response>} Response, any other status left to the caller.
+ */
+async function githubFetch(token: string, url: string, payload: unknown, headers: Record<string, string> = {}): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Ordo', ...headers },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${errorMessage(error)}).`);
+  }
+  if (response.status === 401) throw clientError('BAD_USER_INPUT', 'Jeton GitHub refusé : vérifiez-le dans Paramètres › GitHub.');
+  if (response.status === 403 || response.status === 429) throw clientError('BAD_USER_INPUT', 'Limite de requêtes GitHub atteinte : réessayez plus tard.');
+  return response;
 }
 
 /**
@@ -17,19 +42,7 @@ interface GraphqlResponse<T> {
  * @returns {Promise<T>} Data.
  */
 export async function githubRequest<T>(token: string, query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(env.GITHUB_GRAPHQL_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Ordo', 'GraphQL-Features': 'project_v2_draft_issues,sub_issues' },
-      body: JSON.stringify({ query, variables }),
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch (error) {
-    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${error instanceof Error ? error.message : String(error)}).`);
-  }
-  if (response.status === 401) throw clientError('BAD_USER_INPUT', 'Jeton GitHub refusé : vérifiez-le dans Paramètres › GitHub.');
-  if (response.status === 403 || response.status === 429) throw clientError('BAD_USER_INPUT', 'Limite de requêtes GitHub atteinte : réessayez plus tard.');
+  const response = await githubFetch(token, env.GITHUB_GRAPHQL_URL, { query, variables }, { 'GraphQL-Features': 'project_v2_draft_issues,sub_issues' });
   const body = (await response.json().catch(() => ({}))) as GraphqlResponse<T>;
   if (body.errors?.length) {
     const forbidden = body.errors.some((error) => error.type === 'FORBIDDEN' || error.type === 'INSUFFICIENT_SCOPES');
@@ -40,6 +53,19 @@ export async function githubRequest<T>(token: string, query: string, variables: 
   }
   if (!response.ok || !body.data) throw clientError('BAD_USER_INPUT', `GitHub a répondu ${response.status}.`);
   return body.data;
+}
+
+/**
+ * Runs a GitHub REST POST with a token.
+ * @param {string} token Personal access token.
+ * @param {string} url Endpoint.
+ * @param {unknown} payload JSON body.
+ * @returns {Promise<{ response: Response, body: Partial<T> }>} Response and its JSON body (empty when unreadable).
+ */
+export async function githubRestPost<T extends object>(token: string, url: string, payload: unknown): Promise<{ response: Response; body: Partial<T> }> {
+  const response = await githubFetch(token, url, payload, { Accept: 'application/vnd.github+json' });
+  const body = (await response.json().catch(() => ({}))) as Partial<T>;
+  return { response, body };
 }
 
 /**

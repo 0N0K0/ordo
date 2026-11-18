@@ -1,0 +1,38 @@
+@layer app {
+  /* Handle on the inner edge of a resizable panel (the navigation sidebar, the settings sidebar). */
+  .resizeHandle {
+    --handle-width: 6px;
+
+    /* Position */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
+
+    /* Dimension */
+    width: var(--handle-width);
+
+    /* Arrière-Plan */
+    background-color: transparent;
+
+    &[data-edge='right'] {
+      right: calc(var(--handle-width) / -2);
+    }
+
+    &[data-edge='left'] {
+      left: calc(var(--handle-width) / -2);
+    }
+
+    &:hover,
+    &[data-resizing] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Animation */
+    transition: background-color 120ms ease;
+
+    /* Interaction */
+    cursor: col-resize;
+    touch-action: none;
+  }
+}

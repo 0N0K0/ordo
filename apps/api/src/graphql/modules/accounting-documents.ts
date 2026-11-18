@@ -1,9 +1,10 @@
-import { formatDay } from '@ordo/shared';
+import { formatDay, fromCents } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as docs from '../../services/accounting/accounting-documents';
 import * as imported from '../../services/accounting/imported-documents';
 import * as recurring from '../../services/accounting/recurring-invoices';
 import * as resources from '../../services/workspace/project-resources';
+import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
@@ -89,7 +90,7 @@ builder.prismaObject('AccountingDocument', {
     invoicedNet: t.float({
       nullable: true,
       description: 'Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).',
-      resolve: async (document) => (document.type === 'QUOTE' && document.status === 'FINAL' ? (await docs.invoicedAmount(document.id)) / 100 : null),
+      resolve: async (document) => (document.type === 'QUOTE' && document.status === 'FINAL' ? fromCents(await docs.invoicedAmount(document.id)) : null),
     }),
     recurringId: t.exposeID('recurringId', { nullable: true }),
     lines: t.relation('lines', { query: { orderBy: { position: 'asc' } } }),
@@ -298,7 +299,7 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
 });
 
 const DeductibleRateRef = builder.objectRef<{ rate: number; base: number }>('DeductibleRate').implement({
-  fields: (t) => ({ rate: t.exposeFloat('rate'), amount: t.float({ description: 'Excluding VAT.', resolve: (item) => item.base / 100 }) }),
+  fields: (t) => ({ rate: t.exposeFloat('rate'), amount: t.float({ description: 'Excluding VAT.', resolve: (item) => fromCents(item.base) }) }),
 });
 
 const DeductibleDepositRef = builder.objectRef<docs.DeductibleDeposit>('DeductibleDeposit').implement({
@@ -307,7 +308,7 @@ const DeductibleDepositRef = builder.objectRef<docs.DeductibleDeposit>('Deductib
     id: t.exposeID('id'),
     number: t.exposeString('number'),
     issueDate: t.string({ resolve: (deposit) => formatDay(deposit.issueDate) }),
-    totalGross: t.float({ description: 'Total including VAT.', resolve: (deposit) => deposit.totalGross / 100 }),
+    totalGross: t.float({ description: 'Total including VAT.', resolve: (deposit) => fromCents(deposit.totalGross) }),
     remaining: t.field({
       type: [DeductibleRateRef],
       description: 'Amounts excluding VAT left to deduct, per VAT rate.',
@@ -379,7 +380,7 @@ builder.queryFields((t) => ({
   projectResources: t.prismaField({
     type: ['ProjectResource'],
     args: { projectId: t.arg.id({ required: true }) },
-    resolve: (query, _root, { projectId }) => prisma.projectResource.findMany({ ...query, where: { projectId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: (query, _root, { projectId }) => prisma.projectResource.findMany({ ...query, where: { projectId }, orderBy: BY_POSITION }),
   }),
 }));
 

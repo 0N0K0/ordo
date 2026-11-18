@@ -22,8 +22,10 @@ import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { nextPositionIn } from '../core/ordering';
-import { copyOf, findList, nextPosition, withPeople } from './shopping';
+import { copyOf, findList, nextPosition } from './shopping';
+import { peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
+import { assertAllExist, assertExists } from '../core/lookup';
 
 /** What a checklist belongs to: a routine or an event (one occurrence), or a task. */
 export type SheetOwner = { routineId: string; occurrenceDate: string } | { eventId: string; occurrenceDate: string } | { taskId: string };
@@ -63,18 +65,9 @@ const num = (value: Prisma.Decimal | null) => (value === null ? null : value.toN
  */
 async function assertProducts(items: SheetItemInput[]): Promise<void> {
   const ids = [...new Set(items.flatMap((item) => (item.productId ? [item.productId] : [])))];
-  if (ids.length && (await prisma.shoppingProduct.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Produit');
+  await assertAllExist(prisma.shoppingProduct, ids, 'Produit');
   const categories = [...new Set(items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))];
-  if (categories.length && (await prisma.shoppingCategory.count({ where: { id: { in: categories } } })) !== categories.length) throw notFound('Catégorie');
-}
-
-/**
- * Checks the project a sheet belongs to.
- * @param {string | null} projectId Project.
- * @returns {Promise<void>}
- */
-async function assertProject(projectId: string | null): Promise<void> {
-  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await assertAllExist(prisma.shoppingCategory, categories, 'Catégorie');
 }
 
 /**
@@ -116,8 +109,7 @@ const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
   // A storage mode only for what is perishable.
   storageId: item.perishable ? (item.storageId ?? null) : null,
   optional: item.optional ?? false,
-  members: { [mode]: [...new Set(item.memberIds ?? [])].map((id) => ({ id })) },
-  relations: { [mode]: [...new Set(item.relationIds ?? [])].map((id) => ({ id })) },
+  ...peopleData(item, mode),
 });
 
 /**
@@ -127,7 +119,7 @@ const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
  */
 async function assertCategories(ids: string[]): Promise<string[]> {
   const unique = [...new Set(ids)];
-  if (unique.length && (await prisma.sheetCategory.count({ where: { id: { in: unique } } })) !== unique.length) throw notFound('Catégorie');
+  await assertAllExist(prisma.sheetCategory, unique, 'Catégorie');
   return unique;
 }
 
@@ -138,7 +130,7 @@ async function assertCategories(ids: string[]): Promise<string[]> {
  */
 export async function createSheet(input: SheetInput): Promise<Sheet> {
   const data = parseInput(sheetSchema, input);
-  await assertProject(data.projectId);
+  await assertExists(prisma.project, data.projectId, 'Projet');
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
@@ -155,7 +147,7 @@ export async function createSheet(input: SheetInput): Promise<Sheet> {
 export async function updateSheet(id: string, input: SheetInput): Promise<Sheet> {
   await findSheet(id);
   const data = parseInput(sheetSchema, input);
-  await assertProject(data.projectId);
+  await assertExists(prisma.project, data.projectId, 'Projet');
   const categories = await assertCategories(data.categoryIds);
   return prisma.sheet.update({ where: { id }, data: { name: data.name, note: data.note || null, projectId: data.projectId, categories: { set: categories.map((category) => ({ id: category })) } } });
 }
@@ -345,8 +337,7 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
       perishable: item.perishable,
       storageId: item.storageId,
       optional: item.optional,
-      memberIds: item.members.map((member) => member.id),
-      relationIds: item.relations.map((relation) => relation.id),
+      ...peopleIds(item),
     }));
   });
 }
@@ -519,7 +510,7 @@ export async function setSheetLinks(owner: { routineId?: string | null; eventId?
   await assertOwner(where);
   const data = parseInput(z.array(sheetLinkSchema).max(50, '50 fiches au plus.'), links);
   const ids = [...new Set(data.map((link) => link.sheetId))];
-  if ((await prisma.sheet.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Fiche');
+  await assertAllExist(prisma.sheet, ids, 'Fiche');
   await prisma.$transaction([
     prisma.sheetLink.deleteMany({ where }),
     prisma.sheetLink.createMany({ data: data.map((link, position) => ({ ...where, sheetId: link.sheetId, multiplier: new Prisma.Decimal(link.multiplier), position })) }),

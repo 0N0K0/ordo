@@ -22,6 +22,7 @@ import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping
 import classes from './Shopping.module.css';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 const listSchema = shoppingListFormSchema;
 
@@ -115,9 +116,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
                 {entry.status === 'FORECAST' ? ' · prévision' : ''}
               </Text>
             </Stack>
-            <Text size="sm" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'}>
-              {fmt.money(entry.amount)}
-            </Text>
+            <SignedAmount value={entry.amount} />
           </UnstyledButton>
         ))}
       </Stack>

@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 import * as alarms from '../../services/tasks/alarms';
 import * as timeEntries from '../../services/tasks/time-entries';
 import { builder } from '../builder';
+import { relationIds } from '../relation-fields';
 
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
@@ -17,10 +18,7 @@ builder.prismaObject('TimeEntry', {
     pausedAt: t.expose('pausedAt', { type: 'DateTime', nullable: true }),
     pausedSeconds: t.exposeInt('pausedSeconds'),
     duration: t.exposeInt('duration', { nullable: true, description: 'Seconds, pauses excluded; null while running.' }),
-    taskIds: t.idList({
-      select: { tasks: { select: { id: true } } },
-      resolve: (entry) => entry.tasks.map((task) => task.id),
-    }),
+    taskIds: t.idList(relationIds('tasks')),
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
     calendarEventId: t.exposeID('calendarEventId', { nullable: true, description: 'Calendar event the time was spent on.' }),
     calendarOccurrenceDate: t.expose('calendarOccurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
@@ -166,7 +164,7 @@ builder.queryFields((t) => ({
         ...query,
         where: {
           ...(projectIds ? { projectId: { in: projectIds } } : {}),
-          ...(routineId ? { routineId: String(routineId) } : {}),
+          ...(routineId ? { routineId: routineId } : {}),
           ...(since ? { startedAt: { gte: since } } : {}),
         },
         orderBy: { startedAt: 'desc' },

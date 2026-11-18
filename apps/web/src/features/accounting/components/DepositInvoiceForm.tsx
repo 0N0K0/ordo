@@ -3,7 +3,7 @@ import { ClientSelect } from '../../workspace/components/ClientSelect';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { notifyError } from '../../../lib/notify';
+import { useAsyncAction } from '../../../lib/use-async-action';
 
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from '../api/documents';
 import * as fmt from '../../../lib/format';
@@ -79,21 +79,20 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
   const rate = percent ?? selected?.percent ?? 30;
   const amount = selected ? Math.round(selected.totalNet * rate) : 0;
 
-  /**
-   * Creates the draft and opens it.
-   * @returns {Promise<void>}
-   */
-  const submit = async () => {
-    if (!selected) return;
-    const [kind, id] = selected.value.split(':');
-    try {
-      const created = await createDeposit.mutateAsync({ quoteId: kind === 'ordo' ? id : null, importedQuoteId: kind === 'imported' ? id : null, percent: rate, issueDate: localToday() });
-      onDone();
-      void navigate(`/accounting/${created}`);
-    } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'Création impossible.');
-    }
-  };
+  const { run: submit, loading } = useAsyncAction(
+    async () => {
+      if (!selected) throw new Error('Choisissez un devis.');
+      const [kind, id] = selected.value.split(':');
+      return createDeposit.mutateAsync({ quoteId: kind === 'ordo' ? id : null, importedQuoteId: kind === 'imported' ? id : null, percent: rate, issueDate: localToday() });
+    },
+    {
+      fallback: 'Création impossible.',
+      onDone: (created) => {
+        onDone();
+        void navigate(`/accounting/${created}`);
+      },
+    },
+  );
 
   return (
     <Stack gap="md">
@@ -151,7 +150,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       <Text size="xs" c="dimmed">
         La facture d’acompte est créée en brouillon, sans numéro, avec les conditions du devis.
       </Text>
-      <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!selected || !(rate > 0 && rate <= 100)} loading={createDeposit.isPending} />
+      <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!selected || !(rate > 0 && rate <= 100)} loading={loading} />
     </Stack>
   );
 }

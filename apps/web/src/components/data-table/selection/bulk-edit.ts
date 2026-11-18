@@ -3,7 +3,7 @@ import { notifySuccess } from '../../../lib/notify';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
 /** What saving in bulk needs of a table: its selection, the key and the order of its rows. */
-export interface BulkTable<R> {
+interface BulkTable<R> {
   selection: BulkSelection | null;
   keyOf: ((row: R) => string) | null;
   /** Rows shown. */
@@ -99,8 +99,18 @@ export function bulkSaver<R, C>(
  * @returns {string[]} Values.
  */
 export function applyDiff(current: readonly string[], before: readonly string[], after: readonly string[]): string[] {
-  const removed = new Set(before.filter((value) => !after.includes(value)));
-  return [...new Set([...current.filter((value) => !removed.has(value)), ...after.filter((value) => !before.includes(value))])];
+  const { added, removed } = listDiff(before, after);
+  return [...new Set([...current.filter((value) => !removed.includes(value)), ...added])];
+}
+
+/**
+ * Values added and removed between two lists of values (ids of a multi-select…).
+ * @param {readonly T[]} before Values before.
+ * @param {readonly T[]} after Values after.
+ * @returns {{ added: T[], removed: T[] }} Values added (in `after` only) and removed (in `before` only).
+ */
+export function listDiff<T>(before: readonly T[], after: readonly T[]): { added: T[]; removed: T[] } {
+  return { added: after.filter((value) => !before.includes(value)), removed: before.filter((value) => !after.includes(value)) };
 }
 
 /**

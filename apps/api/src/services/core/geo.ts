@@ -2,9 +2,10 @@ import { isUnderOrSelf, lineageOf, mapById, placeSchema, type GeoPoint, type Pla
 import { env } from '../../env';
 import { assertTreeParent } from './trees';
 import { prisma } from '../../db';
-import { nextPositionIn } from './ordering';
+import { moveInOrder, nextPositionIn } from './ordering';
 import { type Place } from '../../generated/prisma/client';
-import { clientError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { assertExists } from './lookup';
 
 /** Address found by a search: its label and point. */
 export interface AddressSuggestion {
@@ -188,7 +189,7 @@ export async function places(): Promise<PlaceView[]> {
  */
 export async function savePlace(id: string | null, input: PlaceInput): Promise<Place> {
   const data = parseInput(placeSchema, input);
-  if (id && !(await prisma.place.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Lieu');
+  await assertExists(prisma.place, id, 'Lieu');
   if (data.parentId) {
     // A zone is in a saved place, never in itself nor in one of its zones.
     await assertTreeParent('place', data.parentId, id, { missing: 'Lieu', loop: 'Une zone ne peut pas être dans elle-même.' });
@@ -198,7 +199,7 @@ export async function savePlace(id: string | null, input: PlaceInput): Promise<P
   // A name is unique among the places at the top, and among the zones of a place (the database checks the zones).
   const taken = data.parentId ? 'Une zone de ce lieu porte déjà ce nom.' : 'Un lieu porte déjà ce nom.';
   if (!data.parentId && (await prisma.place.count({ where: { parentId: null, name: data.name, ...(id && { id: { not: id } }) } }))) {
-    throw clientError('BAD_USER_INPUT', taken, { fields: { name: taken } });
+    throw fieldError('name', taken);
   }
   try {
     if (id) return await prisma.place.update({ where: { id }, data });
@@ -242,11 +243,19 @@ export async function movePlace(id: string, parentId: string | null, index: numb
   }
   const siblings = all.filter((item) => item.parentId === parentId && item.id !== id);
   if (siblings.some((item) => item.name === place.name)) throw clientError('BAD_USER_INPUT', parentId ? 'Une zone de ce lieu porte déjà ce nom.' : 'Un lieu porte déjà ce nom.');
-  siblings.splice(Math.max(0, Math.min(index, siblings.length)), 0, place);
+  const positionOf = new Map(siblings.map((item) => [item.id, item.position]));
   // All at once or not at all.
   await prisma.$transaction(
-    siblings.flatMap((item, position) =>
-      item.id === id ? [prisma.place.update({ where: { id }, data: { parentId, position } })] : item.position !== position ? [prisma.place.update({ where: { id: item.id }, data: { position } })] : [],
+    moveInOrder(
+      siblings.map((item) => item.id),
+      id,
+      index,
+    ).flatMap((itemId, position) =>
+      itemId === id
+        ? [prisma.place.update({ where: { id }, data: { parentId, position } })]
+        : positionOf.get(itemId) !== position
+          ? [prisma.place.update({ where: { id: itemId }, data: { position } })]
+          : [],
     ),
   );
 }

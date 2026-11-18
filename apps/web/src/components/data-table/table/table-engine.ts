@@ -19,7 +19,7 @@ import type { ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
 import * as fmt from '../../../lib/format';
 import { treeSelectProps } from '../../tree/tree-select';
-import { collator } from '../../../lib/text';
+import { collator, normalize } from '../../../lib/text';
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -124,8 +124,9 @@ function meets<R>(
   if (operator === 'isFalse') return value !== true;
   switch (filter.kind) {
     case 'text': {
-      const text = String(value ?? '').toLocaleLowerCase('fr');
-      const query = String(wanted ?? '').toLocaleLowerCase('fr');
+      // Without case nor accents, as the searches of the selects.
+      const text = normalize(String(value ?? ''));
+      const query = normalize(String(wanted ?? ''));
       return { contains: text.includes(query), notContains: !text.includes(query), is: text === query, isNot: text !== query }[operator as 'is'] ?? true;
     }
     case 'number': {
@@ -170,7 +171,7 @@ function meets<R>(
 export function filterRows<R>(rows: readonly R[], columns: readonly DataColumn<R>[], { search, filter }: { search: string; filter: FilterGroupOf<string> }, today: string): R[] {
   const fields = new Map(filterable(columns).map((field) => [field.column.id, field]));
   const { isComplete } = tableFilterFields(columns);
-  const needle = search.trim().toLocaleLowerCase('fr');
+  const needle = normalize(search.trim());
   const texts = columns.filter((column) => column.text);
 
   /**
@@ -185,7 +186,7 @@ export function filterRows<R>(rows: readonly R[], columns: readonly DataColumn<R
     return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
   };
 
-  return rows.filter((row) => (!needle || texts.some((column) => column.text!(row).toLocaleLowerCase('fr').includes(needle))) && matches(filter, row));
+  return rows.filter((row) => (!needle || texts.some((column) => normalize(column.text!(row)).includes(needle))) && matches(filter, row));
 }
 
 /** Group of rows of a table. */

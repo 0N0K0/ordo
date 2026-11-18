@@ -1,3 +1,4 @@
+import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { ActionIcon, Select, Tooltip } from '@mantine/core';
 import { PeopleCell as SharedPeopleCell } from '../../../components/people/PeopleSelect';
 import { localToday } from '../../../lib/dates';
@@ -9,7 +10,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { StackedMultiCell } from '../../../components/data-table/cells/StackedMultiCell';
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from '../api';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
-import { rowPeopleKeys, rowPeopleOf, shoppingCategoryOptions, shoppingCategoryTree, unitOptions, usePeople } from '../lib/shopping-format';
+import { rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopping-format';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { cellCombobox, cellField, cellMulti } from '../../../components/data-table/cells/cell-field';
 
@@ -183,7 +184,7 @@ interface CategoryCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function CategoryCell({ value, categories, label, readOnly = false, onSave }: CategoryCellProps) {
-  const placed = value ? shoppingCategoryTree(categories).find((item) => item.category.id === value) : undefined;
+  const placed = value ? categoryTree(categories).find((item) => item.category.id === value) : undefined;
   return (
     <Select
       {...cellCombobox}
@@ -192,7 +193,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      {...treeSelectProps(shoppingCategoryOptions(categories))}
+      {...treeSelectProps(categoryOptions(categories))}
       leftSection={placed ? <ItemAvatar name={placed.category.name} iconUrl={placed.category.iconUrl} color={placed.color} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}

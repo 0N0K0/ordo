@@ -5,7 +5,6 @@ import { DatePickerInput } from '@mantine/dates';
 import { opensFits, readOpens, readSlotCondition, routineSchedule, type RoutineOpens, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
@@ -21,6 +20,7 @@ import { SlotConditionBuilder } from './SlotConditionBuilder';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
+import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -349,17 +349,17 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })} />
         </Stack>
       </SimpleGrid>
-      <BatchMultiSelect
+      <RemindersSelect
         label="Alertes"
         description={
           timed ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.' : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
         }
         leftSection={<BellIcon aria-hidden />}
-        placeholder={values.reminders.length ? undefined : 'Aucune'}
+        emptyLabel="Aucune"
         disabled={!timed}
-        data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
-        value={values.reminders.map(String)}
-        onChange={(reminders) => onChange({ reminders: reminders.map(Number).sort((a, b) => a - b) })}
+        presets={ROUTINE_REMINDERS}
+        value={values.reminders}
+        onChange={(reminders) => onChange({ reminders })}
         clearable
         error={errors.reminders}
       />

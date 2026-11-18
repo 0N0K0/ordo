@@ -1,5 +1,5 @@
 import { groupBy } from '@ordo/shared';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task } from '../api';
 
 const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effort', 'startDate', 'endDate', 'deadline'] as const;
@@ -66,7 +66,7 @@ export function useBulkUndo() {
       for (const step of steps) await step();
       notifySuccess('Action annulée.');
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : 'L’action n’a pas pu être annulée.');
+      notifyFailure(error, 'L’action n’a pas pu être annulée.');
     }
   };
 

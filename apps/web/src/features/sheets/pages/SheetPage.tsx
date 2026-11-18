@@ -17,14 +17,13 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { categoryTree } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { Comments } from '../../comments/components/Comments';
 import { useShoppingData } from '../../shopping/api';
-import { shoppingCategoryOptions } from '../../shopping/lib/shopping-format';
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from '../api';
@@ -153,7 +152,7 @@ export function SheetPage() {
   const productName = new Map(products.map((product) => [product.id, product.name]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
   const people = usePeople();
-  const paths = new Map(categoryTree(shoppingCategories).map((item) => [item.category.id, item.path]));
+  const paths = categoryPaths(shoppingCategories);
   const comments = useCommentCounts(
     'SHEET_ITEM',
     (sheet?.items ?? []).map((item) => item.id),
@@ -322,7 +321,7 @@ export function SheetPage() {
               value={item.categoryId ?? null}
               label={`Catégorie de ${item.label}`}
               nullable
-              {...treeSelectProps(shoppingCategoryOptions(shoppingCategories))}
+              {...treeSelectProps(categoryOptions(shoppingCategories))}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
           ),

@@ -29,3 +29,21 @@ export function lastDayOfMonth(date: string): string {
   const month = Number(date.slice(5, 7));
   return dayInMonth(year, month, 31);
 }
+
+/**
+ * Month number of a date counted from year 0 (to count or shift months).
+ * @param {string} date YYYY-MM-DD or YYYY-MM.
+ * @returns {number} Months.
+ */
+export function monthIndex(date: string): number {
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
+}
+
+/**
+ * Month of a month number (see monthIndex).
+ * @param {number} index Months from year 0.
+ * @returns {string} YYYY-MM.
+ */
+export function monthFromIndex(index: number): string {
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}

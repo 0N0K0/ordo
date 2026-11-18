@@ -100,7 +100,6 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   // Its height, that a table next to other content leaves out of its own.
   const ref = usePublishedHeight<HTMLDivElement>('--onoko-view-tabs-height');
   /**
-   * Asks for confirmation  /**
    * Asks for confirmation before deleting a view.
    * @param {SavedView<C>} view View.
    * @returns {void}
@@ -133,33 +132,15 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
           {view.name}
         </Indicator>
       )}
-      actions={(view) => (
-        <>
-          {dirty && (
-            <>
-              <Menu.Label>Modifications non enregistrées</Menu.Label>
-              <Menu.Item leftSection={<FloppyDiskIcon aria-hidden />} onClick={state.save}>
-                Enregistrer
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={state.revert}>
-                Annuler les modifications
-              </Menu.Item>
-              <Menu.Divider />
-            </>
-          )}
-          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name))}>
-            Renommer
-          </Menu.Item>
-          <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => state.duplicate(view)}>
-            Dupliquer
-          </Menu.Item>
-          {!view.isDefault && (
-            <Menu.Item leftSection={<StarIcon aria-hidden />} onClick={() => state.setDefault(view)}>
-              Définir par défaut
-            </Menu.Item>
-          )}
-        </>
-      )}
+      actions={(view) => [
+        // The unsaved changes of the view first.
+        dirty && { label: 'Enregistrer les modifications', icon: <FloppyDiskIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.save },
+        dirty && { label: 'Annuler les modifications', icon: <ArrowCounterClockwiseIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.revert },
+        dirty && 'divider',
+        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name)) },
+        { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => state.duplicate(view) },
+        !view.isDefault && { label: 'Définir par défaut', icon: <StarIcon aria-hidden />, onClick: () => state.setDefault(view) },
+      ]}
       onDelete={confirmDelete}
       deleteDisabled={() => views.length === 1}
       add={{

@@ -1,8 +1,8 @@
-import { formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
+import { addDays, formatDay, mapById, normalize, parseDay, round2, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
-import { clientError, orNotFound } from '../../graphql/errors';
+import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
 import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
@@ -613,7 +613,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
     }
     if (!sprint) {
       const startDate = parseDay(iteration.startDate);
-      const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
+      const endDate = parseDay(addDays(iteration.startDate, iteration.duration - 1));
       sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
     }
@@ -854,7 +854,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     return summary;
   } catch (error) {
     await prisma.githubProjectLink
-      .update({ where: { id: link.id }, data: { lastSyncAt: new Date(), lastSyncError: error instanceof Error ? error.message : String(error) } })
+      .update({ where: { id: link.id }, data: { lastSyncAt: new Date(), lastSyncError: errorMessage(error) } })
       .catch(() => undefined);
     throw error;
   } finally {

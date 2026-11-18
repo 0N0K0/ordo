@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
-import { EntityAvatar } from '../../features/workspace/components/EntityAvatar';
+import { ItemAvatar } from '../settings/ItemAvatar';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
@@ -55,7 +55,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
           ) : (
             <span className={classes.caretSpace} />
           )}
-          <EntityAvatar name={category.name} iconUrl={category.iconUrl ?? null} color={color ?? 'gray'} size={22} radius="sm" />
+          <ItemAvatar name={category.name} iconUrl={category.iconUrl} color={color} size={22} />
           <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>
             {category.name}
           </Text>

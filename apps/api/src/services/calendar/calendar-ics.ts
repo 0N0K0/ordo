@@ -1,4 +1,4 @@
-import { addDays, formatDay, occurrenceDates, parseDay, type Recurrence, ruleValues, zonedInstant } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, type Recurrence, ruleValues, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { CalendarEvent, CalendarEventException } from '../../generated/prisma/client';
 import { notFound } from '../../graphql/errors';
@@ -168,7 +168,7 @@ type ExportedEvent = CalendarEvent & { exceptions: CalendarEventException[]; cat
  */
 function eventLines(event: ExportedEvent, stamp: Date): string[] {
   const start = formatDay(event.startDate);
-  const span = Math.round((event.endDate.getTime() - event.startDate.getTime()) / 86_400_000);
+  const span = daysBetween(start, formatDay(event.endDate));
   const rule = storedRecurrence(event.recurrence);
   const uid = `${event.id}@ordo`;
   const links = (event.links as { url: string; label: string }[] | null) ?? [];

@@ -1,3 +1,5 @@
+import type { MarkdownSuggestions } from './MarkdownEditor';
+
 /** Minimal mdast node shape used by the plugin. */
 interface MdNode {
   type: string;
@@ -31,6 +33,9 @@ export interface ReferenceTargets {
 
 /** Targets of texts without task nor contributor references. */
 export const NO_TARGETS: ReferenceTargets = { projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set() };
+
+/** Suggestions of an editor of a text without task nor contributor references. */
+export const NO_SUGGESTIONS: MarkdownSuggestions = { projectId: null, tasks: [], contributors: [] };
 
 /**
  * Label of a task reference seen from the project of a text: "#12" in the same project, "Client › Projet #12"
