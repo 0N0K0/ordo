@@ -24,6 +24,18 @@ import { queryClient } from './lib/query-client';
 import { router } from './app/router';
 import { iconDefaults, theme } from './app/theme';
 
+// A page whose code is gone (a new version was deployed since this one loaded): the app is reloaded, once.
+window.addEventListener('vite:preloadError', () => {
+  const key = 'ordo-reloaded';
+  try {
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  } catch {
+    return;
+  }
+  window.location.reload();
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">

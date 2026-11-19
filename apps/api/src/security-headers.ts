@@ -31,10 +31,10 @@ export function contentSecurityPolicy(): string {
 /**
  * Block of the .htaccess of the app root (beside the rules of Passenger written by cPanel; Apache applies it to the
  * built web app below): Apache serves its files itself (the API never sees them), so it gives
- * them the headers the API gives its own answers, and sends plain HTTP to HTTPS (for the API too). Written by `scripts/deploy.sh` (`npm run htaccess:print`).
+ * them the headers the API gives its own answers and their cache policy, and sends plain HTTP to HTTPS (for the API too). Written by `scripts/deploy.sh` (`npm run htaccess:print`).
  * @returns {string} Apache directives, between their markers.
  */
-export function htaccessSecurityBlock(): string {
+export function htaccessBlock(): string {
   const headers = Object.entries(PAGE_HEADERS).map(([name, value]) => `  Header always set ${name} "${value}"`);
   return [
     '# BEGIN ordo-security (written by scripts/deploy.sh: do not edit)',
@@ -43,6 +43,15 @@ export function htaccessSecurityBlock(): string {
     '  <FilesMatch "\\.html$">',
     `    Header always set Content-Security-Policy "${contentSecurityPolicy()}"`,
     '  </FilesMatch>',
+    // The page and the service worker are always checked again; a missing file is not a success, so never cached.
+    '  <FilesMatch "(\\.html|\\.webmanifest|^sw\\.js)$">',
+    '    Header set Cache-Control "no-cache"',
+    '  </FilesMatch>',
+    // Built files carry a hash of their content in their name: kept for good.
+    '  <IfModule mod_setenvif.c>',
+    '    SetEnvIf Request_URI "^/assets/" ORDO_ASSET',
+    '    Header set Cache-Control "public, max-age=31536000, immutable" env=ORDO_ASSET',
+    '  </IfModule>',
     '</IfModule>',
     // Plain HTTP goes to HTTPS; both tests, so that a proxy ending TLS before Apache does not loop.
     '<IfModule mod_rewrite.c>',

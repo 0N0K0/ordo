@@ -1,7 +1,7 @@
 import { formCallbacks } from '../../../lib/form';
 import { Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { RichEditor } from './RichEditor';
+import { LazyRichEditor } from './LazyRichEditor';
 import { useMailAccountMutations, type MailAccount } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -19,7 +19,7 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
         Ajoutée aux nouveaux mails de {account.email}. Le bouton « &lt;/&gt; » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées
         aux mails.
       </Text>
-      <RichEditor value={html} onChange={setHtml} sourceCode minHeight={160} />
+      <LazyRichEditor value={html} onChange={setHtml} sourceCode minHeight={160} />
       <FormActions
         onCancel={onDone}
         loading={setSignature.isPending}

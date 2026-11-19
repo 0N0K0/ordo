@@ -32,12 +32,26 @@ import { toJson } from '../core/json';
  * @returns {Promise<number>} Balance, in cents.
  */
 export async function accountBalance(account: TreasuryAccount, date: string): Promise<number> {
-  if (date < formatDay(account.openingDate)) return 0;
-  const { _sum } = await prisma.treasuryEntry.aggregate({
-    where: { accountId: account.id, status: 'ACTUAL', date: { gte: account.openingDate, lte: parseDay(date) } },
-    _sum: { amount: true },
-  });
-  return decimalCents(account.openingBalance) + decimalCents(_sum.amount);
+  return (await accountBalances([account], date))[0];
+}
+
+/**
+ * Balances of several accounts at the end of a day (see `accountBalance`), in one query.
+ * @param {TreasuryAccount[]} accounts Accounts.
+ * @param {string} date Day (included).
+ * @returns {Promise<number[]>} Balances, in cents, in the order of the accounts.
+ */
+export async function accountBalances(accounts: TreasuryAccount[], date: string): Promise<number[]> {
+  const opened = accounts.filter((account) => date >= formatDay(account.openingDate));
+  const sums = opened.length
+    ? await prisma.treasuryEntry.groupBy({
+        by: ['accountId'],
+        where: { status: 'ACTUAL', OR: opened.map((account) => ({ accountId: account.id, date: { gte: account.openingDate, lte: parseDay(date) } })) },
+        _sum: { amount: true },
+      })
+    : [];
+  const sumOfAccount = new Map(sums.map((sum) => [sum.accountId, sum._sum.amount]));
+  return accounts.map((account) => (date < formatDay(account.openingDate) ? 0 : decimalCents(account.openingBalance) + decimalCents(sumOfAccount.get(account.id) ?? null)));
 }
 
 /**
@@ -618,9 +632,9 @@ export async function treasuryProjection(today: string, from: string, until: str
   items.sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
 
   // Past: actual balance day by day.
-  const balance = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, today))), (value) => value);
+  const balance = sumOf(await accountBalances(accounts, today), (value) => value);
   const start = from < today ? from : today;
-  const opening = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, addDays(start, -1)))), (value) => value);
+  const opening = sumOf(await accountBalances(accounts, addDays(start, -1)), (value) => value);
   const past = await prisma.treasuryEntry.findMany({
     where: { accountId: { in: accountIds }, status: 'ACTUAL', date: { gte: parseDay(start), lte: parseDay(today) } },
     select: { date: true, amount: true, accountId: true },

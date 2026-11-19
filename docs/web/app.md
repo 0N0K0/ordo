@@ -12,9 +12,13 @@ Charge les styles Mantine (en couches : core, notifications, dates, tiptap, char
 4. `IconContext.Provider` (`iconDefaults` des icônes Phosphor) ;
 5. `Notifications` en haut à droite (toasts, voir [lib/notify](lib.md#notifytsx)), `UpdatePrompt`, puis `RouterProvider` (`router`).
 
+Si le code d'une page n'existe plus sur le serveur (nouvelle version déployée depuis le chargement), l'évènement `vite:preloadError` recharge l'application, une seule fois par onglet (`sessionStorage`, clé `ordo-reloaded`).
+
 ## Routes (`router.tsx`)
 
 `router` : routeur `createBrowserRouter` de `react-router`. Les chemins viennent de `PAGES` et `AUTH_PATHS` (`routeOf`).
+
+Les pages sont chargées à la demande (`lazyNamed`, voir [lib/lazy](lib.md#lazytsx)) : l'application démarre avec les mises en page, la garde, `LoginPage` et `NotFoundPage` seulement ; chaque page arrive avec son code à sa première ouverture, sous le `Suspense` de sa mise en page (`DetailSkeleton` dans `AppLayout`, `FormSkeleton` dans `AuthLayout`). Le build sépare aussi `react` et `mantine` dans leurs propres fichiers (`vite.config.ts`, `codeSplitting`), pour qu'un déploiement qui ne change que l'application les laisse en cache.
 
 Zone connectée : garde `RequireAuth` (`features/auth/pages/guards`), puis `AppLayout`.
 

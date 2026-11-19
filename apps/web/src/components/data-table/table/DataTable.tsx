@@ -132,9 +132,10 @@ interface Entry {
 
 /**
  * Rows from which only those in view (and many around) are rendered: below, every row is drawn once and scrolling does
- * nothing (rows full of editors drawn while scrolling would make it jerky).
+ * nothing (rows full of editors drawn while scrolling would make it jerky). Not lower: a virtual table still draws the
+ * rows in view and 40 on each side, about 110 rows.
  */
-const VIRTUAL_FROM = 400;
+const VIRTUAL_FROM = 150;
 /** Height of a row before it is measured. */
 const ROW_ESTIMATE = 37;
 

@@ -41,7 +41,7 @@ Internes : `LABELS`, `COLORS`, `loadChecker()` (import dynamique unique de `@ord
 
 ### `pages/AuthLayout.tsx` (+ `AuthLayout.module.css`)
 
-- `AuthLayout()` : carte centrée « Ordo » avec `<Outlet />` ; route parente des pages hors application dans `app/router.tsx`.
+- `AuthLayout()` : carte centrée « Ordo » avec `<Outlet />` sous un `Suspense` (`FormSkeleton` pendant le chargement du code d'une page) ; route parente des pages hors application dans `app/router.tsx`.
 - `AuthHeader({ title, description? })` : titre et description d’une carte ; utilisé par chaque page ci-dessous.
 
 ### `pages/guards.tsx`

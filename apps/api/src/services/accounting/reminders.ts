@@ -1,4 +1,4 @@
-import { formatOptionalDay, isInvoice, reminderMail, sendRemindersSchema } from '@ordo/shared';
+import { formatOptionalDay, isInvoice, mapById, reminderMail, sendRemindersSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parseInput, userErrorMessage } from '../../graphql/errors';
 import { ARCHIVED_MESSAGE } from '../core/archive';
@@ -9,16 +9,46 @@ import { findAccount } from '../mail/accounts';
 import { sendMail } from '../mail/sender';
 import { decimalCents } from '../core/decimal';
 
+/** What tells who a document is mailed to. */
+export interface BilledDocument {
+  contactId: string | null;
+  serviceId: string | null;
+  clientId: string;
+}
+
+/** Who a document is mailed to. */
+export interface BillingRecipient {
+  email: string | null;
+  firstName: string | null;
+}
+
 /**
  * Who a document is mailed to: its contact, else its service, else its client.
- * @param {{ contactId: string | null, serviceId: string | null, clientId: string }} document Document.
- * @returns {Promise<{ email: string | null, firstName: string | null }>} Recipient.
+ * @param {BilledDocument} document Document.
+ * @returns {Promise<BillingRecipient>} Recipient.
  */
-export async function billingRecipient(document: { contactId: string | null; serviceId: string | null; clientId: string }) {
-  const contact = document.contactId ? await prisma.clientContact.findUnique({ where: { id: document.contactId } }) : null;
-  const service = document.serviceId ? await prisma.clientService.findUnique({ where: { id: document.serviceId } }) : null;
-  const client = await prisma.client.findUnique({ where: { id: document.clientId }, select: { email: true } });
-  return { email: contact?.email || service?.email || client?.email || null, firstName: contact?.firstName ?? null };
+export async function billingRecipient(document: BilledDocument): Promise<BillingRecipient> {
+  return (await billingRecipients([document]))[0];
+}
+
+/**
+ * Who several documents are mailed to (see `billingRecipient`), in three queries whatever their number.
+ * @param {BilledDocument[]} documents Documents.
+ * @returns {Promise<BillingRecipient[]>} Recipients, in the order of the documents.
+ */
+export async function billingRecipients(documents: BilledDocument[]): Promise<BillingRecipient[]> {
+  const idsOf = (pick: (document: BilledDocument) => string | null) => [...new Set(documents.map(pick).filter((id) => id !== null))];
+  const [contacts, services, clients] = await Promise.all([
+    prisma.clientContact.findMany({ where: { id: { in: idsOf((document) => document.contactId) } }, select: { id: true, email: true, firstName: true } }),
+    prisma.clientService.findMany({ where: { id: { in: idsOf((document) => document.serviceId) } }, select: { id: true, email: true } }),
+    prisma.client.findMany({ where: { id: { in: idsOf((document) => document.clientId) } }, select: { id: true, email: true } }),
+  ]);
+  const [contactOf, serviceOf, clientOf] = [mapById(contacts), mapById(services), mapById(clients)];
+  return documents.map((document) => {
+    const contact = document.contactId ? contactOf.get(document.contactId) : undefined;
+    const service = document.serviceId ? serviceOf.get(document.serviceId) : undefined;
+    return { email: contact?.email || service?.email || clientOf.get(document.clientId)?.email || null, firstName: contact?.firstName ?? null };
+  });
 }
 
 export interface ReminderResult {

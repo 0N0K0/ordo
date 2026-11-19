@@ -8,6 +8,7 @@ import { builder } from '../builder';
 import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
+import { batchedBy } from '../batch';
 import { fromDecimal } from '../../services/core/decimal';
 import { attachmentUrl } from '../../services/core/attachments';
 
@@ -61,6 +62,9 @@ const DocumentAttachment = builder.objectRef<{ id: string; filename: string; siz
   }),
 });
 
+/** Amount invoiced on each quote of a list, loaded together. */
+const invoicedOn = batchedBy(docs.invoicedAmounts);
+
 builder.prismaObject('AccountingDocument', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -106,7 +110,7 @@ builder.prismaObject('AccountingDocument', {
     invoicedNet: t.float({
       nullable: true,
       description: 'Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).',
-      resolve: async (document) => (document.type === 'QUOTE' && document.status === 'FINAL' ? fromCents(await docs.invoicedAmount(document.id)) : null),
+      resolve: async (document, _args, ctx) => (document.type === 'QUOTE' && document.status === 'FINAL' ? fromCents(await invoicedOn(ctx, document.id)) : null),
     }),
     recurringId: t.exposeID('recurringId', { nullable: true }),
     lines: t.relation('lines', { query: { orderBy: BY_POSITION } }),

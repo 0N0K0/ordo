@@ -186,6 +186,10 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 - `ProjectLiveMails({ projectId })` (interne) : liste et lecteur des mails du projet lus en direct (critères `projectId`, `scope: 'all'`), recherche (`useMailSearch('mail')`), recherche avancée, tri `MAIL_SORTS_ACROSS`, filtre traité, page et mail ouvert en état local, hauteur ajustée (`useFillHeight`) ; « Gérer les drapeaux… » mène à `settingsPath('/mail')`.
 - CSS : `panes`, `grid`, `scroll`.
 
+### `components/LazyRichEditor.tsx`
+
+- `LazyRichEditor(props)` : `RichEditor` chargé avec sa bibliothèque d’édition à sa première apparition (`lazyNamed`), `BlockSkeleton` en attendant. C’est lui qu’utilisent `MailComposer` et `SignatureForm` (règle eslint : pas d’import direct de `RichEditor`).
+
 ### `components/RichEditor.tsx`
 
 - `RichEditor({ value, onChange, label?, minHeight?, sourceCode?, autoFocus? })` : éditeur Tiptap (Mantine) produisant du HTML : mise en forme, titres, citation, listes, liens, alignement, images envoyées (bouton, dépôt, collage) et redimensionnables, annuler / rétablir, code HTML si `sourceCode`. Le contenu suit `value` quand il change de l’extérieur. Utilisé par `MailComposer`, `SignatureForm`.
