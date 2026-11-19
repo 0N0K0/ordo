@@ -96,6 +96,15 @@ export default defineConfig([
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': [
         'error',
+        // Heavy libraries stay out of the start of the app: their components are loaded when first shown.
+        {
+          selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",
+          message: 'Utiliser LazyRichEditor / LazyPlaceMap : l’éditeur et la carte sont chargés à la demande.',
+        },
+        {
+          selector: "CallExpression[callee.name='lazy']",
+          message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',
+        },
         {
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.money, fmt.fromNow…) : un format par rôle.',

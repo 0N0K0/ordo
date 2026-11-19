@@ -41,6 +41,10 @@ Utilisé par `EventLocation`, `PlacesManager`, `TravelCalculator`, `routines/com
 
 `EventLocation({ value, onChange, error? })` : champ « Lieu » (`AddressInput`) et, avec un point, une `PlaceMap` de 180 px où un clic déplace le point (adresse recherchée par `pickedAddress`). Utilisé par `calendar/components/EventForm.tsx` et `routines/components/RoutineSchedule.tsx`.
 
+### `components/LazyPlaceMap.tsx`
+
+`LazyPlaceMap(props)` : `PlaceMap` chargée avec sa bibliothèque de cartes à sa première apparition (`lazyNamed`), `BlockSkeleton` en attendant. C'est elle qu'utilisent `EventLocation` et `PlacesManager` (règle eslint : pas d'import direct de `PlaceMap`).
+
 ### `components/PlaceMap.tsx` (+ `PlaceMap.module.css`)
 
 `PlaceMap({ points, onPick?, onSelect?, height = 240 })` : carte `react-leaflet` (tuiles OpenStreetMap) avec un `CircleMarker` et une infobulle par point (le point `active` plus grand), centrée sur la France sans point. Internes : `MapPoint`, `DEFAULT_CENTER`, `Framing` (cadre sur un point au zoom 15 au moins, ou sur tous), `Resizing` (`ResizeObserver` → `invalidateSize`), `Picking` (clic → `onPick`). Utilisé par `EventLocation` et `PlacesManager`.

@@ -132,6 +132,8 @@ Toutes les décisions de ce round sont prises (DA à DM, voir plus bas).
 23. **Sessions :** 14 jours sans activité, 90 jours au plus ; la déconnexion vide le cache du navigateur.
 24. **Mails reçus :** aucune adresse `/api/` hors de leurs images intégrées ; polices distantes bloquées.
 25. **Limites de tentatives :** comptées en base ; connexion : 5 par 15 min par IP, 100 par 15 min par identifiant (un tiers ne verrouille pas le compte en échouant quelques fois).
+26. **Chargement à la demande :** `lazyNamed` pour les pages, la carte (`LazyPlaceMap`) et l'éditeur de mail (`LazyRichEditor`) ; l'application démarre sans eux.
+27. **Fraîcheur des données :** 15 s à l'ouverture d'une page ; rechargement à chaque retour sur l'application, après toute mutation, et dans les autres onglets.
 
 - **A. Limites des produits** (fiches, stock, achats) : unité 50 caractères, note 500, quantité ≥ 0, dans des schémas communs.
 - **B. Archivage par booléen :** comptes, tiers et catalogue passent à `archivedAt` (migration qui reprend les archivés), archivage par `setArchived` seulement, plus de case « Archivé » dans les formulaires.

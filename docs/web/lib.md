@@ -18,6 +18,17 @@ Voir [Erreurs](../business-rules/cross-cutting/errors.md).
 
 `queryClient` : client TanStack Query de l'application. Toute erreur `UNAUTHENTICATED` d'une requête ou d'une mutation vide la session (`meQueryKey` à `null`) : les gardes renvoient alors vers la connexion. Fonction interne `handleUnauthenticated`.
 
+Fraîcheur des données :
+
+- Une donnée chargée est réutilisée telle quelle pendant 15 s (`FRESH_MS`) quand une page s'ouvre : passer d'une page à l'autre ne recharge pas ce qui vient de l'être.
+- Revenir sur l'application (onglet ou fenêtre qui reprend le focus, réseau retrouvé) recharge toujours ce qui est affiché : un changement fait sur un autre appareil apparaît aussitôt.
+- Après toute mutation réussie ici (`handleChanged`), plus rien n'est considéré comme frais : la prochaine page ouverte redemande ses données, quoi que la mutation ait touché.
+- Les autres onglets du navigateur sont prévenus (`BroadcastChannel` « ordo-data ») et rechargent aussitôt ce qu'ils affichent.
+
+### `lazy.tsx`
+
+`lazyNamed(load, pick)` : composant chargé à sa première apparition, avec son code et les bibliothèques qu'il est seul à utiliser (une page, la carte, l'éditeur de mail) ; à rendre sous un `Suspense` qui donne son état de chargement. Seule façon de charger un composant à la demande (règle eslint : pas de `lazy` de React en direct).
+
 ### `mutation.ts`
 
 - `useInvalidatingMutation(mutationFn, { invalidate, optimistic, background })` : mutation de l'application : la requête, puis les requêtes dont la clé commence par `invalidate` rafraîchies ; `optimistic(queryClient, variables)` change les données affichées tout de suite (requêtes annulées puis remises comme avant en cas d'erreur) ; `background` : la mutation n'attend pas le rechargement. Sous toutes les mutations de l'application ; imposée par eslint (`invalidateQueries` dans `onSuccess` interdit).

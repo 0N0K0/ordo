@@ -1,5 +1,7 @@
 import { Paper, Stack, Text, Title } from '@mantine/core';
+import { Suspense } from 'react';
 import { Outlet } from 'react-router';
+import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import classes from './AuthLayout.module.css';
 
 /**
@@ -14,7 +16,10 @@ export function AuthLayout() {
           <Text fw={700} size="lg">
             Ordo
           </Text>
-          <Outlet />
+          {/* A page loads its code when first opened. */}
+          <Suspense fallback={<FormSkeleton fields={2} />}>
+            <Outlet />
+          </Suspense>
         </Stack>
       </Paper>
     </main>

@@ -2,10 +2,11 @@ import { SidePanelHost } from '../../components/panels/SidePanel';
 import { AppShell, Burger, Group, Stack } from '@mantine/core';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { SignOutIcon, UserIcon } from '@phosphor-icons/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../../features/auth/api';
 import { TaskPanel } from '../../features/tasks/components/TaskPanel';
@@ -147,7 +148,10 @@ export function AppLayout() {
             {/* Pages use the full available width. */}
             <AppShell.Main>
               <Stack gap="md">
-                <Outlet />
+                {/* A page loads its code when first opened. */}
+                <Suspense fallback={<DetailSkeleton />}>
+                  <Outlet />
+                </Suspense>
               </Stack>
               {/* Task of ?task=12, over any page. */}
               <TaskPanel />

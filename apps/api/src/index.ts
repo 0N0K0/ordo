@@ -49,7 +49,8 @@ function serveWeb(): void {
       },
     }),
   );
-  app.get(/^\/(?!api\/).*/, (_req, res) => {
+  // A missing built file is a 404, never the page: the browser must not take it for the file.
+  app.get(/^\/(?!api\/|assets\/).*/, (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile('index.html', { root });
   });
