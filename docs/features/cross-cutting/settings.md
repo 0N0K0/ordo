@@ -19,6 +19,7 @@ La plupart des sections sont des listes de paramètres (statuts, catégories, é
 - Réordonner par glisser-déposer ; dans une arborescence, glisser un élément sur un autre l’y range ; menu « Ajouter un sous-élément ».
 - « Archiver » / « Restaurer » (avec annulation) ; les archivés sont masqués derrière « Afficher les archivés », en lecture seule.
 - « Supprimer » (dans le menu « … ») après confirmation : « « X » sera supprimé définitivement et retiré des N … qui l’utilisent. » ; dans une arborescence : « Ses sous-éléments remonteront d’un niveau. »
+- Depuis un champ de sélection (étiquettes, statuts, catégories, unités, magasins, lieux…), « Créer « … » » ouvre ce même formulaire dans le panneau latéral, le libellé tapé déjà rempli, couleur et image comprises ; la nouvelle valeur est alors choisie.
 - États vides : « Aucun élément pour le moment. », « Tous les éléments sont archivés. »
 
 Règles détaillées : [Nommage](../../business-rules/cross-cutting/naming.md), [Archivage](../../business-rules/cross-cutting/archiving.md), [Ordre](../../business-rules/cross-cutting/ordering.md).

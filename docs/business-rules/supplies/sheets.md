@@ -118,4 +118,4 @@ Source : `checklist`, `resetChecklist`, `addSheetToChecklist`, `addChecklistItem
 - Élément ajouté à la main : schéma d'un élément de fiche (seuls produit, libellé, catégorie, quantité, unité, note, consommable sont gardés) ; produit et catégorie vérifiés.
 - Cocher / décocher (`setChecklistItemsChecked`) : `checkedAt` mis à maintenant ou effacé ; dans la même transaction, chaque élément consommable de produit avec quantité est retiré du stock à la coche (une seule fois : pas de nouveau retrait s'il a déjà un mouvement) et rendu au décochage.
 - Retirer un élément : supprimé.
-- Les listes à cocher ne sont pas archivables ; elles ne vérifient pas l'archivage de leur propriétaire (à vérifier).
+- Les listes à cocher ne sont pas archivables ; elles ne vérifient pas l'archivage de leur propriétaire.

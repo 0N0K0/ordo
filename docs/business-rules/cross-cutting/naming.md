@@ -7,6 +7,7 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [Erreurs](errors.md), [
 ## Libellé ou nom
 
 - Décision AD : le champ s'appelle « Libellé » pour tout `label` ; « Nom » seulement pour les personnes physiques ou morales (contributeurs, relations, contacts, clients, tiers, entreprise).
+- Dans la base, l'API et les données JSON (sources des fiches, jeux de données des graphiques, instantané de prestation), tout libellé s'appelle `label`, titres et espaces de travail compris ; seules les personnes gardent `name` : contributeurs, utilisateurs, relations, contacts, clients, tiers de trésorerie.
 - Message d'un libellé vide : « Le libellé est requis. » (`requiredText`) ; d'un nom vide : « Le nom est requis. » (`personNameSchema`) ; variantes : « Le prénom est requis. », « Le nom de la société est requis. », « Le numéro est requis. ».
 - Tout libellé est « trimé » ; un texte facultatif vide est enregistré `null` (`optionalText`).
 - Message de longueur : « N caractères maximum. ».
@@ -81,7 +82,7 @@ L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) 
 | Numéro de document importé               | l'espace et son type                                                                                                | « Un document importé de ce type porte déjà ce numéro. »                            |
 | Numéro de tâche                          | son projet                                                                                                          | (numérotation automatique)                                                          |
 
-Ne sont **pas** uniques : projets, tâches, événements, routines, fiches, listes, comptes de trésorerie, catégories de trésorerie et de courses, emplacements, agendas, catégories d'agenda (à vérifier pour chaque arbre : pas de contrainte dans le schéma).
+Ne sont **pas** uniques : projets, tâches, événements, routines, fiches, listes, comptes de trésorerie, catégories de trésorerie et de courses, emplacements, agendas, catégories d'agenda (pas de contrainte dans le schéma).
 
 ## Comparaison des noms
 

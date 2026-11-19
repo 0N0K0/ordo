@@ -44,7 +44,7 @@ Le nom d’un client n’est pas unique.
 
 - `deleteProjects = true` : tous les projets du client (archivés compris, avec leurs sous-projets) sont supprimés, puis le client. Icônes orphelines supprimées.
 - `deleteProjects = false` : les projets passent « sans client » (`clientId = null`, `archivedByCascade = false`) en gardant leur arborescence ; les projets racines sont placés à la fin de la liste « Sans client », dans leur ordre actuel. Puis le client est supprimé.
-- Les données de facturation liées au client suivent les règles du schéma Prisma (à vérifier dans [Facturation](../finances/accounting.md)).
+- Les données de facturation liées au client suivent les règles du schéma Prisma (voir [Facturation](../finances/accounting.md)).
 
 ### Déplacement
 
@@ -86,7 +86,7 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Déplacement
 
-`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Le déplacement n’est pas refusé pour un projet archivé côté API (le web ne le propose pas : à vérifier si voulu).
+`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Le déplacement n’est pas refusé pour un projet archivé côté API (le web ne le propose pas).
 
 ### Favoris
 
@@ -103,7 +103,7 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Suppression
 
-`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Les éléments rattachés (tâches, temps, documents…) suivent les relations du schéma Prisma : à vérifier dans les pages des domaines concernés.
+`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Les éléments rattachés (tâches, temps, documents…) suivent les relations du schéma Prisma (voir les pages des domaines concernés).
 
 ## Statuts et catégories de projet
 

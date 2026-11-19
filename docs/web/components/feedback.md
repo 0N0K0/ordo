@@ -28,8 +28,8 @@ Ce qu'affiche une liste, un tableau ou une section sans contenu (~60 fichiers). 
 - `message` : ce qui est vide et quoi faire ;
 - `icon`, `iconColor` (défaut `gray` ; vert : plus rien à faire) ;
 - `action` : seulement une action donnée nulle part ailleurs (« Retour… », « Effacer les filtres ») ; un « Nouveau… » est dans l'en-tête, à droite ;
-- `compact` : dans une section ou un panneau, sur une ligne sans cadre (action à droite) ;
-- `plain` : centré sans cadre (dans un graphique, une section de la barre latérale).
+- `compact` : dans une section, un panneau ou la barre latérale (« Aucun client pour le moment. »), sur une ligne sans cadre (action à droite) ;
+- `plain` : centré sans cadre (dans un graphique, une liste de mails).
 
 Par défaut : bloc encadré centré (`Paper`), icône dans un `ThemeIcon` rond.
 
@@ -61,6 +61,8 @@ Squelettes de chargement alignés sur le rythme vertical (`--onoko-vertical-step
 Composant interne `Line` (barre d'une ligne de texte, un demi-pas d'épaisseur centrée sur un pas). Constante interne `WIDTHS` (largeurs variées des lignes).
 
 ## Badges
+
+Tous les badges sont en capitales (défaut de Mantine) ; aucun ne les annule (`tt="none"` interdit).
 
 - `ArchivedBadge` : badge gris « Archivé » / « Archivée » (icône archive) d'un élément archivé (tâche, projet, liste, compte), le même partout (~27 fichiers). Props : `feminine`, `size`.
 - `LateBadge` : retard d'une ligne de l'accueil, « 3 j de retard » (`fmt.daysLate`) en orange (`LATE_COLOR`), décision AI. Props : `due`, `today` (YYYY-MM-DD). Utilisé par `features/home`.

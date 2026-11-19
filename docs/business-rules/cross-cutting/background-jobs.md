@@ -49,7 +49,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 - Mails d'avis du compte (mot de passe modifié, email modifié, lien de réinitialisation) : envoyés sans bloquer la réponse, échec journalisé (voir [Espaces et accès](workspaces-and-access.md)).
 - Purge des sessions expirées : à chaque connexion (pas de minuterie).
 - Connexions IMAP : fermées après 5 minutes d'inactivité (`IDLE_MS`, `apps/api/src/services/mail/imap.ts`).
-- Les **relances** d'impayés ne sont pas automatiques dans le code actuel : elles s'envoient à la main (`sendRemindersSchema`) ; `docs/deployment.md` les cite parmi les tâches de fond (à vérifier).
+- Les **relances** d'impayés ne sont pas automatiques dans le code actuel : elles s'envoient à la main (`sendRemindersSchema`) .
 
 ## Tâches périodiques du navigateur
 

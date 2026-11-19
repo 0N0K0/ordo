@@ -50,7 +50,7 @@ Chaque `Comment` a exactement une cible. Types de cible (enum GraphQL `CommentTa
 
 - Un mail est désigné par son en-tête `Message-ID` (sans chevrons) : seul un identifiant vide est refusé (« Élément introuvable. »), le mail n’est pas vérifié.
 - Pour les autres cibles, l’élément doit exister (« Élément introuvable. »).
-- Supprimer l’élément supprime ses commentaires (`onDelete: Cascade`). Les commentaires d’un mail ne sont pas supprimés avec le mail (pas de clé étrangère) : à vérifier dans [Mails](../resources/mail.md).
+- Supprimer l’élément supprime ses commentaires (`onDelete: Cascade`). Les commentaires d’un mail ne sont pas supprimés avec le mail (pas de clé étrangère).
 
 ## Archivage : lecture seule
 

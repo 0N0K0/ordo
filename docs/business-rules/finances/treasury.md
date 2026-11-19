@@ -172,7 +172,7 @@ Sources : `apps/api/src/services/treasury/treasury-settings.ts`, schéma `treasu
 - Une catégorie est dans l’arbre de son sens : le parent doit être du même sens : « La catégorie parente doit être du même sens. » ; il doit exister (« Catégorie parente ») ; une catégorie ne peut pas être rangée sous elle-même : « Une catégorie ne peut pas être rangée sous elle-même. »
 - Rien n’est rangé sous une catégorie archivée (une catégorie déjà dessous y reste).
 - Création : dernière parmi ses sœurs (même sens, même parent). Changement de parent : elle passe en dernier. Déplacement (`moveTreasuryCategory`) : sous une autre catégorie du même sens, ou à la racine, à un rang (dernier sans rang).
-- Changer le sens : toute la branche (sous-catégories comprises) change de sens ; refusé si des mouvements utilisent une catégorie de la branche : « Des mouvements utilisent cette catégorie : son sens ne peut plus changer. » (seule la catégorie du mouvement est vérifiée, pas celle des lignes — à vérifier si voulu).
+- Changer le sens : toute la branche (sous-catégories comprises) change de sens ; refusé si des mouvements utilisent une catégorie de la branche : « Des mouvements utilisent cette catégorie : son sens ne peut plus changer. » (seule la catégorie du mouvement est vérifiée, pas celle des lignes).
 - Suppression : ses sous-catégories remontent à son parent, ses mouvements et lignes perdent leur catégorie (`SetNull`), ses budgets sont supprimés (`onDelete: Cascade`).
 - Liste : par sens puis position ; `entryCount` = nombre de mouvements (pas de lignes).
 - Archivage : liste de paramètres `TREASURY_CATEGORY`.

@@ -60,7 +60,7 @@ Source : `updateTask`.
 - Champ omis = inchangé, `null` = vidé.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
 - La plage de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
-- Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une « Date max » avant la « Date min » (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Date min » / « Date max » n’est vérifiée que par le formulaire (à vérifier si d’autres chemins l’imposent).
+- Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une « Date max » avant la « Date min » (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Date min » / « Date max » n’est vérifiée que par le formulaire.
 
 ## Numérotation
 
@@ -263,7 +263,7 @@ Source : `cloneTask`.
 - Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation. **Pas** les commentaires, ni la récurrence, ni l’état fermé, ni la règle de plages, ni le lien GitHub.
 - Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
-- La tâche source peut être archivée (aucune vérification d’archivage) : à vérifier si voulu ; l’interface ne propose le clonage que sur les tâches non archivées.
+- La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.
 
 ## Modification en masse
 

@@ -24,7 +24,7 @@ Une colonne déclare tout ce que le tableau en fait :
 - `cell(row)` : contenu propre de la colonne quand les `cells` du tableau ne la fournissent pas (colonne partagée entre tableaux) ;
 - `numeric` (aligné à droite, police monospace ; filtré comme un nombre via `sortValue`) et `formatTotal` (écriture du total du pied) ;
 - `filter` : comment filtrer (`text`, `number`, `date`, `boolean`, `choice`, `choices`), `false` pour ne pas filtrer ; par défaut : un nombre pour une colonne `numeric`, du texte si elle a un `text`, sinon rien ;
-- `required` : jamais vide, pas de « est vide » dans son filtre ;
+- `required` : jamais vide, pas de « est vide » dans son filtre ; une colonne de comptage (commentaires, relances, éléments…) l'est toujours : 0 est une valeur ;
 - `groupable` (par défaut toutes sauf la colonne verrouillée), `groupTree` (groupes en arbre, ex. catégories), `groupValue` (valeurs de regroupement propres) ;
 - `bulk` : ses cellules se modifient en masse.
 
@@ -86,7 +86,7 @@ L’option « Pied de tableau » affiche sous chaque colonne un total choisi en 
 
 ### Exports
 
-« Options » → « Exporter » : CSV (point-virgule, UTF-8 avec BOM, pour tableurs en français ; une colonne « Groupe » si groupé) et PDF (construit par l’API : titres de groupes avec leur nombre, montants alignés à droite). Sont exportées les colonnes affichées qui ont un `text`, les lignes de la vue, dans leurs groupes. Titre : celui du tableau ; sous-titre : le nom de la vue.
+« Options » → « Exporter » : CSV (point-virgule, UTF-8 avec BOM, pour tableurs en français ; une colonne « Groupe » si groupé) et PDF (construit par l’API : titres de groupes avec leur nombre, montants alignés à droite). Sont exportées les colonnes affichées qui ont un `text`, les lignes de la vue, dans leurs groupes. Titre : celui du tableau ; sous-titre : le nom de la vue. Un montant nul s'exporte « 0 » ; un compte nul reste vide (`fmt.count`).
 
 ### Hauteur et performance
 

@@ -67,7 +67,7 @@ Vérification toutes les 15 secondes dans l’onglet ouvert (`AlarmCenter`) ; po
 
 - Occurrences d’hier à J+8 (non archivées, calendriers non archivés), rechargées toutes les 5 minutes.
 - Chaque rappel sonne à « début − minutes » ; début d’une journée entière = minuit local du premier jour (« 6 h avant » = la veille à 18 h). Au plus 6 heures de retard.
-- Les occurrences annulées ne sont pas filtrées par la sonnerie (à vérifier : `ringReminders` ne teste pas `calledOff`).
+- Les occurrences annulées ne sont pas filtrées par la sonnerie (`ringReminders` ne teste pas `calledOff`).
 - Voir aussi les rappels exportés en `VALARM` dans [Règles de l’agenda](calendar.md#export-icalendar).
 
 ## Alertes de routines

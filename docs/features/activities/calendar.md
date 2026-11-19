@@ -121,6 +121,8 @@ Ouvert dans le panneau latéral (large) : « Nouvel évènement », « Évèneme
 
 Pour un récurrent : « Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série. ».
 
+« Journée entière » est un interrupteur, dans la répétition d'un évènement comme dans une plage.
+
 ### Sections et actions d’un évènement existant
 
 - « Démarrer le chrono » (nécessite un projet) : chrono rattaché à l’occurrence ; affiche « X chronométrées sur cet évènement. ».

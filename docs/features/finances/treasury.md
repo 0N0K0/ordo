@@ -62,6 +62,8 @@ Table unique (`DataTable`, clé de vue `treasury-forecast`, titre « Prévisionn
 | Colonnes partagées   | « Compte », « Date de valeur », « Mois de valeur », « Émetteur / destinataire », « Catégories », « Moyen de paiement », « Projet », « Pièces justificatives », « Mouvements liés », « Répétition » (voir [Colonnes partagées des mouvements](#colonnes-partagées-des-mouvements)). Vides pour une ligne sans mouvement (facture due…). |
 | « Montant »          | Signé ; modifiable en place pour un mouvement ; total en pied. Filtre nombre.                                                                                                                                                                                                                                                          |
 
+Une catégorie, un moyen de paiement, un tiers, une relation ou un contexte créé à la volée s'ouvre dans le panneau latéral avec le même formulaire que dans les paramètres, couleur et image comprises, le libellé tapé déjà rempli.
+
 ### Actions du prévisionnel
 
 - Recherche « Rechercher (libellé, tiers) », vues, filtres, tris, groupements, colonnes, export : comme toutes les tables (voir [Tables de données](../../web/components/data-table.md)).

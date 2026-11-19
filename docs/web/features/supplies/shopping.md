@@ -148,8 +148,7 @@ Champs de formulaire partagés par les achats et le stock.
 - `OrderPanel({ listId })` : panneau « Commande à distance » ; relit la liste à chaque changement et affiche `OrderFields`. Utilisé par `ShoppingListPage`.
 - Internes :
   - `OrderFields({ list })` : interrupteur, lieu de livraison (`AddressInput`, enregistré au choix d'une adresse proposée ou au texte vidé), liste des livraisons (réception, modification, suppression confirmée) ;
-  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une livraison (`shoppingDeliverySchema`).
-- À vérifier : `DeliveryForm` lie ses champs de dates par `formRange(form, 'expectedFrom', 'expectedTo')` alors que les valeurs du formulaire et du schéma s'appellent `windowFrom` / `windowTo` ; les dates saisies semblent donc ne pas être envoyées (et les dates existantes ne pas s'afficher).
+  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une livraison (`shoppingDeliverySchema`) ; ses dates sont liées à `windowFrom` / `windowTo` par `formRange`.
 
 ### `components/ShoppingSettings.tsx`
 

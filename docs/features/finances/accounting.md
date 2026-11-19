@@ -214,7 +214,7 @@ Section « Conditions et mentions » :
 Bouton « Temps passé » (facture brouillon non archivée) : panneau « Facturer le temps passé ».
 
 - « Projet » (projets du client, archivés compris), « Du », « Au » (préremplis par la période de prestation).
-- Tableau des temps terminés non encore facturés : « Jour », « Temps » (tâches et description), « Durée » ; cases à cocher.
+- Tableau des temps terminés non encore facturés : « Jour », « Temps » (tâches et description ; vide pour un temps qui n'a ni l'un ni l'autre), « Durée » ; cases à cocher.
 - « Tarif du catalogue » (articles à l’heure ou à la journée), « Libellé des lignes » (« Prestation »), « Une ligne » : « En tout », « Par jour », « Par tâche », « Par temps » ; « Facturé à » : « L’heure » / « La journée » ; prix HT ; « Heures par jour » (7) ou « Arrondir au quart d’heure supérieur » ; « TVA ».
 - Résumé « N temps, durée → N lignes, montant HT » ; « Ajouter les lignes ». La période de prestation est complétée si elle était vide ; toast « N lignes ajoutées : enregistrez le brouillon. ».
 - États vides : « Choisissez le projet dont le temps est facturé. », « Aucun temps à facturer sur ce projet … : tout le temps terminé est déjà facturé. ».
@@ -269,7 +269,7 @@ Panneaux :
 
 Onglet « À relancer » : factures et acomptes définitifs envoyés depuis 15 jours ou plus et encore dus (archivés exclus).
 
-- Colonnes : « Facture » (lien, client), « Client » (masquée), « Envoi » (date, moyen, badge « Envoyée il y a N jours », rouge au-delà de 45 jours, échéance), « Reste dû », « Dernière relance » (date, ancienneté, nombre ; « Jamais »), « Destinataire » (« Aucune adresse » en rouge).
+- Colonnes : « Facture » (lien, client), « Client » (masquée), « Envoi » (date, moyen, badge « Envoyée il y a N jours » orange, rouge au-delà de 45 jours, échéance), « Reste dû », « Dernière relance » (date, ancienneté, nombre ; « Jamais »), « Destinataire » (« Aucune adresse » en rouge).
 - Cases à cocher (désactivées sans adresse), « Non relancées depuis 7 jours (N) » sélectionne celles-là, choix de la boîte d’envoi (s’il y en a plusieurs), « Relancer (N) ».
 - Résumé : « N factures en retard, … à encaisser. »
 - Confirmation : « N mails partiront depuis …, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture. » ; toasts « N relances envoyées. » et une erreur par facture non relancée ; les factures en échec restent sélectionnées.

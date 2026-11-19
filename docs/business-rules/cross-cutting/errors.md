@@ -66,4 +66,4 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 ## Erreurs des calculs partagés
 
-Certaines fonctions partagées lèvent une `Error` simple dont le message est destiné à l'utilisateur (ex. `changedScheduleSlot` : « Ce jour est en dehors de la période de la plage. », voir [calendar](../../shared/activities/calendar.md)) ; le service appelant la transforme en erreur client (à vérifier au cas par cas).
+Certaines fonctions partagées lèvent une `Error` simple dont le message est destiné à l'utilisateur (ex. `changedScheduleSlot` : « Ce jour est en dehors de la période de la plage. », voir [calendar](../../shared/activities/calendar.md)) ; le service appelant la transforme en erreur client.

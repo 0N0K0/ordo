@@ -296,7 +296,7 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - service : libellé obligatoire (120), adresse, email, téléphones ; position en fin de liste ;
 - contact : prénom obligatoire (« Le prénom est requis. »), nom (règle des noms de personne), email, fonction (120), téléphones, service facultatif du même client ;
 - toute modification est refusée sur un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
-- un client ayant des documents ne peut pas être supprimé (relation `Restrict` du schéma ; message à vérifier côté [Personnes](../cross-cutting/people.md)).
+- un client ayant des documents ne peut pas être supprimé (relation `Restrict` du schéma).
 
 ## Profil de la société
 
@@ -323,7 +323,7 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - conclusion, puis « Conditions » : « Mode de facturation » (devis), « Conditions de règlement », « Mode de règlement », « Acompte à la commande » (devis), « Intérêts de retard », « Indemnité forfaitaire pour frais de recouvrement en cas de retard : 40 € » (client professionnel, sauf avoir), autres mentions ; « Coordonnées bancaires » (titulaire, banque, IBAN, BIC) si le RIB est affiché et l’IBAN connu ;
 - devis : bloc « Bon pour accord » (« À ____, le __ / __ / ____ », « Signature et cachet ») ;
 - pied de page : « Facture N° … du … » (ou « provisoire ») et « page / total » ;
-- forme juridique, capital et immatriculation du profil ne sont pas imprimés (à vérifier si voulu).
+- forme juridique, capital et immatriculation du profil ne sont pas imprimés.
 
 ## Factur-X
 

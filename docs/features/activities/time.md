@@ -85,7 +85,7 @@ Panneau « Ajouter un temps », « Modifier le temps » ou « Dupliquer le temps
 | « Début »       | Requis (09:00 par défaut).                                                                                                                                                                                                                   |
 | « Durée »       | Requise (« 1:30, 1h30, 90 ou 1,5h » ; 1:00 par défaut).                                                                                                                                                                                      |
 | « Évènement »   | Évènements du jour choisi (« 09:00–10:00 · Titre », « Journée · Titre », « (annulé) ») : « Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît. » ; « Aucun évènement ce jour-là » s’il n’y en a pas. |
-| « Description » | « Ce que vous avez fait… ».                                                                                                                                                                                                                  |
+| « Description » | Markdown (« Ce que vous avez fait… »).                                                                                                                                                                                                       |
 
 Boutons « Ajouter » / « Enregistrer ». Toasts « Temps ajouté. », « Temps modifié. », « Temps dupliqué. ». En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
 

@@ -4,6 +4,7 @@ Référence de l’application : ce qu’elle permet de faire, les règles qu’
 
 - [Déploiement](deployment.md) : hébergement, environnements, mise en production.
 - [Redondances du code](code-redundancies.md) : unifications faites, décisions prises.
+- [Écarts relevés](discrepancies.md) : bugs, incohérences et points à confirmer relevés en écrivant cette documentation.
 
 ## Fonctionnalités
 

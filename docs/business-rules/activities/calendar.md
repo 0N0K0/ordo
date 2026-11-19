@@ -228,7 +228,3 @@ Source : `apps/api/src/services/calendar/calendar-pdf.ts`, route `POST /api/expo
 ## Rappels d’évènements
 
 Les rappels (minutes avant le début ; pour une journée entière, avant minuit local du premier jour) sont sonnés par le navigateur : voir [Règles des alarmes](alarms.md#rappels-dévènements).
-
-## Anomalie relevée
-
-`relationIdsOf` (`apps/api/src/services/calendar/calendar-events.ts`, l. 302) s’appelle elle-même sans condition d’arrêt (`return { ...relationIdsOf(event) }`) : récursion infinie à chaque construction d’occurrence (`toOccurrence`) et de série (`seriesInput`). Elle devrait renvoyer les ids des contributeurs, relations, bénéficiaires, catégories et tâches de l’évènement. À vérifier et corriger (introduit par le commit `cdb8fcb7`).

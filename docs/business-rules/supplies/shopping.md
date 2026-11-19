@@ -79,7 +79,7 @@ Catégories, magasins, modes, unités, références et emplacements sont des lis
 
 - `setShoppingProductsMissing(ids, missing)` : tous les produits doivent exister et ne pas être archivés.
 - Cocher acheté un élément issu d'un produit : le produit n'est plus manquant, `lastPurchasedAt` = maintenant, `lastPrice` = prix unitaire de l'élément (s'il en a un). Décocher : le produit redevient manquant (sa date et son prix de dernier achat restent).
-- Date du produit (`expiresAt`) : recalculée à chaque achat ou modification d'un élément acheté : la date la plus tardive parmi les éléments achetés de ce produit **sur la liste de son dernier achat** (null sans achat). Elle est pour information ; le stock garde les dates de ses lots. La description GraphQL annonce « once past, the product is marked missing » : aucun code ni tâche de fond ne le fait (à vérifier).
+- Date du produit (`expiresAt`) : recalculée à chaque achat ou modification d'un élément acheté : la date la plus tardive parmi les éléments achetés de ce produit **sur la liste de son dernier achat** (null sans achat). Elle est pour information ; le stock garde les dates de ses lots. La description GraphQL annonce « once past, the product is marked missing », mais aucun code ni tâche de fond ne le fait.
 
 ### Déplacement vers une autre référence
 

@@ -39,7 +39,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 ## Compte et utilisateurs
 
 - Le compte est créé en ligne de commande (`npm run user:create`, `apps/api/src/cli/create-user.ts`) ; refusé s'il existe déjà un compte : « Un compte existe déjà. Ordo ne gère qu’une seule utilisatrice. ». Aucun écran d'inscription.
-- Tous les espaces sont accessibles à tout utilisateur connecté ; il n'y a ni rôles ni permissions par espace dans le code actuel (le partage multi-utilisateur est un plan en cours, à vérifier sur la branche `multi-user-sharing`).
+- Tous les espaces sont accessibles à tout utilisateur connecté ; il n'y a ni rôles ni permissions par espace dans le code actuel (le partage multi-utilisateur est prévu sur la branche `multi-user-sharing`).
 - Identifiant : 3 à 32 caractères `[a-z0-9._-]`, en minuscules, unique ; email unique, en minuscules.
 
 ## Accès à l'API
