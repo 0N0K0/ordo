@@ -12,7 +12,7 @@ import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived,
 import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds, orderedPair } from '../core/relations';
-import { inProjectTree, loadProjectRootOf as loadRootOf } from '../projects/project-tree';
+import { inProjectTree, loadProjectRootOf as loadRootOf, outsideMovedTree } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
 import { toJson } from '../core/json';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
@@ -328,7 +328,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     where: { id: { notIn: moved } },
     select: { id: true, projectId: true },
   });
-  const outside = new Set(others.filter((other) => rootOf(other.projectId) !== targetRoot).map((other) => other.id));
+  const outside = outsideMovedTree(rootOf, others, moved, projectId);
   // A parent and its sub-task on both sides of two trees: the sub-task loses its parent (moved task whose parent stays,
   // or, without the sub-tasks, sub-task left behind by its moved parent).
   const parented = await prisma.task.findMany({ where: { OR: [{ id: { in: moved } }, { parentId: { in: moved } }], parentId: { not: null } }, select: { id: true, parentId: true } });

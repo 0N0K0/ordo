@@ -20,7 +20,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `startDate`, `endDate`                     | Jours (YYYY-MM-DD) ; la fin ne précède pas le début.                                                                                                                                               |
 | `minDate`                                  | « Date min » : la tâche n’est pas à faire avant.                                                                                                                                                   |
 | `deadline`                                 | « Date max » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
-| `slotCondition`                            | Condition de plages, la même que celle des routines (décision D9) : groupes ET / OU sur des plages nommées et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
+| `slotCondition`                            | Condition de plages, la même que celle des routines (décision D9) : groupes ET / OU sur des plages nommées, des types de plages (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
@@ -37,7 +37,8 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `commentCount` : nombre de commentaires de la tâche.
 - `trackedSeconds` : temps passé, en secondes (voir [Temps passé d’une tâche](time.md#temps-passé-dune-tâche)).
 - `slotCondition` lue par `readSlotCondition` (une valeur illisible devient `null`) ; un groupe vide est enregistré comme `null`.
-- Plages de la condition : existantes (« Plage » introuvable) ; une plage archivée n’est plus acceptée, sauf si elle était déjà dans la condition de la tâche (`assertConditionSchedules`).
+- Plages et types de la condition : existants (« Plage », « Type de plage », « Espace » introuvable) ; une plage ou un type archivé n’est plus accepté, sauf s’il était déjà dans la condition de la tâche (`assertConditionSchedules`, voir [Agenda](calendar.md#condition-de-plages-des-tâches-et-routines)).
+- Les tâches dont la règle de plages datait d’avant la condition l’ont gardée telle quelle en conditions sur les types (migration `20261119190000_task_slot_condition`, décision DX).
 
 ## Création
 

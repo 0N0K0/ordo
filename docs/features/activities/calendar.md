@@ -180,7 +180,7 @@ Une copie reprend les cas et le type, sans dates ni exceptions (« choisissez se
 
 ## Condition de plages des tâches et routines
 
-Le champ « Plages de l’agenda » (`SlotConditionBuilder`, le même pour les tâches et les routines) : condition facultative sur les plages de l’espace, « Sur l’une des plages », « Hors des plages », « Temps libre » (hors de toutes les plages, sauf certaines), combinées en groupes ET / OU comme les filtres des tableaux ; « Aucune condition : à n’importe quelle heure. ». Sans condition, une tâche ou une routine se fait n’importe quand, en PRO comme en PERSO.
+Le champ « Plages de l’agenda » (`SlotConditionBuilder`, le même pour les tâches et les routines) : condition facultative : « Créneau » (« sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (« sur l’un des types », « hors des types » : toutes les plages de ces types, même ajoutées ensuite) et « Temps libre » (« hors de tous les créneaux », « hors de tous les créneaux sauf » certains de l’espace), combinés en groupes ET / OU comme les filtres des tableaux. Les plages et types de vos autres espaces sont proposés aussi, avec leur espace (« Sport · Perso »), abonné ou non ; les archivés ne sont plus proposés, ceux déjà choisis restent ; « Aucune condition : à n’importe quelle heure. ». Sans condition, une tâche ou une routine se fait n’importe quand, en PRO comme en PERSO.
 
 ## Exports
 

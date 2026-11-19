@@ -16,7 +16,6 @@ import {
   occurrencesBefore,
   opensReach,
   parseDay,
-  type PlannedSlot,
   reaches,
   readOpens,
   readSlotCondition,
@@ -38,6 +37,7 @@ import {
   type RoutineSlot,
   routineSlotSchema,
   type SlotCondition,
+  type SlotsOn,
   type TimeWindow,
   weekdayOf,
   windowsAllowed,
@@ -59,7 +59,7 @@ import { parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { archiveTree, assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
 import { connectIds, orderedPair } from '../core/relations';
-import { inProjectTree, loadProjectRootOf } from '../projects/project-tree';
+import { loadProjectRootOf, outsideMovedTree } from '../projects/project-tree';
 import { toJson } from '../core/json';
 
 /** Routine with what its occurrences are computed from. */
@@ -68,8 +68,8 @@ export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' |
 
 /** Calendar schedules of the workspace, for the routines following them or done out of them. */
 export interface ScheduleContext {
-  /** Slots of some schedules on a day. */
-  slotsOn: (ids: readonly string[], date: string) => PlannedSlot[];
+  /** Slots of some schedules (by id or kind) on a day. */
+  slotsOn: SlotsOn;
   /** What was computed for the routines of the request, by routine and computation. Optional. */
   memo?: Map<string, unknown>;
 }
@@ -209,7 +209,7 @@ function dayMoments(routine: RoutineTiming, due: string, day: string, schedules:
   const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
   const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
   const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
-  const allowed = constrains(condition) ? conditionWindows(condition, (ids) => schedules.slotsOn(ids, day)) : null;
+  const allowed = constrains(condition) ? conditionWindows(condition, (query) => schedules.slotsOn(query, day)) : null;
   return base.flatMap((moment) => {
     const windows = windowsAllowed(moment, allowed);
     return windows.length ? [{ ...moment, fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows }] : [];
@@ -468,16 +468,32 @@ function keptInTree(ids: string[], previous: readonly string[], moved: boolean, 
   return moved ? ids.filter((other) => !outside(other)) : ids;
 }
 
+/** How a routine is saved, beyond its input. */
+export interface RoutineSaveOptions {
+  /** Undo giving back former values: archived ones accepted (only that check is skipped). Optional. Default = false. */
+  restoring?: boolean;
+  /**
+   * Routines moved to its new project along with it (a selection changed at once): counted in that project, so the
+   * links with them stay, as in a transfer of tasks. Optional. Default = none.
+   */
+  movedWith?: readonly string[];
+  /**
+   * Routine a new one is a copy of: the former links of that routine out of the project tree of the copy (kept by it
+   * until it moves) are left out of the copy instead of refused. Optional. Default = not a copy.
+   */
+  copyOf?: string | null;
+}
+
 /**
  * Validates a routine and what it points to: category, parent (not itself nor one of its sub-routines), project,
  * assignees, required routines (no cycle) and related ones (both in its project tree).
  * @param {RoutineInput} input Routine.
  * @param {string} [id] Routine edited. Optional.
- * @param {boolean} [restoring] Undo giving back former values: archived ones accepted (only that check is skipped). Optional. Default = false.
+ * @param {RoutineSaveOptions} [options] Undo, routines moved along, routine copied. Optional.
  * @returns {Promise<ReturnType<typeof routineSchema.parse> & { droppedLinks: number }>} Routine, with the links it loses
  * moving to another project tree.
  */
-async function parseRoutine(input: RoutineInput, id?: string, restoring = false) {
+async function parseRoutine(input: RoutineInput, id?: string, { restoring = false, movedWith = [], copyOf = null }: RoutineSaveOptions = {}) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
   data.beneficiaryIds = [...new Set(data.beneficiaryIds)];
@@ -561,14 +577,16 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
   }
   if (data.relatedIds.some((relatedId) => !known.has(relatedId))) throw notFound('Routine', 'relatedIds');
   if (id && data.relatedIds.includes(id)) throw fieldError('relatedIds', 'Une routine ne peut pas être liée à elle-même.');
-  // Links inside its project tree (none: with the routines of no project).
+  // Links inside its project tree (none: with the routines of no project), those moved along counted in it.
   const rootOf = await loadProjectRootOf();
-  const inTree = inProjectTree(rootOf, data.projectId ?? null, new Map(all.map((routine) => [routine.id, routine.projectId])));
-  const moved = current !== null && rootOf(current.projectId) !== rootOf(data.projectId ?? null);
-  const outside = (other: string) => !inTree(other);
+  const outsideSet = outsideMovedTree(rootOf, all, movedWith, data.projectId ?? null);
+  const outside = (other: string) => outsideSet.has(other);
+  // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
+  const source = copyOf ? await inputOf(copyOf) : null;
+  const moved = source !== null || (current !== null && rootOf(current.projectId) !== rootOf(data.projectId ?? null));
   const linked = data.requiredIds.length + data.relatedIds.length;
-  data.requiredIds = keptInTree(data.requiredIds, keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));
-  data.relatedIds = keptInTree(data.relatedIds, keptRelatedIds, moved, outside, 'relatedIds', Boolean(data.projectId));
+  data.requiredIds = keptInTree(data.requiredIds, source?.requiredIds ?? keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));
+  data.relatedIds = keptInTree(data.relatedIds, source?.relatedIds ?? keptRelatedIds, moved, outside, 'relatedIds', Boolean(data.projectId));
   // Links dropped as it moves to another tree (told to the user, as for a task transferred).
   return { ...data, droppedLinks: linked - data.requiredIds.length - data.relatedIds.length };
 }
@@ -624,12 +642,14 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
 });
 
 /**
- * Creates a routine, last of the global manual order.
+ * Creates a routine, last of the global manual order; a copy of a routine leaves out its former links out of the
+ * project tree of the copy.
  * @param {RoutineInput} input Routine.
+ * @param {string | null} [copyOf] Routine it is a copy of. Optional. Default = not a copy.
  * @returns {Promise<Routine>} Routine.
  */
-export async function createRoutine(input: RoutineInput): Promise<Routine> {
-  const data = await parseRoutine(input);
+export async function createRoutine(input: RoutineInput, copyOf: string | null = null): Promise<Routine> {
+  const data = await parseRoutine(input, undefined, { copyOf });
   const position = await nextPositionIn('routine');
   return prisma.$transaction(async (tx) => {
     const routine = await tx.routine.create({
@@ -658,18 +678,14 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
  */
 export async function copySubRoutines(fromId: string, toId: string): Promise<number> {
   await assertNotArchived('routine', toId);
-  // Former links out of the project tree of a routine (kept until it moves) are not copied: the copy obeys the rule.
-  const rootOf = await loadProjectRootOf();
-  const projectOf = new Map((await prisma.routine.findMany({ select: { id: true, projectId: true } })).map((routine) => [routine.id, routine.projectId]));
   const copies = new Map<string, string>([[fromId, toId]]);
   const queue: string[] = [fromId];
   while (queue.length) {
     const source = queue.shift()!;
     const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: BY_POSITION, select: { id: true } });
     for (const child of children) {
-      const input = await inputOf(child.id);
-      const inTree = inProjectTree(rootOf, input.projectId ?? null, projectOf);
-      const copy = await createRoutine({ ...input, parentId: copies.get(source)!, requiredIds: input.requiredIds.filter(inTree), relatedIds: input.relatedIds.filter(inTree) });
+      // Former links out of the project tree of a routine (kept until it moves) are not copied: the copy obeys the rule.
+      const copy = await createRoutine({ ...(await inputOf(child.id)), parentId: copies.get(source)! }, child.id);
       copies.set(child.id, copy.id);
       queue.push(child.id);
     }
@@ -696,17 +712,17 @@ function findRoutine(id: string): Promise<Routine> {
 
 /**
  * Updates a routine (its ticked occurrences stay). Moved to another project tree, it loses its links with the routines
- * left out of it (dependencies both ways, relations), as a task transferred.
+ * left out of it (dependencies both ways, relations), as a task transferred; those moved along keep theirs.
  * @param {string} id Routine id.
  * @param {RoutineInput} input Routine.
- * @param {boolean} [restoring] Undo putting it back as it was: archived values given back are accepted. Optional. Default = false.
+ * @param {RoutineSaveOptions} [options] Undo (archived values given back accepted), routines moved along. Optional.
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
-export async function updateRoutine(id: string, input: RoutineInput, restoring = false): Promise<number> {
+export async function updateRoutine(id: string, input: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
   const current = await findRoutine(id);
   refuseArchived(current);
-  const data = await parseRoutine(input, id, restoring);
-  const outside = await outsideTree(id, current.projectId, data.projectId ?? null);
+  const data = await parseRoutine(input, id, options);
+  const outside = await outsideTree(id, current.projectId, data.projectId ?? null, options.movedWith);
   const waiting = await prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
@@ -731,17 +747,18 @@ export async function updateRoutine(id: string, input: RoutineInput, restoring =
 }
 
 /**
- * Routines out of the project tree a routine moves to (none when its tree does not change).
+ * Routines out of the project tree a routine moves to (none when its tree does not change), those moved along aside.
  * @param {string} id Routine.
  * @param {string | null} from Its project now.
  * @param {string | null} to Its new project.
+ * @param {readonly string[]} [movedWith] Routines moved to it along with it. Optional. Default = none.
  * @returns {Promise<string[]>} Ids.
  */
-async function outsideTree(id: string, from: string | null, to: string | null): Promise<string[]> {
+async function outsideTree(id: string, from: string | null, to: string | null, movedWith: readonly string[] = []): Promise<string[]> {
   const rootOf = await loadProjectRootOf();
   if (rootOf(from) === rootOf(to)) return [];
-  const others = await prisma.routine.findMany({ where: { id: { not: id } }, select: { id: true, projectId: true } });
-  return others.filter((other) => rootOf(other.projectId) !== rootOf(to)).map((other) => other.id);
+  const others = await prisma.routine.findMany({ select: { id: true, projectId: true } });
+  return [...outsideMovedTree(rootOf, others, [id, ...movedWith], to)];
 }
 
 /**
@@ -865,9 +882,11 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
       return { id, input };
     }),
   );
-  for (const { id, input } of inputs) await parseRoutine(input, id);
+  // A new project for all: they move together, the links between them stay (as a transfer of tasks).
+  const movedWith = changes.projectId !== undefined ? inputs.map(({ id }) => id) : [];
+  for (const { id, input } of inputs) await parseRoutine(input, id, { movedWith });
   let removed = 0;
-  for (const { id, input } of inputs) removed += await updateRoutine(id, input);
+  for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith });
   return removed;
 }
 

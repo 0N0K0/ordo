@@ -25,7 +25,7 @@ import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive, refuseArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
-import type { ScheduleType, WorkSchedule } from '../../generated/prisma/client';
+import type { Prisma, ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
@@ -125,9 +125,10 @@ export function saveScheduleType(id: string | null, input: ScheduleTypeInput): P
   return id ? scheduleTypes.update(id, input) : scheduleTypes.create(input);
 }
 
-/** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */
+/** Schedule of another workspace (shown or named in this one), with its kind, workspace, and color and display here. */
 export interface ForeignSchedule {
   rule: WorkScheduleRule;
+  archived: boolean;
   typeLabel: string | null;
   color: string | null;
   display: ScheduleDisplay;
@@ -150,6 +151,8 @@ export interface ForeignScheduleKind {
   customized: boolean;
   scheduleCount: number;
   subscribed: boolean;
+  /** Kind archived in its workspace (no longer offered in a slot condition). */
+  archived: boolean;
 }
 
 /** Look of a subscription as stored. */
@@ -299,6 +302,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
+          archivedAt: true,
           _count: { select: { schedules: true } },
         },
       },
@@ -318,6 +322,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
               ...lookOf(subscribed.get(foreignSlotKind(workspace.id, null)), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
               subscribed: subscribed.has(foreignSlotKind(workspace.id, null)),
+              archived: false,
             },
           ]
         : []),
@@ -329,28 +334,48 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
         ...lookOf(subscribed.get(foreignSlotKind(workspace.id, type.id)), type),
         scheduleCount: type._count.schedules,
         subscribed: subscribed.has(foreignSlotKind(workspace.id, type.id)),
+        archived: type.archivedAt !== null,
       })),
     ];
   });
 }
 
 /**
+ * Subscriptions of this workspace to the kinds of schedules of other workspaces, with their look.
+ * @returns {Promise<({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]>} Subscriptions.
+ */
+const scheduleSubscriptions = () => prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, ...lookSelect } });
+
+/**
  * Schedules of the kinds of other workspaces this one shows (those added later too).
  * @returns {Promise<ForeignSchedule[]>} Schedules.
  */
 export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
-  const subscriptions = await prisma.workScheduleSubscription.findMany({
-    select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
-  });
+  const subscriptions = await scheduleSubscriptions();
   if (!subscriptions.length) return [];
+  return foreignSchedules({ OR: subscriptions.map((item) => ({ workspaceId: item.sourceWorkspaceId, typeId: item.typeId })) }, subscriptions);
+}
+
+/**
+ * Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can
+ * name of them.
+ * @returns {Promise<ForeignSchedule[]>} Schedules.
+ */
+export async function otherWorkspaceSchedules(): Promise<ForeignSchedule[]> {
+  return foreignSchedules({ workspaceId: { not: currentWorkspaceId() } }, await scheduleSubscriptions());
+}
+
+/**
+ * Schedules of other workspaces, with their color and display here (those of their subscription, else of their kind).
+ * @param {Prisma.WorkScheduleWhereInput} where Schedules wanted (of other workspaces).
+ * @param {readonly ({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]} subscriptions Subscriptions of this workspace.
+ * @returns {Promise<ForeignSchedule[]>} Schedules.
+ */
+async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscriptions: readonly ({ sourceWorkspaceId: string; typeId: string | null } & StoredLook)[]): Promise<ForeignSchedule[]> {
   const lookByKind = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
   const schedules = await unscopedPrisma.workSchedule.findMany({
-    where: {
-      OR: subscriptions.map((item) => ({
-        workspaceId: item.sourceWorkspaceId,
-        typeId: item.typeId,
-      })),
-    },
+    where,
+    orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
     include: {
       type: {
         select: {
@@ -369,6 +394,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
+      archived: schedule.archivedAt !== null,
       typeLabel: schedule.type?.label ?? untyped.label,
       color,
       display,

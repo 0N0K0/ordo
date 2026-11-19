@@ -980,6 +980,9 @@ scalar File
 Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.
 """
 type ForeignScheduleKind {
+  """Kind archived in its workspace: no longer offered in a slot condition."""
+  archived: Boolean!
+
   """In this workspace: the subscription’s, or the kind’s."""
   color: String
 
@@ -1002,9 +1005,10 @@ type ForeignScheduleKind {
 }
 
 """
-Schedule of a kind of another workspace this one subscribes to, shown read only.
+Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.
 """
 type ForeignWorkSchedule {
+  archived: Boolean!
   cases: JSON!
 
   """In this workspace."""
@@ -1664,7 +1668,15 @@ type Mutation {
   createProjectCategory(input: LabelColorInput!): ProjectCategory!
   createProjectStatus(input: LabelColorInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
-  createRoutine(input: RoutineInput!): ID!
+
+  """
+  Creates a routine; a copy (copyOf) leaves out the former links of the routine copied out of its project tree.
+  """
+  createRoutine(
+    """Routine the new one is a copy of."""
+    copyOf: ID
+    input: RoutineInput!
+  ): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
   createScheduleType(input: ScheduleTypeInput!): ScheduleType!
   createSheet(input: SheetInput!): ID!
@@ -2588,6 +2600,11 @@ type Query {
   Fields of a new document of a client (company terms and mentions, dates).
   """
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
+
+  """
+  Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can name.
+  """
+  otherWorkspaceSchedules: [ForeignWorkSchedule!]!
 
   """
   Final invoices still due, sent 15 days ago or more (the sending counts, not the due date), sent first first.

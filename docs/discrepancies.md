@@ -43,8 +43,6 @@ L’API accepte ce que l’interface empêche.
 - **PDF des documents :** la forme juridique, le capital et l’immatriculation du profil de la société ne sont pas imprimés, alors que les réglages « Ma société » les présentent comme imprimés et que le commentaire du pied de page parle d’« identité légale ». Voir [Règles de la facturation](business-rules/finances/accounting.md) et [Réglages](features/cross-cutting/settings.md).
 - **Message du tableau des tâches vide :** « Créez d’abord un projet : chaque tâche appartient à un projet. », alors que des tâches sans projet existent. Voir [Tâches](features/activities/tasks.md).
 
-- **Routines déplacées ensemble :** `bulkUpdateRoutines` change de projet une routine après l’autre : les liens entre deux routines de la sélection qui partent dans la même nouvelle arborescence sont retirés (et comptés dans « N liens retirés. »), alors qu’un transfert de tâches en masse les garde (`moveTaskTrees`, tout d’un coup). Voir [Règles des routines](business-rules/activities/routines.md).
-
 ## Documentation à mettre à jour ou à compléter
 
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).

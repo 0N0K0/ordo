@@ -1,5 +1,5 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
@@ -36,8 +36,8 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const comments = env.comments ?? new Map<string, number>();
   const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.label ?? '').filter(Boolean);
   const slotIds = (routine: Routine) => [
-    ...conditionScheduleIds(readSlotCondition(routine.slotCondition)),
-    ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),
+    ...conditionReferences(readSlotCondition(routine.slotCondition)),
+    ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionReferences(item.condition ?? null)),
   ];
   const blockers = (routine: Routine) => routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));

@@ -1,7 +1,7 @@
 import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { TravelField } from '../../geo/components/TravelField';
 import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -25,7 +25,6 @@ import { RepetitionField, RepetitionModal } from '../../../components/recurrence
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
-import { useWorkSchedules } from '../../calendar/api';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
@@ -289,8 +288,7 @@ export function RoutineRepetitionModal({
   onApply: (repetition: RoutineRepetition) => void;
   header?: ReactNode;
 }) {
-  const { data: schedules } = useWorkSchedules();
-  const names = scheduleChoices(schedules).names;
+  const { names } = useSlotChoices();
   const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
@@ -330,8 +328,7 @@ interface RoutineScheduleProps {
  * @returns {JSX.Element} Fields.
  */
 export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
-  const { data: schedules } = useWorkSchedules();
-  const names = scheduleChoices(schedules).names;
+  const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });

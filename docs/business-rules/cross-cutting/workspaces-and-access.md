@@ -9,7 +9,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 - Un espace est **professionnel** (`PRO` : facturation, clients, entreprise) ou **personnel** (`PERSO`). Libellé requis, 250 caractères max.
 - Un espace personnel refuse la facturation (documents, documents importés, factures récurrentes), les clients, le catalogue et la fiche société : « Indisponible dans un espace personnel (facturation). » / « (clients) » / « (catalogue) » / « (société) » (`requirePro`).
 - Un espace PRO ne devient personnel que s'il n'a ni clients, ni documents de facturation, ni documents importés : « Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel. ».
-- Règle de créneaux par défaut des tâches et routines : sur les heures de travail en PRO, n'importe où en PERSO (voir [calendar](../../shared/activities/calendar.md)).
+- Condition de plages des tâches et routines : la même en PRO et en PERSO, sans condition n'importe quand (décision D10, voir [Agenda](../activities/calendar.md#condition-de-plages-des-tâches-et-routines)).
 - Les factures récurrentes ne sont émises que dans les espaces PRO.
 - Mots du web : « équipe » en PRO, « foyer » en PERSO (membres, voir [Personnes](people.md)).
 
@@ -26,13 +26,13 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 - Chaque requête HTTP travaille dans **un** espace : celui de l'en-tête `x-ordo-workspace`, sinon du cookie `ordo_workspace`, sinon le premier espace (`workspaceMiddleware`). Le middleware passe avant l'authentification.
 - Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken` et `RateLimit`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
-- `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
+- `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces, aux plages et types des autres espaces qu'une condition de plages cite (`otherWorkspaceSchedules`, `assertConditionSchedules`) et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
 - Les tâches de fond tournent espace par espace (`forEachWorkspace`), une erreur dans un espace n'arrêtant pas les autres.
 
 ### Partage entre espaces
 
 - **Agendas** : un espace peut afficher en lecture seule un agenda d'un autre espace (abonnement, `CalendarSubscription`, unique par agenda) ; on ne s'abonne pas à son propre agenda (« Ce calendrier appartient déjà à cet espace. »).
-- **Plages horaires** : un espace peut afficher en lecture seule un type de plages d'un autre espace, ou ses plages sans type (`WorkScheduleSubscription`) ; pas ses propres plages (« Ces plages appartiennent déjà à cet espace. ») ; couleur et affichage réglables côté abonné. Les règles de créneaux référencent ces types par `ws:<espace>:<type>`.
+- **Plages horaires** : un espace peut afficher en lecture seule un type de plages d'un autre espace, ou ses plages sans type (`WorkScheduleSubscription`) ; pas ses propres plages (« Ces plages appartiennent déjà à cet espace. ») ; couleur et affichage réglables côté abonné. Une condition de plages de tâche ou de routine peut citer les plages et types d'un autre espace, abonné ou non ; elle note un tel type `ws:<espace>:<type | default>` (comme les abonnements).
 - **Notifications d'ailleurs** : le web interroge les espaces non ouverts qui l'ont choisi (alarmes, rappels d'agenda, nouveaux mails) et affiche leurs notifications avec un lien vers l'espace (`ElsewhereNotifier`).
 - Supprimer l'espace source supprime ses abonnements (cascade).
 

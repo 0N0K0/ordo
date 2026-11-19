@@ -1,4 +1,4 @@
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
@@ -9,7 +9,6 @@ import { categoryOptions, categoryTree } from '../../../components/tree/category
 import { unarchivedOffered } from '../../../lib/archive';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
-import { useWorkSchedules } from '../../calendar/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
@@ -187,13 +186,13 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
  * @returns {JSX.Element} Text.
  */
 export function RepetitionText({ routine }: { routine: Routine }) {
-  const { data: schedules } = useWorkSchedules();
+  const { names } = useSlotChoices();
   const cases = routine.cases as RoutineCase[];
   const rule = ruleOf(routine);
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
     : rule
-      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), scheduleChoices(schedules).names)].filter(Boolean).join(' · ')
+      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), names)].filter(Boolean).join(' · ')
       : '';
   return (
     <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>

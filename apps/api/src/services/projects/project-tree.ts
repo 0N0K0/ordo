@@ -26,3 +26,18 @@ export function inProjectTree(rootOf: ProjectRootOf, projectId: string | null, p
   const root = rootOf(projectId);
   return (id) => rootOf(projectOf.get(id) ?? null) === root;
 }
+
+/**
+ * Elements out of the project tree some elements move to, once all moved together (a transfer of a selection): those
+ * moved are in it, whatever their project now, so the links between them stay. What a move removes the links with.
+ * @param {ProjectRootOf} rootOf Root lookup.
+ * @param {readonly { id: string, projectId: string | null }[]} elements Elements (tasks, routines) and their project now.
+ * @param {Iterable<string>} moved Elements moved.
+ * @param {string | null} projectId Project they move to (none: out of any project).
+ * @returns {Set<string>} Elements out of the tree, the moved ones aside.
+ */
+export function outsideMovedTree(rootOf: ProjectRootOf, elements: readonly { id: string; projectId: string | null }[], moved: Iterable<string>, projectId: string | null): Set<string> {
+  const movedSet = new Set(moved);
+  const root = rootOf(projectId);
+  return new Set(elements.filter((element) => !movedSet.has(element.id) && rootOf(element.projectId) !== root).map((element) => element.id));
+}

@@ -1,14 +1,14 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { scheduleChoices } from '../lib/schedule-choices';
 import { Text } from '@mantine/core';
-import { conditionScheduleIds, SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
-import { useWorkSchedules } from '../api';
+import { conditionReferences, SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { FieldsFilterBuilder, type FilterFields } from '../../../components/filters/FilterBuilder';
 import { emptySlotCondition } from '../lib/slot-condition-text';
+import { useSlotChoices } from '../hooks/use-slot-sources';
 
 const OPERATOR_LABELS: Record<SlotConditionField, Record<string, string>> = {
-  schedules: { in: 'sur l’une des plages', notIn: 'hors des plages' },
-  freeTime: { isEmpty: 'hors de toutes les plages', notIn: 'hors de toutes les plages sauf' },
+  schedules: { in: 'sur l’un des créneaux', notIn: 'hors des créneaux' },
+  kinds: { in: 'sur l’un des types', notIn: 'hors des types' },
+  freeTime: { isEmpty: 'hors de tous les créneaux', notIn: 'hors de tous les créneaux sauf' },
 };
 
 /** What the condition does, by item (shown under the label). */
@@ -18,21 +18,22 @@ const EFFECTS = {
 } as const;
 
 /**
- * When a task or a routine (or one of its cases) is done relative to the calendar schedules: on or out of some of
- * them, or on the free time, combined in groups with ET / OU, as the filters of the tables (« ((déjeuner ou dîner) et
- * garde alternée) ou hors sommeil »). Empty: any time.
+ * When a task or a routine (or one of its cases) is done relative to the calendar schedules: on or out of some
+ * schedules (« Créneau ») or of the schedules of some kinds (« Type de créneau », those created later too), of this
+ * workspace or of another one of the user (« Sport · Perso »), or on the free time, combined in groups with ET / OU, as
+ * the filters of the tables (« ((déjeuner ou dîner) et garde alternée) ou hors sommeil »). Empty: any time.
  * @param {{ value: SlotCondition | null, onChange: (value: SlotCondition | null) => void, item: 'routine' | 'task' }} props Condition, its change, and the item it is for (what the condition does).
  * @returns {JSX.Element} Builder.
  */
 export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCondition | null; onChange: (value: SlotCondition | null) => void; item: keyof typeof EFFECTS }) {
-  const { data: schedules } = useWorkSchedules();
+  // Archived schedules and kinds are no longer offered, but those of the condition stay.
+  const choices = useSlotChoices(conditionReferences(value));
   const fields: FilterFields<SlotConditionField> = {
     kinds: SLOT_CONDITION_FIELDS,
-    labels: { schedules: 'Plages', freeTime: 'Temps libre' },
-    groups: [{ group: 'Agenda', fields: ['schedules', 'freeTime'] }],
+    labels: { schedules: 'Créneau', kinds: 'Type de créneau', freeTime: 'Temps libre' },
+    groups: [{ group: 'Agenda', fields: ['schedules', 'kinds', 'freeTime'] }],
     first: 'schedules',
-    // Archived schedules are no longer offered, but those of the condition stay.
-    options: () => ({ data: scheduleChoices(schedules, conditionScheduleIds(value)).options }),
+    options: (field) => ({ data: choices[field] }),
     isComplete: (condition) => slotConditionSchema.safeParse({ type: 'group', id: 'root', combinator: 'and', children: [condition] }).success,
     operatorLabel: (field, operator) => OPERATOR_LABELS[field][operator],
     operators: (field) => SLOT_CONDITION_FIELD_OPERATORS[field] as readonly FilterOperator[],
@@ -41,7 +42,8 @@ export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCon
   return (
     <LabeledField label="Plages de l’agenda">
       <Text size="xs" c="dimmed">
-        Facultatif : sur ou hors de certaines plages, ou sur le temps libre (hors de toutes les plages, sauf certaines), combinées en groupes (ET, OU). {EFFECTS[item]}
+        Facultatif : sur ou hors de certains créneaux, ou de tous les créneaux de certains types (même ceux ajoutés ensuite), de cet espace ou de vos autres
+        espaces, ou sur le temps libre (hors de tous les créneaux de cet espace, sauf certains), combinés en groupes (ET, OU). {EFFECTS[item]}
       </Text>
       <FieldsFilterBuilder filter={value ?? emptySlotCondition()} fields={fields} onChange={(next) => onChange(next.children.length ? next : null)} />
     </LabeledField>

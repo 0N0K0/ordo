@@ -1,16 +1,21 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
 import { addDays } from '../dates/days';
 import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
+import { scheduleSlotKind } from './slot-kinds';
 
 /**
- * Fields of the conditions on calendar schedules: some schedules (on or out of them), or the free time (out of every
- * schedule, those created later too, but some of them).
+ * Fields of the conditions on calendar schedules: some schedules (on or out of them), some kinds of schedules (on or
+ * out of the schedules of those kinds, those created later too), of this workspace or of another one of the user, or
+ * the free time (out of every schedule of this workspace, those created later too, but some of them).
  */
-export const SLOT_CONDITION_FIELDS = { schedules: 'reference', freeTime: 'reference' } as const;
+export const SLOT_CONDITION_FIELDS = { schedules: 'reference', kinds: 'reference', freeTime: 'reference' } as const;
 export type SlotConditionField = keyof typeof SLOT_CONDITION_FIELDS;
-/** Schedules: on the slots of one of them, or out of all of them. Free time: out of every schedule (but some of them). */
-export const SLOT_CONDITION_FIELD_OPERATORS: Record<SlotConditionField, readonly string[]> = { schedules: ['in', 'notIn'], freeTime: ['isEmpty', 'notIn'] };
-/** Every schedule, in the schedules asked for the slots of a day. */
+/**
+ * Schedules and kinds: on the slots of one of them, or out of all of them. Free time: out of every schedule (but some
+ * of them).
+ */
+export const SLOT_CONDITION_FIELD_OPERATORS: Record<SlotConditionField, readonly string[]> = { schedules: ['in', 'notIn'], kinds: ['in', 'notIn'], freeTime: ['isEmpty', 'notIn'] };
+/** Every schedule of the workspace, in the schedules asked for the slots of a day. */
 export const ALL_SCHEDULES = '*';
 
 /** Condition on some calendar schedules. */
@@ -36,24 +41,46 @@ export function readSlotCondition(value: unknown): SlotCondition | null {
 }
 
 /**
- * Schedules a condition names.
+ * Values a condition names in some of its fields.
  * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
- * @returns {string[]} Schedule ids.
+ * @param {readonly SlotConditionField[]} fields Fields looked at.
+ * @returns {string[]} Values, each once.
  */
-export function conditionScheduleIds(node: SlotCondition | SlotConditionItem | null | undefined): string[] {
+function conditionValues(node: SlotCondition | SlotConditionItem | null | undefined, fields: readonly SlotConditionField[]): string[] {
   if (!node) return [];
-  if (node.type === 'condition') return Array.isArray(node.value) ? node.value : [];
-  return [...new Set(node.children.flatMap(conditionScheduleIds))];
+  if (node.type === 'condition') return fields.includes(node.field) && Array.isArray(node.value) ? node.value : [];
+  return [...new Set(node.children.flatMap((child) => conditionValues(child, fields)))];
 }
 
 /**
- * Whether a condition limits the hours (it has a condition on some schedules or on the free time).
+ * Schedules a condition names (on or out of them, or kept out of the free time).
+ * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
+ * @returns {string[]} Schedule ids.
+ */
+export const conditionScheduleIds = (node: SlotCondition | SlotConditionItem | null | undefined): string[] => conditionValues(node, ['schedules', 'freeTime']);
+
+/**
+ * Kinds of schedules a condition names (`ownSlotKind`, `foreignSlotKind`).
+ * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
+ * @returns {string[]} Kinds.
+ */
+export const conditionKinds = (node: SlotCondition | SlotConditionItem | null | undefined): string[] => conditionValues(node, ['kinds']);
+
+/**
+ * Everything a condition names: its schedules and its kinds (they never share an id).
+ * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
+ * @returns {string[]} Schedule ids and kinds.
+ */
+export const conditionReferences = (node: SlotCondition | SlotConditionItem | null | undefined): string[] => conditionValues(node, ['schedules', 'kinds', 'freeTime']);
+
+/**
+ * Whether a condition limits the hours (it has a condition on some schedules, some kinds or on the free time).
  * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
  * @returns {boolean} It limits them.
  */
 export function conditionConstrains(node: SlotCondition | SlotConditionItem | null | undefined): boolean {
   if (!node) return false;
-  if (node.type === 'condition') return node.field === 'freeTime' || conditionScheduleIds(node).length > 0;
+  if (node.type === 'condition') return node.field === 'freeTime' || conditionReferences(node).length > 0;
   return node.children.some(conditionConstrains);
 }
 
@@ -121,14 +148,27 @@ function windowsOutside(window: TimeWindow, slots: readonly PlannedSlot[]): Time
 }
 
 /**
- * Hours of the day a condition on calendar schedules allows: on the slots of some schedules (`in`), out of them
- * (`notIn`), combined in groups with « et » (all) or « ou » (at least one); null when it constrains nothing (no
+ * Schedules asked for: some by id (`ALL_SCHEDULES`: every schedule of the workspace), and those of some kinds.
+ */
+export interface ScheduleQuery {
+  /** Schedule ids. Optional. */
+  ids?: readonly string[];
+  /** Kinds (`ownSlotKind`, `foreignSlotKind`). Optional. */
+  kinds?: readonly string[];
+}
+
+/** Slots of some schedules on the day. */
+export type SlotsOf = (query: ScheduleQuery) => readonly PlannedSlot[];
+
+/**
+ * Hours of the day a condition on calendar schedules allows: on the slots of some schedules or kinds (`in`), out of
+ * them (`notIn`), combined in groups with « et » (all) or « ou » (at least one); null when it constrains nothing (no
  * condition, or an empty group).
  * @param {SlotCondition | null | undefined} condition Condition.
- * @param {(ids: readonly string[]) => readonly PlannedSlot[]} slotsOf Slots of some schedules on the day.
+ * @param {SlotsOf} slotsOf Slots of some schedules on the day.
  * @returns {TimeWindow[] | null} Windows allowed, in order (none: never that day).
  */
-export function conditionWindows(condition: SlotCondition | null | undefined, slotsOf: (ids: readonly string[]) => readonly PlannedSlot[]): TimeWindow[] | null {
+export function conditionWindows(condition: SlotCondition | null | undefined, slotsOf: SlotsOf): TimeWindow[] | null {
   const intervals = conditionIntervals(condition, slotsOf);
   return intervals ? intervals.map(windowOf) : null;
 }
@@ -164,21 +204,21 @@ const unite = (a: readonly Interval[], b: readonly Interval[]): Interval[] => me
 /**
  * Intervals of the day a condition allows (null: anywhere).
  * @param {SlotCondition | SlotConditionItem | null | undefined} node Group or condition.
- * @param {(ids: readonly string[]) => readonly PlannedSlot[]} slotsOf Slots of some schedules on the day.
+ * @param {SlotsOf} slotsOf Slots of some schedules on the day.
  * @returns {Interval[] | null} Intervals.
  */
-function conditionIntervals(node: SlotCondition | SlotConditionItem | null | undefined, slotsOf: (ids: readonly string[]) => readonly PlannedSlot[]): Interval[] | null {
+function conditionIntervals(node: SlotCondition | SlotConditionItem | null | undefined, slotsOf: SlotsOf): Interval[] | null {
   if (!node) return null;
   if (node.type === 'condition') {
-    const ids = Array.isArray(node.value) ? node.value : [];
-    // Free time: out of every schedule, but those named.
+    const values = Array.isArray(node.value) ? node.value : [];
+    // Free time: out of every schedule of the workspace, but those named.
     if (node.field === 'freeTime') {
-      const others = slotsOf([ALL_SCHEDULES]).filter((slot) => node.operator !== 'notIn' || !ids.includes(slot.scheduleId));
+      const others = slotsOf({ ids: [ALL_SCHEDULES] }).filter((slot) => node.operator !== 'notIn' || !values.includes(slot.scheduleId));
       return windowsOutside({ fromTime: null, dueTime: null }, others).map(intervalOf);
     }
-    const on = merged(slotsOf(ids));
-    if (node.operator === 'notIn') return windowsOutside({ fromTime: null, dueTime: null }, slotsOf(ids)).map(intervalOf);
-    return on;
+    const slots = slotsOf(node.field === 'kinds' ? { kinds: values } : { ids: values });
+    if (node.operator === 'notIn') return windowsOutside({ fromTime: null, dueTime: null }, slots).map(intervalOf);
+    return merged(slots);
   }
   const parts = node.children.map((child) => conditionIntervals(child, slotsOf)).filter((part): part is Interval[] => part !== null);
   if (!parts.length) return null;
@@ -196,23 +236,35 @@ export function windowsAllowed(window: TimeWindow, allowed: TimeWindow[] | null)
   return intersect([intervalOf(window)], allowed.map(intervalOf)).map(windowOf);
 }
 
-/** Slots of some schedules (`ALL_SCHEDULES`: every one) on a day. */
-export type SlotsOn = (ids: readonly string[], date: string) => PlannedSlot[];
+/** Slots of some schedules (by id, `ALL_SCHEDULES`: every one of the workspace, or by kind) on a day. */
+export type SlotsOn = (query: ScheduleQuery, date: string) => PlannedSlot[];
+
+/** Schedule of another workspace of the user, with its workspace. */
+export interface ForeignScheduleRule {
+  workspaceId: string;
+  rule: WorkScheduleRule;
+}
 
 /**
  * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
- * schedules are evaluated on, for tasks and routines alike.
+ * schedules are evaluated on, for tasks and routines alike. The schedules of the other workspaces only count where a
+ * condition names them (or their kinds), never in the free time.
  * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
+ * @param {readonly ForeignScheduleRule[]} [foreign] Schedules of the other workspaces of the user. Optional. Default = none.
  * @returns {SlotsOn} Slots of some schedules on a day.
  */
-export function scheduleSlotsOn(rules: readonly WorkScheduleRule[]): SlotsOn {
+export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = []): SlotsOn {
+  const own = new Set(rules.map((rule) => rule.id));
+  const kindOf = new Map([...rules.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...foreign.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
+  const all = [...rules, ...foreign.map(({ rule }) => rule)];
   const byDay = new Map<string, PlannedSlot[]>();
-  return (ids, date) => {
-    if (!ids.length) return [];
+  return ({ ids = [], kinds = [] }, date) => {
+    if (!ids.length && !kinds.length) return [];
     let slots = byDay.get(date);
-    if (!slots) byDay.set(date, (slots = plannedSlots(rules, date, date)));
-    // Every schedule (the free time) or those named.
-    return ids.includes(ALL_SCHEDULES) ? slots : slots.filter((slot) => ids.includes(slot.scheduleId));
+    if (!slots) byDay.set(date, (slots = plannedSlots(all, date, date)));
+    // Every schedule of the workspace (the free time), those named, or those of the kinds named.
+    const every = ids.includes(ALL_SCHEDULES);
+    return slots.filter((slot) => (every && own.has(slot.scheduleId)) || ids.includes(slot.scheduleId) || kinds.includes(kindOf.get(slot.scheduleId) ?? ''));
   };
 }
 
@@ -226,7 +278,7 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[]): SlotsOn {
  */
 export function conditionAllowsAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string): boolean {
   if (!conditionConstrains(condition)) return true;
-  const windows = conditionWindows(condition, (ids) => slotsOn(ids, date)) ?? [];
+  const windows = conditionWindows(condition, (query) => slotsOn(query, date)) ?? [];
   return windows.some((window) => (window.fromTime ?? '00:00') <= time && time < (window.dueTime ?? '24:00'));
 }
 
@@ -245,7 +297,7 @@ export function nextConditionMoment(condition: SlotCondition | null | undefined,
   for (let offset = 0; offset < days; offset++) {
     const day = addDays(date, offset);
     const from = offset ? '00:00' : time;
-    const window = (conditionWindows(condition, (ids) => slotsOn(ids, day)) ?? []).find((item) => (item.dueTime ?? '24:00') > from);
+    const window = (conditionWindows(condition, (query) => slotsOn(query, day)) ?? []).find((item) => (item.dueTime ?? '24:00') > from);
     if (window) return { date: day, time: (window.fromTime ?? '00:00') > from ? window.fromTime! : from };
   }
   return null;

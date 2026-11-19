@@ -111,8 +111,9 @@ type Documents = {
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      label\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
-    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n": typeof types.SubscribedWorkSchedulesDocument,
+    "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": typeof types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateScheduleTypeDocument,
     "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
@@ -264,7 +265,7 @@ type Documents = {
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
-    "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
+    "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
@@ -571,8 +572,9 @@ const documents: Documents = {
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      label\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
-    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": types.ForeignScheduleKindsDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n": types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n": types.SubscribedWorkSchedulesDocument,
+    "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateScheduleTypeDocument,
     "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
@@ -724,7 +726,7 @@ const documents: Documents = {
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
-    "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
+    "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
@@ -1322,11 +1324,15 @@ export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n"): typeof import('./graphql').ForeignScheduleKindsDocument;
+export function graphql(source: "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n"): typeof import('./graphql').ForeignScheduleKindsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n"): typeof import('./graphql').SubscribedWorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n"): typeof import('./graphql').OtherWorkspaceSchedulesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1934,7 +1940,7 @@ export function graphql(source: "\n  mutation CopySubRoutines($fromId: ID!, $toI
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n"): typeof import('./graphql').CreateRoutineDocument;
+export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n"): typeof import('./graphql').CreateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

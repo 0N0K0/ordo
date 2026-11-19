@@ -6,7 +6,7 @@ import {
   DEFAULT_HIDDEN_COLUMNS,
   formatDuration,
   ME,
-  conditionScheduleIds,
+  conditionReferences,
   readSlotCondition,
   TASK_COLUMNS,
   TASK_STATUS_CATEGORIES,
@@ -245,10 +245,10 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'updatedAt':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
       case 'slots':
-        // Schedules its condition names, on or out of them.
+        // Schedules and kinds its condition names, on or out of them.
         return {
           kind: 'choices',
-          value: (row) => (row.kind === 'task' ? conditionScheduleIds(readSlotCondition(row.task.slotCondition)) : []),
+          value: (row) => (row.kind === 'task' ? conditionReferences(readSlotCondition(row.task.slotCondition)) : []),
           options: extras.slotSchedules ?? [],
         };
       case 'timer':

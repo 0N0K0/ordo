@@ -1928,12 +1928,17 @@ export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean }> };
 
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceLabel: string }> };
+
+export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, workspaceId: string, workspaceLabel: string }> };
 
 export type CreateScheduleTypeMutationVariables = Exact<{
   input: ScheduleTypeInput;
@@ -3049,6 +3054,7 @@ export type CopySubRoutinesMutation = { copySubRoutines: number };
 
 export type CreateRoutineMutationVariables = Exact<{
   input: RoutineInput;
+  copyOf?: string | number | null | undefined;
 }>;
 
 
@@ -6239,6 +6245,7 @@ export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     customized
     scheduleCount
     subscribed
+    archived
   }
 }
     `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
@@ -6262,6 +6269,22 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SubscribedWorkSchedulesQuery, SubscribedWorkSchedulesQueryVariables>;
+export const OtherWorkspaceSchedulesDocument = new TypedDocumentString(`
+    query OtherWorkspaceSchedules {
+  otherWorkspaceSchedules {
+    id
+    archived
+    label
+    startDate
+    endDate
+    cases
+    exceptions
+    typeId
+    workspaceId
+    workspaceLabel
+  }
+}
+    `) as unknown as TypedDocumentString<OtherWorkspaceSchedulesQuery, OtherWorkspaceSchedulesQueryVariables>;
 export const CreateScheduleTypeDocument = new TypedDocumentString(`
     mutation CreateScheduleType($input: ScheduleTypeInput!) {
   createScheduleType(input: $input) {
@@ -7863,8 +7886,8 @@ export const CopySubRoutinesDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CopySubRoutinesMutation, CopySubRoutinesMutationVariables>;
 export const CreateRoutineDocument = new TypedDocumentString(`
-    mutation CreateRoutine($input: RoutineInput!) {
-  createRoutine(input: $input)
+    mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {
+  createRoutine(input: $input, copyOf: $copyOf)
 }
     `) as unknown as TypedDocumentString<CreateRoutineMutation, CreateRoutineMutationVariables>;
 export const UpdateRoutineDocument = new TypedDocumentString(`

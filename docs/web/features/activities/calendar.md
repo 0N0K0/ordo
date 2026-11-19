@@ -28,7 +28,8 @@ Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSche
 | `useWorkSchedules()`                                               | Plages (sélection de `WorkSchedules`)                                                                                                                                      | gestionnaires, `AvailabilityHint`, routines, tâches, temps                        |
 | `useScheduleTypes()`                                               | Types de plages (même requête)                                                                                                                                             | gestionnaires, `useScheduleSources`                                               |
 | `useDefaultScheduleKind()`                                         | Type par défaut (plages sans type)                                                                                                                                         | `ScheduleSettings`, `WorkSchedulesManager`                                        |
-| `useForeignScheduleKinds()`                                        | Types des autres espaces avec abonnement                                                                                                                                   | `ScheduleSettings`                                                                |
+| `useForeignScheduleKinds()`                                        | Types des autres espaces avec abonnement et `archived`                                                                                                                      | `ScheduleSettings`, `useSlotSources`                                              |
+| `useOtherWorkspaceSchedules()`                                     | Toutes les plages des autres espaces de l’utilisateur, archivées comprises (`otherWorkspaceSchedules`), abonné ou non                                                      | `useSlotSources`                                                                  |
 | `useSubscribedSchedules()`                                         | Plages des types abonnés                                                                                                                                                   | `useScheduleSources`, routines                                                    |
 | `useScheduleSources()`                                             | `{ schedules, foreign, types, defaultKind }` (undefined pendant le chargement)                                                                                             | `CalendarPage`, `RoutineDayAgenda`                                                |
 | `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des plages ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
@@ -153,7 +154,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/SlotConditionBuilder.tsx`
 
-`SlotConditionBuilder({ value, onChange, item })` : le champ « Plages de l’agenda » des tâches et des routines (une seule brique, décision D9), construit avec `FieldsFilterBuilder` (champs `schedules`, `freeTime`) ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Plages archivées non proposées sauf celles déjà dans la condition (`scheduleChoices`). `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par `RoutineSchedule` (routines, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de plages) est supprimé.
+`SlotConditionBuilder({ value, onChange, item })` : le champ « Plages de l’agenda » des tâches et des routines (une seule brique, décision D9), construit avec `FieldsFilterBuilder` : champs « Créneau » (`schedules` : « sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (`kinds` : « sur l’un des types », « hors des types ») et « Temps libre » (`freeTime` : « hors de tous les créneaux », « hors de tous les créneaux sauf ») ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Les plages et types des autres espaces de l’utilisateur sont proposés avec leur espace (« Sport · Perso ») ; les exceptions du temps libre sont des plages de l’espace. Plages et types archivés non proposés sauf ceux déjà dans la condition (`useSlotChoices`). `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par `RoutineSchedule` (routines, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de plages) est supprimé.
 
 ## hooks
 
@@ -182,8 +183,13 @@ Utilisés par `ScheduleSettings`.
 - `Doable` (interface) : `slotCondition?`, `assigneeIds`, `taskId`, `routineId`.
 - `routineDoable(routine)` : une routine en `Doable`, sans condition (sa condition garde déjà ses moments) : seuls les évènements qui occupent ses assignés comptent. Utilisé par `AlarmCenter`, `RoutinesPage`, `LifeCards` (accueil), temps.
 - `SlotRules` (interface) : `allowed`, `inSlots`, `blocking`, `nextAllowedAt`, `describe` (condition en mots, `describeSlotCondition` ; `null` sans condition).
-- `useSlotRules()` : conditions de plages de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : plages de l’espace, archivées comprises, comme l’API (`scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (20 tours max, `busyUntil`). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
+- `useSlotRules()` : conditions de plages de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : plages et types de l’espace et des autres espaces de l’utilisateur, archivés compris, comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (20 tours max, `busyUntil`). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
 - Constante interne `LOOKAHEAD_DAYS` = 14.
+
+### `hooks/use-slot-sources.ts`
+
+- `useSlotSources()` : ce qu’une condition de plages cite et sur quoi elle s’évalue : plages, types et type par défaut de l’espace (`useWorkSchedules`, `useScheduleTypes`, `useDefaultScheduleKind`), plages et types des autres espaces (`useOtherWorkspaceSchedules`, `useForeignScheduleKinds`). Utilisé par `useSlotRules`.
+- `useSlotChoices(keep?)` : `slotChoices` sur ces sources. Utilisé par `SlotConditionBuilder`, les routines (`routine-cells`, `RoutinesPage`, `RoutineSchedule`) et `use-task-columns` (tâches).
 
 ## lib
 
@@ -246,16 +252,18 @@ Utilisés par `ScheduleSettings`.
 - `describeScheduleCase(item, start)` : « Toutes les semaines du lundi au vendredi · … » (`describeCase`).
 - `exceptionPeriod(exception)` : « le … » ou « du … au … ».
 
-### `lib/schedule-choices.ts`
+### `lib/slot-choices.ts`
 
-`scheduleChoices(schedules, keep?)` : options d’une liste de plages (archivées exclues sauf gardées) et noms par id. Utilisé par `SlotConditionBuilder`, `useSlotRules`, les routines (`routine-cells`, `RoutinesPage`, `RoutineSchedule`) et `use-task-columns` (tâches).
+- `SlotSources` (interface) : plages, types et type par défaut de l’espace, plages et types des autres espaces.
+- `SlotChoices` (interface) : options par champ (`schedules`, `kinds`, `freeTime`), `all` (plages et types, colonne « Plages » des tableaux) et `names` (nom de chaque plage et type, archivés compris).
+- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; plages et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord. Remplace `scheduleChoices`.
 
 ### `lib/slot-condition-text.ts`
 
 | Export                                        | Rôle                                                                                                                                                       |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `emptySlotCondition()`                        | Groupe ET vide.                                                                                                                                            |
-| `describeSlotCondition(node, names, nested?)` | Condition en clair (« sur « Déjeuner » ou « Dîner » », « hors de toutes les plages sauf … »), groupes entre parenthèses ; « plage supprimée » si inconnue. |
+| `describeSlotCondition(node, names, nested?)` | Condition en clair (« sur « Déjeuner » ou « Dîner » », « sur le type « Sport · Perso » », « hors des types … », « hors de tous les créneaux sauf … »), groupes entre parenthèses ; « créneau supprimé » ou « type supprimé » si inconnu. |
 
 Déplacé de `features/routines/lib` : utilisé par `SlotConditionBuilder`, `useSlotRules` et les routines.
 

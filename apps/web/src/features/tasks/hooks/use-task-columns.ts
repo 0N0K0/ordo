@@ -1,8 +1,7 @@
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { useMemo } from 'react';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useTaskAlarmCounts } from '../../alarms/api';
-import { useWorkSchedules } from '../../calendar/api';
 import { useShoppingLists } from '../../shopping/api';
 import { useDoableTaskIds } from '../api';
 import { taskColumns, type TaskTableRow } from '../lib/task-columns';
@@ -23,12 +22,12 @@ export function useTaskColumns(
 ): DataColumn<TaskTableRow>[] {
   const alarmCounts = useTaskAlarmCounts();
   const { data: lists } = useShoppingLists();
-  const { data: schedules } = useWorkSchedules();
+  const slotChoices = useSlotChoices();
   const doableIds = useDoableTaskIds(doable);
   return useMemo(() => {
     if (!context) return [];
     const shoppingTaskIds = new Set((lists ?? []).flatMap((list) => list.taskIds));
-    const slotSchedules = scheduleChoices(schedules).options;
+    const slotSchedules = slotChoices.all;
     return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotSchedules, eventComments });
-  }, [context, today, doableIds, lists, alarmCounts, schedules, eventComments]);
+  }, [context, today, doableIds, lists, alarmCounts, slotChoices, eventComments]);
 }

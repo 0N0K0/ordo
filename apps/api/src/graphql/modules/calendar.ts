@@ -194,9 +194,10 @@ const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
-  description: 'Schedule of a kind of another workspace this one subscribes to, shown read only.',
+  description: 'Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.',
   fields: (t) => ({
     id: t.id({ resolve: (item) => item.rule.id }),
+    archived: t.exposeBoolean('archived'),
     label: t.string({ resolve: (item) => item.rule.label }),
     startDate: t.string({ resolve: (item) => item.rule.startDate }),
     endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
@@ -228,6 +229,7 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
     customized: t.exposeBoolean('customized', { description: 'The subscription sets a color or a display of its own.' }),
     scheduleCount: t.exposeInt('scheduleCount'),
     subscribed: t.exposeBoolean('subscribed'),
+    archived: t.exposeBoolean('archived', { description: 'Kind archived in its workspace: no longer offered in a slot condition.' }),
   }),
 });
 
@@ -357,6 +359,11 @@ builder.queryFields((t) => ({
     type: [ForeignScheduleRef],
     description: 'Schedules of the kinds of other workspaces this one shows (read only).',
     resolve: () => schedules.subscribedSchedules(),
+  }),
+  otherWorkspaceSchedules: t.field({
+    type: [ForeignScheduleRef],
+    description: 'Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can name.',
+    resolve: () => schedules.otherWorkspaceSchedules(),
   }),
   workSchedules: t.prismaField({
     type: ['WorkSchedule'],

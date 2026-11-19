@@ -464,8 +464,9 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(routines.deleteCategory(id)),
   }),
   createRoutine: t.id({
-    args: { input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: async (_root, { input }) => (await routines.createRoutine(routineInput(input))).id,
+    description: 'Creates a routine; a copy (copyOf) leaves out the former links of the routine copied out of its project tree.',
+    args: { input: t.arg({ type: RoutineInputType, required: true }), copyOf: t.arg.id({ description: 'Routine the new one is a copy of.' }) },
+    resolve: async (_root, { input, copyOf }) => (await routines.createRoutine(routineInput(input), idOrNull(copyOf))).id,
   }),
   copySubRoutines: t.int({
     description: 'Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.',
@@ -480,7 +481,7 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: RoutineInputType, required: true }),
       restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
     },
-    resolve: (_root, { id, input, restoring }) => removedLinks(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
+    resolve: (_root, { id, input, restoring }) => removedLinks(routines.updateRoutine(id, routineInput(input), { restoring: restoring ?? false })),
   }),
   patchRoutine: t.field({
     type: RemovedLinksResult,

@@ -123,6 +123,7 @@ const ForeignScheduleKindsDocument = graphql(`
       customized
       scheduleCount
       subscribed
+      archived
     }
   }
 `);
@@ -142,6 +143,23 @@ const SubscribedSchedulesDocument = graphql(`
       dayDisplay
       dayBar
       monthDisplay
+      workspaceId
+      workspaceLabel
+    }
+  }
+`);
+
+const OtherWorkspaceSchedulesDocument = graphql(`
+  query OtherWorkspaceSchedules {
+    otherWorkspaceSchedules {
+      id
+      archived
+      label
+      startDate
+      endDate
+      cases
+      exceptions
+      typeId
       workspaceId
       workspaceLabel
     }
@@ -580,6 +598,15 @@ export function useForeignScheduleKinds() {
  */
 export function useSubscribedSchedules() {
   return useQuery({ queryKey: [...calendarQueryKey, 'subscribed-schedules'], queryFn: async () => (await execute(SubscribedSchedulesDocument)).subscribedWorkSchedules });
+}
+
+/**
+ * Every schedule of the other workspaces of the user (archived ones too), shown here or not: what a slot condition can
+ * name of them.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useOtherWorkspaceSchedules() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'other-workspace-schedules'], queryFn: async () => (await execute(OtherWorkspaceSchedulesDocument)).otherWorkspaceSchedules });
 }
 
 /**

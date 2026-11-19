@@ -117,8 +117,8 @@ const CopySubRoutinesDocument = graphql(`
 `);
 
 const CreateRoutineDocument = graphql(`
-  mutation CreateRoutine($input: RoutineInput!) {
-    createRoutine(input: $input)
+  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {
+    createRoutine(input: $input, copyOf: $copyOf)
   }
 `);
 
@@ -530,9 +530,10 @@ export function useRoutineMutations() {
       (data, { id, parentId, index }) => ({ ...data, routineCategories: moveInTree(data.routineCategories, id, parentId, index) }),
     ),
     deleteCategory: useRoutineMutation(async (id: string) => (await execute(DeleteCategoryDocument, { id })).deleteRoutineCategory),
-    // Shown at once, as typed, until the saved routine (its occurrences computed) replaces it.
+    // Shown at once, as typed, until the saved routine (its occurrences computed) replaces it. A copy (copyOf) leaves
+    // out the former links of the routine copied out of its project tree (the API does).
     create: useRoutineMutation(
-      async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine,
+      async ({ copyOf, ...input }: RoutineInput & { copyOf?: string | null }) => (await execute(CreateRoutineDocument, { input, copyOf })).createRoutine,
       (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
     ),
     // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.

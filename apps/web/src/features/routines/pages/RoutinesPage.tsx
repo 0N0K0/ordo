@@ -1,7 +1,7 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { mapById } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
@@ -22,7 +22,6 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
-import { useWorkSchedules } from '../../calendar/api';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
@@ -83,7 +82,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
-  const { data: schedules } = useWorkSchedules();
+  const slotChoices = useSlotChoices();
   const { data: running } = useRunningTimer();
   const { move } = useRoutineMutations();
   const postpone = usePostponeRoutine();
@@ -107,11 +106,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             context,
             doable,
             comments,
-            slotKinds: scheduleChoices(schedules).options,
+            slotKinds: slotChoices.all,
             beneficiaries: beneficiaryChoices,
           })
         : [],
-    [today, byId, categories, context, doable, comments, schedules, beneficiaryChoices],
+    [today, byId, categories, context, doable, comments, slotChoices, beneficiaryChoices],
   );
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);

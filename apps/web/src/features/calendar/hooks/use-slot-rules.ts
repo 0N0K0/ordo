@@ -2,10 +2,11 @@ import * as fmt from '../../../lib/format';
 import { addDays, blockingEvent, type BusyEvent, busyUntil, conditionAllowsAt, nextConditionMoment, readSlotCondition, scheduleSlotsOn } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
-import { scheduleRules, useCalendarEvents, useWorkSchedules } from '../api';
+import { scheduleRules, useCalendarEvents } from '../api';
 import { localDay, localInstant } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { scheduleChoices } from '../lib/schedule-choices';
+import { slotChoices } from '../lib/slot-choices';
+import { useSlotSources } from './use-slot-sources';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 
 /** Days ahead the next allowed moment is looked for. */
@@ -62,7 +63,7 @@ export interface SlotRules {
    */
   nextAllowedAt: (item: Doable, from: Date) => Date | null;
   /**
-   * Condition on calendar schedules told in words (« sur « Travail » ou « Sport » »); null without condition (any time).
+   * Condition on calendar schedules told in words (« sur « Travail » ou « Sport · Perso » »); null without condition (any time).
    * @param {unknown} value Condition (JSON).
    * @returns {string | null} Text.
    */
@@ -71,12 +72,12 @@ export interface SlotRules {
 
 /**
  * Slot conditions of the current workspace, the same for tasks and routines: whether a task or a routine can be done now
- * or at a moment (its condition on the schedules of the workspace, and the events keeping its assignees busy).
- * Refreshed every minute.
+ * or at a moment (its condition on the schedules and kinds of the workspace and of the other workspaces of the user, and
+ * the events keeping its assignees busy). Refreshed every minute.
  * @returns {SlotRules} Slot conditions.
  */
 export function useSlotRules(): SlotRules {
-  const { data: schedules } = useWorkSchedules();
+  const sources = useSlotSources();
   const minute = useNow(true, 60_000);
   const today = localDay(new Date(minute));
   // Events of the coming days keep their contributors (none: « Moi ») busy.
@@ -85,9 +86,13 @@ export function useSlotRules(): SlotRules {
   const meId = context?.meId ?? null;
 
   return useMemo(() => {
-    // The schedules of the workspace, archived ones too (as the API).
-    const slotsOn = scheduleSlotsOn(scheduleRules(schedules ?? []));
-    const { names } = scheduleChoices(schedules);
+    // The schedules of the workspace and of the other ones, archived ones too (as the API).
+    const foreign = sources.foreignSchedules ?? [];
+    const slotsOn = scheduleSlotsOn(
+      scheduleRules(sources.schedules ?? []),
+      scheduleRules(foreign).map((rule, index) => ({ workspaceId: foreign[index].workspaceId, rule })),
+    );
+    const { names } = slotChoices(sources);
     /**
      * Whether a condition allows a moment.
      * @param {unknown} value Condition (JSON).
@@ -123,5 +128,5 @@ export function useSlotRules(): SlotRules {
       },
       describe: (value) => fmt.capitalize(describeSlotCondition(readSlotCondition(value), names)) || null,
     };
-  }, [schedules, minute, events, meId]);
+  }, [sources, minute, events, meId]);
 }

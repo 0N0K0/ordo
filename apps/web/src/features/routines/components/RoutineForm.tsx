@@ -114,7 +114,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       travelAfter: routine?.travelAfter ?? 0,
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
-      // A copy leaves out the former links out of its project tree.
+      // A copy leaves out the former links out of its project tree (shown here; the API leaves them out in any case).
       ...(routine && copy ? copiedLinks(routine, context, mapById(routines)) : { requiredIds: routine?.requiredIds ?? [], relatedIds: routine?.relatedIds ?? [] }),
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
@@ -147,7 +147,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     if (routine && !copy) update.mutate({ id: routine.id, input }, formCallbacks(form, ({ removedLinks }) => `Routine modifiée.${removedLinksNote(removedLinks)}`, onDone));
     else
       create.mutate(
-        input,
+        { ...input, copyOf: copy && routine ? routine.id : null },
         formCallbacks(form, copy ? 'Routine dupliquée.' : 'Routine créée.', (created) => {
           // A copy takes the sub-routines of the routine with it, under itself.
           if (copy && routine && routines.some((item) => item.parentId === routine.id)) copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);

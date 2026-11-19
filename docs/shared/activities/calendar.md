@@ -58,38 +58,45 @@ Internes : `BusyItem` (`assigneeIds`, `taskId?`, `routineId?`), `peopleOf` (list
 
 ## `slot-conditions.ts` — condition de plages d'une tâche ou d'une routine
 
-La même condition pour les tâches et les routines (décision D9) : un arbre de filtre (groupes « et » / « ou », voir [tables](../cross-cutting/tables.md)) sur deux champs, qui cite des plages de l'espace par leur id. Sans condition : n'importe quand (décision D10). Déplacé de `routines/routine-times.ts`.
+La même condition pour les tâches et les routines (décision D9) : un arbre de filtre (groupes « et » / « ou », voir [tables](../cross-cutting/tables.md)) sur trois champs, qui cite des plages par leur id ou des types de plages par leur référence (`slot-kinds.ts`), de l'espace ou d'un autre espace de l'utilisateur (décision DX). Sans condition : n'importe quand (décision D10). Déplacé de `routines/routine-times.ts`.
 
 | Export                                 | Rôle                                                                                                                                                                                                                  |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SLOT_CONDITION_FIELDS`                | `schedules` (des horaires précis) et `freeTime` (temps libre : hors de tout horaire, y compris ceux créés plus tard), tous deux de type `reference`.                                                                  |
-| `SlotConditionField`                   | `schedules` ou `freeTime`.                                                                                                                                                                                            |
-| `SLOT_CONDITION_FIELD_OPERATORS`       | `schedules` : `in` (sur une de ces plages), `notIn` (hors de toutes) ; `freeTime` : `isEmpty` (hors de tout horaire), `notIn` (hors de tout horaire sauf ceux nommés). Autre opérateur : « Sur ou hors des plages. ». |
-| `ALL_SCHEDULES`                        | `'*'` : tous les horaires, pour demander les plages d'un jour.                                                                                                                                                        |
+| `SLOT_CONDITION_FIELDS`                | `schedules` (des horaires précis), `kinds` (tous les horaires de certains types, y compris ceux créés plus tard) et `freeTime` (temps libre : hors de tout horaire de l'espace, y compris ceux créés plus tard), tous de type `reference`. |
+| `SlotConditionField`                   | `schedules`, `kinds` ou `freeTime`.                                                                                                                                                                                   |
+| `SLOT_CONDITION_FIELD_OPERATORS`       | `schedules` et `kinds` : `in` (sur une de ces plages / un de ces types), `notIn` (hors de tous) ; `freeTime` : `isEmpty` (hors de tout horaire), `notIn` (hors de tout horaire sauf ceux nommés). Autre opérateur : « Sur ou hors des plages. ». |
+| `ALL_SCHEDULES`                        | `'*'` : tous les horaires de l'espace, pour demander les plages d'un jour.                                                                                                                                            |
 | `SlotConditionItem`, `SlotCondition`   | Condition, groupe.                                                                                                                                                                                                    |
 | `slotConditionSchema`                  | Schéma d'un groupe de conditions.                                                                                                                                                                                     |
 | `readSlotCondition(value)`             | Condition stockée validée, `null` sinon.                                                                                                                                                                              |
-| `conditionScheduleIds(node)`           | Horaires cités par une condition.                                                                                                                                                                                     |
-| `conditionConstrains(node)`            | Vrai si la condition limite les heures (temps libre ou au moins un horaire cité).                                                                                                                                     |
+| `conditionScheduleIds(node)`           | Horaires cités par une condition (`schedules` et exceptions du temps libre).                                                                                                                                          |
+| `conditionKinds(node)`                 | Types cités par une condition (`kinds`).                                                                                                                                                                              |
+| `conditionReferences(node)`            | Tout ce qu'une condition cite : horaires et types (ids distincts ; colonne « Plages » des tableaux, archivés gardés).                                                                                                |
+| `conditionConstrains(node)`            | Vrai si la condition limite les heures (temps libre ou au moins un horaire ou un type cité).                                                                                                                          |
 | `TimeWindow`                           | Fenêtre `{ fromTime, dueTime }` (`null` : début ou fin de journée).                                                                                                                                                   |
-| `conditionWindows(condition, slotsOf)` | Fenêtres permises un jour : `in` = plages fusionnées, `notIn` = hors de ces plages, temps libre = hors de toutes ; groupes « et » (intersection) / « ou » (union) ; `null` si rien ne contraint.                      |
+| `ScheduleQuery`                        | Horaires demandés : `ids` (`ALL_SCHEDULES` : tous ceux de l'espace) et `kinds`.                                                                                                                                       |
+| `SlotsOf`                              | Plages d'une `ScheduleQuery` un jour donné.                                                                                                                                                                           |
+| `conditionWindows(condition, slotsOf)` | Fenêtres permises un jour : `in` = plages fusionnées (des horaires ou des types cités), `notIn` = hors de ces plages, temps libre = hors de toutes celles de l'espace ; groupes « et » (intersection) / « ou » (union) ; `null` si rien ne contraint. |
 | `windowsAllowed(window, allowed)`      | Parties d'une fenêtre permises par la condition (la fenêtre entière si aucune contrainte ; vide : pas faisable ce jour).                                                                                              |
-
-| `SlotsOn`                              | Plages de certains horaires un jour (`ALL_SCHEDULES` : tous).                                                                                                                                                         |
-| `scheduleSlotsOn(rules)`               | `SlotsOn` d'un jeu d'horaires, les plages de chaque jour calculées à la première demande (API : `loadSlotsOn`, web : `useSlotRules`).                                                                               |
+| `SlotsOn`                              | Plages d'une `ScheduleQuery` un jour.                                                                                                                                                                                 |
+| `ForeignScheduleRule`                  | Horaire d'un autre espace de l'utilisateur avec son espace (`workspaceId`, `rule`).                                                                                                                                   |
+| `scheduleSlotsOn(rules, foreign?)`     | `SlotsOn` des horaires de l'espace et de ceux des autres espaces (comptés seulement là où une condition les cite, eux ou leur type ; jamais dans le temps libre), les plages de chaque jour calculées à la première demande (API : `loadSlotsOn`, web : `useSlotRules`). |
 | `conditionAllowsAt(condition, slotsOn, date, time)` | Un moment est permis par la condition (toujours sans condition).                                                                                                                                          |
 | `nextConditionMoment(condition, slotsOn, date, time, days)` | Premier moment permis à partir d'un moment, sur `days` jours (le moment même sans condition) ; `null` si aucun.                                                                                   |
 
-Internes : `Interval`, `intervalOf`, `windowOf`, `merged` (fusion des plages ; une plage jusqu'à 23:59 va jusqu'à la fin du jour), `windowsOutside`, `WHOLE_DAY`, `intersect`, `unite`, `conditionIntervals`, `slotConditionItemSchema`.
+Internes : `Interval`, `intervalOf`, `windowOf`, `merged` (fusion des plages ; une plage jusqu'à 23:59 va jusqu'à la fin du jour), `windowsOutside`, `WHOLE_DAY`, `intersect`, `unite`, `conditionIntervals`, `conditionValues`, `slotConditionItemSchema`.
 
 ## `slot-kinds.ts` — références des types de plages
 
-| Export                                 | Rôle                                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `DEFAULT_SLOT_KIND`                    | `'default'` : les plages sans type d'un espace (heures de travail, « Travail »).                              |
-| `foreignSlotKind(workspaceId, typeId)` | `ws:<workspaceId>:<typeId \| default>` : un type d'un autre espace (clé des abonnements aux types de plages). |
+| Export                                     | Rôle                                                                                                                              |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `DEFAULT_SLOT_KIND`                        | `'default'` : les plages sans type d'un espace (heures de travail, « Travail »).                                                  |
+| `ownSlotKind(typeId)`                      | Un type de l'espace : son id, ou `default` sans type.                                                                             |
+| `foreignSlotKind(workspaceId, typeId)`     | `ws:<workspaceId>:<typeId \| default>` : un type d'un autre espace (clé des abonnements aux types de plages, et des conditions). |
+| `foreignSlotKindWorkspace(kind)`           | Espace d'une référence `ws:…` ; `null` pour un type de l'espace.                                                                  |
+| `scheduleSlotKind(schedule, workspaceId?)` | Type d'un horaire tel qu'une condition le cite (`ownSlotKind`, ou `foreignSlotKind` pour un horaire d'un autre espace).           |
 
-La règle par types de plages (`slotRuleSchema`, `readSlotRule`, `effectiveSlotRule`, `allowedAt`, `nextAllowed`, `knownSlotRule`, `kindedSlots`, `scheduleKinds`, `ownSlotKind`) est supprimée : les tâches prennent la condition des routines (décision D9).
+La règle par types de plages (`slotRuleSchema`, `readSlotRule`, `effectiveSlotRule`, `allowedAt`, `nextAllowed`, `knownSlotRule`, `kindedSlots`, `scheduleKinds`) est supprimée : les tâches prennent la condition des routines (décision D9), qui cite aussi les types (décision DX).
 
 ## `work-schedules.ts` — plages planifiées (horaires)
 
