@@ -1,0 +1,41 @@
+# Personnes : sélections, clés, libellés
+
+Choix et affichage des personnes : contributeurs (membres de l'équipe ou du foyer), relations (« Relations » en pro, « Proches » en perso), l'utilisateur (« Moi »). Source : `apps/web/src/components/people/`. Règles : [Personnes](../../business-rules/cross-cutting/people.md) (bénéficiaires libres, assignés = contributeurs du projet).
+
+## `people-keys.ts`
+
+Valeurs des sélections qui mélangent les sortes de personnes : `« c:<id> »` (contributeur), `« m:<id> »` (membre), `« r:<id> »` (relation), construites avec `taggedKey` (`lib/tagged-key`).
+
+- `ME_KEY` : valeur `'me'` de « Moi » (l'utilisateur, ni membre ni relation) dans une sélection ou un filtre de personnes. Imposée par eslint.
+- `personKey(kind, id)` : clé d'une personne (`kind` = `'contributor' | 'member' | 'relation'`).
+- `personKeyOptions(kind, names)` : options `{ value: clé, label }` à partir d'une table nom par id.
+- `parsePersonKey(key)` : `{ kind, id }`, ou `null` pour aucune clé ou une clé inconnue.
+- `peopleKeys(people)` : valeurs d'une sélection multiple, sorte par sorte (`{ contributor?, member?, relation? }`).
+- `idsOfKind(keys, kind)` : ids d'une sorte parmi des clés.
+- `memberOrRelation(key)` : `{ memberId, relationId }` d'une sélection simple membre / relation (pour qui est une ligne, un budget).
+- `memberOrRelationKey({ memberId, relationId })` : clé inverse (la relation d'abord), `null` sans aucun.
+- `memberRelationOptions(members, relations, { perso, withMe })` : options groupées d'une sélection de membres et relations (« Prénom (moi) » pour l'utilisateur, retiré si `withMe` est faux). Utilisé par la trésorerie.
+
+## `people-options.ts`
+
+- `PeopleGroup` (interface) : groupe d'options `{ group, items }`.
+- `personName(person)` : « Prénom (moi) » pour l'utilisateur, le nom sinon (décision 15).
+- `meName(me)` : nom de l'utilisateur parmi des personnes, « Moi » s'il n'en fait pas partie.
+- `relationNoun(perso, many?)` : « Relation(s) » en pro, « Proche(s) » en perso. Imposé par eslint.
+- `RelationWords` (interface) et `relationWords(perso)` : les mots accordés : `noun`, `many`, `the` (« la relation » / « le proche »), `new` (« Nouvelle relation » / « Nouveau proche »), `none` (« Aucune relation. » / « Aucun proche. »), `feminine`. Imposé par eslint pour ces libellés.
+- `peopleOptions(contributors, relations, perso)` : options groupées « Contributeurs » puis « Relations » / « Proches », groupe vide retiré.
+- `usePeopleOptions()` : `peopleOptions` avec le type de l'espace actif (`useActiveWorkspace`). Exception eslint connue : import de `features/workspaces`.
+
+## `PeopleSelect.tsx`
+
+`PeopleSelect` : champ de formulaire qui choisit des personnes (assignés, bénéficiaires, pour qui est un produit) : `BatchMultiSelect` cherchable et vidable, placeholder « Personne » sans choix. Props : `label`, `description`, `placeholder`, `data`, `value`, `onChange`, `renderOption`, `nothingFoundMessage`, `error`, `disabled`. Utilisé par les tâches, les achats, les bénéficiaires.
+
+## `people-rows.tsx`
+
+- `PersonOption` : option d'une personne dans une sélection : avatar (20 px), libellé, indice atténué (handle…). Utilisé par l'autocomplétion « @ » de l'éditeur markdown.
+- `PersonAvatar` : avatar d'une personne (initiales colorées par le nom), 16 px par défaut (dans une ligne de texte). Utilisé par les tâches et les mails.
+- `PersonRow` : ligne d'une personne dans une liste (contributeurs d'un projet, de l'espace) : avatar `md`, nom (`label`, défaut le nom), `badges`, `details` en dessous. Utilisé par les tâches et la trésorerie.
+
+## `person-option.tsx`
+
+`personOptionRenderer(byId, { handle })` : rendu (`renderOption`) des options d'une sélection de personnes : avatar, libellé, « @handle » (sauf `handle: false`). Imposé par eslint (un `PersonOption` dans un `renderOption` écrit à la main est interdit). Utilisé par les tâches et la trésorerie.

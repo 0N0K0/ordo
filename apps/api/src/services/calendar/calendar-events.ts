@@ -301,7 +301,12 @@ function eventRelations(event: Awaited<ReturnType<typeof parseEvent>>, mode: 'co
  */
 function relationIdsOf(event: EventWithRelations): Record<'contributorIds' | 'relationIds' | 'beneficiaryIds' | 'beneficiaryRelationIds' | 'categoryIds' | 'taskIds', string[]> {
   return {
-    ...relationIdsOf(event),
+    contributorIds: event.contributors.map((contributor) => contributor.id),
+    relationIds: event.relations.map((relation) => relation.id),
+    beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
+    beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
+    categoryIds: event.categories.map((category) => category.id),
+    taskIds: event.tasks.map((task) => task.id),
   };
 }
 
